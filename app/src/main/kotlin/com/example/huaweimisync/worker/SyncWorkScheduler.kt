@@ -7,8 +7,10 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
 
-fun interface MeasurementSyncScheduler {
+interface MeasurementSyncScheduler {
     fun enqueue(measurementId: String)
+
+    fun cancel(measurementId: String)
 }
 
 class SyncWorkScheduler(private val context: Context) : MeasurementSyncScheduler {
@@ -22,5 +24,9 @@ class SyncWorkScheduler(private val context: Context) : MeasurementSyncScheduler
             ExistingWorkPolicy.REPLACE,
             work,
         )
+    }
+
+    override fun cancel(measurementId: String) {
+        WorkManager.getInstance(context).cancelUniqueWork("sync-$measurementId")
     }
 }
