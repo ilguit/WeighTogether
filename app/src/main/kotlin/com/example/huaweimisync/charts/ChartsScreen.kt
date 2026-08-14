@@ -29,6 +29,7 @@ import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -51,6 +52,7 @@ import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLa
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
@@ -62,17 +64,13 @@ import com.patrykandpatrick.vico.compose.common.component.TextComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.data.ExtraStore
-import java.text.DecimalFormat
-import java.text.DecimalFormatSymbols
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Locale
 
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
-private val MarkerDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,6 +142,8 @@ fun ChartsScreen(
                 items(state.selectedMetrics, key = ChartMetricOption::key) { metric ->
                     MetricChartCard(
                         series = seriesByKey[metric.key] ?: ChartSeries(metric, emptyList()),
+                        startDate = state.startDate,
+                        endDateInclusive = state.endDateInclusive,
                         zoneId = zoneId,
                     )
                 }
@@ -256,7 +256,12 @@ private fun MessageCard(message: String) = Card(Modifier.fillMaxWidth()) {
 }
 
 @Composable
-private fun MetricChartCard(series: ChartSeries, zoneId: ZoneId) = Card(Modifier.fillMaxWidth()) {
+private fun MetricChartCard(
+    series: ChartSeries,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    zoneId: ZoneId,
+) = Card(Modifier.fillMaxWidth()) {
     val points = remember(series.points) { orderedChartPoints(series.points) }
     Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(series.metric.labelWithUnit(), style = MaterialTheme.typography.titleMedium)
@@ -264,9 +269,21 @@ private fun MetricChartCard(series: ChartSeries, zoneId: ZoneId) = Card(Modifier
             points.isEmpty() -> Text("Нет данных за выбранный период")
             points.size == 1 -> {
                 Text("Одно измерение", style = MaterialTheme.typography.labelMedium)
-                MetricLineChart(series.metric, points, zoneId)
+                MetricLineChart(
+                    metric = series.metric,
+                    points = points,
+                    startDate = startDate,
+                    endDateInclusive = endDateInclusive,
+                    zoneId = zoneId,
+                )
             }
-            else -> MetricLineChart(series.metric, points, zoneId)
+            else -> MetricLineChart(
+                metric = series.metric,
+                points = points,
+                startDate = startDate,
+                endDateInclusive = endDateInclusive,
+                zoneId = zoneId,
+            )
         }
     }
 }
@@ -275,12 +292,23 @@ private fun MetricChartCard(series: ChartSeries, zoneId: ZoneId) = Card(Modifier
 private fun MetricLineChart(
     metric: ChartMetricOption,
     points: List<ChartPoint>,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
     zoneId: ZoneId,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
+    val xRange = remember(startDate, endDateInclusive, zoneId) {
+        chartXRange(startDate, endDateInclusive, zoneId)
+    }
     val yRange = remember(points, metric.decimalPlaces) { chartYRange(points, metric.decimalPlaces) }
-    val rangeProvider = remember(yRange) {
+    val rangeProvider = remember(xRange, yRange) {
         object : CartesianLayerRangeProvider {
+            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) =
+                xRange.minX
+
+            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) =
+                xRange.maxX
+
             override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) =
                 yRange?.min ?: minY
 
@@ -300,7 +328,25 @@ private fun MetricLineChart(
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerValueFormatter = remember(metric, zoneId) { markerValueFormatter(metric, zoneId) }
+    val markerValueFormatter = remember(metric, zoneId) {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
+                ?: return@ValueFormatter ""
+            val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
+            formatChartMarkerText(
+                measuredAtEpochMillis = target.x.toLong(),
+                value = value,
+                metric = metric,
+                zoneId = zoneId,
+            )
+        }
+    }
+    val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
+        rememberVicoZoomState(
+            zoomEnabled = true,
+            initialZoom = Zoom.Content,
+        )
+    }
 
     LaunchedEffect(points) {
         modelProducer.runTransaction {
@@ -334,28 +380,9 @@ private fun MetricLineChart(
         modelProducer = modelProducer,
         modifier = Modifier.fillMaxWidth().height(260.dp),
         scrollState = rememberVicoScrollState(scrollEnabled = true),
-        zoomState = rememberVicoZoomState(zoomEnabled = true),
+        zoomState = zoomState,
     )
 }
-
-private fun markerValueFormatter(
-    metric: ChartMetricOption,
-    zoneId: ZoneId,
-): DefaultCartesianMarker.ValueFormatter =
-    DefaultCartesianMarker.ValueFormatter { _, targets ->
-        val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
-            ?: return@ValueFormatter ""
-        val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
-        val dateTime = MarkerDateTimeFormatter.format(
-            Instant.ofEpochMilli(target.x.toLong()).atZone(zoneId),
-        )
-        buildString {
-            append(dateTime)
-            append('\n')
-            append(decimalFormat(metric.decimalPlaces).format(value))
-            if (metric.unit.isNotBlank()) append(" ${metric.unit}")
-        }
-    }
 
 @Composable
 private fun rememberChartMarker(
@@ -372,9 +399,10 @@ private fun rememberChartMarker(
             color = MaterialTheme.colorScheme.onSurface,
             textAlign = TextAlign.Center,
         ),
-        padding = Insets(8.dp, 5.dp),
+        lineCount = 2,
+        padding = Insets(10.dp, 6.dp),
         background = background,
-        minWidth = TextComponent.MinWidth.fixed(64.dp),
+        minWidth = TextComponent.MinWidth.text("00.00.0000 00:00"),
     )
     return rememberDefaultCartesianMarker(
         label = label,
@@ -386,14 +414,3 @@ private fun rememberChartMarker(
 
 private fun ChartMetricOption.labelWithUnit(): String =
     if (unit.isBlank()) displayName else "$displayName, $unit"
-
-private fun decimalFormat(decimalPlaces: Int): DecimalFormat {
-    val pattern = buildString {
-        append('0')
-        if (decimalPlaces > 0) {
-            append('.')
-            repeat(decimalPlaces) { append('0') }
-        }
-    }
-    return DecimalFormat(pattern, DecimalFormatSymbols(Locale.getDefault()))
-}
