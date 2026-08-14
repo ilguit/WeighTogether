@@ -1,0 +1,13 @@
+.gradle/
+.idea/
+build/
+**/build/
+local.properties
+*.iml
+*.jks
+*.keystore
+app/agconnect-services.json
+captures/
+.externalNativeBuild/
+.cxx/
+.local-tooling/

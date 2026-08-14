@@ -1,0 +1,13 @@
+Xiaomi Scale Sync
+Copyright 2026 Xiaomi Scale Sync contributors
+
+The body-composition calculation design is informed by BodyMiScale:
+https://github.com/dckiller51/bodymiscale
+
+BodyMiScale is licensed under the Apache License, Version 2.0.
+This project contains an independent Kotlin implementation and records its own
+algorithm version with every measurement.
+
+Xiaomi, Huawei, vivo, Android, Health Connect, Zepp Life, and related product
+names are trademarks of their respective owners. This project is not affiliated
+with or endorsed by those companies.

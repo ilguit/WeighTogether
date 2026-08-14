@@ -1,0 +1,179 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "7499322813a2b6853f5a696db8bd467a",
+    "entities": [
+      {
+        "tableName": "measurements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochMillis` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `impedanceOhm` INTEGER NOT NULL, `bmi` REAL NOT NULL, `bodyFatPercent` REAL NOT NULL, `bodyFatMassKg` REAL NOT NULL, `waterPercent` REAL NOT NULL, `waterMassKg` REAL NOT NULL, `muscleMassKg` REAL NOT NULL, `skeletalMuscleMassKg` REAL NOT NULL, `boneMassKg` REAL NOT NULL, `proteinPercent` REAL NOT NULL, `proteinMassKg` REAL NOT NULL, `visceralFatLevel` REAL NOT NULL, `basalMetabolicRateKcal` REAL NOT NULL, `metabolicAge` INTEGER NOT NULL, `leanBodyMassKg` REAL NOT NULL, `algorithmVersion` TEXT NOT NULL, `huaweiStatus` TEXT NOT NULL, `healthConnectStatus` TEXT NOT NULL, `huaweiError` TEXT, `healthConnectError` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAddress",
+            "columnName": "deviceAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtEpochMillis",
+            "columnName": "measuredAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawPayloadHex",
+            "columnName": "rawPayloadHex",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impedanceOhm",
+            "columnName": "impedanceOhm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bmi",
+            "columnName": "bmi",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bodyFatPercent",
+            "columnName": "bodyFatPercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "bodyFatMassKg",
+            "columnName": "bodyFatMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "waterPercent",
+            "columnName": "waterPercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "waterMassKg",
+            "columnName": "waterMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "muscleMassKg",
+            "columnName": "muscleMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "skeletalMuscleMassKg",
+            "columnName": "skeletalMuscleMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boneMassKg",
+            "columnName": "boneMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinPercent",
+            "columnName": "proteinPercent",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "proteinMassKg",
+            "columnName": "proteinMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visceralFatLevel",
+            "columnName": "visceralFatLevel",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "basalMetabolicRateKcal",
+            "columnName": "basalMetabolicRateKcal",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "metabolicAge",
+            "columnName": "metabolicAge",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "leanBodyMassKg",
+            "columnName": "leanBodyMassKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "huaweiStatus",
+            "columnName": "huaweiStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "healthConnectStatus",
+            "columnName": "healthConnectStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "huaweiError",
+            "columnName": "huaweiError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "healthConnectError",
+            "columnName": "healthConnectError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '7499322813a2b6853f5a696db8bd467a')"
+    ]
+  }
+}
