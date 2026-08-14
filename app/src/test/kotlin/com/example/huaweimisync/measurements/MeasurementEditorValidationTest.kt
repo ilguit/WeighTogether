@@ -59,9 +59,22 @@ class MeasurementEditorValidationTest {
     fun invalidDraftCannotProduceSubmission() {
         val invalid = MeasurementEditorDraft.from(sampleValues())
             .withValue(MeasurementField.METABOLIC_AGE, "forty")
+        val editor = MeasurementEditorState(
+            measurementId = "measurement-1",
+            measuredAtEpochMillis = 0L,
+            draft = invalid,
+        )
 
         assertFalse(invalid.isValid)
         assertNull(invalid.parsedValuesOrNull())
+        assertFalse(editor.canSave)
+        assertTrue(editor.copy(draft = MeasurementEditorDraft.from(sampleValues())).canSave)
+        assertFalse(
+            editor.copy(
+                draft = MeasurementEditorDraft.from(sampleValues()),
+                isSaving = true,
+            ).canSave,
+        )
     }
 
     @Test
