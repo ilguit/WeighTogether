@@ -87,6 +87,9 @@ dependencies {
     implementation("androidx.compose.material3:material3:1.4.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
 
+    implementation("com.patrykandpatrick.vico:compose:3.2.1")
+    implementation("com.patrykandpatrick.vico:compose-m3:3.2.1")
+
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
