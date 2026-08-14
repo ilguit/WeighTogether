@@ -41,14 +41,16 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 
-private enum class AppSection(
+internal enum class AppSection(
     val title: String,
     val icon: String,
 ) {
-    HOME("Главная", "⌂"),
     MEASUREMENTS("Измерения", "≡"),
     CHARTS("Графики", "⌁"),
+    SETTINGS("Настройки", "⚙"),
 }
+
+internal val defaultAppSection = AppSection.MEASUREMENTS
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +66,7 @@ fun HuaweiMiSyncApp(
     val measurementsState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
     val chartsState by chartsViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
-    var currentSection by rememberSaveable { mutableStateOf(AppSection.HOME) }
+    var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     val editorOpen = currentSection == AppSection.MEASUREMENTS && measurementsState.editor != null
 
     LaunchedEffect(measurementsViewModel) {
@@ -102,7 +104,7 @@ fun HuaweiMiSyncApp(
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { padding ->
             when (currentSection) {
-                AppSection.HOME -> HomeScreen(
+                AppSection.SETTINGS -> SettingsScreen(
                     state = state,
                     huaweiConfigured = viewModel.huaweiConfigured,
                     huaweiAvailableInBuild = viewModel.huaweiAvailableInBuild,
@@ -138,7 +140,7 @@ fun HuaweiMiSyncApp(
 }
 
 @Composable
-private fun HomeScreen(
+private fun SettingsScreen(
     state: MainUiState,
     huaweiConfigured: Boolean,
     huaweiAvailableInBuild: Boolean,
