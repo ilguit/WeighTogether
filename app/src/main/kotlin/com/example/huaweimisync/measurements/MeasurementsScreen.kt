@@ -256,6 +256,11 @@ private fun MeasurementEditor(
                         "Дата, устройство и исходные данные не изменяются. Производные значения не пересчитываются.",
                         style = MaterialTheme.typography.bodySmall,
                     )
+                    Text(
+                        "Изменится только локальная запись. Уже отправленные данные в Health Connect и Huawei Health не обновятся и не удалятся.",
+                        color = MaterialTheme.colorScheme.error,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 }
             }
             items(MeasurementField.entries, key = { it.name }) { field ->
