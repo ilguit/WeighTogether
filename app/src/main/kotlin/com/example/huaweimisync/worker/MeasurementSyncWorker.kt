@@ -5,7 +5,6 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import com.example.huaweimisync.MiSyncApplication
-import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.sync.SyncResult
 import com.example.huaweimisync.sync.toStateUpdate
 
@@ -17,26 +16,21 @@ class MeasurementSyncWorker(
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         val container = (applicationContext as MiSyncApplication).container
         val dao = container.database.measurementDao()
-        val value = dao.get(id) ?: return Result.success()
+        val outcome = MeasurementSyncProcessor(
+            loadMeasurement = dao::get,
+            writeHuawei = container.huaweiHealth::write,
+            writeHealthConnect = container.healthConnect::write,
+            applyHuaweiResult = { measurementId, result ->
+                applyHuaweiResult(dao, measurementId, result)
+            },
+            applyHealthConnectResult = { measurementId, result ->
+                applyHealthConnectResult(dao, measurementId, result)
+            },
+        ).sync(id)
 
-        val huawei = when (value.huaweiStatus) {
-            SyncStatus.SYNCED.name -> SyncResult.Success
-            SyncStatus.DISABLED.name -> SyncResult.Disabled("Huawei adapter disabled")
-            else -> container.huaweiHealth.write(value)
-        }
-        applyHuaweiResult(dao, id, huawei)
-
-        val healthConnect = if (value.healthConnectStatus == SyncStatus.SYNCED.name) {
-            SyncResult.Success
-        } else {
-            container.healthConnect.write(value)
-        }
-        applyHealthConnectResult(dao, id, healthConnect)
-
-        return if (huawei is SyncResult.Retryable || healthConnect is SyncResult.Retryable) {
-            Result.retry()
-        } else {
-            Result.success()
+        return when (outcome) {
+            MeasurementSyncOutcome.COMPLETE -> Result.success()
+            MeasurementSyncOutcome.RETRY -> Result.retry()
         }
     }
 

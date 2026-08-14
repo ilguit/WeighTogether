@@ -13,6 +13,8 @@ import com.example.huaweimisync.ble.BleSupport
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
+    private val measurementsViewModel: MeasurementsViewModel by viewModels()
+    private val chartsViewModel: ChartsViewModel by viewModels()
 
     private val bluetoothPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -45,6 +47,8 @@ class MainActivity : ComponentActivity() {
         setContent {
             HuaweiMiSyncApp(
                 viewModel = viewModel,
+                measurementsViewModel = measurementsViewModel,
+                chartsViewModel = chartsViewModel,
                 requestHealthConnectPermissions = {
                     if (viewModel.healthConnectAvailable) {
                         healthPermissions.launch(viewModel.healthConnectPermissions)

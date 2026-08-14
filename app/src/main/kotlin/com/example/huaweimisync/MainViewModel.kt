@@ -13,7 +13,6 @@ import com.example.huaweimisync.ble.ScanWorkScheduler
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.data.AppSettings
-import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.StoreResult
 import com.example.huaweimisync.sync.SyncResult
 import java.time.LocalDate
@@ -26,7 +25,6 @@ import kotlinx.coroutines.launch
 
 data class MainUiState(
     val settings: AppSettings = AppSettings(),
-    val measurements: List<MeasurementEntity> = emptyList(),
     val message: String? = null,
     val scanning: Boolean = false,
 )
@@ -39,11 +37,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val uiState: StateFlow<MainUiState> = combine(
         container.profileStore.settings,
-        container.repository.observeRecent(),
         message,
         scanning,
-    ) { settings, measurements, currentMessage, isScanning ->
-        MainUiState(settings, measurements, currentMessage, isScanning)
+    ) { settings, currentMessage, isScanning ->
+        MainUiState(settings, currentMessage, isScanning)
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
     val huaweiConfigured: Boolean get() = container.huaweiHealth.isConfigured
