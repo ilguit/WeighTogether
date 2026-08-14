@@ -51,7 +51,7 @@ class MeasurementRepositoryTest {
             dao = dao,
             profileProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
-            syncScheduler = MeasurementSyncScheduler { scheduled += it },
+            syncScheduler = RecordingSyncScheduler(scheduled),
             huaweiSyncEnabled = false,
         )
 
@@ -82,9 +82,19 @@ class MeasurementRepositoryTest {
         dao = dao,
         profileProvider = { profile },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
-        syncScheduler = MeasurementSyncScheduler { scheduled += it },
+        syncScheduler = RecordingSyncScheduler(scheduled),
         huaweiSyncEnabled = false,
     )
+}
+
+private class RecordingSyncScheduler(
+    private val enqueued: MutableList<String>,
+) : MeasurementSyncScheduler {
+    override fun enqueue(measurementId: String) {
+        enqueued += measurementId
+    }
+
+    override fun cancel(measurementId: String) = Unit
 }
 
 private class FakeMeasurementDao(

@@ -21,7 +21,7 @@ interface MeasurementDao {
         """
         UPDATE measurements
         SET huaweiStatus = :status, huaweiError = :error
-        WHERE id = :id
+        WHERE id = :id AND huaweiStatus != 'LOCAL_ONLY'
         """,
     )
     suspend fun updateHuaweiStatus(id: String, status: String, error: String?)
@@ -30,7 +30,7 @@ interface MeasurementDao {
         """
         UPDATE measurements
         SET healthConnectStatus = :status, healthConnectError = :error
-        WHERE id = :id
+        WHERE id = :id AND healthConnectStatus != 'LOCAL_ONLY'
         """,
     )
     suspend fun updateHealthConnectStatus(id: String, status: String, error: String?)
@@ -38,7 +38,12 @@ interface MeasurementDao {
     @Query(
         """
         SELECT id FROM measurements
-        WHERE huaweiStatus NOT IN ('SYNCED', 'DISABLED') OR healthConnectStatus != 'SYNCED'
+        WHERE huaweiStatus != 'LOCAL_ONLY'
+          AND healthConnectStatus != 'LOCAL_ONLY'
+          AND (
+            huaweiStatus NOT IN ('SYNCED', 'DISABLED')
+            OR healthConnectStatus != 'SYNCED'
+          )
         ORDER BY measuredAtEpochMillis ASC
         """,
     )
@@ -47,7 +52,8 @@ interface MeasurementDao {
     @Query(
         """
         SELECT id FROM measurements
-        WHERE healthConnectStatus != 'SYNCED'
+        WHERE huaweiStatus != 'LOCAL_ONLY'
+          AND healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
         ORDER BY measuredAtEpochMillis ASC
         """,
     )
@@ -56,7 +62,8 @@ interface MeasurementDao {
     @Query(
         """
         SELECT id FROM measurements
-        WHERE huaweiStatus NOT IN ('SYNCED', 'DISABLED')
+        WHERE huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
+          AND healthConnectStatus != 'LOCAL_ONLY'
         ORDER BY measuredAtEpochMillis ASC
         """,
     )

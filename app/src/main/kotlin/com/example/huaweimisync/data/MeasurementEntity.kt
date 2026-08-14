@@ -10,6 +10,7 @@ enum class SyncStatus {
     BLOCKED,
     DISABLED,
     FAILED,
+    LOCAL_ONLY,
 }
 
 @Entity(tableName = "measurements")
