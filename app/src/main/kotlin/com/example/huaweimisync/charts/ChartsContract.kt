@@ -1,11 +1,15 @@
 package com.example.huaweimisync.charts
 
 import androidx.compose.runtime.Immutable
+import java.text.DecimalFormat
+import java.text.DecimalFormatSymbols
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import kotlin.math.abs
 
 @Immutable
@@ -68,6 +72,11 @@ data class MeasurementEpochRange(
     val endExclusive: Long,
 )
 
+data class ChartXRange(
+    val minX: Double,
+    val maxX: Double,
+)
+
 data class ChartYRange(val min: Double, val max: Double)
 
 fun LocalDate.toDatePickerUtcMillis(): Long =
@@ -88,6 +97,43 @@ fun inclusiveDateRangeToEpochRange(
     )
 }
 
+/**
+ * Returns the complete local-calendar interval selected by the user as Vico x coordinates.
+ *
+ * The upper bound is the start of the day after [endDateInclusive], rather than a fixed number
+ * of elapsed hours after [startDate]. This keeps the selected calendar days intact across DST.
+ */
+fun chartXRange(
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): ChartXRange {
+    val epochRange = inclusiveDateRangeToEpochRange(startDate, endDateInclusive, zoneId)
+    return ChartXRange(
+        minX = epochRange.startInclusive.toDouble(),
+        maxX = epochRange.endExclusive.toDouble(),
+    )
+}
+
+fun formatChartMarkerText(
+    measuredAtEpochMillis: Long,
+    value: Double,
+    metric: ChartMetricOption,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    locale: Locale = Locale.getDefault(),
+): String {
+    val dateTime = MarkerDateTimeFormatter.format(
+        Instant.ofEpochMilli(measuredAtEpochMillis).atZone(zoneId),
+    )
+    val formattedValue = decimalFormat(metric.decimalPlaces, locale).format(value)
+    return buildString {
+        append(dateTime)
+        append('\n')
+        append(formattedValue)
+        if (metric.unit.isNotBlank()) append(" ${metric.unit}")
+    }
+}
+
 fun orderedChartPoints(points: List<ChartPoint>): List<ChartPoint> =
     points.sortedBy(ChartPoint::measuredAtEpochMillis)
 
@@ -105,6 +151,17 @@ fun chartYRange(points: List<ChartPoint>, decimalPlaces: Int): ChartYRange? {
     return ChartYRange(min - padding, max + padding)
 }
 
+private fun decimalFormat(decimalPlaces: Int, locale: Locale): DecimalFormat {
+    val pattern = buildString {
+        append('0')
+        if (decimalPlaces > 0) {
+            append('.')
+            repeat(decimalPlaces) { append('0') }
+        }
+    }
+    return DecimalFormat(pattern, DecimalFormatSymbols(locale))
+}
+
 private fun tenToPower(exponent: Int): Double {
     var value = 1.0
     repeat(exponent) { value *= 10.0 }
@@ -114,3 +171,4 @@ private fun tenToPower(exponent: Int): Double {
 private const val DEFAULT_RANGE_DAYS = 7L
 private const val CONSTANT_PADDING_FRACTION = 0.05
 private const val VARIABLE_PADDING_FRACTION = 0.08
+private val MarkerDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
