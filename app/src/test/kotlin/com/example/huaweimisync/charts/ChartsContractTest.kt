@@ -5,6 +5,8 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
+import java.util.Locale
+import java.util.TimeZone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -36,19 +38,107 @@ class ChartsContractTest {
     }
 
     @Test
+    fun `one day x range starts at local midnight and ends at next local midnight`() {
+        val zone = ZoneId.of("Asia/Kathmandu")
+        val date = LocalDate.of(2026, 8, 14)
+
+        val range = chartXRange(date, date, zone)
+
+        assertEquals(date.atStartOfDay(zone).toInstant().toEpochMilli().toDouble(), range.minX, 0.0)
+        assertEquals(
+            date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            range.maxX,
+            0.0,
+        )
+    }
+
+    @Test
+    fun `multi day x range includes the complete final date`() {
+        val zone = ZoneId.of("Europe/Berlin")
+        val startDate = LocalDate.of(2026, 8, 10)
+        val endDate = LocalDate.of(2026, 8, 14)
+
+        val range = chartXRange(startDate, endDate, zone)
+        val lastInstantOfFinalDate = endDate.plusDays(1)
+            .atStartOfDay(zone)
+            .toInstant()
+            .minusMillis(1)
+            .toEpochMilli()
+
+        assertEquals(
+            startDate.atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            range.minX,
+            0.0,
+        )
+        assertTrue(lastInstantOfFinalDate.toDouble() < range.maxX)
+        assertEquals(
+            endDate.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            range.maxX,
+            0.0,
+        )
+    }
+
+    @Test
+    fun `x range uses system default time zone`() {
+        val previousTimeZone = TimeZone.getDefault()
+        val systemZone = TimeZone.getTimeZone("Pacific/Chatham")
+        try {
+            TimeZone.setDefault(systemZone)
+            val date = LocalDate.of(2026, 8, 14)
+
+            val range = chartXRange(date, date)
+
+            assertEquals(
+                date.atStartOfDay(systemZone.toZoneId()).toInstant().toEpochMilli().toDouble(),
+                range.minX,
+                0.0,
+            )
+            assertEquals(
+                date.plusDays(1).atStartOfDay(systemZone.toZoneId()).toInstant().toEpochMilli().toDouble(),
+                range.maxX,
+                0.0,
+            )
+        } finally {
+            TimeZone.setDefault(previousTimeZone)
+        }
+    }
+
+    @Test
     fun `inclusive range uses next local midnight across DST`() {
         val zone = ZoneId.of("America/New_York")
-        val range = inclusiveDateRangeToEpochRange(
+        val range = chartXRange(
             LocalDate.of(2026, 3, 8),
             LocalDate.of(2026, 3, 8),
             zone,
         )
 
-        assertEquals(23L * 60 * 60 * 1000, range.endExclusive - range.startInclusive)
+        assertEquals(23.0 * 60 * 60 * 1000, range.maxX - range.minX, 0.0)
         assertEquals(
-            LocalDate.of(2026, 3, 9).atStartOfDay(zone).toInstant().toEpochMilli(),
-            range.endExclusive,
+            LocalDate.of(2026, 3, 9).atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            range.maxX,
+            0.0,
         )
+    }
+
+    @Test
+    fun `marker contains full local date time line break value and complete unit`() {
+        val metric = ChartMetricOption(
+            key = "pressure",
+            displayName = "Давление",
+            unit = "миллиметры ртутного столба",
+            decimalPlaces = 2,
+        )
+        val instant = Instant.parse("2026-08-14T21:07:00Z")
+
+        val text = formatChartMarkerText(
+            measuredAtEpochMillis = instant.toEpochMilli(),
+            value = 123.4,
+            metric = metric,
+            zoneId = ZoneId.of("Europe/Moscow"),
+            locale = Locale.US,
+        )
+
+        assertEquals("15.08.2026 00:07\n123.40 миллиметры ртутного столба", text)
     }
 
     @Test
