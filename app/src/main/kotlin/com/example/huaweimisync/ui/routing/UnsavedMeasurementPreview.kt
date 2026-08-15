@@ -6,7 +6,9 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -51,7 +53,9 @@ fun UnsavedMeasurementPreviewDialog(
 ) {
     AlertDialog(
         modifier = modifier.testTag(UnsavedPreviewTestTags.Dialog),
-        onDismissRequest = { callbacks.onCloseAndDiscard(state.pending.id) },
+        onDismissRequest = {
+            if (!state.isCalculating) callbacks.onCloseAndDiscard(state.pending.id)
+        },
         title = {
             Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text("Просмотр измерения")
@@ -60,7 +64,7 @@ fun UnsavedMeasurementPreviewDialog(
         },
         text = {
             when (state.step) {
-                UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state)
+                UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state, zoneId)
                 UnsavedPreviewStep.PROFILE_EDITOR -> PreviewProfileEditor(state, callbacks, zoneId)
                 UnsavedPreviewStep.RESULT -> UnsavedResult(requireNotNull(state.result).composition)
             }
@@ -79,10 +83,14 @@ fun UnsavedMeasurementPreviewDialog(
                     val validation = validateUnsavedPreviewProfile(state.profileDraft, measurementDate)
                     Button(
                         onClick = {
+                            val calculatingState = reduceUnsavedPreview(
+                                state,
+                                UnsavedPreviewAction.CalculationStarted,
+                            )
                             calculateUnsavedPreview(state.pending, state.profileDraft, zoneId)?.let {
                                 callbacks.onStateChange(
                                     reduceUnsavedPreview(
-                                        state,
+                                        calculatingState,
                                         UnsavedPreviewAction.CalculationCompleted(it),
                                     ),
                                 )
@@ -111,6 +119,7 @@ fun UnsavedMeasurementPreviewDialog(
                             reduceUnsavedPreview(state, UnsavedPreviewAction.BackRequested),
                         )
                     },
+                    enabled = !state.isCalculating,
                 ) { Text("Назад") }
             }
         },
@@ -134,15 +143,21 @@ private fun UnsavedBadge() {
 }
 
 @Composable
-private fun RawUnsavedSummary(state: UnsavedMeasurementPreviewState) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+private fun RawUnsavedSummary(
+    state: UnsavedMeasurementPreviewState,
+    zoneId: ZoneId,
+) {
+    Column(
+        modifier = Modifier.verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(
             formatLocalizedDecimal(state.pending.weightKg) + " кг",
             style = MaterialTheme.typography.headlineSmall,
         )
         Text("Импеданс: ${state.pending.impedanceOhm} Ом")
         Text(
-            "Время: ${state.pending.measuredAt.atZone(ZoneId.systemDefault()).format(PreviewTimeFormatter)}",
+            "Время: ${state.pending.measuredAt.atZone(zoneId).format(PreviewTimeFormatter)}",
         )
         Text(
             "Профиль и рассчитанные показатели останутся только в памяти и не будут синхронизированы.",
@@ -164,7 +179,9 @@ private fun PreviewProfileEditor(
         state.pending.measuredAt.atZone(zoneId).toLocalDate(),
     )
     Column(
-        modifier = Modifier.testTag(UnsavedPreviewTestTags.ProfileEditor),
+        modifier = Modifier
+            .testTag(UnsavedPreviewTestTags.ProfileEditor)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Text("Одноразовый профиль", style = MaterialTheme.typography.titleMedium)
@@ -172,7 +189,10 @@ private fun PreviewProfileEditor(
             value = draft.heightCm,
             onValueChange = {
                 callbacks.onStateChange(
-                    state.copy(profileDraft = draft.copy(heightCm = it)),
+                    reduceUnsavedPreview(
+                        state,
+                        UnsavedPreviewAction.ProfileChanged(draft.copy(heightCm = it)),
+                    ),
                 )
             },
             label = { Text("Рост, см") },
@@ -181,12 +201,16 @@ private fun PreviewProfileEditor(
             isError = validation.heightError != null,
             supportingText = validation.heightError?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isCalculating,
         )
         OutlinedTextField(
             value = draft.birthDate,
             onValueChange = {
                 callbacks.onStateChange(
-                    state.copy(profileDraft = draft.copy(birthDate = it)),
+                    reduceUnsavedPreview(
+                        state,
+                        UnsavedPreviewAction.ProfileChanged(draft.copy(birthDate = it)),
+                    ),
                 )
             },
             label = { Text("Дата рождения") },
@@ -196,13 +220,24 @@ private fun PreviewProfileEditor(
             isError = validation.birthDateError != null,
             supportingText = validation.birthDateError?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth(),
+            enabled = !state.isCalculating,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PreviewSexChoice("Мужской", Sex.MALE, draft.sex) {
-                callbacks.onStateChange(state.copy(profileDraft = draft.copy(sex = it)))
+            PreviewSexChoice("Мужской", Sex.MALE, draft.sex, !state.isCalculating) {
+                callbacks.onStateChange(
+                    reduceUnsavedPreview(
+                        state,
+                        UnsavedPreviewAction.ProfileChanged(draft.copy(sex = it)),
+                    ),
+                )
             }
-            PreviewSexChoice("Женский", Sex.FEMALE, draft.sex) {
-                callbacks.onStateChange(state.copy(profileDraft = draft.copy(sex = it)))
+            PreviewSexChoice("Женский", Sex.FEMALE, draft.sex, !state.isCalculating) {
+                callbacks.onStateChange(
+                    reduceUnsavedPreview(
+                        state,
+                        UnsavedPreviewAction.ProfileChanged(draft.copy(sex = it)),
+                    ),
+                )
             }
         }
         validation.sexError?.let {
@@ -216,11 +251,13 @@ private fun PreviewSexChoice(
     label: String,
     value: Sex,
     selectedSex: Sex?,
+    enabled: Boolean,
     onSelect: (Sex) -> Unit,
 ) {
     val selected = selectedSex == value
     OutlinedButton(
         onClick = { onSelect(value) },
+        enabled = enabled,
         modifier = Modifier.semantics {
             role = Role.RadioButton
             this.selected = selected
@@ -234,7 +271,9 @@ private fun PreviewSexChoice(
 @Composable
 private fun UnsavedResult(composition: BodyComposition) {
     Column(
-        modifier = Modifier.testTag(UnsavedPreviewTestTags.Result),
+        modifier = Modifier
+            .testTag(UnsavedPreviewTestTags.Result)
+            .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Результат только для просмотра", style = MaterialTheme.typography.titleMedium)

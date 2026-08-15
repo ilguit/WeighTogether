@@ -11,6 +11,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -22,6 +23,16 @@ class MultiAccountUiContractsTest {
         assertEquals(0.1, parseLocalizedDecimal(",1")!!, 0.0)
         assertNull(parseLocalizedDecimal("1,2.3"))
         assertNull(parseLocalizedDecimal("NaN"))
+        assertNull(parseLocalizedDecimal("1 000,0"))
+        assertNull(parseLocalizedDecimal("--3"))
+    }
+
+    @Test
+    fun `profile date parsing is strict and supports localized and iso dates`() {
+        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("29.02.2024"))
+        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("2024-02-29"))
+        assertNull(parseProfileDate("31.02.2024"))
+        assertNull(parseProfileDate("29.02.2023"))
     }
 
     @Test
@@ -108,6 +119,62 @@ class MultiAccountUiContractsTest {
         assertEquals(
             PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
             withHistory.deletion?.historySyncMode,
+        )
+    }
+
+    @Test
+    fun `last primary deletion remains replacement free`() {
+        val primary = account("one", "Анна")
+
+        val state = reduceAccountManagement(
+            AccountManagementUiState(
+                accounts = listOf(primary),
+                primaryAccountId = primary.id,
+            ),
+            AccountManagementAction.DeleteRequested(primary.id),
+        )
+
+        assertTrue(state.deletion?.wasPrimary == true)
+        assertNull(state.deletion?.replacementAccountId)
+    }
+
+    @Test
+    fun `opening another account dialog replaces prior modal and busy state rejects edits`() {
+        val primary = account("one", "Анна")
+        val secondary = account("two", "Борис")
+        val deleting = reduceAccountManagement(
+            AccountManagementUiState(
+                accounts = listOf(primary, secondary),
+                primaryAccountId = primary.id,
+            ),
+            AccountManagementAction.DeleteRequested(secondary.id),
+        )
+
+        val adding = reduceAccountManagement(deleting, AccountManagementAction.AddRequested)
+        assertNotNull(adding.editor)
+        assertNull(adding.deletion)
+        assertNull(adding.primaryChange)
+
+        val busy = adding.copy(operationInProgress = true)
+        assertSame(
+            busy,
+            reduceAccountManagement(busy, AccountManagementAction.DialogDismissed),
+        )
+        assertSame(
+            busy,
+            reduceAccountManagement(
+                busy,
+                AccountManagementAction.EditorChanged(AccountEditorDraft.add().copy(name = "Другое")),
+            ),
+        )
+
+        val dismissed = adding.copy(editor = null)
+        assertSame(
+            dismissed,
+            reduceAccountManagement(
+                dismissed,
+                AccountManagementAction.EditorChanged(AccountEditorDraft.add().copy(name = "Запоздалое")),
+            ),
         )
     }
 

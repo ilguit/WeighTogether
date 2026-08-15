@@ -63,6 +63,7 @@ fun WeightRecognitionSetting(
                             { Text(message, Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
                         },
                         isError = state.error != null,
+                        enabled = !state.isSaving,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f).testTag(WeightDeltaEditorTestTags.Input),

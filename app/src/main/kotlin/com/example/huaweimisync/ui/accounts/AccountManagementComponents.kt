@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.HorizontalDivider
@@ -52,6 +54,7 @@ object AccountManagementTestTags {
     const val Editor = "account-editor"
     const val EditorSave = "account-editor-save"
     const val DeleteWarning = "account-delete-warning"
+    const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
     fun row(accountId: AccountId): String = "account-row-${accountId.value}"
     fun primaryBadge(accountId: AccountId): String = "account-primary-badge-${accountId.value}"
@@ -262,15 +265,19 @@ fun AccountEditorDialog(
     val validation = validateAccountEditor(draft, accounts)
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.Editor),
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!operationInProgress) onDismiss() },
         title = { Text(if (draft.editingAccountId == null) "Новый аккаунт" else "Изменить аккаунт") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.NameChanged(it))) },
                     label = { Text("Имя") },
                     singleLine = true,
+                    enabled = !operationInProgress,
                     isError = validation.error(AccountEditorField.NAME) != null,
                     supportingText = validation.error(AccountEditorField.NAME)?.let { message ->
                         { Text(message) }
@@ -282,6 +289,7 @@ fun AccountEditorDialog(
                     onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.HeightChanged(it))) },
                     label = { Text("Рост, см") },
                     singleLine = true,
+                    enabled = !operationInProgress,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = validation.error(AccountEditorField.HEIGHT) != null,
                     supportingText = validation.error(AccountEditorField.HEIGHT)?.let { message ->
@@ -295,6 +303,7 @@ fun AccountEditorDialog(
                     label = { Text("Дата рождения") },
                     placeholder = { Text("ДД.ММ.ГГГГ") },
                     singleLine = true,
+                    enabled = !operationInProgress,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     isError = validation.error(AccountEditorField.BIRTH_DATE) != null,
                     supportingText = validation.error(AccountEditorField.BIRTH_DATE)?.let { message ->
@@ -304,10 +313,10 @@ fun AccountEditorDialog(
                 )
                 Text("Пол", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SexChoice("Мужской", Sex.MALE, draft.sex) {
+                    SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
-                    SexChoice("Женский", Sex.FEMALE, draft.sex) {
+                    SexChoice("Женский", Sex.FEMALE, draft.sex, !operationInProgress) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
                 }
@@ -326,7 +335,9 @@ fun AccountEditorDialog(
                 modifier = Modifier.testTag(AccountManagementTestTags.EditorSave),
             ) { Text("Сохранить") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+        },
     )
 }
 
@@ -335,11 +346,13 @@ private fun SexChoice(
     label: String,
     value: Sex,
     selectedSex: Sex?,
+    enabled: Boolean,
     onSelect: (Sex) -> Unit,
 ) {
     val selected = selectedSex == value
     OutlinedButton(
         onClick = { onSelect(value) },
+        enabled = enabled,
         border = BorderStroke(
             1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
@@ -349,7 +362,7 @@ private fun SexChoice(
             this.selected = selected
         },
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
         Text(label)
     }
 }
@@ -365,12 +378,12 @@ private fun PrimaryAccountChangeDialog(
 ) {
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChange),
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!operationInProgress) onDismiss() },
         title = { Text("Сделать основным") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text("Внешняя синхронизация будет доступна только для «${account?.displayName.orEmpty()}».")
-                SyncModeChoices(request.historySyncMode, onModeChanged)
+                SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 Text(
                     "Уже отправленные данные прежнего основного аккаунта не удаляются.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -383,7 +396,9 @@ private fun PrimaryAccountChangeDialog(
                 Text("Продолжить")
             }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+        },
     )
 }
 
@@ -400,12 +415,16 @@ private fun AccountDeletionDialog(
     val account = accounts.firstOrNull { it.id == request.accountId }
     val replacements = accounts.filterNot { it.id == request.accountId }
     val requiresReplacement = request.wasPrimary && replacements.isNotEmpty()
+    val replacementIsValid = replacements.any { it.id == request.replacementAccountId }
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.DeleteWarning),
-        onDismissRequest = onDismiss,
+        onDismissRequest = { if (!operationInProgress) onDismiss() },
         title = { Text("Удалить аккаунт «${account?.displayName.orEmpty()}»?") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
                 Surface(
                     color = HuaweiColors.WarningContainer,
                     contentColor = HuaweiColors.OnWarningContainer,
@@ -425,10 +444,11 @@ private fun AccountDeletionDialog(
                             modifier = Modifier.testTag(
                                 AccountManagementTestTags.replacement(replacement.id),
                             ),
+                            enabled = !operationInProgress,
                             onClick = { onReplacementChanged(replacement.id) },
                         )
                     }
-                    SyncModeChoices(request.historySyncMode, onModeChanged)
+                    SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 } else if (request.wasPrimary) {
                     Text("После удаления последнего аккаунта основного аккаунта не будет.")
                 }
@@ -438,10 +458,13 @@ private fun AccountDeletionDialog(
             Button(
                 onClick = onConfirm,
                 enabled = account != null && !operationInProgress &&
-                    (!requiresReplacement || request.replacementAccountId != null),
+                    (!requiresReplacement || replacementIsValid),
+                modifier = Modifier.testTag(AccountManagementTestTags.DeleteConfirm),
             ) { Text("Удалить") }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        dismissButton = {
+            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+        },
     )
 }
 
@@ -449,16 +472,19 @@ private fun AccountDeletionDialog(
 private fun SyncModeChoices(
     selectedMode: PrimaryHistorySyncMode,
     onModeChanged: (PrimaryHistorySyncMode) -> Unit,
+    enabled: Boolean,
 ) {
     Text("История нового основного", style = MaterialTheme.typography.labelLarge)
     SelectionRow(
         label = "Только новые измерения",
         selected = selectedMode == PrimaryHistorySyncMode.FUTURE_ONLY,
+        enabled = enabled,
         onClick = { onModeChanged(PrimaryHistorySyncMode.FUTURE_ONLY) },
     )
     SelectionRow(
         label = "Синхронизировать подходящую историю",
         selected = selectedMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
+        enabled = enabled,
         onClick = { onModeChanged(PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY) },
     )
 }
@@ -469,9 +495,11 @@ private fun SelectionRow(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    enabled: Boolean = true,
 ) {
     Surface(
         onClick = onClick,
+        enabled = enabled,
         modifier = modifier.fillMaxWidth().semantics {
             role = Role.RadioButton
             this.selected = selected
@@ -487,7 +515,7 @@ private fun SelectionRow(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            RadioButton(selected = selected, onClick = null)
+            RadioButton(selected = selected, onClick = null, enabled = enabled)
             Text(label, Modifier.padding(start = 8.dp))
         }
     }

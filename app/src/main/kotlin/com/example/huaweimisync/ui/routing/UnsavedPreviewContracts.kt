@@ -1,8 +1,6 @@
 package com.example.huaweimisync.ui.routing
 
 import androidx.compose.runtime.Immutable
-import androidx.compose.runtime.saveable.Saver
-import androidx.compose.runtime.saveable.listSaver
 import com.example.huaweimisync.core.BodyComposition
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.Sex
@@ -36,17 +34,6 @@ data class UnsavedPreviewProfileDraft(
         )
     }
 }
-
-val UnsavedPreviewProfileDraftSaver: Saver<UnsavedPreviewProfileDraft, Any> = listSaver(
-    save = { listOf(it.heightCm, it.birthDate, it.sex?.name.orEmpty()) },
-    restore = {
-        UnsavedPreviewProfileDraft(
-            heightCm = it[0].toString(),
-            birthDate = it[1].toString(),
-            sex = it[2].toString().takeIf(String::isNotEmpty)?.let(Sex::valueOf),
-        )
-    },
-)
 
 @Immutable
 data class UnsavedPreviewProfileValidation(
@@ -104,7 +91,16 @@ data class UnsavedMeasurementPreviewState(
     val profileDraft: UnsavedPreviewProfileDraft = UnsavedPreviewProfileDraft(),
     val result: UnsavedPreviewResult? = null,
     val isCalculating: Boolean = false,
-)
+) {
+    init {
+        require((step == UnsavedPreviewStep.RESULT) == (result != null)) {
+            "Only the result step may retain an in-memory result"
+        }
+        require(!isCalculating || step == UnsavedPreviewStep.PROFILE_EDITOR) {
+            "Calculation may run only from the one-time profile editor"
+        }
+    }
+}
 
 sealed interface UnsavedPreviewAction {
     data object EnterProfileRequested : UnsavedPreviewAction
@@ -118,17 +114,42 @@ fun reduceUnsavedPreview(
     state: UnsavedMeasurementPreviewState,
     action: UnsavedPreviewAction,
 ): UnsavedMeasurementPreviewState = when (action) {
-    UnsavedPreviewAction.EnterProfileRequested -> state.copy(step = UnsavedPreviewStep.PROFILE_EDITOR)
-    is UnsavedPreviewAction.ProfileChanged -> state.copy(profileDraft = action.draft)
-    UnsavedPreviewAction.CalculationStarted -> state.copy(isCalculating = true)
-    is UnsavedPreviewAction.CalculationCompleted -> state.copy(
-        step = UnsavedPreviewStep.RESULT,
-        result = action.result,
-        isCalculating = false,
-    )
+    UnsavedPreviewAction.EnterProfileRequested -> if (state.step == UnsavedPreviewStep.RAW_SUMMARY) {
+        state.copy(step = UnsavedPreviewStep.PROFILE_EDITOR)
+    } else {
+        state
+    }
+    is UnsavedPreviewAction.ProfileChanged -> if (
+        state.step == UnsavedPreviewStep.PROFILE_EDITOR && !state.isCalculating
+    ) {
+        state.copy(profileDraft = action.draft)
+    } else {
+        state
+    }
+    UnsavedPreviewAction.CalculationStarted -> if (
+        state.step == UnsavedPreviewStep.PROFILE_EDITOR && !state.isCalculating
+    ) {
+        state.copy(isCalculating = true)
+    } else {
+        state
+    }
+    is UnsavedPreviewAction.CalculationCompleted -> if (
+        state.step == UnsavedPreviewStep.PROFILE_EDITOR && state.isCalculating
+    ) {
+        state.copy(
+            step = UnsavedPreviewStep.RESULT,
+            result = action.result,
+            isCalculating = false,
+        )
+    } else {
+        state
+    }
     UnsavedPreviewAction.BackRequested -> when (state.step) {
         UnsavedPreviewStep.RAW_SUMMARY -> state
-        UnsavedPreviewStep.PROFILE_EDITOR -> state.copy(step = UnsavedPreviewStep.RAW_SUMMARY)
+        UnsavedPreviewStep.PROFILE_EDITOR -> state.copy(
+            step = UnsavedPreviewStep.RAW_SUMMARY,
+            isCalculating = false,
+        )
         UnsavedPreviewStep.RESULT -> state.copy(
             step = UnsavedPreviewStep.PROFILE_EDITOR,
             result = null,
@@ -144,12 +165,15 @@ fun calculateUnsavedPreview(
 ): UnsavedPreviewResult? {
     val measurementDate = pending.measuredAt.atZone(zoneId).toLocalDate()
     val profile = validateUnsavedPreviewProfile(draft, measurementDate).profile ?: return null
+    val raw = pending.toRawScaleMeasurement()
+    if (!raw.isFinal) return null
     return UnsavedPreviewResult(
-        composition = calculator.calculate(pending.toRawScaleMeasurement(), profile),
+        composition = calculator.calculate(raw, profile),
     )
 }
 
 data class UnsavedPreviewCallbacks(
+    /** Keep this state in memory only; do not place its profile or result in saved state. */
     val onStateChange: (UnsavedMeasurementPreviewState) -> Unit,
     /** Must discard pending data and leave only its deduplication tombstone. */
     val onCloseAndDiscard: (PendingMeasurementId) -> Unit,

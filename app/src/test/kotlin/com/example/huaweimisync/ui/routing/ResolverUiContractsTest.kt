@@ -16,6 +16,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class ResolverUiContractsTest {
@@ -37,6 +38,46 @@ class ResolverUiContractsTest {
         assertTrue(options[0].isCandidate)
         assertTrue(options[1].isCandidate)
         assertFalse(options[2].isCandidate)
+    }
+
+    @Test
+    fun `resolver options deduplicate noisy inputs without losing candidate priority`() {
+        val candidate = account("candidate", "Первый")
+        val any = account("any", "Любой")
+        val options = buildResolverAccountOptions(
+            accounts = listOf(candidate, any, any),
+            primaryAccountId = candidate.id,
+            candidates = listOf(
+                RoutingCandidate(candidate.id, 2.0, 72.0, 1),
+                RoutingCandidate(candidate.id, 0.5, 69.5, 0),
+                RoutingCandidate(AccountId("removed"), 0.1, 70.1, 2),
+            ),
+        )
+
+        assertEquals(listOf(candidate.id, any.id), options.map(ResolverAccountOption::accountId))
+        assertEquals(0.5, options.first().differenceKg!!, 0.0)
+        assertEquals(2, options.distinctBy(ResolverAccountOption::accountId).size)
+    }
+
+    @Test
+    fun `resolver option rejects partial or invalid candidate metadata`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ResolverAccountOption(
+                accountId = AccountId("candidate"),
+                displayName = "Кандидат",
+                isPrimary = false,
+                differenceKg = 0.5,
+            )
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            ResolverAccountOption(
+                accountId = AccountId("candidate"),
+                displayName = "Кандидат",
+                isPrimary = false,
+                differenceKg = -0.5,
+                medianWeightKg = 70.0,
+            )
+        }
     }
 
     @Test
@@ -83,6 +124,22 @@ class ResolverUiContractsTest {
 
         assertTrue(state.showForegroundFallback)
         assertFalse(state.isResolverVisible)
+        assertFalse(state.copy(isResolverVisible = true).showForegroundFallback)
+    }
+
+    @Test
+    fun `pending updates are re-sorted and preserve resolver visibility`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val second = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(listOf(first), isResolverVisible = true)
+
+        val updated = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingChanged(listOf(second, first)),
+        )
+
+        assertEquals(listOf(first.id, second.id), updated.pending.map(PendingMeasurement::id))
+        assertTrue(updated.isResolverVisible)
     }
 
     @Test
@@ -120,6 +177,59 @@ class ResolverUiContractsTest {
         assertFalse(validation.isValid)
         assertNotNull(validation.birthDateError)
         assertNull(validation.profile)
+    }
+
+    @Test
+    fun `unsaved preview rejects non-final raw data instead of throwing`() {
+        val invalidPending = pending("preview", "2026-08-15T10:00:00Z").copy(isStable = false)
+
+        val result = calculateUnsavedPreview(
+            pending = invalidPending,
+            draft = UnsavedPreviewProfileDraft(
+                heightCm = "170",
+                birthDate = "01.01.1990",
+                sex = Sex.FEMALE,
+            ),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertNull(result)
+    }
+
+    @Test
+    fun `late calculation result cannot revive a preview after navigating back`() {
+        val initial = UnsavedMeasurementPreviewState(pending("preview", "2026-08-15T10:00:00Z"))
+        val editing = reduceUnsavedPreview(initial, UnsavedPreviewAction.EnterProfileRequested)
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted)
+        val backAtRaw = reduceUnsavedPreview(calculating, UnsavedPreviewAction.BackRequested)
+        val result = requireNotNull(
+            calculateUnsavedPreview(
+                pending = initial.pending,
+                draft = UnsavedPreviewProfileDraft(
+                    heightCm = "170",
+                    birthDate = "01.01.1990",
+                    sex = Sex.FEMALE,
+                ),
+                zoneId = ZoneOffset.UTC,
+            ),
+        )
+
+        val afterLateResult = reduceUnsavedPreview(
+            backAtRaw,
+            UnsavedPreviewAction.CalculationCompleted(result),
+        )
+
+        assertSame(backAtRaw, afterLateResult)
+        assertEquals(UnsavedPreviewStep.RAW_SUMMARY, afterLateResult.step)
+        assertNull(afterLateResult.result)
+
+        val editingAgain = reduceUnsavedPreview(backAtRaw, UnsavedPreviewAction.EnterProfileRequested)
+        val afterDuplicateResult = reduceUnsavedPreview(
+            editingAgain,
+            UnsavedPreviewAction.CalculationCompleted(result),
+        )
+        assertSame(editingAgain, afterDuplicateResult)
+        assertNull(afterDuplicateResult.result)
     }
 
     private fun account(id: String, name: String): Account = Account(

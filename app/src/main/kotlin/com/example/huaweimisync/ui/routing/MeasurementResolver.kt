@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -73,10 +75,15 @@ fun MeasurementResolverDialog(
 ) {
     AlertDialog(
         modifier = modifier.testTag(MeasurementResolverTestTags.Dialog),
-        onDismissRequest = callbacks.onLater,
+        onDismissRequest = {
+            if (!state.operationInProgress) callbacks.onLater()
+        },
         title = { Text("Кому сохранить измерение?") },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            ) {
                 Text(
                     "${formatLocalizedDecimal(state.pending.weightKg)} кг · импеданс ${state.pending.impedanceOhm} Ом",
                     style = MaterialTheme.typography.titleMedium,

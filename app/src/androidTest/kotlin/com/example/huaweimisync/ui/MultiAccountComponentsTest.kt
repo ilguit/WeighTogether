@@ -1,9 +1,11 @@
 package com.example.huaweimisync.ui
 
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -13,6 +15,7 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementTestTags
 import com.example.huaweimisync.ui.accounts.AccountManagementUiState
+import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
 import com.example.huaweimisync.ui.accounts.AccountSelector
 import com.example.huaweimisync.ui.accounts.AccountSelectorTestTags
 import com.example.huaweimisync.ui.accounts.AccountManagementSection
@@ -110,6 +113,61 @@ class MultiAccountComponentsTest {
 
         composeRule.onNodeWithTag(MeasurementResolverTestTags.account(any.id)).performClick()
         composeRule.runOnIdle { assertEquals(any.id, selected) }
+    }
+
+    @Test
+    fun resolverScrollsToEveryAccountAndKeepsLastOptionSelectable() {
+        val accounts = (0..12).map { account("account-$it", "Аккаунт $it") }
+        val last = accounts.last()
+        var selected: AccountId? = null
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending(),
+                        accountOptions = accounts.mapIndexed { index, account ->
+                            ResolverAccountOption(
+                                accountId = account.id,
+                                displayName = account.displayName,
+                                isPrimary = index == 0,
+                            )
+                        },
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None.copy(
+                        onAccountSelected = { _, accountId -> selected = accountId },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(last.id))
+            .performScrollTo()
+            .performClick()
+        composeRule.runOnIdle { assertEquals(last.id, selected) }
+    }
+
+    @Test
+    fun primaryDeletionRejectsAReplacementThatNoLongerExists() {
+        val primary = account("primary", "Анна")
+        val replacement = account("replacement", "Борис")
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(
+                        accounts = listOf(primary, replacement),
+                        primaryAccountId = primary.id,
+                        deletion = AccountDeletionRequest(
+                            accountId = primary.id,
+                            wasPrimary = true,
+                            replacementAccountId = AccountId("removed"),
+                        ),
+                    ),
+                    callbacks = AccountManagementCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.DeleteConfirm).assertIsNotEnabled()
     }
 
     private fun account(id: String, name: String): Account = Account(

@@ -15,6 +15,7 @@ import com.example.huaweimisync.domain.normalizeAccountName
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import java.time.format.ResolverStyle
 
 @Immutable
 data class AccountEditorDraft(
@@ -49,11 +50,11 @@ val AccountEditorDraftSaver: Saver<AccountEditorDraft, Any> = listSaver(
     },
     restore = { saved ->
         AccountEditorDraft(
-            editingAccountId = saved[0].toString().takeIf(String::isNotEmpty)?.let(::AccountId),
-            name = saved[1].toString(),
-            heightCm = saved[2].toString(),
-            birthDate = saved[3].toString(),
-            sex = saved[4].toString().takeIf(String::isNotEmpty)?.let(Sex::valueOf),
+            editingAccountId = saved[0].takeIf(String::isNotEmpty)?.let(::AccountId),
+            name = saved[1],
+            heightCm = saved[2],
+            birthDate = saved[3],
+            sex = saved[4].takeIf(String::isNotEmpty)?.let(Sex::valueOf),
         )
     },
 )
@@ -185,6 +186,9 @@ data class AccountManagementUiState(
 ) {
     init {
         require(accounts.distinctBy(Account::id).size == accounts.size)
+        require(listOfNotNull(editor, primaryChange, deletion).size <= 1) {
+            "Only one account-management dialog may be open"
+        }
     }
 
     val primaryAccount: Account?
@@ -205,66 +209,94 @@ sealed interface AccountManagementAction {
 fun reduceAccountManagement(
     state: AccountManagementUiState,
     action: AccountManagementAction,
-): AccountManagementUiState = when (action) {
-    AccountManagementAction.AddRequested -> state.copy(editor = AccountEditorDraft.add())
-    is AccountManagementAction.EditRequested -> state.accounts
-        .firstOrNull { it.id == action.accountId }
-        ?.let { state.copy(editor = AccountEditorDraft.edit(it)) }
-        ?: state
-    is AccountManagementAction.MakePrimaryRequested -> if (
-        action.accountId == state.primaryAccountId || state.accounts.none { it.id == action.accountId }
-    ) {
-        state
-    } else {
-        state.copy(primaryChange = PrimaryAccountChangeRequest(action.accountId))
-    }
-    is AccountManagementAction.DeleteRequested -> state.accounts
-        .firstOrNull { it.id == action.accountId }
-        ?.let { account ->
-            val isPrimary = account.id == state.primaryAccountId
-            val replacement = if (isPrimary) {
-                state.accounts.firstOrNull { it.id != account.id }?.id
-            } else {
-                null
+): AccountManagementUiState {
+    if (state.operationInProgress) return state
+    return when (action) {
+        AccountManagementAction.AddRequested -> state.copy(
+            editor = AccountEditorDraft.add(),
+            primaryChange = null,
+            deletion = null,
+        )
+        is AccountManagementAction.EditRequested -> state.accounts
+            .firstOrNull { it.id == action.accountId }
+            ?.let {
+                state.copy(
+                    editor = AccountEditorDraft.edit(it),
+                    primaryChange = null,
+                    deletion = null,
+                )
             }
-            state.copy(
-                deletion = AccountDeletionRequest(
-                    accountId = account.id,
-                    wasPrimary = isPrimary,
-                    replacementAccountId = replacement,
-                ),
-            )
-        }
-        ?: state
-    is AccountManagementAction.EditorChanged -> state.copy(editor = action.draft)
-    is AccountManagementAction.ReplacementSelected -> {
-        val deletion = state.deletion
-        if (deletion == null || state.accounts.none {
-                it.id == action.accountId && it.id != deletion.accountId
-            }
+            ?: state
+        is AccountManagementAction.MakePrimaryRequested -> if (
+            action.accountId == state.primaryAccountId || state.accounts.none { it.id == action.accountId }
         ) {
             state
         } else {
-            state.copy(deletion = deletion.copy(replacementAccountId = action.accountId))
+            state.copy(
+                editor = null,
+                primaryChange = PrimaryAccountChangeRequest(action.accountId),
+                deletion = null,
+            )
         }
-    }
-    is AccountManagementAction.SyncModeSelected -> when {
-        state.deletion != null -> state.copy(
-            deletion = state.deletion.copy(historySyncMode = action.mode),
+        is AccountManagementAction.DeleteRequested -> state.accounts
+            .firstOrNull { it.id == action.accountId }
+            ?.let { account ->
+                val isPrimary = account.id == state.primaryAccountId
+                val replacement = if (isPrimary) {
+                    state.accounts.firstOrNull { it.id != account.id }?.id
+                } else {
+                    null
+                }
+                state.copy(
+                    editor = null,
+                    primaryChange = null,
+                    deletion = AccountDeletionRequest(
+                        accountId = account.id,
+                        wasPrimary = isPrimary,
+                        replacementAccountId = replacement,
+                    ),
+                )
+            }
+            ?: state
+        is AccountManagementAction.EditorChanged -> if (
+            state.editor != null &&
+            state.editor.editingAccountId == action.draft.editingAccountId
+        ) {
+            state.copy(editor = action.draft)
+        } else {
+            state
+        }
+        is AccountManagementAction.ReplacementSelected -> {
+            val deletion = state.deletion
+            if (deletion == null || !deletion.wasPrimary || state.accounts.none {
+                    it.id == action.accountId && it.id != deletion.accountId
+                }
+            ) {
+                state
+            } else {
+                state.copy(deletion = deletion.copy(replacementAccountId = action.accountId))
+            }
+        }
+        is AccountManagementAction.SyncModeSelected -> when {
+            state.deletion != null -> state.copy(
+                deletion = state.deletion.copy(historySyncMode = action.mode),
+            )
+            state.primaryChange != null -> state.copy(
+                primaryChange = state.primaryChange.copy(historySyncMode = action.mode),
+            )
+            else -> state
+        }
+        AccountManagementAction.DialogDismissed -> state.copy(
+            editor = null,
+            primaryChange = null,
+            deletion = null,
         )
-        state.primaryChange != null -> state.copy(
-            primaryChange = state.primaryChange.copy(historySyncMode = action.mode),
-        )
-        else -> state
     }
-    AccountManagementAction.DialogDismissed -> state.copy(
-        editor = null,
-        primaryChange = null,
-        deletion = null,
-    )
 }
 
-private val DisplayDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+private val DisplayDateFormatter: DateTimeFormatter = DateTimeFormatter
+    .ofPattern("dd.MM.uuuu")
+    .withResolverStyle(ResolverStyle.STRICT)
 
 fun parseProfileDate(input: String): LocalDate? {
     val value = input.trim()
