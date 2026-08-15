@@ -1,12 +1,7 @@
 package com.example.huaweimisync
 
-import com.example.huaweimisync.measurements.MeasurementEditorDraft
-import com.example.huaweimisync.measurements.MeasurementEditorState
-import com.example.huaweimisync.measurements.MeasurementField
-import com.example.huaweimisync.measurements.MeasurementsUiState
+import com.example.huaweimisync.measurements.MeasurementsDestination
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppSectionTest {
@@ -32,23 +27,25 @@ class AppSectionTest {
     }
 
     @Test
-    fun `legacy measurements chrome hides shell while editor is open`() {
-        val root = legacyMeasurementsChromePolicy.resolve(MeasurementsUiState())
-        val editor = legacyMeasurementsChromePolicy.resolve(
-            MeasurementsUiState(
-                editor = MeasurementEditorState(
-                    measurementId = "id",
-                    measuredAtEpochMillis = 0L,
-                    draft = MeasurementEditorDraft.fromInputs(
-                        MeasurementField.entries.associateWith { "1" },
-                    ),
-                ),
+    fun `measurements destination is the only source for shell chrome`() {
+        val expected = mapOf(
+            MeasurementsDestination.SUMMARY to MeasurementsChrome(
+                showTopBar = true,
+                showBottomNavigation = true,
+            ),
+            MeasurementsDestination.HISTORY to MeasurementsChrome(
+                showTopBar = false,
+                showBottomNavigation = false,
+            ),
+            MeasurementsDestination.EDITOR to MeasurementsChrome(
+                showTopBar = false,
+                showBottomNavigation = false,
             ),
         )
 
-        assertTrue(root.showTopBar)
-        assertTrue(root.showBottomNavigation)
-        assertFalse(editor.showTopBar)
-        assertFalse(editor.showBottomNavigation)
+        assertEquals(MeasurementsDestination.entries.toSet(), expected.keys)
+        expected.forEach { (destination, chrome) ->
+            assertEquals(destination.name, chrome, measurementsChromeFor(destination))
+        }
     }
 }
