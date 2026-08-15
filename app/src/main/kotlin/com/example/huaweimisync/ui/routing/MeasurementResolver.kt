@@ -138,6 +138,7 @@ private fun ResolverAccountButton(
     } else {
         "Другой аккаунт"
     }
+    val primaryDescription = if (option.isPrimary) ". Основной аккаунт" else ""
     Surface(
         onClick = onClick,
         enabled = enabled,
@@ -146,7 +147,7 @@ private fun ResolverAccountButton(
             .testTag(MeasurementResolverTestTags.account(option.accountId))
             .semantics {
                 role = Role.Button
-                contentDescription = "${option.displayName}. $supportingText"
+                contentDescription = "${option.displayName}. $supportingText$primaryDescription"
             },
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(

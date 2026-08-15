@@ -10,6 +10,9 @@ import com.example.huaweimisync.domain.RoutingCandidate
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -125,6 +128,26 @@ class ResolverUiContractsTest {
         assertTrue(state.showForegroundFallback)
         assertFalse(state.isResolverVisible)
         assertFalse(state.copy(isResolverVisible = true).showForegroundFallback)
+    }
+
+    @Test
+    fun `cold notification launch waits for first durable pending snapshot`() = runBlocking {
+        val durablePending = pending("cold", "2026-08-15T10:00:00Z")
+
+        assertTrue(hasPendingResolverTarget(emptyList(), flowOf(listOf(durablePending))))
+        assertFalse(hasPendingResolverTarget(emptyList(), flowOf(emptyList())))
+    }
+
+    @Test
+    fun `already observed pending opens resolver without collecting another snapshot`() = runBlocking {
+        val observed = pending("observed", "2026-08-15T10:00:00Z")
+
+        assertTrue(
+            hasPendingResolverTarget(
+                observedPending = listOf(observed),
+                durablePendingSnapshots = flow { error("must not collect") },
+            ),
+        )
     }
 
     @Test

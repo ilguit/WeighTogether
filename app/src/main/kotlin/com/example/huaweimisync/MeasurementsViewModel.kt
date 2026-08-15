@@ -21,12 +21,14 @@ import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
 import com.example.huaweimisync.measurements.measurementSyncPresentation
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
@@ -70,6 +72,17 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
     private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
+    private val accountSelectionChanges = AccountSelectionChangeTracker()
+
+    init {
+        viewModelScope.launch {
+            accountSelector.collectLatest { selector ->
+                if (!selector.isLoading && accountSelectionChanges.update(selector.selectedAccountId)) {
+                    resetAccountScopedUi()
+                }
+            }
+        }
+    }
 
     val events = eventChannel.receiveAsFlow()
 
@@ -118,6 +131,10 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.none { it.id == accountId }) return
         container.selectedAccountId.value = accountId
+        resetAccountScopedUi()
+    }
+
+    private fun resetAccountScopedUi() {
         navigation.value = MeasurementsNavigationState()
         editor.value = null
         deleteConfirmation.value = null
