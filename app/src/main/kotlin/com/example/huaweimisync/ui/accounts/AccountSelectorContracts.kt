@@ -60,3 +60,21 @@ fun reconcileAccountSelection(
         fallback = fallback,
     )
 }
+
+/**
+ * Distinguishes the first durable selection from later account changes.
+ *
+ * ViewModels use this to clear account-scoped transient UI only after a real transition, while
+ * leaving their initial navigation state alone when Room publishes the startup selection.
+ */
+internal class AccountSelectionChangeTracker {
+    private var initialized = false
+    private var previousAccountId: AccountId? = null
+
+    fun update(selectedAccountId: AccountId?): Boolean {
+        val changed = initialized && previousAccountId != selectedAccountId
+        initialized = true
+        previousAccountId = selectedAccountId
+        return changed
+    }
+}

@@ -7,6 +7,8 @@ import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.sortedForRouting
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 @Immutable
 data class ResolverAccountOption(
@@ -132,6 +134,17 @@ fun reduceResolverQueue(
     is ResolverQueueAction.HeadFinalized -> state.removeHead(action.pendingId)
     is ResolverQueueAction.HeadDiscarded -> state.removeHead(action.pendingId)
 }
+
+/**
+ * Resolves a notification navigation request against durable state after process recreation.
+ *
+ * The eagerly shared UI flow starts with an empty placeholder, so a cold-launch intent must wait
+ * for the repository's first Room snapshot before deciding that the notification is stale.
+ */
+internal suspend fun hasPendingResolverTarget(
+    observedPending: List<PendingMeasurement>,
+    durablePendingSnapshots: Flow<List<PendingMeasurement>>,
+): Boolean = observedPending.isNotEmpty() || durablePendingSnapshots.first().isNotEmpty()
 
 private fun ResolverQueueState.removeHead(id: PendingMeasurementId): ResolverQueueState {
     if (current?.id != id) return this

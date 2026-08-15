@@ -244,6 +244,19 @@ class MultiAccountUiContractsTest {
     }
 
     @Test
+    fun `selection change tracker ignores initial snapshot and detects fallback transitions`() {
+        val tracker = AccountSelectionChangeTracker()
+        val primary = AccountId("primary")
+        val secondary = AccountId("secondary")
+
+        assertFalse(tracker.update(primary))
+        assertFalse(tracker.update(primary))
+        assertTrue(tracker.update(secondary))
+        assertTrue(tracker.update(null))
+        assertFalse(tracker.update(null))
+    }
+
+    @Test
     fun `account dialog drops stale targets and repairs deleted primary replacement`() {
         val primary = account("one", "Анна")
         val removedReplacement = account("two", "Борис")

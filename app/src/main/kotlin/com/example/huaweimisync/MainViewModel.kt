@@ -35,6 +35,7 @@ import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverQueueState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
+import com.example.huaweimisync.ui.routing.hasPendingResolverTarget
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
@@ -393,7 +394,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openResolver() {
-        resolverRequested.value = true
+        val observedPending = pending.value
+        if (observedPending.isNotEmpty()) {
+            resolverRequested.value = true
+            return
+        }
+        viewModelScope.launch {
+            try {
+                resolverRequested.value = hasPendingResolverTarget(
+                    observedPending = observedPending,
+                    durablePendingSnapshots = container.repository.observePending(),
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                showMessage(error.userFacingMessage("Не удалось открыть ожидающее измерение"))
+            }
+        }
     }
 
     fun resolveLater() {

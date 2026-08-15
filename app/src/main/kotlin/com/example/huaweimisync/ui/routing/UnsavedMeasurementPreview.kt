@@ -263,7 +263,7 @@ private fun PreviewSexChoice(
             this.selected = selected
         },
     ) {
-        RadioButton(selected = selected, onClick = null)
+        RadioButton(selected = selected, onClick = null, enabled = enabled)
         Text(label)
     }
 }
