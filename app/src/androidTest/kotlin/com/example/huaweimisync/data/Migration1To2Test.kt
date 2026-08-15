@@ -141,6 +141,50 @@ class Migration1To2Test {
         }
     }
 
+    @Test
+    fun missingLegacyProfileWithHistoryCreatesEmptyRecoveryAccount() = runBlocking {
+        val name = createVersion1Database(withMeasurement = true)
+        val accountId = "c7daff00-8b38-4167-852c-9336176c6afe"
+        val migrated = openMigrated(
+            name,
+            LegacyProfileSnapshot(heightCm = null, birthDate = null, sex = null),
+            accountId,
+        )
+        try {
+            val recovery = migrated.accountDao().get(accountId)!!.toDomain().profile
+                as AccountProfile.IncompleteRecovery
+            assertNull(recovery.heightCm)
+            assertNull(recovery.birthDate)
+            assertNull(recovery.sex)
+            assertEquals(accountId, migrated.appStateDao().get()!!.primaryAccountId)
+            assertNotNull(migrated.multiAccountMeasurementDao().get("legacy-id"))
+        } finally {
+            migrated.close()
+        }
+    }
+
+    @Test
+    fun legacyProfileReaderAcceptsNumericHeightWithoutSharedPreferencesTypeCrash() {
+        val preferencesName = "migration-preferences-${UUID.randomUUID()}"
+        val preferences = context.getSharedPreferences(preferencesName, Context.MODE_PRIVATE)
+        try {
+            preferences.edit()
+                .putFloat("height", 175.0f)
+                .putString("birth_date", "1990-01-01")
+                .putString("sex", Sex.FEMALE.name)
+                .commit()
+
+            val profile = LegacyProfileSnapshot.from(preferences)
+
+            assertEquals(175.0, profile.heightCm!!, 0.0)
+            assertEquals(LocalDate.of(1990, 1, 1), profile.birthDate)
+            assertEquals(Sex.FEMALE, profile.sex)
+            assertNotNull(profile.completeProfile)
+        } finally {
+            preferences.edit().clear().commit()
+        }
+    }
+
     private fun createVersion1Database(withMeasurement: Boolean): String {
         val name = "migration-${UUID.randomUUID()}.db"
         databaseNames += name

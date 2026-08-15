@@ -124,7 +124,7 @@ class RoomAccountRepository(
         }
     }
 
-    suspend fun updateWeightDeltaKg(weightDeltaKg: Double) {
+    override suspend fun updateWeightDeltaKg(weightDeltaKg: Double) {
         require(weightDeltaKg.isFinite() && weightDeltaKg in WEIGHT_DELTA_KG_RANGE) {
             "Weight delta must be between 0.1 and 50.0 kg"
         }

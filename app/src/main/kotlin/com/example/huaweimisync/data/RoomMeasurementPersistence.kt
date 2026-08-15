@@ -61,8 +61,8 @@ class RoomMeasurementPersistence(
         require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
         return measurementDao.observeRange(
             accountId = accountId.value,
-            startInclusive = startInclusive.toEpochMilli(),
-            endExclusive = endExclusive.toEpochMilli(),
+            startInclusive = startInclusive.ceilToEpochMilli(),
+            endExclusive = endExclusive.ceilToEpochMilli(),
         ).map { values -> values.map(MeasurementEntity::toAccountMeasurement) }
     }
 
@@ -78,7 +78,7 @@ class RoomMeasurementPersistence(
         measuredAtExclusive: Instant,
     ): List<Double> = measurementDao.latestWeightsBefore(
         accountId.value,
-        measuredAtExclusive.toEpochMilli(),
+        measuredAtExclusive.ceilToEpochMilli(),
     )
 
     suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
@@ -265,3 +265,15 @@ fun RawScaleMeasurement.deduplicationHash(): String {
         .digest(material.toByteArray(StandardCharsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte) }
 }
+
+/** Smallest epoch-millisecond timestamp which is not before this instant. */
+private fun Instant.ceilToEpochMilli(): Long {
+    val epochMillis = toEpochMilli()
+    return if (nano % NANOS_PER_MILLISECOND == 0) {
+        epochMillis
+    } else {
+        Math.addExact(epochMillis, 1L)
+    }
+}
+
+private const val NANOS_PER_MILLISECOND: Int = 1_000_000

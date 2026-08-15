@@ -33,13 +33,17 @@ data class LegacyProfileSnapshot(
         )
 
         fun from(preferences: SharedPreferences): LegacyProfileSnapshot {
-            val height = preferences.getString(KEY_HEIGHT, null)
-                ?.toDoubleOrNull()
+            val storedValues = preferences.all
+            val height = when (val value = storedValues[KEY_HEIGHT]) {
+                is String -> value.toDoubleOrNull()
+                is Number -> value.toDouble()
+                else -> null
+            }
                 ?.takeIf(Double::isFinite)
-            val birthDate = preferences.getString(KEY_BIRTH_DATE, null)?.let { value ->
+            val birthDate = (storedValues[KEY_BIRTH_DATE] as? String)?.let { value ->
                 runCatching { LocalDate.parse(value) }.getOrNull()
             }
-            val sex = preferences.getString(KEY_SEX, null)?.let { value ->
+            val sex = (storedValues[KEY_SEX] as? String)?.let { value ->
                 runCatching { Sex.valueOf(value) }.getOrNull()
             }
             return LegacyProfileSnapshot(height, birthDate, sex)

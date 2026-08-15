@@ -26,21 +26,33 @@ data class AccountEntity(
     val updatedAtEpochMillis: Long,
 ) {
     fun toDomain(): Account {
-        val storedSex = sex?.let(Sex::valueOf)
-        val storedBirthDate = birthDateEpochDay?.let(LocalDate::ofEpochDay)
-        val profile = if (isProfileComplete) {
-            AccountProfile.Complete(
-                heightCm = requireNotNull(heightCm),
-                birthDate = requireNotNull(storedBirthDate),
-                sex = requireNotNull(storedSex),
-            )
-        } else {
-            AccountProfile.IncompleteRecovery(
-                heightCm = heightCm,
-                birthDate = storedBirthDate,
-                sex = storedSex,
-            )
+        val storedHeight = heightCm?.takeIf(Double::isFinite)
+        val storedSex = sex?.let { value ->
+            runCatching { Sex.valueOf(value) }.getOrNull()
         }
+        val storedBirthDate = birthDateEpochDay?.let { epochDay ->
+            runCatching { LocalDate.ofEpochDay(epochDay) }.getOrNull()
+        }
+        val completeProfile = if (isProfileComplete &&
+            storedHeight != null &&
+            storedBirthDate != null &&
+            storedSex != null
+        ) {
+            runCatching {
+                AccountProfile.Complete(
+                    heightCm = storedHeight,
+                    birthDate = storedBirthDate,
+                    sex = storedSex,
+                )
+            }.getOrNull()
+        } else {
+            null
+        }
+        val profile = completeProfile ?: AccountProfile.IncompleteRecovery(
+            heightCm = storedHeight,
+            birthDate = storedBirthDate,
+            sex = storedSex,
+        )
         return Account(
             id = AccountId(id),
             displayName = displayName,

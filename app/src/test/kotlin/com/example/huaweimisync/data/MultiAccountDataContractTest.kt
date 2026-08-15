@@ -49,6 +49,48 @@ class MultiAccountDataContractTest {
     }
 
     @Test
+    fun malformedCompleteAccountFallsBackToReadableRecoveryFields() {
+        val entity = AccountEntity(
+            id = "d5447498-b10e-4379-9d8a-6e5090f2fcdc",
+            displayName = "Recovery",
+            normalizedName = "recovery",
+            heightCm = 175.0,
+            birthDateEpochDay = null,
+            sex = "UNKNOWN",
+            isProfileComplete = true,
+            createdAtEpochMillis = 100L,
+            updatedAtEpochMillis = 200L,
+        )
+
+        val profile = entity.toDomain().profile as AccountProfile.IncompleteRecovery
+
+        assertEquals(175.0, profile.heightCm!!, 0.0)
+        assertNull(profile.birthDate)
+        assertNull(profile.sex)
+    }
+
+    @Test
+    fun invalidStoredCompleteHeightFallsBackToRecovery() {
+        val entity = AccountEntity(
+            id = "38f60ca2-faf5-4a2d-8161-6dc2a6a5a441",
+            displayName = "Recovery",
+            normalizedName = "recovery",
+            heightCm = 99.0,
+            birthDateEpochDay = LocalDate.of(1990, 1, 1).toEpochDay(),
+            sex = Sex.MALE.name,
+            isProfileComplete = true,
+            createdAtEpochMillis = 100L,
+            updatedAtEpochMillis = 200L,
+        )
+
+        val profile = entity.toDomain().profile as AccountProfile.IncompleteRecovery
+
+        assertEquals(99.0, profile.heightCm!!, 0.0)
+        assertEquals(LocalDate.of(1990, 1, 1), profile.birthDate)
+        assertEquals(Sex.MALE, profile.sex)
+    }
+
+    @Test
     fun deduplicationHashIgnoresPayloadNoiseButIncludesPhysicalReading() {
         val original = raw(weightKg = 70.0, payload = byteArrayOf(1, 2, 3))
 

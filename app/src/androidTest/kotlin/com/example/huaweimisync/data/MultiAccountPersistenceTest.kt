@@ -70,12 +70,27 @@ class MultiAccountPersistenceTest {
         assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, stored.healthConnectStatus)
 
+        val userLocalPending = persistence.enqueue(raw("2026-08-15T10:01:00Z", 83.0))
+            as PendingPersistenceResult.Inserted
+        val userLocalFinalized = persistence.finalizePending(userLocalPending.pending.id, second.id)
+            as FinalizePendingResult.Finalized
+        val userLocal = database.multiAccountMeasurementDao().get(
+            userLocalFinalized.measurement.composition.measurementId,
+        )!!.copy(
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
+            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+        )
+        assertEquals(1, database.measurementDao().update(userLocal))
+
         accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY)
 
         stored = database.multiAccountMeasurementDao().get(stored.id)!!
         assertEquals(ExternalSyncPolicy.AUTO.name, stored.externalSyncPolicy)
         assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.PENDING.name, stored.healthConnectStatus)
+        val userLocalAfterPromotion = database.multiAccountMeasurementDao().get(userLocal.id)!!
+        assertEquals(ExternalSyncPolicy.USER_LOCAL.name, userLocalAfterPromotion.externalSyncPolicy)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, userLocalAfterPromotion.healthConnectStatus)
 
         accounts.deletePrimaryWithReplacement(
             primaryAccountId = second.id,
@@ -85,6 +100,71 @@ class MultiAccountPersistenceTest {
 
         assertEquals(first.id, accounts.observeSettings().first().primaryAccountId)
         assertNull(database.multiAccountMeasurementDao().get(stored.id))
+        assertNull(database.multiAccountMeasurementDao().get(userLocal.id))
+    }
+
+    @Test
+    fun latestWeightsUseOnlyStrictlyPriorMeasurements() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
+        val persistence = persistence()
+        listOf(
+            "2026-08-15T10:00:00Z" to 70.0,
+            "2026-08-15T10:00:01Z" to 71.0,
+            "2026-08-15T10:00:03.123Z" to 72.0,
+        ).forEach { (timestamp, weight) ->
+            val pending = persistence.enqueue(raw(timestamp, weight))
+                as PendingPersistenceResult.Inserted
+            assertTrue(
+                persistence.finalizePending(pending.pending.id, account.id) is
+                    FinalizePendingResult.Finalized,
+            )
+        }
+
+        assertEquals(
+            listOf(70.0),
+            persistence.latestWeightsBefore(account.id, Instant.parse("2026-08-15T10:00:01Z")),
+        )
+        assertEquals(
+            listOf(71.0, 70.0),
+            persistence.latestWeightsBefore(account.id, Instant.parse("2026-08-15T10:00:02Z")),
+        )
+        assertEquals(
+            listOf(72.0, 71.0, 70.0),
+            persistence.latestWeightsBefore(
+                account.id,
+                Instant.parse("2026-08-15T10:00:03.123456789Z"),
+            ),
+        )
+        assertEquals(
+            listOf(71.0, 70.0),
+            persistence.latestWeightsBefore(
+                account.id,
+                Instant.parse("2026-08-15T10:00:03.123Z"),
+            ),
+        )
+        assertEquals(
+            listOf(72.0),
+            persistence.observeRange(
+                account.id,
+                Instant.parse("2026-08-15T10:00:01.000000001Z"),
+                Instant.parse("2026-08-15T10:00:03.123456789Z"),
+            ).first().map { it.composition.weightKg },
+        )
+    }
+
+    @Test
+    fun weightDeltaUpdateHonorsDomainBoundsAndPreservesValueAfterRejection() = runBlocking {
+        val accounts = accountRepository()
+
+        accounts.updateWeightDeltaKg(0.1)
+        assertEquals(0.1, accounts.observeSettings().first().weightDeltaKg, 0.0)
+        accounts.updateWeightDeltaKg(50.0)
+        assertEquals(50.0, accounts.observeSettings().first().weightDeltaKg, 0.0)
+
+        listOf(0.09, 50.01, Double.NaN).forEach { invalid ->
+            assertTrue(runCatching { accounts.updateWeightDeltaKg(invalid) }.isFailure)
+            assertEquals(50.0, accounts.observeSettings().first().weightDeltaKg, 0.0)
+        }
     }
 
     @Test
