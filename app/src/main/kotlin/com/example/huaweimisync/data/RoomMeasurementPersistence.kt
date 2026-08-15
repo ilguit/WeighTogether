@@ -103,7 +103,7 @@ class RoomMeasurementPersistence(
         measuredAtExclusive: Instant,
     ): List<WeightHistoryRecord> = measurementDao.latestHistoryBefore(
         accountId.value,
-        measuredAtExclusive.toEpochMilli(),
+        measuredAtExclusive.ceilToEpochMilli(),
     ).map { value ->
         WeightHistoryRecord(
             measuredAt = Instant.ofEpochMilli(value.measuredAtEpochMillis),
