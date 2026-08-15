@@ -35,6 +35,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.theme.HuaweiColors
@@ -86,7 +89,7 @@ fun HuaweiSectionTitle(
 ) {
     Text(
         text = text,
-        modifier = modifier,
+        modifier = modifier.semantics { heading() },
         color = MaterialTheme.colorScheme.onBackground,
         style = MaterialTheme.typography.titleMedium,
     )
@@ -103,7 +106,9 @@ fun HuaweiFilterButton(
 ) {
     OutlinedButton(
         onClick = onClick,
-        modifier = modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+        modifier = modifier
+            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .semantics { this.selected = selected },
         enabled = enabled,
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(
