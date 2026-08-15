@@ -14,6 +14,9 @@ import com.example.huaweimisync.charts.inclusiveDateRangeToEpochRange
 import com.example.huaweimisync.charts.restoreChartMetricSelection
 import com.example.huaweimisync.charts.toPersistedChartMetricKeys
 import com.example.huaweimisync.data.MeasurementMetric
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
+import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
@@ -113,19 +117,39 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             selectedMetrics = initialSelectedMetrics,
         ),
     )
-    private val measurements = filters.flatMapLatest { current ->
+    private val accountSelector = combine(
+        container.accounts.observeAccounts(),
+        container.accounts.observeSettings(),
+        container.selectedAccountId,
+    ) { accounts, settings, selectedAccountId ->
+        reconcileAccountSelection(accounts, selectedAccountId, settings.primaryAccountId)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        AccountSelectorUiState(
+            accounts = emptyList(),
+            selectedAccountId = null,
+            primaryAccountId = null,
+            isLoading = true,
+        ),
+    )
+    private val measurements = combine(filters, accountSelector) { current, selector ->
+        current to selector.selectedAccountId
+    }.flatMapLatest { (current, accountId) ->
+        if (accountId == null) return@flatMapLatest flowOf(emptyList())
         val range = inclusiveDateRangeToEpochRange(
             current.startDate,
             current.endDateInclusive,
             zoneId,
         )
-        repository.observeRange(
+        repository.observeRangeEntities(
+            accountId = accountId,
             startInclusive = Instant.ofEpochMilli(range.startInclusive),
             endExclusive = Instant.ofEpochMilli(range.endExclusive),
         )
     }
 
-    val uiState = combine(filters, measurements) { current, values ->
+    val uiState = combine(filters, measurements, accountSelector) { current, values, selector ->
         ChartsUiState(
             startDate = current.startDate,
             endDateInclusive = current.endDateInclusive,
@@ -145,6 +169,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             rangePreset = current.rangePreset,
             activeFilterSheet = current.activeFilterSheet,
             isCustomDatePickerOpen = current.isCustomDatePickerOpen,
+            accountSelector = selector,
         )
     }.stateIn(
         viewModelScope,
@@ -166,7 +191,14 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         selectAll = ::selectAll,
         clearSelection = ::clearSelection,
         doneSelectingMetrics = ::doneSelectingMetrics,
+        onAccountSelected = ::selectAccount,
     )
+
+    private fun selectAccount(accountId: AccountId) {
+        if (accountSelector.value.accounts.any { it.id == accountId }) {
+            container.selectedAccountId.value = accountId
+        }
+    }
 
     /** Confirms a user-entered custom interval. Presets use [selectRangePreset]. */
     fun setDateRange(startDate: LocalDate, endDateInclusive: LocalDate) {

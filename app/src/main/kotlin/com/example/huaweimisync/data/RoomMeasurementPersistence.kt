@@ -42,6 +42,22 @@ class RoomMeasurementPersistence(
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : MeasurementRoutingPersistence {
+    fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
+        measurementDao.observeAll(accountId.value)
+
+    fun observeRangeEntities(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<MeasurementEntity>> {
+        require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
+        return measurementDao.observeRange(
+            accountId = accountId.value,
+            startInclusive = startInclusive.ceilToEpochMilli(),
+            endExclusive = endExclusive.ceilToEpochMilli(),
+        )
+    }
+
     fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>> =
         measurementDao.observeAll(accountId.value).map { values ->
             values.map(MeasurementEntity::toAccountMeasurement)

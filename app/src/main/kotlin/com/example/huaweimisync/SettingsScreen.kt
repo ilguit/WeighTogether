@@ -51,6 +51,9 @@ import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
+import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
+import com.example.huaweimisync.ui.accounts.AccountManagementSection
+import com.example.huaweimisync.ui.accounts.WeightRecognitionSetting
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiSectionTitle
 import com.example.huaweimisync.ui.components.HuaweiSettingRow
@@ -61,7 +64,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 internal data class SettingsCallbacks(
-    val onOpenProfile: () -> Unit,
+    val onOpenProfile: () -> Unit = {},
     val onHuaweiAuthorization: () -> Unit,
     val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
@@ -71,6 +74,9 @@ internal data class SettingsCallbacks(
     val onReliabilityMode: (Boolean) -> Unit,
     val openBatterySettings: () -> Unit,
     val openApplicationSettings: () -> Unit,
+    val accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
+    val onWeightDeltaStateChanged: (com.example.huaweimisync.ui.accounts.WeightDeltaEditorState) -> Unit = {},
+    val onWeightDeltaSave: (Double) -> Unit = {},
 )
 
 internal enum class AdditionalExpansion {
@@ -194,7 +200,19 @@ internal fun SettingsScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
-            item { SettingsProfileSection(state, callbacks.onOpenProfile) }
+            item {
+                AccountManagementSection(
+                    state = state.accountManagement,
+                    callbacks = callbacks.accountManagement,
+                )
+            }
+            item {
+                WeightRecognitionSetting(
+                    state = state.weightDeltaEditor,
+                    onStateChanged = callbacks.onWeightDeltaStateChanged,
+                    onSave = callbacks.onWeightDeltaSave,
+                )
+            }
             item { SettingsIntegrationsSection(state, callbacks) }
             item { SettingsScaleSection(state, callbacks.onManualScan) }
             item {
@@ -210,32 +228,24 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsProfileSection(
-    state: MainUiState,
-    onOpenProfile: () -> Unit,
-) {
-    SettingsSection(title = "Профиль") {
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            HuaweiSettingRow(
-                icon = HuaweiIcons.Profile,
-                title = "Профиль расчёта",
-                supportingText = formatProfileSummary(state.settings.profile),
-                modifier = Modifier.testTag(SettingsScreenTestTags.ProfileRow),
-                onClick = onOpenProfile,
-            ) {
-                TextButton(onClick = onOpenProfile) { Text("Изменить") }
-            }
-        }
-    }
-}
-
-@Composable
 private fun SettingsIntegrationsSection(
     state: MainUiState,
     callbacks: SettingsCallbacks,
 ) {
-    val healthConnect = healthConnectPresentation(state.healthConnect)
-    val huawei = huaweiIntegrationPresentation(state.huawei)
+    val primary = state.primaryAccount
+    val primaryStatus = when {
+        primary == null -> "Основной аккаунт не выбран"
+        !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
+        else -> "Основной: ${primary.displayName}"
+    }
+    val healthConnect = healthConnectPresentation(state.healthConnect).forPrimaryAccount(
+        primaryStatus,
+        state.canUseExternalIntegrations,
+    )
+    val huawei = huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
+        primaryStatus,
+        state.canUseExternalIntegrations,
+    )
     SettingsSection(title = "Интеграции") {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
@@ -276,6 +286,14 @@ private fun SettingsIntegrationsSection(
         }
     }
 }
+
+private fun IntegrationPresentation.forPrimaryAccount(
+    primaryStatus: String,
+    enabled: Boolean,
+): IntegrationPresentation = copy(
+    supportingText = "$primaryStatus · $supportingText",
+    actionEnabled = actionEnabled && enabled,
+)
 
 @Composable
 private fun SettingsScaleSection(
@@ -365,7 +383,7 @@ private fun AdditionalContent(
     ) {
         Text("Ручное тестовое измерение", style = MaterialTheme.typography.titleSmall)
         Text(
-            "Создаёт запись без Bluetooth и ставит синхронизацию в очередь.",
+            "Проходит тот же путь распознавания аккаунта, что и измерение с весов.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )

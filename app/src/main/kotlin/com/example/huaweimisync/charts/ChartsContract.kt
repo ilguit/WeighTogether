@@ -1,6 +1,8 @@
 package com.example.huaweimisync.charts
 
 import androidx.compose.runtime.Immutable
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.Clock
@@ -86,6 +88,11 @@ data class ChartsUiState(
     val isCustomDatePickerOpen: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
+    val accountSelector: AccountSelectorUiState = AccountSelectorUiState(
+        accounts = emptyList(),
+        selectedAccountId = null,
+        primaryAccountId = null,
+    ),
 ) {
     init {
         require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
@@ -125,6 +132,7 @@ data class ChartsCallbacks(
     val selectAll: () -> Unit,
     val clearSelection: () -> Unit,
     val doneSelectingMetrics: () -> Unit,
+    val onAccountSelected: (AccountId) -> Unit = {},
 )
 
 data class MeasurementEpochRange(

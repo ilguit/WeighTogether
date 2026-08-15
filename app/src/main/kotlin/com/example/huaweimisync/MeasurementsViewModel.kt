@@ -20,19 +20,45 @@ import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
 import com.example.huaweimisync.measurements.measurementSyncPresentation
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
+import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = (application as MiSyncApplication).container.repository
-    private val measurements = repository.observeAll()
+    private val container = (application as MiSyncApplication).container
+    private val repository = container.repository
+    private val accountSelector = combine(
+        container.accounts.observeAccounts(),
+        container.accounts.observeSettings(),
+        container.selectedAccountId,
+    ) { accounts, settings, selectedAccountId ->
+        reconcileAccountSelection(accounts, selectedAccountId, settings.primaryAccountId)
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        AccountSelectorUiState(
+            accounts = emptyList(),
+            selectedAccountId = null,
+            primaryAccountId = null,
+            isLoading = true,
+        ),
+    )
+    private val measurements = accountSelector.flatMapLatest { selector ->
+        selector.selectedAccountId?.let(repository::observeAllEntities) ?: flowOf(emptyList())
+    }
         .map<List<MeasurementEntity>, MeasurementsLoadState>(MeasurementsLoadState::Loaded)
         .stateIn(viewModelScope, SharingStarted.Eagerly, MeasurementsLoadState.Loading)
     private val navigation = MutableStateFlow(MeasurementsNavigationState())
@@ -47,7 +73,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         navigation,
         editor,
         deleteConfirmation,
-    ) { loadState, currentNavigation, currentEditor, deletion ->
+        accountSelector,
+    ) { loadState, currentNavigation, currentEditor, deletion, selector ->
         val values = loadState.valuesOrEmpty()
             .sortedByDescending(MeasurementEntity::measuredAtEpochMillis)
         val items = values.map { value ->
@@ -64,6 +91,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             isLoading = loadState is MeasurementsLoadState.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
+            accountSelector = selector,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
 
@@ -79,7 +107,16 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         onDeleteConfirmed = ::confirmDelete,
         onDeleteDismissed = ::dismissDelete,
         onRetryRequested = ::retry,
+        onAccountSelected = ::selectAccount,
     )
+
+    private fun selectAccount(accountId: AccountId) {
+        if (accountSelector.value.accounts.none { it.id == accountId }) return
+        container.selectedAccountId.value = accountId
+        navigation.value = MeasurementsNavigationState()
+        editor.value = null
+        deleteConfirmation.value = null
+    }
 
     private fun showSummary() {
         if (editor.value?.isSaving == true) return

@@ -53,12 +53,25 @@ class MeasurementRepository(
 
     fun observeAll(): Flow<List<MeasurementEntity>> = dao.observeAll()
 
+    fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
+        requireMultiAccountPersistence().observeAllEntities(accountId)
+
     fun observeRange(
         startInclusive: Instant,
         endExclusive: Instant,
     ): Flow<List<MeasurementEntity>> = dao.observeRange(
         startInclusive = startInclusive.toEpochMilli(),
         endExclusive = endExclusive.toEpochMilli(),
+    )
+
+    fun observeRangeEntities(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<MeasurementEntity>> = requireMultiAccountPersistence().observeRangeEntities(
+        accountId = accountId,
+        startInclusive = startInclusive,
+        endExclusive = endExclusive,
     )
 
     suspend fun store(raw: RawScaleMeasurement): StoreResult {

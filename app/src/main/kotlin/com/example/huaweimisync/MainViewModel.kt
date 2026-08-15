@@ -10,10 +10,35 @@ import com.example.huaweimisync.ble.BleSupport
 import com.example.huaweimisync.ble.ManualScaleScanner
 import com.example.huaweimisync.ble.ReliabilityScanService
 import com.example.huaweimisync.ble.ScanWorkScheduler
-import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
-import com.example.huaweimisync.data.StoreResult
+import com.example.huaweimisync.data.AccountNameConflictException
+import com.example.huaweimisync.data.MeasurementIngestionResult
+import com.example.huaweimisync.domain.Account
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountSettings
+import com.example.huaweimisync.domain.AccountUpdate
+import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.FinalizePendingResult
+import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.RoutingCandidate
+import com.example.huaweimisync.domain.RoutingDecision
+import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
+import com.example.huaweimisync.ui.accounts.AccountManagementAction
+import com.example.huaweimisync.ui.accounts.AccountManagementUiState
+import com.example.huaweimisync.ui.accounts.WeightDeltaEditorState
+import com.example.huaweimisync.ui.accounts.reduceAccountManagement
+import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
+import com.example.huaweimisync.ui.routing.ResolverQueueState
+import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
+import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
+import com.example.huaweimisync.worker.MeasurementWorkSweep
+import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +52,42 @@ data class MainUiState(
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
     val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
+    val accounts: List<Account> = emptyList(),
+    val accountSettings: AccountSettings = AccountSettings(),
+    val accountManagement: AccountManagementUiState = AccountManagementUiState(),
+    val weightDeltaEditor: WeightDeltaEditorState = WeightDeltaEditorState(),
+    val resolverQueue: ResolverQueueState = ResolverQueueState(),
+    val resolver: MeasurementResolverUiState? = null,
+    val unsavedPreview: UnsavedMeasurementPreviewState? = null,
+) {
+    val primaryAccount: Account?
+        get() = accounts.firstOrNull { it.id == accountSettings.primaryAccountId }
+
+    val canUseExternalIntegrations: Boolean
+        get() = primaryAccount?.profile is com.example.huaweimisync.domain.AccountProfile.Complete
+}
+
+private data class AccountsSnapshot(
+    val accounts: List<Account>,
+    val settings: AccountSettings,
+)
+
+private data class PendingDecisionSnapshot(
+    val pendingId: PendingMeasurementId,
+    val decision: RoutingDecision,
+)
+
+private data class MainCoreState(
+    val settings: AppSettings,
+    val scanning: Boolean,
+    val healthConnect: HealthConnectPermissionsUiState,
+    val huawei: HuaweiIntegrationUiState,
+)
+
+private data class RoutingUiSnapshot(
+    val queue: ResolverQueueState,
+    val resolver: MeasurementResolverUiState?,
+    val preview: UnsavedMeasurementPreviewState?,
 )
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -50,36 +111,115 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val healthConnect = MutableStateFlow(initialHealthConnectState)
     private val initialHuaweiState = huaweiAuthorization.initialState
     private val huawei = MutableStateFlow(initialHuaweiState)
-    private val profileEditor = ProfileEditorController(
-        saveProfile = container.profileStore::saveProfile,
-        eventEmitter = eventEmitter,
+    private val accountsSnapshot = combine(
+        container.accounts.observeAccounts(),
+        container.accounts.observeSettings(),
+    ) { accounts, settings -> AccountsSnapshot(accounts, settings) }.stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        AccountsSnapshot(emptyList(), AccountSettings()),
     )
+    private val pending = container.repository.observePending().stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        emptyList(),
+    )
+    private val accountManagementDialog = MutableStateFlow(AccountManagementUiState())
+    private val weightDeltaEditor = MutableStateFlow(WeightDeltaEditorState())
+    private val resolverRequested = MutableStateFlow(false)
+    private val notificationPermissionGranted = MutableStateFlow(true)
+    private val resolverOperationInProgress = MutableStateFlow(false)
+    private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
+    private val pendingForNewAccount = MutableStateFlow<PendingMeasurementId?>(null)
+    private val unsavedPreview = MutableStateFlow<UnsavedMeasurementPreviewState?>(null)
 
     val events = eventEmitter.events
 
-    val uiState: StateFlow<MainUiState> = combine(
+    private val coreState = combine(
         container.profileStore.settings,
         scanning,
         healthConnect,
-        profileEditor.state,
         huawei,
-    ) { settings, isScanning, healthConnectState, profileEditorState, huaweiState ->
-        MainUiState(
+    ) { settings, isScanning, healthConnectState, huaweiState ->
+        MainCoreState(
             settings = settings,
             scanning = isScanning,
             healthConnect = healthConnectState,
-            profileEditor = profileEditorState,
             huawei = huaweiState,
         )
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
+    }
+    private val accountManagement = combine(
+        accountsSnapshot,
+        accountManagementDialog,
+    ) { snapshot, dialog ->
+        dialog.copy(
+            accounts = snapshot.accounts,
+            primaryAccountId = snapshot.settings.primaryAccountId,
+        )
+    }
+    private val resolverQueue = combine(
+        pending,
+        resolverRequested,
+        notificationPermissionGranted,
+    ) { pendingValues, requested, notificationsGranted ->
+        ResolverQueueState.from(
+            pending = pendingValues,
+            isResolverVisible = requested,
+            notificationPermissionGranted = notificationsGranted,
+        )
+    }
+    private val routingUi = combine(
+        resolverQueue,
+        accountsSnapshot,
+        pendingDecision,
+        resolverOperationInProgress,
+        unsavedPreview,
+    ) { queue, accounts, decision, operation, preview ->
+        val current = queue.current
+        val resolver = if (
+            queue.isResolverVisible && current != null && preview == null
+        ) {
+            val candidates = decision
+                ?.takeIf { it.pendingId == current.id }
+                ?.decision
+                ?.routingCandidates()
+                .orEmpty()
+            MeasurementResolverUiState(
+                pending = current,
+                accountOptions = buildResolverAccountOptions(
+                    accounts = accounts.accounts,
+                    primaryAccountId = accounts.settings.primaryAccountId,
+                    candidates = candidates,
+                ),
+                operationInProgress = operation,
+            )
+        } else {
+            null
+        }
+        RoutingUiSnapshot(queue, resolver, preview)
+    }
+
+    val uiState: StateFlow<MainUiState> = combine(
+        coreState,
+        accountsSnapshot,
+        accountManagement,
+        weightDeltaEditor,
+        routingUi,
+    ) { core, accountSnapshot, management, deltaEditor, routing ->
         MainUiState(
-            settings = container.profileStore.settings.value,
-            healthConnect = initialHealthConnectState,
-            huawei = initialHuaweiState,
-        ),
-    )
+            settings = core.settings,
+            scanning = core.scanning,
+            healthConnect = core.healthConnect,
+            huawei = core.huawei,
+            accounts = accountSnapshot.accounts,
+            accountSettings = accountSnapshot.settings,
+            accountManagement = management,
+            weightDeltaEditor = deltaEditor,
+            resolverQueue = routing.queue,
+            resolver = routing.resolver,
+            unsavedPreview = routing.preview,
+        )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
 
     val huaweiConfigured: Boolean get() = container.huaweiHealth.isConfigured
     val huaweiAvailableInBuild: Boolean get() = container.huaweiHealth.isAvailableInBuild
@@ -87,39 +227,192 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
 
     init {
-        refreshIntegrations()
+        viewModelScope.launch {
+            accountsSnapshot.collectLatest { snapshot ->
+                val requested = container.selectedAccountId.value
+                if (snapshot.accounts.none { it.id == requested }) {
+                    container.selectedAccountId.value = snapshot.settings.primaryAccountId
+                        ?.takeIf { primary -> snapshot.accounts.any { it.id == primary } }
+                }
+            }
+        }
+        viewModelScope.launch {
+            accountsSnapshot.collectLatest { snapshot ->
+                if (!weightDeltaEditor.value.isSaving) {
+                    weightDeltaEditor.value = WeightDeltaEditorState.from(
+                        snapshot.settings.weightDeltaKg,
+                    )
+                }
+            }
+        }
+        viewModelScope.launch {
+            pending.collectLatest { values ->
+                val head = values.firstOrNull()
+                if (head == null) {
+                    resolverRequested.value = false
+                    pendingDecision.value = null
+                    unsavedPreview.value = null
+                } else if (pendingDecision.value?.pendingId != head.id) {
+                    refreshRoutingDecision(head.id)
+                }
+            }
+        }
+        viewModelScope.launch {
+            container.pendingMeasurementNotifications.notificationDeniedFallback.collectLatest {
+                if (it is PendingDecisionFallback.ShowOnForeground) {
+                    notificationPermissionGranted.value = false
+                }
+            }
+        }
+        onForeground()
     }
 
-    fun openProfileEditor() {
-        profileEditor.open(container.profileStore.settings.value.profile)
+    fun onAccountManagementAction(action: AccountManagementAction) {
+        val current = accountManagementDialog.value.copy(
+            accounts = accountsSnapshot.value.accounts,
+            primaryAccountId = accountsSnapshot.value.settings.primaryAccountId,
+        )
+        accountManagementDialog.value = reduceAccountManagement(current, action)
+        if (action == AccountManagementAction.DialogDismissed) {
+            pendingForNewAccount.value = null
+        }
     }
 
-    fun closeProfileEditor() {
-        profileEditor.close()
+    fun createAccount(account: NewAccount) = runAccountOperation {
+        val pendingId = pendingForNewAccount.value
+        if (pendingId == null) {
+            val created = container.accounts.createAccount(account)
+            if (accountsSnapshot.value.settings.primaryAccountId == null) {
+                container.selectedAccountId.value = created.id
+            }
+            finishAccountOperation("Аккаунт «${created.displayName}» создан")
+            return@runAccountOperation
+        }
+        when (val result = container.repository.createAccountAndAssignPending(pendingId, account)) {
+            is CreateAccountAndAssignResult.Created -> {
+                pendingForNewAccount.value = null
+                container.selectedAccountId.value = result.account.id
+                finishAccountOperation(
+                    "Аккаунт «${result.account.displayName}» создан, измерение назначено",
+                )
+            }
+            is CreateAccountAndAssignResult.NameConflict -> failAccountOperation(
+                "Аккаунт с таким именем уже существует",
+            )
+            CreateAccountAndAssignResult.PendingNotFound,
+            is CreateAccountAndAssignResult.AlreadyFinalized,
+            -> {
+                pendingForNewAccount.value = null
+                finishAccountOperation("Измерение уже обработано")
+            }
+        }
     }
 
-    fun updateProfileHeight(value: String) {
-        profileEditor.updateHeight(value)
+    fun updateAccount(account: AccountUpdate) = runAccountOperation {
+        val updated = container.accounts.updateAccount(account)
+        finishAccountOperation("Аккаунт «${updated.displayName}» сохранён")
     }
 
-    fun updateProfileBirthDate(value: String) {
-        profileEditor.updateBirthDate(value)
+    fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
+        runAccountOperation {
+            container.accounts.setPrimaryAccount(accountId, mode)
+            container.selectedAccountId.value = accountId
+            finishAccountOperation("Основной аккаунт изменён")
+        }
+
+    fun deleteAccount(accountId: AccountId) = runAccountOperation {
+        container.accounts.deleteAccount(accountId)
+        if (container.selectedAccountId.value == accountId) {
+            container.selectedAccountId.value = null
+        }
+        finishAccountOperation("Аккаунт и его локальная история удалены")
     }
 
-    fun updateProfileSex(value: Sex) {
-        profileEditor.updateSex(value)
+    fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
+        container.accounts.deletePrimaryWithReplacement(
+            primaryAccountId = request.accountId,
+            replacementAccountId = request.replacementAccountId,
+            historySyncMode = request.historySyncMode,
+        )
+        container.selectedAccountId.value = request.replacementAccountId
+        finishAccountOperation("Основной аккаунт и его локальная история удалены")
     }
 
-    fun saveProfile() {
-        profileEditor.save()
+    fun updateWeightDeltaEditor(state: WeightDeltaEditorState) {
+        if (!weightDeltaEditor.value.isSaving) weightDeltaEditor.value = state
     }
 
-    fun saveProfile(height: String, birthDate: String, sex: Sex) {
-        if (!profileEditor.state.value.isOpen) openProfileEditor()
-        profileEditor.updateHeight(height)
-        profileEditor.updateBirthDate(birthDate)
-        profileEditor.updateSex(sex)
-        profileEditor.save()
+    fun saveWeightDelta(weightDeltaKg: Double) = viewModelScope.launch {
+        if (!weightDeltaEditor.value.canSave) return@launch
+        weightDeltaEditor.value = weightDeltaEditor.value.copy(isSaving = true)
+        runCatching { container.accounts.updateWeightDeltaKg(weightDeltaKg) }
+            .onSuccess {
+                weightDeltaEditor.value = WeightDeltaEditorState.from(weightDeltaKg)
+                showMessage("Дельта распознавания сохранена")
+            }
+            .onFailure {
+                weightDeltaEditor.value = weightDeltaEditor.value.copy(isSaving = false)
+                showMessage(it.userFacingMessage("Не удалось сохранить дельту"))
+            }
+    }
+
+    fun openResolver() {
+        resolverRequested.value = true
+        pending.value.firstOrNull()?.let { pendingValue ->
+            viewModelScope.launch { refreshRoutingDecision(pendingValue.id) }
+        }
+    }
+
+    fun resolveLater() {
+        resolverRequested.value = false
+    }
+
+    fun choosePendingAccount(pendingId: PendingMeasurementId, accountId: AccountId) =
+        viewModelScope.launch {
+            if (pending.value.firstOrNull()?.id != pendingId || resolverOperationInProgress.value) {
+                return@launch
+            }
+            resolverOperationInProgress.value = true
+            when (container.repository.finalizePending(pendingId, accountId)) {
+                is FinalizePendingResult.Finalized -> showMessage("Измерение назначено аккаунту")
+                is FinalizePendingResult.AlreadyFinalized -> showMessage("Измерение уже назначено")
+                FinalizePendingResult.ProfileIncomplete ->
+                    showMessage("Сначала заполните профиль выбранного аккаунта")
+                FinalizePendingResult.AccountNotFound -> showMessage("Аккаунт уже удалён")
+                FinalizePendingResult.PendingNotFound -> showMessage("Измерение уже обработано")
+            }
+            resolverOperationInProgress.value = false
+        }
+
+    fun startCreateAccountForPending(pendingId: PendingMeasurementId) {
+        if (pending.value.firstOrNull()?.id != pendingId) return
+        pendingForNewAccount.value = pendingId
+        resolverRequested.value = false
+        onAccountManagementAction(AccountManagementAction.AddRequested)
+    }
+
+    fun showPendingWithoutSaving(pendingId: PendingMeasurementId) {
+        val pendingValue = pending.value.firstOrNull { it.id == pendingId } ?: return
+        resolverRequested.value = false
+        unsavedPreview.value = UnsavedMeasurementPreviewState(pendingValue)
+    }
+
+    fun updateUnsavedPreview(state: UnsavedMeasurementPreviewState) {
+        if (unsavedPreview.value?.pending?.id == state.pending.id) {
+            unsavedPreview.value = state
+        }
+    }
+
+    fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {
+        if (unsavedPreview.value?.pending?.id != pendingId) return@launch
+        if (container.repository.discardPending(pendingId)) {
+            unsavedPreview.value = null
+            resolverRequested.value = true
+            showMessage("Измерение удалено без сохранения")
+        } else {
+            unsavedPreview.value = null
+            showMessage("Измерение уже обработано")
+        }
     }
 
     fun registerBackgroundScan() {
@@ -186,11 +479,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             showMessage("Проверьте вес и импеданс")
             return@launch
         }
-        showMessage(when (container.repository.insertManual(weightKg, impedanceOhm)) {
-            is StoreResult.Inserted -> "Тестовая запись создана и поставлена в очередь"
-            StoreResult.Duplicate -> "Такая тестовая запись уже существует"
-            StoreResult.ProfileMissing -> "Сначала сохраните профиль"
-        })
+        when (val result = container.repository.ingestTestMeasurement(weightKg, impedanceOhm)) {
+            is MeasurementIngestionResult.Assigned -> {
+                val accountName = container.accounts.getAccount(result.measurement.accountId)
+                    ?.displayName
+                    .orEmpty()
+                showMessage(
+                    if (result.wasAlreadyFinalized) {
+                        "Такое тестовое измерение уже обработано"
+                    } else {
+                        "Тестовое измерение назначено аккаунту «$accountName»"
+                    },
+                )
+            }
+            is MeasurementIngestionResult.AwaitingDecision -> {
+                resolverRequested.value = true
+                pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
+                showMessage("Тестовое измерение ожидает выбора аккаунта")
+            }
+            MeasurementIngestionResult.Tombstoned,
+            MeasurementIngestionResult.LegacyDuplicate,
+            -> showMessage("Такое тестовое измерение уже существует")
+            MeasurementIngestionResult.PendingMissing -> showMessage("Измерение уже обработано")
+            MeasurementIngestionResult.IgnoredNotFinal -> showMessage("Измерение ещё не завершено")
+            MeasurementIngestionResult.LegacyProfileMissing ->
+                showMessage("Не удалось обработать тестовое измерение")
+        }
     }
 
     fun retry(id: String) = viewModelScope.launch {
@@ -207,6 +521,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (container.profileStore.settings.value.reliabilityMode) {
             runCatching { ReliabilityScanService.setEnabled(getApplication(), true) }
         }
+    }
+
+    fun setNotificationPermissionGranted(granted: Boolean) {
+        notificationPermissionGranted.value = granted
+        viewModelScope.launch { container.repository.refreshPendingPresentation() }
     }
 
     fun onHealthConnectPermissionsChanged(allGranted: Boolean) = viewModelScope.launch {
@@ -230,6 +549,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Re-checks Health Connect and Huawei permissions after returning to the foreground. */
     fun refreshIntegrations() = viewModelScope.launch {
+        updateHealthConnectPermissions(notifyResult = false)
+        huaweiAuthorization.refresh { huawei.value = it }
+    }
+
+    /** Foreground repair closes Room→WorkManager gaps and restores pending presentation. */
+    fun onForeground() = viewModelScope.launch {
+        runCatching { MeasurementWorkSweep(container.repository).run() }
+            .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
+        runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
         huaweiAuthorization.refresh { huawei.value = it }
     }
@@ -318,6 +646,45 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         eventEmitter.showSnackbar(message)
     }
 
+    private fun runAccountOperation(block: suspend () -> Unit) {
+        if (accountManagementDialog.value.operationInProgress) return
+        accountManagementDialog.value = accountManagementDialog.value.copy(
+            operationInProgress = true,
+        )
+        viewModelScope.launch {
+            runCatching { block() }.onFailure { error ->
+                failAccountOperation(error.userFacingMessage("Не удалось изменить аккаунт"))
+            }
+        }
+    }
+
+    private fun finishAccountOperation(message: String) {
+        accountManagementDialog.value = AccountManagementUiState()
+        showMessage(message)
+    }
+
+    private fun failAccountOperation(message: String) {
+        accountManagementDialog.value = accountManagementDialog.value.copy(
+            operationInProgress = false,
+        )
+        showMessage(message)
+    }
+
+    private suspend fun refreshRoutingDecision(pendingId: PendingMeasurementId) {
+        when (val result = container.repository.routePending(pendingId)) {
+            is MeasurementIngestionResult.AwaitingDecision -> {
+                pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
+            }
+            is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
+            MeasurementIngestionResult.PendingMissing,
+            MeasurementIngestionResult.Tombstoned,
+            MeasurementIngestionResult.IgnoredNotFinal,
+            MeasurementIngestionResult.LegacyDuplicate,
+            MeasurementIngestionResult.LegacyProfileMissing,
+            -> pendingDecision.value = null
+        }
+    }
+
     private fun huaweiAuthorizationMessage(attempt: HuaweiAuthorizationAttempt): String {
         if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
             return "Huawei Health: разрешение подтверждено, очередь перезапущена"
@@ -333,4 +700,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             is SyncResult.Retryable -> request.message
         }
     }
+}
+
+private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (this) {
+    is RoutingDecision.ChooseAccount -> candidates
+    is RoutingDecision.AssignSingle -> listOf(candidate)
+    is RoutingDecision.AssignPrimary -> if (differenceKg != null && medianWeightKg != null) {
+        listOf(
+            RoutingCandidate(
+                accountId = accountId,
+                differenceKg = differenceKg,
+                medianWeightKg = medianWeightKg,
+                stableOrder = 0,
+            ),
+        )
+    } else {
+        emptyList()
+    }
+    RoutingDecision.NoMatch -> emptyList()
+}
+
+private fun Throwable.userFacingMessage(fallback: String): String = when (this) {
+    is AccountNameConflictException -> "Аккаунт с таким именем уже существует"
+    else -> message?.takeIf(String::isNotBlank) ?: fallback
 }

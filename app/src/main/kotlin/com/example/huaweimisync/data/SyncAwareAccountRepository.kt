@@ -30,10 +30,12 @@ class SyncAwareAccountRepository(
 
     override suspend fun getAccount(id: AccountId): Account? = delegate.getAccount(id)
 
-    override suspend fun createAccount(account: NewAccount): Account = delegate.createAccount(account)
+    override suspend fun createAccount(account: NewAccount): Account = delegate.createAccount(account).also {
+        measurements.sweepPendingRouting()
+    }
 
     override suspend fun updateAccount(account: AccountUpdate): Account =
-        delegate.updateAccount(account)
+        delegate.updateAccount(account).also { measurements.sweepPendingRouting() }
 
     override suspend fun setPrimaryAccount(
         accountId: AccountId,
@@ -43,11 +45,13 @@ class SyncAwareAccountRepository(
         val previousWork = previousPrimary?.let { persistence.activeSyncWorkIds(it) }.orEmpty()
         delegate.setPrimaryAccount(accountId, historySyncMode)
         if (previousPrimary != accountId) syncScheduler.cancelAll(previousWork)
+        measurements.sweepPendingRouting()
         measurements.sweepPendingSync()
     }
 
     override suspend fun deleteAccount(accountId: AccountId) {
         delegate.deleteAccount(accountId)
+        measurements.sweepPendingRouting()
     }
 
     override suspend fun deletePrimaryWithReplacement(
@@ -62,6 +66,7 @@ class SyncAwareAccountRepository(
             historySyncMode = historySyncMode,
         )
         syncScheduler.cancelAll(previousWork)
+        measurements.sweepPendingRouting()
         measurements.sweepPendingSync()
     }
 

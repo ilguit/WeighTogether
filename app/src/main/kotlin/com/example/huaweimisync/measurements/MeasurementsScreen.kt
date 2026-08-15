@@ -71,6 +71,7 @@ import com.example.huaweimisync.ui.components.HuaweiStatusAction
 import com.example.huaweimisync.ui.components.HuaweiStatusTone
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
+import com.example.huaweimisync.ui.accounts.AccountSelector
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import java.text.NumberFormat
@@ -103,41 +104,53 @@ fun MeasurementsScreen(
     var syncMeasurementId by rememberSaveable { mutableStateOf<String?>(null) }
     val syncItem = state.measurements.firstOrNull { it.id == syncMeasurementId }
 
-    Box(modifier = modifier.fillMaxSize()) {
-        when (state.destination) {
-            MeasurementsDestination.SUMMARY -> MeasurementSummaryScreen(
-                state = state,
-                metricsExpanded = summaryMetricsExpanded,
-                onMetricsExpandedChange = { summaryMetricsExpanded = it },
-                onSyncRequested = { syncMeasurementId = it.id },
-                callbacks = callbacks,
+    Column(modifier = modifier.fillMaxSize()) {
+        if (state.destination != MeasurementsDestination.EDITOR) {
+            AccountSelector(
+                state = state.accountSelector,
+                onAccountSelected = callbacks.onAccountSelected,
+                modifier = Modifier.padding(
+                    horizontal = HuaweiDimensions.ContentPadding,
+                    vertical = HuaweiDimensions.CompactContentPadding,
+                ),
             )
-
-            MeasurementsDestination.HISTORY -> MeasurementHistoryScreen(
-                state = state,
-                expandedIds = expandedHistoryIds,
-                onExpandedChange = { id, expanded ->
-                    expandedHistoryIds = if (expanded) {
-                        (expandedHistoryIds + id).distinct()
-                    } else {
-                        expandedHistoryIds - id
-                    }
-                },
-                onSyncRequested = { syncMeasurementId = it.id },
-                callbacks = callbacks,
-            )
-
-            MeasurementsDestination.EDITOR -> state.editor?.let { editor ->
-                MeasurementEditorScreen(editor = editor, callbacks = callbacks)
-            } ?: MissingEditorState(onBack = callbacks.onBackRequested)
         }
+        Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            when (state.destination) {
+                MeasurementsDestination.SUMMARY -> MeasurementSummaryScreen(
+                    state = state,
+                    metricsExpanded = summaryMetricsExpanded,
+                    onMetricsExpandedChange = { summaryMetricsExpanded = it },
+                    onSyncRequested = { syncMeasurementId = it.id },
+                    callbacks = callbacks,
+                )
 
-        state.deleteConfirmation?.let { confirmation ->
-            DeleteMeasurementDialog(
-                confirmation = confirmation,
-                onConfirm = { callbacks.onDeleteConfirmed(confirmation.measurementId) },
-                onDismiss = callbacks.onDeleteDismissed,
-            )
+                MeasurementsDestination.HISTORY -> MeasurementHistoryScreen(
+                    state = state,
+                    expandedIds = expandedHistoryIds,
+                    onExpandedChange = { id, expanded ->
+                        expandedHistoryIds = if (expanded) {
+                            (expandedHistoryIds + id).distinct()
+                        } else {
+                            expandedHistoryIds - id
+                        }
+                    },
+                    onSyncRequested = { syncMeasurementId = it.id },
+                    callbacks = callbacks,
+                )
+
+                MeasurementsDestination.EDITOR -> state.editor?.let { editor ->
+                    MeasurementEditorScreen(editor = editor, callbacks = callbacks)
+                } ?: MissingEditorState(onBack = callbacks.onBackRequested)
+            }
+
+            state.deleteConfirmation?.let { confirmation ->
+                DeleteMeasurementDialog(
+                    confirmation = confirmation,
+                    onConfirm = { callbacks.onDeleteConfirmed(confirmation.measurementId) },
+                    onDismiss = callbacks.onDeleteDismissed,
+                )
+            }
         }
     }
 

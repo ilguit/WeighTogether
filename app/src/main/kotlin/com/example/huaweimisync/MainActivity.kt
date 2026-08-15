@@ -15,6 +15,7 @@ import androidx.core.net.toUri
 import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import com.example.huaweimisync.ble.BleSupport
+import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -32,9 +33,11 @@ class MainActivity : ComponentActivity() {
     private val notificationPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
-        if (grants.values.any { !it }) {
+        val granted = grants.values.all { it }
+        viewModel.setNotificationPermissionGranted(granted)
+        if (!granted) {
             viewModel.setMessage(
-                "Уведомления запрещены: обычный фоновый приём работает, но режим повышенной надёжности может быть ограничен",
+                "Уведомления запрещены: ожидающие измерения будут показаны в приложении",
             )
         }
     }
@@ -69,6 +72,7 @@ class MainActivity : ComponentActivity() {
                 openApplicationSettings = ::openApplicationSettings,
             )
         }
+        handleIntent(intent)
 
         val missing = BleSupport.requiredBluetoothPermissions().filterNot { permission ->
             checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
@@ -82,14 +86,31 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshIntegrations()
+        viewModel.onForeground()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
     }
 
     private fun requestNotificationPermission() {
         val missing = BleSupport.requiredNotificationPermissions().filterNot { permission ->
             checkSelfPermission(permission) == android.content.pm.PackageManager.PERMISSION_GRANTED
         }
-        if (missing.isNotEmpty()) notificationPermissions.launch(missing.toTypedArray())
+        if (missing.isNotEmpty()) {
+            notificationPermissions.launch(missing.toTypedArray())
+        } else {
+            viewModel.setNotificationPermissionGranted(true)
+        }
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.action == PendingMeasurementNotificationHelper.ACTION_RESOLVE_PENDING) {
+            viewModel.openResolver()
+            intent.action = null
+        }
     }
 
     private fun openBatterySettings() {
