@@ -1,8 +1,8 @@
 package com.example.huaweimisync
 
-import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.sync.HuaweiHealthGateway
 import com.example.huaweimisync.sync.HuaweiPermissionCheckResult
+import com.example.huaweimisync.sync.MeasurementSyncPayload
 import com.example.huaweimisync.sync.SyncResult
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -166,6 +166,6 @@ class HuaweiAuthorizationControllerTest {
             return authorizeResult
         }
 
-        override suspend fun write(measurement: MeasurementEntity): SyncResult = SyncResult.Success
+        override suspend fun write(payload: MeasurementSyncPayload): SyncResult = SyncResult.Success
     }
 }

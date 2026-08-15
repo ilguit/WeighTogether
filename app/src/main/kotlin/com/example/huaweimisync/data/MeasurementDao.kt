@@ -33,6 +33,8 @@ interface MeasurementDao {
             healthConnectError = current.healthConnectError.preserveForTerminalStatus(
                 current.healthConnectStatus,
             ),
+            huaweiWeightSynced = current.huaweiWeightSynced,
+            healthConnectWeightSynced = current.healthConnectWeightSynced,
             createdAtEpochMillis = current.createdAtEpochMillis,
         )
         return if (update(upgraded) == 1) {
@@ -91,20 +93,54 @@ interface MeasurementDao {
     @Query(
         """
         UPDATE measurements
-        SET huaweiStatus = :status, huaweiError = :error
+        SET huaweiStatus = CASE
+                WHEN measurementType = :expectedMeasurementType THEN :status
+                ELSE huaweiStatus
+            END,
+            huaweiError = CASE
+                WHEN measurementType = :expectedMeasurementType THEN :error
+                ELSE huaweiError
+            END,
+            huaweiWeightSynced = CASE
+                WHEN :markWeightSynced THEN 1
+                ELSE huaweiWeightSynced
+            END
         WHERE id = :id AND huaweiStatus != 'LOCAL_ONLY'
         """,
     )
-    suspend fun updateHuaweiStatus(id: String, status: String, error: String?): Int
+    suspend fun applyHuaweiSyncResult(
+        id: String,
+        expectedMeasurementType: String,
+        status: String,
+        error: String?,
+        markWeightSynced: Boolean,
+    ): Int
 
     @Query(
         """
         UPDATE measurements
-        SET healthConnectStatus = :status, healthConnectError = :error
+        SET healthConnectStatus = CASE
+                WHEN measurementType = :expectedMeasurementType THEN :status
+                ELSE healthConnectStatus
+            END,
+            healthConnectError = CASE
+                WHEN measurementType = :expectedMeasurementType THEN :error
+                ELSE healthConnectError
+            END,
+            healthConnectWeightSynced = CASE
+                WHEN :markWeightSynced THEN 1
+                ELSE healthConnectWeightSynced
+            END
         WHERE id = :id AND healthConnectStatus != 'LOCAL_ONLY'
         """,
     )
-    suspend fun updateHealthConnectStatus(id: String, status: String, error: String?): Int
+    suspend fun applyHealthConnectSyncResult(
+        id: String,
+        expectedMeasurementType: String,
+        status: String,
+        error: String?,
+        markWeightSynced: Boolean,
+    ): Int
 
     @Query(
         """

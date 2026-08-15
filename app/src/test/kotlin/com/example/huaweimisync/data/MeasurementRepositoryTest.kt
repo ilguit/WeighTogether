@@ -95,6 +95,8 @@ class MeasurementRepositoryTest {
         dao.values[inserted.value.id] = inserted.value.copy(
             huaweiStatus = SyncStatus.SYNCED.name,
             healthConnectStatus = SyncStatus.SYNCED.name,
+            huaweiWeightSynced = true,
+            healthConnectWeightSynced = true,
         )
         val result = repository.store(raw)
 
@@ -107,6 +109,8 @@ class MeasurementRepositoryTest {
         assertTrue(upgraded.fullValues != null)
         assertEquals(SyncStatus.PENDING.name, upgraded.huaweiStatus)
         assertEquals(SyncStatus.PENDING.name, upgraded.healthConnectStatus)
+        assertTrue(upgraded.huaweiWeightSynced)
+        assertTrue(upgraded.healthConnectWeightSynced)
         assertEquals(listOf(upgraded.id, upgraded.id), scheduler.enqueued)
     }
 
@@ -358,11 +362,23 @@ class MeasurementRepositoryTest {
 
         assertEquals(
             0,
-            dao.updateHuaweiStatus("local", SyncStatus.SYNCED.name, null),
+            dao.applyHuaweiSyncResult(
+                "local",
+                MeasurementType.FULL.name,
+                SyncStatus.SYNCED.name,
+                null,
+                true,
+            ),
         )
         assertEquals(
             0,
-            dao.updateHealthConnectStatus("local", SyncStatus.SYNCED.name, null),
+            dao.applyHealthConnectSyncResult(
+                "local",
+                MeasurementType.FULL.name,
+                SyncStatus.SYNCED.name,
+                null,
+                true,
+            ),
         )
         assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("local").huaweiStatus)
         assertEquals(
@@ -463,21 +479,53 @@ private class FakeMeasurementDao(
         return 1
     }
 
-    override suspend fun updateHuaweiStatus(id: String, status: String, error: String?): Int {
+    override suspend fun applyHuaweiSyncResult(
+        id: String,
+        expectedMeasurementType: String,
+        status: String,
+        error: String?,
+        markWeightSynced: Boolean,
+    ): Int {
         val value = values[id] ?: return 0
         if (value.huaweiStatus == SyncStatus.LOCAL_ONLY.name) return 0
-        values[id] = value.copy(huaweiStatus = status, huaweiError = error)
+        values[id] = value.copy(
+            huaweiStatus = if (value.measurementType.name == expectedMeasurementType) {
+                status
+            } else {
+                value.huaweiStatus
+            },
+            huaweiError = if (value.measurementType.name == expectedMeasurementType) {
+                error
+            } else {
+                value.huaweiError
+            },
+            huaweiWeightSynced = value.huaweiWeightSynced || markWeightSynced,
+        )
         return 1
     }
 
-    override suspend fun updateHealthConnectStatus(
+    override suspend fun applyHealthConnectSyncResult(
         id: String,
+        expectedMeasurementType: String,
         status: String,
         error: String?,
+        markWeightSynced: Boolean,
     ): Int {
         val value = values[id] ?: return 0
         if (value.healthConnectStatus == SyncStatus.LOCAL_ONLY.name) return 0
-        values[id] = value.copy(healthConnectStatus = status, healthConnectError = error)
+        values[id] = value.copy(
+            healthConnectStatus = if (value.measurementType.name == expectedMeasurementType) {
+                status
+            } else {
+                value.healthConnectStatus
+            },
+            healthConnectError = if (value.measurementType.name == expectedMeasurementType) {
+                error
+            } else {
+                value.healthConnectError
+            },
+            healthConnectWeightSynced = value.healthConnectWeightSynced || markWeightSynced,
+        )
         return 1
     }
 

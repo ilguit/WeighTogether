@@ -117,6 +117,8 @@ data class MeasurementEntity(
     val healthConnectStatus: String = SyncStatus.PENDING.name,
     val huaweiError: String? = null,
     val healthConnectError: String? = null,
+    val huaweiWeightSynced: Boolean = false,
+    val healthConnectWeightSynced: Boolean = false,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
 ) {
     val values: MeasurementValues

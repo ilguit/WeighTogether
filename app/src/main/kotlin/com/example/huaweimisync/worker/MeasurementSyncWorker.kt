@@ -20,11 +20,11 @@ class MeasurementSyncWorker(
             loadMeasurement = dao::get,
             writeHuawei = container.huaweiHealth::write,
             writeHealthConnect = container.healthConnect::write,
-            applyHuaweiResult = { measurementId, result ->
-                applyHuaweiResult(dao, measurementId, result)
+            applyHuaweiResult = { measurementId, payload, result ->
+                applyHuaweiResult(dao, measurementId, payload, result)
             },
-            applyHealthConnectResult = { measurementId, result ->
-                applyHealthConnectResult(dao, measurementId, result)
+            applyHealthConnectResult = { measurementId, payload, result ->
+                applyHealthConnectResult(dao, measurementId, payload, result)
             },
         ).sync(id)
 
@@ -37,19 +37,33 @@ class MeasurementSyncWorker(
     private suspend fun applyHuaweiResult(
         dao: com.example.huaweimisync.data.MeasurementDao,
         id: String,
+        payload: com.example.huaweimisync.sync.MeasurementSyncPayload,
         result: SyncResult,
     ) {
         val update = result.toStateUpdate()
-        dao.updateHuaweiStatus(id, update.status.name, update.error)
+        dao.applyHuaweiSyncResult(
+            id = id,
+            expectedMeasurementType = payload.measurement.measurementType.name,
+            status = update.status.name,
+            error = update.error,
+            markWeightSynced = payload.includesWeight && result is SyncResult.Success,
+        )
     }
 
     private suspend fun applyHealthConnectResult(
         dao: com.example.huaweimisync.data.MeasurementDao,
         id: String,
+        payload: com.example.huaweimisync.sync.MeasurementSyncPayload,
         result: SyncResult,
     ) {
         val update = result.toStateUpdate()
-        dao.updateHealthConnectStatus(id, update.status.name, update.error)
+        dao.applyHealthConnectSyncResult(
+            id = id,
+            expectedMeasurementType = payload.measurement.measurementType.name,
+            status = update.status.name,
+            error = update.error,
+            markWeightSynced = payload.includesWeight && result is SyncResult.Success,
+        )
     }
 
     companion object {

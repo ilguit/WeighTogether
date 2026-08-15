@@ -1,7 +1,5 @@
 package com.example.huaweimisync.sync
 
-import com.example.huaweimisync.data.MeasurementEntity
-
 enum class HuaweiPermissionCheckResult {
     AUTHORIZED,
     NOT_AUTHORIZED,
@@ -15,5 +13,5 @@ interface HuaweiHealthGateway {
 
     suspend fun checkWriteWeightPermission(): HuaweiPermissionCheckResult
     suspend fun authorize(): SyncResult
-    suspend fun write(measurement: MeasurementEntity): SyncResult
+    suspend fun write(payload: MeasurementSyncPayload): SyncResult
 }

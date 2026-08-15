@@ -2,7 +2,6 @@ package com.example.huaweimisync.sync
 
 import android.content.Context
 import com.example.huaweimisync.BuildConfig
-import com.example.huaweimisync.data.MeasurementEntity
 import com.huawei.hihealth.error.HiHealthError
 import com.huawei.hihealth.listener.ResultCallback
 import com.huawei.hihealthkit.auth.HiHealthAuth
@@ -59,50 +58,35 @@ private class ExtendedHuaweiHealthGateway(
         }
     }
 
-    override suspend fun write(measurement: MeasurementEntity): SyncResult =
-        suspendCancellableCoroutine { continuation ->
-            if (!isConfigured) {
-                continuation.resume(SyncResult.Blocked("Huawei appId/scope ещё не настроены"))
-                return@suspendCancellableCoroutine
-            }
+    override suspend fun write(payload: MeasurementSyncPayload): SyncResult {
+        if (!isConfigured) {
+            return SyncResult.Blocked("Huawei appId/scope ещё не настроены")
+        }
+        if (payload.isEmpty) return SyncResult.Success
+        return awaitSingleHuaweiResult(
+            synchronousFailure = SyncResult.Retryable(
+                "Запись Huawei Health временно недоступна",
+            ),
+        ) { complete ->
             HiHealthDataStore.saveSamples(
                 context,
-                buildPoints(measurement),
+                buildHuaweiPoints(payload),
                 object : ResultCallback {
                     override fun onResult(resultCode: Int, data: Any?) {
-                        if (continuation.isActive) {
-                            continuation.resume(mapHuaweiResult("Запись", resultCode))
-                        }
+                        complete(mapHuaweiResult("Запись", resultCode))
                     }
                 },
             )
         }
+    }
 
-    private fun buildPoints(value: MeasurementEntity): List<HiHealthData> {
-        val time = value.measuredAtEpochMillis
-        val composition = value.values
-        fun point(type: Int, number: Double): HiHealthData =
-            HiHealthPointData(type, time, time, number, DEFAULT_UNIT)
-
-        return listOf(
-            point(HiHealthPointType.DATA_POINT_WEIGHT, value.weightKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BMI, composition.bmi),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYFAT, composition.bodyFatPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURERATE, composition.waterPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURE, composition.waterMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MUSCLES, composition.muscleMassKg),
-            point(
-                HiHealthPointType.DATA_POINT_WEIGHT_SKELETAL_MUSCLE_MASS,
-                composition.skeletalMuscleMassKg,
-            ),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BONE_MINERAL, composition.boneMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN, composition.proteinPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN_VALUE, composition.proteinMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_FATLEVEL, composition.visceralFatLevel),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BMR, composition.basalMetabolicRateKcal),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYAGE, composition.metabolicAge.toDouble()),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_IMPEDANCE, composition.impedanceOhm.toDouble()),
-        )
+    private fun buildHuaweiPoints(payload: MeasurementSyncPayload): List<HiHealthData> {
+        val time = payload.measurement.measuredAtEpochMillis
+        return buildHuaweiPointSpecs(payload).map { spec ->
+            HiHealthPointData(spec.type, time, time, spec.value, DEFAULT_UNIT).apply {
+                metaData = spec.externalId
+            }
+        }
     }
 
     private fun mapHuaweiResult(operation: String, code: Int): SyncResult = when (code) {
@@ -119,6 +103,62 @@ private class ExtendedHuaweiHealthGateway(
         // a real approved scope before release. Huawei's current public API does not document
         // per-point unit constants on the reference page.
         const val DEFAULT_UNIT = 0
+    }
+}
+
+internal data class HuaweiPointSpec(
+    val type: Int,
+    val value: Double,
+    val externalId: String,
+)
+
+internal fun buildHuaweiPointSpecs(payload: MeasurementSyncPayload): List<HuaweiPointSpec> {
+    val value = payload.measurement
+    fun point(type: Int, number: Double) = HuaweiPointSpec(
+        type = type,
+        value = number,
+        externalId = "${value.id}:huawei:$type",
+    )
+
+    return buildList {
+        if (payload.includesWeight) {
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT, value.weightKg))
+        }
+        payload.composition?.let { composition ->
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_BMI, composition.bmi))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_BODYFAT, composition.bodyFatPercent))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURERATE, composition.waterPercent))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURE, composition.waterMassKg))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_MUSCLES, composition.muscleMassKg))
+            add(
+                point(
+                    HiHealthPointType.DATA_POINT_WEIGHT_SKELETAL_MUSCLE_MASS,
+                    composition.skeletalMuscleMassKg,
+                ),
+            )
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_BONE_MINERAL, composition.boneMassKg))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN, composition.proteinPercent))
+            add(
+                point(
+                    HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN_VALUE,
+                    composition.proteinMassKg,
+                ),
+            )
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_FATLEVEL, composition.visceralFatLevel))
+            add(point(HiHealthPointType.DATA_POINT_WEIGHT_BMR, composition.basalMetabolicRateKcal))
+            add(
+                point(
+                    HiHealthPointType.DATA_POINT_WEIGHT_BODYAGE,
+                    composition.metabolicAge.toDouble(),
+                ),
+            )
+            add(
+                point(
+                    HiHealthPointType.DATA_POINT_WEIGHT_IMPEDANCE,
+                    composition.impedanceOhm.toDouble(),
+                ),
+            )
+        }
     }
 }
 

@@ -46,6 +46,8 @@ abstract class AppDatabase : RoomDatabase() {
                         `healthConnectStatus` TEXT NOT NULL,
                         `huaweiError` TEXT,
                         `healthConnectError` TEXT,
+                        `huaweiWeightSynced` INTEGER NOT NULL,
+                        `healthConnectWeightSynced` INTEGER NOT NULL,
                         `createdAtEpochMillis` INTEGER NOT NULL,
                         PRIMARY KEY(`id`)
                     )
@@ -61,6 +63,7 @@ abstract class AppDatabase : RoomDatabase() {
                         `proteinMassKg`, `visceralFatLevel`, `basalMetabolicRateKcal`,
                         `metabolicAge`, `leanBodyMassKg`, `algorithmVersion`, `huaweiStatus`,
                         `healthConnectStatus`, `huaweiError`, `healthConnectError`,
+                        `huaweiWeightSynced`, `healthConnectWeightSynced`,
                         `createdAtEpochMillis`
                     )
                     SELECT
@@ -85,7 +88,10 @@ abstract class AppDatabase : RoomDatabase() {
                         old.`proteinPercent`, old.`proteinMassKg`, old.`visceralFatLevel`,
                         old.`basalMetabolicRateKcal`, old.`metabolicAge`, old.`leanBodyMassKg`,
                         old.`algorithmVersion`, old.`huaweiStatus`, old.`healthConnectStatus`,
-                        old.`huaweiError`, old.`healthConnectError`, old.`createdAtEpochMillis`
+                        old.`huaweiError`, old.`healthConnectError`,
+                        CASE WHEN old.`huaweiStatus` = 'SYNCED' THEN 1 ELSE 0 END,
+                        CASE WHEN old.`healthConnectStatus` = 'SYNCED' THEN 1 ELSE 0 END,
+                        old.`createdAtEpochMillis`
                     FROM `measurements` AS old
                     """.trimIndent(),
                 )

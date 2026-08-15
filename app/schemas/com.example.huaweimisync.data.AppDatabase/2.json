@@ -2,11 +2,11 @@
   "formatVersion": 1,
   "database": {
     "version": 2,
-    "identityHash": "79c3e62077cb57bab04b2cd21311152e",
+    "identityHash": "c5593986e18b2fe28d76b7d5ca0bb2dd",
     "entities": [
       {
         "tableName": "measurements",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `measurementType` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochMillis` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `impedanceOhm` INTEGER, `bmi` REAL, `bodyFatPercent` REAL, `bodyFatMassKg` REAL, `waterPercent` REAL, `waterMassKg` REAL, `muscleMassKg` REAL, `skeletalMuscleMassKg` REAL, `boneMassKg` REAL, `proteinPercent` REAL, `proteinMassKg` REAL, `visceralFatLevel` REAL, `basalMetabolicRateKcal` REAL, `metabolicAge` INTEGER, `leanBodyMassKg` REAL, `algorithmVersion` TEXT, `huaweiStatus` TEXT NOT NULL, `healthConnectStatus` TEXT NOT NULL, `huaweiError` TEXT, `healthConnectError` TEXT, `createdAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `measurementType` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochMillis` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `impedanceOhm` INTEGER, `bmi` REAL, `bodyFatPercent` REAL, `bodyFatMassKg` REAL, `waterPercent` REAL, `waterMassKg` REAL, `muscleMassKg` REAL, `skeletalMuscleMassKg` REAL, `boneMassKg` REAL, `proteinPercent` REAL, `proteinMassKg` REAL, `visceralFatLevel` REAL, `basalMetabolicRateKcal` REAL, `metabolicAge` INTEGER, `leanBodyMassKg` REAL, `algorithmVersion` TEXT, `huaweiStatus` TEXT NOT NULL, `healthConnectStatus` TEXT NOT NULL, `huaweiError` TEXT, `healthConnectError` TEXT, `huaweiWeightSynced` INTEGER NOT NULL, `healthConnectWeightSynced` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
         "fields": [
           {
             "fieldPath": "id",
@@ -153,6 +153,18 @@
             "affinity": "TEXT"
           },
           {
+            "fieldPath": "huaweiWeightSynced",
+            "columnName": "huaweiWeightSynced",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "healthConnectWeightSynced",
+            "columnName": "healthConnectWeightSynced",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
             "fieldPath": "createdAtEpochMillis",
             "columnName": "createdAtEpochMillis",
             "affinity": "INTEGER",
@@ -180,7 +192,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '79c3e62077cb57bab04b2cd21311152e')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'c5593986e18b2fe28d76b7d5ca0bb2dd')"
     ]
   }
 }

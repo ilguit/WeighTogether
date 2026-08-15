@@ -51,6 +51,16 @@ class AppDatabaseMigrationTest {
                 )
                 """.trimIndent(),
             )
+            execSQL(
+                """
+                INSERT INTO measurements VALUES (
+                    'legacy-synced', 'aa:bb:cc:dd:ee:ff', 1786452696000, '0023', 71.0, 510,
+                    23.2, 19.0, 13.5, 56.0, 39.8, 41.0, 21.0, 3.1, 18.5, 13.1,
+                    7.0, 1510.0, 35, 57.5, 'legacy-algorithm', 'SYNCED', 'SYNCED',
+                    NULL, NULL, 1786452700000
+                )
+                """.trimIndent(),
+            )
             close()
         }
 
@@ -77,6 +87,19 @@ class AppDatabaseMigrationTest {
             assertEquals(1786451700000, cursor.getLong(cursor.getColumnIndexOrThrow("createdAtEpochMillis")))
             assertEquals(500, cursor.getInt(cursor.getColumnIndexOrThrow("impedanceOhm")))
             assertEquals(56.0, cursor.getDouble(cursor.getColumnIndexOrThrow("leanBodyMassKg")), 0.0)
+            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("huaweiWeightSynced")))
+            assertEquals(
+                0,
+                cursor.getInt(cursor.getColumnIndexOrThrow("healthConnectWeightSynced")),
+            )
+        }
+        migrated.query("SELECT * FROM measurements WHERE id = 'legacy-synced'").use { cursor ->
+            assertTrue(cursor.moveToFirst())
+            assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("huaweiWeightSynced")))
+            assertEquals(
+                1,
+                cursor.getInt(cursor.getColumnIndexOrThrow("healthConnectWeightSynced")),
+            )
         }
         migrated.close()
     }
@@ -108,6 +131,38 @@ class AppDatabaseMigrationTest {
         }
 
         assertEquals(20, dao.observeAll().first().size)
+    }
+
+    @Test
+    fun stalePartialSyncResultMarksWeightWithoutCompletingUpgradedRow() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        openedDatabase = database
+        val dao = database.measurementDao()
+        val partial = weightOnlyEntity(100)
+        dao.upsertScaleMeasurement(partial)
+        dao.upsertScaleMeasurement(fullEntity(partial))
+
+        dao.applyHuaweiSyncResult(
+            id = partial.id,
+            expectedMeasurementType = MeasurementType.WEIGHT_ONLY.name,
+            status = SyncStatus.SYNCED.name,
+            error = null,
+            markWeightSynced = true,
+        )
+        dao.applyHealthConnectSyncResult(
+            id = partial.id,
+            expectedMeasurementType = MeasurementType.WEIGHT_ONLY.name,
+            status = SyncStatus.SYNCED.name,
+            error = null,
+            markWeightSynced = true,
+        )
+
+        val stored = dao.get(partial.id)
+        assertEquals(MeasurementType.FULL, stored?.measurementType)
+        assertEquals(SyncStatus.PENDING.name, stored?.huaweiStatus)
+        assertEquals(SyncStatus.PENDING.name, stored?.healthConnectStatus)
+        assertTrue(stored?.huaweiWeightSynced == true)
+        assertTrue(stored?.healthConnectWeightSynced == true)
     }
 
     private fun weightOnlyEntity(index: Int) = MeasurementEntity(
