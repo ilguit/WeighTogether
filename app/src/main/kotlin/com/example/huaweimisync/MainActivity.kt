@@ -1,6 +1,8 @@
 package com.example.huaweimisync
 
 import android.content.Intent
+import android.health.connect.HealthConnectManager
+import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -10,6 +12,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
 import androidx.core.net.toUri
+import androidx.health.connect.client.HealthConnectClient
 import androidx.health.connect.client.PermissionController
 import com.example.huaweimisync.ble.BleSupport
 
@@ -39,9 +42,7 @@ class MainActivity : ComponentActivity() {
     private val healthPermissions = registerForActivityResult(
         PermissionController.createRequestPermissionResultContract(),
     ) { granted ->
-        viewModel.onHealthConnectPermissionsChanged(
-            granted.containsAll(viewModel.healthConnectPermissions),
-        )
+        viewModel.onHealthConnectPermissionsChanged(granted)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -63,6 +64,7 @@ class MainActivity : ComponentActivity() {
                         viewModel.setMessage("Health Connect недоступен на этом устройстве")
                     }
                 },
+                openHealthConnectAccessManagement = ::openHealthConnectAccessManagement,
                 openBatterySettings = ::openBatterySettings,
                 openApplicationSettings = ::openApplicationSettings,
             )
@@ -80,7 +82,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshHealthConnectQueue()
+        viewModel.refreshHealthConnectPermissions()
     }
 
     private fun requestNotificationPermission() {
@@ -100,5 +102,32 @@ class MainActivity : ComponentActivity() {
         startActivity(
             Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri()),
         )
+    }
+
+    /** Opens system-owned permission management; the app never revokes HC permissions itself. */
+    private fun openHealthConnectAccessManagement() {
+        val intents = buildList {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                add(
+                    Intent(HealthConnectManager.ACTION_MANAGE_HEALTH_PERMISSIONS).apply {
+                        putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
+                    },
+                )
+            }
+            add(Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS))
+            add(
+                Intent(
+                    Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                    "package:$packageName".toUri(),
+                ),
+            )
+        }
+        val opened = intents.any { intent ->
+            runCatching {
+                startActivity(intent)
+                true
+            }.getOrDefault(false)
+        }
+        if (!opened) viewModel.setMessage("Не удалось открыть управление доступом Health Connect")
     }
 }
