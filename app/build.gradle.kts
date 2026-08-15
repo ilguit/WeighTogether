@@ -15,6 +15,7 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = "0.1.0"
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders["HUAWEI_APP_ID"] = providers.gradleProperty("HUAWEI_APP_ID").orElse("0").get()
         buildConfigField(
@@ -86,6 +87,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.11.4")
     implementation("androidx.compose.material3:material3:1.4.0")
     debugImplementation("androidx.compose.ui:ui-tooling:1.11.4")
+    debugImplementation("androidx.compose.ui:ui-test-manifest:1.11.4")
+    androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
 
     implementation("com.patrykandpatrick.vico:compose:3.2.1")
     implementation("com.patrykandpatrick.vico:compose-m3:3.2.1")
