@@ -97,6 +97,15 @@ class PendingMeasurementNotificationHelper(
     }
 
     private fun post(count: Int) {
+        // Re-check at the transport boundary: permission can be revoked after the coordinator's
+        // capability check. Throwing keeps that race on the existing foreground-fallback path.
+        if (
+            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) !=
+            PackageManager.PERMISSION_GRANTED
+        ) {
+            throw SecurityException("POST_NOTIFICATIONS was revoked before notification delivery")
+        }
         createChannel()
         val resolverIntent = Intent(context, MainActivity::class.java).apply {
             action = ACTION_RESOLVE_PENDING
