@@ -185,6 +185,7 @@ data class MeasurementUiItem(
     val measuredAtEpochMillis: Long,
     val values: MeasurementUiValues,
     val sync: MeasurementSyncPresentation,
+    val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
 ) {
     val isLocalOnly: Boolean

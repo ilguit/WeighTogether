@@ -50,8 +50,10 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     ) { loadState, currentNavigation, currentEditor, deletion ->
         val values = loadState.valuesOrEmpty()
             .sortedByDescending(MeasurementEntity::measuredAtEpochMillis)
+        val protectedLatestId = repository.protectedLatestId(values)
         val items = values.map { value ->
             value.toUiItem(
+                isDeleteProtected = value.id == protectedLatestId,
                 isOperationInProgress = deletion?.isDeleting == true &&
                     deletion.measurementId == value.id,
             )
@@ -143,6 +145,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                     editor.update { it?.copy(isSaving = false) }
                     showMessage("Проверьте введённые значения")
                 }
+
+                MeasurementMutationResult.ProtectedLatest -> {
+                    editor.update { it?.copy(isSaving = false) }
+                    showMessage("Не удалось изменить измерение")
+                }
             }
         }
     }
@@ -152,15 +159,18 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun requestDelete(id: String) {
-        val value = measurements.value.valuesOrEmpty().firstOrNull { it.id == id } ?: run {
-            showMessage("Измерение уже удалено")
-            return
+        val values = measurements.value.valuesOrEmpty()
+        when (
+            val request = measurementDeleteRequest(
+                id = id,
+                measurements = values,
+                protectedLatestId = repository.protectedLatestId(values),
+            )
+        ) {
+            MeasurementDeleteRequest.NotFound -> showMessage("Измерение уже удалено")
+            MeasurementDeleteRequest.ProtectedLatest -> showProtectedLatestMessage()
+            is MeasurementDeleteRequest.Confirm -> deleteConfirmation.value = request.confirmation
         }
-        deleteConfirmation.value = MeasurementDeleteConfirmation(
-            measurementId = value.id,
-            measuredAtEpochMillis = value.measuredAtEpochMillis,
-            weightKg = value.weightKg,
-        )
     }
 
     private fun confirmDelete(id: String) {
@@ -168,11 +178,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         if (confirmation.measurementId != id || confirmation.isDeleting) return
         deleteConfirmation.value = confirmation.copy(isDeleting = true)
         viewModelScope.launch {
-            when (repository.delete(id)) {
-                MeasurementMutationResult.Success -> showMessage("Локальное измерение удалено")
-                MeasurementMutationResult.NotFound -> showMessage("Измерение уже удалено")
-                MeasurementMutationResult.Invalid -> showMessage("Не удалось удалить измерение")
-            }
+            showMessage(measurementDeleteResultMessage(repository.delete(id)))
             deleteConfirmation.value = null
         }
     }
@@ -194,9 +200,52 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         navigation.update(MeasurementsNavigationState::back)
         editor.value = null
     }
+
+    private fun showProtectedLatestMessage() {
+        showMessage(PROTECTED_LATEST_MESSAGE)
+    }
+
+    companion object {
+        const val PROTECTED_LATEST_MESSAGE =
+            "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
+    }
 }
 
-private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): MeasurementUiItem =
+internal sealed interface MeasurementDeleteRequest {
+    data object NotFound : MeasurementDeleteRequest
+    data object ProtectedLatest : MeasurementDeleteRequest
+    data class Confirm(
+        val confirmation: MeasurementDeleteConfirmation,
+    ) : MeasurementDeleteRequest
+}
+
+internal fun measurementDeleteRequest(
+    id: String,
+    measurements: List<MeasurementEntity>,
+    protectedLatestId: String?,
+): MeasurementDeleteRequest {
+    val value = measurements.firstOrNull { it.id == id } ?: return MeasurementDeleteRequest.NotFound
+    if (value.id == protectedLatestId) return MeasurementDeleteRequest.ProtectedLatest
+    return MeasurementDeleteRequest.Confirm(
+        MeasurementDeleteConfirmation(
+            measurementId = value.id,
+            measuredAtEpochMillis = value.measuredAtEpochMillis,
+            weightKg = value.weightKg,
+        ),
+    )
+}
+
+internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): String = when (result) {
+    MeasurementMutationResult.Success -> "Локальное измерение удалено"
+    MeasurementMutationResult.NotFound -> "Измерение уже удалено"
+    MeasurementMutationResult.Invalid -> "Не удалось удалить измерение"
+    MeasurementMutationResult.ProtectedLatest -> MeasurementsViewModel.PROTECTED_LATEST_MESSAGE
+}
+
+private fun MeasurementEntity.toUiItem(
+    isDeleteProtected: Boolean,
+    isOperationInProgress: Boolean,
+): MeasurementUiItem =
     MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = measuredAtEpochMillis,
@@ -207,6 +256,7 @@ private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): Measurem
             huaweiStatus = huaweiStatus,
             huaweiError = huaweiError,
         ),
+        isDeleteProtected = isDeleteProtected,
         isOperationInProgress = isOperationInProgress,
     )
 

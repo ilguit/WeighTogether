@@ -35,6 +35,7 @@ class AppContainer(application: Application) {
     val repository = MeasurementRepository(
         database.measurementDao(),
         { profileStore.settings.value.profile },
+        { profileStore.settings.value.scaleAddress },
         BodyCompositionCalculator(),
         SyncWorkScheduler(application),
         huaweiHealth.isAvailableInBuild,
