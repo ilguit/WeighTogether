@@ -2,6 +2,7 @@ package com.example.huaweimisync
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
@@ -33,6 +34,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
+import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
@@ -98,15 +100,6 @@ fun HuaweiMiSyncApp(
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     val profileEditorOpen = state.profileEditor.isOpen
     val measurementsChrome = measurementsChromePolicy.resolve(measurementsState)
-    val showTopBar = when {
-        profileEditorOpen -> true
-        currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
-        else -> true
-    }
-    val showBottomNavigation = !profileEditorOpen && when (currentSection) {
-        AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
-        AppSection.CHARTS, AppSection.SETTINGS -> true
-    }
 
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
@@ -122,13 +115,88 @@ fun HuaweiMiSyncApp(
             }
         }
     }
-    BackHandler(enabled = profileEditorOpen, onBack = viewModel::closeProfileEditor)
     BackHandler(
         enabled = !profileEditorOpen &&
             currentSection == AppSection.MEASUREMENTS &&
             measurementsState.editor != null,
         onBack = measurementsViewModel.callbacks.onEditorDismissed,
     )
+
+    HuaweiMiSyncScaffold(
+        state = state,
+        currentSection = currentSection,
+        measurementsChrome = measurementsChrome,
+        snackbarHostState = snackbarHostState,
+        onSectionSelected = { currentSection = it },
+        onCloseProfile = viewModel::closeProfileEditor,
+        onSaveProfile = viewModel::saveProfile,
+        onProfileHeightChanged = viewModel::updateProfileHeight,
+        onProfileBirthDateChanged = viewModel::updateProfileBirthDate,
+        onProfileSexChanged = viewModel::updateProfileSex,
+        settingsCallbacks = SettingsCallbacks(
+            onOpenProfile = viewModel::openProfileEditor,
+            onHuaweiAuthorization = viewModel::authorizeHuawei,
+            onHealthConnectAuthorization = requestHealthConnectPermissions,
+            onHealthConnectAccessManagement = openHealthConnectAccessManagement,
+            onManualTest = viewModel::sendManualTest,
+            onManualScan = viewModel::toggleManualScan,
+            onReliabilityMode = viewModel::setReliabilityMode,
+            openBatterySettings = openBatterySettings,
+            openApplicationSettings = openApplicationSettings,
+        ),
+        measurementsContent = { padding ->
+            MeasurementsScreen(
+                state = measurementsState,
+                callbacks = measurementsViewModel.callbacks,
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
+        },
+        chartsContent = { padding ->
+            ChartsScreen(
+                state = chartsState,
+                onDateRangeChange = chartsViewModel::setDateRange,
+                onMetricSelectionChange = chartsViewModel::setMetricSelected,
+                onSelectAll = chartsViewModel::selectAll,
+                onClearSelection = chartsViewModel::clearSelection,
+                modifier = Modifier.fillMaxSize().padding(padding),
+            )
+        },
+    )
+}
+
+/**
+ * State-only shell used by production and Compose tests. Keeping Android integrations in
+ * [HuaweiMiSyncApp] lets navigation and profile validation be tested with deterministic fakes.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+internal fun HuaweiMiSyncScaffold(
+    state: MainUiState,
+    currentSection: AppSection,
+    measurementsChrome: MeasurementsChrome,
+    snackbarHostState: SnackbarHostState,
+    onSectionSelected: (AppSection) -> Unit,
+    onCloseProfile: () -> Unit,
+    onSaveProfile: () -> Unit,
+    onProfileHeightChanged: (String) -> Unit,
+    onProfileBirthDateChanged: (String) -> Unit,
+    onProfileSexChanged: (Sex) -> Unit,
+    settingsCallbacks: SettingsCallbacks,
+    measurementsContent: @Composable (PaddingValues) -> Unit,
+    chartsContent: @Composable (PaddingValues) -> Unit,
+) {
+    val profileEditorOpen = state.profileEditor.isOpen
+    val showTopBar = when {
+        profileEditorOpen -> true
+        currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
+        else -> true
+    }
+    val showBottomNavigation = !profileEditorOpen && when (currentSection) {
+        AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
+        AppSection.CHARTS, AppSection.SETTINGS -> true
+    }
+
+    BackHandler(enabled = profileEditorOpen, onBack = onCloseProfile)
 
     HuaweiMiSyncTheme {
         Box(Modifier.fillMaxSize()) {
@@ -141,18 +209,18 @@ fun HuaweiMiSyncApp(
                         HuaweiTopBar(
                             title = if (profileEditorOpen) "Профиль" else currentSection.title,
                             showBack = profileEditorOpen,
-                            onBack = viewModel::closeProfileEditor,
+                            onBack = onCloseProfile,
                         )
                     }
                 },
                 bottomBar = {
                     when {
                         profileEditorOpen -> ProfileEditorSaveBar(
-                            onSave = viewModel::saveProfile,
+                            onSave = onSaveProfile,
                         )
                         showBottomNavigation -> HuaweiBottomNavigation(
                             selectedSection = currentSection,
-                            onSectionSelected = { currentSection = it },
+                            onSectionSelected = onSectionSelected,
                         )
                     }
                 },
@@ -166,42 +234,21 @@ fun HuaweiMiSyncApp(
                 when {
                     profileEditorOpen -> ProfileEditorScreen(
                         state = state.profileEditor,
-                        onHeightChanged = viewModel::updateProfileHeight,
-                        onBirthDateChanged = viewModel::updateProfileBirthDate,
-                        onSexChanged = viewModel::updateProfileSex,
+                        onHeightChanged = onProfileHeightChanged,
+                        onBirthDateChanged = onProfileBirthDateChanged,
+                        onSexChanged = onProfileSexChanged,
                         contentPadding = padding,
                     )
 
                     currentSection == AppSection.SETTINGS -> SettingsScreen(
                         state = state,
-                        callbacks = SettingsCallbacks(
-                            onOpenProfile = viewModel::openProfileEditor,
-                            onHuaweiAuthorization = viewModel::authorizeHuawei,
-                            onHealthConnectAuthorization = requestHealthConnectPermissions,
-                            onHealthConnectAccessManagement = openHealthConnectAccessManagement,
-                            onManualTest = viewModel::sendManualTest,
-                            onManualScan = viewModel::toggleManualScan,
-                            onReliabilityMode = viewModel::setReliabilityMode,
-                            openBatterySettings = openBatterySettings,
-                            openApplicationSettings = openApplicationSettings,
-                        ),
+                        callbacks = settingsCallbacks,
                         contentPadding = padding,
                     )
 
-                    currentSection == AppSection.MEASUREMENTS -> MeasurementsScreen(
-                        state = measurementsState,
-                        callbacks = measurementsViewModel.callbacks,
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                    )
+                    currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding)
 
-                    else -> ChartsScreen(
-                        state = chartsState,
-                        onDateRangeChange = chartsViewModel::setDateRange,
-                        onMetricSelectionChange = chartsViewModel::setMetricSelected,
-                        onSelectAll = chartsViewModel::selectAll,
-                        onClearSelection = chartsViewModel::clearSelection,
-                        modifier = Modifier.fillMaxSize().padding(padding),
-                    )
+                    else -> chartsContent(padding)
                 }
             }
             HuaweiSystemBarBackgrounds()
