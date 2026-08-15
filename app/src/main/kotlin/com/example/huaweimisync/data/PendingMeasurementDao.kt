@@ -1,0 +1,46 @@
+package com.example.huaweimisync.data
+
+import androidx.room.Dao
+import androidx.room.Insert
+import androidx.room.OnConflictStrategy
+import androidx.room.Query
+import kotlinx.coroutines.flow.Flow
+
+@Dao
+interface PendingMeasurementDao {
+    @Query("SELECT * FROM pending_measurements ORDER BY enqueuedAtEpochMillis ASC, id ASC")
+    fun observeAll(): Flow<List<PendingMeasurementEntity>>
+
+    @Query("SELECT * FROM pending_measurements ORDER BY enqueuedAtEpochMillis ASC, id ASC")
+    suspend fun getAll(): List<PendingMeasurementEntity>
+
+    @Query("SELECT * FROM pending_measurements WHERE id = :id")
+    suspend fun get(id: String): PendingMeasurementEntity?
+
+    @Query("SELECT * FROM pending_measurements WHERE deduplicationHash = :deduplicationHash")
+    suspend fun getByHash(deduplicationHash: String): PendingMeasurementEntity?
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insert(pending: PendingMeasurementEntity): Long
+
+    @Query("DELETE FROM pending_measurements WHERE id = :id")
+    suspend fun delete(id: String): Int
+
+    @Query(
+        "SELECT * FROM measurement_tombstones " +
+            "WHERE deduplicationHash = :deduplicationHash AND expiresAtEpochMillis > :nowEpochMillis",
+    )
+    suspend fun getActiveTombstone(
+        deduplicationHash: String,
+        nowEpochMillis: Long,
+    ): MeasurementTombstoneEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertTombstone(tombstone: MeasurementTombstoneEntity)
+
+    @Query("DELETE FROM measurement_tombstones WHERE expiresAtEpochMillis <= :nowEpochMillis")
+    suspend fun deleteExpiredTombstones(nowEpochMillis: Long): Int
+
+    @Query("SELECT COUNT(*) FROM measurement_tombstones")
+    suspend fun tombstoneCount(): Int
+}

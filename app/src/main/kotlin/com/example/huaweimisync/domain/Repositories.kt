@@ -21,6 +21,8 @@ interface AccountRepository {
         historySyncMode: PrimaryHistorySyncMode,
     )
 
+    suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
+
     suspend fun deleteAccount(accountId: AccountId)
 
     /**

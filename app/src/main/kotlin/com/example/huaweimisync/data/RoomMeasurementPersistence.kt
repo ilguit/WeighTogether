@@ -1,0 +1,279 @@
+package com.example.huaweimisync.data
+
+import androidx.room.withTransaction
+import com.example.huaweimisync.core.BodyCompositionCalculator
+import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountMeasurement
+import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.FinalizePendingResult
+import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.toRawScaleMeasurement
+import com.example.huaweimisync.domain.toUserProfileOrNull
+import java.nio.charset.StandardCharsets
+import java.security.MessageDigest
+import java.time.Duration
+import java.time.Instant
+import java.util.Locale
+import java.util.UUID
+import kotlin.math.roundToInt
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+sealed interface PendingPersistenceResult {
+    data class Inserted(val pending: PendingMeasurement) : PendingPersistenceResult
+    data class AlreadyPending(val pending: PendingMeasurement) : PendingPersistenceResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
+    data object Tombstoned : PendingPersistenceResult
+}
+
+class RoomMeasurementPersistence(
+    private val database: AppDatabase,
+    private val calculator: BodyCompositionCalculator,
+    private val huaweiSyncEnabled: Boolean,
+    private val accountDao: AccountDao = database.accountDao(),
+    private val appStateDao: AppStateDao = database.appStateDao(),
+    private val measurementDao: MultiAccountMeasurementDao = database.multiAccountMeasurementDao(),
+    private val pendingDao: PendingMeasurementDao = database.pendingMeasurementDao(),
+    private val now: () -> Instant = Instant::now,
+    private val newId: () -> String = { UUID.randomUUID().toString() },
+) {
+    fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>> =
+        measurementDao.observeAll(accountId.value).map { values ->
+            values.map(MeasurementEntity::toAccountMeasurement)
+        }
+
+    fun observeLatest(accountId: AccountId, limit: Int = 30): Flow<List<AccountMeasurement>> {
+        require(limit > 0) { "Limit must be positive" }
+        return measurementDao.observeLatest(accountId.value, limit).map { values ->
+            values.map(MeasurementEntity::toAccountMeasurement)
+        }
+    }
+
+    fun observeRange(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<AccountMeasurement>> {
+        require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
+        return measurementDao.observeRange(
+            accountId = accountId.value,
+            startInclusive = startInclusive.ceilToEpochMilli(),
+            endExclusive = endExclusive.ceilToEpochMilli(),
+        ).map { values -> values.map(MeasurementEntity::toAccountMeasurement) }
+    }
+
+    fun observePending(): Flow<List<PendingMeasurement>> = pendingDao.observeAll().map { values ->
+        values.map(PendingMeasurementEntity::toDomain)
+    }
+
+    suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
+        pendingDao.get(id.value)?.toDomain()
+
+    suspend fun latestWeightsBefore(
+        accountId: AccountId,
+        measuredAtExclusive: Instant,
+    ): List<Double> = measurementDao.latestWeightsBefore(
+        accountId.value,
+        measuredAtExclusive.ceilToEpochMilli(),
+    )
+
+    suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
+        database.withTransaction {
+            val timestamp = now()
+            val timestampMillis = timestamp.toEpochMilli()
+            pendingDao.deleteExpiredTombstones(timestampMillis)
+            val hash = raw.deduplicationHash()
+            if (pendingDao.getActiveTombstone(hash, timestampMillis) != null) {
+                return@withTransaction PendingPersistenceResult.Tombstoned
+            }
+            measurementDao.getByDeduplicationHash(hash)?.let { finalized ->
+                return@withTransaction PendingPersistenceResult.AlreadyFinalized(
+                    finalized.toAccountMeasurement(),
+                )
+            }
+            pendingDao.getByHash(hash)?.let { pending ->
+                return@withTransaction PendingPersistenceResult.AlreadyPending(pending.toDomain())
+            }
+            val entity = PendingMeasurementEntity(
+                id = newId(),
+                deviceAddress = raw.deviceAddress,
+                measuredAtEpochSecond = raw.measuredAt.epochSecond,
+                measuredAtNano = raw.measuredAt.nano,
+                weightKg = raw.weightKg,
+                impedanceOhm = raw.impedanceOhm,
+                isStable = raw.isStable,
+                hasImpedance = raw.hasImpedance,
+                rawPayload = raw.rawPayload.copyOf(),
+                deduplicationHash = hash,
+                enqueuedAtEpochMillis = timestampMillis,
+            )
+            if (pendingDao.insert(entity) == -1L) {
+                val concurrent = requireNotNull(pendingDao.getByHash(hash))
+                PendingPersistenceResult.AlreadyPending(concurrent.toDomain())
+            } else {
+                PendingPersistenceResult.Inserted(entity.toDomain())
+            }
+        }
+
+    suspend fun finalizePending(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+    ): FinalizePendingResult = database.withTransaction {
+        finalizePendingLocked(pendingId, accountId)
+    }
+
+    suspend fun createAccountAndAssignPending(
+        pendingId: PendingMeasurementId,
+        account: NewAccount,
+    ): CreateAccountAndAssignResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return@withTransaction CreateAccountAndAssignResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+        if (pendingDao.get(pendingId.value) == null) {
+            return@withTransaction CreateAccountAndAssignResult.PendingNotFound
+        }
+        if (accountDao.getByNormalizedName(account.normalizedName) != null) {
+            return@withTransaction CreateAccountAndAssignResult.NameConflict(account.normalizedName)
+        }
+        appStateDao.insertDefault()
+        val timestamp = now()
+        val entity = AccountEntity(
+            id = newId(),
+            displayName = account.displayName,
+            normalizedName = account.normalizedName,
+            heightCm = account.profile.heightCm,
+            birthDateEpochDay = account.profile.birthDate.toEpochDay(),
+            sex = account.profile.sex.name,
+            isProfileComplete = true,
+            createdAtEpochMillis = timestamp.toEpochMilli(),
+            updatedAtEpochMillis = timestamp.toEpochMilli(),
+        )
+        if (accountDao.insert(entity) == -1L) {
+            return@withTransaction CreateAccountAndAssignResult.NameConflict(account.normalizedName)
+        }
+        if (accountDao.count() == 1) {
+            check(appStateDao.setPrimary(entity.id) == 1) { "App state singleton is missing" }
+        }
+        when (val result = finalizePendingLocked(pendingId, AccountId(entity.id))) {
+            is FinalizePendingResult.Finalized -> CreateAccountAndAssignResult.Created(
+                account = entity.toDomain(),
+                measurement = result.measurement,
+            )
+            is FinalizePendingResult.AlreadyFinalized ->
+                CreateAccountAndAssignResult.AlreadyFinalized(result.measurement)
+            FinalizePendingResult.PendingNotFound -> CreateAccountAndAssignResult.PendingNotFound
+            FinalizePendingResult.AccountNotFound,
+            FinalizePendingResult.ProfileIncomplete,
+            -> error("A newly inserted complete account must be usable in the same transaction")
+        }
+    }
+
+    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean = database.withTransaction {
+        val pending = pendingDao.get(pendingId.value) ?: return@withTransaction false
+        val expiresAt = now().plus(TOMBSTONE_TTL).toEpochMilli()
+        pendingDao.upsertTombstone(
+            MeasurementTombstoneEntity(
+                deduplicationHash = pending.deduplicationHash,
+                expiresAtEpochMillis = expiresAt,
+            ),
+        )
+        check(pendingDao.delete(pendingId.value) == 1) {
+            "Pending measurement disappeared inside its discard transaction"
+        }
+        true
+    }
+
+    suspend fun cleanupExpiredTombstones(): Int =
+        pendingDao.deleteExpiredTombstones(now().toEpochMilli())
+
+    private suspend fun finalizePendingLocked(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+    ): FinalizePendingResult {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return FinalizePendingResult.AlreadyFinalized(finalized.toAccountMeasurement())
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return FinalizePendingResult.PendingNotFound
+        val account = accountDao.get(accountId.value)
+            ?: return FinalizePendingResult.AccountNotFound
+        val profile = account.toDomain().profile.toUserProfileOrNull()
+            ?: return FinalizePendingResult.ProfileIncomplete
+        val state = appStateDao.get()
+        val policy = if (state?.primaryAccountId == accountId.value) {
+            ExternalSyncPolicy.AUTO
+        } else {
+            ExternalSyncPolicy.ACCOUNT_LOCAL
+        }
+        val composition = calculator.calculate(pending.toDomain().toRawScaleMeasurement(), profile)
+        var measurement = composition.toEntity(
+            rawPayload = pending.rawPayload,
+            huaweiSyncEnabled = huaweiSyncEnabled,
+            accountId = accountId,
+            externalSyncPolicy = policy,
+            sourcePendingId = pending.id,
+            deduplicationHash = pending.deduplicationHash,
+        ).copy(createdAtEpochMillis = now().toEpochMilli())
+        if (policy == ExternalSyncPolicy.ACCOUNT_LOCAL) {
+            measurement = measurement.copy(
+                huaweiStatus = if (huaweiSyncEnabled) {
+                    SyncStatus.LOCAL_ONLY.name
+                } else {
+                    SyncStatus.DISABLED.name
+                },
+                healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+                huaweiError = if (huaweiSyncEnabled) null else measurement.huaweiError,
+                healthConnectError = null,
+            )
+        }
+        if (measurementDao.insert(measurement) == -1L) {
+            val existing = measurementDao.getByPendingId(pending.id)
+                ?: measurementDao.getByDeduplicationHash(pending.deduplicationHash)
+                ?: measurementDao.get(measurement.id)
+                ?: error("Measurement insert conflicted without a durable matching record")
+            pendingDao.delete(pending.id)
+            return FinalizePendingResult.AlreadyFinalized(existing.toAccountMeasurement())
+        }
+        check(pendingDao.delete(pending.id) == 1) {
+            "Pending measurement disappeared inside its finalize transaction"
+        }
+        return FinalizePendingResult.Finalized(measurement.toAccountMeasurement())
+    }
+
+    companion object {
+        val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
+    }
+}
+
+fun RawScaleMeasurement.deduplicationHash(): String {
+    val material = buildString {
+        append(deviceAddress.uppercase(Locale.ROOT))
+        append('|')
+        append(measuredAt.epochSecond)
+        append('|')
+        append((weightKg * 1_000).roundToInt())
+        append('|')
+        append(impedanceOhm)
+    }
+    return MessageDigest.getInstance("SHA-256")
+        .digest(material.toByteArray(StandardCharsets.UTF_8))
+        .joinToString("") { byte -> "%02x".format(byte) }
+}
+
+/** Smallest epoch-millisecond timestamp which is not before this instant. */
+private fun Instant.ceilToEpochMilli(): Long {
+    val epochMillis = toEpochMilli()
+    return if (nano % NANOS_PER_MILLISECOND == 0) {
+        epochMillis
+    } else {
+        Math.addExact(epochMillis, 1L)
+    }
+}
+
+private const val NANOS_PER_MILLISECOND: Int = 1_000_000
