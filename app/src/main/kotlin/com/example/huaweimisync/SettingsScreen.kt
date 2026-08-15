@@ -63,6 +63,7 @@ import java.util.Locale
 internal data class SettingsCallbacks(
     val onOpenProfile: () -> Unit,
     val onHuaweiAuthorization: () -> Unit,
+    val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
     val onHealthConnectAccessManagement: () -> Unit,
     val onManualTest: (String, String) -> Unit,
@@ -88,6 +89,7 @@ internal data class IntegrationPresentation(
     val actionLabel: String? = null,
     val actionEnabled: Boolean = true,
     val actionOpensManagement: Boolean = false,
+    val actionRetriesCheck: Boolean = false,
 )
 
 internal object SettingsScreenTestTags {
@@ -150,12 +152,22 @@ internal fun huaweiIntegrationPresentation(
     HuaweiIntegrationStatus.CONFIGURATION_REQUIRED -> IntegrationPresentation(
         supportingText = "Нужны enterprise appId и write-scope",
     )
+    HuaweiIntegrationStatus.CHECKING -> IntegrationPresentation(
+        supportingText = "Проверка разрешения…",
+        actionLabel = "Разрешить",
+        actionEnabled = false,
+    )
     HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED -> IntegrationPresentation(
         supportingText = "Настроено · требуется авторизация",
         actionLabel = "Разрешить",
     )
     HuaweiIntegrationStatus.AUTHORIZED -> IntegrationPresentation(
         supportingText = "Подключено",
+    )
+    HuaweiIntegrationStatus.CHECK_FAILED -> IntegrationPresentation(
+        supportingText = "Не удалось проверить разрешение",
+        actionLabel = "Повторить",
+        actionRetriesCheck = true,
     )
 }
 
@@ -251,7 +263,11 @@ private fun SettingsIntegrationsSection(
                 ) {
                     huawei.actionLabel?.let { label ->
                         TextButton(
-                            onClick = callbacks.onHuaweiAuthorization,
+                            onClick = if (huawei.actionRetriesCheck) {
+                                callbacks.onHuaweiPermissionRefresh
+                            } else {
+                                callbacks.onHuaweiAuthorization
+                            },
                             enabled = huawei.actionEnabled,
                         ) { Text(label) }
                     }

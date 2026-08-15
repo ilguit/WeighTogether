@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        viewModel.refreshHealthConnectPermissions()
+        viewModel.refreshIntegrations()
     }
 
     private fun requestNotificationPermission() {

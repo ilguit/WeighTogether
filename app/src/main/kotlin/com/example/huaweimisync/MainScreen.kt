@@ -131,6 +131,7 @@ fun HuaweiMiSyncApp(
         settingsCallbacks = SettingsCallbacks(
             onOpenProfile = viewModel::openProfileEditor,
             onHuaweiAuthorization = viewModel::authorizeHuawei,
+            onHuaweiPermissionRefresh = viewModel::refreshHuaweiAuthorization,
             onHealthConnectAuthorization = requestHealthConnectPermissions,
             onHealthConnectAccessManagement = openHealthConnectAccessManagement,
             onManualTest = viewModel::sendManualTest,

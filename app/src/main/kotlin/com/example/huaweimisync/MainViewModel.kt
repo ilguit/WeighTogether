@@ -31,6 +31,10 @@ data class MainUiState(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as MiSyncApplication).container
+    private val huaweiAuthorization = HuaweiAuthorizationController(
+        gateway = container.huaweiHealth,
+        retryPendingHuawei = container.repository::retryPendingHuawei,
+    )
     private val scanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
     private val scanning = MutableStateFlow(false)
@@ -44,10 +48,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
     private val healthConnect = MutableStateFlow(initialHealthConnectState)
-    private val initialHuaweiState = HuaweiIntegrationUiState.fromGateway(
-        isAvailableInBuild = container.huaweiHealth.isAvailableInBuild,
-        isConfigured = container.huaweiHealth.isConfigured,
-    )
+    private val initialHuaweiState = huaweiAuthorization.initialState
     private val huawei = MutableStateFlow(initialHuaweiState)
     private val profileEditor = ProfileEditorController(
         saveProfile = container.profileStore::saveProfile,
@@ -86,7 +87,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
 
     init {
-        refreshHealthConnectPermissions()
+        refreshIntegrations()
     }
 
     fun openProfileEditor() {
@@ -172,21 +173,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun authorizeHuawei() = viewModelScope.launch {
-        val result = container.huaweiHealth.authorize()
-        showMessage(when (result) {
-            SyncResult.Success -> "Huawei Health: разрешение получено"
-            is SyncResult.Disabled -> result.message
-            is SyncResult.Blocked -> result.message
-            is SyncResult.Retryable -> result.message
-        })
-        if (result == SyncResult.Success) {
-            huawei.value = HuaweiIntegrationUiState.fromGateway(
-                isAvailableInBuild = container.huaweiHealth.isAvailableInBuild,
-                isConfigured = container.huaweiHealth.isConfigured,
-                isAuthorized = true,
-            )
-        }
-        if (container.huaweiHealth.isConfigured) container.repository.retryPendingHuawei()
+        val attempt = huaweiAuthorization.authorize { huawei.value = it }
+        showMessage(huaweiAuthorizationMessage(attempt))
     }
 
     fun sendManualTest(weight: String, impedance: String) = viewModelScope.launch {
@@ -240,9 +228,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (allGranted) container.repository.retryPendingHealthConnect()
     }
 
-    /** Re-checks every required Health Connect permission after returning to the foreground. */
-    fun refreshHealthConnectPermissions() = viewModelScope.launch {
+    /** Re-checks Health Connect and Huawei permissions after returning to the foreground. */
+    fun refreshIntegrations() = viewModelScope.launch {
         updateHealthConnectPermissions(notifyResult = false)
+        huaweiAuthorization.refresh { huawei.value = it }
+    }
+
+    fun refreshHuaweiAuthorization() = viewModelScope.launch {
+        huaweiAuthorization.refresh { huawei.value = it }
     }
 
     override fun onCleared() {
@@ -323,5 +316,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun showMessage(message: String) {
         eventEmitter.showSnackbar(message)
+    }
+
+    private fun huaweiAuthorizationMessage(attempt: HuaweiAuthorizationAttempt): String {
+        if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
+            return "Huawei Health: разрешение подтверждено, очередь перезапущена"
+        }
+        return when (val request = attempt.requestResult) {
+            SyncResult.Success -> when (attempt.confirmedState.status) {
+                HuaweiIntegrationStatus.CHECK_FAILED ->
+                    "Huawei Health: не удалось подтвердить разрешение"
+                else -> "Huawei Health: разрешение не выдано"
+            }
+            is SyncResult.Disabled -> request.message
+            is SyncResult.Blocked -> request.message
+            is SyncResult.Retryable -> request.message
+        }
     }
 }
