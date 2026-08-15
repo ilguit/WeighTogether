@@ -129,7 +129,7 @@ internal fun healthConnectPresentation(
     HealthConnectAvailability.AVAILABLE -> if (state.isConnected) {
         IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
-            actionLabel = "Управлять",
+            actionLabel = "Отключить",
             actionOpensManagement = true,
         )
     } else {

@@ -48,7 +48,7 @@ class SettingsScreenContractTest {
         )
 
         assertEquals("Подключено · все разрешения выданы", presentation.supportingText)
-        assertEquals("Управлять", presentation.actionLabel)
+        assertEquals("Отключить", presentation.actionLabel)
         assertTrue(presentation.actionOpensManagement)
     }
 
