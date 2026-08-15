@@ -197,6 +197,20 @@ class MultiAccountPersistenceTest {
             ),
         )
         assertEquals(
+            listOf(72.0, 71.0, 70.0),
+            persistence.latestHistoryBefore(
+                account.id,
+                Instant.parse("2026-08-15T10:00:03.123456789Z"),
+            ).map { it.weightKg },
+        )
+        assertEquals(
+            listOf(71.0, 70.0),
+            persistence.latestHistoryBefore(
+                account.id,
+                Instant.parse("2026-08-15T10:00:03.123Z"),
+            ).map { it.weightKg },
+        )
+        assertEquals(
             listOf(72.0),
             persistence.observeRange(
                 account.id,
