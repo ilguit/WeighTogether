@@ -38,14 +38,32 @@ class PendingDecisionPresentationCoordinator(
     override fun updatePendingCount(count: Int) {
         require(count >= 0) { "Pending count cannot be negative" }
         if (count == 0) {
-            cancelNotification()
+            cancelSafely()
             mutableFallback.value = PendingDecisionFallback.Hidden
-        } else if (notificationsAllowed()) {
-            postNotification(count)
+        } else if (postSafely(count)) {
             mutableFallback.value = PendingDecisionFallback.Hidden
         } else {
-            cancelNotification()
+            cancelSafely()
             mutableFallback.value = PendingDecisionFallback.ShowOnForeground(count)
+        }
+    }
+
+    private fun postSafely(count: Int): Boolean = try {
+        if (notificationsAllowed()) {
+            postNotification(count)
+            true
+        } else {
+            false
+        }
+    } catch (_: RuntimeException) {
+        false
+    }
+
+    private fun cancelSafely() {
+        try {
+            cancelNotification()
+        } catch (_: RuntimeException) {
+            // The durable queue is authoritative; foreground fallback must remain available.
         }
     }
 }
