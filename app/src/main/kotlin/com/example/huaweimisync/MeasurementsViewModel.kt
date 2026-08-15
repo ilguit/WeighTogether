@@ -83,20 +83,22 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     private fun showSummary() {
         if (editor.value?.isSaving == true) return
-        editor.value = null
         navigation.update(MeasurementsNavigationState::showSummary)
+        editor.value = null
     }
 
     private fun showHistory() {
         if (editor.value?.isSaving == true) return
-        editor.value = null
         navigation.update(MeasurementsNavigationState::showHistory)
+        editor.value = null
     }
 
     private fun navigateBack() {
         if (navigation.value.destination == MeasurementsDestination.EDITOR) {
             if (editor.value?.isSaving == true) return
+            navigation.update(MeasurementsNavigationState::back)
             editor.value = null
+            return
         }
         navigation.update(MeasurementsNavigationState::back)
     }
@@ -189,8 +191,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun closeEditor() {
-        editor.value = null
         navigation.update(MeasurementsNavigationState::back)
+        editor.value = null
     }
 }
 
