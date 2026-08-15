@@ -17,8 +17,9 @@ import androidx.compose.ui.test.performClick
 import com.example.huaweimisync.AppSection
 import com.example.huaweimisync.HuaweiMiSyncScaffold
 import com.example.huaweimisync.MainUiState
-import com.example.huaweimisync.MeasurementsChrome
 import com.example.huaweimisync.SettingsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -173,7 +174,8 @@ class ChartsScreenTest {
             HuaweiMiSyncScaffold(
                 state = MainUiState(),
                 currentSection = sectionProvider(),
-                measurementsChrome = MeasurementsChrome(true, true),
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
                 snackbarHostState = remember { SnackbarHostState() },
                 onSectionSelected = sectionUpdater,
                 onCloseProfile = {},
@@ -295,6 +297,7 @@ class ChartsScreenTest {
     private fun settingsCallbacks() = SettingsCallbacks(
         onOpenProfile = {},
         onHuaweiAuthorization = {},
+        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualTest = { _, _ -> },

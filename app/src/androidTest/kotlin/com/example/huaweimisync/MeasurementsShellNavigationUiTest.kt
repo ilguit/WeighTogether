@@ -185,6 +185,7 @@ class MeasurementsShellNavigationUiTest {
     private fun settingsCallbacks() = SettingsCallbacks(
         onOpenProfile = {},
         onHuaweiAuthorization = {},
+        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualTest = { _, _ -> },

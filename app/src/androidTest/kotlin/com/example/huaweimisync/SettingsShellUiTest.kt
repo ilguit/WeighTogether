@@ -21,6 +21,7 @@ import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import java.time.LocalDate
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -87,7 +88,29 @@ class SettingsShellUiTest {
         composeRule.onNodeWithText("Настройки приложения").assertExists()
     }
 
-    private fun setSettingsShell() {
+    @Test
+    fun huaweiCheckFailureRetriesPermissionRefreshInsteadOfAuthorization() {
+        var refreshCalls = 0
+        var authorizationCalls = 0
+        setSettingsShell(
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
+            onHuaweiAuthorization = { authorizationCalls++ },
+            onHuaweiPermissionRefresh = { refreshCalls++ },
+        )
+
+        composeRule.onNodeWithText("Повторить").performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, refreshCalls)
+            assertEquals(0, authorizationCalls)
+        }
+    }
+
+    private fun setSettingsShell(
+        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
+        onHuaweiAuthorization: () -> Unit = {},
+        onHuaweiPermissionRefresh: () -> Unit = {},
+    ) {
         val profile = UserProfile(
             heightCm = 181.5,
             birthDate = LocalDate.of(1988, 2, 29),
@@ -107,6 +130,7 @@ class SettingsShellUiTest {
                 state = MainUiState(
                     settings = AppSettings(profile = profile),
                     profileEditor = editorState,
+                    huawei = huawei,
                 ),
                 currentSection = AppSection.SETTINGS,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
@@ -120,6 +144,8 @@ class SettingsShellUiTest {
                 onProfileSexChanged = editorController::updateSex,
                 settingsCallbacks = settingsCallbacks(
                     onOpenProfile = { editorController.open(profile) },
+                    onHuaweiAuthorization = onHuaweiAuthorization,
+                    onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
                 ),
                 measurementsContent = {},
                 chartsContent = {},
@@ -127,10 +153,14 @@ class SettingsShellUiTest {
         }
     }
 
-    private fun settingsCallbacks(onOpenProfile: () -> Unit) = SettingsCallbacks(
+    private fun settingsCallbacks(
+        onOpenProfile: () -> Unit,
+        onHuaweiAuthorization: () -> Unit = {},
+        onHuaweiPermissionRefresh: () -> Unit = {},
+    ) = SettingsCallbacks(
         onOpenProfile = onOpenProfile,
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = {},
+        onHuaweiAuthorization = onHuaweiAuthorization,
+        onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualTest = { _, _ -> },
