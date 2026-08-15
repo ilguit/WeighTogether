@@ -78,6 +78,13 @@ fun HuaweiMiSyncApp(
             }
         }
     }
+    LaunchedEffect(viewModel) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+            }
+        }
+    }
     BackHandler(enabled = editorOpen) {
         measurementsViewModel.callbacks.onEditorDismissed()
     }
@@ -165,7 +172,6 @@ private fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item { Spacer(Modifier.height(1.dp)) }
-        state.message?.let { message -> item { StatusCard(message) } }
         item { ProfileCard(state, onSaveProfile) }
         item {
             IntegrationCard(
@@ -188,11 +194,6 @@ private fun SettingsScreen(
         }
         item { Spacer(Modifier.height(24.dp)) }
     }
-}
-
-@Composable
-private fun StatusCard(message: String) = Card(Modifier.fillMaxWidth()) {
-    Text(message, Modifier.padding(14.dp), style = MaterialTheme.typography.bodyMedium)
 }
 
 @Composable

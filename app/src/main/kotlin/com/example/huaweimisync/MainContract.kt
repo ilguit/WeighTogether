@@ -1,0 +1,218 @@
+package com.example.huaweimisync
+
+import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.core.UserProfile
+import java.time.LocalDate
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.receiveAsFlow
+
+sealed interface MainUiEvent {
+    data class ShowSnackbar(val message: String) : MainUiEvent
+}
+
+internal class MainUiEventEmitter {
+    private val channel = Channel<MainUiEvent>(Channel.UNLIMITED)
+
+    val events: Flow<MainUiEvent> = channel.receiveAsFlow()
+
+    fun showSnackbar(message: String) {
+        check(channel.trySend(MainUiEvent.ShowSnackbar(message)).isSuccess) {
+            "Main UI event channel is closed"
+        }
+    }
+}
+
+data class ProfileEditorUiState(
+    val isOpen: Boolean = false,
+    val height: String = "",
+    val birthDate: String = "",
+    val sex: Sex = Sex.MALE,
+    val errorMessage: String? = null,
+)
+
+internal class ProfileEditorController(
+    private val saveProfile: (UserProfile) -> Unit,
+    private val eventEmitter: MainUiEventEmitter,
+    private val today: () -> LocalDate = LocalDate::now,
+) {
+    private val mutableState = MutableStateFlow(ProfileEditorUiState())
+    val state: StateFlow<ProfileEditorUiState> = mutableState.asStateFlow()
+
+    fun open(profile: UserProfile?) {
+        mutableState.value = ProfileEditorUiState(
+            isOpen = true,
+            height = profile?.heightCm?.toProfileHeightInput() ?: DEFAULT_HEIGHT,
+            birthDate = profile?.birthDate?.toString() ?: DEFAULT_BIRTH_DATE,
+            sex = profile?.sex ?: Sex.MALE,
+        )
+    }
+
+    fun close() {
+        mutableState.value = ProfileEditorUiState()
+    }
+
+    fun updateHeight(value: String) = updateOpenState { copy(height = value, errorMessage = null) }
+
+    fun updateBirthDate(value: String) = updateOpenState { copy(birthDate = value, errorMessage = null) }
+
+    fun updateSex(value: Sex) = updateOpenState { copy(sex = value, errorMessage = null) }
+
+    fun save() {
+        val editor = mutableState.value
+        if (!editor.isOpen) return
+
+        when (val result = validateProfile(editor.height, editor.birthDate, editor.sex, today())) {
+            is ProfileValidationResult.Invalid -> {
+                mutableState.value = editor.copy(errorMessage = result.message)
+                eventEmitter.showSnackbar(result.message)
+            }
+            is ProfileValidationResult.Valid -> {
+                saveProfile(result.profile)
+                close()
+                eventEmitter.showSnackbar(PROFILE_SAVED_MESSAGE)
+            }
+        }
+    }
+
+    private fun updateOpenState(transform: ProfileEditorUiState.() -> ProfileEditorUiState) {
+        if (mutableState.value.isOpen) mutableState.value = mutableState.value.transform()
+    }
+
+    private companion object {
+        const val DEFAULT_HEIGHT = "175"
+        const val DEFAULT_BIRTH_DATE = "1990-01-01"
+    }
+}
+
+internal sealed interface ProfileValidationResult {
+    data class Valid(val profile: UserProfile) : ProfileValidationResult
+    data class Invalid(val message: String) : ProfileValidationResult
+}
+
+internal fun validateProfile(
+    height: String,
+    birthDate: String,
+    sex: Sex,
+    today: LocalDate,
+): ProfileValidationResult {
+    val profile = runCatching {
+        UserProfile(
+            heightCm = height.replace(',', '.').toDouble(),
+            birthDate = LocalDate.parse(birthDate),
+            sex = sex,
+        )
+    }.getOrElse {
+        return ProfileValidationResult.Invalid(PROFILE_FORMAT_ERROR_MESSAGE)
+    }
+    if (profile.birthDate.isAfter(today.minusYears(MINIMUM_PROFILE_AGE_YEARS)) ||
+        profile.birthDate.isBefore(today.minusYears(MAXIMUM_PROFILE_AGE_YEARS))
+    ) {
+        return ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE)
+    }
+    return ProfileValidationResult.Valid(profile)
+}
+
+enum class HealthConnectAvailability {
+    CHECKING,
+    AVAILABLE,
+    UNAVAILABLE,
+    CHECK_FAILED,
+}
+
+data class HealthConnectPermissionsUiState(
+    val availability: HealthConnectAvailability = HealthConnectAvailability.CHECKING,
+    val requiredPermissions: Set<String> = emptySet(),
+    val grantedPermissions: Set<String> = emptySet(),
+) {
+    val permissionStates: Map<String, Boolean>
+        get() = requiredPermissions.associateWith(grantedPermissions::contains)
+
+    val isConnected: Boolean
+        get() = availability == HealthConnectAvailability.AVAILABLE &&
+            requiredPermissions.isNotEmpty() &&
+            grantedPermissions.containsAll(requiredPermissions)
+
+    val missingPermissions: Set<String>
+        get() = requiredPermissions - grantedPermissions
+
+    companion object {
+        fun checking(
+            requiredPermissions: Set<String>,
+            grantedPermissions: Set<String> = emptySet(),
+        ) = HealthConnectPermissionsUiState(
+            availability = HealthConnectAvailability.CHECKING,
+            requiredPermissions = requiredPermissions,
+            grantedPermissions = grantedPermissions.intersect(requiredPermissions),
+        )
+
+        fun snapshot(
+            isAvailable: Boolean,
+            requiredPermissions: Set<String>,
+            grantedPermissions: Set<String>,
+        ) = HealthConnectPermissionsUiState(
+            availability = if (isAvailable) {
+                HealthConnectAvailability.AVAILABLE
+            } else {
+                HealthConnectAvailability.UNAVAILABLE
+            },
+            requiredPermissions = requiredPermissions,
+            grantedPermissions = grantedPermissions.intersect(requiredPermissions),
+        )
+
+        fun checkFailed(
+            requiredPermissions: Set<String>,
+            grantedPermissions: Set<String> = emptySet(),
+        ) = HealthConnectPermissionsUiState(
+            availability = HealthConnectAvailability.CHECK_FAILED,
+            requiredPermissions = requiredPermissions,
+            grantedPermissions = grantedPermissions.intersect(requiredPermissions),
+        )
+    }
+}
+
+enum class HuaweiIntegrationStatus {
+    UNAVAILABLE_IN_BUILD,
+    CONFIGURATION_REQUIRED,
+    AUTHORIZATION_REQUIRED,
+    AUTHORIZED,
+}
+
+data class HuaweiIntegrationUiState(
+    val status: HuaweiIntegrationStatus = HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD,
+) {
+    val isAvailableInBuild: Boolean
+        get() = status != HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
+
+    val isConfigured: Boolean
+        get() = status == HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED ||
+            status == HuaweiIntegrationStatus.AUTHORIZED
+
+    companion object {
+        fun fromGateway(
+            isAvailableInBuild: Boolean,
+            isConfigured: Boolean,
+            isAuthorized: Boolean = false,
+        ): HuaweiIntegrationUiState = HuaweiIntegrationUiState(
+            when {
+                !isAvailableInBuild -> HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
+                !isConfigured -> HuaweiIntegrationStatus.CONFIGURATION_REQUIRED
+                isAuthorized -> HuaweiIntegrationStatus.AUTHORIZED
+                else -> HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED
+            },
+        )
+    }
+}
+
+internal const val PROFILE_FORMAT_ERROR_MESSAGE =
+    "Проверьте рост и дату рождения (ГГГГ-ММ-ДД)"
+internal const val PROFILE_AGE_ERROR_MESSAGE = "Возраст для расчёта должен быть от 10 до 100 лет"
+internal const val PROFILE_SAVED_MESSAGE = "Профиль сохранён"
+internal const val MINIMUM_PROFILE_AGE_YEARS = 10L
+internal const val MAXIMUM_PROFILE_AGE_YEARS = 100L
+
+private fun Double.toProfileHeightInput(): String =
+    if (this % 1.0 == 0.0) toInt().toString() else toString()
