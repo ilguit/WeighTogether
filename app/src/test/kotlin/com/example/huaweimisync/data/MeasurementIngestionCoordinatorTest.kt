@@ -307,6 +307,10 @@ private class FakeAccountRepository(
         settings.value = settings.value.copy(primaryAccountId = accountId)
     }
 
+    override suspend fun updateWeightDeltaKg(weightDeltaKg: Double) {
+        settings.value = settings.value.copy(weightDeltaKg = weightDeltaKg)
+    }
+
     override suspend fun deleteAccount(accountId: AccountId) {
         values.value = values.value.filterNot { it.id == accountId }
     }
