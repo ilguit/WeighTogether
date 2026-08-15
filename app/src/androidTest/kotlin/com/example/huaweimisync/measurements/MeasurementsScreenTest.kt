@@ -1,16 +1,25 @@
 package com.example.huaweimisync.measurements
 
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.example.huaweimisync.MeasurementsViewModel
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
+import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -45,6 +54,7 @@ class MeasurementsScreenTest {
     @Test
     fun summaryMenuOpensEditAndDeleteActions() {
         var edited: Pair<String, MeasurementEditorOrigin>? = null
+        var confirmedId: String? = null
         var state by mutableStateOf(sampleState())
         val callbacks = callbacks(
             onEditRequested = { id, origin ->
@@ -70,6 +80,7 @@ class MeasurementsScreenTest {
                     ),
                 )
             },
+            onDeleteConfirmed = { confirmedId = it },
         )
 
         composeRule.setContent {
@@ -84,9 +95,55 @@ class MeasurementsScreenTest {
         composeRule.runOnIdle { state = sampleState() }
 
         composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
-        composeRule.onNodeWithText("Удалить").performClick()
+        composeRule.onNodeWithTag("summary-delete-measurement").performClick()
         composeRule.onNodeWithTag("delete-measurement-dialog").assertIsDisplayed()
         composeRule.onNodeWithText("Удалить измерение?").assertIsDisplayed()
+        composeRule.onNodeWithTag("delete-measurement-confirm").performClick()
+        composeRule.runOnIdle { assertEquals("latest", confirmedId) }
+    }
+
+    @Test
+    fun protectedSummaryDeleteShowsRequiredSnackbarWithoutDialog() {
+        var requestedId: String? = null
+        val messages = Channel<String>(Channel.BUFFERED)
+        val state = sampleState(isLatestDeleteProtected = true)
+        val callbacks = callbacks(
+            onDeleteRequested = {
+                requestedId = it
+                messages.trySend(MeasurementsViewModel.PROTECTED_LATEST_MESSAGE)
+            },
+        )
+        setContentWithSnackbar(state, callbacks, messages)
+
+        composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
+        composeRule.onNodeWithTag("summary-delete-measurement").performClick()
+
+        composeRule.runOnIdle { assertEquals("latest", requestedId) }
+        composeRule.onNodeWithTag("delete-measurement-dialog").assertDoesNotExist()
+        composeRule.onNodeWithText(PROTECTED_LATEST_MESSAGE).assertIsDisplayed()
+    }
+
+    @Test
+    fun protectedHistoryDeleteShowsRequiredSnackbarWithoutDialog() {
+        var requestedId: String? = null
+        val messages = Channel<String>(Channel.BUFFERED)
+        val state = sampleState(isLatestDeleteProtected = true).copy(
+            destination = MeasurementsDestination.HISTORY,
+        )
+        val callbacks = callbacks(
+            onDeleteRequested = {
+                requestedId = it
+                messages.trySend(MeasurementsViewModel.PROTECTED_LATEST_MESSAGE)
+            },
+        )
+        setContentWithSnackbar(state, callbacks, messages)
+
+        composeRule.onNodeWithTag("history-toggle-latest").performClick()
+        composeRule.onNodeWithTag("history-delete-latest").performClick()
+
+        composeRule.runOnIdle { assertEquals("latest", requestedId) }
+        composeRule.onNodeWithTag("delete-measurement-dialog").assertDoesNotExist()
+        composeRule.onNodeWithText(PROTECTED_LATEST_MESSAGE).assertIsDisplayed()
     }
 
     @Test
@@ -111,18 +168,49 @@ class MeasurementsScreenTest {
         onHistoryRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
         onDeleteRequested: (String) -> Unit = {},
+        onDeleteConfirmed: (String) -> Unit = {},
         onRetryRequested: (String) -> Unit = {},
     ) = MeasurementsCallbacks.None.copy(
         onHistoryRequested = onHistoryRequested,
         onEditRequested = onEditRequested,
         onDeleteRequested = onDeleteRequested,
+        onDeleteConfirmed = onDeleteConfirmed,
         onRetryRequested = onRetryRequested,
     )
 
+    private fun setContentWithSnackbar(
+        state: MeasurementsUiState,
+        callbacks: MeasurementsCallbacks,
+        messages: Channel<String>,
+    ) {
+        composeRule.setContent {
+            val snackbarHostState = remember { SnackbarHostState() }
+            LaunchedEffect(messages, snackbarHostState) {
+                for (message in messages) snackbarHostState.showSnackbar(message)
+            }
+            HuaweiMiSyncTheme {
+                Scaffold(snackbarHost = { SnackbarHost(snackbarHostState) }) { padding ->
+                    MeasurementsScreen(
+                        state = state,
+                        callbacks = callbacks,
+                        modifier = Modifier.padding(padding),
+                    )
+                }
+            }
+        }
+    }
+
     private fun sampleState(
         sync: MeasurementSyncPresentation = syncedSync(),
+        isLatestDeleteProtected: Boolean = false,
     ): MeasurementsUiState {
-        val latest = sampleItem("latest", "2026-08-15T12:42:00Z", 72.4, sync)
+        val latest = sampleItem(
+            id = "latest",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = sync,
+            isDeleteProtected = isLatestDeleteProtected,
+        )
         val previous = sampleItem("previous", "2026-08-13T11:58:00Z", 72.8, syncedSync())
         val measurements = listOf(latest, previous)
         return MeasurementsUiState(
@@ -137,6 +225,7 @@ class MeasurementsScreenTest {
         instant: String,
         weight: Double,
         sync: MeasurementSyncPresentation,
+        isDeleteProtected: Boolean = false,
     ) = MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = Instant.parse(instant).toEpochMilli(),
@@ -159,6 +248,7 @@ class MeasurementsScreenTest {
             leanBodyMassKg = 58.9,
         ),
         sync = sync,
+        isDeleteProtected = isDeleteProtected,
     )
 
     private fun syncedSync() = MeasurementSyncPresentation(
@@ -186,4 +276,9 @@ class MeasurementsScreenTest {
         ),
         canRetry = true,
     )
+
+    private companion object {
+        const val PROTECTED_LATEST_MESSAGE =
+            "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
+    }
 }
