@@ -40,6 +40,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -91,8 +92,9 @@ private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
 
 /**
  * The nullable filter callbacks keep this screen source-compatible with the independently owned
- * app-shell branch. Once supplied, [ChartsUiState] is the sole source of truth for sheets and the
- * custom date picker. Until then, the same UI remains functional through local presentation state.
+ * app-shell branch. Once the complete callback set is supplied, [ChartsUiState] is the sole source
+ * of truth for sheets and the custom date picker. Until then, the same UI remains functional
+ * through local presentation state.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,9 +119,13 @@ fun ChartsScreen(
         onRangePresetSelected != null &&
         onDismissCustomDatePicker != null &&
         onDoneSelectingMetrics != null
-    var localFilterSheet by remember { mutableStateOf<ChartFilterSheet?>(null) }
-    var localCustomDatePickerOpen by remember { mutableStateOf(false) }
+    var localFilterSheetName by rememberSaveable { mutableStateOf<String?>(null) }
+    var localCustomDatePickerOpen by rememberSaveable { mutableStateOf(false) }
+    var localRangePresetName by rememberSaveable { mutableStateOf(state.rangePreset.name) }
+    val localFilterSheet = localFilterSheetName?.let(ChartFilterSheet::valueOf)
+    val localRangePreset = ChartRangePreset.valueOf(localRangePresetName)
     val activeFilterSheet = if (usesExternalFilterState) state.activeFilterSheet else localFilterSheet
+    val selectedRangePreset = if (usesExternalFilterState) state.rangePreset else localRangePreset
     val isCustomDatePickerOpen = if (usesExternalFilterState) {
         state.isCustomDatePickerOpen
     } else {
@@ -129,28 +135,29 @@ fun ChartsScreen(
     fun openSheet(sheet: ChartFilterSheet) {
         if (usesExternalFilterState) {
             when (sheet) {
-                ChartFilterSheet.RANGE -> onOpenRangeFilter?.invoke()
-                ChartFilterSheet.METRICS -> onOpenMetricFilter?.invoke()
+                ChartFilterSheet.RANGE -> onOpenRangeFilter()
+                ChartFilterSheet.METRICS -> onOpenMetricFilter()
             }
         } else {
-            localFilterSheet = sheet
+            localFilterSheetName = sheet.name
             localCustomDatePickerOpen = false
         }
     }
 
     fun dismissSheet() {
-        if (usesExternalFilterState) onDismissFilterSheet?.invoke() else localFilterSheet = null
+        if (usesExternalFilterState) onDismissFilterSheet() else localFilterSheetName = null
     }
 
     fun selectPreset(preset: ChartRangePreset) {
         if (usesExternalFilterState) {
-            onRangePresetSelected?.invoke(preset)
+            onRangePresetSelected(preset)
         } else if (preset == ChartRangePreset.CUSTOM) {
-            localFilterSheet = null
+            localFilterSheetName = null
             localCustomDatePickerOpen = true
         } else {
             val range = requireNotNull(preset.rangeEndingOn(LocalDate.now(zoneId)))
-            localFilterSheet = null
+            localRangePresetName = preset.name
+            localFilterSheetName = null
             onDateRangeChange(range.startDate, range.endDateInclusive)
         }
     }
@@ -160,12 +167,15 @@ fun ChartsScreen(
             startDate = state.startDate,
             endDateInclusive = state.endDateInclusive,
             onConfirm = { startDate, endDate ->
-                if (!usesExternalFilterState) localCustomDatePickerOpen = false
+                if (!usesExternalFilterState) {
+                    localRangePresetName = ChartRangePreset.CUSTOM.name
+                    localCustomDatePickerOpen = false
+                }
                 onDateRangeChange(startDate, endDate)
             },
             onDismiss = {
                 if (usesExternalFilterState) {
-                    onDismissCustomDatePicker?.invoke()
+                    onDismissCustomDatePicker()
                 } else {
                     localCustomDatePickerOpen = false
                 }
@@ -175,7 +185,7 @@ fun ChartsScreen(
 
     when (activeFilterSheet) {
         ChartFilterSheet.RANGE -> RangeFilterSheet(
-            selectedPreset = state.rangePreset,
+            selectedPreset = selectedRangePreset,
             onPresetSelected = ::selectPreset,
             onDismiss = ::dismissSheet,
         )
@@ -187,7 +197,11 @@ fun ChartsScreen(
             onSelectAll = onSelectAll,
             onClearSelection = onClearSelection,
             onDone = {
-                if (usesExternalFilterState) onDoneSelectingMetrics?.invoke() else localFilterSheet = null
+                if (usesExternalFilterState) {
+                    onDoneSelectingMetrics()
+                } else {
+                    localFilterSheetName = null
+                }
             },
             onDismiss = ::dismissSheet,
         )
@@ -204,7 +218,7 @@ fun ChartsScreen(
         item { Spacer(Modifier.height(1.dp)) }
         item {
             ChartFilterRow(
-                rangeText = rangeLabel(state),
+                rangeText = rangeLabel(selectedRangePreset, state.startDate, state.endDateInclusive),
                 selectedCount = state.selectedMetricKeys.size,
                 metricCount = state.metricOptions.size,
                 onOpenRangeFilter = { openSheet(ChartFilterSheet.RANGE) },
@@ -794,13 +808,17 @@ private fun rememberChartMarker(
     )
 }
 
-private fun rangeLabel(state: ChartsUiState): String = when (state.rangePreset) {
+private fun rangeLabel(
+    preset: ChartRangePreset,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+): String = when (preset) {
     ChartRangePreset.LAST_7_DAYS -> "7 дней"
     ChartRangePreset.LAST_30_DAYS -> "30 дней"
     ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
     ChartRangePreset.YEAR_TO_DATE -> "С начала года"
     ChartRangePreset.CUSTOM ->
-        "${DateFormatter.format(state.startDate)} — ${DateFormatter.format(state.endDateInclusive)}"
+        "${DateFormatter.format(startDate)} — ${DateFormatter.format(endDateInclusive)}"
 }
 
 private fun ChartRangePreset.title(): String = when (this) {

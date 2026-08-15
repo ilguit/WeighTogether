@@ -4,12 +4,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.LocalDate
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -62,6 +64,42 @@ class ChartsScreenTest {
 
         composeRule.onNodeWithText("Показатели").assertIsDisplayed()
         composeRule.onNodeWithText("Выбрано: 0").assertIsDisplayed()
+    }
+
+    @Test
+    fun legacyCallbacksKeepPresetLabelWhenDateRangeCallbackMarksRangeCustom() {
+        var state by mutableStateOf(chartsState())
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                ChartsScreen(
+                    state = state,
+                    onDateRangeChange = { startDate, endDateInclusive ->
+                        state = state.copy(
+                            startDate = startDate,
+                            endDateInclusive = endDateInclusive,
+                            rangePreset = ChartRangePreset.CUSTOM,
+                        )
+                    },
+                    onMetricSelectionChange = { _, _ -> },
+                    onSelectAll = {},
+                    onClearSelection = {},
+                )
+            }
+        }
+
+        selectLegacyPreset("30 дней", "Период: 30 дней")
+        assertEquals(ChartRangePreset.CUSTOM, state.rangePreset)
+        selectLegacyPreset("3 месяца", "Период: 3 месяца")
+        assertEquals(ChartRangePreset.CUSTOM, state.rangePreset)
+        selectLegacyPreset("С начала года", "Период: С начала года")
+        assertEquals(ChartRangePreset.CUSTOM, state.rangePreset)
+    }
+
+    private fun selectLegacyPreset(presetText: String, expectedPeriodDescription: String) {
+        composeRule.onNode(hasContentDescription("Период:", substring = true))
+            .performClick()
+        composeRule.onNodeWithText(presetText).performClick()
+        composeRule.onNodeWithContentDescription(expectedPeriodDescription).assertIsDisplayed()
     }
 
     private fun setContent(
