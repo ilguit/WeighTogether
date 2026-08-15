@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
@@ -35,9 +36,10 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
 import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.measurements.MeasurementsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
-import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
 import com.example.huaweimisync.ui.icons.HuaweiIcons
@@ -55,28 +57,31 @@ internal enum class AppSection(
 
 internal val defaultAppSection = AppSection.MEASUREMENTS
 
-/**
- * Integration seam for the Measurements redesign branch. Its destination contract can map state
- * to shell chrome without coupling this state-based app shell to a concrete nested destination.
- */
-fun interface MeasurementsChromePolicy {
-    fun resolve(state: MeasurementsUiState): MeasurementsChrome
-}
-
-data class MeasurementsChrome(
+internal data class MeasurementsChrome(
     val showTopBar: Boolean,
     val showBottomNavigation: Boolean,
+    val contentUsesSafeDrawingInsets: Boolean,
 )
 
-internal val legacyMeasurementsChromePolicy = MeasurementsChromePolicy { state ->
-    val isEditorOpen = state.editor != null
-    MeasurementsChrome(
-        showTopBar = !isEditorOpen,
-        showBottomNavigation = !isEditorOpen,
-    )
-}
+internal fun measurementsChromeFor(destination: MeasurementsDestination): MeasurementsChrome =
+    when (destination) {
+        MeasurementsDestination.SUMMARY -> MeasurementsChrome(
+            showTopBar = true,
+            showBottomNavigation = true,
+            contentUsesSafeDrawingInsets = false,
+        )
+
+        MeasurementsDestination.HISTORY,
+        MeasurementsDestination.EDITOR,
+        -> MeasurementsChrome(
+            showTopBar = false,
+            showBottomNavigation = false,
+            contentUsesSafeDrawingInsets = true,
+        )
+    }
 
 internal object MainScreenTestTags {
+    const val TopBar = "main-top-bar"
     const val BottomNavigation = "main-bottom-navigation"
     const val SnackbarHost = "main-snackbar-host"
 }
@@ -91,16 +96,12 @@ fun HuaweiMiSyncApp(
     openHealthConnectAccessManagement: () -> Unit,
     openBatterySettings: () -> Unit,
     openApplicationSettings: () -> Unit,
-    measurementsChromePolicy: MeasurementsChromePolicy = legacyMeasurementsChromePolicy,
 ) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val measurementsState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
     val chartsState by chartsViewModel.uiState.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
-    val profileEditorOpen = state.profileEditor.isOpen
-    val measurementsChrome = measurementsChromePolicy.resolve(measurementsState)
-
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
             when (event) {
@@ -115,17 +116,11 @@ fun HuaweiMiSyncApp(
             }
         }
     }
-    BackHandler(
-        enabled = !profileEditorOpen &&
-            currentSection == AppSection.MEASUREMENTS &&
-            measurementsState.editor != null,
-        onBack = measurementsViewModel.callbacks.onEditorDismissed,
-    )
-
     HuaweiMiSyncScaffold(
         state = state,
         currentSection = currentSection,
-        measurementsChrome = measurementsChrome,
+        measurementsDestination = measurementsState.destination,
+        measurementsCallbacks = measurementsViewModel.callbacks,
         snackbarHostState = snackbarHostState,
         onSectionSelected = { currentSection = it },
         onCloseProfile = viewModel::closeProfileEditor,
@@ -148,7 +143,10 @@ fun HuaweiMiSyncApp(
             MeasurementsScreen(
                 state = measurementsState,
                 callbacks = measurementsViewModel.callbacks,
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .consumeWindowInsets(padding),
             )
         },
         chartsContent = { padding ->
@@ -173,7 +171,8 @@ fun HuaweiMiSyncApp(
 internal fun HuaweiMiSyncScaffold(
     state: MainUiState,
     currentSection: AppSection,
-    measurementsChrome: MeasurementsChrome,
+    measurementsDestination: MeasurementsDestination,
+    measurementsCallbacks: MeasurementsCallbacks,
     snackbarHostState: SnackbarHostState,
     onSectionSelected: (AppSection) -> Unit,
     onCloseProfile: () -> Unit,
@@ -186,6 +185,7 @@ internal fun HuaweiMiSyncScaffold(
     chartsContent: @Composable (PaddingValues) -> Unit,
 ) {
     val profileEditorOpen = state.profileEditor.isOpen
+    val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
         profileEditorOpen -> true
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
@@ -195,7 +195,22 @@ internal fun HuaweiMiSyncScaffold(
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
+    val contentWindowInsets = if (
+        !profileEditorOpen &&
+        currentSection == AppSection.MEASUREMENTS &&
+        measurementsChrome.contentUsesSafeDrawingInsets
+    ) {
+        WindowInsets.safeDrawing
+    } else {
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+    }
 
+    BackHandler(
+        enabled = !profileEditorOpen &&
+            currentSection == AppSection.MEASUREMENTS &&
+            measurementsDestination != MeasurementsDestination.SUMMARY,
+        onBack = measurementsCallbacks.onBackRequested,
+    )
     BackHandler(enabled = profileEditorOpen, onBack = onCloseProfile)
 
     HuaweiMiSyncTheme {
@@ -203,7 +218,7 @@ internal fun HuaweiMiSyncScaffold(
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onBackground,
-                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+                contentWindowInsets = contentWindowInsets,
                 topBar = {
                     if (showTopBar) {
                         HuaweiTopBar(
@@ -264,6 +279,7 @@ private fun HuaweiTopBar(
     onBack: () -> Unit,
 ) {
     TopAppBar(
+        modifier = Modifier.testTag(MainScreenTestTags.TopBar),
         title = { Text(title) },
         navigationIcon = {
             if (showBack) {

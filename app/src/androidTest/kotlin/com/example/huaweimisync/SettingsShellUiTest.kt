@@ -18,6 +18,8 @@ import androidx.compose.ui.test.performTextReplacement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.data.AppSettings
+import com.example.huaweimisync.measurements.MeasurementsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsDestination
 import java.time.LocalDate
 import org.junit.Rule
 import org.junit.Test
@@ -107,10 +109,8 @@ class SettingsShellUiTest {
                     profileEditor = editorState,
                 ),
                 currentSection = AppSection.SETTINGS,
-                measurementsChrome = MeasurementsChrome(
-                    showTopBar = true,
-                    showBottomNavigation = true,
-                ),
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
                 snackbarHostState = snackbarHostState,
                 onSectionSelected = {},
                 onCloseProfile = editorController::close,
