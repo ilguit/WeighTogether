@@ -36,7 +36,6 @@ internal class MeasurementSyncProcessor(
 
     private suspend fun syncHuawei(measurementId: String): SyncResult? {
         val value = loadMeasurement(measurementId) ?: return null
-        if (value.isLocalOnly()) return null
         if (value.huaweiStatus in HUAWEI_TERMINAL_STATUSES) return null
 
         val payload = MeasurementSyncPayload(
@@ -50,7 +49,6 @@ internal class MeasurementSyncProcessor(
 
     private suspend fun syncHealthConnect(measurementId: String): SyncResult? {
         val value = loadMeasurement(measurementId) ?: return null
-        if (value.isLocalOnly()) return null
         if (value.healthConnectStatus in HEALTH_CONNECT_TERMINAL_STATUSES) return null
 
         val payload = MeasurementSyncPayload(
@@ -61,10 +59,6 @@ internal class MeasurementSyncProcessor(
         applyHealthConnectResult(measurementId, payload, result)
         return result
     }
-
-    private fun MeasurementEntity.isLocalOnly(): Boolean =
-        huaweiStatus == SyncStatus.LOCAL_ONLY.name ||
-            healthConnectStatus == SyncStatus.LOCAL_ONLY.name
 
     private companion object {
         val HUAWEI_TERMINAL_STATUSES = setOf(

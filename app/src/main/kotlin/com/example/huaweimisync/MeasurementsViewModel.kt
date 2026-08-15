@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementMutationResult
+import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.MeasurementValues
 import com.example.huaweimisync.measurements.MeasurementDeleteConfirmation
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
@@ -13,6 +14,7 @@ import com.example.huaweimisync.measurements.MeasurementEditorState
 import com.example.huaweimisync.measurements.MeasurementField
 import com.example.huaweimisync.measurements.MeasurementUiItem
 import com.example.huaweimisync.measurements.MeasurementUiValues
+import com.example.huaweimisync.measurements.MeasurementUiType
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsNavigationState
@@ -111,7 +113,12 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         editor.value = MeasurementEditorState(
             measurementId = value.id,
             measuredAtEpochMillis = value.measuredAtEpochMillis,
-            draft = MeasurementEditorDraft.from(value.values.toUiValues()),
+            draft = if (value.measurementType == MeasurementType.WEIGHT_ONLY) {
+                MeasurementEditorDraft.fromWeight(value.weightKg)
+            } else {
+                MeasurementEditorDraft.from(value.toUiValues())
+            },
+            type = value.measurementType.toUiType(),
         )
         navigation.update { it.showEditor(origin) }
     }
@@ -128,7 +135,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         if (current.measurementId != id || current.isSaving) return
         editor.value = current.copy(isSaving = true)
         viewModelScope.launch {
-            when (repository.update(id, values.toDataValues())) {
+            val result = if (current.isWeightOnly) {
+                repository.updateWeightOnly(id, values.weightKg)
+            } else {
+                values.toDataValues()?.let { repository.update(id, it) }
+                    ?: MeasurementMutationResult.Invalid
+            }
+            when (result) {
                 MeasurementMutationResult.Success -> {
                     closeEditor()
                     showMessage("Локальное измерение изменено")
@@ -200,7 +213,8 @@ private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): Measurem
     MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = measuredAtEpochMillis,
-        values = values.toUiValues(),
+        values = toUiValues(),
+        type = measurementType.toUiType(),
         sync = measurementSyncPresentation(
             healthConnectStatus = healthConnectStatus,
             healthConnectError = healthConnectError,
@@ -210,7 +224,7 @@ private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): Measurem
         isOperationInProgress = isOperationInProgress,
     )
 
-private fun MeasurementValues.toUiValues(): MeasurementUiValues = MeasurementUiValues(
+private fun MeasurementEntity.toUiValues(): MeasurementUiValues = MeasurementUiValues(
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
     bmi = bmi,
@@ -229,24 +243,29 @@ private fun MeasurementValues.toUiValues(): MeasurementUiValues = MeasurementUiV
     leanBodyMassKg = leanBodyMassKg,
 )
 
-private fun MeasurementUiValues.toDataValues(): MeasurementValues = MeasurementValues(
+private fun MeasurementUiValues.toDataValues(): MeasurementValues? = MeasurementValues(
     weightKg = weightKg,
-    impedanceOhm = impedanceOhm,
-    bmi = bmi,
-    bodyFatPercent = bodyFatPercent,
-    bodyFatMassKg = bodyFatMassKg,
-    waterPercent = waterPercent,
-    waterMassKg = waterMassKg,
-    muscleMassKg = muscleMassKg,
-    skeletalMuscleMassKg = skeletalMuscleMassKg,
-    boneMassKg = boneMassKg,
-    proteinPercent = proteinPercent,
-    proteinMassKg = proteinMassKg,
-    visceralFatLevel = visceralFatLevel,
-    basalMetabolicRateKcal = basalMetabolicRateKcal,
-    metabolicAge = metabolicAge,
-    leanBodyMassKg = leanBodyMassKg,
+    impedanceOhm = impedanceOhm ?: return null,
+    bmi = bmi ?: return null,
+    bodyFatPercent = bodyFatPercent ?: return null,
+    bodyFatMassKg = bodyFatMassKg ?: return null,
+    waterPercent = waterPercent ?: return null,
+    waterMassKg = waterMassKg ?: return null,
+    muscleMassKg = muscleMassKg ?: return null,
+    skeletalMuscleMassKg = skeletalMuscleMassKg ?: return null,
+    boneMassKg = boneMassKg ?: return null,
+    proteinPercent = proteinPercent ?: return null,
+    proteinMassKg = proteinMassKg ?: return null,
+    visceralFatLevel = visceralFatLevel ?: return null,
+    basalMetabolicRateKcal = basalMetabolicRateKcal ?: return null,
+    metabolicAge = metabolicAge ?: return null,
+    leanBodyMassKg = leanBodyMassKg ?: return null,
 )
+
+private fun MeasurementType.toUiType(): MeasurementUiType = when (this) {
+    MeasurementType.FULL -> MeasurementUiType.FULL
+    MeasurementType.WEIGHT_ONLY -> MeasurementUiType.WEIGHT_ONLY
+}
 
 private sealed interface MeasurementsLoadState {
     data object Loading : MeasurementsLoadState

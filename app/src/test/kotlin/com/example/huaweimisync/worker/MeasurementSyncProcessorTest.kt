@@ -12,7 +12,7 @@ import org.junit.Test
 
 class MeasurementSyncProcessorTest {
     @Test
-    fun localOnlyIsTerminalForTheWholeMeasurement() = runBlocking {
+    fun allTerminalDirectionsCompleteWithoutWrites() = runBlocking {
         val store = FakeSyncStore(
             measurement(huaweiStatus = SyncStatus.DISABLED, healthConnectStatus = SyncStatus.LOCAL_ONLY),
         )
@@ -23,6 +23,22 @@ class MeasurementSyncProcessorTest {
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun localOnlyDirectionDoesNotBlockOtherAvailableDirection() = runBlocking {
+        val store = FakeSyncStore(
+            measurement(
+                huaweiStatus = SyncStatus.LOCAL_ONLY,
+                healthConnectStatus = SyncStatus.PENDING,
+            ),
+        )
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(listOf("health-connect"), store.externalWrites)
+        assertEquals(listOf("health-connect"), store.statusUpdates.map { it.first })
     }
 
     @Test

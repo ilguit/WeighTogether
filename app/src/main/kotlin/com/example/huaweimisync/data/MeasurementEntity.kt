@@ -82,7 +82,10 @@ enum class MeasurementMetric(
 
     fun valueOf(values: MeasurementValues): Double = extract(values).toDouble()
 
-    fun valueOf(measurement: MeasurementEntity): Double = valueOf(measurement.values)
+    fun valueOf(measurement: MeasurementEntity): Double? = when (this) {
+        WEIGHT_KG -> measurement.weightKg
+        else -> measurement.fullValues?.let(::valueOf)
+    }
 }
 
 @Entity(

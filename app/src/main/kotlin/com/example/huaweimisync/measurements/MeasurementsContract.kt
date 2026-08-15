@@ -107,27 +107,39 @@ val measurementEditorSections: List<MeasurementEditorSection> = MeasurementEdito
     )
 }
 
+val weightOnlyEditorSections: List<MeasurementEditorSection> = listOf(
+    MeasurementEditorSection(
+        group = MeasurementEditorGroup.MAIN,
+        fields = listOf(MeasurementField.WEIGHT_KG),
+    ),
+)
+
+enum class MeasurementUiType {
+    FULL,
+    WEIGHT_ONLY,
+}
+
 data class MeasurementUiValues(
     val weightKg: Double,
-    val impedanceOhm: Int,
-    val bmi: Double,
-    val bodyFatPercent: Double,
-    val bodyFatMassKg: Double,
-    val waterPercent: Double,
-    val waterMassKg: Double,
-    val muscleMassKg: Double,
-    val skeletalMuscleMassKg: Double,
-    val boneMassKg: Double,
-    val proteinPercent: Double,
-    val proteinMassKg: Double,
-    val visceralFatLevel: Double,
-    val basalMetabolicRateKcal: Double,
-    val metabolicAge: Int,
-    val leanBodyMassKg: Double,
+    val impedanceOhm: Int?,
+    val bmi: Double?,
+    val bodyFatPercent: Double?,
+    val bodyFatMassKg: Double?,
+    val waterPercent: Double?,
+    val waterMassKg: Double?,
+    val muscleMassKg: Double?,
+    val skeletalMuscleMassKg: Double?,
+    val boneMassKg: Double?,
+    val proteinPercent: Double?,
+    val proteinMassKg: Double?,
+    val visceralFatLevel: Double?,
+    val basalMetabolicRateKcal: Double?,
+    val metabolicAge: Int?,
+    val leanBodyMassKg: Double?,
 ) {
-    operator fun get(field: MeasurementField): Double = when (field) {
+    operator fun get(field: MeasurementField): Double? = when (field) {
         MeasurementField.WEIGHT_KG -> weightKg
-        MeasurementField.IMPEDANCE_OHM -> impedanceOhm.toDouble()
+        MeasurementField.IMPEDANCE_OHM -> impedanceOhm?.toDouble()
         MeasurementField.BMI -> bmi
         MeasurementField.BODY_FAT_PERCENT -> bodyFatPercent
         MeasurementField.BODY_FAT_MASS_KG -> bodyFatMassKg
@@ -140,7 +152,7 @@ data class MeasurementUiValues(
         MeasurementField.PROTEIN_MASS_KG -> proteinMassKg
         MeasurementField.VISCERAL_FAT_LEVEL -> visceralFatLevel
         MeasurementField.BASAL_METABOLIC_RATE_KCAL -> basalMetabolicRateKcal
-        MeasurementField.METABOLIC_AGE -> metabolicAge.toDouble()
+        MeasurementField.METABOLIC_AGE -> metabolicAge?.toDouble()
         MeasurementField.LEAN_BODY_MASS_KG -> leanBodyMassKg
     }
 }
@@ -185,8 +197,12 @@ data class MeasurementUiItem(
     val measuredAtEpochMillis: Long,
     val values: MeasurementUiValues,
     val sync: MeasurementSyncPresentation,
+    val type: MeasurementUiType = MeasurementUiType.FULL,
     val isOperationInProgress: Boolean = false,
 ) {
+    val isWeightOnly: Boolean
+        get() = type == MeasurementUiType.WEIGHT_ONLY
+
     val isLocalOnly: Boolean
         get() = sync.state == MeasurementSyncPresentationState.LOCAL_ONLY
 
@@ -196,7 +212,7 @@ data class MeasurementUiItem(
 
 data class MeasurementMetricPresentation(
     val field: MeasurementField,
-    val value: Double,
+    val value: Double?,
 ) {
     val label: String
         get() = this.field.label
@@ -236,9 +252,16 @@ data class MeasurementEditorState(
     val measurementId: String,
     val measuredAtEpochMillis: Long,
     val draft: MeasurementEditorDraft,
-    val sections: List<MeasurementEditorSection> = measurementEditorSections,
+    val type: MeasurementUiType = MeasurementUiType.FULL,
+    val sections: List<MeasurementEditorSection> = when (type) {
+        MeasurementUiType.FULL -> measurementEditorSections
+        MeasurementUiType.WEIGHT_ONLY -> weightOnlyEditorSections
+    },
     val isSaving: Boolean = false,
 ) {
+    val isWeightOnly: Boolean
+        get() = type == MeasurementUiType.WEIGHT_ONLY
+
     val canSave: Boolean
         get() = !isSaving && draft.isValid
 }
@@ -321,13 +344,17 @@ internal fun measurementSyncPresentation(
             rawError = huaweiError,
         ),
     )
-    val aggregate = directions.minByOrNull { it.state.priority }?.state
+    val availableDirections = directions.filterNot {
+        it.state == MeasurementSyncPresentationState.LOCAL_ONLY
+    }
+    val aggregate = (availableDirections.ifEmpty { directions })
+        .minByOrNull { it.state.priority }
+        ?.state
         ?: MeasurementSyncPresentationState.SYNCED
     return MeasurementSyncPresentation(
         state = aggregate,
         directions = directions,
-        canRetry = aggregate != MeasurementSyncPresentationState.LOCAL_ONLY &&
-            directions.any(MeasurementSyncDirectionPresentation::canRetry),
+        canRetry = directions.any(MeasurementSyncDirectionPresentation::canRetry),
     )
 }
 

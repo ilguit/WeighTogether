@@ -4,12 +4,12 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.huaweimisync.charts.ChartFilterSheet
-import com.example.huaweimisync.charts.ChartPoint
 import com.example.huaweimisync.charts.ChartRangePreset
 import com.example.huaweimisync.charts.ChartSeries
 import com.example.huaweimisync.charts.ChartsCallbacks
 import com.example.huaweimisync.charts.ChartsUiState
 import com.example.huaweimisync.charts.chartMetricOptions
+import com.example.huaweimisync.charts.chartPointsForMetric
 import com.example.huaweimisync.charts.inclusiveDateRangeToEpochRange
 import com.example.huaweimisync.charts.restoreChartMetricSelection
 import com.example.huaweimisync.charts.toPersistedChartMetricKeys
@@ -134,12 +134,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             series = current.selectedMetrics.map { metric ->
                 ChartSeries(
                     metric = metricOptions.getValue(metric),
-                    points = values.map { value ->
-                        ChartPoint(
-                            measuredAtEpochMillis = value.measuredAtEpochMillis,
-                            value = metric.valueOf(value),
-                        )
-                    },
+                    points = chartPointsForMetric(values, metric),
                 )
             },
             rangePreset = current.rangePreset,

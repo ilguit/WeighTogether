@@ -74,6 +74,7 @@ class MeasurementRepository(
     ): MeasurementMutationResult {
         if (!values.isValid()) return MeasurementMutationResult.Invalid
         val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
+        if (current.measurementType != MeasurementType.FULL) return MeasurementMutationResult.Invalid
         val updated = current.copy(
             weightKg = values.weightKg,
             impedanceOhm = values.impedanceOhm,
@@ -91,14 +92,20 @@ class MeasurementRepository(
             basalMetabolicRateKcal = values.basalMetabolicRateKcal,
             metabolicAge = values.metabolicAge,
             leanBodyMassKg = values.leanBodyMassKg,
-            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
-            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-            huaweiError = null,
-            healthConnectError = null,
         )
-        if (dao.update(updated) == 0) return MeasurementMutationResult.NotFound
-        syncScheduler.cancel(id)
-        return MeasurementMutationResult.Success
+        return persistEdited(current, updated)
+    }
+
+    suspend fun updateWeightOnly(
+        id: String,
+        weightKg: Double,
+    ): MeasurementMutationResult {
+        if (!weightKg.isFinite() || weightKg < 0.0) return MeasurementMutationResult.Invalid
+        val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
+        if (current.measurementType != MeasurementType.WEIGHT_ONLY) {
+            return MeasurementMutationResult.Invalid
+        }
+        return persistEdited(current, current.copy(weightKg = weightKg))
     }
 
     suspend fun delete(id: String): MeasurementMutationResult {
@@ -113,9 +120,7 @@ class MeasurementRepository(
 
     suspend fun retry(id: String) {
         val value = dao.get(id) ?: return
-        if (value.huaweiStatus != SyncStatus.LOCAL_ONLY.name &&
-            value.healthConnectStatus != SyncStatus.LOCAL_ONLY.name
-        ) {
+        if (value.huaweiStatus.isHuaweiRetryable() || value.healthConnectStatus.isHealthRetryable()) {
             syncScheduler.enqueue(id)
         }
     }
@@ -126,6 +131,28 @@ class MeasurementRepository(
 
     suspend fun retryPendingHuawei() {
         dao.idsNeedingHuaweiSync().forEach(syncScheduler::enqueue)
+    }
+
+    private suspend fun persistEdited(
+        current: MeasurementEntity,
+        edited: MeasurementEntity,
+    ): MeasurementMutationResult {
+        val huaweiStatus = current.huaweiStatus.requeueAfterEdit()
+        val healthConnectStatus = current.healthConnectStatus.requeueAfterEdit()
+        val updated = edited.copy(
+            huaweiStatus = huaweiStatus,
+            healthConnectStatus = healthConnectStatus,
+            huaweiError = current.huaweiError.keepUnlessRequeued(huaweiStatus),
+            healthConnectError = current.healthConnectError.keepUnlessRequeued(healthConnectStatus),
+        )
+        if (dao.update(updated) == 0) return MeasurementMutationResult.NotFound
+        syncScheduler.cancel(current.id)
+        if (huaweiStatus == SyncStatus.PENDING.name ||
+            healthConnectStatus == SyncStatus.PENDING.name
+        ) {
+            syncScheduler.enqueue(current.id)
+        }
+        return MeasurementMutationResult.Success
     }
 }
 
@@ -143,8 +170,24 @@ sealed interface MeasurementMutationResult {
     data object Invalid : MeasurementMutationResult
 }
 
-private fun String.toLocalOnlyUnlessDisabled(): String =
-    if (this == SyncStatus.DISABLED.name) this else SyncStatus.LOCAL_ONLY.name
+private fun String.requeueAfterEdit(): String = when (this) {
+    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
+    else -> SyncStatus.PENDING.name
+}
+
+private fun String?.keepUnlessRequeued(status: String): String? =
+    if (status == SyncStatus.PENDING.name) null else this
+
+private fun String.isHuaweiRetryable(): Boolean = this !in setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.DISABLED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
+
+private fun String.isHealthRetryable(): Boolean = this !in setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
 
 private fun MeasurementValues.isValid(): Boolean {
     val doubleValues = listOf(

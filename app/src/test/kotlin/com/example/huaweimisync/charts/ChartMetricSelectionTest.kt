@@ -2,6 +2,8 @@ package com.example.huaweimisync.charts
 
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.data.MeasurementMetric
+import com.example.huaweimisync.data.MeasurementEntity
+import com.example.huaweimisync.data.MeasurementType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -74,4 +76,67 @@ class ChartMetricSelectionTest {
         assertEquals(selected, restoreChartMetricSelection(savedKeys))
         assertTrue(restoreChartMetricSelection(emptySet<MeasurementMetric>().toPersistedChartMetricKeys()).isEmpty())
     }
+
+    @Test
+    fun `weight only contributes to weight series but not composition series`() {
+        val full = chartMeasurement(id = "full", measuredAt = 100L)
+        val weightOnly = chartMeasurement(id = "weight", measuredAt = 200L).copy(
+            measurementType = MeasurementType.WEIGHT_ONLY,
+            weightKg = 71.5,
+            impedanceOhm = null,
+            bmi = null,
+            bodyFatPercent = null,
+            bodyFatMassKg = null,
+            waterPercent = null,
+            waterMassKg = null,
+            muscleMassKg = null,
+            skeletalMuscleMassKg = null,
+            boneMassKg = null,
+            proteinPercent = null,
+            proteinMassKg = null,
+            visceralFatLevel = null,
+            basalMetabolicRateKcal = null,
+            metabolicAge = null,
+            leanBodyMassKg = null,
+            algorithmVersion = null,
+        )
+
+        val weightPoints = chartPointsForMetric(
+            listOf(full, weightOnly),
+            MeasurementMetric.WEIGHT_KG,
+        )
+        val fatPoints = chartPointsForMetric(
+            listOf(full, weightOnly),
+            MeasurementMetric.BODY_FAT_PERCENT,
+        )
+
+        assertEquals(listOf(70.0, 71.5), weightPoints.map(ChartPoint::value))
+        assertEquals(listOf(100L, 200L), weightPoints.map(ChartPoint::measuredAtEpochMillis))
+        assertEquals(listOf(20.0), fatPoints.map(ChartPoint::value))
+    }
 }
+
+private fun chartMeasurement(id: String, measuredAt: Long) = MeasurementEntity(
+    id = id,
+    fingerprint = "fingerprint-$id",
+    deviceAddress = "AA:BB:CC:DD:EE:FF",
+    measuredAtEpochMillis = measuredAt,
+    rawPayloadHex = "010203",
+    weightKg = 70.0,
+    impedanceOhm = 500,
+    bmi = 22.9,
+    bodyFatPercent = 20.0,
+    bodyFatMassKg = 14.0,
+    waterPercent = 55.0,
+    waterMassKg = 38.5,
+    muscleMassKg = 40.0,
+    skeletalMuscleMassKg = 20.0,
+    boneMassKg = 3.0,
+    proteinPercent = 18.0,
+    proteinMassKg = 12.6,
+    visceralFatLevel = 7.0,
+    basalMetabolicRateKcal = 1_500.0,
+    metabolicAge = 35,
+    leanBodyMassKg = 56.0,
+    algorithmVersion = "test-v1",
+)

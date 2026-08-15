@@ -145,12 +145,8 @@ interface MeasurementDao {
     @Query(
         """
         SELECT id FROM measurements
-        WHERE huaweiStatus != 'LOCAL_ONLY'
-            AND healthConnectStatus != 'LOCAL_ONLY'
-            AND (
-                huaweiStatus NOT IN ('SYNCED', 'DISABLED')
-                OR healthConnectStatus != 'SYNCED'
-            )
+        WHERE huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
+            OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
         ORDER BY measuredAtEpochMillis ASC
         """,
     )

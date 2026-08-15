@@ -185,11 +185,14 @@ class MeasurementRepositoryTest {
             huaweiStatus = SyncStatus.DISABLED,
             healthConnectStatus = SyncStatus.FAILED,
         ).copy(
+            fingerprint = "immutable-fingerprint",
             deviceAddress = "immutable-device",
             rawPayloadHex = "immutable-payload",
             algorithmVersion = "immutable-algorithm",
             huaweiError = "old huawei error",
             healthConnectError = "old health error",
+            huaweiWeightSynced = true,
+            healthConnectWeightSynced = true,
             createdAtEpochMillis = 654_321L,
         )
         dao.values[original.id] = original
@@ -220,36 +223,85 @@ class MeasurementRepositoryTest {
                 metabolicAge = values.metabolicAge,
                 leanBodyMassKg = values.leanBodyMassKg,
                 huaweiStatus = SyncStatus.DISABLED.name,
-                healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-                huaweiError = null,
+                healthConnectStatus = SyncStatus.PENDING.name,
+                huaweiError = "old huawei error",
                 healthConnectError = null,
             ),
             dao.values.getValue(original.id),
         )
         assertEquals(listOf(original.id), scheduler.cancelled)
-        assertTrue(scheduler.enqueued.isEmpty())
+        assertEquals(listOf(original.id), scheduler.enqueued)
     }
 
     @Test
-    fun updateMakesEnabledHuaweiTerminalLocalOnly() = runBlocking {
+    fun updateRequeuesAvailableSyncedDirections() = runBlocking {
         val dao = FakeMeasurementDao()
         dao.values["edited"] = measurement(
             id = "edited",
             huaweiStatus = SyncStatus.SYNCED,
             healthConnectStatus = SyncStatus.SYNCED,
         )
-        val repository = repository(dao, FakeSyncScheduler())
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler)
 
         assertEquals(
             MeasurementMutationResult.Success,
             repository.update("edited", editedValues()),
         )
 
-        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("edited").huaweiStatus)
-        assertEquals(
-            SyncStatus.LOCAL_ONLY.name,
-            dao.values.getValue("edited").healthConnectStatus,
+        assertEquals(SyncStatus.PENDING.name, dao.values.getValue("edited").huaweiStatus)
+        assertEquals(SyncStatus.PENDING.name, dao.values.getValue("edited").healthConnectStatus)
+        assertEquals(listOf("edited"), scheduler.cancelled)
+        assertEquals(listOf("edited"), scheduler.enqueued)
+    }
+
+    @Test
+    fun weightOnlyUpdatePreservesTypeFingerprintNullCompositionAndProviderFlags() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val original = measurement(
+            id = "weight-only",
+            huaweiStatus = SyncStatus.SYNCED,
+            healthConnectStatus = SyncStatus.FAILED,
+        ).copy(
+            fingerprint = "immutable-weight-fingerprint",
+            measurementType = MeasurementType.WEIGHT_ONLY,
+            impedanceOhm = null,
+            bmi = null,
+            bodyFatPercent = null,
+            bodyFatMassKg = null,
+            waterPercent = null,
+            waterMassKg = null,
+            muscleMassKg = null,
+            skeletalMuscleMassKg = null,
+            boneMassKg = null,
+            proteinPercent = null,
+            proteinMassKg = null,
+            visceralFatLevel = null,
+            basalMetabolicRateKcal = null,
+            metabolicAge = null,
+            leanBodyMassKg = null,
+            algorithmVersion = null,
+            huaweiWeightSynced = true,
+            healthConnectWeightSynced = true,
         )
+        dao.values[original.id] = original
+        val scheduler = FakeSyncScheduler()
+
+        val result = repository(dao, scheduler, huaweiSyncEnabled = true)
+            .updateWeightOnly(original.id, 69.25)
+
+        assertEquals(MeasurementMutationResult.Success, result)
+        val updated = dao.values.getValue(original.id)
+        assertEquals(69.25, updated.weightKg, 0.0)
+        assertEquals(MeasurementType.WEIGHT_ONLY, updated.measurementType)
+        assertEquals(original.fingerprint, updated.fingerprint)
+        assertNull(updated.fullValues)
+        assertTrue(updated.huaweiWeightSynced)
+        assertTrue(updated.healthConnectWeightSynced)
+        assertEquals(SyncStatus.PENDING.name, updated.huaweiStatus)
+        assertEquals(SyncStatus.PENDING.name, updated.healthConnectStatus)
+        assertEquals(listOf(original.id), scheduler.cancelled)
+        assertEquals(listOf(original.id), scheduler.enqueued)
     }
 
     @Test
@@ -328,6 +380,23 @@ class MeasurementRepositoryTest {
 
         assertTrue(scheduler.enqueued.isEmpty())
         assertTrue(dao.idsNeedingSync().isEmpty())
+    }
+
+    @Test
+    fun localOnlyDirectionDoesNotBlockRetryForOtherAvailableDirection() = runBlocking {
+        val dao = FakeMeasurementDao()
+        dao.values["mixed"] = measurement(
+            id = "mixed",
+            huaweiStatus = SyncStatus.LOCAL_ONLY,
+            healthConnectStatus = SyncStatus.FAILED,
+        )
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler)
+
+        repository.retry("mixed")
+
+        assertEquals(listOf("mixed"), scheduler.enqueued)
+        assertEquals(listOf("mixed"), dao.idsNeedingSync())
     }
 
     @Test
@@ -530,10 +599,15 @@ private class FakeMeasurementDao(
     }
 
     override suspend fun idsNeedingSync(): List<String> = values.values
-        .filterNot(MeasurementEntity::isLocalOnly)
         .filter {
-            it.huaweiStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.DISABLED.name) ||
-                it.healthConnectStatus != SyncStatus.SYNCED.name
+            it.huaweiStatus !in setOf(
+                SyncStatus.SYNCED.name,
+                SyncStatus.DISABLED.name,
+                SyncStatus.LOCAL_ONLY.name,
+            ) || it.healthConnectStatus !in setOf(
+                SyncStatus.SYNCED.name,
+                SyncStatus.LOCAL_ONLY.name,
+            )
         }
         .sortedBy(MeasurementEntity::measuredAtEpochMillis)
         .map(MeasurementEntity::id)
@@ -554,10 +628,6 @@ private class FakeMeasurementDao(
         .sortedBy(MeasurementEntity::measuredAtEpochMillis)
         .map(MeasurementEntity::id)
 }
-
-private fun MeasurementEntity.isLocalOnly(): Boolean =
-    huaweiStatus == SyncStatus.LOCAL_ONLY.name ||
-        healthConnectStatus == SyncStatus.LOCAL_ONLY.name
 
 private fun editedValues() = MeasurementValues(
     weightKg = 81.25,
