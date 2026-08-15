@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
@@ -59,6 +60,7 @@ internal val defaultAppSection = AppSection.MEASUREMENTS
 internal data class MeasurementsChrome(
     val showTopBar: Boolean,
     val showBottomNavigation: Boolean,
+    val contentUsesSafeDrawingInsets: Boolean,
 )
 
 internal fun measurementsChromeFor(destination: MeasurementsDestination): MeasurementsChrome =
@@ -66,6 +68,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
         MeasurementsDestination.SUMMARY -> MeasurementsChrome(
             showTopBar = true,
             showBottomNavigation = true,
+            contentUsesSafeDrawingInsets = false,
         )
 
         MeasurementsDestination.HISTORY,
@@ -73,6 +76,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
         -> MeasurementsChrome(
             showTopBar = false,
             showBottomNavigation = false,
+            contentUsesSafeDrawingInsets = true,
         )
     }
 
@@ -139,7 +143,10 @@ fun HuaweiMiSyncApp(
             MeasurementsScreen(
                 state = measurementsState,
                 callbacks = measurementsViewModel.callbacks,
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .consumeWindowInsets(padding),
             )
         },
         chartsContent = { padding ->
@@ -188,6 +195,15 @@ internal fun HuaweiMiSyncScaffold(
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
+    val contentWindowInsets = if (
+        !profileEditorOpen &&
+        currentSection == AppSection.MEASUREMENTS &&
+        measurementsChrome.contentUsesSafeDrawingInsets
+    ) {
+        WindowInsets.safeDrawing
+    } else {
+        WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
+    }
 
     BackHandler(
         enabled = !profileEditorOpen &&
@@ -202,7 +218,7 @@ internal fun HuaweiMiSyncScaffold(
             Scaffold(
                 containerColor = MaterialTheme.colorScheme.background,
                 contentColor = MaterialTheme.colorScheme.onBackground,
-                contentWindowInsets = WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal),
+                contentWindowInsets = contentWindowInsets,
                 topBar = {
                     if (showTopBar) {
                         HuaweiTopBar(

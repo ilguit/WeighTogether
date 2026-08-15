@@ -32,14 +32,17 @@ class AppSectionTest {
             MeasurementsDestination.SUMMARY to MeasurementsChrome(
                 showTopBar = true,
                 showBottomNavigation = true,
+                contentUsesSafeDrawingInsets = false,
             ),
             MeasurementsDestination.HISTORY to MeasurementsChrome(
                 showTopBar = false,
                 showBottomNavigation = false,
+                contentUsesSafeDrawingInsets = true,
             ),
             MeasurementsDestination.EDITOR to MeasurementsChrome(
                 showTopBar = false,
                 showBottomNavigation = false,
+                contentUsesSafeDrawingInsets = true,
             ),
         )
 
