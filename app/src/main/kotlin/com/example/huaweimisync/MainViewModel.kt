@@ -29,6 +29,7 @@ import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
 import com.example.huaweimisync.ui.accounts.AccountManagementAction
 import com.example.huaweimisync.ui.accounts.AccountManagementUiState
 import com.example.huaweimisync.ui.accounts.WeightDeltaEditorState
+import com.example.huaweimisync.ui.accounts.reconcileAccountManagement
 import com.example.huaweimisync.ui.accounts.reduceAccountManagement
 import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverQueueState
@@ -37,6 +38,7 @@ import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -127,7 +129,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val accountManagementDialog = MutableStateFlow(AccountManagementUiState())
     private val weightDeltaEditor = MutableStateFlow(WeightDeltaEditorState())
     private val resolverRequested = MutableStateFlow(false)
-    private val notificationPermissionGranted = MutableStateFlow(true)
+    private val notificationPermissionGranted = MutableStateFlow(
+        container.pendingMeasurementNotifications.areNotificationsAllowed(),
+    )
     private val resolverOperationInProgress = MutableStateFlow(false)
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingMeasurementId?>(null)
@@ -152,7 +156,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         accountsSnapshot,
         accountManagementDialog,
     ) { snapshot, dialog ->
-        dialog.copy(
+        reconcileAccountManagement(
+            state = dialog,
             accounts = snapshot.accounts,
             primaryAccountId = snapshot.settings.primaryAccountId,
         )
@@ -219,7 +224,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             resolver = routing.resolver,
             unsavedPreview = routing.preview,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MainUiState())
+    }.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5_000),
+        MainUiState(
+            resolverQueue = ResolverQueueState(
+                notificationPermissionGranted = notificationPermissionGranted.value,
+            ),
+        ),
+    )
 
     val huaweiConfigured: Boolean get() = container.huaweiHealth.isConfigured
     val huaweiAvailableInBuild: Boolean get() = container.huaweiHealth.isAvailableInBuild
@@ -229,11 +242,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     init {
         viewModelScope.launch {
             accountsSnapshot.collectLatest { snapshot ->
-                val requested = container.selectedAccountId.value
-                if (snapshot.accounts.none { it.id == requested }) {
-                    container.selectedAccountId.value = snapshot.settings.primaryAccountId
-                        ?.takeIf { primary -> snapshot.accounts.any { it.id == primary } }
-                }
+                accountManagementDialog.value = reconcileAccountManagement(
+                    state = accountManagementDialog.value,
+                    accounts = snapshot.accounts,
+                    primaryAccountId = snapshot.settings.primaryAccountId,
+                )
             }
         }
         viewModelScope.launch {
@@ -251,9 +264,31 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 if (head == null) {
                     resolverRequested.value = false
                     pendingDecision.value = null
-                    unsavedPreview.value = null
-                } else if (pendingDecision.value?.pendingId != head.id) {
-                    refreshRoutingDecision(head.id)
+                }
+                unsavedPreview.value = unsavedPreview.value?.takeIf { preview ->
+                    values.any { it.id == preview.pending.id }
+                }
+                val createPendingId = pendingForNewAccount.value
+                if (createPendingId != null && values.none { it.id == createPendingId }) {
+                    pendingForNewAccount.value = null
+                    accountManagementDialog.value = accountManagementDialog.value.let { dialog ->
+                        if (dialog.editor?.editingAccountId == null) {
+                            dialog.copy(editor = null)
+                        } else {
+                            dialog
+                        }
+                    }
+                }
+            }
+        }
+        viewModelScope.launch {
+            combine(pending, accountsSnapshot) { pendingValues, snapshot ->
+                pendingValues.firstOrNull()?.id to snapshot
+            }.collectLatest { (pendingId, _) ->
+                if (pendingId == null) {
+                    pendingDecision.value = null
+                } else {
+                    refreshRoutingDecision(pendingId)
                 }
             }
         }
@@ -268,7 +303,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onAccountManagementAction(action: AccountManagementAction) {
-        val current = accountManagementDialog.value.copy(
+        val current = reconcileAccountManagement(
+            state = accountManagementDialog.value,
             accounts = accountsSnapshot.value.accounts,
             primaryAccountId = accountsSnapshot.value.settings.primaryAccountId,
         )
@@ -358,9 +394,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openResolver() {
         resolverRequested.value = true
-        pending.value.firstOrNull()?.let { pendingValue ->
-            viewModelScope.launch { refreshRoutingDecision(pendingValue.id) }
-        }
     }
 
     fun resolveLater() {
@@ -373,15 +406,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
             resolverOperationInProgress.value = true
-            when (container.repository.finalizePending(pendingId, accountId)) {
-                is FinalizePendingResult.Finalized -> showMessage("Измерение назначено аккаунту")
-                is FinalizePendingResult.AlreadyFinalized -> showMessage("Измерение уже назначено")
-                FinalizePendingResult.ProfileIncomplete ->
-                    showMessage("Сначала заполните профиль выбранного аккаунта")
-                FinalizePendingResult.AccountNotFound -> showMessage("Аккаунт уже удалён")
-                FinalizePendingResult.PendingNotFound -> showMessage("Измерение уже обработано")
+            try {
+                when (container.repository.finalizePending(pendingId, accountId)) {
+                    is FinalizePendingResult.Finalized ->
+                        showMessage("Измерение назначено аккаунту")
+                    is FinalizePendingResult.AlreadyFinalized ->
+                        showMessage("Измерение уже назначено")
+                    FinalizePendingResult.ProfileIncomplete ->
+                        showMessage("Сначала заполните профиль выбранного аккаунта")
+                    FinalizePendingResult.AccountNotFound -> showMessage("Аккаунт уже удалён")
+                    FinalizePendingResult.PendingNotFound -> showMessage("Измерение уже обработано")
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                showMessage(error.userFacingMessage("Не удалось назначить измерение"))
+            } finally {
+                resolverOperationInProgress.value = false
             }
-            resolverOperationInProgress.value = false
         }
 
     fun startCreateAccountForPending(pendingId: PendingMeasurementId) {
@@ -524,7 +566,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setNotificationPermissionGranted(granted: Boolean) {
-        notificationPermissionGranted.value = granted
+        notificationPermissionGranted.value = granted &&
+            container.pendingMeasurementNotifications.areNotificationsAllowed()
         viewModelScope.launch { container.repository.refreshPendingPresentation() }
     }
 
@@ -555,6 +598,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Foreground repair closes Room→WorkManager gaps and restores pending presentation. */
     fun onForeground() = viewModelScope.launch {
+        notificationPermissionGranted.value =
+            container.pendingMeasurementNotifications.areNotificationsAllowed()
         runCatching { MeasurementWorkSweep(container.repository).run() }
             .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
         runCatching { container.repository.refreshPendingPresentation() }
@@ -652,8 +697,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             operationInProgress = true,
         )
         viewModelScope.launch {
-            runCatching { block() }.onFailure { error ->
+            try {
+                block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
                 failAccountOperation(error.userFacingMessage("Не удалось изменить аккаунт"))
+            } finally {
+                accountManagementDialog.value = accountManagementDialog.value.copy(
+                    operationInProgress = false,
+                )
             }
         }
     }
@@ -671,17 +724,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private suspend fun refreshRoutingDecision(pendingId: PendingMeasurementId) {
-        when (val result = container.repository.routePending(pendingId)) {
-            is MeasurementIngestionResult.AwaitingDecision -> {
-                pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
+        try {
+            when (val result = container.repository.routePending(pendingId)) {
+                is MeasurementIngestionResult.AwaitingDecision -> {
+                    if (pending.value.firstOrNull()?.id == result.pending.id) {
+                        pendingDecision.value = PendingDecisionSnapshot(
+                            result.pending.id,
+                            result.decision,
+                        )
+                    }
+                }
+                is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
+                MeasurementIngestionResult.PendingMissing,
+                MeasurementIngestionResult.Tombstoned,
+                MeasurementIngestionResult.IgnoredNotFinal,
+                MeasurementIngestionResult.LegacyDuplicate,
+                MeasurementIngestionResult.LegacyProfileMissing,
+                -> pendingDecision.value = null
             }
-            is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
-            MeasurementIngestionResult.PendingMissing,
-            MeasurementIngestionResult.Tombstoned,
-            MeasurementIngestionResult.IgnoredNotFinal,
-            MeasurementIngestionResult.LegacyDuplicate,
-            MeasurementIngestionResult.LegacyProfileMissing,
-            -> pendingDecision.value = null
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Throwable) {
+            if (pending.value.firstOrNull()?.id == pendingId) pendingDecision.value = null
         }
     }
 

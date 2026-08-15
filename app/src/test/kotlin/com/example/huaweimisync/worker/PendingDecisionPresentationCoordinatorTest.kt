@@ -43,4 +43,42 @@ class PendingDecisionPresentationCoordinatorTest {
         assertEquals(PendingDecisionFallback.Hidden, coordinator.notificationDeniedFallback.value)
         assertEquals(2, cancelled)
     }
+
+    @Test
+    fun permissionChangesReplaceNotificationAndFallbackFromActualState() {
+        var notificationsAllowed = true
+        val posted = mutableListOf<Int>()
+        var cancelled = 0
+        val coordinator = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { notificationsAllowed },
+            postNotification = posted::add,
+            cancelNotification = { cancelled += 1 },
+        )
+
+        coordinator.updatePendingCount(2)
+        notificationsAllowed = false
+        coordinator.updatePendingCount(2)
+
+        assertEquals(listOf(2), posted)
+        assertEquals(1, cancelled)
+        assertEquals(
+            PendingDecisionFallback.ShowOnForeground(2),
+            coordinator.notificationDeniedFallback.value,
+        )
+
+        notificationsAllowed = true
+        coordinator.updatePendingCount(2)
+
+        assertEquals(listOf(2, 2), posted)
+        assertEquals(PendingDecisionFallback.Hidden, coordinator.notificationDeniedFallback.value)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun negativePendingCountIsRejected() {
+        PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = {},
+            cancelNotification = {},
+        ).updatePendingCount(-1)
+    }
 }

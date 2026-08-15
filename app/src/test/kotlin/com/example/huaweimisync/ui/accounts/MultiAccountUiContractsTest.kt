@@ -204,6 +204,103 @@ class MultiAccountUiContractsTest {
         assertEquals(AccountSelectionFallback.NO_ACCOUNTS, state.fallback)
     }
 
+    @Test
+    fun `selector follows primary when shared selection is empty or removed`() {
+        val firstPrimary = account("one", "Анна")
+        val nextPrimary = account("two", "Борис")
+
+        val initial = reconcileAccountSelection(
+            accounts = listOf(firstPrimary, nextPrimary),
+            requestedAccountId = null,
+            primaryAccountId = firstPrimary.id,
+        )
+        val afterRemovalAndSettingsChange = reconcileAccountSelection(
+            accounts = listOf(nextPrimary),
+            requestedAccountId = initial.selectedAccountId,
+            primaryAccountId = nextPrimary.id,
+        )
+
+        assertEquals(firstPrimary.id, initial.selectedAccountId)
+        assertEquals(nextPrimary.id, afterRemovalAndSettingsChange.selectedAccountId)
+        assertEquals(
+            AccountSelectionFallback.SELECTED_ACCOUNT_REMOVED,
+            afterRemovalAndSettingsChange.fallback,
+        )
+    }
+
+    @Test
+    fun `selector drops invalid primary when no fallback account is configured`() {
+        val surviving = account("one", "Анна")
+
+        val state = reconcileAccountSelection(
+            accounts = listOf(surviving),
+            requestedAccountId = AccountId("removed"),
+            primaryAccountId = AccountId("also-removed"),
+        )
+
+        assertNull(state.selectedAccountId)
+        assertNull(state.primaryAccountId)
+        assertEquals(AccountSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE, state.fallback)
+    }
+
+    @Test
+    fun `account dialog drops stale targets and repairs deleted primary replacement`() {
+        val primary = account("one", "Анна")
+        val removedReplacement = account("two", "Борис")
+        val survivingReplacement = account("three", "Вера")
+        val state = AccountManagementUiState(
+            accounts = listOf(primary, removedReplacement, survivingReplacement),
+            primaryAccountId = primary.id,
+            deletion = AccountDeletionRequest(
+                accountId = primary.id,
+                wasPrimary = true,
+                replacementAccountId = removedReplacement.id,
+            ),
+        )
+
+        val reconciled = reconcileAccountManagement(
+            state = state,
+            accounts = listOf(primary, survivingReplacement),
+            primaryAccountId = primary.id,
+        )
+
+        assertEquals(survivingReplacement.id, reconciled.deletion?.replacementAccountId)
+        assertEquals(listOf(primary, survivingReplacement), reconciled.accounts)
+
+        val targetRemoved = reconcileAccountManagement(
+            state = reconciled,
+            accounts = listOf(survivingReplacement),
+            primaryAccountId = survivingReplacement.id,
+        )
+        assertNull(targetRemoved.deletion)
+    }
+
+    @Test
+    fun `account dialog drops stale edit and primary change targets`() {
+        val primary = account("one", "Анна")
+        val removed = account("two", "Борис")
+        val editing = AccountManagementUiState(
+            accounts = listOf(primary, removed),
+            primaryAccountId = primary.id,
+            editor = AccountEditorDraft.edit(removed),
+        )
+        val changingPrimary = editing.copy(
+            editor = null,
+            primaryChange = PrimaryAccountChangeRequest(removed.id),
+        )
+
+        assertNull(
+            reconcileAccountManagement(editing, listOf(primary), primary.id).editor,
+        )
+        assertNull(
+            reconcileAccountManagement(
+                changingPrimary,
+                listOf(primary),
+                primary.id,
+            ).primaryChange,
+        )
+    }
+
     private fun account(id: String, name: String): Account = Account(
         id = AccountId(id),
         displayName = name,

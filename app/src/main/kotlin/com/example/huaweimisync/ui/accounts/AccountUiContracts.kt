@@ -195,6 +195,51 @@ data class AccountManagementUiState(
         get() = accounts.firstOrNull { it.id == primaryAccountId }
 }
 
+/**
+ * Reconciles an open dialog with the latest durable account snapshot.
+ *
+ * Account mutations may originate outside the dialog (or finish while Room is emitting its new
+ * snapshot), so every target carried by the UI must be checked again before it can be submitted.
+ */
+fun reconcileAccountManagement(
+    state: AccountManagementUiState,
+    accounts: List<Account>,
+    primaryAccountId: AccountId?,
+): AccountManagementUiState {
+    val uniqueAccounts = accounts.distinctBy(Account::id)
+    val accountIds = uniqueAccounts.mapTo(mutableSetOf(), Account::id)
+    val validPrimaryAccountId = primaryAccountId?.takeIf(accountIds::contains)
+    val editor = state.editor?.takeIf { draft ->
+        draft.editingAccountId == null || draft.editingAccountId in accountIds
+    }
+    val primaryChange = state.primaryChange?.takeIf { request ->
+        request.accountId in accountIds && request.accountId != validPrimaryAccountId
+    }
+    val deletion = state.deletion?.takeIf { request ->
+        request.accountId in accountIds
+    }?.let { request ->
+        val isPrimary = request.accountId == validPrimaryAccountId
+        val replacementAccountId = if (isPrimary) {
+            request.replacementAccountId?.takeIf { replacement ->
+                replacement in accountIds && replacement != request.accountId
+            } ?: uniqueAccounts.firstOrNull { it.id != request.accountId }?.id
+        } else {
+            null
+        }
+        request.copy(
+            wasPrimary = isPrimary,
+            replacementAccountId = replacementAccountId,
+        )
+    }
+    return state.copy(
+        accounts = uniqueAccounts,
+        primaryAccountId = validPrimaryAccountId,
+        editor = editor,
+        primaryChange = primaryChange,
+        deletion = deletion,
+    )
+}
+
 sealed interface AccountManagementAction {
     data object AddRequested : AccountManagementAction
     data class EditRequested(val accountId: AccountId) : AccountManagementAction

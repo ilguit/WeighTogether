@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
@@ -123,6 +124,10 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         container.selectedAccountId,
     ) { accounts, settings, selectedAccountId ->
         reconcileAccountSelection(accounts, selectedAccountId, settings.primaryAccountId)
+    }.onEach { selector ->
+        if (container.selectedAccountId.value != selector.selectedAccountId) {
+            container.selectedAccountId.value = selector.selectedAccountId
+        }
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,

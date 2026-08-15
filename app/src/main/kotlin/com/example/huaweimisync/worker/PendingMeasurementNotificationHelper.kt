@@ -59,7 +59,7 @@ class PendingMeasurementNotificationHelper(
 ) : PendingDecisionNotifier {
     private val notifications = NotificationManagerCompat.from(context)
     private val presentation = PendingDecisionPresentationCoordinator(
-        notificationsAllowed = ::notificationsAllowed,
+        notificationsAllowed = ::areNotificationsAllowed,
         postNotification = ::post,
         cancelNotification = { notifications.cancel(NOTIFICATION_ID) },
     )
@@ -71,7 +71,7 @@ class PendingMeasurementNotificationHelper(
         presentation.updatePendingCount(count)
     }
 
-    private fun notificationsAllowed(): Boolean {
+    fun areNotificationsAllowed(): Boolean {
         val runtimePermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
