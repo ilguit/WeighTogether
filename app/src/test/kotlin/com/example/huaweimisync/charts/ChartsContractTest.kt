@@ -32,6 +32,34 @@ class ChartsContractTest {
     }
 
     @Test
+    fun `new state owner after process recreation starts at seven days`() {
+        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val clock = Clock.fixed(Instant.parse("2026-08-14T12:00:00Z"), ZoneOffset.UTC)
+        val stateBeforeProcessDeath = ChartsUiState.initial(
+            metricOptions = listOf(metric),
+            defaultMetricKeys = setOf(metric.key),
+            clock = clock,
+        ).copy(
+            startDate = LocalDate.of(2020, 1, 1),
+            rangePreset = ChartRangePreset.CUSTOM,
+            activeFilterSheet = ChartFilterSheet.METRICS,
+            isCustomDatePickerOpen = true,
+        )
+
+        val newOwnerState = ChartsUiState.initial(
+            metricOptions = stateBeforeProcessDeath.metricOptions,
+            defaultMetricKeys = stateBeforeProcessDeath.selectedMetricKeys,
+            clock = clock,
+        )
+
+        assertEquals(ChartRangePreset.LAST_7_DAYS, newOwnerState.rangePreset)
+        assertEquals(LocalDate.of(2026, 8, 8), newOwnerState.startDate)
+        assertEquals(LocalDate.of(2026, 8, 14), newOwnerState.endDateInclusive)
+        assertNull(newOwnerState.activeFilterSheet)
+        assertEquals(false, newOwnerState.isCustomDatePickerOpen)
+    }
+
+    @Test
     fun `all range presets produce exact inclusive dates`() {
         val today = LocalDate.of(2026, 8, 14)
 

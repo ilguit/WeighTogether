@@ -113,6 +113,20 @@ data class ChartsUiState(
     }
 }
 
+/** All chart intents are handled by the owner of [ChartsUiState]. */
+data class ChartsCallbacks(
+    val openRangeFilter: () -> Unit,
+    val openMetricFilter: () -> Unit,
+    val dismissFilterSheet: () -> Unit,
+    val selectRangePreset: (ChartRangePreset) -> Unit,
+    val dismissCustomDatePicker: () -> Unit,
+    val setDateRange: (startDate: LocalDate, endDateInclusive: LocalDate) -> Unit,
+    val setMetricSelected: (key: String, selected: Boolean) -> Unit,
+    val selectAll: () -> Unit,
+    val clearSelection: () -> Unit,
+    val doneSelectingMetrics: () -> Unit,
+)
+
 data class MeasurementEpochRange(
     val startInclusive: Long,
     val endExclusive: Long,

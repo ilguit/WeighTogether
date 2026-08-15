@@ -152,10 +152,7 @@ fun HuaweiMiSyncApp(
         chartsContent = { padding ->
             ChartsScreen(
                 state = chartsState,
-                onDateRangeChange = chartsViewModel::setDateRange,
-                onMetricSelectionChange = chartsViewModel::setMetricSelected,
-                onSelectAll = chartsViewModel::selectAll,
-                onClearSelection = chartsViewModel::clearSelection,
+                callbacks = chartsViewModel.callbacks,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         },

@@ -38,10 +38,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -90,120 +87,38 @@ import java.time.format.DateTimeFormatter
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
 
-/**
- * The nullable filter callbacks keep this screen source-compatible with the independently owned
- * app-shell branch. Once the complete callback set is supplied, [ChartsUiState] is the sole source
- * of truth for sheets and the custom date picker. Until then, the same UI remains functional
- * through local presentation state.
- */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChartsScreen(
     state: ChartsUiState,
-    onDateRangeChange: (LocalDate, LocalDate) -> Unit,
-    onMetricSelectionChange: (String, Boolean) -> Unit,
-    onSelectAll: () -> Unit,
-    onClearSelection: () -> Unit,
+    callbacks: ChartsCallbacks,
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
-    onOpenRangeFilter: (() -> Unit)? = null,
-    onOpenMetricFilter: (() -> Unit)? = null,
-    onDismissFilterSheet: (() -> Unit)? = null,
-    onRangePresetSelected: ((ChartRangePreset) -> Unit)? = null,
-    onDismissCustomDatePicker: (() -> Unit)? = null,
-    onDoneSelectingMetrics: (() -> Unit)? = null,
 ) {
-    val usesExternalFilterState = onOpenRangeFilter != null &&
-        onOpenMetricFilter != null &&
-        onDismissFilterSheet != null &&
-        onRangePresetSelected != null &&
-        onDismissCustomDatePicker != null &&
-        onDoneSelectingMetrics != null
-    var localFilterSheetName by rememberSaveable { mutableStateOf<String?>(null) }
-    var localCustomDatePickerOpen by rememberSaveable { mutableStateOf(false) }
-    var localRangePresetName by rememberSaveable { mutableStateOf(state.rangePreset.name) }
-    val localFilterSheet = localFilterSheetName?.let(ChartFilterSheet::valueOf)
-    val localRangePreset = ChartRangePreset.valueOf(localRangePresetName)
-    val activeFilterSheet = if (usesExternalFilterState) state.activeFilterSheet else localFilterSheet
-    val selectedRangePreset = if (usesExternalFilterState) state.rangePreset else localRangePreset
-    val isCustomDatePickerOpen = if (usesExternalFilterState) {
-        state.isCustomDatePickerOpen
-    } else {
-        localCustomDatePickerOpen
-    }
-
-    fun openSheet(sheet: ChartFilterSheet) {
-        if (usesExternalFilterState) {
-            when (sheet) {
-                ChartFilterSheet.RANGE -> onOpenRangeFilter()
-                ChartFilterSheet.METRICS -> onOpenMetricFilter()
-            }
-        } else {
-            localFilterSheetName = sheet.name
-            localCustomDatePickerOpen = false
-        }
-    }
-
-    fun dismissSheet() {
-        if (usesExternalFilterState) onDismissFilterSheet() else localFilterSheetName = null
-    }
-
-    fun selectPreset(preset: ChartRangePreset) {
-        if (usesExternalFilterState) {
-            onRangePresetSelected(preset)
-        } else if (preset == ChartRangePreset.CUSTOM) {
-            localFilterSheetName = null
-            localCustomDatePickerOpen = true
-        } else {
-            val range = requireNotNull(preset.rangeEndingOn(LocalDate.now(zoneId)))
-            localRangePresetName = preset.name
-            localFilterSheetName = null
-            onDateRangeChange(range.startDate, range.endDateInclusive)
-        }
-    }
-
-    if (isCustomDatePickerOpen) {
+    if (state.isCustomDatePickerOpen) {
         InclusiveDateRangeDialog(
             startDate = state.startDate,
             endDateInclusive = state.endDateInclusive,
-            onConfirm = { startDate, endDate ->
-                if (!usesExternalFilterState) {
-                    localRangePresetName = ChartRangePreset.CUSTOM.name
-                    localCustomDatePickerOpen = false
-                }
-                onDateRangeChange(startDate, endDate)
-            },
-            onDismiss = {
-                if (usesExternalFilterState) {
-                    onDismissCustomDatePicker()
-                } else {
-                    localCustomDatePickerOpen = false
-                }
-            },
+            onConfirm = callbacks.setDateRange,
+            onDismiss = callbacks.dismissCustomDatePicker,
         )
     }
 
-    when (activeFilterSheet) {
+    when (state.activeFilterSheet) {
         ChartFilterSheet.RANGE -> RangeFilterSheet(
-            selectedPreset = selectedRangePreset,
-            onPresetSelected = ::selectPreset,
-            onDismiss = ::dismissSheet,
+            selectedPreset = state.rangePreset,
+            onPresetSelected = callbacks.selectRangePreset,
+            onDismiss = callbacks.dismissFilterSheet,
         )
 
         ChartFilterSheet.METRICS -> MetricSelectionSheet(
             options = state.metricOptions,
             selectedMetricKeys = state.selectedMetricKeys,
-            onMetricSelectionChange = onMetricSelectionChange,
-            onSelectAll = onSelectAll,
-            onClearSelection = onClearSelection,
-            onDone = {
-                if (usesExternalFilterState) {
-                    onDoneSelectingMetrics()
-                } else {
-                    localFilterSheetName = null
-                }
-            },
-            onDismiss = ::dismissSheet,
+            onMetricSelectionChange = callbacks.setMetricSelected,
+            onSelectAll = callbacks.selectAll,
+            onClearSelection = callbacks.clearSelection,
+            onDone = callbacks.doneSelectingMetrics,
+            onDismiss = callbacks.dismissFilterSheet,
         )
 
         null -> Unit
@@ -218,11 +133,11 @@ fun ChartsScreen(
         item { Spacer(Modifier.height(1.dp)) }
         item {
             ChartFilterRow(
-                rangeText = rangeLabel(selectedRangePreset, state.startDate, state.endDateInclusive),
+                rangeText = rangeLabel(state.rangePreset, state.startDate, state.endDateInclusive),
                 selectedCount = state.selectedMetricKeys.size,
                 metricCount = state.metricOptions.size,
-                onOpenRangeFilter = { openSheet(ChartFilterSheet.RANGE) },
-                onOpenMetricFilter = { openSheet(ChartFilterSheet.METRICS) },
+                onOpenRangeFilter = callbacks.openRangeFilter,
+                onOpenMetricFilter = callbacks.openMetricFilter,
             )
         }
         state.errorMessage?.let { message ->
@@ -249,7 +164,7 @@ fun ChartsScreen(
             }
 
             state.selectedMetricKeys.isEmpty() -> item {
-                ChartsEmptyState(onChooseMetrics = { openSheet(ChartFilterSheet.METRICS) })
+                ChartsEmptyState(onChooseMetrics = callbacks.openMetricFilter)
             }
 
             else -> {
