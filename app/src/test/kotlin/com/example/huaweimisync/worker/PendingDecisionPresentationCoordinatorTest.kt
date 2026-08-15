@@ -73,6 +73,42 @@ class PendingDecisionPresentationCoordinatorTest {
         assertEquals(PendingDecisionFallback.Hidden, coordinator.notificationDeniedFallback.value)
     }
 
+    @Test
+    fun notificationTransportFailureFallsBackWithoutEscapingDurableIngestion() {
+        var cancelled = 0
+        val coordinator = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = { throw SecurityException("permission revoked concurrently") },
+            cancelNotification = { cancelled += 1 },
+        )
+
+        coordinator.updatePendingCount(2)
+
+        assertEquals(1, cancelled)
+        assertEquals(
+            PendingDecisionFallback.ShowOnForeground(2),
+            coordinator.notificationDeniedFallback.value,
+        )
+    }
+
+    @Test
+    fun notificationCapabilityFailureAlsoFallsBack() {
+        val coordinator = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = {
+                throw IllegalStateException("notification service unavailable")
+            },
+            postNotification = { error("must not post") },
+            cancelNotification = {},
+        )
+
+        coordinator.updatePendingCount(1)
+
+        assertEquals(
+            PendingDecisionFallback.ShowOnForeground(1),
+            coordinator.notificationDeniedFallback.value,
+        )
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun negativePendingCountIsRejected() {
         PendingDecisionPresentationCoordinator(
