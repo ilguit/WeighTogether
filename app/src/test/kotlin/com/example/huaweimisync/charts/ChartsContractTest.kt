@@ -14,15 +14,72 @@ import org.junit.Test
 
 class ChartsContractTest {
     @Test
-    fun `initial range contains seven days and selects weight`() {
+    fun `initial range contains seven days and uses supplied metric defaults`() {
         val weight = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val fat = ChartMetricOption("fatPercent", "Жир", "%", 1, PercentagePointUnit)
         val clock = Clock.fixed(Instant.parse("2026-08-14T12:00:00Z"), ZoneOffset.UTC)
 
-        val state = ChartsUiState.initial(listOf(weight), weight.key, clock)
+        val state = ChartsUiState.initial(
+            metricOptions = listOf(weight, fat),
+            defaultMetricKeys = setOf(weight.key, fat.key),
+            clock = clock,
+        )
 
         assertEquals(LocalDate.of(2026, 8, 8), state.startDate)
         assertEquals(LocalDate.of(2026, 8, 14), state.endDateInclusive)
-        assertEquals(setOf("weightKg"), state.selectedMetricKeys)
+        assertEquals(setOf("weightKg", "fatPercent"), state.selectedMetricKeys)
+        assertEquals(ChartRangePreset.LAST_7_DAYS, state.rangePreset)
+    }
+
+    @Test
+    fun `all range presets produce exact inclusive dates`() {
+        val today = LocalDate.of(2026, 8, 14)
+
+        assertEquals(
+            ChartDateRange(LocalDate.of(2026, 8, 8), today),
+            ChartRangePreset.LAST_7_DAYS.rangeEndingOn(today),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2026, 7, 16), today),
+            ChartRangePreset.LAST_30_DAYS.rangeEndingOn(today),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2026, 5, 15), today),
+            ChartRangePreset.LAST_3_MONTHS.rangeEndingOn(today),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2026, 1, 1), today),
+            ChartRangePreset.YEAR_TO_DATE.rangeEndingOn(today),
+        )
+        assertNull(ChartRangePreset.CUSTOM.rangeEndingOn(today))
+    }
+
+    @Test
+    fun `three month preset follows calendar month and leap boundaries`() {
+        assertEquals(
+            ChartDateRange(LocalDate.of(2024, 3, 1), LocalDate.of(2024, 5, 31)),
+            ChartRangePreset.LAST_3_MONTHS.rangeEndingOn(LocalDate.of(2024, 5, 31)),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2023, 11, 30), LocalDate.of(2024, 2, 29)),
+            ChartRangePreset.LAST_3_MONTHS.rangeEndingOn(LocalDate.of(2024, 2, 29)),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2023, 12, 31), LocalDate.of(2024, 3, 30)),
+            ChartRangePreset.LAST_3_MONTHS.rangeEndingOn(LocalDate.of(2024, 3, 30)),
+        )
+    }
+
+    @Test
+    fun `short presets cross month and leap day boundaries without truncation`() {
+        assertEquals(
+            ChartDateRange(LocalDate.of(2024, 2, 24), LocalDate.of(2024, 3, 1)),
+            ChartRangePreset.LAST_7_DAYS.rangeEndingOn(LocalDate.of(2024, 3, 1)),
+        )
+        assertEquals(
+            ChartDateRange(LocalDate.of(2024, 2, 1), LocalDate.of(2024, 3, 1)),
+            ChartRangePreset.LAST_30_DAYS.rangeEndingOn(LocalDate.of(2024, 3, 1)),
+        )
     }
 
     @Test
@@ -121,6 +178,18 @@ class ChartsContractTest {
     }
 
     @Test
+    fun `inclusive range includes repeated hour when DST ends`() {
+        val zone = ZoneId.of("America/New_York")
+        val range = chartXRange(
+            LocalDate.of(2026, 11, 1),
+            LocalDate.of(2026, 11, 1),
+            zone,
+        )
+
+        assertEquals(25.0 * 60 * 60 * 1000, range.maxX - range.minX, 0.0)
+    }
+
+    @Test
     fun `marker contains full local date time line break value and complete unit`() {
         val metric = ChartMetricOption(
             key = "pressure",
@@ -154,6 +223,37 @@ class ChartsContractTest {
         assertEquals(listOf(1_000L, 4_500L, 66_432L), ordered.map { it.measuredAtEpochMillis })
         assertEquals(3_500L, ordered[1].measuredAtEpochMillis - ordered[0].measuredAtEpochMillis)
         assertEquals(61_932L, ordered[2].measuredAtEpochMillis - ordered[1].measuredAtEpochMillis)
+    }
+
+    @Test
+    fun `summary finds current previous and delta by real timestamp`() {
+        val first = ChartPoint(1_000L, 72.9)
+        val previous = ChartPoint(8_000L, 72.8)
+        val current = ChartPoint(9_000L, 72.4)
+        val points = listOf(current, first, previous)
+
+        val summary = chartValueSummary(points)
+
+        assertEquals(current, currentChartPoint(points))
+        assertEquals(previous, previousChartPoint(points))
+        assertEquals(current, summary.current)
+        assertEquals(previous, summary.previous)
+        assertEquals(-0.4, summary.delta!!, 0.000_001)
+        assertEquals(-0.4, chartDelta(points)!!, 0.000_001)
+        assertNull(chartDelta(listOf(current)))
+    }
+
+    @Test
+    fun `current and delta formatting use metric units and percentage points`() {
+        val weight = ChartMetricOption("weight", "Вес", "кг", 2)
+        val fat = ChartMetricOption("fat", "Жир", "%", 1, PercentagePointUnit)
+
+        assertEquals("72.40 кг", formatChartCurrentValue(72.4, weight, Locale.US))
+        assertEquals("+0.40 кг", formatChartDelta(0.4, weight, Locale.US))
+        assertEquals("−0.2 п.п.", formatChartDelta(-0.2, fat, Locale.US))
+        assertEquals("0.0 п.п.", formatChartDelta(0.0, fat, Locale.US))
+        assertEquals("—", formatChartCurrentValue(null, weight, Locale.US))
+        assertEquals("—", formatChartDelta(null, weight, Locale.US))
     }
 
     @Test

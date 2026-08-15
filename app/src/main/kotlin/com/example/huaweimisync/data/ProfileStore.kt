@@ -14,6 +14,7 @@ data class AppSettings(
     val scaleAddress: String? = null,
     val scaleName: String? = null,
     val reliabilityMode: Boolean = false,
+    val selectedChartMetricKeys: Set<String>? = null,
 )
 
 class ProfileStore(context: Context) {
@@ -51,6 +52,11 @@ class ProfileStore(context: Context) {
         refresh()
     }
 
+    fun saveSelectedChartMetricKeys(keys: Set<String>) {
+        preferences.edit { putStringSet(KEY_SELECTED_CHART_METRICS, keys.toSet()) }
+        refresh()
+    }
+
     private fun refresh() {
         mutableSettings.value = read()
     }
@@ -74,6 +80,9 @@ class ProfileStore(context: Context) {
             scaleAddress = preferences.getString(KEY_SCALE_ADDRESS, null),
             scaleName = preferences.getString(KEY_SCALE_NAME, null),
             reliabilityMode = preferences.getBoolean(KEY_RELIABILITY, false),
+            selectedChartMetricKeys = preferences
+                .getStringSet(KEY_SELECTED_CHART_METRICS, null)
+                ?.toSet(),
         )
     }
 
@@ -84,5 +93,6 @@ class ProfileStore(context: Context) {
         const val KEY_SCALE_ADDRESS = "scale_address"
         const val KEY_SCALE_NAME = "scale_name"
         const val KEY_RELIABILITY = "reliability"
+        const val KEY_SELECTED_CHART_METRICS = "selected_chart_metrics"
     }
 }
