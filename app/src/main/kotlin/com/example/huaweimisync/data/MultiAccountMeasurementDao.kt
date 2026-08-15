@@ -103,6 +103,36 @@ interface MultiAccountMeasurementDao {
 
     @Query(
         """
+        UPDATE measurements
+        SET externalSyncPolicy = 'ACCOUNT_LOCAL',
+            huaweiStatus = CASE
+                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiStatus
+                ELSE 'LOCAL_ONLY'
+            END,
+            healthConnectStatus = CASE
+                WHEN healthConnectStatus = 'SYNCED' THEN healthConnectStatus
+                ELSE 'LOCAL_ONLY'
+            END,
+            huaweiError = CASE
+                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiError
+                ELSE NULL
+            END,
+            healthConnectError = CASE
+                WHEN healthConnectStatus = 'SYNCED' THEN healthConnectError
+                ELSE NULL
+            END
+        WHERE accountId = :accountId
+            AND externalSyncPolicy = 'AUTO'
+            AND (
+                huaweiStatus NOT IN ('SYNCED', 'DISABLED')
+                OR healthConnectStatus != 'SYNCED'
+            )
+        """,
+    )
+    suspend fun demoteUnfinishedHistory(accountId: String): Int
+
+    @Query(
+        """
         SELECT id FROM measurements
         WHERE accountId = :primaryAccountId
             AND externalSyncPolicy = 'AUTO'

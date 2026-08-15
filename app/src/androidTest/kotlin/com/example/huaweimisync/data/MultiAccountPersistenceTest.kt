@@ -113,6 +113,51 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun primarySwitchLocalizesOnlyUnfinishedHistoryAndHonorsFutureOnlyOnReturn() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val first = accounts.createAccount(NewAccount("Alice", completeProfile()))
+        val second = accounts.createAccount(NewAccount("Bob", completeProfile()))
+
+        val unfinishedPending = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val unfinished = persistence.finalizePending(unfinishedPending.pending.id, first.id)
+            as FinalizePendingResult.Finalized
+        val terminalPending = persistence.enqueue(raw("2026-08-15T10:01:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        val terminal = persistence.finalizePending(terminalPending.pending.id, first.id)
+            as FinalizePendingResult.Finalized
+        val terminalEntity = database.multiAccountMeasurementDao().get(
+            terminal.measurement.composition.measurementId,
+        )!!.copy(healthConnectStatus = SyncStatus.SYNCED.name)
+        assertEquals(1, database.measurementDao().update(terminalEntity))
+
+        accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.FUTURE_ONLY)
+
+        var unfinishedEntity = database.multiAccountMeasurementDao().get(
+            unfinished.measurement.composition.measurementId,
+        )!!
+        assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL.name, unfinishedEntity.externalSyncPolicy)
+        assertEquals(SyncStatus.DISABLED.name, unfinishedEntity.huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, unfinishedEntity.healthConnectStatus)
+        assertEquals(
+            ExternalSyncPolicy.AUTO.name,
+            database.multiAccountMeasurementDao().get(terminalEntity.id)!!.externalSyncPolicy,
+        )
+
+        accounts.setPrimaryAccount(first.id, PrimaryHistorySyncMode.FUTURE_ONLY)
+        unfinishedEntity = database.multiAccountMeasurementDao().get(unfinishedEntity.id)!!
+        assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL.name, unfinishedEntity.externalSyncPolicy)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, unfinishedEntity.healthConnectStatus)
+
+        accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.FUTURE_ONLY)
+        accounts.setPrimaryAccount(first.id, PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY)
+        unfinishedEntity = database.multiAccountMeasurementDao().get(unfinishedEntity.id)!!
+        assertEquals(ExternalSyncPolicy.AUTO.name, unfinishedEntity.externalSyncPolicy)
+        assertEquals(SyncStatus.PENDING.name, unfinishedEntity.healthConnectStatus)
+    }
+
+    @Test
     fun latestWeightsUseOnlyStrictlyPriorMeasurements() = runBlocking {
         val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
         val persistence = persistence()

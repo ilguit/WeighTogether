@@ -45,6 +45,23 @@ class MeasurementSyncProcessorTest {
     }
 
     @Test
+    fun reloadsAutoPolicyBeforeSecondExternalWrite() = runBlocking {
+        val store = FakeSyncStore(measurement())
+        store.afterHuaweiWrite = {
+            store.value = store.value?.copy(
+                externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
+            )
+        }
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(2, store.loadCount)
+        assertEquals(1, store.eligibilityChecks)
+    }
+
+    @Test
     fun secondaryAndUserLocalPoliciesNeverReachAnyGateway() = runBlocking {
         listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
             val store = FakeSyncStore(measurement(externalSyncPolicy = policy))

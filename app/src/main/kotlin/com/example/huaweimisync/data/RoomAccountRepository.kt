@@ -71,6 +71,10 @@ class RoomAccountRepository(
         database.withTransaction {
             ensureAppState()
             if (accountDao.get(accountId.value) == null) throw AccountNotFoundException(accountId)
+            val previousPrimaryId = appStateDao.get()?.primaryAccountId
+            if (previousPrimaryId != null && previousPrimaryId != accountId.value) {
+                measurementDao.demoteUnfinishedHistory(previousPrimaryId)
+            }
             check(appStateDao.setPrimary(accountId.value) == 1) { "App state singleton is missing" }
             if (historySyncMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY) {
                 measurementDao.promoteEligibleHistory(accountId.value)

@@ -306,13 +306,17 @@ sealed interface StoreResult {
 }
 
 private fun MeasurementIngestionResult.toLegacyStoreResult(): StoreResult = when (this) {
-    is MeasurementIngestionResult.Assigned -> StoreResult.Inserted(
-        measurement.composition.toEntity(
-            rawPayload = byteArrayOf(),
-            accountId = measurement.accountId,
-            externalSyncPolicy = measurement.externalSyncPolicy,
-        ),
-    )
+    is MeasurementIngestionResult.Assigned -> if (wasAlreadyFinalized) {
+        StoreResult.Duplicate
+    } else {
+        StoreResult.Inserted(
+            measurement.composition.toEntity(
+                rawPayload = byteArrayOf(),
+                accountId = measurement.accountId,
+                externalSyncPolicy = measurement.externalSyncPolicy,
+            ),
+        )
+    }
     MeasurementIngestionResult.LegacyDuplicate -> StoreResult.Duplicate
     MeasurementIngestionResult.LegacyProfileMissing,
     is MeasurementIngestionResult.AwaitingDecision,

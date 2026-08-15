@@ -253,6 +253,26 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun accountAndUserLocalPoliciesCannotBeRetriedEvenWithInconsistentPendingStatuses() =
+        runBlocking {
+            listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
+                val dao = FakeMeasurementDao()
+                dao.values[policy.name] = measurement(id = policy.name).copy(
+                    externalSyncPolicy = policy.name,
+                )
+                val scheduler = FakeSyncScheduler()
+                val repository = repository(dao, scheduler)
+
+                repository.retry(policy.name)
+                repository.retryPendingHealthConnect()
+                repository.retryPendingHuawei()
+                repository.sweepPendingSync()
+
+                assertTrue("Scheduled $policy", scheduler.enqueued.isEmpty())
+            }
+        }
+
+    @Test
     fun observeAllIsDescendingAndRangeIsHalfOpenAscending() = runBlocking {
         val dao = FakeMeasurementDao()
         listOf(9L, 10L, 15L, 20L, 21L).forEach { timestamp ->
@@ -409,6 +429,7 @@ private class FakeMeasurementDao(
     }
 
     override suspend fun idsNeedingSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filterNot(MeasurementEntity::isLocalOnly)
         .filter {
             it.huaweiStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.DISABLED.name) ||
@@ -418,11 +439,13 @@ private class FakeMeasurementDao(
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHealthConnectSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filter { it.healthConnectStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.LOCAL_ONLY.name) }
         .sortedBy(MeasurementEntity::measuredAtEpochMillis)
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHuaweiSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filter {
             it.huaweiStatus !in setOf(
                 SyncStatus.SYNCED.name,

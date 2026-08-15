@@ -39,6 +39,25 @@ class MeasurementIngestionCoordinatorTest {
     private val secondary = testAccount("secondary", "Bob")
 
     @Test
+    fun nonFinalPacketNeverCrossesTheDurableBoundary() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events)
+        val scheduler = UniqueFakeScheduler(events)
+        val notifier = RecordingNotifier()
+
+        val result = coordinator(persistence, accounts, scheduler, notifier).ingest(
+            raw(70.0).copy(isStable = false),
+        )
+
+        assertEquals(MeasurementIngestionResult.IgnoredNotFinal, result)
+        assertTrue(events.isEmpty())
+        assertTrue(persistence.pendingSnapshot().isEmpty())
+        assertTrue(scheduler.enqueued.isEmpty())
+        assertTrue(notifier.counts.isEmpty())
+    }
+
+    @Test
     fun primaryAssignmentIsDurableBeforeMatchingAndSchedulesAfterAtomicFinalize() = runBlocking {
         val events = mutableListOf<String>()
         val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
