@@ -16,6 +16,23 @@ class MeasurementEditorValidationTest {
     }
 
     @Test
+    fun editorGroupsContainAllSixteenFieldsExactlyOnce() {
+        assertEquals(
+            listOf("Основное", "Состав тела", "Мышцы и кости", "Метаболизм"),
+            measurementEditorSections.map(MeasurementEditorSection::title),
+        )
+        assertEquals(listOf(3, 7, 3, 3), measurementEditorSections.map { it.fields.size })
+        assertEquals(
+            MeasurementField.entries.toSet(),
+            measurementEditorSections.flatMap(MeasurementEditorSection::fields).toSet(),
+        )
+        assertEquals(
+            16,
+            measurementEditorSections.flatMap(MeasurementEditorSection::fields).size,
+        )
+    }
+
+    @Test
     fun decimalFieldsAcceptCommaAndDot() {
         assertEquals(72.35, MeasurementField.WEIGHT_KG.validateInput("72,35").parsedValue!!, 0.0)
         assertEquals(72.35, MeasurementField.WEIGHT_KG.validateInput("72.35").parsedValue!!, 0.0)
@@ -98,8 +115,12 @@ class MeasurementEditorValidationTest {
         id = "measurement-1",
         measuredAtEpochMillis = 0L,
         values = sampleValues(),
-        huaweiStatus = huaweiStatus,
-        healthConnectStatus = healthConnectStatus,
+        sync = measurementSyncPresentation(
+            healthConnectStatus = healthConnectStatus,
+            healthConnectError = null,
+            huaweiStatus = huaweiStatus,
+            huaweiError = null,
+        ),
     )
 
     private fun sampleValues() = MeasurementUiValues(

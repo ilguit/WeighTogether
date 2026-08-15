@@ -153,15 +153,13 @@ private fun MeasurementHistoryCard(
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.bodySmall,
                 )
-            } else {
-                SyncStatusLine("Health Connect", item.healthConnectStatus, item.healthConnectError)
-                if (!item.huaweiStatus.equals("DISABLED", ignoreCase = true)) {
-                    SyncStatusLine("Huawei Health", item.huaweiStatus, item.huaweiError)
-                }
             }
+            item.sync.directions.forEach { direction -> SyncStatusLine(direction) }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedButton(
-                    onClick = { callbacks.onEditRequested(item.id) },
+                    onClick = {
+                        callbacks.onEditRequested(item.id, MeasurementEditorOrigin.HISTORY)
+                    },
                     enabled = !item.isOperationInProgress,
                 ) {
                     Text("Изменить")
@@ -187,18 +185,16 @@ private fun MeasurementHistoryCard(
 
 @Composable
 private fun SyncStatusLine(
-    destination: String,
-    status: String,
-    error: String?,
+    direction: MeasurementSyncDirectionPresentation,
 ) {
     Text(
         buildString {
-            append(destination)
+            append(direction.label)
             append(": ")
-            append(status)
-            if (!error.isNullOrBlank()) {
+            append(direction.state.label)
+            if (direction.message.isNotBlank()) {
                 append(" — ")
-                append(error)
+                append(direction.message)
             }
         },
         style = MaterialTheme.typography.bodySmall,
