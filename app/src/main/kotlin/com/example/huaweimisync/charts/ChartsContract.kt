@@ -18,7 +18,41 @@ data class ChartMetricOption(
     val displayName: String,
     val unit: String,
     val decimalPlaces: Int,
+    val deltaUnit: String = unit,
 )
+
+enum class ChartRangePreset {
+    LAST_7_DAYS,
+    LAST_30_DAYS,
+    LAST_3_MONTHS,
+    YEAR_TO_DATE,
+    CUSTOM,
+    ;
+
+    fun rangeEndingOn(today: LocalDate): ChartDateRange? = when (this) {
+        LAST_7_DAYS -> ChartDateRange(today.minusDays(6), today)
+        LAST_30_DAYS -> ChartDateRange(today.minusDays(29), today)
+        LAST_3_MONTHS -> ChartDateRange(today.minusMonths(3).plusDays(1), today)
+        YEAR_TO_DATE -> ChartDateRange(today.withDayOfYear(1), today)
+        CUSTOM -> null
+    }
+}
+
+data class ChartDateRange(
+    val startDate: LocalDate,
+    val endDateInclusive: LocalDate,
+) {
+    init {
+        require(!endDateInclusive.isBefore(startDate)) {
+            "The end date must not precede the start date."
+        }
+    }
+}
+
+enum class ChartFilterSheet {
+    RANGE,
+    METRICS,
+}
 
 @Immutable
 data class ChartPoint(
@@ -32,6 +66,14 @@ data class ChartSeries(
     val points: List<ChartPoint>,
 )
 
+data class ChartValueSummary(
+    val current: ChartPoint?,
+    val previous: ChartPoint?,
+) {
+    val delta: Double?
+        get() = if (current != null && previous != null) current.value - previous.value else null
+}
+
 @Immutable
 data class ChartsUiState(
     val startDate: LocalDate,
@@ -39,6 +81,9 @@ data class ChartsUiState(
     val metricOptions: List<ChartMetricOption>,
     val selectedMetricKeys: Set<String>,
     val series: List<ChartSeries>,
+    val rangePreset: ChartRangePreset = ChartRangePreset.LAST_7_DAYS,
+    val activeFilterSheet: ChartFilterSheet? = null,
+    val isCustomDatePickerOpen: Boolean = false,
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 ) {
@@ -52,15 +97,16 @@ data class ChartsUiState(
     companion object {
         fun initial(
             metricOptions: List<ChartMetricOption>,
-            defaultMetricKey: String,
+            defaultMetricKeys: Set<String>,
             clock: Clock = Clock.systemDefaultZone(),
         ): ChartsUiState {
             val today = LocalDate.now(clock)
+            val range = requireNotNull(ChartRangePreset.LAST_7_DAYS.rangeEndingOn(today))
             return ChartsUiState(
-                startDate = today.minusDays(DEFAULT_RANGE_DAYS - 1),
-                endDateInclusive = today,
+                startDate = range.startDate,
+                endDateInclusive = range.endDateInclusive,
                 metricOptions = metricOptions,
-                selectedMetricKeys = setOf(defaultMetricKey),
+                selectedMetricKeys = defaultMetricKeys,
                 series = emptyList(),
             )
         }
@@ -137,6 +183,45 @@ fun formatChartMarkerText(
 fun orderedChartPoints(points: List<ChartPoint>): List<ChartPoint> =
     points.sortedBy(ChartPoint::measuredAtEpochMillis)
 
+fun chartValueSummary(points: List<ChartPoint>): ChartValueSummary {
+    val ordered = orderedChartPoints(points)
+    return ChartValueSummary(
+        current = ordered.lastOrNull(),
+        previous = ordered.getOrNull(ordered.lastIndex - 1),
+    )
+}
+
+fun currentChartPoint(points: List<ChartPoint>): ChartPoint? = chartValueSummary(points).current
+
+fun previousChartPoint(points: List<ChartPoint>): ChartPoint? = chartValueSummary(points).previous
+
+fun chartDelta(points: List<ChartPoint>): Double? = chartValueSummary(points).delta
+
+fun formatChartCurrentValue(
+    value: Double?,
+    metric: ChartMetricOption,
+    locale: Locale = Locale.getDefault(),
+): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+
+fun formatChartDelta(
+    delta: Double?,
+    metric: ChartMetricOption,
+    locale: Locale = Locale.getDefault(),
+): String {
+    if (delta == null) return MissingChartValue
+    val absoluteValue = decimalFormat(metric.decimalPlaces, locale).format(abs(delta))
+    val sign = when {
+        delta > 0.0 -> "+"
+        delta < 0.0 -> "−"
+        else -> ""
+    }
+    return buildString {
+        append(sign)
+        append(absoluteValue)
+        if (metric.deltaUnit.isNotBlank()) append(" ${metric.deltaUnit}")
+    }
+}
+
 fun chartYRange(points: List<ChartPoint>, decimalPlaces: Int): ChartYRange? {
     if (points.isEmpty()) return null
     val min = points.minOf(ChartPoint::value)
@@ -162,13 +247,26 @@ private fun decimalFormat(decimalPlaces: Int, locale: Locale): DecimalFormat {
     return DecimalFormat(pattern, DecimalFormatSymbols(locale))
 }
 
+private fun formatChartValue(
+    value: Double?,
+    unit: String,
+    decimalPlaces: Int,
+    locale: Locale,
+): String {
+    if (value == null) return MissingChartValue
+    return buildString {
+        append(decimalFormat(decimalPlaces, locale).format(value))
+        if (unit.isNotBlank()) append(" $unit")
+    }
+}
+
 private fun tenToPower(exponent: Int): Double {
     var value = 1.0
     repeat(exponent) { value *= 10.0 }
     return value
 }
 
-private const val DEFAULT_RANGE_DAYS = 7L
 private const val CONSTANT_PADDING_FRACTION = 0.05
 private const val VARIABLE_PADDING_FRACTION = 0.08
+private const val MissingChartValue = "—"
 private val MarkerDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")
