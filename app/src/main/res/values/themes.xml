@@ -1,10 +1,13 @@
 <resources>
     <style name="Theme.HuaweiMiSync" parent="android:style/Theme.Material.Light.NoActionBar">
-        <item name="android:fontFamily">sans</item>
-        <item name="android:colorAccent">#006B5E</item>
-        <item name="android:navigationBarColor">#F5FBF8</item>
-        <item name="android:statusBarColor">#F5FBF8</item>
-        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="android:windowActionModeOverlay">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@color/huawei_background</item>
+        <item name="android:colorAccent">@color/huawei_primary</item>
+        <item name="android:navigationBarColor">@color/huawei_primary</item>
+        <item name="android:statusBarColor">@color/huawei_primary</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
 </resources>
-

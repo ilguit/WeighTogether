@@ -1,0 +1,249 @@
+package com.example.huaweimisync
+
+import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.measurements.MeasurementEditorDraft
+import com.example.huaweimisync.measurements.MeasurementEditorState
+import com.example.huaweimisync.measurements.MeasurementSyncDirection
+import com.example.huaweimisync.measurements.MeasurementSyncDirectionPresentation
+import com.example.huaweimisync.measurements.MeasurementSyncPresentation
+import com.example.huaweimisync.measurements.MeasurementSyncPresentationState
+import com.example.huaweimisync.measurements.MeasurementUiItem
+import com.example.huaweimisync.measurements.MeasurementUiValues
+import com.example.huaweimisync.measurements.MeasurementsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsDestination
+import com.example.huaweimisync.measurements.MeasurementsNavigationState
+import com.example.huaweimisync.measurements.MeasurementsScreen
+import com.example.huaweimisync.measurements.MeasurementsUiState
+import com.example.huaweimisync.measurements.buildMeasurementSummary
+import java.time.Instant
+import org.junit.Assert.assertEquals
+import org.junit.Rule
+import org.junit.Test
+
+class MeasurementsShellNavigationUiTest {
+    @get:Rule
+    val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun historyOwnsChromeAndSystemBackReturnsToSummary() {
+        setMeasurementsShell()
+
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+        composeRule.onNodeWithTag("measurements-history-cta").performClick()
+
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        composeRule.onNodeWithText("История").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+
+        pressSystemBack()
+
+        composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+    }
+
+    @Test
+    fun editorSystemBackReturnsToSummaryAndHistoryOrigins() {
+        setMeasurementsShell()
+
+        composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
+        composeRule.onNodeWithText("Изменить").performClick()
+        assertNestedEditorChrome()
+
+        pressSystemBack()
+
+        composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+
+        composeRule.onNodeWithTag("measurements-history-cta").performClick()
+        composeRule.onNodeWithTag("history-toggle-latest").performClick()
+        composeRule.onNodeWithText("Изменить").performClick()
+        assertNestedEditorChrome()
+
+        pressSystemBack()
+
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+    }
+
+    @Test
+    fun profileEditorBackHasPriorityAndPreservesMeasurementsDestination() {
+        val harness = setMeasurementsShell(MeasurementsNavigationState().showHistory())
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+
+        composeRule.runOnIdle { harness.openProfileEditor() }
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfileEditor).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
+
+        pressSystemBack()
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfileEditor).assertDoesNotExist()
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertDoesNotExist()
+        assertEquals(MeasurementsDestination.HISTORY, harness.navigation.value.destination)
+    }
+
+    private fun assertNestedEditorChrome() {
+        composeRule.onNodeWithTag("measurement-editor").assertIsDisplayed()
+        composeRule.onNodeWithText("Изменить измерение").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+    }
+
+    private fun pressSystemBack() {
+        composeRule.runOnIdle {
+            composeRule.activity.onBackPressedDispatcher.onBackPressed()
+        }
+    }
+
+    private fun setMeasurementsShell(
+        initialNavigation: MeasurementsNavigationState = MeasurementsNavigationState(),
+    ): MeasurementsShellHarness {
+        val navigation = mutableStateOf(initialNavigation)
+        val profileEditor = mutableStateOf(ProfileEditorUiState())
+        val item = sampleItem()
+        val callbacks = MeasurementsCallbacks.None.copy(
+            onSummaryRequested = {
+                navigation.value = navigation.value.showSummary()
+            },
+            onHistoryRequested = {
+                navigation.value = navigation.value.showHistory()
+            },
+            onBackRequested = {
+                navigation.value = navigation.value.back()
+            },
+            onEditRequested = { _, origin ->
+                navigation.value = navigation.value.showEditor(origin)
+            },
+            onEditorDismissed = {
+                navigation.value = navigation.value.back()
+            },
+        )
+        val harness = MeasurementsShellHarness(navigation, profileEditor)
+
+        composeRule.setContent {
+            val currentNavigation = navigation.value
+            val measurementState = MeasurementsUiState(
+                destination = currentNavigation.destination,
+                editorOrigin = currentNavigation.editorOrigin,
+                measurements = listOf(item),
+                summary = buildMeasurementSummary(listOf(item)),
+                isLoading = false,
+                editor = currentNavigation.takeIf {
+                    it.destination == MeasurementsDestination.EDITOR
+                }?.let {
+                    MeasurementEditorState(
+                        measurementId = item.id,
+                        measuredAtEpochMillis = item.measuredAtEpochMillis,
+                        draft = MeasurementEditorDraft.from(item.values),
+                    )
+                },
+            )
+            HuaweiMiSyncScaffold(
+                state = MainUiState(profileEditor = profileEditor.value),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = measurementState.destination,
+                measurementsCallbacks = callbacks,
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = { profileEditor.value = ProfileEditorUiState() },
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                measurementsContent = { padding ->
+                    MeasurementsScreen(
+                        state = measurementState,
+                        callbacks = callbacks,
+                        modifier = Modifier.fillMaxSize().padding(padding),
+                    )
+                },
+                chartsContent = {},
+            )
+        }
+        return harness
+    }
+
+    private fun settingsCallbacks() = SettingsCallbacks(
+        onOpenProfile = {},
+        onHuaweiAuthorization = {},
+        onHuaweiPermissionRefresh = {},
+        onHealthConnectAuthorization = {},
+        onHealthConnectAccessManagement = {},
+        onManualTest = { _, _ -> },
+        onManualScan = {},
+        onReliabilityMode = {},
+        openBatterySettings = {},
+        openApplicationSettings = {},
+    )
+
+    private fun sampleItem(): MeasurementUiItem {
+        val values = MeasurementUiValues(
+            weightKg = 72.4,
+            impedanceOhm = 512,
+            bmi = 22.9,
+            bodyFatPercent = 18.7,
+            bodyFatMassKg = 13.5,
+            waterPercent = 57.3,
+            waterMassKg = 41.5,
+            muscleMassKg = 54.1,
+            skeletalMuscleMassKg = 29.8,
+            boneMassKg = 3.2,
+            proteinPercent = 18.2,
+            proteinMassKg = 13.2,
+            visceralFatLevel = 7.0,
+            basalMetabolicRateKcal = 1_568.0,
+            metabolicAge = 31,
+            leanBodyMassKg = 58.9,
+        )
+        return MeasurementUiItem(
+            id = "latest",
+            measuredAtEpochMillis = Instant.parse("2026-08-15T12:42:00Z").toEpochMilli(),
+            values = values,
+            sync = MeasurementSyncPresentation(
+                state = MeasurementSyncPresentationState.SYNCED,
+                directions = listOf(
+                    MeasurementSyncDirectionPresentation(
+                        direction = MeasurementSyncDirection.HEALTH_CONNECT,
+                        state = MeasurementSyncPresentationState.SYNCED,
+                        message = "Данные отправлены",
+                        canRetry = false,
+                    ),
+                ),
+                canRetry = false,
+            ),
+        )
+    }
+}
+
+private class MeasurementsShellHarness(
+    val navigation: MutableState<MeasurementsNavigationState>,
+    private val profileEditor: MutableState<ProfileEditorUiState>,
+) {
+    fun openProfileEditor() {
+        profileEditor.value = ProfileEditorUiState(
+            isOpen = true,
+            height = "180",
+            birthDate = "1990-01-01",
+            sex = Sex.MALE,
+        )
+    }
+}

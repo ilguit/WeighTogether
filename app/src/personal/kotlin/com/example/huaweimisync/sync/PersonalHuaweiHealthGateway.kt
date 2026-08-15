@@ -10,6 +10,9 @@ private data object PersonalHuaweiHealthGateway : HuaweiHealthGateway {
     override val isAvailableInBuild: Boolean = false
     override val isConfigured: Boolean = false
 
+    override suspend fun checkWriteWeightPermission(): HuaweiPermissionCheckResult =
+        HuaweiPermissionCheckResult.UNAVAILABLE
+
     override suspend fun authorize(): SyncResult = disabled()
 
     override suspend fun write(measurement: MeasurementEntity): SyncResult = disabled()

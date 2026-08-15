@@ -1,0 +1,145 @@
+package com.example.huaweimisync.measurements
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class MeasurementsPresentationTest {
+    @Test
+    fun summarySelectsLatestAndPreviousByTimestampAndCalculatesWeightDelta() {
+        val oldest = sampleItem(id = "oldest", measuredAt = 100L, weightKg = 73.0)
+        val latest = sampleItem(id = "latest", measuredAt = 300L, weightKg = 72.4)
+        val previous = sampleItem(id = "previous", measuredAt = 200L, weightKg = 72.8)
+
+        val summary = buildMeasurementSummary(listOf(oldest, latest, previous))!!
+
+        assertEquals("latest", summary.latest.id)
+        assertEquals("previous", summary.previous?.id)
+        assertEquals(-0.4, summary.weightDeltaKg!!, 0.000_001)
+    }
+
+    @Test
+    fun summaryWithoutPreviousHasNoDeltaAndEmptyInputHasNoLatest() {
+        val only = sampleItem(id = "only", measuredAt = 100L, weightKg = 70.0)
+
+        val summary = buildMeasurementSummary(listOf(only))!!
+
+        assertNull(summary.previous)
+        assertNull(summary.weightDeltaKg)
+        assertNull(buildMeasurementSummary(emptyList()))
+        assertTrue(MeasurementsUiState(isLoading = false).hasNoLatestMeasurement)
+        assertTrue(MeasurementsUiState(isLoading = false).isHistoryEmpty)
+        assertFalse(MeasurementsUiState().hasNoLatestMeasurement)
+    }
+
+    @Test
+    fun summaryProvidesFourKeyAndElevenAdditionalMetricsInTemplateOrder() {
+        val summary = buildMeasurementSummary(listOf(sampleItem()))!!
+
+        assertEquals(
+            listOf(
+                MeasurementField.BODY_FAT_PERCENT,
+                MeasurementField.MUSCLE_MASS_KG,
+                MeasurementField.WATER_PERCENT,
+                MeasurementField.BMI,
+            ),
+            summary.keyMetrics.map(MeasurementMetricPresentation::field),
+        )
+        assertEquals(11, summary.additionalMetrics.size)
+        assertEquals(MeasurementField.IMPEDANCE_OHM, summary.additionalMetrics.first().field)
+        assertEquals(MeasurementField.LEAN_BODY_MASS_KG, summary.additionalMetrics.last().field)
+        assertEquals(
+            MeasurementField.entries.toSet() - MeasurementField.WEIGHT_KG,
+            (summary.keyMetrics + summary.additionalMetrics).map { it.field }.toSet(),
+        )
+    }
+
+    @Test
+    fun syncAggregateUsesLocalErrorPendingSyncedPriority() {
+        val localWithError = sync(health = "FAILED", huawei = "LOCAL_ONLY")
+
+        assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, localWithError.state)
+        assertFalse(localWithError.canRetry)
+        assertEquals(
+            MeasurementSyncPresentationState.ERROR,
+            sync(health = "PENDING", huawei = "BLOCKED").state,
+        )
+        assertEquals(
+            MeasurementSyncPresentationState.PENDING,
+            sync(health = "PENDING", huawei = "SYNCED").state,
+        )
+        assertEquals(
+            MeasurementSyncPresentationState.SYNCED,
+            sync(health = "SYNCED", huawei = "SYNCED").state,
+        )
+    }
+
+    @Test
+    fun disabledDirectionsAreExcludedAndRetryEligibilityUsesVisibleDirections() {
+        val personalSynced = sync(health = "SYNCED", huawei = "DISABLED")
+        val personalPending = sync(health = "PENDING", huawei = "DISABLED")
+        val local = sync(health = "LOCAL_ONLY", huawei = "DISABLED")
+
+        assertEquals(listOf(MeasurementSyncDirection.HEALTH_CONNECT), personalSynced.directions.map { it.direction })
+        assertEquals(MeasurementSyncPresentationState.SYNCED, personalSynced.state)
+        assertFalse(personalSynced.canRetry)
+        assertTrue(personalPending.canRetry)
+        assertFalse(local.canRetry)
+    }
+
+    @Test
+    fun syncPresentationMapsRawStatusesBeforeTheyReachUi() {
+        val presentation = measurementSyncPresentation(
+            healthConnectStatus = "FAILED",
+            healthConnectError = "permission denied",
+            huaweiStatus = "DISABLED",
+            huaweiError = "adapter disabled",
+        )
+
+        assertEquals("Ошибка синхронизации", presentation.label)
+        assertEquals("Health Connect", presentation.directions.single().label)
+        assertEquals("permission denied", presentation.directions.single().message)
+    }
+
+    private fun sync(
+        health: String,
+        huawei: String,
+    ): MeasurementSyncPresentation = measurementSyncPresentation(
+        healthConnectStatus = health,
+        healthConnectError = null,
+        huaweiStatus = huawei,
+        huaweiError = null,
+    )
+
+    private fun sampleItem(
+        id: String = "measurement",
+        measuredAt: Long = 100L,
+        weightKg: Double = 72.4,
+    ) = MeasurementUiItem(
+        id = id,
+        measuredAtEpochMillis = measuredAt,
+        values = sampleValues(weightKg),
+        sync = sync(health = "SYNCED", huawei = "DISABLED"),
+    )
+
+    private fun sampleValues(weightKg: Double) = MeasurementUiValues(
+        weightKg = weightKg,
+        impedanceOhm = 512,
+        bmi = 22.9,
+        bodyFatPercent = 18.7,
+        bodyFatMassKg = 13.5,
+        waterPercent = 57.3,
+        waterMassKg = 41.5,
+        muscleMassKg = 54.1,
+        skeletalMuscleMassKg = 29.8,
+        boneMassKg = 3.2,
+        proteinPercent = 18.2,
+        proteinMassKg = 13.2,
+        visceralFatLevel = 7.0,
+        basalMetabolicRateKcal = 1_568.0,
+        metabolicAge = 31,
+        leanBodyMassKg = 58.9,
+    )
+}

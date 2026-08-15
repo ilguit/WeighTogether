@@ -3,11 +3,16 @@ package com.example.huaweimisync
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.huaweimisync.charts.ChartMetricOption
+import com.example.huaweimisync.charts.ChartFilterSheet
 import com.example.huaweimisync.charts.ChartPoint
+import com.example.huaweimisync.charts.ChartRangePreset
 import com.example.huaweimisync.charts.ChartSeries
+import com.example.huaweimisync.charts.ChartsCallbacks
 import com.example.huaweimisync.charts.ChartsUiState
+import com.example.huaweimisync.charts.chartMetricOptions
 import com.example.huaweimisync.charts.inclusiveDateRangeToEpochRange
+import com.example.huaweimisync.charts.restoreChartMetricSelection
+import com.example.huaweimisync.charts.toPersistedChartMetricKeys
 import com.example.huaweimisync.data.MeasurementMetric
 import java.time.Instant
 import java.time.LocalDate
@@ -20,30 +25,92 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 
-private data class ChartFilters(
+internal data class ChartFilters(
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
     val selectedMetrics: Set<MeasurementMetric>,
-)
+    val rangePreset: ChartRangePreset,
+    val activeFilterSheet: ChartFilterSheet? = null,
+    val isCustomDatePickerOpen: Boolean = false,
+) {
+    fun confirmCustomDateRange(startDate: LocalDate, endDateInclusive: LocalDate): ChartFilters =
+        if (endDateInclusive.isBefore(startDate)) {
+            this
+        } else {
+            copy(
+                startDate = startDate,
+                endDateInclusive = endDateInclusive,
+                rangePreset = ChartRangePreset.CUSTOM,
+                activeFilterSheet = null,
+                isCustomDatePickerOpen = false,
+            )
+        }
+
+    fun openFilter(sheet: ChartFilterSheet): ChartFilters = copy(
+        activeFilterSheet = sheet,
+        isCustomDatePickerOpen = false,
+    )
+
+    fun dismissFilterSheet(): ChartFilters = copy(activeFilterSheet = null)
+
+    fun selectRangePreset(preset: ChartRangePreset, today: LocalDate): ChartFilters {
+        if (preset == ChartRangePreset.CUSTOM) {
+            return copy(activeFilterSheet = null, isCustomDatePickerOpen = true)
+        }
+        val range = requireNotNull(preset.rangeEndingOn(today))
+        return copy(
+            startDate = range.startDate,
+            endDateInclusive = range.endDateInclusive,
+            rangePreset = preset,
+            activeFilterSheet = null,
+            isCustomDatePickerOpen = false,
+        )
+    }
+
+    fun dismissCustomDatePicker(): ChartFilters = copy(isCustomDatePickerOpen = false)
+
+    fun selectMetrics(selectedMetrics: Set<MeasurementMetric>): ChartFilters = copy(
+        selectedMetrics = MeasurementMetric.entries
+            .filterTo(linkedSetOf()) { it in selectedMetrics },
+    )
+
+    fun doneSelectingMetrics(): ChartFilters = copy(activeFilterSheet = null)
+
+    companion object {
+        fun initial(
+            today: LocalDate,
+            selectedMetrics: Set<MeasurementMetric>,
+        ): ChartFilters {
+            val range = requireNotNull(ChartRangePreset.LAST_7_DAYS.rangeEndingOn(today))
+            return ChartFilters(
+                startDate = range.startDate,
+                endDateInclusive = range.endDateInclusive,
+                selectedMetrics = MeasurementMetric.entries
+                    .filterTo(linkedSetOf()) { it in selectedMetrics },
+                rangePreset = ChartRangePreset.LAST_7_DAYS,
+            )
+        }
+    }
+}
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ChartsViewModel(application: Application) : AndroidViewModel(application) {
-    private val repository = (application as MiSyncApplication).container.repository
+    private val container = (application as MiSyncApplication).container
+    private val repository = container.repository
+    private val profileStore = container.profileStore
     private val zoneId = ZoneId.systemDefault()
-    private val metricOptions = MeasurementMetric.entries.associateWith { metric ->
-        ChartMetricOption(
-            key = metric.name,
-            displayName = metric.displayName,
-            unit = metric.unit,
-            decimalPlaces = metric.decimalPlaces,
-        )
+    private val metricOptionList = chartMetricOptions()
+    private val metricOptions = metricOptionList.associateBy { option ->
+        MeasurementMetric.valueOf(option.key)
     }
     private val today = LocalDate.now(zoneId)
+    private val initialSelectedMetrics = restoreChartMetricSelection(
+        profileStore.settings.value.selectedChartMetricKeys,
+    )
     private val filters = MutableStateFlow(
-        ChartFilters(
-            startDate = today.minusDays(6),
-            endDateInclusive = today,
-            selectedMetrics = setOf(MeasurementMetric.WEIGHT_KG),
+        ChartFilters.initial(
+            today = today,
+            selectedMetrics = initialSelectedMetrics,
         ),
     )
     private val measurements = filters.flatMapLatest { current ->
@@ -62,7 +129,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         ChartsUiState(
             startDate = current.startDate,
             endDateInclusive = current.endDateInclusive,
-            metricOptions = MeasurementMetric.entries.map(metricOptions::getValue),
+            metricOptions = metricOptionList,
             selectedMetricKeys = current.selectedMetrics.mapTo(linkedSetOf(), MeasurementMetric::name),
             series = current.selectedMetrics.map { metric ->
                 ChartSeries(
@@ -75,39 +142,85 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
                     },
                 )
             },
+            rangePreset = current.rangePreset,
+            activeFilterSheet = current.activeFilterSheet,
+            isCustomDatePickerOpen = current.isCustomDatePickerOpen,
         )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
         ChartsUiState.initial(
-            metricOptions = MeasurementMetric.entries.map(metricOptions::getValue),
-            defaultMetricKey = MeasurementMetric.WEIGHT_KG.name,
+            metricOptions = metricOptionList,
+            defaultMetricKeys = initialSelectedMetrics.toPersistedChartMetricKeys(),
         ),
     )
 
+    val callbacks = ChartsCallbacks(
+        openRangeFilter = ::openRangeFilter,
+        openMetricFilter = ::openMetricFilter,
+        dismissFilterSheet = ::dismissFilterSheet,
+        selectRangePreset = ::selectRangePreset,
+        dismissCustomDatePicker = ::dismissCustomDatePicker,
+        setDateRange = ::setDateRange,
+        setMetricSelected = ::setMetricSelected,
+        selectAll = ::selectAll,
+        clearSelection = ::clearSelection,
+        doneSelectingMetrics = ::doneSelectingMetrics,
+    )
+
+    /** Confirms a user-entered custom interval. Presets use [selectRangePreset]. */
     fun setDateRange(startDate: LocalDate, endDateInclusive: LocalDate) {
-        if (endDateInclusive.isBefore(startDate)) return
-        filters.update { it.copy(startDate = startDate, endDateInclusive = endDateInclusive) }
+        filters.update { it.confirmCustomDateRange(startDate, endDateInclusive) }
+    }
+
+    fun openRangeFilter() {
+        filters.update { it.openFilter(ChartFilterSheet.RANGE) }
+    }
+
+    fun openMetricFilter() {
+        filters.update { it.openFilter(ChartFilterSheet.METRICS) }
+    }
+
+    fun dismissFilterSheet() {
+        filters.update(ChartFilters::dismissFilterSheet)
+    }
+
+    fun selectRangePreset(preset: ChartRangePreset) {
+        filters.update { it.selectRangePreset(preset, LocalDate.now(zoneId)) }
+    }
+
+    fun dismissCustomDatePicker() {
+        filters.update(ChartFilters::dismissCustomDatePicker)
     }
 
     fun setMetricSelected(key: String, selected: Boolean) {
         val metric = MeasurementMetric.entries.firstOrNull { it.name == key } ?: return
-        filters.update { current ->
-            current.copy(
-                selectedMetrics = if (selected) {
-                    current.selectedMetrics + metric
-                } else {
-                    current.selectedMetrics - metric
-                },
-            )
-        }
+        val current = filters.value.selectedMetrics
+        setSelectedMetrics(
+            if (selected) {
+                current + metric
+            } else {
+                current - metric
+            },
+        )
     }
 
     fun selectAll() {
-        filters.update { it.copy(selectedMetrics = MeasurementMetric.entries.toSet()) }
+        setSelectedMetrics(MeasurementMetric.entries.toSet())
     }
 
     fun clearSelection() {
-        filters.update { it.copy(selectedMetrics = emptySet()) }
+        setSelectedMetrics(emptySet())
+    }
+
+    fun doneSelectingMetrics() {
+        filters.update(ChartFilters::doneSelectingMetrics)
+    }
+
+    private fun setSelectedMetrics(selectedMetrics: Set<MeasurementMetric>) {
+        val orderedSelection = MeasurementMetric.entries
+            .filterTo(linkedSetOf()) { it in selectedMetrics }
+        filters.update { current -> current.selectMetrics(orderedSelection) }
+        profileStore.saveSelectedChartMetricKeys(orderedSelection.toPersistedChartMetricKeys())
     }
 }

@@ -32,8 +32,10 @@ class HealthConnectGateway(private val context: Context) {
     fun isAvailable(): Boolean =
         HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
 
-    suspend fun hasPermissions(): Boolean = isAvailable() &&
-        client().permissionController.getGrantedPermissions().containsAll(permissions)
+    suspend fun getGrantedPermissions(): Set<String> =
+        if (isAvailable()) client().permissionController.getGrantedPermissions() else emptySet()
+
+    suspend fun hasPermissions(): Boolean = getGrantedPermissions().containsAll(permissions)
 
     suspend fun write(value: MeasurementEntity): SyncResult {
         if (!isAvailable()) return SyncResult.Blocked("Health Connect недоступен")

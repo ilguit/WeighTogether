@@ -1,5 +1,6 @@
 package com.example.huaweimisync
 
+import com.example.huaweimisync.measurements.MeasurementsDestination
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -18,8 +19,36 @@ class AppSectionTest {
     }
 
     @Test
-    fun `settings section has settings presentation`() {
-        assertEquals("Настройки", AppSection.SETTINGS.title)
-        assertEquals("⚙", AppSection.SETTINGS.icon)
+    fun `navigation uses labelled vector icons from the redesign`() {
+        assertEquals("Huawei.Scale", AppSection.MEASUREMENTS.icon.name)
+        assertEquals("Huawei.Charts", AppSection.CHARTS.icon.name)
+        assertEquals("Huawei.Settings", AppSection.SETTINGS.icon.name)
+        assertEquals(AppSection.entries.size, AppSection.entries.map { it.icon.name }.distinct().size)
+    }
+
+    @Test
+    fun `measurements destination is the only source for shell chrome`() {
+        val expected = mapOf(
+            MeasurementsDestination.SUMMARY to MeasurementsChrome(
+                showTopBar = true,
+                showBottomNavigation = true,
+                contentUsesSafeDrawingInsets = false,
+            ),
+            MeasurementsDestination.HISTORY to MeasurementsChrome(
+                showTopBar = false,
+                showBottomNavigation = false,
+                contentUsesSafeDrawingInsets = true,
+            ),
+            MeasurementsDestination.EDITOR to MeasurementsChrome(
+                showTopBar = false,
+                showBottomNavigation = false,
+                contentUsesSafeDrawingInsets = true,
+            ),
+        )
+
+        assertEquals(MeasurementsDestination.entries.toSet(), expected.keys)
+        expected.forEach { (destination, chrome) ->
+            assertEquals(destination.name, chrome, measurementsChromeFor(destination))
+        }
     }
 }
