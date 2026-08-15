@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -43,6 +44,85 @@ class MeasurementRepositoryTest {
         assertEquals(listOf(dao.values.keys.single()), scheduler.enqueued)
         assertTrue(scheduler.cancelled.isEmpty())
         assertEquals(SyncStatus.DISABLED.name, dao.values.values.single().huaweiStatus)
+    }
+
+    @Test
+    fun stableWeightWithoutImpedanceIsStoredWithoutProfileOrCalculatedValues() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val scheduler = FakeSyncScheduler()
+        val repository = MeasurementRepository(
+            dao = dao,
+            profileProvider = { null },
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            syncScheduler = scheduler,
+            huaweiSyncEnabled = false,
+        )
+        val partial = raw.copy(impedanceOhm = 0, hasImpedance = false)
+
+        val first = repository.store(partial)
+        val repeated = repository.store(partial.copy(rawPayload = ByteArray(13) { 1 }))
+
+        assertTrue(first is StoreResult.Inserted)
+        assertEquals(StoreResult.Duplicate, repeated)
+        val stored = dao.values.values.single()
+        assertEquals(MeasurementType.WEIGHT_ONLY, stored.measurementType)
+        assertEquals(70.0, stored.weightKg, 0.0)
+        assertNull(stored.impedanceOhm)
+        assertNull(stored.fullValues)
+        assertEquals(listOf(stored.id), scheduler.enqueued)
+    }
+
+    @Test
+    fun unstableAndOutOfRangeWeightsAreRejected() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler)
+
+        assertEquals(StoreResult.Rejected, repository.store(raw.copy(isStable = false)))
+        assertEquals(StoreResult.Rejected, repository.store(raw.copy(weightKg = 9.0, rawWeight = 1_800)))
+        assertTrue(dao.values.isEmpty())
+        assertTrue(scheduler.enqueued.isEmpty())
+    }
+
+    @Test
+    fun fullPacketUpgradesWeightOnlyRowAndRequeuesSyncedDestinations() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler, huaweiSyncEnabled = true)
+        val partial = raw.copy(impedanceOhm = 0, hasImpedance = false)
+
+        val inserted = repository.store(partial) as StoreResult.Inserted
+        dao.values[inserted.value.id] = inserted.value.copy(
+            huaweiStatus = SyncStatus.SYNCED.name,
+            healthConnectStatus = SyncStatus.SYNCED.name,
+        )
+        val result = repository.store(raw)
+
+        assertTrue(result is StoreResult.Upgraded)
+        assertEquals(1, dao.values.size)
+        val upgraded = dao.values.values.single()
+        assertEquals(inserted.value.id, upgraded.id)
+        assertEquals(MeasurementType.FULL, upgraded.measurementType)
+        assertEquals(500, upgraded.impedanceOhm)
+        assertTrue(upgraded.fullValues != null)
+        assertEquals(SyncStatus.PENDING.name, upgraded.huaweiStatus)
+        assertEquals(SyncStatus.PENDING.name, upgraded.healthConnectStatus)
+        assertEquals(listOf(upgraded.id, upgraded.id), scheduler.enqueued)
+    }
+
+    @Test
+    fun laterWeightOnlyPacketCannotDowngradeFullRow() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler)
+
+        val inserted = repository.store(raw) as StoreResult.Inserted
+        val result = repository.store(raw.copy(impedanceOhm = 0, hasImpedance = false))
+
+        assertEquals(StoreResult.Duplicate, result)
+        assertEquals(1, dao.values.size)
+        assertEquals(MeasurementType.FULL, dao.values.getValue(inserted.value.id).measurementType)
+        assertEquals(listOf(inserted.value.id), scheduler.enqueued)
     }
 
     @Test
@@ -294,12 +374,13 @@ class MeasurementRepositoryTest {
     private fun repository(
         dao: MeasurementDao,
         scheduler: MeasurementSyncScheduler,
+        huaweiSyncEnabled: Boolean = false,
     ) = MeasurementRepository(
         dao = dao,
         profileProvider = { profile },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
-        huaweiSyncEnabled = false,
+        huaweiSyncEnabled = huaweiSyncEnabled,
     )
 }
 
@@ -331,6 +412,9 @@ private class FakeMeasurementDao(
     }
 
     override suspend fun get(id: String): MeasurementEntity? = values[id]
+
+    override suspend fun getByFingerprint(fingerprint: String): MeasurementEntity? =
+        values.values.firstOrNull { it.fingerprint == fingerprint }
 
     override fun observeLatest(limit: Int): Flow<List<MeasurementEntity>> = flowOf(
         values.values.sortedByDescending(MeasurementEntity::measuredAtEpochMillis).take(limit),

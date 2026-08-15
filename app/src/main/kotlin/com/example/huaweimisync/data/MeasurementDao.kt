@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Transaction
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
@@ -12,8 +13,40 @@ interface MeasurementDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(measurement: MeasurementEntity): Long
 
+    @Transaction
+    suspend fun upsertScaleMeasurement(measurement: MeasurementEntity): MeasurementUpsertResult {
+        if (insert(measurement) != -1L) return MeasurementUpsertResult.Inserted(measurement)
+
+        val current = getByFingerprint(measurement.fingerprint)
+            ?: return MeasurementUpsertResult.Duplicate
+        if (current.measurementType != MeasurementType.WEIGHT_ONLY ||
+            measurement.measurementType != MeasurementType.FULL
+        ) {
+            return MeasurementUpsertResult.Duplicate
+        }
+
+        val upgraded = measurement.copy(
+            id = current.id,
+            huaweiStatus = current.huaweiStatus.requeueUnlessTerminal(),
+            healthConnectStatus = current.healthConnectStatus.requeueUnlessTerminal(),
+            huaweiError = current.huaweiError.preserveForTerminalStatus(current.huaweiStatus),
+            healthConnectError = current.healthConnectError.preserveForTerminalStatus(
+                current.healthConnectStatus,
+            ),
+            createdAtEpochMillis = current.createdAtEpochMillis,
+        )
+        return if (update(upgraded) == 1) {
+            MeasurementUpsertResult.Upgraded(upgraded)
+        } else {
+            MeasurementUpsertResult.Duplicate
+        }
+    }
+
     @Query("SELECT * FROM measurements WHERE id = :id")
     suspend fun get(id: String): MeasurementEntity?
+
+    @Query("SELECT * FROM measurements WHERE fingerprint = :fingerprint LIMIT 1")
+    suspend fun getByFingerprint(fingerprint: String): MeasurementEntity?
 
     @Query("SELECT * FROM measurements ORDER BY measuredAtEpochMillis DESC LIMIT :limit")
     fun observeLatest(limit: Int = 30): Flow<List<MeasurementEntity>>
@@ -106,4 +139,20 @@ interface MeasurementDao {
         """,
     )
     suspend fun idsNeedingHuaweiSync(): List<String>
+}
+
+sealed interface MeasurementUpsertResult {
+    data class Inserted(val value: MeasurementEntity) : MeasurementUpsertResult
+    data class Upgraded(val value: MeasurementEntity) : MeasurementUpsertResult
+    data object Duplicate : MeasurementUpsertResult
+}
+
+private fun String.requeueUnlessTerminal(): String = when (this) {
+    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
+    else -> SyncStatus.PENDING.name
+}
+
+private fun String?.preserveForTerminalStatus(status: String): String? = when (status) {
+    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
+    else -> null
 }

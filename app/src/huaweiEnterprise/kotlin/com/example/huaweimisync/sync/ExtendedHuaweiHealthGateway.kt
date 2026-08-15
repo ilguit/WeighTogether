@@ -80,24 +80,28 @@ private class ExtendedHuaweiHealthGateway(
 
     private fun buildPoints(value: MeasurementEntity): List<HiHealthData> {
         val time = value.measuredAtEpochMillis
+        val composition = value.values
         fun point(type: Int, number: Double): HiHealthData =
             HiHealthPointData(type, time, time, number, DEFAULT_UNIT)
 
         return listOf(
             point(HiHealthPointType.DATA_POINT_WEIGHT, value.weightKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BMI, value.bmi),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYFAT, value.bodyFatPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURERATE, value.waterPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURE, value.waterMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_MUSCLES, value.muscleMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_SKELETAL_MUSCLE_MASS, value.skeletalMuscleMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BONE_MINERAL, value.boneMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN, value.proteinPercent),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN_VALUE, value.proteinMassKg),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_FATLEVEL, value.visceralFatLevel),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BMR, value.basalMetabolicRateKcal),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYAGE, value.metabolicAge.toDouble()),
-            point(HiHealthPointType.DATA_POINT_WEIGHT_IMPEDANCE, value.impedanceOhm.toDouble()),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_BMI, composition.bmi),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYFAT, composition.bodyFatPercent),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURERATE, composition.waterPercent),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_MOISTURE, composition.waterMassKg),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_MUSCLES, composition.muscleMassKg),
+            point(
+                HiHealthPointType.DATA_POINT_WEIGHT_SKELETAL_MUSCLE_MASS,
+                composition.skeletalMuscleMassKg,
+            ),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_BONE_MINERAL, composition.boneMassKg),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN, composition.proteinPercent),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_PROTEIN_VALUE, composition.proteinMassKg),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_FATLEVEL, composition.visceralFatLevel),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_BMR, composition.basalMetabolicRateKcal),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_BODYAGE, composition.metabolicAge.toDouble()),
+            point(HiHealthPointType.DATA_POINT_WEIGHT_IMPEDANCE, composition.impedanceOhm.toDouble()),
         )
     }
 

@@ -18,7 +18,9 @@ class BodyCompositionCalculator(
     private val zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
     fun calculate(raw: RawScaleMeasurement, profile: UserProfile): BodyComposition {
-        require(raw.isFinal) { "Only stable measurements with valid impedance can be calculated" }
+        require(raw.hasFullBodyComposition) {
+            "Only stable measurements with valid impedance can be calculated"
+        }
 
         val height = profile.heightCm
         val weight = raw.weightKg
@@ -159,21 +161,6 @@ class BodyCompositionCalculator(
         return ChronoUnit.YEARS.between(birthDate, date).toInt().coerceIn(10, 100)
     }
 
-    private fun measurementId(raw: RawScaleMeasurement): String {
-        val material = buildString {
-            append(raw.deviceAddress.uppercase())
-            append('|')
-            append(raw.measuredAt.epochSecond)
-            append('|')
-            append((raw.weightKg * 1_000).roundToInt())
-            append('|')
-            append(raw.impedanceOhm)
-        }
-        return MessageDigest.getInstance("SHA-256")
-            .digest(material.toByteArray(StandardCharsets.UTF_8))
-            .joinToString("") { "%02x".format(it) }
-    }
-
     private fun square(value: Double): Double = value * value
 
     private fun clamp(value: Double, minimum: Double, maximum: Double): Double =
@@ -184,3 +171,16 @@ class BodyCompositionCalculator(
     }
 }
 
+/** Identity of the weighing event; deliberately excludes packet flags and impedance. */
+fun measurementFingerprint(raw: RawScaleMeasurement): String = buildString {
+    append(raw.deviceAddress.uppercase())
+    append('|')
+    append(raw.measuredAt.epochSecond)
+    append('|')
+    append(raw.rawWeight)
+}
+
+/** Stable opaque primary key for new measurements. */
+fun measurementId(raw: RawScaleMeasurement): String = MessageDigest.getInstance("SHA-256")
+    .digest(measurementFingerprint(raw).toByteArray(StandardCharsets.UTF_8))
+    .joinToString("") { "%02x".format(it) }

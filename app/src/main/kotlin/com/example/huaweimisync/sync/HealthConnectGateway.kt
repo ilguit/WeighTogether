@@ -44,6 +44,7 @@ class HealthConnectGateway(private val context: Context) {
         }
         if (!permissionsGranted) return SyncResult.Blocked("Нет разрешения записи Health Connect")
         return try {
+            val composition = value.values
             val time = Instant.ofEpochMilli(value.measuredAtEpochMillis)
             val zoneOffset = time.atZone(ZoneId.systemDefault()).offset
             val scale = Device(
@@ -67,31 +68,33 @@ class HealthConnectGateway(private val context: Context) {
                     BodyFatRecord(
                         time = time,
                         zoneOffset = zoneOffset,
-                        percentage = Percentage(value.bodyFatPercent),
+                        percentage = Percentage(composition.bodyFatPercent),
                         metadata = metadata("body-fat"),
                     ),
                     BodyWaterMassRecord(
                         time = time,
                         zoneOffset = zoneOffset,
-                        mass = Mass.kilograms(value.waterMassKg),
+                        mass = Mass.kilograms(composition.waterMassKg),
                         metadata = metadata("body-water"),
                     ),
                     BoneMassRecord(
                         time = time,
                         zoneOffset = zoneOffset,
-                        mass = Mass.kilograms(value.boneMassKg),
+                        mass = Mass.kilograms(composition.boneMassKg),
                         metadata = metadata("bone-mass"),
                     ),
                     LeanBodyMassRecord(
                         time = time,
                         zoneOffset = zoneOffset,
-                        mass = Mass.kilograms(value.leanBodyMassKg),
+                        mass = Mass.kilograms(composition.leanBodyMassKg),
                         metadata = metadata("lean-body-mass"),
                     ),
                     BasalMetabolicRateRecord(
                         time = time,
                         zoneOffset = zoneOffset,
-                        basalMetabolicRate = Power.kilocaloriesPerDay(value.basalMetabolicRateKcal),
+                        basalMetabolicRate = Power.kilocaloriesPerDay(
+                            composition.basalMetabolicRateKcal,
+                        ),
                         metadata = metadata("basal-metabolic-rate"),
                     ),
                 ),

@@ -1,8 +1,12 @@
 package com.example.huaweimisync.data
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.huaweimisync.core.BodyComposition
+import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.core.measurementFingerprint
+import com.example.huaweimisync.core.measurementId
 
 enum class SyncStatus {
     PENDING,
@@ -11,6 +15,11 @@ enum class SyncStatus {
     DISABLED,
     FAILED,
     LOCAL_ONLY,
+}
+
+enum class MeasurementType {
+    FULL,
+    WEIGHT_ONLY,
 }
 
 data class MeasurementValues(
@@ -76,29 +85,34 @@ enum class MeasurementMetric(
     fun valueOf(measurement: MeasurementEntity): Double = valueOf(measurement.values)
 }
 
-@Entity(tableName = "measurements")
+@Entity(
+    tableName = "measurements",
+    indices = [Index(value = ["fingerprint"], unique = true)],
+)
 data class MeasurementEntity(
     @PrimaryKey val id: String,
+    val fingerprint: String = id,
+    val measurementType: MeasurementType = MeasurementType.FULL,
     val deviceAddress: String,
     val measuredAtEpochMillis: Long,
     val rawPayloadHex: String,
     val weightKg: Double,
-    val impedanceOhm: Int,
-    val bmi: Double,
-    val bodyFatPercent: Double,
-    val bodyFatMassKg: Double,
-    val waterPercent: Double,
-    val waterMassKg: Double,
-    val muscleMassKg: Double,
-    val skeletalMuscleMassKg: Double,
-    val boneMassKg: Double,
-    val proteinPercent: Double,
-    val proteinMassKg: Double,
-    val visceralFatLevel: Double,
-    val basalMetabolicRateKcal: Double,
-    val metabolicAge: Int,
-    val leanBodyMassKg: Double,
-    val algorithmVersion: String,
+    val impedanceOhm: Int?,
+    val bmi: Double?,
+    val bodyFatPercent: Double?,
+    val bodyFatMassKg: Double?,
+    val waterPercent: Double?,
+    val waterMassKg: Double?,
+    val muscleMassKg: Double?,
+    val skeletalMuscleMassKg: Double?,
+    val boneMassKg: Double?,
+    val proteinPercent: Double?,
+    val proteinMassKg: Double?,
+    val visceralFatLevel: Double?,
+    val basalMetabolicRateKcal: Double?,
+    val metabolicAge: Int?,
+    val leanBodyMassKg: Double?,
+    val algorithmVersion: String?,
     val huaweiStatus: String = SyncStatus.PENDING.name,
     val healthConnectStatus: String = SyncStatus.PENDING.name,
     val huaweiError: String? = null,
@@ -106,31 +120,40 @@ data class MeasurementEntity(
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
 ) {
     val values: MeasurementValues
-        get() = MeasurementValues(
-            weightKg = weightKg,
-            impedanceOhm = impedanceOhm,
-            bmi = bmi,
-            bodyFatPercent = bodyFatPercent,
-            bodyFatMassKg = bodyFatMassKg,
-            waterPercent = waterPercent,
-            waterMassKg = waterMassKg,
-            muscleMassKg = muscleMassKg,
-            skeletalMuscleMassKg = skeletalMuscleMassKg,
-            boneMassKg = boneMassKg,
-            proteinPercent = proteinPercent,
-            proteinMassKg = proteinMassKg,
-            visceralFatLevel = visceralFatLevel,
-            basalMetabolicRateKcal = basalMetabolicRateKcal,
-            metabolicAge = metabolicAge,
-            leanBodyMassKg = leanBodyMassKg,
-        )
+        get() = checkNotNull(fullValues) { "Weight-only measurement $id has no composition values" }
+
+    val fullValues: MeasurementValues?
+        get() {
+            if (measurementType != MeasurementType.FULL) return null
+            return MeasurementValues(
+                weightKg = weightKg,
+                impedanceOhm = impedanceOhm ?: return null,
+                bmi = bmi ?: return null,
+                bodyFatPercent = bodyFatPercent ?: return null,
+                bodyFatMassKg = bodyFatMassKg ?: return null,
+                waterPercent = waterPercent ?: return null,
+                waterMassKg = waterMassKg ?: return null,
+                muscleMassKg = muscleMassKg ?: return null,
+                skeletalMuscleMassKg = skeletalMuscleMassKg ?: return null,
+                boneMassKg = boneMassKg ?: return null,
+                proteinPercent = proteinPercent ?: return null,
+                proteinMassKg = proteinMassKg ?: return null,
+                visceralFatLevel = visceralFatLevel ?: return null,
+                basalMetabolicRateKcal = basalMetabolicRateKcal ?: return null,
+                metabolicAge = metabolicAge ?: return null,
+                leanBodyMassKg = leanBodyMassKg ?: return null,
+            )
+        }
 }
 
 fun BodyComposition.toEntity(
     rawPayload: ByteArray,
+    fingerprint: String,
     huaweiSyncEnabled: Boolean = true,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId,
+    fingerprint = fingerprint,
+    measurementType = MeasurementType.FULL,
     deviceAddress = deviceAddress,
     measuredAtEpochMillis = measuredAt.toEpochMilli(),
     rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
@@ -151,6 +174,36 @@ fun BodyComposition.toEntity(
     metabolicAge = metabolicAge,
     leanBodyMassKg = leanBodyMassKg,
     algorithmVersion = algorithmVersion,
+    huaweiStatus = if (huaweiSyncEnabled) SyncStatus.PENDING.name else SyncStatus.DISABLED.name,
+    huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
+)
+
+fun RawScaleMeasurement.toWeightOnlyEntity(
+    huaweiSyncEnabled: Boolean = true,
+): MeasurementEntity = MeasurementEntity(
+    id = measurementId(this),
+    fingerprint = measurementFingerprint(this),
+    measurementType = MeasurementType.WEIGHT_ONLY,
+    deviceAddress = deviceAddress,
+    measuredAtEpochMillis = measuredAt.toEpochMilli(),
+    rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
+    weightKg = weightKg,
+    impedanceOhm = null,
+    bmi = null,
+    bodyFatPercent = null,
+    bodyFatMassKg = null,
+    waterPercent = null,
+    waterMassKg = null,
+    muscleMassKg = null,
+    skeletalMuscleMassKg = null,
+    boneMassKg = null,
+    proteinPercent = null,
+    proteinMassKg = null,
+    visceralFatLevel = null,
+    basalMetabolicRateKcal = null,
+    metabolicAge = null,
+    leanBodyMassKg = null,
+    algorithmVersion = null,
     huaweiStatus = if (huaweiSyncEnabled) SyncStatus.PENDING.name else SyncStatus.DISABLED.name,
     huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
 )

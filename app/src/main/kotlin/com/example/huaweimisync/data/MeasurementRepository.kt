@@ -3,6 +3,7 @@ package com.example.huaweimisync.data
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -27,12 +28,28 @@ class MeasurementRepository(
     )
 
     suspend fun store(raw: RawScaleMeasurement): StoreResult {
-        val profile = profileProvider() ?: return StoreResult.ProfileMissing
-        val composition = calculator.calculate(raw, profile)
-        val entity = composition.toEntity(raw.rawPayload, huaweiSyncEnabled)
-        val inserted = dao.insert(entity) != -1L
-        if (inserted) syncScheduler.enqueue(entity.id)
-        return if (inserted) StoreResult.Inserted(entity) else StoreResult.Duplicate
+        if (!raw.isStableWeight) return StoreResult.Rejected
+        val entity = if (raw.hasFullBodyComposition) {
+            val profile = profileProvider() ?: return StoreResult.ProfileMissing
+            calculator.calculate(raw, profile).toEntity(
+                rawPayload = raw.rawPayload,
+                fingerprint = measurementFingerprint(raw),
+                huaweiSyncEnabled = huaweiSyncEnabled,
+            )
+        } else {
+            raw.toWeightOnlyEntity(huaweiSyncEnabled)
+        }
+        return when (val result = dao.upsertScaleMeasurement(entity)) {
+            is MeasurementUpsertResult.Inserted -> {
+                syncScheduler.enqueue(result.value.id)
+                StoreResult.Inserted(result.value)
+            }
+            is MeasurementUpsertResult.Upgraded -> {
+                syncScheduler.enqueue(result.value.id)
+                StoreResult.Upgraded(result.value)
+            }
+            MeasurementUpsertResult.Duplicate -> StoreResult.Duplicate
+        }
     }
 
     suspend fun insertManual(
@@ -114,8 +131,10 @@ class MeasurementRepository(
 
 sealed interface StoreResult {
     data class Inserted(val value: MeasurementEntity) : StoreResult
+    data class Upgraded(val value: MeasurementEntity) : StoreResult
     data object Duplicate : StoreResult
     data object ProfileMissing : StoreResult
+    data object Rejected : StoreResult
 }
 
 sealed interface MeasurementMutationResult {

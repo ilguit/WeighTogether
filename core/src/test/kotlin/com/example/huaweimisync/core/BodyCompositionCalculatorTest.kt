@@ -47,9 +47,26 @@ class BodyCompositionCalculatorTest {
     @Test
     fun measurementIdIsDeterministic() {
         val first = calculator.calculate(raw, profile)
-        val second = calculator.calculate(raw.copy(rawPayload = ByteArray(13) { 1 }), profile)
+        val second = calculator.calculate(
+            raw.copy(
+                impedanceOhm = 650,
+                rawPayload = ByteArray(13) { 1 },
+            ),
+            profile,
+        )
 
         assertEquals(first.measurementId, second.measurementId)
+        assertEquals(
+            measurementFingerprint(raw),
+            measurementFingerprint(
+                raw.copy(
+                    impedanceOhm = 650,
+                    isStable = false,
+                    hasImpedance = false,
+                    rawPayload = ByteArray(13) { 2 },
+                ),
+            ),
+        )
     }
 
     @Test

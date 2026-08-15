@@ -15,9 +15,13 @@ class ProcessMeasurementWorker(
         val mac = inputData.getString(KEY_MAC) ?: "unknown"
         val container = (applicationContext as MiSyncApplication).container
         val parsed = container.packetParser.parse(payload, mac) ?: return Result.success()
-        if (!parsed.isFinal) return Result.success()
+        if (!parsed.isStableWeight) return Result.success()
         return when (container.repository.store(parsed)) {
-            is StoreResult.Inserted, StoreResult.Duplicate -> Result.success()
+            is StoreResult.Inserted,
+            is StoreResult.Upgraded,
+            StoreResult.Duplicate,
+            StoreResult.Rejected,
+            -> Result.success()
             StoreResult.ProfileMissing -> Result.failure()
         }
     }

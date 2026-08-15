@@ -27,7 +27,8 @@ class AppContainer(application: Application) {
         application,
         AppDatabase::class.java,
         "huawei-mi-sync.db",
-    ).build()
+    ).addMigrations(AppDatabase.MIGRATION_1_2)
+        .build()
     val profileStore = ProfileStore(application)
     val packetParser = MiScalePacketParser()
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)

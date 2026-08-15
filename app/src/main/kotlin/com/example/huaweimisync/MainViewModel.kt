@@ -188,8 +188,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         showMessage(when (container.repository.insertManual(weightKg, impedanceOhm)) {
             is StoreResult.Inserted -> "Тестовая запись создана и поставлена в очередь"
+            is StoreResult.Upgraded -> "Тестовая запись дополнена и поставлена в очередь"
             StoreResult.Duplicate -> "Такая тестовая запись уже существует"
             StoreResult.ProfileMissing -> "Сначала сохраните профиль"
+            StoreResult.Rejected -> "Измерение вне допустимого диапазона"
         })
     }
 
@@ -249,7 +251,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
         val parsed = container.packetParser.parse(payload, address) ?: return
-        if (!parsed.isFinal) return
+        if (!parsed.isStableWeight) return
 
         val name = runCatching { result.device.name }.getOrNull()
         container.profileStore.saveScale(address, name)

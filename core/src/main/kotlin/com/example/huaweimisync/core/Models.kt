@@ -2,6 +2,7 @@ package com.example.huaweimisync.core
 
 import java.time.Instant
 import java.time.LocalDate
+import kotlin.math.roundToInt
 
 enum class Sex {
     MALE,
@@ -26,9 +27,19 @@ data class RawScaleMeasurement(
     val isStable: Boolean,
     val hasImpedance: Boolean,
     val rawPayload: ByteArray,
+    val rawWeight: Int = (weightKg / WEIGHT_RESOLUTION_KG).roundToInt(),
 ) {
+    /** A settled scale reading that is safe to persist even when BIA did not complete. */
+    val isStableWeight: Boolean
+        get() = isStable && weightKg in MIN_WEIGHT_KG..MAX_WEIGHT_KG
+
+    /** A settled reading with impedance suitable for body-composition calculation. */
+    val hasFullBodyComposition: Boolean
+        get() = isStableWeight && hasImpedance && impedanceOhm in MIN_IMPEDANCE_OHM..MAX_IMPEDANCE_OHM
+
+    @Deprecated("Use isStableWeight or hasFullBodyComposition explicitly")
     val isFinal: Boolean
-        get() = isStable && hasImpedance && weightKg in 10.0..300.0 && impedanceOhm in 80..3_000
+        get() = hasFullBodyComposition
 
     override fun equals(other: Any?): Boolean =
         other is RawScaleMeasurement &&
@@ -38,11 +49,20 @@ data class RawScaleMeasurement(
             impedanceOhm == other.impedanceOhm &&
             isStable == other.isStable &&
             hasImpedance == other.hasImpedance &&
+            rawWeight == other.rawWeight &&
             rawPayload.contentEquals(other.rawPayload)
 
     override fun hashCode(): Int =
-        arrayOf<Any>(deviceAddress, measuredAt, weightKg, impedanceOhm, isStable, hasImpedance)
+        arrayOf<Any>(deviceAddress, measuredAt, weightKg, impedanceOhm, isStable, hasImpedance, rawWeight)
             .contentHashCode() * 31 + rawPayload.contentHashCode()
+
+    companion object {
+        const val WEIGHT_RESOLUTION_KG = 0.005
+        const val MIN_WEIGHT_KG = 10.0
+        const val MAX_WEIGHT_KG = 300.0
+        const val MIN_IMPEDANCE_OHM = 80
+        const val MAX_IMPEDANCE_OHM = 3_000
+    }
 }
 
 data class BodyComposition(
