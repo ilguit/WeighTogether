@@ -1,5 +1,8 @@
 package com.example.huaweimisync.measurements
 
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
+
 /** State-based destinations owned by the measurements feature. */
 enum class MeasurementsDestination {
     SUMMARY,
@@ -258,6 +261,11 @@ data class MeasurementsUiState(
     val isLoading: Boolean = true,
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+    val accountSelector: AccountSelectorUiState = AccountSelectorUiState(
+        accounts = emptyList(),
+        selectedAccountId = null,
+        primaryAccountId = null,
+    ),
 ) {
     val isHistoryEmpty: Boolean
         get() = !isLoading && measurements.isEmpty()
@@ -285,6 +293,7 @@ data class MeasurementsCallbacks(
     val onDeleteConfirmed: (measurementId: String) -> Unit,
     val onDeleteDismissed: () -> Unit,
     val onRetryRequested: (measurementId: String) -> Unit,
+    val onAccountSelected: (AccountId) -> Unit = {},
 ) {
     companion object {
         val None = MeasurementsCallbacks(
@@ -299,6 +308,7 @@ data class MeasurementsCallbacks(
             onDeleteConfirmed = {},
             onDeleteDismissed = {},
             onRetryRequested = {},
+            onAccountSelected = {},
         )
     }
 }

@@ -2,6 +2,7 @@ package com.example.huaweimisync.worker
 
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.SyncStatus
+import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.sync.SyncResult
 
 internal enum class MeasurementSyncOutcome {
@@ -17,6 +18,7 @@ internal enum class MeasurementSyncOutcome {
  */
 internal class MeasurementSyncProcessor(
     private val loadMeasurement: suspend (String) -> MeasurementEntity?,
+    private val isEligible: suspend (MeasurementEntity) -> Boolean = { true },
     private val writeHuawei: suspend (MeasurementEntity) -> SyncResult,
     private val writeHealthConnect: suspend (MeasurementEntity) -> SyncResult,
     private val applyHuaweiResult: suspend (String, SyncResult) -> Unit,
@@ -34,6 +36,8 @@ internal class MeasurementSyncProcessor(
 
     private suspend fun syncHuawei(measurementId: String): SyncResult? {
         val value = loadMeasurement(measurementId) ?: return null
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return null
+        if (!isEligible(value)) return null
         if (value.isLocalOnly()) return null
         if (value.huaweiStatus in HUAWEI_TERMINAL_STATUSES) return null
 
@@ -44,6 +48,8 @@ internal class MeasurementSyncProcessor(
 
     private suspend fun syncHealthConnect(measurementId: String): SyncResult? {
         val value = loadMeasurement(measurementId) ?: return null
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return null
+        if (!isEligible(value)) return null
         if (value.isLocalOnly()) return null
         if (value.healthConnectStatus in HEALTH_CONNECT_TERMINAL_STATUSES) return null
 

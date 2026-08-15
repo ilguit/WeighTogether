@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.huaweimisync.MiSyncApplication
-import com.example.huaweimisync.data.StoreResult
+import com.example.huaweimisync.data.MeasurementIngestionResult
 
 class ProcessMeasurementWorker(
     appContext: Context,
@@ -16,9 +16,15 @@ class ProcessMeasurementWorker(
         val container = (applicationContext as MiSyncApplication).container
         val parsed = container.packetParser.parse(payload, mac) ?: return Result.success()
         if (!parsed.isFinal) return Result.success()
-        return when (container.repository.store(parsed)) {
-            is StoreResult.Inserted, StoreResult.Duplicate -> Result.success()
-            StoreResult.ProfileMissing -> Result.failure()
+        return when (container.repository.ingest(parsed)) {
+            is MeasurementIngestionResult.Assigned,
+            is MeasurementIngestionResult.AwaitingDecision,
+            MeasurementIngestionResult.IgnoredNotFinal,
+            MeasurementIngestionResult.Tombstoned,
+            MeasurementIngestionResult.PendingMissing,
+            MeasurementIngestionResult.LegacyDuplicate,
+            -> Result.success()
+            MeasurementIngestionResult.LegacyProfileMissing -> Result.failure()
         }
     }
 

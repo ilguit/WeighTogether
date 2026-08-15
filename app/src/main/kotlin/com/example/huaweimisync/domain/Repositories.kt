@@ -1,0 +1,122 @@
+package com.example.huaweimisync.domain
+
+import com.example.huaweimisync.core.BodyComposition
+import com.example.huaweimisync.core.RawScaleMeasurement
+import java.time.Instant
+import kotlinx.coroutines.flow.Flow
+
+interface AccountRepository {
+    fun observeAccounts(): Flow<List<Account>>
+
+    fun observeSettings(): Flow<AccountSettings>
+
+    suspend fun getAccount(id: AccountId): Account?
+
+    suspend fun createAccount(account: NewAccount): Account
+
+    suspend fun updateAccount(account: AccountUpdate): Account
+
+    suspend fun setPrimaryAccount(
+        accountId: AccountId,
+        historySyncMode: PrimaryHistorySyncMode,
+    )
+
+    suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
+
+    suspend fun deleteAccount(accountId: AccountId)
+
+    /**
+     * Atomically deletes [primaryAccountId], installs [replacementAccountId] (or no primary when
+     * deleting the last account), and applies [historySyncMode] to eligible replacement history.
+     */
+    suspend fun deletePrimaryWithReplacement(
+        primaryAccountId: AccountId,
+        replacementAccountId: AccountId?,
+        historySyncMode: PrimaryHistorySyncMode,
+    )
+}
+
+/** Explicit write side for account-level settings. */
+interface AccountSettingsWriter {
+    suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
+}
+
+data class AccountMeasurement(
+    val accountId: AccountId,
+    val composition: BodyComposition,
+    val externalSyncPolicy: ExternalSyncPolicy,
+    val createdAt: Instant,
+)
+
+sealed interface PendingEnqueueResult {
+    data class Enqueued(val pending: PendingMeasurement) : PendingEnqueueResult
+    data class AlreadyPending(val pending: PendingMeasurement) : PendingEnqueueResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingEnqueueResult
+    data object Tombstoned : PendingEnqueueResult
+}
+
+data class PendingMeasurementPreview(
+    val pending: PendingMeasurement,
+    /** Present only when the caller supplied a complete one-shot profile. */
+    val composition: BodyComposition? = null,
+)
+
+sealed interface FinalizePendingResult {
+    data class Finalized(val measurement: AccountMeasurement) : FinalizePendingResult
+    data object PendingNotFound : FinalizePendingResult
+    data object AccountNotFound : FinalizePendingResult
+    data object ProfileIncomplete : FinalizePendingResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : FinalizePendingResult
+}
+
+sealed interface CreateAccountAndAssignResult {
+    data class Created(
+        val account: Account,
+        val measurement: AccountMeasurement,
+    ) : CreateAccountAndAssignResult
+
+    data object PendingNotFound : CreateAccountAndAssignResult
+    data class NameConflict(val normalizedName: String) : CreateAccountAndAssignResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : CreateAccountAndAssignResult
+}
+
+interface MeasurementRepository {
+    fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>>
+
+    fun observeLatest(
+        accountId: AccountId,
+        limit: Int = 30,
+    ): Flow<List<AccountMeasurement>>
+
+    fun observeRange(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<AccountMeasurement>>
+
+    /** Pending values are emitted in FIFO order (enqueuedAt, then durable id). */
+    fun observePending(): Flow<List<PendingMeasurement>>
+
+    suspend fun getPending(id: PendingMeasurementId): PendingMeasurement?
+
+    suspend fun enqueuePending(raw: RawScaleMeasurement): PendingEnqueueResult
+
+    /** Calculates, inserts, and removes pending state in one transaction. */
+    suspend fun finalizePending(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+    ): FinalizePendingResult
+
+    /**
+     * Creates the account, applies the first-account primary rule, finalizes the reading, and
+     * removes pending state in one transaction. A failure must leave both account and pending
+     * state unchanged.
+     */
+    suspend fun createAccountAndAssignPending(
+        pendingId: PendingMeasurementId,
+        account: NewAccount,
+    ): CreateAccountAndAssignResult
+
+    /** Removes pending raw data and retains only its expiring deduplication tombstone. */
+    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean
+}

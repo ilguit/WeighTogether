@@ -4,6 +4,7 @@ import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import java.time.LocalDate
@@ -139,6 +140,7 @@ class MeasurementRepositoryTest {
                 healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
                 huaweiError = null,
                 healthConnectError = null,
+                externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             ),
             dao.values.getValue(original.id),
         )
@@ -165,6 +167,10 @@ class MeasurementRepositoryTest {
         assertEquals(
             SyncStatus.LOCAL_ONLY.name,
             dao.values.getValue("edited").healthConnectStatus,
+        )
+        assertEquals(
+            ExternalSyncPolicy.USER_LOCAL.name,
+            dao.values.getValue("edited").externalSyncPolicy,
         )
     }
 
@@ -245,6 +251,26 @@ class MeasurementRepositoryTest {
         assertTrue(scheduler.enqueued.isEmpty())
         assertTrue(dao.idsNeedingSync().isEmpty())
     }
+
+    @Test
+    fun accountAndUserLocalPoliciesCannotBeRetriedEvenWithInconsistentPendingStatuses() =
+        runBlocking {
+            listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
+                val dao = FakeMeasurementDao()
+                dao.values[policy.name] = measurement(id = policy.name).copy(
+                    externalSyncPolicy = policy.name,
+                )
+                val scheduler = FakeSyncScheduler()
+                val repository = repository(dao, scheduler)
+
+                repository.retry(policy.name)
+                repository.retryPendingHealthConnect()
+                repository.retryPendingHuawei()
+                repository.sweepPendingSync()
+
+                assertTrue("Scheduled $policy", scheduler.enqueued.isEmpty())
+            }
+        }
 
     @Test
     fun observeAllIsDescendingAndRangeIsHalfOpenAscending() = runBlocking {
@@ -368,6 +394,7 @@ private class FakeMeasurementDao(
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
             huaweiError = null,
             healthConnectError = null,
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )
         return 1
     }
@@ -381,7 +408,9 @@ private class FakeMeasurementDao(
 
     override suspend fun updateHuaweiStatus(id: String, status: String, error: String?): Int {
         val value = values[id] ?: return 0
-        if (value.huaweiStatus == SyncStatus.LOCAL_ONLY.name) return 0
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
+            value.huaweiStatus == SyncStatus.LOCAL_ONLY.name
+        ) return 0
         values[id] = value.copy(huaweiStatus = status, huaweiError = error)
         return 1
     }
@@ -392,12 +421,15 @@ private class FakeMeasurementDao(
         error: String?,
     ): Int {
         val value = values[id] ?: return 0
-        if (value.healthConnectStatus == SyncStatus.LOCAL_ONLY.name) return 0
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
+            value.healthConnectStatus == SyncStatus.LOCAL_ONLY.name
+        ) return 0
         values[id] = value.copy(healthConnectStatus = status, healthConnectError = error)
         return 1
     }
 
     override suspend fun idsNeedingSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filterNot(MeasurementEntity::isLocalOnly)
         .filter {
             it.huaweiStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.DISABLED.name) ||
@@ -407,11 +439,13 @@ private class FakeMeasurementDao(
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHealthConnectSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filter { it.healthConnectStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.LOCAL_ONLY.name) }
         .sortedBy(MeasurementEntity::measuredAtEpochMillis)
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHuaweiSync(): List<String> = values.values
+        .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filter {
             it.huaweiStatus !in setOf(
                 SyncStatus.SYNCED.name,

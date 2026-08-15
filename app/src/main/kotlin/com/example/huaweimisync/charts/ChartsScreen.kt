@@ -50,6 +50,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
+import com.example.huaweimisync.ui.accounts.AccountSelector
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
@@ -131,6 +132,12 @@ fun ChartsScreen(
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
         item { Spacer(Modifier.height(1.dp)) }
+        item {
+            AccountSelector(
+                state = state.accountSelector,
+                onAccountSelected = callbacks.onAccountSelected,
+            )
+        }
         item {
             ChartFilterRow(
                 rangeText = rangeLabel(state.rangePreset, state.startDate, state.endDateInclusive),

@@ -1,8 +1,14 @@
 package com.example.huaweimisync.data
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
+import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.huaweimisync.core.BodyComposition
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountMeasurement
+import com.example.huaweimisync.domain.ExternalSyncPolicy
+import java.time.Instant
 
 enum class SyncStatus {
     PENDING,
@@ -76,7 +82,22 @@ enum class MeasurementMetric(
     fun valueOf(measurement: MeasurementEntity): Double = valueOf(measurement.values)
 }
 
-@Entity(tableName = "measurements")
+@Entity(
+    tableName = "measurements",
+    foreignKeys = [
+        ForeignKey(
+            entity = AccountEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["accountId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
+    indices = [
+        Index(value = ["accountId", "measuredAtEpochMillis"]),
+        Index(value = ["sourcePendingId"], unique = true),
+        Index(value = ["deduplicationHash"], unique = true),
+    ],
+)
 data class MeasurementEntity(
     @PrimaryKey val id: String,
     val deviceAddress: String,
@@ -104,6 +125,11 @@ data class MeasurementEntity(
     val huaweiError: String? = null,
     val healthConnectError: String? = null,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
+    /** Compatibility default for legacy callers; persisted v2 writes must always supply an account. */
+    val accountId: String = LEGACY_UNASSIGNED_ACCOUNT_ID,
+    val externalSyncPolicy: String = ExternalSyncPolicy.AUTO.name,
+    val sourcePendingId: String? = null,
+    val deduplicationHash: String? = null,
 ) {
     val values: MeasurementValues
         get() = MeasurementValues(
@@ -124,11 +150,43 @@ data class MeasurementEntity(
             metabolicAge = metabolicAge,
             leanBodyMassKg = leanBodyMassKg,
         )
+
+    fun toAccountMeasurement(): AccountMeasurement = AccountMeasurement(
+        accountId = AccountId(accountId),
+        composition = BodyComposition(
+            measurementId = id,
+            deviceAddress = deviceAddress,
+            measuredAt = Instant.ofEpochMilli(measuredAtEpochMillis),
+            weightKg = weightKg,
+            impedanceOhm = impedanceOhm,
+            bmi = bmi,
+            bodyFatPercent = bodyFatPercent,
+            bodyFatMassKg = bodyFatMassKg,
+            waterPercent = waterPercent,
+            waterMassKg = waterMassKg,
+            muscleMassKg = muscleMassKg,
+            skeletalMuscleMassKg = skeletalMuscleMassKg,
+            boneMassKg = boneMassKg,
+            proteinPercent = proteinPercent,
+            proteinMassKg = proteinMassKg,
+            visceralFatLevel = visceralFatLevel,
+            basalMetabolicRateKcal = basalMetabolicRateKcal,
+            metabolicAge = metabolicAge,
+            leanBodyMassKg = leanBodyMassKg,
+            algorithmVersion = algorithmVersion,
+        ),
+        externalSyncPolicy = ExternalSyncPolicy.valueOf(externalSyncPolicy),
+        createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
+    )
 }
 
 fun BodyComposition.toEntity(
     rawPayload: ByteArray,
     huaweiSyncEnabled: Boolean = true,
+    accountId: AccountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID),
+    externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
+    sourcePendingId: String? = null,
+    deduplicationHash: String? = null,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId,
     deviceAddress = deviceAddress,
@@ -153,4 +211,10 @@ fun BodyComposition.toEntity(
     algorithmVersion = algorithmVersion,
     huaweiStatus = if (huaweiSyncEnabled) SyncStatus.PENDING.name else SyncStatus.DISABLED.name,
     huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
+    accountId = accountId.value,
+    externalSyncPolicy = externalSyncPolicy.name,
+    sourcePendingId = sourcePendingId,
+    deduplicationHash = deduplicationHash,
 )
+
+const val LEGACY_UNASSIGNED_ACCOUNT_ID: String = "00000000-0000-0000-0000-000000000000"

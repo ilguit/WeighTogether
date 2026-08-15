@@ -41,6 +41,12 @@ import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.ui.components.HuaweiIconButton
+import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
+import com.example.huaweimisync.ui.routing.MeasurementResolverCallbacks
+import com.example.huaweimisync.ui.routing.MeasurementResolverDialog
+import com.example.huaweimisync.ui.routing.PendingResolverForegroundFallback
+import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewDialog
+import com.example.huaweimisync.ui.routing.UnsavedPreviewCallbacks
 import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
 import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
@@ -123,13 +129,12 @@ fun HuaweiMiSyncApp(
         measurementsCallbacks = measurementsViewModel.callbacks,
         snackbarHostState = snackbarHostState,
         onSectionSelected = { currentSection = it },
-        onCloseProfile = viewModel::closeProfileEditor,
-        onSaveProfile = viewModel::saveProfile,
-        onProfileHeightChanged = viewModel::updateProfileHeight,
-        onProfileBirthDateChanged = viewModel::updateProfileBirthDate,
-        onProfileSexChanged = viewModel::updateProfileSex,
+        onCloseProfile = {},
+        onSaveProfile = {},
+        onProfileHeightChanged = {},
+        onProfileBirthDateChanged = {},
+        onProfileSexChanged = {},
         settingsCallbacks = SettingsCallbacks(
-            onOpenProfile = viewModel::openProfileEditor,
             onHuaweiAuthorization = viewModel::authorizeHuawei,
             onHuaweiPermissionRefresh = viewModel::refreshHuaweiAuthorization,
             onHealthConnectAuthorization = requestHealthConnectPermissions,
@@ -139,7 +144,31 @@ fun HuaweiMiSyncApp(
             onReliabilityMode = viewModel::setReliabilityMode,
             openBatterySettings = openBatterySettings,
             openApplicationSettings = openApplicationSettings,
+            accountManagement = AccountManagementCallbacks(
+                onAction = viewModel::onAccountManagementAction,
+                onCreate = viewModel::createAccount,
+                onUpdate = viewModel::updateAccount,
+                onSetPrimary = viewModel::setPrimaryAccount,
+                onDelete = viewModel::deleteAccount,
+                onDeletePrimary = viewModel::deletePrimaryAccount,
+            ),
+            onWeightDeltaStateChanged = viewModel::updateWeightDeltaEditor,
+            onWeightDeltaSave = viewModel::saveWeightDelta,
         ),
+        resolverCallbacks = MeasurementResolverCallbacks(
+            onAccountSelected = viewModel::choosePendingAccount,
+            onCreateAccount = { pendingId ->
+                viewModel.startCreateAccountForPending(pendingId)
+                currentSection = AppSection.SETTINGS
+            },
+            onShowWithoutSaving = viewModel::showPendingWithoutSaving,
+            onLater = viewModel::resolveLater,
+        ),
+        unsavedPreviewCallbacks = UnsavedPreviewCallbacks(
+            onStateChange = viewModel::updateUnsavedPreview,
+            onCloseAndDiscard = viewModel::closeUnsavedPreviewAndDiscard,
+        ),
+        onOpenResolver = viewModel::openResolver,
         measurementsContent = { padding ->
             MeasurementsScreen(
                 state = measurementsState,
@@ -179,6 +208,9 @@ internal fun HuaweiMiSyncScaffold(
     onProfileBirthDateChanged: (String) -> Unit,
     onProfileSexChanged: (Sex) -> Unit,
     settingsCallbacks: SettingsCallbacks,
+    resolverCallbacks: MeasurementResolverCallbacks = MeasurementResolverCallbacks.None,
+    unsavedPreviewCallbacks: UnsavedPreviewCallbacks = UnsavedPreviewCallbacks.None,
+    onOpenResolver: () -> Unit = {},
     measurementsContent: @Composable (PaddingValues) -> Unit,
     chartsContent: @Composable (PaddingValues) -> Unit,
 ) {
@@ -263,6 +295,25 @@ internal fun HuaweiMiSyncScaffold(
 
                     else -> chartsContent(padding)
                 }
+            }
+            PendingResolverForegroundFallback(
+                state = state.resolverQueue,
+                onOpen = onOpenResolver,
+                modifier = Modifier
+                    .padding(horizontal = HuaweiDimensions.ContentPadding)
+                    .padding(top = HuaweiDimensions.ContentPadding),
+            )
+            state.resolver?.let { resolver ->
+                MeasurementResolverDialog(
+                    state = resolver,
+                    callbacks = resolverCallbacks,
+                )
+            }
+            state.unsavedPreview?.let { preview ->
+                UnsavedMeasurementPreviewDialog(
+                    state = preview,
+                    callbacks = unsavedPreviewCallbacks,
+                )
             }
             HuaweiSystemBarBackgrounds()
         }

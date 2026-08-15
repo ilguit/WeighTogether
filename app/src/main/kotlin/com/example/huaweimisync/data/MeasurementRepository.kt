@@ -3,9 +3,25 @@ package com.example.huaweimisync.data
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountMeasurement
+import com.example.huaweimisync.domain.AccountProfile
+import com.example.huaweimisync.domain.AccountRepository
+import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.FinalizePendingResult
+import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingEnqueueResult
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PendingMeasurementPreview
+import com.example.huaweimisync.domain.isComplete
+import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
+import com.example.huaweimisync.worker.MeasurementWorkSweepResult
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 
 class MeasurementRepository(
     private val dao: MeasurementDao,
@@ -13,10 +29,32 @@ class MeasurementRepository(
     private val calculator: BodyCompositionCalculator,
     private val syncScheduler: MeasurementSyncScheduler,
     private val huaweiSyncEnabled: Boolean,
-) {
+    private val multiAccountPersistence: RoomMeasurementPersistence? = null,
+    private val accountRepository: AccountRepository? = null,
+    pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
+    matchingEngine: MatchingEngine = MatchingEngine(),
+) : com.example.huaweimisync.domain.MeasurementRepository {
+    private val ingestionCoordinator = if (
+        multiAccountPersistence != null && accountRepository != null
+    ) {
+        MeasurementIngestionCoordinator(
+            persistence = multiAccountPersistence,
+            accounts = accountRepository,
+            calculator = calculator,
+            syncScheduler = syncScheduler,
+            notifier = pendingDecisionNotifier,
+            matchingEngine = matchingEngine,
+        )
+    } else {
+        null
+    }
+
     fun observeRecent(): Flow<List<MeasurementEntity>> = dao.observeLatest()
 
     fun observeAll(): Flow<List<MeasurementEntity>> = dao.observeAll()
+
+    fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
+        requireMultiAccountPersistence().observeAllEntities(accountId)
 
     fun observeRange(
         startInclusive: Instant,
@@ -26,7 +64,20 @@ class MeasurementRepository(
         endExclusive = endExclusive.toEpochMilli(),
     )
 
+    fun observeRangeEntities(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<MeasurementEntity>> = requireMultiAccountPersistence().observeRangeEntities(
+        accountId = accountId,
+        startInclusive = startInclusive,
+        endExclusive = endExclusive,
+    )
+
     suspend fun store(raw: RawScaleMeasurement): StoreResult {
+        ingestionCoordinator?.let { coordinator ->
+            return coordinator.ingest(raw).toLegacyStoreResult()
+        }
         val profile = profileProvider() ?: return StoreResult.ProfileMissing
         val composition = calculator.calculate(raw, profile)
         val entity = composition.toEntity(raw.rawPayload, huaweiSyncEnabled)
@@ -50,6 +101,35 @@ class MeasurementRepository(
             rawPayload = byteArrayOf(),
         ),
     )
+
+    /** Test packets use the same durable pending pipeline as BLE packets. */
+    suspend fun ingestTestMeasurement(
+        weightKg: Double,
+        impedanceOhm: Int,
+        measuredAt: Instant = Instant.now(),
+    ): MeasurementIngestionResult = ingest(
+        RawScaleMeasurement(
+            deviceAddress = "manual",
+            measuredAt = measuredAt,
+            weightKg = weightKg,
+            impedanceOhm = impedanceOhm,
+            isStable = true,
+            hasImpedance = impedanceOhm in 80..3_000,
+            rawPayload = byteArrayOf(),
+        ),
+    )
+
+    suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
+        val coordinator = ingestionCoordinator
+        if (coordinator != null) return coordinator.ingest(raw)
+        return when (val legacy = store(raw)) {
+            is StoreResult.Inserted -> MeasurementIngestionResult.Assigned(
+                legacy.value.toAccountMeasurement(),
+            )
+            StoreResult.Duplicate -> MeasurementIngestionResult.LegacyDuplicate
+            StoreResult.ProfileMissing -> MeasurementIngestionResult.LegacyProfileMissing
+        }
+    }
 
     suspend fun update(
         id: String,
@@ -78,6 +158,7 @@ class MeasurementRepository(
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
             huaweiError = null,
             healthConnectError = null,
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )
         if (dao.update(updated) == 0) return MeasurementMutationResult.NotFound
         syncScheduler.cancel(id)
@@ -96,26 +177,167 @@ class MeasurementRepository(
 
     suspend fun retry(id: String) {
         val value = dao.get(id) ?: return
-        if (value.huaweiStatus != SyncStatus.LOCAL_ONLY.name &&
-            value.healthConnectStatus != SyncStatus.LOCAL_ONLY.name
-        ) {
+        if (isEligibleForSync(value) && value.hasPendingDestination()) {
             syncScheduler.enqueue(id)
         }
     }
 
     suspend fun retryPendingHealthConnect() {
-        dao.idsNeedingHealthConnectSync().forEach(syncScheduler::enqueue)
+        if (accountRepository == null) {
+            dao.idsNeedingHealthConnectSync().forEach(syncScheduler::enqueue)
+        } else {
+            eligiblePendingEntities()
+                .filter { it.healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES }
+                .forEach { syncScheduler.enqueue(it.id) }
+        }
     }
 
     suspend fun retryPendingHuawei() {
-        dao.idsNeedingHuaweiSync().forEach(syncScheduler::enqueue)
+        if (accountRepository == null) {
+            dao.idsNeedingHuaweiSync().forEach(syncScheduler::enqueue)
+        } else {
+            eligiblePendingEntities()
+                .filter { it.huaweiStatus !in HUAWEI_TERMINAL_STATUSES }
+                .forEach { syncScheduler.enqueue(it.id) }
+        }
     }
+
+    suspend fun sweepPendingSync(): Int {
+        val ids = if (accountRepository == null) {
+            dao.idsNeedingSync()
+        } else {
+            eligiblePendingEntities().filter(MeasurementEntity::hasPendingDestination)
+                .map(MeasurementEntity::id)
+        }
+        ids.forEach(syncScheduler::enqueue)
+        return ids.size
+    }
+
+    suspend fun sweepPendingRouting(): MeasurementIngestionSweepResult =
+        requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
+            .sweepPendingRouting()
+
+    suspend fun sweepPendingWork(): MeasurementWorkSweepResult {
+        val routing = ingestionCoordinator?.sweepPendingRouting()
+        return MeasurementWorkSweepResult(
+            routing = routing,
+            syncEnqueuedCount = sweepPendingSync(),
+        )
+    }
+
+    suspend fun refreshPendingPresentation(): Int =
+        requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
+            .refreshPendingPresentation()
+
+    suspend fun routePending(pendingId: PendingMeasurementId): MeasurementIngestionResult =
+        requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
+            .route(pendingId)
+
+    suspend fun previewWithoutSaving(
+        pendingId: PendingMeasurementId,
+        oneShotProfile: AccountProfile.Complete? = null,
+    ): PendingMeasurementPreview? = requireNotNull(ingestionCoordinator) {
+        "Multi-account ingestion is not configured"
+    }.previewWithoutSaving(pendingId, oneShotProfile)
+
+    override fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>> =
+        requireMultiAccountPersistence().observeAll(accountId)
+
+    override fun observeLatest(
+        accountId: AccountId,
+        limit: Int,
+    ): Flow<List<AccountMeasurement>> =
+        requireMultiAccountPersistence().observeLatest(accountId, limit)
+
+    override fun observeRange(
+        accountId: AccountId,
+        startInclusive: Instant,
+        endExclusive: Instant,
+    ): Flow<List<AccountMeasurement>> =
+        requireMultiAccountPersistence().observeRange(accountId, startInclusive, endExclusive)
+
+    override fun observePending(): Flow<List<PendingMeasurement>> =
+        requireMultiAccountPersistence().observePending()
+
+    override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
+        requireMultiAccountPersistence().getPending(id)
+
+    override suspend fun enqueuePending(raw: RawScaleMeasurement): PendingEnqueueResult =
+        when (val result = requireMultiAccountPersistence().enqueue(raw)) {
+            is PendingPersistenceResult.Inserted -> PendingEnqueueResult.Enqueued(result.pending)
+            is PendingPersistenceResult.AlreadyPending ->
+                PendingEnqueueResult.AlreadyPending(result.pending)
+            is PendingPersistenceResult.AlreadyFinalized ->
+                PendingEnqueueResult.AlreadyFinalized(result.measurement)
+            PendingPersistenceResult.Tombstoned -> PendingEnqueueResult.Tombstoned
+        }
+
+    override suspend fun finalizePending(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+    ): FinalizePendingResult = requireNotNull(ingestionCoordinator) {
+        "Multi-account ingestion is not configured"
+    }.chooseAccount(pendingId, accountId)
+
+    override suspend fun createAccountAndAssignPending(
+        pendingId: PendingMeasurementId,
+        account: NewAccount,
+    ): CreateAccountAndAssignResult = requireNotNull(ingestionCoordinator) {
+        "Multi-account ingestion is not configured"
+    }.createAccountAndAssign(pendingId, account)
+
+    override suspend fun discardPending(pendingId: PendingMeasurementId): Boolean =
+        requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
+            .discard(pendingId)
+
+    private suspend fun eligiblePendingEntities(): List<MeasurementEntity> {
+        val accounts = requireNotNull(accountRepository)
+        val primaryId = accounts.observeSettings().first().primaryAccountId ?: return emptyList()
+        val primary = accounts.getAccount(primaryId) ?: return emptyList()
+        if (!primary.profile.isComplete) return emptyList()
+        val ids = requireMultiAccountPersistence().eligiblePendingSyncIds(primaryId)
+        return ids.mapNotNull { dao.get(it) }.filter { isEligibleForSync(it) }
+    }
+
+    private suspend fun isEligibleForSync(value: MeasurementEntity): Boolean {
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return false
+        if (accountRepository == null) return !value.isLegacyLocalOnly()
+        val settings = accountRepository.observeSettings().first()
+        if (settings.primaryAccountId?.value != value.accountId) return false
+        val account = accountRepository.getAccount(AccountId(value.accountId)) ?: return false
+        return account.profile.isComplete
+    }
+
+    private fun requireMultiAccountPersistence(): RoomMeasurementPersistence =
+        requireNotNull(multiAccountPersistence) { "Multi-account persistence is not configured" }
 }
 
 sealed interface StoreResult {
     data class Inserted(val value: MeasurementEntity) : StoreResult
     data object Duplicate : StoreResult
     data object ProfileMissing : StoreResult
+}
+
+private fun MeasurementIngestionResult.toLegacyStoreResult(): StoreResult = when (this) {
+    is MeasurementIngestionResult.Assigned -> if (wasAlreadyFinalized) {
+        StoreResult.Duplicate
+    } else {
+        StoreResult.Inserted(
+            measurement.composition.toEntity(
+                rawPayload = byteArrayOf(),
+                accountId = measurement.accountId,
+                externalSyncPolicy = measurement.externalSyncPolicy,
+            ),
+        )
+    }
+    MeasurementIngestionResult.LegacyDuplicate -> StoreResult.Duplicate
+    MeasurementIngestionResult.LegacyProfileMissing,
+    is MeasurementIngestionResult.AwaitingDecision,
+    MeasurementIngestionResult.PendingMissing,
+    -> StoreResult.ProfileMissing
+    MeasurementIngestionResult.IgnoredNotFinal,
+    MeasurementIngestionResult.Tombstoned,
+    -> StoreResult.Duplicate
 }
 
 sealed interface MeasurementMutationResult {
@@ -151,3 +373,22 @@ private fun MeasurementValues.isValid(): Boolean {
         impedanceOhm >= 0 &&
         metabolicAge >= 0
 }
+
+private fun MeasurementEntity.isLegacyLocalOnly(): Boolean =
+    huaweiStatus == SyncStatus.LOCAL_ONLY.name ||
+        healthConnectStatus == SyncStatus.LOCAL_ONLY.name
+
+private fun MeasurementEntity.hasPendingDestination(): Boolean =
+    huaweiStatus !in HUAWEI_TERMINAL_STATUSES ||
+        healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES
+
+private val HUAWEI_TERMINAL_STATUSES = setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.DISABLED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
+
+private val HEALTH_CONNECT_TERMINAL_STATUSES = setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
