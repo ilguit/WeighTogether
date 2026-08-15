@@ -6,12 +6,14 @@ import com.example.huaweimisync.data.MeasurementEntity
 import com.huawei.hihealth.error.HiHealthError
 import com.huawei.hihealth.listener.ResultCallback
 import com.huawei.hihealthkit.auth.HiHealthAuth
+import com.huawei.hihealthkit.auth.IDataAuthStatusListener
 import com.huawei.hihealthkit.auth.HiHealthOpenPermissionType
 import com.huawei.hihealthkit.auth.IAuthorizationListener
 import com.huawei.hihealthkit.data.HiHealthData
 import com.huawei.hihealthkit.data.HiHealthPointData
 import com.huawei.hihealthkit.data.store.HiHealthDataStore
 import com.huawei.hihealthkit.data.type.HiHealthPointType
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 
@@ -21,8 +23,17 @@ fun createHuaweiHealthGateway(context: Context): HuaweiHealthGateway =
 private class ExtendedHuaweiHealthGateway(
     private val context: Context,
 ) : HuaweiHealthGateway {
+    private val permissionChecker = HuaweiWritePermissionChecker(
+        SdkHuaweiDataAuthStatusApi(context),
+    )
+
     override val isAvailableInBuild: Boolean = true
     override val isConfigured: Boolean get() = BuildConfig.HUAWEI_APP_ID != "0"
+
+    override suspend fun checkWriteWeightPermission(): HuaweiPermissionCheckResult {
+        if (!isConfigured) return HuaweiPermissionCheckResult.CHECK_FAILED
+        return permissionChecker.check()
+    }
 
     override suspend fun authorize(): SyncResult = suspendCancellableCoroutine { continuation ->
         if (!isConfigured) {
@@ -101,3 +112,106 @@ private class ExtendedHuaweiHealthGateway(
         const val DEFAULT_UNIT = 0
     }
 }
+
+internal fun interface HuaweiDataAuthStatusCallback {
+    fun onResult(
+        resultCode: Int,
+        message: String?,
+        grantedWriteTypes: IntArray?,
+        grantedReadTypes: IntArray?,
+    )
+}
+
+internal fun interface HuaweiDataAuthStatusApi {
+    fun getDataAuthStatusEx(
+        requestedWriteTypes: IntArray,
+        requestedReadTypes: IntArray,
+        callback: HuaweiDataAuthStatusCallback,
+    )
+}
+
+private class SdkHuaweiDataAuthStatusApi(
+    private val context: Context,
+) : HuaweiDataAuthStatusApi {
+    override fun getDataAuthStatusEx(
+        requestedWriteTypes: IntArray,
+        requestedReadTypes: IntArray,
+        callback: HuaweiDataAuthStatusCallback,
+    ) {
+        HiHealthAuth.getDataAuthStatusEx(
+            context,
+            requestedWriteTypes,
+            requestedReadTypes,
+            object : IDataAuthStatusListener {
+                override fun onResult(
+                    resultCode: Int,
+                    message: String?,
+                    grantedWriteTypes: IntArray?,
+                    grantedReadTypes: IntArray?,
+                ) {
+                    // HiHealthKitApi$3 reads the third callback argument from "writeTypes"
+                    // and the fourth from "readTypes" in the 6.7.0.300 runtime bytecode.
+                    callback.onResult(
+                        resultCode,
+                        message,
+                        grantedWriteTypes,
+                        grantedReadTypes,
+                    )
+                }
+            },
+        )
+    }
+}
+
+internal class HuaweiWritePermissionChecker(
+    private val api: HuaweiDataAuthStatusApi,
+) {
+    suspend fun check(): HuaweiPermissionCheckResult =
+        suspendCancellableCoroutine { continuation ->
+            val completed = AtomicBoolean(false)
+            continuation.invokeOnCancellation { completed.set(true) }
+
+            fun resumeOnce(result: HuaweiPermissionCheckResult) {
+                if (completed.compareAndSet(false, true) && continuation.isActive) {
+                    continuation.resume(result)
+                }
+            }
+
+            try {
+                api.getDataAuthStatusEx(
+                    requestedWriteTypes = intArrayOf(REQUIRED_WRITE_WEIGHT_PERMISSION),
+                    requestedReadTypes = intArrayOf(),
+                    callback = HuaweiDataAuthStatusCallback {
+                            resultCode,
+                            _,
+                            grantedWriteTypes,
+                            grantedReadTypes,
+                        ->
+                        resumeOnce(
+                            mapHuaweiDataAuthStatus(
+                                resultCode = resultCode,
+                                grantedWriteTypes = grantedWriteTypes,
+                                grantedReadTypes = grantedReadTypes,
+                            ),
+                        )
+                    },
+                )
+            } catch (_: Exception) {
+                resumeOnce(HuaweiPermissionCheckResult.CHECK_FAILED)
+            }
+        }
+}
+
+internal fun mapHuaweiDataAuthStatus(
+    resultCode: Int,
+    grantedWriteTypes: IntArray?,
+    @Suppress("UNUSED_PARAMETER") grantedReadTypes: IntArray?,
+): HuaweiPermissionCheckResult = when {
+    resultCode != HiHealthError.SUCCESS -> HuaweiPermissionCheckResult.CHECK_FAILED
+    grantedWriteTypes == null -> HuaweiPermissionCheckResult.CHECK_FAILED
+    REQUIRED_WRITE_WEIGHT_PERMISSION in grantedWriteTypes -> HuaweiPermissionCheckResult.AUTHORIZED
+    else -> HuaweiPermissionCheckResult.NOT_AUTHORIZED
+}
+
+internal const val REQUIRED_WRITE_WEIGHT_PERMISSION =
+    HiHealthOpenPermissionType.HEALTH_OPEN_PERMISSION_TYPE_WRITE_DATA_SET_WEIGHT

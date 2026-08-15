@@ -70,4 +70,20 @@ class SettingsScreenContractTest {
         assertNull(needsSetup.actionLabel)
         assertEquals("Разрешить", authorize.actionLabel)
     }
+
+    @Test
+    fun `huawei check blocks authorization and failed check offers retry`() {
+        val checking = huaweiIntegrationPresentation(
+            HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECKING),
+        )
+        val failed = huaweiIntegrationPresentation(
+            HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
+        )
+
+        assertEquals("Проверка разрешения…", checking.supportingText)
+        assertFalse(checking.actionEnabled)
+        assertEquals("Не удалось проверить разрешение", failed.supportingText)
+        assertEquals("Повторить", failed.actionLabel)
+        assertTrue(failed.actionRetriesCheck)
+    }
 }

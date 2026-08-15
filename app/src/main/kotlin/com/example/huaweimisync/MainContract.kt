@@ -2,6 +2,7 @@ package com.example.huaweimisync
 
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.sync.HuaweiPermissionCheckResult
 import java.time.LocalDate
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -177,8 +178,10 @@ data class HealthConnectPermissionsUiState(
 enum class HuaweiIntegrationStatus {
     UNAVAILABLE_IN_BUILD,
     CONFIGURATION_REQUIRED,
+    CHECKING,
     AUTHORIZATION_REQUIRED,
     AUTHORIZED,
+    CHECK_FAILED,
 }
 
 data class HuaweiIntegrationUiState(
@@ -188,20 +191,26 @@ data class HuaweiIntegrationUiState(
         get() = status != HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
 
     val isConfigured: Boolean
-        get() = status == HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED ||
-            status == HuaweiIntegrationStatus.AUTHORIZED
+        get() = status != HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD &&
+            status != HuaweiIntegrationStatus.CONFIGURATION_REQUIRED
 
     companion object {
         fun fromGateway(
             isAvailableInBuild: Boolean,
             isConfigured: Boolean,
-            isAuthorized: Boolean = false,
+            permission: HuaweiPermissionCheckResult? = null,
         ): HuaweiIntegrationUiState = HuaweiIntegrationUiState(
             when {
                 !isAvailableInBuild -> HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
                 !isConfigured -> HuaweiIntegrationStatus.CONFIGURATION_REQUIRED
-                isAuthorized -> HuaweiIntegrationStatus.AUTHORIZED
-                else -> HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED
+                permission == null -> HuaweiIntegrationStatus.CHECKING
+                permission == HuaweiPermissionCheckResult.AUTHORIZED ->
+                    HuaweiIntegrationStatus.AUTHORIZED
+                permission == HuaweiPermissionCheckResult.NOT_AUTHORIZED ->
+                    HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED
+                permission == HuaweiPermissionCheckResult.UNAVAILABLE ->
+                    HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
+                else -> HuaweiIntegrationStatus.CHECK_FAILED
             },
         )
     }

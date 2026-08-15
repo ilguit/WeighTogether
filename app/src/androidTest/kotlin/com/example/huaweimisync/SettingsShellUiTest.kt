@@ -130,6 +130,7 @@ class SettingsShellUiTest {
     private fun settingsCallbacks(onOpenProfile: () -> Unit) = SettingsCallbacks(
         onOpenProfile = onOpenProfile,
         onHuaweiAuthorization = {},
+        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualTest = { _, _ -> },
