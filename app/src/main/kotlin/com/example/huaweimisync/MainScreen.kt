@@ -40,6 +40,8 @@ import com.example.huaweimisync.charts.ChartsScreen
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
+import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
+import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 
 internal enum class AppSection(
     val title: String,
@@ -80,61 +82,64 @@ fun HuaweiMiSyncApp(
         measurementsViewModel.callbacks.onEditorDismissed()
     }
 
-    MaterialTheme {
-        Scaffold(
-            topBar = {
-                if (!editorOpen) {
-                    TopAppBar(title = { Text(currentSection.title) })
-                }
-            },
-            bottomBar = {
-                if (!editorOpen) {
-                    NavigationBar {
-                        AppSection.entries.forEach { section ->
-                            NavigationBarItem(
-                                selected = currentSection == section,
-                                onClick = { currentSection = section },
-                                icon = { Text(section.icon) },
-                                label = { Text(section.title) },
-                            )
+    HuaweiMiSyncTheme {
+        androidx.compose.foundation.layout.Box(Modifier.fillMaxSize()) {
+            Scaffold(
+                topBar = {
+                    if (!editorOpen) {
+                        TopAppBar(title = { Text(currentSection.title) })
+                    }
+                },
+                bottomBar = {
+                    if (!editorOpen) {
+                        NavigationBar {
+                            AppSection.entries.forEach { section ->
+                                NavigationBarItem(
+                                    selected = currentSection == section,
+                                    onClick = { currentSection = section },
+                                    icon = { Text(section.icon) },
+                                    label = { Text(section.title) },
+                                )
+                            }
                         }
                     }
+                },
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+            ) { padding ->
+                when (currentSection) {
+                    AppSection.SETTINGS -> SettingsScreen(
+                        state = state,
+                        huaweiConfigured = viewModel.huaweiConfigured,
+                        huaweiAvailableInBuild = viewModel.huaweiAvailableInBuild,
+                        healthConnectAvailable = viewModel.healthConnectAvailable,
+                        onSaveProfile = viewModel::saveProfile,
+                        onHuaweiAuthorization = viewModel::authorizeHuawei,
+                        onHealthConnectAuthorization = requestHealthConnectPermissions,
+                        onManualTest = viewModel::sendManualTest,
+                        onManualScan = viewModel::toggleManualScan,
+                        onReliabilityMode = viewModel::setReliabilityMode,
+                        openBatterySettings = openBatterySettings,
+                        openApplicationSettings = openApplicationSettings,
+                        modifier = Modifier.padding(padding),
+                    )
+
+                    AppSection.MEASUREMENTS -> MeasurementsScreen(
+                        state = measurementsState,
+                        callbacks = measurementsViewModel.callbacks,
+                        modifier = Modifier.padding(padding),
+                    )
+
+                    AppSection.CHARTS -> ChartsScreen(
+                        state = chartsState,
+                        onDateRangeChange = chartsViewModel::setDateRange,
+                        onMetricSelectionChange = chartsViewModel::setMetricSelected,
+                        onSelectAll = chartsViewModel::selectAll,
+                        onClearSelection = chartsViewModel::clearSelection,
+                        modifier = Modifier.padding(padding),
+                    )
                 }
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-        ) { padding ->
-            when (currentSection) {
-                AppSection.SETTINGS -> SettingsScreen(
-                    state = state,
-                    huaweiConfigured = viewModel.huaweiConfigured,
-                    huaweiAvailableInBuild = viewModel.huaweiAvailableInBuild,
-                    healthConnectAvailable = viewModel.healthConnectAvailable,
-                    onSaveProfile = viewModel::saveProfile,
-                    onHuaweiAuthorization = viewModel::authorizeHuawei,
-                    onHealthConnectAuthorization = requestHealthConnectPermissions,
-                    onManualTest = viewModel::sendManualTest,
-                    onManualScan = viewModel::toggleManualScan,
-                    onReliabilityMode = viewModel::setReliabilityMode,
-                    openBatterySettings = openBatterySettings,
-                    openApplicationSettings = openApplicationSettings,
-                    modifier = Modifier.padding(padding),
-                )
-
-                AppSection.MEASUREMENTS -> MeasurementsScreen(
-                    state = measurementsState,
-                    callbacks = measurementsViewModel.callbacks,
-                    modifier = Modifier.padding(padding),
-                )
-
-                AppSection.CHARTS -> ChartsScreen(
-                    state = chartsState,
-                    onDateRangeChange = chartsViewModel::setDateRange,
-                    onMetricSelectionChange = chartsViewModel::setMetricSelected,
-                    onSelectAll = chartsViewModel::selectAll,
-                    onClearSelection = chartsViewModel::clearSelection,
-                    modifier = Modifier.padding(padding),
-                )
             }
+            HuaweiSystemBarBackgrounds()
         }
     }
 }
