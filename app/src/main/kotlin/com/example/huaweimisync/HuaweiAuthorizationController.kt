@@ -45,7 +45,13 @@ internal class HuaweiAuthorizationController(
     ): HuaweiAuthorizationAttempt = operationMutex.withLock {
         val initial = initialState
         publishState(initial)
-        val requestResult = gateway.authorize()
+        val requestResult = try {
+            gateway.authorize()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            SyncResult.Retryable("Авторизация Huawei Health временно недоступна")
+        }
         val confirmedState = if (initial.status == HuaweiIntegrationStatus.CHECKING) {
             checkAndPublish(publishState)
         } else {

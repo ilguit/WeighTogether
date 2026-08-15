@@ -119,6 +119,41 @@ class HuaweiWritePermissionCheckerTest {
         assertTrue(job.isCancelled)
     }
 
+    @Test
+    fun `authorization adapter ignores duplicate and late callbacks`() = runBlocking {
+        lateinit var complete: (SyncResult) -> Unit
+        val result = awaitSingleHuaweiResult(
+            synchronousFailure = SyncResult.Retryable("sync failure"),
+        ) { callback ->
+            complete = callback
+            callback(SyncResult.Success)
+            callback(SyncResult.Blocked("duplicate"))
+        }
+
+        complete(SyncResult.Blocked("late"))
+
+        assertEquals(SyncResult.Success, result)
+    }
+
+    @Test
+    fun `authorization adapter maps synchronous exception and ignores callback after cancellation`() =
+        runBlocking {
+            val expectedFailure = SyncResult.Retryable("sync failure")
+            assertEquals(
+                expectedFailure,
+                awaitSingleHuaweiResult(expectedFailure) { error("binder failed") },
+            )
+
+            lateinit var complete: (SyncResult) -> Unit
+            val job = launch(start = CoroutineStart.UNDISPATCHED) {
+                awaitSingleHuaweiResult(expectedFailure) { complete = it }
+            }
+            job.cancelAndJoin()
+            complete(SyncResult.Success)
+
+            assertTrue(job.isCancelled)
+        }
+
     private class FakeApi(
         private val response: (HuaweiDataAuthStatusCallback) -> Unit,
     ) : HuaweiDataAuthStatusApi {

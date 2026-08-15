@@ -116,6 +116,25 @@ class HuaweiAuthorizationControllerTest {
         assertTrue(gateway.checkCalls == 1)
     }
 
+    @Test
+    fun `synchronous authorization failure still rechecks actual permission`() = runBlocking {
+        val gateway = FakeHuaweiGateway(
+            authorizeFailure = IllegalStateException("SDK setup failed"),
+            checkResult = HuaweiPermissionCheckResult.NOT_AUTHORIZED,
+        )
+        var queueRetries = 0
+
+        val attempt = controller(gateway) { queueRetries++ }.authorize {}
+
+        assertEquals(listOf("authorize", "check"), gateway.calls)
+        assertTrue(attempt.requestResult is SyncResult.Retryable)
+        assertEquals(
+            HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED,
+            attempt.confirmedState.status,
+        )
+        assertEquals(0, queueRetries)
+    }
+
     private fun controller(
         gateway: FakeHuaweiGateway,
         retryQueue: suspend () -> Unit = {},
@@ -125,6 +144,7 @@ class HuaweiAuthorizationControllerTest {
         override val isAvailableInBuild: Boolean = true,
         override val isConfigured: Boolean = true,
         private val authorizeResult: SyncResult = SyncResult.Success,
+        private val authorizeFailure: Throwable? = null,
         private val checkResult: HuaweiPermissionCheckResult =
             HuaweiPermissionCheckResult.NOT_AUTHORIZED,
         private val checkFailure: Throwable? = null,
@@ -142,6 +162,7 @@ class HuaweiAuthorizationControllerTest {
 
         override suspend fun authorize(): SyncResult {
             calls += "authorize"
+            authorizeFailure?.let { throw it }
             return authorizeResult
         }
 

@@ -35,23 +35,28 @@ private class ExtendedHuaweiHealthGateway(
         return permissionChecker.check()
     }
 
-    override suspend fun authorize(): SyncResult = suspendCancellableCoroutine { continuation ->
+    override suspend fun authorize(): SyncResult {
         if (!isConfigured) {
-            continuation.resume(SyncResult.Blocked("Укажите HUAWEI_APP_ID после выдачи scope"))
-            return@suspendCancellableCoroutine
+            return SyncResult.Blocked("Укажите HUAWEI_APP_ID после выдачи scope")
         }
-        HiHealthAuth.requestAuthorization(
-            context,
-            intArrayOf(HiHealthOpenPermissionType.HEALTH_OPEN_PERMISSION_TYPE_WRITE_DATA_SET_WEIGHT),
-            intArrayOf(),
-            object : IAuthorizationListener {
-                override fun onResult(resultCode: Int, data: Any?) {
-                    if (continuation.isActive) {
-                        continuation.resume(mapHuaweiResult("Авторизация", resultCode))
+        return awaitSingleHuaweiResult(
+            synchronousFailure = SyncResult.Retryable(
+                "Авторизация Huawei Health временно недоступна",
+            ),
+        ) { complete ->
+            HiHealthAuth.requestAuthorization(
+                context,
+                intArrayOf(
+                    HiHealthOpenPermissionType.HEALTH_OPEN_PERMISSION_TYPE_WRITE_DATA_SET_WEIGHT,
+                ),
+                intArrayOf(),
+                object : IAuthorizationListener {
+                    override fun onResult(resultCode: Int, data: Any?) {
+                        complete(mapHuaweiResult("Авторизация", resultCode))
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     }
 
     override suspend fun write(measurement: MeasurementEntity): SyncResult =
@@ -200,6 +205,27 @@ internal class HuaweiWritePermissionChecker(
                 resumeOnce(HuaweiPermissionCheckResult.CHECK_FAILED)
             }
         }
+}
+
+/** Makes Huawei's callback-only authorization API safe for cancellation and bad SDK callbacks. */
+internal suspend fun awaitSingleHuaweiResult(
+    synchronousFailure: SyncResult,
+    register: (complete: (SyncResult) -> Unit) -> Unit,
+): SyncResult = suspendCancellableCoroutine { continuation ->
+    val completed = AtomicBoolean(false)
+    continuation.invokeOnCancellation { completed.set(true) }
+
+    fun resumeOnce(result: SyncResult) {
+        if (completed.compareAndSet(false, true) && continuation.isActive) {
+            continuation.resume(result)
+        }
+    }
+
+    try {
+        register(::resumeOnce)
+    } catch (_: Exception) {
+        resumeOnce(synchronousFailure)
+    }
 }
 
 internal fun mapHuaweiDataAuthStatus(
