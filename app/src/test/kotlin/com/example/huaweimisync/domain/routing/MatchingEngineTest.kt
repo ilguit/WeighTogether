@@ -366,17 +366,14 @@ class MatchingEngineTest {
     }
 
     @Test
-    fun invalidRawMeasurementsReturnNoMatch() {
+    fun invalidRawWeightsReturnNoMatch() {
         val valid = raw(weightKg = 70.0)
         val invalidValues = listOf(
             valid.copy(weightKg = Double.NaN),
+            valid.copy(weightKg = Double.POSITIVE_INFINITY),
             valid.copy(weightKg = Double.NEGATIVE_INFINITY),
             valid.copy(weightKg = 9.99),
             valid.copy(weightKg = 300.01),
-            valid.copy(isStable = false),
-            valid.copy(hasImpedance = false),
-            valid.copy(impedanceOhm = 79),
-            valid.copy(impedanceOhm = 3_001),
         )
 
         invalidValues.forEach { invalid ->
@@ -384,6 +381,32 @@ class MatchingEngineTest {
                 "Expected NoMatch for $invalid",
                 RoutingDecision.NoMatch,
                 match(accounts = listOf(primary), histories = emptyMap(), raw = invalid),
+            )
+        }
+    }
+
+    @Test
+    fun matchingUsesOnlyWeightAfterIngestion() {
+        val nonFinalValues = listOf(
+            raw(weightKg = 70.0).copy(isStable = false),
+            raw(weightKg = 70.0).copy(hasImpedance = false, impedanceOhm = 0),
+            raw(weightKg = 70.0).copy(impedanceOhm = 79),
+            raw(weightKg = 70.0).copy(impedanceOhm = 3_001),
+        )
+
+        nonFinalValues.forEach { value ->
+            assertEquals(
+                "Expected weight-only routing for $value",
+                RoutingDecision.AssignPrimary(
+                    accountId = primary.id,
+                    differenceKg = 1.0,
+                    medianWeightKg = 69.0,
+                ),
+                match(
+                    accounts = listOf(primary),
+                    histories = histories(primary.id to weights(69.0)),
+                    raw = value,
+                ),
             )
         }
     }

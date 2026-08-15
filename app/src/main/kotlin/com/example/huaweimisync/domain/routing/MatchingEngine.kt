@@ -26,10 +26,11 @@ data class WeightHistoryRecord(
 /**
  * Pure weight-only account matcher. It has no dependency on Room, Android, or UI state.
  *
- * A raw value which is not a final scale measurement is rejected with [RoutingDecision.NoMatch].
- * Account profiles are intentionally never inspected: incomplete recovery profiles participate in
- * weight matching exactly like complete profiles. The original [accounts] list defines stable
- * candidate order even when the primary account is not the first element.
+ * Routing eligibility depends only on a valid scale weight. Stability and impedance are ingestion
+ * and body-composition concerns, so they deliberately do not change the selected account. Account
+ * profiles are likewise never inspected: incomplete recovery profiles participate in weight
+ * matching exactly like complete profiles. The original [accounts] list defines stable candidate
+ * order even when the primary account is not the first element.
  */
 class MatchingEngine {
     fun match(
@@ -50,7 +51,7 @@ class MatchingEngine {
         histories: Map<AccountId, List<WeightHistoryRecord>>,
         settings: AccountSettings,
     ): RoutingDecision {
-        if (!raw.isFinal) return RoutingDecision.NoMatch
+        if (!raw.weightKg.isValidScaleWeight()) return RoutingDecision.NoMatch
 
         val primaryAccountId = settings.primaryAccountId ?: return RoutingDecision.NoMatch
         if (accounts.none { it.id == primaryAccountId }) return RoutingDecision.NoMatch
