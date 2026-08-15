@@ -11,6 +11,10 @@ interface MeasurementSyncScheduler {
     fun enqueue(measurementId: String)
 
     fun cancel(measurementId: String)
+
+    fun cancelAll(measurementIds: Iterable<String>) {
+        measurementIds.forEach(::cancel)
+    }
 }
 
 class SyncWorkScheduler(private val context: Context) : MeasurementSyncScheduler {
@@ -21,7 +25,7 @@ class SyncWorkScheduler(private val context: Context) : MeasurementSyncScheduler
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "sync-$measurementId",
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             work,
         )
     }

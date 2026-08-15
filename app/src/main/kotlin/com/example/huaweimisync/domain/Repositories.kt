@@ -36,6 +36,11 @@ interface AccountRepository {
     )
 }
 
+/** Explicit write side for account-level settings. */
+interface AccountSettingsWriter {
+    suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
+}
+
 data class AccountMeasurement(
     val accountId: AccountId,
     val composition: BodyComposition,
@@ -46,8 +51,15 @@ data class AccountMeasurement(
 sealed interface PendingEnqueueResult {
     data class Enqueued(val pending: PendingMeasurement) : PendingEnqueueResult
     data class AlreadyPending(val pending: PendingMeasurement) : PendingEnqueueResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingEnqueueResult
     data object Tombstoned : PendingEnqueueResult
 }
+
+data class PendingMeasurementPreview(
+    val pending: PendingMeasurement,
+    /** Present only when the caller supplied a complete one-shot profile. */
+    val composition: BodyComposition? = null,
+)
 
 sealed interface FinalizePendingResult {
     data class Finalized(val measurement: AccountMeasurement) : FinalizePendingResult

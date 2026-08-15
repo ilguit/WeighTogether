@@ -64,6 +64,19 @@ interface MultiAccountMeasurementDao {
 
     @Query(
         """
+        SELECT * FROM measurements
+        WHERE accountId = :accountId AND measuredAtEpochMillis < :measuredAtExclusive
+        ORDER BY measuredAtEpochMillis DESC, id DESC
+        LIMIT 3
+        """,
+    )
+    suspend fun latestHistoryBefore(
+        accountId: String,
+        measuredAtExclusive: Long,
+    ): List<MeasurementEntity>
+
+    @Query(
+        """
         UPDATE measurements
         SET externalSyncPolicy = 'AUTO',
             huaweiStatus = CASE
@@ -101,4 +114,18 @@ interface MultiAccountMeasurementDao {
         """,
     )
     suspend fun eligiblePendingSyncIds(primaryAccountId: String): List<String>
+
+    @Query(
+        """
+        SELECT id FROM measurements
+        WHERE accountId = :accountId
+            AND externalSyncPolicy = 'AUTO'
+            AND (
+                huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
+                OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
+            )
+        ORDER BY measuredAtEpochMillis ASC, id ASC
+        """,
+    )
+    suspend fun activeSyncWorkIds(accountId: String): List<String>
 }

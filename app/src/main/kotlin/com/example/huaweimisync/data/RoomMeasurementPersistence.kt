@@ -13,6 +13,7 @@ import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.toRawScaleMeasurement
 import com.example.huaweimisync.domain.toUserProfileOrNull
+import com.example.huaweimisync.domain.routing.WeightHistoryRecord
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Duration
@@ -40,7 +41,7 @@ class RoomMeasurementPersistence(
     private val pendingDao: PendingMeasurementDao = database.pendingMeasurementDao(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
-) {
+) : MeasurementRoutingPersistence {
     fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>> =
         measurementDao.observeAll(accountId.value).map { values ->
             values.map(MeasurementEntity::toAccountMeasurement)
@@ -70,7 +71,7 @@ class RoomMeasurementPersistence(
         values.map(PendingMeasurementEntity::toDomain)
     }
 
-    suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
+    override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
         pendingDao.get(id.value)?.toDomain()
 
     suspend fun latestWeightsBefore(
@@ -81,7 +82,29 @@ class RoomMeasurementPersistence(
         measuredAtExclusive.ceilToEpochMilli(),
     )
 
-    suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
+    override suspend fun latestHistoryBefore(
+        accountId: AccountId,
+        measuredAtExclusive: Instant,
+    ): List<WeightHistoryRecord> = measurementDao.latestHistoryBefore(
+        accountId.value,
+        measuredAtExclusive.toEpochMilli(),
+    ).map { value ->
+        WeightHistoryRecord(
+            measuredAt = Instant.ofEpochMilli(value.measuredAtEpochMillis),
+            weightKg = value.weightKg,
+        )
+    }
+
+    override suspend fun pendingSnapshot(): List<PendingMeasurement> =
+        pendingDao.getAll().map(PendingMeasurementEntity::toDomain)
+
+    suspend fun eligiblePendingSyncIds(primaryAccountId: AccountId): List<String> =
+        measurementDao.eligiblePendingSyncIds(primaryAccountId.value)
+
+    suspend fun activeSyncWorkIds(accountId: AccountId): List<String> =
+        measurementDao.activeSyncWorkIds(accountId.value)
+
+    override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
         database.withTransaction {
             val timestamp = now()
             val timestampMillis = timestamp.toEpochMilli()
@@ -119,14 +142,14 @@ class RoomMeasurementPersistence(
             }
         }
 
-    suspend fun finalizePending(
+    override suspend fun finalizePending(
         pendingId: PendingMeasurementId,
         accountId: AccountId,
     ): FinalizePendingResult = database.withTransaction {
         finalizePendingLocked(pendingId, accountId)
     }
 
-    suspend fun createAccountAndAssignPending(
+    override suspend fun createAccountAndAssignPending(
         pendingId: PendingMeasurementId,
         account: NewAccount,
     ): CreateAccountAndAssignResult = database.withTransaction {
@@ -174,7 +197,9 @@ class RoomMeasurementPersistence(
         }
     }
 
-    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean = database.withTransaction {
+    override suspend fun discardPending(
+        pendingId: PendingMeasurementId,
+    ): Boolean = database.withTransaction {
         val pending = pendingDao.get(pendingId.value) ?: return@withTransaction false
         val expiresAt = now().plus(TOMBSTONE_TTL).toEpochMilli()
         pendingDao.upsertTombstone(

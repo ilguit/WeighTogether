@@ -40,7 +40,8 @@ interface MeasurementDao {
     @Query(
         """
         UPDATE measurements
-        SET huaweiStatus = CASE
+        SET externalSyncPolicy = 'USER_LOCAL',
+            huaweiStatus = CASE
                 WHEN huaweiStatus = 'DISABLED' THEN 'DISABLED'
                 ELSE 'LOCAL_ONLY'
             END,
@@ -59,7 +60,9 @@ interface MeasurementDao {
         """
         UPDATE measurements
         SET huaweiStatus = :status, huaweiError = :error
-        WHERE id = :id AND huaweiStatus != 'LOCAL_ONLY'
+        WHERE id = :id
+            AND externalSyncPolicy = 'AUTO'
+            AND huaweiStatus != 'LOCAL_ONLY'
         """,
     )
     suspend fun updateHuaweiStatus(id: String, status: String, error: String?): Int
@@ -68,7 +71,9 @@ interface MeasurementDao {
         """
         UPDATE measurements
         SET healthConnectStatus = :status, healthConnectError = :error
-        WHERE id = :id AND healthConnectStatus != 'LOCAL_ONLY'
+        WHERE id = :id
+            AND externalSyncPolicy = 'AUTO'
+            AND healthConnectStatus != 'LOCAL_ONLY'
         """,
     )
     suspend fun updateHealthConnectStatus(id: String, status: String, error: String?): Int

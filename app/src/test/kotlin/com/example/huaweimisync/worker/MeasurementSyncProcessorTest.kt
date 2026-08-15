@@ -2,6 +2,7 @@ package com.example.huaweimisync.worker
 
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.SyncStatus
+import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.sync.SyncResult
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -41,6 +42,30 @@ class MeasurementSyncProcessorTest {
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(SyncStatus.LOCAL_ONLY.name, store.value?.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, store.value?.healthConnectStatus)
+    }
+
+    @Test
+    fun secondaryAndUserLocalPoliciesNeverReachAnyGateway() = runBlocking {
+        listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
+            val store = FakeSyncStore(measurement(externalSyncPolicy = policy))
+
+            assertEquals(MeasurementSyncOutcome.COMPLETE, store.processor().sync(ID))
+            assertTrue("Gateway write for $policy", store.externalWrites.isEmpty())
+            assertTrue(store.statusUpdates.isEmpty())
+        }
+    }
+
+    @Test
+    fun primaryChangeBetweenDestinationsBlocksTheSecondGateway() = runBlocking {
+        val store = FakeSyncStore(measurement())
+        store.afterHuaweiWrite = { store.eligible = false }
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(2, store.loadCount)
+        assertEquals(2, store.eligibilityChecks)
     }
 
     @Test
@@ -96,6 +121,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
     var huaweiResult: SyncResult = SyncResult.Success
     var healthConnectResult: SyncResult = SyncResult.Success
     var afterHuaweiWrite: () -> Unit = {}
+    var eligible: Boolean = true
+    var eligibilityChecks: Int = 0
     val externalWrites = mutableListOf<String>()
     val statusUpdates = mutableListOf<Pair<String, SyncResult>>()
 
@@ -103,6 +130,10 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
         loadMeasurement = {
             loadCount += 1
             value
+        },
+        isEligible = {
+            eligibilityChecks += 1
+            eligible
         },
         writeHuawei = {
             externalWrites += "huawei"
@@ -138,6 +169,7 @@ private fun SyncResult.statusName(): String = when (this) {
 private fun measurement(
     huaweiStatus: SyncStatus = SyncStatus.PENDING,
     healthConnectStatus: SyncStatus = SyncStatus.PENDING,
+    externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
 ) = MeasurementEntity(
     id = "measurement-1",
     deviceAddress = "AA:BB:CC:DD:EE:FF",
@@ -162,4 +194,5 @@ private fun measurement(
     algorithmVersion = "test",
     huaweiStatus = huaweiStatus.name,
     healthConnectStatus = healthConnectStatus.name,
+    externalSyncPolicy = externalSyncPolicy.name,
 )

@@ -16,8 +16,13 @@ class MeasurementSyncWorker(
         val id = inputData.getString(KEY_ID) ?: return Result.failure()
         val container = (applicationContext as MiSyncApplication).container
         val dao = container.database.measurementDao()
+        val eligibility = MeasurementSyncEligibilityPolicy(
+            accountDao = container.database.accountDao(),
+            appStateDao = container.database.appStateDao(),
+        )
         val outcome = MeasurementSyncProcessor(
             loadMeasurement = dao::get,
+            isEligible = eligibility::isEligible,
             writeHuawei = container.huaweiHealth::write,
             writeHealthConnect = container.healthConnect::write,
             applyHuaweiResult = { measurementId, result ->

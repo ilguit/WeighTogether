@@ -5,6 +5,7 @@ import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.AccountSettings
+import com.example.huaweimisync.domain.AccountSettingsWriter
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
@@ -21,7 +22,7 @@ class RoomAccountRepository(
     private val measurementDao: MultiAccountMeasurementDao = database.multiAccountMeasurementDao(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
-) : AccountRepository {
+) : AccountRepository, AccountSettingsWriter {
     override fun observeAccounts(): Flow<List<Account>> = accountDao.observeAll().map { accounts ->
         accounts.map(AccountEntity::toDomain)
     }

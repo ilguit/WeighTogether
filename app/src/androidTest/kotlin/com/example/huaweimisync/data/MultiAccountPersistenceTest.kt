@@ -82,6 +82,15 @@ class MultiAccountPersistenceTest {
         )
         assertEquals(1, database.measurementDao().update(userLocal))
 
+        accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.FUTURE_ONLY)
+
+        stored = database.multiAccountMeasurementDao().get(stored.id)!!
+        assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL.name, stored.externalSyncPolicy)
+        val userLocalAfterFutureOnly = database.multiAccountMeasurementDao().get(userLocal.id)!!
+        assertEquals(ExternalSyncPolicy.USER_LOCAL.name, userLocalAfterFutureOnly.externalSyncPolicy)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, userLocalAfterFutureOnly.healthConnectStatus)
+        accounts.setPrimaryAccount(first.id, PrimaryHistorySyncMode.FUTURE_ONLY)
+
         accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY)
 
         stored = database.multiAccountMeasurementDao().get(stored.id)!!

@@ -4,6 +4,7 @@ import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import java.time.LocalDate
@@ -139,6 +140,7 @@ class MeasurementRepositoryTest {
                 healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
                 huaweiError = null,
                 healthConnectError = null,
+                externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             ),
             dao.values.getValue(original.id),
         )
@@ -165,6 +167,10 @@ class MeasurementRepositoryTest {
         assertEquals(
             SyncStatus.LOCAL_ONLY.name,
             dao.values.getValue("edited").healthConnectStatus,
+        )
+        assertEquals(
+            ExternalSyncPolicy.USER_LOCAL.name,
+            dao.values.getValue("edited").externalSyncPolicy,
         )
     }
 
@@ -368,6 +374,7 @@ private class FakeMeasurementDao(
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
             huaweiError = null,
             healthConnectError = null,
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )
         return 1
     }
@@ -381,7 +388,9 @@ private class FakeMeasurementDao(
 
     override suspend fun updateHuaweiStatus(id: String, status: String, error: String?): Int {
         val value = values[id] ?: return 0
-        if (value.huaweiStatus == SyncStatus.LOCAL_ONLY.name) return 0
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
+            value.huaweiStatus == SyncStatus.LOCAL_ONLY.name
+        ) return 0
         values[id] = value.copy(huaweiStatus = status, huaweiError = error)
         return 1
     }
@@ -392,7 +401,9 @@ private class FakeMeasurementDao(
         error: String?,
     ): Int {
         val value = values[id] ?: return 0
-        if (value.healthConnectStatus == SyncStatus.LOCAL_ONLY.name) return 0
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
+            value.healthConnectStatus == SyncStatus.LOCAL_ONLY.name
+        ) return 0
         values[id] = value.copy(healthConnectStatus = status, healthConnectError = error)
         return 1
     }
