@@ -8,17 +8,23 @@ import com.example.huaweimisync.data.MeasurementMutationResult
 import com.example.huaweimisync.data.MeasurementValues
 import com.example.huaweimisync.measurements.MeasurementDeleteConfirmation
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
+import com.example.huaweimisync.measurements.MeasurementEditorOrigin
 import com.example.huaweimisync.measurements.MeasurementEditorState
 import com.example.huaweimisync.measurements.MeasurementField
 import com.example.huaweimisync.measurements.MeasurementUiItem
 import com.example.huaweimisync.measurements.MeasurementUiValues
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
+import com.example.huaweimisync.measurements.MeasurementsDestination
+import com.example.huaweimisync.measurements.MeasurementsNavigationState
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
+import com.example.huaweimisync.measurements.buildMeasurementSummary
+import com.example.huaweimisync.measurements.measurementSyncPresentation
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -27,27 +33,44 @@ import kotlinx.coroutines.launch
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = (application as MiSyncApplication).container.repository
     private val measurements = repository.observeAll()
-        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+        .map<List<MeasurementEntity>, MeasurementsLoadState>(MeasurementsLoadState::Loaded)
+        .stateIn(viewModelScope, SharingStarted.Eagerly, MeasurementsLoadState.Loading)
+    private val navigation = MutableStateFlow(MeasurementsNavigationState())
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
     private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
 
     val events = eventChannel.receiveAsFlow()
 
-    val uiState = combine(measurements, editor, deleteConfirmation) { values, currentEditor, deletion ->
+    val uiState = combine(
+        measurements,
+        navigation,
+        editor,
+        deleteConfirmation,
+    ) { loadState, currentNavigation, currentEditor, deletion ->
+        val values = loadState.valuesOrEmpty()
+            .sortedByDescending(MeasurementEntity::measuredAtEpochMillis)
+        val items = values.map { value ->
+            value.toUiItem(
+                isOperationInProgress = deletion?.isDeleting == true &&
+                    deletion.measurementId == value.id,
+            )
+        }
         MeasurementsUiState(
-            measurements = values.map { value ->
-                value.toUiItem(
-                    isOperationInProgress = deletion?.isDeleting == true &&
-                        deletion.measurementId == value.id,
-                )
-            },
+            destination = currentNavigation.destination,
+            editorOrigin = currentNavigation.editorOrigin,
+            measurements = items,
+            summary = buildMeasurementSummary(items),
+            isLoading = loadState is MeasurementsLoadState.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
 
     val callbacks = MeasurementsCallbacks(
+        onSummaryRequested = ::showSummary,
+        onHistoryRequested = ::showHistory,
+        onBackRequested = ::navigateBack,
         onEditRequested = ::openEditor,
         onEditorFieldChanged = ::updateEditorField,
         onEditorSaveRequested = ::saveEditor,
@@ -58,8 +81,30 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         onRetryRequested = ::retry,
     )
 
-    private fun openEditor(id: String) {
-        val value = measurements.value.firstOrNull { it.id == id } ?: run {
+    private fun showSummary() {
+        if (editor.value?.isSaving == true) return
+        navigation.update(MeasurementsNavigationState::showSummary)
+        editor.value = null
+    }
+
+    private fun showHistory() {
+        if (editor.value?.isSaving == true) return
+        navigation.update(MeasurementsNavigationState::showHistory)
+        editor.value = null
+    }
+
+    private fun navigateBack() {
+        if (navigation.value.destination == MeasurementsDestination.EDITOR) {
+            if (editor.value?.isSaving == true) return
+            navigation.update(MeasurementsNavigationState::back)
+            editor.value = null
+            return
+        }
+        navigation.update(MeasurementsNavigationState::back)
+    }
+
+    private fun openEditor(id: String, origin: MeasurementEditorOrigin) {
+        val value = measurements.value.valuesOrEmpty().firstOrNull { it.id == id } ?: run {
             showMessage("Измерение уже удалено")
             return
         }
@@ -68,6 +113,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             measuredAtEpochMillis = value.measuredAtEpochMillis,
             draft = MeasurementEditorDraft.from(value.values.toUiValues()),
         )
+        navigation.update { it.showEditor(origin) }
     }
 
     private fun updateEditorField(field: MeasurementField, value: String) {
@@ -84,12 +130,12 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope.launch {
             when (repository.update(id, values.toDataValues())) {
                 MeasurementMutationResult.Success -> {
-                    editor.value = null
+                    closeEditor()
                     showMessage("Локальное измерение изменено")
                 }
 
                 MeasurementMutationResult.NotFound -> {
-                    editor.value = null
+                    closeEditor()
                     showMessage("Измерение уже удалено")
                 }
 
@@ -102,11 +148,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun dismissEditor() {
-        if (editor.value?.isSaving != true) editor.value = null
+        if (editor.value?.isSaving != true) navigateBack()
     }
 
     private fun requestDelete(id: String) {
-        val value = measurements.value.firstOrNull { it.id == id } ?: run {
+        val value = measurements.value.valuesOrEmpty().firstOrNull { it.id == id } ?: run {
             showMessage("Измерение уже удалено")
             return
         }
@@ -143,6 +189,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun showMessage(message: String) {
         eventChannel.trySend(MeasurementsUiEvent.ShowSnackbar(message))
     }
+
+    private fun closeEditor() {
+        navigation.update(MeasurementsNavigationState::back)
+        editor.value = null
+    }
 }
 
 private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): MeasurementUiItem =
@@ -150,10 +201,12 @@ private fun MeasurementEntity.toUiItem(isOperationInProgress: Boolean): Measurem
         id = id,
         measuredAtEpochMillis = measuredAtEpochMillis,
         values = values.toUiValues(),
-        huaweiStatus = huaweiStatus,
-        healthConnectStatus = healthConnectStatus,
-        huaweiError = huaweiError,
-        healthConnectError = healthConnectError,
+        sync = measurementSyncPresentation(
+            healthConnectStatus = healthConnectStatus,
+            healthConnectError = healthConnectError,
+            huaweiStatus = huaweiStatus,
+            huaweiError = huaweiError,
+        ),
         isOperationInProgress = isOperationInProgress,
     )
 
@@ -194,3 +247,16 @@ private fun MeasurementUiValues.toDataValues(): MeasurementValues = MeasurementV
     metabolicAge = metabolicAge,
     leanBodyMassKg = leanBodyMassKg,
 )
+
+private sealed interface MeasurementsLoadState {
+    data object Loading : MeasurementsLoadState
+
+    data class Loaded(
+        val values: List<MeasurementEntity>,
+    ) : MeasurementsLoadState
+}
+
+private fun MeasurementsLoadState.valuesOrEmpty(): List<MeasurementEntity> = when (this) {
+    MeasurementsLoadState.Loading -> emptyList()
+    is MeasurementsLoadState.Loaded -> values
+}
