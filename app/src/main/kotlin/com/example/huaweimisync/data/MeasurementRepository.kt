@@ -27,6 +27,7 @@ import kotlinx.coroutines.flow.first
 class MeasurementRepository(
     private val dao: MeasurementDao,
     private val profileProvider: () -> UserProfile?,
+    private val scaleAddressProvider: () -> String?,
     private val calculator: BodyCompositionCalculator,
     private val syncScheduler: MeasurementSyncScheduler,
     private val huaweiSyncEnabled: Boolean,
@@ -106,7 +107,7 @@ class MeasurementRepository(
         measuredAt: Instant = Instant.now(),
     ): StoreResult = store(
         RawScaleMeasurement(
-            deviceAddress = "manual",
+            deviceAddress = MANUAL_DEVICE_ADDRESS,
             measuredAt = measuredAt,
             weightKg = weightKg,
             impedanceOhm = impedanceOhm,
@@ -191,6 +192,10 @@ class MeasurementRepository(
     }
 
     suspend fun delete(id: String): MeasurementMutationResult {
+        val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
+        if (isProtectedLatest(current)) {
+            return MeasurementMutationResult.ProtectedLatest
+        }
         if (dao.markLocalOnly(id) == 0) return MeasurementMutationResult.NotFound
         syncScheduler.cancel(id)
         return if (dao.delete(id) > 0) {
@@ -199,6 +204,9 @@ class MeasurementRepository(
             MeasurementMutationResult.NotFound
         }
     }
+
+    suspend fun isProtectedLatest(id: String): Boolean =
+        dao.get(id)?.let { isProtectedLatest(it) } == true
 
     suspend fun retry(id: String) {
         val value = dao.get(id) ?: return
@@ -351,6 +359,33 @@ class MeasurementRepository(
         syncScheduler.cancel(current.id)
         return MeasurementMutationResult.Success
     }
+
+    fun protectedLatestId(measurements: List<MeasurementEntity>): String? {
+        val scaleAddress = scaleAddressProvider()?.takeIf(String::isNotBlank) ?: return null
+        return measurements
+            .asSequence()
+            .filter { it.isFromScale(scaleAddress) }
+            .maxWithOrNull(
+                compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochMillis)
+                    .thenBy(MeasurementEntity::createdAtEpochMillis)
+                    .thenBy(MeasurementEntity::id),
+            )
+            ?.id
+    }
+
+    private fun MeasurementEntity.isFromScale(scaleAddress: String): Boolean =
+        !deviceAddress.equals(MANUAL_DEVICE_ADDRESS, ignoreCase = true) &&
+            deviceAddress.equals(scaleAddress, ignoreCase = true)
+
+    private suspend fun isProtectedLatest(current: MeasurementEntity): Boolean {
+        val scaleAddress = scaleAddressProvider()?.takeIf(String::isNotBlank) ?: return false
+        return current.isFromScale(scaleAddress) &&
+            dao.getLatestForDevice(scaleAddress)?.id == current.id
+    }
+
+    private companion object {
+        const val MANUAL_DEVICE_ADDRESS = "manual"
+    }
 }
 
 sealed interface StoreResult {
@@ -365,6 +400,7 @@ sealed interface MeasurementMutationResult {
     data object Success : MeasurementMutationResult
     data object NotFound : MeasurementMutationResult
     data object Invalid : MeasurementMutationResult
+    data object ProtectedLatest : MeasurementMutationResult
 }
 
 private fun String.toLocalOnlyUnlessDisabled(): String =

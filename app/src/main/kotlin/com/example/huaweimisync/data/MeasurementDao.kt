@@ -54,6 +54,16 @@ interface MeasurementDao {
     @Query("SELECT * FROM measurements WHERE fingerprint = :fingerprint LIMIT 1")
     suspend fun getByFingerprint(fingerprint: String): MeasurementEntity?
 
+    @Query(
+        """
+        SELECT * FROM measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+        ORDER BY measuredAtEpochMillis DESC, createdAtEpochMillis DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun getLatestForDevice(deviceAddress: String): MeasurementEntity?
+
     @Query("SELECT * FROM measurements ORDER BY measuredAtEpochMillis DESC LIMIT :limit")
     fun observeLatest(limit: Int = 30): Flow<List<MeasurementEntity>>
 

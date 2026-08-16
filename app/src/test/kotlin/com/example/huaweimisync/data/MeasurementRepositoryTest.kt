@@ -54,6 +54,7 @@ class MeasurementRepositoryTest {
         val repository = MeasurementRepository(
             dao = dao,
             profileProvider = { null },
+            scaleAddressProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = scheduler,
             huaweiSyncEnabled = false,
@@ -163,6 +164,7 @@ class MeasurementRepositoryTest {
         val repository = MeasurementRepository(
             dao = dao,
             profileProvider = { null },
+            scaleAddressProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = scheduler,
             huaweiSyncEnabled = false,
@@ -393,6 +395,106 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun latestMeasurementFromCurrentlyLinkedScaleIsProtectedWithoutMutationOrCancellation() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val dao = FakeMeasurementDao(events)
+            val protected = measurement(
+                id = "protected",
+                measuredAt = 2_000L,
+                huaweiStatus = SyncStatus.FAILED,
+                healthConnectStatus = SyncStatus.PENDING,
+            ).copy(
+                huaweiError = "keep huawei error",
+                healthConnectError = "keep health error",
+            )
+            dao.values[protected.id] = protected
+            dao.values["newer-manual"] = measurement(
+                id = "newer-manual",
+                measuredAt = 3_000L,
+            ).copy(deviceAddress = "manual")
+            val scheduler = FakeSyncScheduler()
+            val repository = repository(
+                dao = dao,
+                scheduler = scheduler,
+                scaleAddress = "aa:bb:cc:dd:ee:ff",
+            )
+
+            assertEquals(
+                MeasurementMutationResult.ProtectedLatest,
+                repository.delete(protected.id),
+            )
+
+            assertEquals(protected, dao.values.getValue(protected.id))
+            assertTrue(events.isEmpty())
+            assertTrue(scheduler.cancelled.isEmpty())
+            assertTrue(scheduler.enqueued.isEmpty())
+        }
+
+    @Test
+    fun previousMeasurementFromLinkedScaleDeletesNormally() = runBlocking {
+        val dao = FakeMeasurementDao()
+        dao.values["previous"] = measurement(id = "previous", measuredAt = 1_000L)
+        dao.values["latest"] = measurement(id = "latest", measuredAt = 2_000L)
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler, scaleAddress = "AA:BB:CC:DD:EE:FF")
+
+        assertEquals(MeasurementMutationResult.Success, repository.delete("previous"))
+
+        assertTrue("previous" !in dao.values)
+        assertEquals(listOf("previous"), scheduler.cancelled)
+    }
+
+    @Test
+    fun manualAndDifferentScaleMeasurementsDeleteNormally() = runBlocking {
+        val deletable = listOf(
+            measurement(id = "manual", measuredAt = 3_000L).copy(deviceAddress = "manual"),
+            measurement(id = "old-scale", measuredAt = 4_000L).copy(
+                deviceAddress = "11:22:33:44:55:66",
+            ),
+        )
+
+        deletable.forEach { measurement ->
+            val dao = FakeMeasurementDao().also { it.values[measurement.id] = measurement }
+            val scheduler = FakeSyncScheduler()
+            val repository = repository(
+                dao = dao,
+                scheduler = scheduler,
+                scaleAddress = "AA:BB:CC:DD:EE:FF",
+            )
+
+            assertEquals(
+                MeasurementMutationResult.Success,
+                repository.delete(measurement.id),
+            )
+            assertTrue(dao.values.isEmpty())
+            assertEquals(listOf(measurement.id), scheduler.cancelled)
+        }
+    }
+
+    @Test
+    fun protectedMeasurementBecomesDeletableAfterNewerScaleMeasurementAppears() = runBlocking {
+        val dao = FakeMeasurementDao()
+        dao.values["previous"] = measurement(id = "previous", measuredAt = 1_000L)
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(
+            dao = dao,
+            scheduler = scheduler,
+            scaleAddress = "AA:BB:CC:DD:EE:FF",
+        )
+
+        assertEquals(
+            MeasurementMutationResult.ProtectedLatest,
+            repository.delete("previous"),
+        )
+        dao.values["newer"] = measurement(id = "newer", measuredAt = 2_000L)
+
+        assertEquals(MeasurementMutationResult.Success, repository.delete("previous"))
+        assertEquals(listOf("previous"), scheduler.cancelled)
+        assertEquals("newer", repository.protectedLatestId(dao.values.values.toList()))
+    }
+
+    @Test
     fun localOnlyMeasurementCannotBeRetriedOrReturnedToQueue() = runBlocking {
         val dao = FakeMeasurementDao()
         dao.values["local"] = measurement(
@@ -517,9 +619,11 @@ class MeasurementRepositoryTest {
         dao: MeasurementDao,
         scheduler: MeasurementSyncScheduler,
         huaweiSyncEnabled: Boolean = false,
+        scaleAddress: String? = null,
     ) = MeasurementRepository(
         dao = dao,
         profileProvider = { profile },
+        scaleAddressProvider = { scaleAddress },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         huaweiSyncEnabled = huaweiSyncEnabled,
@@ -557,6 +661,14 @@ private class FakeMeasurementDao(
 
     override suspend fun getByFingerprint(fingerprint: String): MeasurementEntity? =
         values.values.firstOrNull { it.fingerprint == fingerprint }
+
+    override suspend fun getLatestForDevice(deviceAddress: String): MeasurementEntity? = values.values
+        .filter { it.deviceAddress.equals(deviceAddress, ignoreCase = true) }
+        .maxWithOrNull(
+            compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochMillis)
+                .thenBy(MeasurementEntity::createdAtEpochMillis)
+                .thenBy(MeasurementEntity::id),
+        )
 
     override fun observeLatest(limit: Int): Flow<List<MeasurementEntity>> = flowOf(
         values.values.sortedByDescending(MeasurementEntity::measuredAtEpochMillis).take(limit),

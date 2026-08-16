@@ -201,6 +201,7 @@ data class MeasurementUiItem(
     val values: MeasurementUiValues,
     val sync: MeasurementSyncPresentation,
     val type: MeasurementUiType = MeasurementUiType.FULL,
+    val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
 ) {
     val isWeightOnly: Boolean

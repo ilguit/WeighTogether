@@ -303,6 +303,7 @@ private fun MeasurementSummaryCard(
                         )
                         DropdownMenuItem(
                             text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                            modifier = Modifier.testTag("summary-delete-measurement"),
                             leadingIcon = {
                                 Icon(
                                     imageVector = HuaweiIcons.Delete,
@@ -662,7 +663,9 @@ private fun MeasurementHistoryCard(
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
                             enabled = !item.isOperationInProgress,
-                            modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                            modifier = Modifier
+                                .heightIn(min = HuaweiDimensions.TouchTarget)
+                                .testTag("history-delete-${item.id}"),
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {
                             Icon(HuaweiIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -1150,7 +1153,9 @@ private fun DeleteMeasurementDialog(
             Button(
                 onClick = onConfirm,
                 enabled = !confirmation.isDeleting,
-                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                modifier = Modifier
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag("delete-measurement-confirm"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
