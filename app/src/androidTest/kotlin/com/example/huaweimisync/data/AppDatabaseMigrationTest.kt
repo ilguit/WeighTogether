@@ -165,6 +165,52 @@ class AppDatabaseMigrationTest {
         assertTrue(stored?.healthConnectWeightSynced == true)
     }
 
+    @Test
+    fun directionSpecificPendingQueriesIgnoreOtherProvidersLocalOnlyStatus() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        openedDatabase = database
+        val dao = database.measurementDao()
+        dao.insert(
+            fullEntity(weightOnlyEntity(200)).copy(
+                huaweiStatus = SyncStatus.LOCAL_ONLY.name,
+                healthConnectStatus = SyncStatus.FAILED.name,
+            ),
+        )
+        dao.insert(
+            fullEntity(weightOnlyEntity(201)).copy(
+                huaweiStatus = SyncStatus.BLOCKED.name,
+                healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+            ),
+        )
+
+        assertEquals(listOf("new-200"), dao.idsNeedingHealthConnectSync())
+        assertEquals(listOf("new-201"), dao.idsNeedingHuaweiSync())
+        assertEquals(listOf("new-200", "new-201"), dao.idsNeedingSync())
+    }
+
+    @Test
+    fun staleWeightOnlyEditorSnapshotCannotDowngradeConcurrentFullUpgrade() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        openedDatabase = database
+        val dao = database.measurementDao()
+        val partial = weightOnlyEntity(300)
+        dao.upsertScaleMeasurement(partial)
+
+        val staleEditedPartial = partial.copy(
+            weightKg = 69.25,
+            huaweiStatus = SyncStatus.LOCAL_ONLY.name,
+            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+        )
+        dao.upsertScaleMeasurement(fullEntity(partial))
+
+        assertEquals(0, dao.updateIfSameType(staleEditedPartial))
+        val stored = dao.get(partial.id)
+        assertEquals(MeasurementType.FULL, stored?.measurementType)
+        assertEquals(70.0, stored?.weightKg ?: 0.0, 0.0)
+        assertEquals(500, stored?.impedanceOhm)
+        assertTrue(stored?.fullValues != null)
+    }
+
     private fun weightOnlyEntity(index: Int) = MeasurementEntity(
         id = "new-$index",
         fingerprint = "AA:BB:CC:DD:EE:FF|$index|14000",

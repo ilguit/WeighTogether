@@ -115,6 +115,32 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun fullPacketUpgradePreservesLocalOnlyDirectionsWithoutSchedulingAgain() = runBlocking {
+        val dao = FakeMeasurementDao()
+        val scheduler = FakeSyncScheduler()
+        val repository = repository(dao, scheduler, huaweiSyncEnabled = true)
+        val partial = raw.copy(impedanceOhm = 0, hasImpedance = false)
+
+        val inserted = repository.store(partial) as StoreResult.Inserted
+        dao.values[inserted.value.id] = inserted.value.copy(
+            huaweiStatus = SyncStatus.LOCAL_ONLY.name,
+            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+            huaweiWeightSynced = true,
+            healthConnectWeightSynced = true,
+        )
+        val result = repository.store(raw)
+
+        assertTrue(result is StoreResult.Upgraded)
+        val upgraded = dao.values.getValue(inserted.value.id)
+        assertEquals(MeasurementType.FULL, upgraded.measurementType)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, upgraded.huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, upgraded.healthConnectStatus)
+        assertTrue(upgraded.huaweiWeightSynced)
+        assertTrue(upgraded.healthConnectWeightSynced)
+        assertEquals(listOf(inserted.value.id), scheduler.enqueued)
+    }
+
+    @Test
     fun laterWeightOnlyPacketCannotDowngradeFullRow() = runBlocking {
         val dao = FakeMeasurementDao()
         val scheduler = FakeSyncScheduler()
@@ -223,18 +249,18 @@ class MeasurementRepositoryTest {
                 metabolicAge = values.metabolicAge,
                 leanBodyMassKg = values.leanBodyMassKg,
                 huaweiStatus = SyncStatus.DISABLED.name,
-                healthConnectStatus = SyncStatus.PENDING.name,
-                huaweiError = "old huawei error",
+                healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+                huaweiError = null,
                 healthConnectError = null,
             ),
             dao.values.getValue(original.id),
         )
         assertEquals(listOf(original.id), scheduler.cancelled)
-        assertEquals(listOf(original.id), scheduler.enqueued)
+        assertTrue(scheduler.enqueued.isEmpty())
     }
 
     @Test
-    fun updateRequeuesAvailableSyncedDirections() = runBlocking {
+    fun updateKeepsExistingLocalOnlyEditSemanticsForAvailableDirections() = runBlocking {
         val dao = FakeMeasurementDao()
         dao.values["edited"] = measurement(
             id = "edited",
@@ -249,14 +275,14 @@ class MeasurementRepositoryTest {
             repository.update("edited", editedValues()),
         )
 
-        assertEquals(SyncStatus.PENDING.name, dao.values.getValue("edited").huaweiStatus)
-        assertEquals(SyncStatus.PENDING.name, dao.values.getValue("edited").healthConnectStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("edited").huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("edited").healthConnectStatus)
         assertEquals(listOf("edited"), scheduler.cancelled)
-        assertEquals(listOf("edited"), scheduler.enqueued)
+        assertTrue(scheduler.enqueued.isEmpty())
     }
 
     @Test
-    fun weightOnlyUpdatePreservesTypeFingerprintNullCompositionAndProviderFlags() = runBlocking {
+    fun weightOnlyUpdateStaysLocalAndPreservesIdentityCompositionAndProviderHistory() = runBlocking {
         val dao = FakeMeasurementDao()
         val original = measurement(
             id = "weight-only",
@@ -298,10 +324,10 @@ class MeasurementRepositoryTest {
         assertNull(updated.fullValues)
         assertTrue(updated.huaweiWeightSynced)
         assertTrue(updated.healthConnectWeightSynced)
-        assertEquals(SyncStatus.PENDING.name, updated.huaweiStatus)
-        assertEquals(SyncStatus.PENDING.name, updated.healthConnectStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, updated.huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, updated.healthConnectStatus)
         assertEquals(listOf(original.id), scheduler.cancelled)
-        assertEquals(listOf(original.id), scheduler.enqueued)
+        assertTrue(scheduler.enqueued.isEmpty())
     }
 
     @Test
@@ -390,13 +416,21 @@ class MeasurementRepositoryTest {
             huaweiStatus = SyncStatus.LOCAL_ONLY,
             healthConnectStatus = SyncStatus.FAILED,
         )
+        dao.values["opposite"] = measurement(
+            id = "opposite",
+            measuredAt = 2_000L,
+            huaweiStatus = SyncStatus.FAILED,
+            healthConnectStatus = SyncStatus.LOCAL_ONLY,
+        )
         val scheduler = FakeSyncScheduler()
         val repository = repository(dao, scheduler)
 
         repository.retry("mixed")
+        repository.retryPendingHealthConnect()
+        repository.retryPendingHuawei()
 
-        assertEquals(listOf("mixed"), scheduler.enqueued)
-        assertEquals(listOf("mixed"), dao.idsNeedingSync())
+        assertEquals(listOf("mixed", "mixed", "opposite"), scheduler.enqueued)
+        assertEquals(listOf("mixed", "opposite"), dao.idsNeedingSync())
     }
 
     @Test

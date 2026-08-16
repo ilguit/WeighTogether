@@ -51,6 +51,21 @@ class MiScalePacketParserTest {
     }
 
     @Test
+    fun stableWeightWithOutOfRangeImpedanceIsAcceptedWithoutComposition() {
+        val payload = validPayload().also {
+            it[9] = 0x4f
+            it[10] = 0x00
+        }
+        val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF")
+
+        assertNotNull(parsed)
+        assertTrue(parsed.isStableWeight)
+        assertTrue(parsed.hasImpedance)
+        assertEquals(79, parsed.impedanceOhm)
+        assertFalse(parsed.hasFullBodyComposition)
+    }
+
+    @Test
     fun stableOutOfRangeWeightIsNotAccepted() {
         val payload = validPayload().also {
             it[11] = 0x08

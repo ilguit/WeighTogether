@@ -72,6 +72,17 @@ interface MeasurementDao {
     @Update
     suspend fun update(measurement: MeasurementEntity): Int
 
+    /**
+     * Prevents an editor opened for a partial row from overwriting a concurrent BLE upgrade.
+     * Room serializes this type check and update with [upsertScaleMeasurement].
+     */
+    @Transaction
+    suspend fun updateIfSameType(measurement: MeasurementEntity): Int {
+        val current = get(measurement.id) ?: return 0
+        if (current.measurementType != measurement.measurementType) return 0
+        return update(measurement)
+    }
+
     @Query(
         """
         UPDATE measurements
@@ -155,8 +166,7 @@ interface MeasurementDao {
     @Query(
         """
         SELECT id FROM measurements
-        WHERE huaweiStatus != 'LOCAL_ONLY'
-            AND healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
+        WHERE healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
         ORDER BY measuredAtEpochMillis ASC
         """,
     )
@@ -166,7 +176,6 @@ interface MeasurementDao {
         """
         SELECT id FROM measurements
         WHERE huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
-            AND healthConnectStatus != 'LOCAL_ONLY'
         ORDER BY measuredAtEpochMillis ASC
         """,
     )

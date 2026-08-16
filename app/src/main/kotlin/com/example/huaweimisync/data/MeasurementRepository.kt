@@ -45,7 +45,7 @@ class MeasurementRepository(
                 StoreResult.Inserted(result.value)
             }
             is MeasurementUpsertResult.Upgraded -> {
-                syncScheduler.enqueue(result.value.id)
+                if (result.value.needsSync()) syncScheduler.enqueue(result.value.id)
                 StoreResult.Upgraded(result.value)
             }
             MeasurementUpsertResult.Duplicate -> StoreResult.Duplicate
@@ -137,21 +137,14 @@ class MeasurementRepository(
         current: MeasurementEntity,
         edited: MeasurementEntity,
     ): MeasurementMutationResult {
-        val huaweiStatus = current.huaweiStatus.requeueAfterEdit()
-        val healthConnectStatus = current.healthConnectStatus.requeueAfterEdit()
         val updated = edited.copy(
-            huaweiStatus = huaweiStatus,
-            healthConnectStatus = healthConnectStatus,
-            huaweiError = current.huaweiError.keepUnlessRequeued(huaweiStatus),
-            healthConnectError = current.healthConnectError.keepUnlessRequeued(healthConnectStatus),
+            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
+            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+            huaweiError = null,
+            healthConnectError = null,
         )
-        if (dao.update(updated) == 0) return MeasurementMutationResult.NotFound
+        if (dao.updateIfSameType(updated) == 0) return MeasurementMutationResult.NotFound
         syncScheduler.cancel(current.id)
-        if (huaweiStatus == SyncStatus.PENDING.name ||
-            healthConnectStatus == SyncStatus.PENDING.name
-        ) {
-            syncScheduler.enqueue(current.id)
-        }
         return MeasurementMutationResult.Success
     }
 }
@@ -170,13 +163,8 @@ sealed interface MeasurementMutationResult {
     data object Invalid : MeasurementMutationResult
 }
 
-private fun String.requeueAfterEdit(): String = when (this) {
-    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
-    else -> SyncStatus.PENDING.name
-}
-
-private fun String?.keepUnlessRequeued(status: String): String? =
-    if (status == SyncStatus.PENDING.name) null else this
+private fun String.toLocalOnlyUnlessDisabled(): String =
+    if (this == SyncStatus.DISABLED.name) this else SyncStatus.LOCAL_ONLY.name
 
 private fun String.isHuaweiRetryable(): Boolean = this !in setOf(
     SyncStatus.SYNCED.name,
@@ -188,6 +176,9 @@ private fun String.isHealthRetryable(): Boolean = this !in setOf(
     SyncStatus.SYNCED.name,
     SyncStatus.LOCAL_ONLY.name,
 )
+
+private fun MeasurementEntity.needsSync(): Boolean =
+    huaweiStatus.isHuaweiRetryable() || healthConnectStatus.isHealthRetryable()
 
 private fun MeasurementValues.isValid(): Boolean {
     val doubleValues = listOf(

@@ -70,6 +70,31 @@ class BodyCompositionCalculatorTest {
     }
 
     @Test
+    fun fingerprintUsesNormalizedMacScaleSecondAndRawWeightOnly() {
+        val candidate = raw.copy(
+            deviceAddress = "aa:bb:cc:dd:ee:ff",
+            measuredAt = Instant.parse("2026-08-11T12:34:56.987Z"),
+            rawWeight = 14_001,
+        )
+
+        assertEquals(
+            "AA:BB:CC:DD:EE:FF|1786451696|14001",
+            measurementFingerprint(candidate),
+        )
+        assertEquals(
+            measurementFingerprint(candidate),
+            measurementFingerprint(
+                candidate.copy(
+                    impedanceOhm = 2_999,
+                    isStable = false,
+                    hasImpedance = false,
+                    rawPayload = ByteArray(13) { 0x7f },
+                ),
+            ),
+        )
+    }
+
+    @Test
     fun rejectsUnstableMeasurement() {
         assertFailsWith<IllegalArgumentException> {
             calculator.calculate(raw.copy(isStable = false), profile)
