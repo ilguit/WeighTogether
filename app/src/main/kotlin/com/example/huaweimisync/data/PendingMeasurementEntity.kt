@@ -3,9 +3,11 @@ package com.example.huaweimisync.data
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Instant
+import kotlin.math.roundToInt
 
 @Entity(
     tableName = "pending_measurements",
@@ -26,6 +28,7 @@ data class PendingMeasurementEntity(
     val rawPayload: ByteArray,
     val deduplicationHash: String,
     val enqueuedAtEpochMillis: Long,
+    val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
 ) {
     fun toDomain(): PendingMeasurement = PendingMeasurement(
         id = PendingMeasurementId(id),
@@ -38,6 +41,7 @@ data class PendingMeasurementEntity(
         rawPayload = rawPayload.copyOf(),
         deduplicationHash = deduplicationHash,
         enqueuedAt = Instant.ofEpochMilli(enqueuedAtEpochMillis),
+        rawWeight = rawWeight,
     )
 }
 

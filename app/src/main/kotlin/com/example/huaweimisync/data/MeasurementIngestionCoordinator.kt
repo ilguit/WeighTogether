@@ -96,7 +96,7 @@ class MeasurementIngestionCoordinator(
     private val matchingEngine: MatchingEngine = MatchingEngine(),
 ) {
     suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
-        if (!raw.isFinal) return MeasurementIngestionResult.IgnoredNotFinal
+        if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
         return when (val enqueued = persistence.enqueue(raw)) {
             is PendingPersistenceResult.Inserted -> route(enqueued.pending)
@@ -164,8 +164,11 @@ class MeasurementIngestionCoordinator(
         oneShotProfile: AccountProfile.Complete? = null,
     ): PendingMeasurementPreview? {
         val pending = persistence.getPending(pendingId) ?: return null
-        val composition = oneShotProfile?.toUserProfileOrNull()?.let { profile ->
-            calculator.calculate(pending.toRawScaleMeasurement(), profile)
+        val raw = pending.toRawScaleMeasurement()
+        val composition = oneShotProfile?.toUserProfileOrNull()?.takeIf {
+            raw.hasFullBodyComposition
+        }?.let { profile ->
+            calculator.calculate(raw, profile)
         }
         return PendingMeasurementPreview(pending, composition)
     }
@@ -250,6 +253,6 @@ class MeasurementIngestionCoordinator(
         if (settings.primaryAccountId != measurement.accountId) return
         val account = accounts.getAccount(measurement.accountId) ?: return
         if (!account.profile.isComplete) return
-        syncScheduler.enqueue(measurement.composition.measurementId)
+        syncScheduler.enqueue(measurement.measurementId)
     }
 }

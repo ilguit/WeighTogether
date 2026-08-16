@@ -166,7 +166,7 @@ fun calculateUnsavedPreview(
     val measurementDate = pending.measuredAt.atZone(zoneId).toLocalDate()
     val profile = validateUnsavedPreviewProfile(draft, measurementDate).profile ?: return null
     val raw = pending.toRawScaleMeasurement()
-    if (!raw.isFinal) return null
+    if (!raw.hasFullBodyComposition) return null
     return UnsavedPreviewResult(
         composition = calculator.calculate(raw, profile),
     )

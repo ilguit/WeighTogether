@@ -639,7 +639,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
         val parsed = container.packetParser.parse(payload, address) ?: return
-        if (!parsed.isFinal) return
+        if (!parsed.isStableWeight) return
 
         val name = runCatching { result.device.name }.getOrNull()
         container.profileStore.saveScale(address, name)

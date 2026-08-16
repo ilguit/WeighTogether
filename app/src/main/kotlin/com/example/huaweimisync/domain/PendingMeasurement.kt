@@ -2,6 +2,7 @@ package com.example.huaweimisync.domain
 
 import com.example.huaweimisync.core.RawScaleMeasurement
 import java.time.Instant
+import kotlin.math.roundToInt
 
 @JvmInline
 value class PendingMeasurementId(val value: String) {
@@ -24,6 +25,7 @@ data class PendingMeasurement(
     val rawPayload: ByteArray,
     val deduplicationHash: String,
     val enqueuedAt: Instant,
+    val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
 ) {
     init {
         require(deviceAddress.isNotBlank()) { "Device address must not be blank" }
@@ -41,6 +43,7 @@ data class PendingMeasurement(
             isStable == other.isStable &&
             hasImpedance == other.hasImpedance &&
             rawPayload.contentEquals(other.rawPayload) &&
+            rawWeight == other.rawWeight &&
             deduplicationHash == other.deduplicationHash &&
             enqueuedAt == other.enqueuedAt
 
@@ -53,6 +56,7 @@ data class PendingMeasurement(
         result = 31 * result + isStable.hashCode()
         result = 31 * result + hasImpedance.hashCode()
         result = 31 * result + rawPayload.contentHashCode()
+        result = 31 * result + rawWeight
         result = 31 * result + deduplicationHash.hashCode()
         result = 31 * result + enqueuedAt.hashCode()
         return result
@@ -74,6 +78,7 @@ fun RawScaleMeasurement.toPendingMeasurement(
     rawPayload = rawPayload.copyOf(),
     deduplicationHash = deduplicationHash,
     enqueuedAt = enqueuedAt,
+    rawWeight = rawWeight,
 )
 
 fun PendingMeasurement.toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMeasurement(
@@ -84,4 +89,5 @@ fun PendingMeasurement.toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMe
     isStable = isStable,
     hasImpedance = hasImpedance,
     rawPayload = rawPayload.copyOf(),
+    rawWeight = rawWeight,
 )

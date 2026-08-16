@@ -81,8 +81,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val EditorWarning =
-    "Изменится только локальная запись. Ранее отправленные данные в Health Connect и " +
-        "Huawei Health останутся без изменений."
+    "Изменение сохранится в истории. Доступные направления синхронизации будут поставлены в очередь."
+private const val MissingMeasurementValue = "—"
 
 private val historyAdditionalFields = MeasurementField.entries.filterNot { field ->
     field in setOf(
@@ -340,6 +340,14 @@ private fun MeasurementSummaryCard(
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
+            if (summary.latest.isWeightOnly) {
+                Text(
+                    text = "Только вес",
+                    modifier = Modifier.testTag("summary-weight-only-label"),
+                    color = MaterialTheme.colorScheme.secondary,
+                    style = MaterialTheme.typography.labelLarge,
+                )
+            }
             Text(
                 text = formatWeightDelta(summary.weightDeltaKg),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -579,6 +587,14 @@ private fun MeasurementHistoryCard(
                             text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
                             style = MaterialTheme.typography.titleMedium,
                         )
+                        if (item.isWeightOnly) {
+                            Text(
+                                text = "Только вес",
+                                modifier = Modifier.testTag("history-weight-only-label-${item.id}"),
+                                color = MaterialTheme.colorScheme.secondary,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                        }
                         Text(
                             text = historySubtitle(item),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -871,6 +887,14 @@ private fun MeasurementEditorScreen(
                         formatMeasurementDateTime(editor.measuredAtEpochMillis),
                         style = MaterialTheme.typography.titleSmall,
                     )
+                    if (editor.isWeightOnly) {
+                        Text(
+                            text = "Только вес",
+                            modifier = Modifier.testTag("editor-weight-only-label"),
+                            color = MaterialTheme.colorScheme.secondary,
+                            style = MaterialTheme.typography.labelLarge,
+                        )
+                    }
                     Text(
                         "Дата, устройство и исходные данные не изменяются. " +
                             "Производные значения не пересчитываются.",
@@ -1172,12 +1196,22 @@ private val MeasurementSyncPresentationState.contentColor: Color
     }
 
 private fun historySubtitle(item: MeasurementUiItem): String = listOf(
-    "Жир ${formatDisplayValue(MeasurementField.BODY_FAT_PERCENT, item.values.bodyFatPercent)}%",
-    "мышцы ${formatDisplayValue(MeasurementField.MUSCLE_MASS_KG, item.values.muscleMassKg)} кг",
-    "ИМТ ${formatDisplayValue(MeasurementField.BMI, item.values.bmi)}",
+    MeasurementMetricPresentation(
+        MeasurementField.BODY_FAT_PERCENT,
+        item.values.bodyFatPercent,
+    ).displayValue().let { "Жир $it" },
+    MeasurementMetricPresentation(
+        MeasurementField.MUSCLE_MASS_KG,
+        item.values.muscleMassKg,
+    ).displayValue().let { "мышцы $it" },
+    MeasurementMetricPresentation(
+        MeasurementField.BMI,
+        item.values.bmi,
+    ).displayValue().let { "ИМТ $it" },
 ).joinToString(" · ")
 
 private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
+    if (value == null) return MissingMeasurementValue
     val formatted = formatDisplayValue(field, value, locale)
     return when (unit) {
         "" -> formatted
@@ -1198,13 +1232,16 @@ private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault
 
 private fun formatDisplayValue(
     field: MeasurementField,
-    value: Double,
+    value: Double?,
     locale: Locale = Locale.getDefault(),
-): String = NumberFormat.getNumberInstance(locale).run {
-    minimumFractionDigits = 0
-    maximumFractionDigits = field.decimalPlaces
-    isGroupingUsed = true
-    format(value)
+): String {
+    if (value == null) return MissingMeasurementValue
+    return NumberFormat.getNumberInstance(locale).run {
+        minimumFractionDigits = 0
+        maximumFractionDigits = field.decimalPlaces
+        isGroupingUsed = true
+        format(value)
+    }
 }
 
 fun formatMeasurementDateTime(

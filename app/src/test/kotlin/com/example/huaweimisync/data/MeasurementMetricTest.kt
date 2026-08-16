@@ -37,22 +37,7 @@ class MeasurementMetricTest {
     fun entityValuesRoundTripsAllEditableFields() {
         val entity = measurementForMetricTest()
 
-        assertEquals(entity.weightKg, entity.values.weightKg, 0.0)
-        assertEquals(entity.impedanceOhm, entity.values.impedanceOhm)
-        assertEquals(entity.bmi, entity.values.bmi, 0.0)
-        assertEquals(entity.bodyFatPercent, entity.values.bodyFatPercent, 0.0)
-        assertEquals(entity.bodyFatMassKg, entity.values.bodyFatMassKg, 0.0)
-        assertEquals(entity.waterPercent, entity.values.waterPercent, 0.0)
-        assertEquals(entity.waterMassKg, entity.values.waterMassKg, 0.0)
-        assertEquals(entity.muscleMassKg, entity.values.muscleMassKg, 0.0)
-        assertEquals(entity.skeletalMuscleMassKg, entity.values.skeletalMuscleMassKg, 0.0)
-        assertEquals(entity.boneMassKg, entity.values.boneMassKg, 0.0)
-        assertEquals(entity.proteinPercent, entity.values.proteinPercent, 0.0)
-        assertEquals(entity.proteinMassKg, entity.values.proteinMassKg, 0.0)
-        assertEquals(entity.visceralFatLevel, entity.values.visceralFatLevel, 0.0)
-        assertEquals(entity.basalMetabolicRateKcal, entity.values.basalMetabolicRateKcal, 0.0)
-        assertEquals(entity.metabolicAge, entity.values.metabolicAge)
-        assertEquals(entity.leanBodyMassKg, entity.values.leanBodyMassKg, 0.0)
+        assertEquals(entity.fullValues, entity.values)
     }
 }
 

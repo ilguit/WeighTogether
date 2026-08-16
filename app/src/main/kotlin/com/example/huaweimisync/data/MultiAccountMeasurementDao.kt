@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -19,6 +20,12 @@ interface MultiAccountMeasurementDao {
 
     @Query("SELECT * FROM measurements WHERE deduplicationHash = :deduplicationHash")
     suspend fun getByDeduplicationHash(deduplicationHash: String): MeasurementEntity?
+
+    @Query("SELECT * FROM measurements WHERE fingerprint = :fingerprint LIMIT 1")
+    suspend fun getByFingerprint(fingerprint: String): MeasurementEntity?
+
+    @Update
+    suspend fun update(measurement: MeasurementEntity): Int
 
     @Query(
         "SELECT * FROM measurements " +

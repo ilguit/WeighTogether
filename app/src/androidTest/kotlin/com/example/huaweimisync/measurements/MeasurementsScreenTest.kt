@@ -3,8 +3,10 @@ package com.example.huaweimisync.measurements
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -107,6 +109,60 @@ class MeasurementsScreenTest {
         assertEquals("latest", retriedId)
     }
 
+    @Test
+    fun weightOnlySummaryShowsLabelAndDashesForMissingMetrics() {
+        val latest = sampleItem(
+            id = "weight-only",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = syncedSync(),
+            type = MeasurementUiType.WEIGHT_ONLY,
+            values = weightOnlyValues(72.4),
+        )
+        val previous = sampleItem("previous", "2026-08-13T11:58:00Z", 72.8, syncedSync())
+        val measurements = listOf(latest, previous)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = measurements,
+            summary = buildMeasurementSummary(measurements),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithTag("summary-weight-only-label").assertIsDisplayed()
+        composeRule.onNodeWithText("Только вес").assertIsDisplayed()
+        composeRule.onAllNodesWithText("—").assertCountEquals(4)
+    }
+
+    @Test
+    fun weightOnlyEditorContainsOnlyWeightField() {
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.EDITOR,
+            isLoading = false,
+            editor = MeasurementEditorState(
+                measurementId = "weight-only",
+                measuredAtEpochMillis = Instant.parse("2026-08-15T12:42:00Z").toEpochMilli(),
+                draft = MeasurementEditorDraft.fromWeight(72.4),
+                type = MeasurementUiType.WEIGHT_ONLY,
+            ),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithTag("editor-weight-only-label").assertIsDisplayed()
+        composeRule.onNodeWithTag("editor-field-WEIGHT_KG").assertIsDisplayed()
+        composeRule.onNodeWithTag("editor-field-IMPEDANCE_OHM").assertDoesNotExist()
+        composeRule.onNodeWithText("Состав тела").assertDoesNotExist()
+    }
+
     private fun callbacks(
         onHistoryRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
@@ -137,28 +193,52 @@ class MeasurementsScreenTest {
         instant: String,
         weight: Double,
         sync: MeasurementSyncPresentation,
+        type: MeasurementUiType = MeasurementUiType.FULL,
+        values: MeasurementUiValues = sampleValues(weight),
     ) = MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = Instant.parse(instant).toEpochMilli(),
-        values = MeasurementUiValues(
-            weightKg = weight,
-            impedanceOhm = 512,
-            bmi = 22.9,
-            bodyFatPercent = 18.7,
-            bodyFatMassKg = 13.5,
-            waterPercent = 57.3,
-            waterMassKg = 41.5,
-            muscleMassKg = 54.1,
-            skeletalMuscleMassKg = 29.8,
-            boneMassKg = 3.2,
-            proteinPercent = 18.2,
-            proteinMassKg = 13.2,
-            visceralFatLevel = 7.0,
-            basalMetabolicRateKcal = 1_568.0,
-            metabolicAge = 31,
-            leanBodyMassKg = 58.9,
-        ),
+        values = values,
         sync = sync,
+        type = type,
+    )
+
+    private fun sampleValues(weight: Double) = MeasurementUiValues(
+        weightKg = weight,
+        impedanceOhm = 512,
+        bmi = 22.9,
+        bodyFatPercent = 18.7,
+        bodyFatMassKg = 13.5,
+        waterPercent = 57.3,
+        waterMassKg = 41.5,
+        muscleMassKg = 54.1,
+        skeletalMuscleMassKg = 29.8,
+        boneMassKg = 3.2,
+        proteinPercent = 18.2,
+        proteinMassKg = 13.2,
+        visceralFatLevel = 7.0,
+        basalMetabolicRateKcal = 1_568.0,
+        metabolicAge = 31,
+        leanBodyMassKg = 58.9,
+    )
+
+    private fun weightOnlyValues(weight: Double) = MeasurementUiValues(
+        weightKg = weight,
+        impedanceOhm = null,
+        bmi = null,
+        bodyFatPercent = null,
+        bodyFatMassKg = null,
+        waterPercent = null,
+        waterMassKg = null,
+        muscleMassKg = null,
+        skeletalMuscleMassKg = null,
+        boneMassKg = null,
+        proteinPercent = null,
+        proteinMassKg = null,
+        visceralFatLevel = null,
+        basalMetabolicRateKcal = null,
+        metabolicAge = null,
+        leanBodyMassKg = null,
     )
 
     private fun syncedSync() = MeasurementSyncPresentation(

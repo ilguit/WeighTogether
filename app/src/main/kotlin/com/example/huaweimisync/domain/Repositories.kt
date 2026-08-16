@@ -43,9 +43,11 @@ interface AccountSettingsWriter {
 
 data class AccountMeasurement(
     val accountId: AccountId,
-    val composition: BodyComposition,
+    val composition: BodyComposition?,
     val externalSyncPolicy: ExternalSyncPolicy,
     val createdAt: Instant,
+    val measurementId: String = requireNotNull(composition).measurementId,
+    val weightKg: Double = requireNotNull(composition).weightKg,
 )
 
 sealed interface PendingEnqueueResult {

@@ -57,11 +57,30 @@ class MeasurementsPresentationTest {
     }
 
     @Test
-    fun syncAggregateUsesLocalErrorPendingSyncedPriority() {
+    fun weightOnlySummaryKeepsWeightDeltaAndExposesMissingCompositionAsNull() {
+        val previous = sampleItem(id = "previous", measuredAt = 100L, weightKg = 72.8)
+        val latest = sampleItem(
+            id = "latest",
+            measuredAt = 200L,
+            weightKg = 72.4,
+            type = MeasurementUiType.WEIGHT_ONLY,
+            values = weightOnlyValues(72.4),
+        )
+
+        val summary = buildMeasurementSummary(listOf(previous, latest))!!
+
+        assertTrue(summary.latest.isWeightOnly)
+        assertEquals(-0.4, summary.weightDeltaKg!!, 0.000_001)
+        assertTrue(summary.keyMetrics.all { it.value == null })
+        assertTrue(summary.additionalMetrics.all { it.value == null })
+    }
+
+    @Test
+    fun syncAggregateUsesAvailableErrorPendingSyncedPriority() {
         val localWithError = sync(health = "FAILED", huawei = "LOCAL_ONLY")
 
-        assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, localWithError.state)
-        assertFalse(localWithError.canRetry)
+        assertEquals(MeasurementSyncPresentationState.ERROR, localWithError.state)
+        assertTrue(localWithError.canRetry)
         assertEquals(
             MeasurementSyncPresentationState.ERROR,
             sync(health = "PENDING", huawei = "BLOCKED").state,
@@ -117,11 +136,33 @@ class MeasurementsPresentationTest {
         id: String = "measurement",
         measuredAt: Long = 100L,
         weightKg: Double = 72.4,
+        type: MeasurementUiType = MeasurementUiType.FULL,
+        values: MeasurementUiValues = sampleValues(weightKg),
     ) = MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = measuredAt,
-        values = sampleValues(weightKg),
+        values = values,
         sync = sync(health = "SYNCED", huawei = "DISABLED"),
+        type = type,
+    )
+
+    private fun weightOnlyValues(weightKg: Double) = MeasurementUiValues(
+        weightKg = weightKg,
+        impedanceOhm = null,
+        bmi = null,
+        bodyFatPercent = null,
+        bodyFatMassKg = null,
+        waterPercent = null,
+        waterMassKg = null,
+        muscleMassKg = null,
+        skeletalMuscleMassKg = null,
+        boneMassKg = null,
+        proteinPercent = null,
+        proteinMassKg = null,
+        visceralFatLevel = null,
+        basalMetabolicRateKcal = null,
+        metabolicAge = null,
+        leanBodyMassKg = null,
     )
 
     private fun sampleValues(weightKg: Double) = MeasurementUiValues(

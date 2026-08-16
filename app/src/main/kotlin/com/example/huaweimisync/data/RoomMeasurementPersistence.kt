@@ -3,6 +3,7 @@ package com.example.huaweimisync.data
 import androidx.room.withTransaction
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
@@ -130,12 +131,30 @@ class RoomMeasurementPersistence(
                 return@withTransaction PendingPersistenceResult.Tombstoned
             }
             measurementDao.getByDeduplicationHash(hash)?.let { finalized ->
+                val current = upgradeFinalizedIfNeeded(finalized, raw)
                 return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                    finalized.toAccountMeasurement(),
+                    current.toAccountMeasurement(),
+                )
+            }
+            measurementDao.getByFingerprint(measurementFingerprint(raw))?.let { finalized ->
+                val current = upgradeFinalizedIfNeeded(finalized, raw)
+                return@withTransaction PendingPersistenceResult.AlreadyFinalized(
+                    current.toAccountMeasurement(),
                 )
             }
             pendingDao.getByHash(hash)?.let { pending ->
-                return@withTransaction PendingPersistenceResult.AlreadyPending(pending.toDomain())
+                val current = if (!pending.hasFullBodyComposition() && raw.hasFullBodyComposition) {
+                    pending.copy(
+                        impedanceOhm = raw.impedanceOhm,
+                        isStable = raw.isStable,
+                        hasImpedance = raw.hasImpedance,
+                        rawPayload = raw.rawPayload.copyOf(),
+                        rawWeight = raw.rawWeight,
+                    ).also { upgraded -> check(pendingDao.update(upgraded) == 1) }
+                } else {
+                    pending
+                }
+                return@withTransaction PendingPersistenceResult.AlreadyPending(current.toDomain())
             }
             val entity = PendingMeasurementEntity(
                 id = newId(),
@@ -149,6 +168,7 @@ class RoomMeasurementPersistence(
                 rawPayload = raw.rawPayload.copyOf(),
                 deduplicationHash = hash,
                 enqueuedAtEpochMillis = timestampMillis,
+                rawWeight = raw.rawWeight,
             )
             if (pendingDao.insert(entity) == -1L) {
                 val concurrent = requireNotNull(pendingDao.getByHash(hash))
@@ -252,15 +272,26 @@ class RoomMeasurementPersistence(
         } else {
             ExternalSyncPolicy.ACCOUNT_LOCAL
         }
-        val composition = calculator.calculate(pending.toDomain().toRawScaleMeasurement(), profile)
-        var measurement = composition.toEntity(
-            rawPayload = pending.rawPayload,
-            huaweiSyncEnabled = huaweiSyncEnabled,
-            accountId = accountId,
-            externalSyncPolicy = policy,
-            sourcePendingId = pending.id,
-            deduplicationHash = pending.deduplicationHash,
-        ).copy(createdAtEpochMillis = now().toEpochMilli())
+        val raw = pending.toDomain().toRawScaleMeasurement()
+        var measurement = if (raw.hasFullBodyComposition) {
+            calculator.calculate(raw, profile).toEntity(
+                rawPayload = pending.rawPayload,
+                fingerprint = measurementFingerprint(raw),
+                huaweiSyncEnabled = huaweiSyncEnabled,
+                accountId = accountId,
+                externalSyncPolicy = policy,
+                sourcePendingId = pending.id,
+                deduplicationHash = pending.deduplicationHash,
+            )
+        } else {
+            raw.toWeightOnlyEntity(
+                huaweiSyncEnabled = huaweiSyncEnabled,
+                accountId = accountId,
+                externalSyncPolicy = policy,
+                sourcePendingId = pending.id,
+                deduplicationHash = pending.deduplicationHash,
+            )
+        }.copy(createdAtEpochMillis = now().toEpochMilli())
         if (policy == ExternalSyncPolicy.ACCOUNT_LOCAL) {
             measurement = measurement.copy(
                 huaweiStatus = if (huaweiSyncEnabled) {
@@ -287,6 +318,45 @@ class RoomMeasurementPersistence(
         return FinalizePendingResult.Finalized(measurement.toAccountMeasurement())
     }
 
+    private suspend fun upgradeFinalizedIfNeeded(
+        current: MeasurementEntity,
+        raw: RawScaleMeasurement,
+    ): MeasurementEntity {
+        if (current.measurementType != MeasurementType.WEIGHT_ONLY ||
+            !raw.hasFullBodyComposition
+        ) {
+            return current
+        }
+        val account = accountDao.get(current.accountId) ?: return current
+        val profile = account.toDomain().profile.toUserProfileOrNull() ?: return current
+        val composition = calculator.calculate(raw, profile)
+        val candidate = composition.toEntity(
+            rawPayload = raw.rawPayload,
+            fingerprint = current.fingerprint,
+            huaweiSyncEnabled = huaweiSyncEnabled,
+            accountId = AccountId(current.accountId),
+            externalSyncPolicy = ExternalSyncPolicy.valueOf(current.externalSyncPolicy),
+            sourcePendingId = current.sourcePendingId,
+            deduplicationHash = current.deduplicationHash,
+        )
+        val upgraded = candidate.copy(
+            id = current.id,
+            huaweiStatus = current.huaweiStatus.requeueUnlessTerminal(),
+            healthConnectStatus = current.healthConnectStatus.requeueUnlessTerminal(),
+            huaweiError = current.huaweiError.preserveForTerminalStatus(current.huaweiStatus),
+            healthConnectError = current.healthConnectError.preserveForTerminalStatus(
+                current.healthConnectStatus,
+            ),
+            huaweiWeightSynced = current.huaweiWeightSynced,
+            healthConnectWeightSynced = current.healthConnectWeightSynced,
+            createdAtEpochMillis = current.createdAtEpochMillis,
+        )
+        check(measurementDao.update(upgraded) == 1) {
+            "Finalized measurement disappeared during full-composition upgrade"
+        }
+        return upgraded
+    }
+
     companion object {
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
     }
@@ -298,13 +368,24 @@ fun RawScaleMeasurement.deduplicationHash(): String {
         append('|')
         append(measuredAt.epochSecond)
         append('|')
-        append((weightKg * 1_000).roundToInt())
-        append('|')
-        append(impedanceOhm)
+        append(rawWeight)
     }
     return MessageDigest.getInstance("SHA-256")
         .digest(material.toByteArray(StandardCharsets.UTF_8))
         .joinToString("") { byte -> "%02x".format(byte) }
+}
+
+private fun PendingMeasurementEntity.hasFullBodyComposition(): Boolean =
+    toDomain().toRawScaleMeasurement().hasFullBodyComposition
+
+private fun String.requeueUnlessTerminal(): String = when (this) {
+    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
+    else -> SyncStatus.PENDING.name
+}
+
+private fun String?.preserveForTerminalStatus(status: String): String? = when (status) {
+    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
+    else -> null
 }
 
 /** Smallest epoch-millisecond timestamp which is not before this instant. */

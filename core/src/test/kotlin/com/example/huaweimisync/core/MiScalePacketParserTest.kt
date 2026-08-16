@@ -17,7 +17,8 @@ class MiScalePacketParserTest {
         val parsed = parser.parse(validPayload(), "aa:bb:cc:dd:ee:ff")
 
         assertNotNull(parsed)
-        assertTrue(parsed.isFinal)
+        assertTrue(parsed.isStableWeight)
+        assertTrue(parsed.hasFullBodyComposition)
         assertEquals("AA:BB:CC:DD:EE:FF", parsed.deviceAddress)
         assertEquals(70.0, parsed.weightKg, 0.0001)
         assertEquals(500, parsed.impedanceOhm)
@@ -30,21 +31,51 @@ class MiScalePacketParserTest {
     }
 
     @Test
-    fun unstableMeasurementIsNotFinal() {
+    fun unstableMeasurementIsNotAccepted() {
         val payload = validPayload().also { it[1] = 0x02 }
         val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF")
 
         assertNotNull(parsed)
-        assertFalse(parsed.isFinal)
+        assertFalse(parsed.isStableWeight)
+        assertFalse(parsed.hasFullBodyComposition)
     }
 
     @Test
-    fun stableWeightWithoutImpedanceIsNotFinal() {
+    fun stableWeightWithoutImpedanceIsAcceptedWithoutComposition() {
         val payload = validPayload().also { it[1] = 0x20 }
         val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF")
 
         assertNotNull(parsed)
-        assertFalse(parsed.isFinal)
+        assertTrue(parsed.isStableWeight)
+        assertFalse(parsed.hasFullBodyComposition)
+    }
+
+    @Test
+    fun stableWeightWithOutOfRangeImpedanceIsAcceptedWithoutComposition() {
+        val payload = validPayload().also {
+            it[9] = 0x4f
+            it[10] = 0x00
+        }
+        val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF")
+
+        assertNotNull(parsed)
+        assertTrue(parsed.isStableWeight)
+        assertTrue(parsed.hasImpedance)
+        assertEquals(79, parsed.impedanceOhm)
+        assertFalse(parsed.hasFullBodyComposition)
+    }
+
+    @Test
+    fun stableOutOfRangeWeightIsNotAccepted() {
+        val payload = validPayload().also {
+            it[11] = 0x08
+            it[12] = 0x07
+        }
+        val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF")
+
+        assertNotNull(parsed)
+        assertEquals(9.0, parsed.weightKg, 0.0001)
+        assertFalse(parsed.isStableWeight)
     }
 
     @Test
@@ -69,4 +100,3 @@ class MiScalePacketParserTest {
         0xb0.toByte(), 0x36,
     )
 }
-

@@ -13,7 +13,7 @@ data class MeasurementFieldValidation(
 class MeasurementEditorDraft private constructor(
     private val inputs: Map<MeasurementField, String>,
 ) {
-    operator fun get(field: MeasurementField): String = inputs.getValue(field)
+    operator fun get(field: MeasurementField): String = inputs[field].orEmpty()
 
     fun withValue(field: MeasurementField, value: String): MeasurementEditorDraft =
         MeasurementEditorDraft(inputs + (field to value))
@@ -22,16 +22,17 @@ class MeasurementEditorDraft private constructor(
         field.validateInput(get(field))
 
     val isValid: Boolean
-        get() = MeasurementField.entries.all { validation(it).isValid }
+        get() = inputs.keys.all { validation(it).isValid }
 
     fun parsedValuesOrNull(): MeasurementUiValues? {
         if (!isValid) return null
 
-        fun value(field: MeasurementField): Double = validation(field).parsedValue!!
+        fun value(field: MeasurementField): Double? =
+            inputs[field]?.let { validation(field).parsedValue }
 
         return MeasurementUiValues(
-            weightKg = value(MeasurementField.WEIGHT_KG),
-            impedanceOhm = value(MeasurementField.IMPEDANCE_OHM).toInt(),
+            weightKg = value(MeasurementField.WEIGHT_KG)!!,
+            impedanceOhm = value(MeasurementField.IMPEDANCE_OHM)?.toInt(),
             bmi = value(MeasurementField.BMI),
             bodyFatPercent = value(MeasurementField.BODY_FAT_PERCENT),
             bodyFatMassKg = value(MeasurementField.BODY_FAT_MASS_KG),
@@ -44,7 +45,7 @@ class MeasurementEditorDraft private constructor(
             proteinMassKg = value(MeasurementField.PROTEIN_MASS_KG),
             visceralFatLevel = value(MeasurementField.VISCERAL_FAT_LEVEL),
             basalMetabolicRateKcal = value(MeasurementField.BASAL_METABOLIC_RATE_KCAL),
-            metabolicAge = value(MeasurementField.METABOLIC_AGE).toInt(),
+            metabolicAge = value(MeasurementField.METABOLIC_AGE)?.toInt(),
             leanBodyMassKg = value(MeasurementField.LEAN_BODY_MASS_KG),
         )
     }
@@ -58,7 +59,13 @@ class MeasurementEditorDraft private constructor(
 
     companion object {
         fun from(values: MeasurementUiValues): MeasurementEditorDraft = MeasurementEditorDraft(
-            MeasurementField.entries.associateWith { field -> field.editorText(values[field]) },
+            MeasurementField.entries.associateWith { field ->
+                values[field]?.let(field::editorText).orEmpty()
+            },
+        )
+
+        fun fromWeight(weightKg: Double): MeasurementEditorDraft = MeasurementEditorDraft(
+            mapOf(MeasurementField.WEIGHT_KG to MeasurementField.WEIGHT_KG.editorText(weightKg)),
         )
 
         fun fromInputs(inputs: Map<MeasurementField, String>): MeasurementEditorDraft =

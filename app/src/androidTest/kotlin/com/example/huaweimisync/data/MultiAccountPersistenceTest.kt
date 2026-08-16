@@ -65,7 +65,7 @@ class MultiAccountPersistenceTest {
             as FinalizePendingResult.Finalized
         assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL, finalized.measurement.externalSyncPolicy)
         var stored = database.multiAccountMeasurementDao().get(
-            finalized.measurement.composition.measurementId,
+            finalized.measurement.measurementId,
         )!!
         assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, stored.healthConnectStatus)
@@ -75,7 +75,7 @@ class MultiAccountPersistenceTest {
         val userLocalFinalized = persistence.finalizePending(userLocalPending.pending.id, second.id)
             as FinalizePendingResult.Finalized
         val userLocal = database.multiAccountMeasurementDao().get(
-            userLocalFinalized.measurement.composition.measurementId,
+            userLocalFinalized.measurement.measurementId,
         )!!.copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
@@ -128,14 +128,14 @@ class MultiAccountPersistenceTest {
         val terminal = persistence.finalizePending(terminalPending.pending.id, first.id)
             as FinalizePendingResult.Finalized
         val terminalEntity = database.multiAccountMeasurementDao().get(
-            terminal.measurement.composition.measurementId,
+            terminal.measurement.measurementId,
         )!!.copy(healthConnectStatus = SyncStatus.SYNCED.name)
         assertEquals(1, database.measurementDao().update(terminalEntity))
 
         accounts.setPrimaryAccount(second.id, PrimaryHistorySyncMode.FUTURE_ONLY)
 
         var unfinishedEntity = database.multiAccountMeasurementDao().get(
-            unfinished.measurement.composition.measurementId,
+            unfinished.measurement.measurementId,
         )!!
         assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL.name, unfinishedEntity.externalSyncPolicy)
         assertEquals(SyncStatus.DISABLED.name, unfinishedEntity.huaweiStatus)
@@ -216,7 +216,7 @@ class MultiAccountPersistenceTest {
                 account.id,
                 Instant.parse("2026-08-15T10:00:01.000000001Z"),
                 Instant.parse("2026-08-15T10:00:03.123456789Z"),
-            ).first().map { it.composition.weightKg },
+            ).first().map { it.weightKg },
         )
     }
 

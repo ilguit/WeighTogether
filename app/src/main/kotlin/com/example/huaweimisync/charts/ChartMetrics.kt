@@ -1,5 +1,6 @@
 package com.example.huaweimisync.charts
 
+import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementMetric
 
 val DefaultChartMetricKeys: Set<String> = linkedSetOf(
@@ -15,6 +16,18 @@ fun chartMetricOptions(): List<ChartMetricOption> = MeasurementMetric.entries.ma
         decimalPlaces = metric.decimalPlaces,
         deltaUnit = if (metric.unit == PercentUnit) PercentagePointUnit else metric.unit,
     )
+}
+
+fun chartPointsForMetric(
+    measurements: List<MeasurementEntity>,
+    metric: MeasurementMetric,
+): List<ChartPoint> = measurements.mapNotNull { measurement ->
+    metric.valueOf(measurement)?.let { value ->
+        ChartPoint(
+            measuredAtEpochMillis = measurement.measuredAtEpochMillis,
+            value = value,
+        )
+    }
 }
 
 /**

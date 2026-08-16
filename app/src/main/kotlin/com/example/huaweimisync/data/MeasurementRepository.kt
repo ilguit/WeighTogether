@@ -3,6 +3,7 @@ package com.example.huaweimisync.data
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountProfile
@@ -75,15 +76,28 @@ class MeasurementRepository(
     )
 
     suspend fun store(raw: RawScaleMeasurement): StoreResult {
-        ingestionCoordinator?.let { coordinator ->
-            return coordinator.ingest(raw).toLegacyStoreResult()
+        if (!raw.isStableWeight) return StoreResult.Rejected
+        val entity = if (raw.hasFullBodyComposition) {
+            val profile = profileProvider() ?: return StoreResult.ProfileMissing
+            calculator.calculate(raw, profile).toEntity(
+                rawPayload = raw.rawPayload,
+                fingerprint = measurementFingerprint(raw),
+                huaweiSyncEnabled = huaweiSyncEnabled,
+            )
+        } else {
+            raw.toWeightOnlyEntity(huaweiSyncEnabled)
         }
-        val profile = profileProvider() ?: return StoreResult.ProfileMissing
-        val composition = calculator.calculate(raw, profile)
-        val entity = composition.toEntity(raw.rawPayload, huaweiSyncEnabled)
-        val inserted = dao.insert(entity) != -1L
-        if (inserted) syncScheduler.enqueue(entity.id)
-        return if (inserted) StoreResult.Inserted(entity) else StoreResult.Duplicate
+        return when (val result = dao.upsertScaleMeasurement(entity)) {
+            is MeasurementUpsertResult.Inserted -> {
+                syncScheduler.enqueue(result.value.id)
+                StoreResult.Inserted(result.value)
+            }
+            is MeasurementUpsertResult.Upgraded -> {
+                if (result.value.needsSync()) syncScheduler.enqueue(result.value.id)
+                StoreResult.Upgraded(result.value)
+            }
+            MeasurementUpsertResult.Duplicate -> StoreResult.Duplicate
+        }
     }
 
     suspend fun insertManual(
@@ -126,8 +140,13 @@ class MeasurementRepository(
             is StoreResult.Inserted -> MeasurementIngestionResult.Assigned(
                 legacy.value.toAccountMeasurement(),
             )
+            is StoreResult.Upgraded -> MeasurementIngestionResult.Assigned(
+                legacy.value.toAccountMeasurement(),
+                wasAlreadyFinalized = true,
+            )
             StoreResult.Duplicate -> MeasurementIngestionResult.LegacyDuplicate
             StoreResult.ProfileMissing -> MeasurementIngestionResult.LegacyProfileMissing
+            StoreResult.Rejected -> MeasurementIngestionResult.IgnoredNotFinal
         }
     }
 
@@ -137,6 +156,7 @@ class MeasurementRepository(
     ): MeasurementMutationResult {
         if (!values.isValid()) return MeasurementMutationResult.Invalid
         val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
+        if (current.measurementType != MeasurementType.FULL) return MeasurementMutationResult.Invalid
         val updated = current.copy(
             weightKg = values.weightKg,
             impedanceOhm = values.impedanceOhm,
@@ -154,15 +174,20 @@ class MeasurementRepository(
             basalMetabolicRateKcal = values.basalMetabolicRateKcal,
             metabolicAge = values.metabolicAge,
             leanBodyMassKg = values.leanBodyMassKg,
-            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
-            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-            huaweiError = null,
-            healthConnectError = null,
-            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )
-        if (dao.update(updated) == 0) return MeasurementMutationResult.NotFound
-        syncScheduler.cancel(id)
-        return MeasurementMutationResult.Success
+        return persistEdited(current, updated)
+    }
+
+    suspend fun updateWeightOnly(
+        id: String,
+        weightKg: Double,
+    ): MeasurementMutationResult {
+        if (!weightKg.isFinite() || weightKg < 0.0) return MeasurementMutationResult.Invalid
+        val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
+        if (current.measurementType != MeasurementType.WEIGHT_ONLY) {
+            return MeasurementMutationResult.Invalid
+        }
+        return persistEdited(current, current.copy(weightKg = weightKg))
     }
 
     suspend fun delete(id: String): MeasurementMutationResult {
@@ -301,7 +326,7 @@ class MeasurementRepository(
 
     private suspend fun isEligibleForSync(value: MeasurementEntity): Boolean {
         if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return false
-        if (accountRepository == null) return !value.isLegacyLocalOnly()
+        if (accountRepository == null) return true
         val settings = accountRepository.observeSettings().first()
         if (settings.primaryAccountId?.value != value.accountId) return false
         val account = accountRepository.getAccount(AccountId(value.accountId)) ?: return false
@@ -310,34 +335,30 @@ class MeasurementRepository(
 
     private fun requireMultiAccountPersistence(): RoomMeasurementPersistence =
         requireNotNull(multiAccountPersistence) { "Multi-account persistence is not configured" }
+
+    private suspend fun persistEdited(
+        current: MeasurementEntity,
+        edited: MeasurementEntity,
+    ): MeasurementMutationResult {
+        val updated = edited.copy(
+            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
+            healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+            huaweiError = null,
+            healthConnectError = null,
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
+        )
+        if (dao.updateIfSameType(updated) == 0) return MeasurementMutationResult.NotFound
+        syncScheduler.cancel(current.id)
+        return MeasurementMutationResult.Success
+    }
 }
 
 sealed interface StoreResult {
     data class Inserted(val value: MeasurementEntity) : StoreResult
+    data class Upgraded(val value: MeasurementEntity) : StoreResult
     data object Duplicate : StoreResult
     data object ProfileMissing : StoreResult
-}
-
-private fun MeasurementIngestionResult.toLegacyStoreResult(): StoreResult = when (this) {
-    is MeasurementIngestionResult.Assigned -> if (wasAlreadyFinalized) {
-        StoreResult.Duplicate
-    } else {
-        StoreResult.Inserted(
-            measurement.composition.toEntity(
-                rawPayload = byteArrayOf(),
-                accountId = measurement.accountId,
-                externalSyncPolicy = measurement.externalSyncPolicy,
-            ),
-        )
-    }
-    MeasurementIngestionResult.LegacyDuplicate -> StoreResult.Duplicate
-    MeasurementIngestionResult.LegacyProfileMissing,
-    is MeasurementIngestionResult.AwaitingDecision,
-    MeasurementIngestionResult.PendingMissing,
-    -> StoreResult.ProfileMissing
-    MeasurementIngestionResult.IgnoredNotFinal,
-    MeasurementIngestionResult.Tombstoned,
-    -> StoreResult.Duplicate
+    data object Rejected : StoreResult
 }
 
 sealed interface MeasurementMutationResult {
@@ -348,6 +369,20 @@ sealed interface MeasurementMutationResult {
 
 private fun String.toLocalOnlyUnlessDisabled(): String =
     if (this == SyncStatus.DISABLED.name) this else SyncStatus.LOCAL_ONLY.name
+
+private fun String.isHuaweiRetryable(): Boolean = this !in setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.DISABLED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
+
+private fun String.isHealthRetryable(): Boolean = this !in setOf(
+    SyncStatus.SYNCED.name,
+    SyncStatus.LOCAL_ONLY.name,
+)
+
+private fun MeasurementEntity.needsSync(): Boolean =
+    huaweiStatus.isHuaweiRetryable() || healthConnectStatus.isHealthRetryable()
 
 private fun MeasurementValues.isValid(): Boolean {
     val doubleValues = listOf(
@@ -373,10 +408,6 @@ private fun MeasurementValues.isValid(): Boolean {
         impedanceOhm >= 0 &&
         metabolicAge >= 0
 }
-
-private fun MeasurementEntity.isLegacyLocalOnly(): Boolean =
-    huaweiStatus == SyncStatus.LOCAL_ONLY.name ||
-        healthConnectStatus == SyncStatus.LOCAL_ONLY.name
 
 private fun MeasurementEntity.hasPendingDestination(): Boolean =
     huaweiStatus !in HUAWEI_TERMINAL_STATUSES ||

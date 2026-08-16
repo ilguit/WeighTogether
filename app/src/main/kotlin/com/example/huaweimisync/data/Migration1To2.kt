@@ -160,6 +160,7 @@ class Migration1To2(
                 rawPayload BLOB NOT NULL,
                 deduplicationHash TEXT NOT NULL,
                 enqueuedAtEpochMillis INTEGER NOT NULL,
+                rawWeight INTEGER NOT NULL,
                 PRIMARY KEY(id)
             )
             """.trimIndent(),
@@ -188,30 +189,34 @@ class Migration1To2(
             """
             CREATE TABLE IF NOT EXISTS measurements_new (
                 id TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                measurementType TEXT NOT NULL,
                 deviceAddress TEXT NOT NULL,
                 measuredAtEpochMillis INTEGER NOT NULL,
                 rawPayloadHex TEXT NOT NULL,
                 weightKg REAL NOT NULL,
-                impedanceOhm INTEGER NOT NULL,
-                bmi REAL NOT NULL,
-                bodyFatPercent REAL NOT NULL,
-                bodyFatMassKg REAL NOT NULL,
-                waterPercent REAL NOT NULL,
-                waterMassKg REAL NOT NULL,
-                muscleMassKg REAL NOT NULL,
-                skeletalMuscleMassKg REAL NOT NULL,
-                boneMassKg REAL NOT NULL,
-                proteinPercent REAL NOT NULL,
-                proteinMassKg REAL NOT NULL,
-                visceralFatLevel REAL NOT NULL,
-                basalMetabolicRateKcal REAL NOT NULL,
-                metabolicAge INTEGER NOT NULL,
-                leanBodyMassKg REAL NOT NULL,
-                algorithmVersion TEXT NOT NULL,
+                impedanceOhm INTEGER,
+                bmi REAL,
+                bodyFatPercent REAL,
+                bodyFatMassKg REAL,
+                waterPercent REAL,
+                waterMassKg REAL,
+                muscleMassKg REAL,
+                skeletalMuscleMassKg REAL,
+                boneMassKg REAL,
+                proteinPercent REAL,
+                proteinMassKg REAL,
+                visceralFatLevel REAL,
+                basalMetabolicRateKcal REAL,
+                metabolicAge INTEGER,
+                leanBodyMassKg REAL,
+                algorithmVersion TEXT,
                 huaweiStatus TEXT NOT NULL,
                 healthConnectStatus TEXT NOT NULL,
                 huaweiError TEXT,
                 healthConnectError TEXT,
+                huaweiWeightSynced INTEGER NOT NULL,
+                healthConnectWeightSynced INTEGER NOT NULL,
                 createdAtEpochMillis INTEGER NOT NULL,
                 accountId TEXT NOT NULL,
                 externalSyncPolicy TEXT NOT NULL,
@@ -227,29 +232,59 @@ class Migration1To2(
             database.execSQL(
                 """
                 INSERT INTO measurements_new (
-                    id, deviceAddress, measuredAtEpochMillis, rawPayloadHex, weightKg,
+                    id, fingerprint, measurementType, deviceAddress,
+                    measuredAtEpochMillis, rawPayloadHex, weightKg,
                     impedanceOhm, bmi, bodyFatPercent, bodyFatMassKg, waterPercent,
                     waterMassKg, muscleMassKg, skeletalMuscleMassKg, boneMassKg,
                     proteinPercent, proteinMassKg, visceralFatLevel,
                     basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
                     algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                    healthConnectError, createdAtEpochMillis, accountId,
+                    healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
+                    createdAtEpochMillis, accountId,
                     externalSyncPolicy, sourcePendingId, deduplicationHash
                 )
                 SELECT
-                    id, deviceAddress, measuredAtEpochMillis, rawPayloadHex, weightKg,
+                    id,
+                    UPPER(deviceAddress) || '|' ||
+                        CAST(measuredAtEpochMillis / 1000 AS INTEGER) || '|' ||
+                        CAST(ROUND(weightKg / 0.005) AS INTEGER) ||
+                        CASE WHEN id = (
+                            SELECT MIN(candidate.id)
+                            FROM measurements AS candidate
+                            WHERE UPPER(candidate.deviceAddress) = UPPER(measurements.deviceAddress)
+                                AND CAST(candidate.measuredAtEpochMillis / 1000 AS INTEGER) =
+                                    CAST(measurements.measuredAtEpochMillis / 1000 AS INTEGER)
+                                AND CAST(ROUND(candidate.weightKg / 0.005) AS INTEGER) =
+                                    CAST(ROUND(measurements.weightKg / 0.005) AS INTEGER)
+                        ) THEN '' ELSE '|legacy:' || id END,
+                    'FULL', deviceAddress, measuredAtEpochMillis, rawPayloadHex, weightKg,
                     impedanceOhm, bmi, bodyFatPercent, bodyFatMassKg, waterPercent,
                     waterMassKg, muscleMassKg, skeletalMuscleMassKg, boneMassKg,
                     proteinPercent, proteinMassKg, visceralFatLevel,
                     basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
                     algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                    healthConnectError, createdAtEpochMillis, ?,
+                    healthConnectError,
+                    CASE WHEN huaweiStatus = 'SYNCED' THEN 1 ELSE 0 END,
+                    CASE WHEN healthConnectStatus = 'SYNCED' THEN 1 ELSE 0 END,
+                    createdAtEpochMillis, ?,
                     CASE
                         WHEN huaweiStatus = 'LOCAL_ONLY' OR healthConnectStatus = 'LOCAL_ONLY'
                             THEN 'USER_LOCAL'
                         ELSE 'AUTO'
                     END,
-                    NULL, NULL
+                    NULL,
+                    UPPER(deviceAddress) || '|' ||
+                        CAST(measuredAtEpochMillis / 1000 AS INTEGER) || '|' ||
+                        CAST(ROUND(weightKg / 0.005) AS INTEGER) ||
+                        CASE WHEN id = (
+                            SELECT MIN(candidate.id)
+                            FROM measurements AS candidate
+                            WHERE UPPER(candidate.deviceAddress) = UPPER(measurements.deviceAddress)
+                                AND CAST(candidate.measuredAtEpochMillis / 1000 AS INTEGER) =
+                                    CAST(measurements.measuredAtEpochMillis / 1000 AS INTEGER)
+                                AND CAST(ROUND(candidate.weightKg / 0.005) AS INTEGER) =
+                                    CAST(ROUND(measurements.weightKg / 0.005) AS INTEGER)
+                        ) THEN '' ELSE '|legacy:' || id END
                 FROM measurements
                 """.trimIndent(),
                 arrayOf(accountId),
@@ -257,6 +292,10 @@ class Migration1To2(
         }
         database.execSQL("DROP TABLE measurements")
         database.execSQL("ALTER TABLE measurements_new RENAME TO measurements")
+        database.execSQL(
+            "CREATE UNIQUE INDEX IF NOT EXISTS index_measurements_fingerprint " +
+                "ON measurements(fingerprint)",
+        )
         database.execSQL(
             "CREATE INDEX IF NOT EXISTS index_measurements_accountId_measuredAtEpochMillis " +
                 "ON measurements(accountId, measuredAtEpochMillis)",

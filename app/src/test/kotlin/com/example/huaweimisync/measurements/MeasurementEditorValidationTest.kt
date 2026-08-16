@@ -95,6 +95,29 @@ class MeasurementEditorValidationTest {
     }
 
     @Test
+    fun weightOnlyDraftValidatesAndSubmitsOnlyWeight() {
+        val draft = MeasurementEditorDraft.fromWeight(70.0)
+        val editor = MeasurementEditorState(
+            measurementId = "weight-only",
+            measuredAtEpochMillis = 0L,
+            draft = draft,
+            type = MeasurementUiType.WEIGHT_ONLY,
+        )
+
+        assertTrue(draft.isValid)
+        assertTrue(editor.canSave)
+        assertTrue(editor.isWeightOnly)
+        assertEquals(listOf(MeasurementField.WEIGHT_KG), editor.sections.flatMap { it.fields })
+        assertEquals(70.0, draft.parsedValuesOrNull()!!.weightKg, 0.0)
+        assertNull(draft.parsedValuesOrNull()!!.bodyFatPercent)
+        assertNull(draft.parsedValuesOrNull()!!.impedanceOhm)
+
+        val invalid = draft.withValue(MeasurementField.WEIGHT_KG, "")
+        assertFalse(invalid.isValid)
+        assertNull(invalid.parsedValuesOrNull())
+    }
+
+    @Test
     fun retryIsHiddenForLocalOnlyRecords() {
         val item = sampleItem(healthConnectStatus = "LOCAL_ONLY", huaweiStatus = "DISABLED")
 

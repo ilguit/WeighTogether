@@ -71,7 +71,7 @@ class MeasurementIngestionCoordinatorTest {
         assertTrue(events.indexOf("enqueue") < events.indexOf("accounts"))
         assertTrue(events.indexOf("history:primary") < events.indexOf("finalize:primary"))
         assertTrue(events.indexOf("finalize:primary") < events.indexOf("schedule"))
-        assertEquals(setOf(result.measurement.composition.measurementId), scheduler.enqueued)
+        assertEquals(setOf(result.measurement.measurementId), scheduler.enqueued)
         assertTrue(persistence.pendingSnapshot().isEmpty())
     }
 
@@ -133,7 +133,7 @@ class MeasurementIngestionCoordinatorTest {
 
         assertTrue(duplicate.wasAlreadyFinalized)
         assertEquals(1, persistence.finalized.size)
-        assertEquals(setOf(first.measurement.composition.measurementId), scheduler.enqueued)
+        assertEquals(setOf(first.measurement.measurementId), scheduler.enqueued)
 
         val waitingPersistence = FakeRoutingPersistence(
             FakeAccountRepository(listOf(primary, secondary), primary.id),

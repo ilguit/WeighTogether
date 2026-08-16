@@ -35,6 +35,7 @@ class MiScalePacketParser(
             isStable = flags and STABLE_FLAG != 0,
             hasImpedance = flags and IMPEDANCE_FLAG != 0 && impedance > 0,
             rawPayload = data,
+            rawWeight = rawWeight,
         )
     }
 
@@ -64,9 +65,8 @@ class MiScalePacketParser(
 
     private companion object {
         const val PAYLOAD_SIZE = 13
-        const val KG_RESOLUTION = 0.005
+        const val KG_RESOLUTION = RawScaleMeasurement.WEIGHT_RESOLUTION_KG
         const val STABLE_FLAG = 0x20
         const val IMPEDANCE_FLAG = 0x02
     }
 }
-

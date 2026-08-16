@@ -4,6 +4,7 @@ import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -22,6 +23,9 @@ interface PendingMeasurementDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(pending: PendingMeasurementEntity): Long
+
+    @Update
+    suspend fun update(pending: PendingMeasurementEntity): Int
 
     @Query("DELETE FROM pending_measurements WHERE id = :id")
     suspend fun delete(id: String): Int
