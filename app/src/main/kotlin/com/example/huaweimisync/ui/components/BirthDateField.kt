@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.DatePicker
 import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
@@ -29,13 +30,13 @@ import com.example.huaweimisync.ui.icons.HuaweiIcons
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 
 /**
  * Read-only birth-date input backed by the Material 3 date picker.
  *
  * Keeping the value typed as [LocalDate] prevents UI-specific picker milliseconds from leaking
- * into editor state. Date restrictions and the final display format are intentionally owned by
- * later contract steps.
+ * into editor state. Date restrictions are intentionally owned by later contract steps.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -56,7 +57,7 @@ fun BirthDateField(
     }
 
     OutlinedTextField(
-        value = value?.toString().orEmpty(),
+        value = value?.let(::formatBirthDate).orEmpty(),
         onValueChange = {},
         modifier = modifier
             .fillMaxWidth()
@@ -86,6 +87,7 @@ fun BirthDateField(
     if (isPickerOpen) {
         val pickerState = rememberDatePickerState(
             initialSelectedDateMillis = value?.toBirthDatePickerMillis(),
+            initialDisplayMode = DisplayMode.Picker,
         )
         DatePickerDialog(
             onDismissRequest = { isPickerOpen = false },
@@ -110,10 +112,16 @@ fun BirthDateField(
             DatePicker(
                 state = pickerState,
                 title = { Text("Дата рождения", Modifier.padding(start = 24.dp, top = 16.dp)) },
+                // Calendar mode includes the month/year menu used for fast year selection.
+                showModeToggle = false,
             )
         }
     }
 }
+
+private val BirthDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
+
+internal fun formatBirthDate(date: LocalDate): String = date.format(BirthDateFormatter)
 
 internal fun LocalDate.toBirthDatePickerMillis(): Long =
     atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
