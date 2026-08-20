@@ -35,6 +35,7 @@ import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverQueueState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
+import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
@@ -264,10 +265,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val head = values.firstOrNull()
                 val selectedId = selectedPendingId.value
                 if (selectedId != null && values.none { it.id == selectedId }) {
-                    selectedPendingId.value = head?.id
+                    selectedPendingId.value = null
                 }
                 if (head == null) {
                     pendingDecision.value = null
+                } else {
+                    pendingDecision.value = pendingDecision.value?.takeIf { decision ->
+                        values.any { it.id == decision.pendingId }
+                    }
                 }
                 unsavedPreview.value = unsavedPreview.value?.takeIf { preview ->
                     values.any { it.id == preview.pending.id }
@@ -435,7 +440,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun choosePendingAccount(pendingId: PendingMeasurementId, accountId: AccountId) =
         viewModelScope.launch {
-            if (pending.value.firstOrNull()?.id != pendingId || resolverOperationInProgress.value) {
+            if (
+                !isActivePendingResolverTarget(
+                    pending = pending.value,
+                    selectedPendingId = selectedPendingId.value,
+                    requestedPendingId = pendingId,
+                ) || resolverOperationInProgress.value
+            ) {
                 return@launch
             }
             resolverOperationInProgress.value = true
@@ -460,7 +471,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
 
     fun startCreateAccountForPending(pendingId: PendingMeasurementId) {
-        if (pending.value.firstOrNull()?.id != pendingId) return
+        if (
+            !isActivePendingResolverTarget(pending.value, selectedPendingId.value, pendingId)
+        ) {
+            return
+        }
         pendingForNewAccount.value = pendingId
         selectedPendingId.value = null
         onAccountManagementAction(AccountManagementAction.AddRequested)
@@ -760,7 +775,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         try {
             when (val result = container.repository.routePending(pendingId)) {
                 is MeasurementIngestionResult.AwaitingDecision -> {
-                    if (pending.value.firstOrNull()?.id == result.pending.id) {
+                    if (
+                        isActivePendingResolverTarget(
+                            pending = pending.value,
+                            selectedPendingId = selectedPendingId.value,
+                            requestedPendingId = result.pending.id,
+                        )
+                    ) {
                         pendingDecision.value = PendingDecisionSnapshot(
                             result.pending.id,
                             result.decision,
@@ -778,7 +799,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Throwable) {
-            if (pending.value.firstOrNull()?.id == pendingId) pendingDecision.value = null
+            if (
+                isActivePendingResolverTarget(
+                    pending = pending.value,
+                    selectedPendingId = selectedPendingId.value,
+                    requestedPendingId = pendingId,
+                )
+            ) {
+                pendingDecision.value = null
+            }
         }
     }
 

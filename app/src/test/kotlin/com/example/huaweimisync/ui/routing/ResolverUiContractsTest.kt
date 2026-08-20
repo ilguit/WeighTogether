@@ -101,24 +101,38 @@ class ResolverUiContractsTest {
     }
 
     @Test
-    fun `only fifo head may be removed and resolver advances to next`() {
+    fun `selected non-head pending may be processed without disturbing fifo order`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val second = pending("b", "2026-08-15T10:01:00Z")
+        val third = pending("c", "2026-08-15T10:02:00Z")
         val initial = ResolverQueueState.from(
-            listOf(first, second),
-            selectedPendingId = first.id,
+            listOf(third, second, first),
+            selectedPendingId = second.id,
         )
 
-        assertSame(
-            initial,
-            reduceResolverQueue(initial, ResolverQueueAction.HeadFinalized(second.id)),
+        assertTrue(
+            isActivePendingResolverTarget(
+                pending = initial.pending,
+                selectedPendingId = initial.selectedPendingId,
+                requestedPendingId = second.id,
+            ),
         )
-        val advanced = reduceResolverQueue(
-            initial,
-            ResolverQueueAction.HeadFinalized(first.id),
+        assertFalse(
+            isActivePendingResolverTarget(
+                pending = initial.pending,
+                selectedPendingId = initial.selectedPendingId,
+                requestedPendingId = first.id,
+            ),
         )
-        assertEquals(second.id, advanced.current?.id)
-        assertTrue(advanced.isResolverVisible)
+        val processed = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingFinalized(second.id),
+        )
+
+        assertEquals(listOf(first.id, third.id), processed.pending.map(PendingMeasurement::id))
+        assertEquals(first.id, processed.current?.id)
+        assertNull(processed.selectedPendingId)
+        assertFalse(processed.isResolverVisible)
     }
 
     @Test
@@ -150,12 +164,13 @@ class ResolverUiContractsTest {
 
     @Test
     fun `already observed pending opens resolver without collecting another snapshot`() = runBlocking {
-        val observed = pending("observed", "2026-08-15T10:00:00Z")
+        val oldest = pending("oldest", "2026-08-15T10:00:00Z")
+        val latest = pending("latest", "2026-08-15T10:01:00Z")
 
         assertEquals(
-            observed.id,
+            oldest.id,
             oldestPendingResolverTarget(
-                observedPending = listOf(observed),
+                observedPending = listOf(latest, oldest),
                 durablePendingSnapshots = flow { error("must not collect") },
             ),
         )
@@ -177,6 +192,32 @@ class ResolverUiContractsTest {
 
         assertEquals(listOf(first.id, second.id), updated.pending.map(PendingMeasurement::id))
         assertTrue(updated.isResolverVisible)
+    }
+
+    @Test
+    fun `durable removal clears stale resolver selection instead of opening fifo head`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val selected = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(
+            listOf(first, selected),
+            selectedPendingId = selected.id,
+        )
+
+        val updated = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingChanged(listOf(first)),
+        )
+
+        assertEquals(first.id, updated.current?.id)
+        assertNull(updated.selectedPendingId)
+        assertFalse(updated.isResolverVisible)
+        assertFalse(
+            isActivePendingResolverTarget(
+                pending = updated.pending,
+                selectedPendingId = selected.id,
+                requestedPendingId = selected.id,
+            ),
+        )
     }
 
     @Test

@@ -125,10 +125,10 @@ sealed interface ResolverQueueAction {
     ) : ResolverQueueAction
     /** Hides the resolver but deliberately retains the durable FIFO head. */
     data object LaterRequested : ResolverQueueAction
-    /** Dispatch only after the repository has durably finalized the FIFO head. */
-    data class HeadFinalized(val pendingId: PendingMeasurementId) : ResolverQueueAction
-    /** Dispatch only after the repository has durably replaced the FIFO head with a tombstone. */
-    data class HeadDiscarded(val pendingId: PendingMeasurementId) : ResolverQueueAction
+    /** Dispatch only after the repository has durably finalized the addressed pending item. */
+    data class PendingFinalized(val pendingId: PendingMeasurementId) : ResolverQueueAction
+    /** Dispatch only after the repository has durably replaced the addressed item with a tombstone. */
+    data class PendingDiscarded(val pendingId: PendingMeasurementId) : ResolverQueueAction
 }
 
 fun reduceResolverQueue(
@@ -151,9 +151,22 @@ fun reduceResolverQueue(
         }
     } ?: state.copy(selectedPendingId = state.pending.firstOrNull()?.id)
     ResolverQueueAction.LaterRequested -> state.copy(selectedPendingId = null)
-    is ResolverQueueAction.HeadFinalized -> state.removeHead(action.pendingId)
-    is ResolverQueueAction.HeadDiscarded -> state.removeHead(action.pendingId)
+    is ResolverQueueAction.PendingFinalized -> state.removePending(action.pendingId)
+    is ResolverQueueAction.PendingDiscarded -> state.removePending(action.pendingId)
 }
+
+/**
+ * Validates a resolver callback against both its displayed target and the latest durable queue.
+ *
+ * The callback carries an id so an already composed resolver cannot process a different item after
+ * selection changes. The durable lookup also rejects a selection that became stale between frames.
+ */
+internal fun isActivePendingResolverTarget(
+    pending: List<PendingMeasurement>,
+    selectedPendingId: PendingMeasurementId?,
+    requestedPendingId: PendingMeasurementId,
+): Boolean = selectedPendingId == requestedPendingId &&
+    pending.any { it.id == requestedPendingId }
 
 /**
  * Resolves a notification navigation request against durable state after process recreation.
@@ -169,15 +182,12 @@ internal suspend fun oldestPendingResolverTarget(
     return available.minWithOrNull(PendingFifoComparator)?.id
 }
 
-private fun ResolverQueueState.removeHead(id: PendingMeasurementId): ResolverQueueState {
-    if (pending.firstOrNull()?.id != id) return this
-    val remaining = pending.drop(1)
+private fun ResolverQueueState.removePending(id: PendingMeasurementId): ResolverQueueState {
+    if (pending.none { it.id == id }) return this
+    val remaining = pending.filterNot { it.id == id }
     return copy(
         pending = remaining,
-        selectedPendingId = when (selectedPendingId) {
-            id -> remaining.firstOrNull()?.id
-            else -> selectedPendingId
-        },
+        selectedPendingId = selectedPendingId.takeUnless { it == id },
     )
 }
 
