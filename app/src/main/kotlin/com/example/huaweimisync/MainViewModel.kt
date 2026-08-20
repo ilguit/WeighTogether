@@ -33,6 +33,7 @@ import com.example.huaweimisync.ui.accounts.reconcileAccountManagement
 import com.example.huaweimisync.ui.accounts.reduceAccountManagement
 import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverQueueState
+import com.example.huaweimisync.ui.routing.UnsavedPreviewMemoryState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.hasPendingResolverTarget
@@ -136,7 +137,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val resolverOperationInProgress = MutableStateFlow(false)
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingMeasurementId?>(null)
-    private val unsavedPreview = MutableStateFlow<UnsavedMeasurementPreviewState?>(null)
+    private val unsavedPreviewMemory = UnsavedPreviewMemoryState()
+    private val unsavedPreview = unsavedPreviewMemory.state
 
     val events = eventEmitter.events
 
@@ -266,9 +268,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     resolverRequested.value = false
                     pendingDecision.value = null
                 }
-                unsavedPreview.value = unsavedPreview.value?.takeIf { preview ->
-                    values.any { it.id == preview.pending.id }
-                }
+                unsavedPreviewMemory.retainPending(values.mapTo(mutableSetOf()) { it.id })
                 val createPendingId = pendingForNewAccount.value
                 if (createPendingId != null && values.none { it.id == createPendingId }) {
                     pendingForNewAccount.value = null
@@ -453,23 +453,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun showPendingWithoutSaving(pendingId: PendingMeasurementId) {
         val pendingValue = pending.value.firstOrNull { it.id == pendingId } ?: return
         resolverRequested.value = false
-        unsavedPreview.value = UnsavedMeasurementPreviewState(pendingValue)
+        unsavedPreviewMemory.open(pendingValue)
     }
 
     fun updateUnsavedPreview(state: UnsavedMeasurementPreviewState) {
-        if (unsavedPreview.value?.pending?.id == state.pending.id) {
-            unsavedPreview.value = state
-        }
+        unsavedPreviewMemory.update(state)
     }
 
     fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {
         if (unsavedPreview.value?.pending?.id != pendingId) return@launch
         if (container.repository.discardPending(pendingId)) {
-            unsavedPreview.value = null
+            unsavedPreviewMemory.clear(pendingId)
             resolverRequested.value = true
             showMessage("Измерение удалено без сохранения")
         } else {
-            unsavedPreview.value = null
+            unsavedPreviewMemory.clear(pendingId)
             showMessage("Измерение уже обработано")
         }
     }

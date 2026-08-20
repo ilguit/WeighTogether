@@ -2,11 +2,11 @@ package com.example.huaweimisync.ui.components
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import java.time.LocalDate
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertNull
-import kotlin.test.assertTrue
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 @OptIn(ExperimentalMaterial3Api::class)
 class BirthDateFieldTest {

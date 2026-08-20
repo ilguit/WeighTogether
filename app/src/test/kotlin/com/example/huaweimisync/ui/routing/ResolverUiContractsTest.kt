@@ -187,6 +187,61 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `one-shot profile and result disappear with their ViewModel memory owner`() {
+        val pending = pending("preview", "2026-08-15T10:00:00Z")
+        val owner = UnsavedPreviewMemoryState()
+        owner.open(pending)
+        val editing = reduceUnsavedPreview(
+            requireNotNull(owner.value),
+            UnsavedPreviewAction.EnterProfileRequested,
+        ).copy(
+            profileDraft = UnsavedPreviewProfileDraft(
+                heightCm = "170",
+                birthDate = LocalDate.of(1990, 1, 1),
+                sex = Sex.FEMALE,
+            ),
+        )
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted)
+        val result = requireNotNull(
+            calculateUnsavedPreview(pending, calculating.profileDraft, ZoneOffset.UTC),
+        )
+        owner.update(
+            reduceUnsavedPreview(
+                calculating,
+                UnsavedPreviewAction.CalculationCompleted(result),
+            ),
+        )
+
+        assertEquals(UnsavedPreviewStep.RESULT, owner.value?.step)
+        assertEquals(LocalDate.of(1990, 1, 1), owner.value?.profileDraft?.birthDate)
+        assertNotNull(owner.value?.result)
+
+        val recreatedOwner = UnsavedPreviewMemoryState()
+
+        assertNull(recreatedOwner.value)
+        assertEquals(0, UnsavedPreviewMemoryState::class.java.declaredConstructors.single().parameterCount)
+    }
+
+    @Test
+    fun `preview memory owner never accepts another pending session state`() {
+        val owner = UnsavedPreviewMemoryState()
+        val current = pending("current", "2026-08-15T10:00:00Z")
+        val other = pending("other", "2026-08-15T10:01:00Z")
+        owner.open(current)
+
+        owner.update(
+            UnsavedMeasurementPreviewState(
+                pending = other,
+                step = UnsavedPreviewStep.PROFILE_EDITOR,
+            ),
+        )
+
+        assertEquals(current.id, owner.value?.pending?.id)
+        owner.retainPending(setOf(other.id))
+        assertNull(owner.value)
+    }
+
+    @Test
     fun `unsaved preview rejects a profile dated after the measurement`() {
         val measurementDate = LocalDate.of(2024, 2, 29)
         val atMeasurementLimit = validateUnsavedPreviewProfile(
