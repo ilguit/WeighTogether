@@ -638,12 +638,16 @@ private fun MetricLineChart(
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerValueFormatter = remember(metric, zoneId) {
+    val markerValueFormatter = remember(metric, zoneId, points) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
-            formatChartMarkerText(
+            points.firstOrNull { point ->
+                point.measuredAtEpochMillis == target.x.toLong() && point.value == value
+            }?.let { point ->
+                formatChartMarkerText(point = point, metric = metric, zoneId = zoneId)
+            } ?: formatChartMarkerText(
                 measuredAtEpochMillis = target.x.toLong(),
                 value = value,
                 metric = metric,

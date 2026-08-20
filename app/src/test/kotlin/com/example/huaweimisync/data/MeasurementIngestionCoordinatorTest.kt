@@ -212,13 +212,17 @@ class MeasurementIngestionCoordinatorTest {
             coordinator.route(waiting.pending.id) is MeasurementIngestionResult.AwaitingDecision,
         )
         assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
+        val sweep = coordinator.sweepPendingRouting()
+        assertEquals(0, sweep.assignedCount)
+        assertEquals(1, sweep.awaitingDecisionCount)
+        assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
         val discarded = coordinator.discardAndUpdateIgnorePolicy(waiting.pending.id, false)
             as DiscardPendingAndUpdateIgnorePolicyResult.Discarded
 
         assertEquals(waiting.pending.id, requireNotNull(discarded.undoToken).pendingId)
         assertFalse(accounts.settings.value.ignoreUnknownMeasurements)
         assertTrue(persistence.pendingSnapshot().isEmpty())
-        assertEquals(listOf(1, 1, 0), notifier.counts)
+        assertEquals(listOf(1, 1, 1, 1, 0), notifier.counts)
     }
 
     @Test

@@ -2,6 +2,7 @@ package com.example.huaweimisync.charts
 
 import androidx.compose.runtime.Immutable
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.measurements.formatMeasurementDateTime
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
@@ -10,7 +11,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
-import java.time.format.DateTimeFormatter
 import java.util.Locale
 import kotlin.math.abs
 
@@ -60,7 +60,13 @@ enum class ChartFilterSheet {
 data class ChartPoint(
     val measuredAtEpochMillis: Long,
     val value: Double,
-)
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    val measuredAtNano: Int =
+        (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
+) {
+    val measuredAt: Instant
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+}
 
 @Immutable
 data class ChartSeries(
@@ -190,9 +196,36 @@ fun formatChartMarkerText(
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
 ): String {
-    val dateTime = MarkerDateTimeFormatter.format(
-        Instant.ofEpochMilli(measuredAtEpochMillis).atZone(zoneId),
+    return formatChartMarkerText(
+        measuredAt = Instant.ofEpochMilli(measuredAtEpochMillis),
+        value = value,
+        metric = metric,
+        zoneId = zoneId,
+        locale = locale,
     )
+}
+
+fun formatChartMarkerText(
+    point: ChartPoint,
+    metric: ChartMetricOption,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    locale: Locale = Locale.getDefault(),
+): String = formatChartMarkerText(
+    measuredAt = point.measuredAt,
+    value = point.value,
+    metric = metric,
+    zoneId = zoneId,
+    locale = locale,
+)
+
+private fun formatChartMarkerText(
+    measuredAt: Instant,
+    value: Double,
+    metric: ChartMetricOption,
+    zoneId: ZoneId,
+    locale: Locale,
+): String {
+    val dateTime = formatMeasurementDateTime(measuredAt, zoneId, locale)
     val formattedValue = decimalFormat(metric.decimalPlaces, locale).format(value)
     return buildString {
         append(dateTime)
@@ -203,7 +236,10 @@ fun formatChartMarkerText(
 }
 
 fun orderedChartPoints(points: List<ChartPoint>): List<ChartPoint> =
-    points.sortedBy(ChartPoint::measuredAtEpochMillis)
+    points.sortedWith(
+        compareBy<ChartPoint>(ChartPoint::measuredAtEpochSecond)
+            .thenBy(ChartPoint::measuredAtNano),
+    )
 
 fun chartValueSummary(points: List<ChartPoint>): ChartValueSummary {
     val ordered = orderedChartPoints(points)
@@ -291,4 +327,3 @@ private fun tenToPower(exponent: Int): Double {
 private const val CONSTANT_PADDING_FRACTION = 0.05
 private const val VARIABLE_PADDING_FRACTION = 0.08
 private const val MissingChartValue = "—"
-private val MarkerDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")

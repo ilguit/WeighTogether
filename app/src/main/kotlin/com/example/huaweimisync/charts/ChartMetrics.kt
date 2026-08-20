@@ -26,6 +26,8 @@ fun chartPointsForMetric(
         ChartPoint(
             measuredAtEpochMillis = measurement.measuredAtEpochMillis,
             value = value,
+            measuredAtEpochSecond = measurement.measuredAtEpochSecond,
+            measuredAtNano = measurement.measuredAtNano,
         )
     }
 }

@@ -235,7 +235,27 @@ class ChartsContractTest {
             locale = Locale.US,
         )
 
-        assertEquals("15.08.2026 00:07\n123.40 миллиметры ртутного столба", text)
+        assertEquals(
+            "15.08.2026 00:07:00.000000000\n123.40 миллиметры ртутного столба",
+            text,
+        )
+    }
+
+    @Test
+    fun `chart marker preserves nanoseconds from persisted measurement`() {
+        val metric = ChartMetricOption("weight", "Вес", "кг", 2)
+        val instant = Instant.parse("2026-08-14T21:07:00.123456789Z")
+        val point = ChartPoint(
+            measuredAtEpochMillis = instant.toEpochMilli(),
+            value = 70.25,
+            measuredAtEpochSecond = instant.epochSecond,
+            measuredAtNano = instant.nano,
+        )
+
+        assertEquals(
+            "14.08.2026 21:07:00.123456789\n70.25 кг",
+            formatChartMarkerText(point, metric, ZoneId.of("UTC"), Locale.US),
+        )
     }
 
     @Test

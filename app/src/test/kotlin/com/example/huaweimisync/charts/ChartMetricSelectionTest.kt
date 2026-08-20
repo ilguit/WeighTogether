@@ -79,7 +79,10 @@ class ChartMetricSelectionTest {
 
     @Test
     fun `weight only contributes to weight series but not composition series`() {
-        val full = chartMeasurement(id = "full", measuredAt = 100L)
+        val full = chartMeasurement(id = "full", measuredAt = 100L).copy(
+            measuredAtEpochSecond = 0L,
+            measuredAtNano = 100_123_456,
+        )
         val weightOnly = chartMeasurement(id = "weight", measuredAt = 200L).copy(
             measurementType = MeasurementType.WEIGHT_ONLY,
             weightKg = 71.5,
@@ -112,6 +115,7 @@ class ChartMetricSelectionTest {
 
         assertEquals(listOf(70.0, 71.5), weightPoints.map(ChartPoint::value))
         assertEquals(listOf(100L, 200L), weightPoints.map(ChartPoint::measuredAtEpochMillis))
+        assertEquals(100_123_456, weightPoints.first().measuredAtNano)
         assertEquals(listOf(20.0), fatPoints.map(ChartPoint::value))
     }
 }
