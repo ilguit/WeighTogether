@@ -87,6 +87,7 @@ fun BirthDateField(
     if (isPickerOpen) {
         val pickerState = rememberDatePickerState(
             initialSelectedDateMillis = value?.toBirthDatePickerMillis(),
+            initialDisplayedMonthMillis = initialBirthDatePickerDate(value).toBirthDatePickerMillis(),
             initialDisplayMode = DisplayMode.Picker,
         )
         DatePickerDialog(
@@ -122,6 +123,11 @@ fun BirthDateField(
 private val BirthDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
 internal fun formatBirthDate(date: LocalDate): String = date.format(BirthDateFormatter)
+
+internal fun initialBirthDatePickerDate(
+    value: LocalDate?,
+    today: LocalDate = LocalDate.now(),
+): LocalDate = value ?: today.minusYears(30)
 
 internal fun LocalDate.toBirthDatePickerMillis(): Long =
     atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()

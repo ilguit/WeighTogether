@@ -19,4 +19,27 @@ class BirthDateFieldTest {
         assertEquals(leapDay, restored)
         assertEquals("29.02.2000", formatBirthDate(restored))
     }
+
+    @Test
+    fun `empty value initially displays a date thirty years ago`() {
+        val today = LocalDate.of(2026, 8, 20)
+
+        assertEquals(
+            LocalDate.of(1996, 8, 20),
+            initialBirthDatePickerDate(value = null, today = today),
+        )
+    }
+
+    @Test
+    fun `saved value determines the initially displayed date`() {
+        val savedBirthDate = LocalDate.of(1988, 2, 29)
+
+        assertEquals(
+            savedBirthDate,
+            initialBirthDatePickerDate(
+                value = savedBirthDate,
+                today = LocalDate.of(2026, 8, 20),
+            ),
+        )
+    }
 }
