@@ -18,6 +18,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
@@ -536,9 +537,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         resolverOperationInProgress.value = true
         try {
-            val discarded = container.repository.discardPending(completion.pendingId)
+            val result = container.repository.discardPending(completion.pendingId)
             completePendingResolution(completion)
-            showMessage(if (discarded) "Измерение удалено" else "Измерение уже обработано")
+            showMessage(
+                when (result) {
+                    is DiscardPendingResult.Discarded -> "Измерение удалено"
+                    is DiscardPendingResult.AlreadyFinalized,
+                    DiscardPendingResult.PendingNotFound,
+                    -> "Измерение уже обработано"
+                },
+            )
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -557,17 +565,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {
         if (unsavedPreview.value?.pending?.id != pendingId) return@launch
         val completion = unsavedPreviewSession.value?.completionFor(pendingId)
-        if (container.repository.discardPending(pendingId)) {
-            unsavedPreview.value = null
-            unsavedPreviewSession.value = null
-            completion?.let(::completePendingResolution)
-            showMessage("Измерение удалено без сохранения")
-        } else {
-            unsavedPreview.value = null
-            unsavedPreviewSession.value = null
-            completion?.let(::completePendingResolution)
-            showMessage("Измерение уже обработано")
-        }
+        val result = container.repository.discardPending(pendingId)
+        unsavedPreview.value = null
+        unsavedPreviewSession.value = null
+        completion?.let(::completePendingResolution)
+        showMessage(
+            when (result) {
+                is DiscardPendingResult.Discarded -> "Измерение удалено без сохранения"
+                is DiscardPendingResult.AlreadyFinalized,
+                DiscardPendingResult.PendingNotFound,
+                -> "Измерение уже обработано"
+            },
+        )
     }
 
     fun registerBackgroundScan() {

@@ -9,6 +9,7 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -251,8 +252,16 @@ class MultiAccountPersistenceTest {
             persistence.observePending().first().map { it.id },
         )
 
-        assertTrue(persistence.discardPending(first.pending.id))
-        assertFalse(persistence.discardPending(first.pending.id))
+        val discarded = persistence.discardPending(first.pending.id)
+            as DiscardPendingResult.Discarded
+        assertEquals(first.pending.id, discarded.undoToken.pendingId)
+        assertEquals(first.pending.deduplicationHash, discarded.undoToken.deduplicationHash)
+        assertEquals(first.pending.enqueuedAt, discarded.undoToken.enqueuedAt)
+        assertEquals(first.pending, discarded.undoToken.pending)
+        assertEquals(
+            DiscardPendingResult.PendingNotFound,
+            persistence.discardPending(first.pending.id),
+        )
         assertEquals(PendingPersistenceResult.Tombstoned, persistence.enqueue(firstRaw))
         assertEquals(1, database.pendingMeasurementDao().tombstoneCount())
 
@@ -279,6 +288,10 @@ class MultiAccountPersistenceTest {
         assertTrue(
             persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0)) is
                 PendingPersistenceResult.AlreadyFinalized,
+        )
+        assertTrue(
+            persistence.discardPending(pending.pending.id) is
+                DiscardPendingResult.AlreadyFinalized,
         )
     }
 

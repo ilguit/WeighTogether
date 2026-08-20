@@ -7,11 +7,13 @@ import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.toRawScaleMeasurement
 import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
@@ -235,8 +237,15 @@ class RoomMeasurementPersistence(
 
     override suspend fun discardPending(
         pendingId: PendingMeasurementId,
-    ): Boolean = database.withTransaction {
-        val pending = pendingDao.get(pendingId.value) ?: return@withTransaction false
+    ): DiscardPendingResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return@withTransaction DiscardPendingResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction DiscardPendingResult.PendingNotFound
+        val undoToken = PendingDiscardUndoToken(pending.toDomain())
         val expiresAt = now().plus(TOMBSTONE_TTL).toEpochMilli()
         pendingDao.upsertTombstone(
             MeasurementTombstoneEntity(
@@ -247,7 +256,7 @@ class RoomMeasurementPersistence(
         check(pendingDao.delete(pendingId.value) == 1) {
             "Pending measurement disappeared inside its discard transaction"
         }
-        true
+        DiscardPendingResult.Discarded(undoToken)
     }
 
     suspend fun cleanupExpiredTombstones(): Int =

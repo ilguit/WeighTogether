@@ -82,6 +82,34 @@ sealed interface CreateAccountAndAssignResult {
     data class AlreadyFinalized(val measurement: AccountMeasurement) : CreateAccountAndAssignResult
 }
 
+/**
+ * Opaque, process-local capability for undoing one successful pending discard.
+ *
+ * The full pending snapshot is intentionally held only by this in-memory object. The token is not
+ * a Room entity, Parcelable, or Serializable, so losing the process also loses the ability to undo.
+ */
+class PendingDiscardUndoToken internal constructor(
+    internal val pending: PendingMeasurement,
+) {
+    val pendingId: PendingMeasurementId
+        get() = pending.id
+
+    val deduplicationHash: String
+        get() = pending.deduplicationHash
+
+    val enqueuedAt: Instant
+        get() = pending.enqueuedAt
+}
+
+sealed interface DiscardPendingResult {
+    /** The only outcome which carries an undo capability. */
+    data class Discarded(val undoToken: PendingDiscardUndoToken) : DiscardPendingResult
+
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : DiscardPendingResult
+
+    data object PendingNotFound : DiscardPendingResult
+}
+
 interface MeasurementRepository {
     fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>>
 
@@ -119,6 +147,9 @@ interface MeasurementRepository {
         account: NewAccount,
     ): CreateAccountAndAssignResult
 
-    /** Removes pending raw data and retains only its expiring deduplication tombstone. */
-    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean
+    /**
+     * Removes pending raw data and retains only its expiring deduplication tombstone.
+     * Only a successful discard returns an in-memory undo token.
+     */
+    suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
 }

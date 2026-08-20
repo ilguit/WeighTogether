@@ -12,11 +12,13 @@ import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
@@ -148,6 +150,10 @@ class MeasurementIngestionCoordinatorTest {
         assertTrue(chosen is FinalizePendingResult.Finalized)
         assertTrue(tappedAgain is FinalizePendingResult.AlreadyFinalized)
         assertEquals(1, waitingPersistence.finalized.size)
+        assertTrue(
+            waitingCoordinator.discard(waiting.pending.id) is
+                DiscardPendingResult.AlreadyFinalized,
+        )
     }
 
     @Test
@@ -165,8 +171,41 @@ class MeasurementIngestionCoordinatorTest {
         assertNotNull(calculated?.composition)
         assertNotNull(persistence.getPending(waiting.pending.id))
         assertTrue(persistence.finalized.isEmpty())
-        assertTrue(coordinator.discard(waiting.pending.id))
+        val discarded = coordinator.discard(waiting.pending.id)
+            as DiscardPendingResult.Discarded
+
+        assertEquals(waiting.pending.id, discarded.undoToken.pendingId)
+        assertEquals(waiting.pending.deduplicationHash, discarded.undoToken.deduplicationHash)
+        assertEquals(waiting.pending.enqueuedAt, discarded.undoToken.enqueuedAt)
+        assertEquals(waiting.pending, discarded.undoToken.pending)
         assertNull(persistence.getPending(waiting.pending.id))
+        assertEquals(
+            DiscardPendingResult.PendingNotFound,
+            coordinator.discard(waiting.pending.id),
+        )
+    }
+
+    @Test
+    fun discardFailureDoesNotMintTokenOrRefreshPendingPresentation() = runBlocking {
+        val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
+        val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val waiting = coordinator.ingest(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+        persistence.discardFailure = IllegalStateException("discard failed")
+
+        val failure = runCatching { coordinator.discard(waiting.pending.id) }
+
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertNotNull(persistence.getPending(waiting.pending.id))
+        assertEquals(listOf(1), notifier.counts)
     }
 
     private fun coordinator(
@@ -195,6 +234,7 @@ private class FakeRoutingPersistence(
     private val finalizedByHash = mutableMapOf<String, AccountMeasurement>()
     private val tombstones = mutableSetOf<String>()
     private var nextId = 0
+    var discardFailure: Throwable? = null
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
@@ -267,10 +307,16 @@ private class FakeRoutingPersistence(
         }
     }
 
-    override suspend fun discardPending(pendingId: PendingMeasurementId): Boolean {
-        val value = pending.remove(pendingId) ?: return false
+    override suspend fun discardPending(
+        pendingId: PendingMeasurementId,
+    ): DiscardPendingResult {
+        discardFailure?.let { throw it }
+        finalized[pendingId.value]?.let { finalizedMeasurement ->
+            return DiscardPendingResult.AlreadyFinalized(finalizedMeasurement)
+        }
+        val value = pending.remove(pendingId) ?: return DiscardPendingResult.PendingNotFound
         tombstones += value.deduplicationHash
-        return true
+        return DiscardPendingResult.Discarded(PendingDiscardUndoToken(value))
     }
 }
 

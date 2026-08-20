@@ -1333,7 +1333,6 @@ private fun NoLatestMeasurementState(
                 }
             }
         }
-        }
     }
 }
 

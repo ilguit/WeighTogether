@@ -7,6 +7,7 @@ import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -46,7 +47,7 @@ interface MeasurementRoutingPersistence {
         account: NewAccount,
     ): CreateAccountAndAssignResult
 
-    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean
+    suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
 }
 
 interface PendingDecisionNotifier {
@@ -152,10 +153,10 @@ class MeasurementIngestionCoordinator(
         return result
     }
 
-    suspend fun discard(pendingId: PendingMeasurementId): Boolean {
-        val discarded = persistence.discardPending(pendingId)
+    suspend fun discard(pendingId: PendingMeasurementId): DiscardPendingResult {
+        val result = persistence.discardPending(pendingId)
         refreshPendingPresentation()
-        return discarded
+        return result
     }
 
     /** Calculates only in memory; the supplied profile and result never cross persistence. */

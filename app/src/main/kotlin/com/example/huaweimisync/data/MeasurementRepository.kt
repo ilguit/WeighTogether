@@ -9,6 +9,7 @@ import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -319,7 +320,9 @@ class MeasurementRepository(
         "Multi-account ingestion is not configured"
     }.createAccountAndAssign(pendingId, account)
 
-    override suspend fun discardPending(pendingId: PendingMeasurementId): Boolean =
+    override suspend fun discardPending(
+        pendingId: PendingMeasurementId,
+    ): DiscardPendingResult =
         requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
             .discard(pendingId)
 
