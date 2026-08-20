@@ -1,9 +1,13 @@
 package com.example.huaweimisync.ui
 
+import androidx.compose.foundation.layout.width
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
@@ -11,6 +15,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.TextLayoutResult
+import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -38,11 +44,13 @@ import com.example.huaweimisync.ui.routing.UnsavedPreviewCallbacks
 import com.example.huaweimisync.ui.routing.UnsavedPreviewProfileDraft
 import com.example.huaweimisync.ui.routing.UnsavedPreviewStep
 import com.example.huaweimisync.ui.routing.UnsavedPreviewTestTags
+import com.example.huaweimisync.ui.routing.UnsavedPreviewTitle
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -250,6 +258,32 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithText("Выбрать").assertIsDisplayed().performClick()
 
         composeRule.runOnIdle { assertEquals(birthDate, changedState?.profileDraft?.birthDate) }
+    }
+
+    @Test
+    fun unsavedPreviewBadgeStaysHorizontalBelowTitleAtNarrowWidth() {
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                UnsavedPreviewTitle(modifier = Modifier.width(180.dp))
+            }
+        }
+
+        val titleBounds = composeRule.onNodeWithTag(UnsavedPreviewTestTags.Title)
+            .getUnclippedBoundsInRoot()
+        val badgeBounds = composeRule.onNodeWithTag(UnsavedPreviewTestTags.UnsavedBadge)
+            .getUnclippedBoundsInRoot()
+        assertTrue(
+            "Unsaved badge must be laid out on a separate row below the preview title",
+            badgeBounds.top >= titleBounds.bottom,
+        )
+
+        val textLayouts = mutableListOf<TextLayoutResult>()
+        val badgeText = composeRule.onNodeWithText("Не сохранено", useUnmergedTree = true)
+            .fetchSemanticsNode()
+        val getTextLayout = badgeText.config[SemanticsActions.GetTextLayoutResult].action
+        assertTrue(getTextLayout?.invoke(textLayouts) == true)
+        assertEquals(1, textLayouts.single().lineCount)
+        assertTrue(textLayouts.single().size.width > textLayouts.single().size.height)
     }
 
     private fun account(id: String, name: String): Account = Account(
