@@ -68,7 +68,7 @@ fun buildResolverAccountOptions(
 @Immutable
 data class ResolverQueueState(
     val pending: List<PendingMeasurement> = emptyList(),
-    val isResolverVisible: Boolean = false,
+    val selectedPendingId: PendingMeasurementId? = null,
     val notificationPermissionGranted: Boolean = true,
 ) {
     init {
@@ -78,10 +78,19 @@ data class ResolverQueueState(
         require(pending == pending.sortedWith(PendingFifoComparator)) {
             "Pending queue must be ordered by enqueue time and durable id"
         }
+        require(selectedPendingId == null || pending.any { it.id == selectedPendingId }) {
+            "Selected pending id must belong to the pending queue"
+        }
     }
 
     val current: PendingMeasurement?
         get() = pending.firstOrNull()
+
+    val selected: PendingMeasurement?
+        get() = pending.firstOrNull { it.id == selectedPendingId }
+
+    val isResolverVisible: Boolean
+        get() = selectedPendingId != null
 
     val pendingCount: Int
         get() = pending.size
@@ -93,20 +102,27 @@ data class ResolverQueueState(
     companion object {
         fun from(
             pending: List<PendingMeasurement>,
-            isResolverVisible: Boolean = false,
+            selectedPendingId: PendingMeasurementId? = null,
             notificationPermissionGranted: Boolean = true,
-        ): ResolverQueueState = ResolverQueueState(
-            pending = pending.sortedWith(PendingFifoComparator),
-            isResolverVisible = isResolverVisible && pending.isNotEmpty(),
-            notificationPermissionGranted = notificationPermissionGranted,
-        )
+        ): ResolverQueueState {
+            val ordered = pending.sortedWith(PendingFifoComparator)
+            return ResolverQueueState(
+                pending = ordered,
+                selectedPendingId = selectedPendingId?.takeIf { selectedId ->
+                    ordered.any { it.id == selectedId }
+                },
+                notificationPermissionGranted = notificationPermissionGranted,
+            )
+        }
     }
 }
 
 sealed interface ResolverQueueAction {
     data class PendingChanged(val pending: List<PendingMeasurement>) : ResolverQueueAction
     data class NotificationPermissionChanged(val granted: Boolean) : ResolverQueueAction
-    data object OpenRequested : ResolverQueueAction
+    data class OpenRequested(
+        val pendingId: PendingMeasurementId? = null,
+    ) : ResolverQueueAction
     /** Hides the resolver but deliberately retains the durable FIFO head. */
     data object LaterRequested : ResolverQueueAction
     /** Dispatch only after the repository has durably finalized the FIFO head. */
@@ -121,16 +137,20 @@ fun reduceResolverQueue(
 ): ResolverQueueState = when (action) {
     is ResolverQueueAction.PendingChanged -> ResolverQueueState.from(
         pending = action.pending,
-        isResolverVisible = state.isResolverVisible,
+        selectedPendingId = state.selectedPendingId,
         notificationPermissionGranted = state.notificationPermissionGranted,
     )
     is ResolverQueueAction.NotificationPermissionChanged -> state.copy(
         notificationPermissionGranted = action.granted,
     )
-    ResolverQueueAction.OpenRequested -> state.copy(
-        isResolverVisible = state.pending.isNotEmpty(),
-    )
-    ResolverQueueAction.LaterRequested -> state.copy(isResolverVisible = false)
+    is ResolverQueueAction.OpenRequested -> action.pendingId?.let { requestedId ->
+        if (state.pending.any { it.id == requestedId }) {
+            state.copy(selectedPendingId = requestedId)
+        } else {
+            state
+        }
+    } ?: state.copy(selectedPendingId = state.pending.firstOrNull()?.id)
+    ResolverQueueAction.LaterRequested -> state.copy(selectedPendingId = null)
     is ResolverQueueAction.HeadFinalized -> state.removeHead(action.pendingId)
     is ResolverQueueAction.HeadDiscarded -> state.removeHead(action.pendingId)
 }
@@ -141,17 +161,23 @@ fun reduceResolverQueue(
  * The eagerly shared UI flow starts with an empty placeholder, so a cold-launch intent must wait
  * for the repository's first Room snapshot before deciding that the notification is stale.
  */
-internal suspend fun hasPendingResolverTarget(
+internal suspend fun oldestPendingResolverTarget(
     observedPending: List<PendingMeasurement>,
     durablePendingSnapshots: Flow<List<PendingMeasurement>>,
-): Boolean = observedPending.isNotEmpty() || durablePendingSnapshots.first().isNotEmpty()
+): PendingMeasurementId? {
+    val available = observedPending.ifEmpty { durablePendingSnapshots.first() }
+    return available.minWithOrNull(PendingFifoComparator)?.id
+}
 
 private fun ResolverQueueState.removeHead(id: PendingMeasurementId): ResolverQueueState {
-    if (current?.id != id) return this
+    if (pending.firstOrNull()?.id != id) return this
     val remaining = pending.drop(1)
     return copy(
         pending = remaining,
-        isResolverVisible = isResolverVisible && remaining.isNotEmpty(),
+        selectedPendingId = when (selectedPendingId) {
+            id -> remaining.firstOrNull()?.id
+            else -> selectedPendingId
+        },
     )
 }
 

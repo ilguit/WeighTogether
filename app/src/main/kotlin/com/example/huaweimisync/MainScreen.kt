@@ -180,6 +180,7 @@ fun HuaweiMiSyncApp(
                     },
                 ),
                 callbacks = measurementsViewModel.callbacks.copy(
+                    onPendingAssignRequested = viewModel::openResolver,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSaving,
                 ),
                 modifier = Modifier

@@ -90,7 +90,7 @@ class ResolverUiContractsTest {
         val tieFirst = pending("a", "2026-08-15T10:00:00Z")
         val initial = ResolverQueueState.from(
             listOf(lateId, tieSecond, tieFirst),
-            isResolverVisible = true,
+            selectedPendingId = tieFirst.id,
         )
         assertEquals(tieFirst.id, initial.current?.id)
 
@@ -104,7 +104,10 @@ class ResolverUiContractsTest {
     fun `only fifo head may be removed and resolver advances to next`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val second = pending("b", "2026-08-15T10:01:00Z")
-        val initial = ResolverQueueState.from(listOf(first, second), isResolverVisible = true)
+        val initial = ResolverQueueState.from(
+            listOf(first, second),
+            selectedPendingId = first.id,
+        )
 
         assertSame(
             initial,
@@ -127,23 +130,31 @@ class ResolverUiContractsTest {
 
         assertTrue(state.showForegroundFallback)
         assertFalse(state.isResolverVisible)
-        assertFalse(state.copy(isResolverVisible = true).showForegroundFallback)
+        assertFalse(state.copy(selectedPendingId = state.pending.first().id).showForegroundFallback)
     }
 
     @Test
-    fun `cold notification launch waits for first durable pending snapshot`() = runBlocking {
+    fun `cold notification launch waits for durable snapshot and selects fifo head`() = runBlocking {
         val durablePending = pending("cold", "2026-08-15T10:00:00Z")
+        val laterPending = pending("later", "2026-08-15T10:01:00Z")
 
-        assertTrue(hasPendingResolverTarget(emptyList(), flowOf(listOf(durablePending))))
-        assertFalse(hasPendingResolverTarget(emptyList(), flowOf(emptyList())))
+        assertEquals(
+            durablePending.id,
+            oldestPendingResolverTarget(
+                emptyList(),
+                flowOf(listOf(laterPending, durablePending)),
+            ),
+        )
+        assertNull(oldestPendingResolverTarget(emptyList(), flowOf(emptyList())))
     }
 
     @Test
     fun `already observed pending opens resolver without collecting another snapshot`() = runBlocking {
         val observed = pending("observed", "2026-08-15T10:00:00Z")
 
-        assertTrue(
-            hasPendingResolverTarget(
+        assertEquals(
+            observed.id,
+            oldestPendingResolverTarget(
                 observedPending = listOf(observed),
                 durablePendingSnapshots = flow { error("must not collect") },
             ),
@@ -154,7 +165,10 @@ class ResolverUiContractsTest {
     fun `pending updates are re-sorted and preserve resolver visibility`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val second = pending("b", "2026-08-15T10:01:00Z")
-        val initial = ResolverQueueState.from(listOf(first), isResolverVisible = true)
+        val initial = ResolverQueueState.from(
+            listOf(first),
+            selectedPendingId = first.id,
+        )
 
         val updated = reduceResolverQueue(
             initial,
@@ -163,6 +177,29 @@ class ResolverUiContractsTest {
 
         assertEquals(listOf(first.id, second.id), updated.pending.map(PendingMeasurement::id))
         assertTrue(updated.isResolverVisible)
+    }
+
+    @Test
+    fun `addressed open selects an existing pending item and rejects a stale id`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val second = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(listOf(first, second))
+
+        val selected = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.OpenRequested(second.id),
+        )
+
+        assertEquals(second.id, selected.selectedPendingId)
+        assertEquals(second, selected.selected)
+        assertEquals(first, selected.current)
+        assertEquals(
+            second.id,
+            reduceResolverQueue(
+                selected,
+                ResolverQueueAction.OpenRequested(PendingMeasurementId("missing")),
+            ).selectedPendingId,
+        )
     }
 
     @Test

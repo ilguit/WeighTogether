@@ -35,7 +35,7 @@ import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverQueueState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
-import com.example.huaweimisync.ui.routing.hasPendingResolverTarget
+import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
@@ -129,7 +129,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val accountManagementDialog = MutableStateFlow(AccountManagementUiState())
     private val weightDeltaEditor = MutableStateFlow(WeightDeltaEditorState())
-    private val resolverRequested = MutableStateFlow(false)
+    private val selectedPendingId = MutableStateFlow<PendingMeasurementId?>(null)
     private val notificationPermissionGranted = MutableStateFlow(
         container.pendingMeasurementNotifications.areNotificationsAllowed(),
     )
@@ -165,12 +165,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
     private val resolverQueue = combine(
         pending,
-        resolverRequested,
+        selectedPendingId,
         notificationPermissionGranted,
-    ) { pendingValues, requested, notificationsGranted ->
+    ) { pendingValues, selectedId, notificationsGranted ->
         ResolverQueueState.from(
             pending = pendingValues,
-            isResolverVisible = requested,
+            selectedPendingId = selectedId,
             notificationPermissionGranted = notificationsGranted,
         )
     }
@@ -181,7 +181,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         resolverOperationInProgress,
         unsavedPreview,
     ) { queue, accounts, decision, operation, preview ->
-        val current = queue.current
+        val current = queue.selected
         val resolver = if (
             queue.isResolverVisible && current != null && preview == null
         ) {
@@ -262,8 +262,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             pending.collectLatest { values ->
                 val head = values.firstOrNull()
+                val selectedId = selectedPendingId.value
+                if (selectedId != null && values.none { it.id == selectedId }) {
+                    selectedPendingId.value = head?.id
+                }
                 if (head == null) {
-                    resolverRequested.value = false
                     pendingDecision.value = null
                 }
                 unsavedPreview.value = unsavedPreview.value?.takeIf { preview ->
@@ -283,8 +286,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
         }
         viewModelScope.launch {
-            combine(pending, accountsSnapshot) { pendingValues, snapshot ->
-                pendingValues.firstOrNull()?.id to snapshot
+            combine(
+                pending,
+                accountsSnapshot,
+                selectedPendingId,
+            ) { pendingValues, snapshot, selectedId ->
+                val routingTargetId = selectedId?.takeIf { id ->
+                    pendingValues.any { it.id == id }
+                } ?: pendingValues.firstOrNull()?.id
+                routingTargetId to snapshot
             }.collectLatest { (pendingId, _) ->
                 if (pendingId == null) {
                     pendingDecision.value = null
@@ -396,12 +406,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun openResolver() {
         val observedPending = pending.value
         if (observedPending.isNotEmpty()) {
-            resolverRequested.value = true
+            selectedPendingId.value = ResolverQueueState.from(observedPending).pending.first().id
             return
         }
         viewModelScope.launch {
             try {
-                resolverRequested.value = hasPendingResolverTarget(
+                selectedPendingId.value = oldestPendingResolverTarget(
                     observedPending = observedPending,
                     durablePendingSnapshots = container.repository.observePending(),
                 )
@@ -413,8 +423,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun openResolver(pendingId: PendingMeasurementId) {
+        if (pending.value.any { it.id == pendingId }) {
+            selectedPendingId.value = pendingId
+        }
+    }
+
     fun resolveLater() {
-        resolverRequested.value = false
+        selectedPendingId.value = null
     }
 
     fun choosePendingAccount(pendingId: PendingMeasurementId, accountId: AccountId) =
@@ -446,13 +462,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startCreateAccountForPending(pendingId: PendingMeasurementId) {
         if (pending.value.firstOrNull()?.id != pendingId) return
         pendingForNewAccount.value = pendingId
-        resolverRequested.value = false
+        selectedPendingId.value = null
         onAccountManagementAction(AccountManagementAction.AddRequested)
     }
 
     fun showPendingWithoutSaving(pendingId: PendingMeasurementId) {
         val pendingValue = pending.value.firstOrNull { it.id == pendingId } ?: return
-        resolverRequested.value = false
+        selectedPendingId.value = null
         unsavedPreview.value = UnsavedMeasurementPreviewState(pendingValue)
     }
 
@@ -466,7 +482,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (unsavedPreview.value?.pending?.id != pendingId) return@launch
         if (container.repository.discardPending(pendingId)) {
             unsavedPreview.value = null
-            resolverRequested.value = true
+            selectedPendingId.value = pending.value.firstOrNull { it.id != pendingId }?.id
             showMessage("Измерение удалено без сохранения")
         } else {
             unsavedPreview.value = null
@@ -552,7 +568,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
             is MeasurementIngestionResult.AwaitingDecision -> {
-                resolverRequested.value = true
+                selectedPendingId.value = result.pending.id
                 pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
                 showMessage("Тестовое измерение ожидает выбора аккаунта")
             }
