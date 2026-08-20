@@ -64,6 +64,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiRowIcon
 import com.example.huaweimisync.ui.components.HuaweiSectionTitle
@@ -126,6 +127,10 @@ fun MeasurementsScreen(
                 )
 
                 MeasurementsDestination.PENDING_QUEUE -> PendingQueueDestination(
+                    pendingMeasurements = state.pendingMeasurements,
+                    onAssign = callbacks.onPendingAssignRequested,
+                    onPreview = callbacks.onPendingPreviewRequested,
+                    onDelete = callbacks.onPendingDeleteRequested,
                     onBack = callbacks.onBackRequested,
                 )
 
@@ -171,7 +176,13 @@ fun MeasurementsScreen(
 }
 
 @Composable
-private fun PendingQueueDestination(onBack: () -> Unit) {
+private fun PendingQueueDestination(
+    pendingMeasurements: List<PendingMeasurementUiItem>,
+    onAssign: (PendingMeasurementId) -> Unit,
+    onPreview: (PendingMeasurementId) -> Unit,
+    onDelete: (PendingMeasurementId) -> Unit,
+    onBack: () -> Unit,
+) {
     LazyColumn(
         modifier = Modifier
             .widthIn(max = 680.dp)
@@ -182,12 +193,146 @@ private fun PendingQueueDestination(onBack: () -> Unit) {
             horizontal = HuaweiDimensions.ContentPadding,
             vertical = HuaweiDimensions.CompactContentPadding,
         ),
+        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
         item {
             NestedScreenHeader(
                 title = "Не назначено",
                 backContentDescription = "Назад к последнему измерению",
                 onBack = onBack,
+            )
+        }
+        if (pendingMeasurements.isEmpty()) {
+            item { EmptyPendingQueueCard() }
+        } else {
+            items(
+                items = pendingMeasurements,
+                key = { it.id.value },
+            ) { pending ->
+                PendingMeasurementCard(
+                    pending = pending,
+                    onAssign = { onAssign(pending.id) },
+                    onPreview = { onPreview(pending.id) },
+                    onDelete = { onDelete(pending.id) },
+                )
+            }
+        }
+        item { Spacer(Modifier.height(12.dp)) }
+    }
+}
+
+@Composable
+private fun PendingMeasurementCard(
+    pending: PendingMeasurementUiItem,
+    onAssign: () -> Unit,
+    onPreview: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("pending-card-${pending.id.value}"),
+        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 16.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Text(
+                text = formatMeasurementDateTime(pending.measuredAtEpochMillis),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(20.dp),
+            ) {
+                PendingMeasurementValue(
+                    label = "Вес",
+                    value = "${formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg)} кг",
+                    modifier = Modifier.weight(1f),
+                )
+                PendingMeasurementValue(
+                    label = "Импеданс",
+                    value = pending.impedanceOhm?.let { "$it Ом" } ?: MissingMeasurementValue,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Button(
+                onClick = onAssign,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag("pending-assign-${pending.id.value}"),
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Text("Назначить")
+            }
+            OutlinedButton(
+                onClick = onPreview,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag("pending-preview-${pending.id.value}"),
+                shape = MaterialTheme.shapes.medium,
+            ) {
+                Text("Показать без сохранения")
+            }
+            TextButton(
+                onClick = onDelete,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag("pending-delete-${pending.id.value}"),
+                colors = ButtonDefaults.textButtonColors(
+                    contentColor = MaterialTheme.colorScheme.error,
+                ),
+            ) {
+                Icon(
+                    imageVector = HuaweiIcons.Delete,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                )
+                Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun PendingMeasurementValue(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Text(value, style = MaterialTheme.typography.titleMedium)
+    }
+}
+
+@Composable
+private fun EmptyPendingQueueCard() {
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag("empty-pending-queue"),
+        contentPadding = PaddingValues(horizontal = 20.dp, vertical = 26.dp),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            HuaweiSectionTitle("Нет неназначенных измерений")
+            Text(
+                "Все измерения обработаны.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodyMedium,
             )
         }
     }
