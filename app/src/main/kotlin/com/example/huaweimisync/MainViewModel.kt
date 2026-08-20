@@ -107,6 +107,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val scanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
+    private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
+    private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
     private val initialHealthConnectState = if (container.healthConnect.isAvailable()) {
         HealthConnectPermissionsUiState.checking(container.healthConnect.permissions)
@@ -537,22 +539,28 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         resolverOperationInProgress.value = true
         try {
-            val result = container.repository.discardPending(completion.pendingId)
-            completePendingResolution(completion)
-            showMessage(
-                when (result) {
-                    is DiscardPendingResult.Discarded -> "Измерение удалено"
-                    is DiscardPendingResult.AlreadyFinalized,
-                    DiscardPendingResult.PendingNotFound,
-                    -> "Измерение уже обработано"
-                },
-            )
+            discardPending(completion.pendingId, completion)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
         } finally {
             resolverOperationInProgress.value = false
+        }
+    }
+
+    fun deletePendingFromQueue(pendingId: PendingMeasurementId) = viewModelScope.launch {
+        if (pending.value.none { it.id == pendingId }) return@launch
+        discardPending(pendingId)
+    }
+
+    internal fun onPendingDiscardSnackbarResult(snackbarId: Long, undoRequested: Boolean) {
+        val undoToken = pendingDiscardUndo.finish(snackbarId, undoRequested) ?: return
+        viewModelScope.launch {
+            showMessage(
+                restorePendingForUndo(
+                    undoToken = undoToken,
+                    restorePending = container.repository::restorePending,
+                ),
+            )
         }
     }
 
@@ -811,6 +819,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun showMessage(message: String) {
         eventEmitter.showSnackbar(message)
+    }
+
+    private suspend fun discardPending(
+        pendingId: PendingMeasurementId,
+        completion: PendingResolverCompletion? = null,
+    ) {
+        if (!pendingDiscardsInProgress.add(pendingId)) return
+        try {
+            when (val result = container.repository.discardPending(pendingId)) {
+                is DiscardPendingResult.Discarded -> {
+                    completion?.let(::completePendingResolution)
+                    pendingDiscardUndo.show(result.undoToken)
+                }
+                is DiscardPendingResult.AlreadyFinalized,
+                DiscardPendingResult.PendingNotFound,
+                -> {
+                    completion?.let(::completePendingResolution)
+                    showMessage("Измерение уже обработано")
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+        } finally {
+            pendingDiscardsInProgress.remove(pendingId)
+        }
     }
 
     private fun selectPendingForResolver(

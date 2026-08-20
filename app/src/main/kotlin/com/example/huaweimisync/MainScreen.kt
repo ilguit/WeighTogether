@@ -17,8 +17,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
@@ -27,6 +29,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -53,6 +56,7 @@ import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
 import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
+import kotlinx.coroutines.flow.Flow
 
 internal enum class AppSection(
     val title: String,
@@ -95,6 +99,46 @@ internal object MainScreenTestTags {
     const val SnackbarHost = "main-snackbar-host"
 }
 
+@Composable
+internal fun MainUiEventHandler(
+    events: Flow<MainUiEvent>,
+    snackbarHostState: SnackbarHostState,
+    onPendingResolutionCompleted: (MainUiEvent.PendingResolutionCompleted) -> Unit,
+    onPendingDiscardSnackbarResult: (snackbarId: Long, undoRequested: Boolean) -> Unit,
+) {
+    val currentResolutionHandler by rememberUpdatedState(onPendingResolutionCompleted)
+    val currentDiscardResultHandler by rememberUpdatedState(onPendingDiscardSnackbarResult)
+    LaunchedEffect(events, snackbarHostState) {
+        events.collect { event ->
+            when (event) {
+                is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is MainUiEvent.ShowPendingDiscardUndo -> {
+                    var resultReported = false
+                    try {
+                        val result = snackbarHostState.showSnackbar(
+                            message = event.message,
+                            actionLabel = event.actionLabel,
+                            withDismissAction = true,
+                            duration = SnackbarDuration.Long,
+                        )
+                        currentDiscardResultHandler(
+                            event.snackbarId,
+                            result == SnackbarResult.ActionPerformed,
+                        )
+                        resultReported = true
+                    } finally {
+                        if (!resultReported) {
+                            currentDiscardResultHandler(event.snackbarId, false)
+                        }
+                    }
+                }
+                is MainUiEvent.PendingResolutionCompleted ->
+                    currentResolutionHandler(event)
+            }
+        }
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HuaweiMiSyncApp(
@@ -118,22 +162,20 @@ fun HuaweiMiSyncApp(
             }
         }
     }
-    LaunchedEffect(viewModel) {
-        viewModel.events.collect { event ->
-            when (event) {
-                is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
-                is MainUiEvent.PendingResolutionCompleted -> {
-                    measurementsViewModel.onPendingResolutionCompleted(event.returnDestination)
-                    if (
-                        event.returnDestination ==
-                        PendingResolverReturnDestination.PENDING_QUEUE
-                    ) {
-                        currentSection = AppSection.MEASUREMENTS
-                    }
-                }
+    MainUiEventHandler(
+        events = viewModel.events,
+        snackbarHostState = snackbarHostState,
+        onPendingDiscardSnackbarResult = viewModel::onPendingDiscardSnackbarResult,
+        onPendingResolutionCompleted = { event ->
+            measurementsViewModel.onPendingResolutionCompleted(event.returnDestination)
+            if (
+                event.returnDestination ==
+                PendingResolverReturnDestination.PENDING_QUEUE
+            ) {
+                currentSection = AppSection.MEASUREMENTS
             }
-        }
-    }
+        },
+    )
     HuaweiMiSyncScaffold(
         state = state,
         currentSection = currentSection,
@@ -193,6 +235,7 @@ fun HuaweiMiSyncApp(
                 callbacks = measurementsViewModel.callbacks.copy(
                     onPendingAssignRequested = viewModel::openResolverFromQueue,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
+                    onPendingDeleteRequested = viewModel::deletePendingFromQueue,
                 ),
                 modifier = Modifier
                     .fillMaxSize()
