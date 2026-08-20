@@ -4,6 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -90,30 +94,143 @@ class SettingsShellUiTest {
         }
     }
 
-    private fun setSettingsShell(
-        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
-    ) {
-        val profile = AccountProfile.Complete(
-            heightCm = 181.5,
-            birthDate = LocalDate.of(1988, 2, 29),
-            sex = Sex.FEMALE,
-        )
-        val account = Account(
-            id = AccountId("primary"),
-            displayName = "Анна",
-            profile = profile,
-            createdAt = Instant.parse("2026-08-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-08-15T00:00:00Z"),
+    @Test
+    fun availableHealthConnectRowOpensManagementWithoutPrimaryAccount() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = availableHealthConnectWithMissingPermissions(),
+            account = null,
+            onHealthConnectAccessManagement = { managementCalls++ },
         )
 
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertHasClickAction()
+            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, managementCalls)
+        }
+    }
+
+    @Test
+    fun availableHealthConnectRowOpensManagementWithIncompletePrimaryProfile() {
+        var managementCalls = 0
+        val incompleteAccount = completeAccount().copy(
+            profile = AccountProfile.IncompleteRecovery(heightCm = 181.5),
+        )
+        setSettingsShell(
+            healthConnect = availableHealthConnectWithMissingPermissions(),
+            account = incompleteAccount,
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertHasClickAction()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, managementCalls)
+        }
+    }
+
+    @Test
+    fun partialHealthConnectActionRequestsMissingPermissionsInsteadOfOpeningManagement() {
+        var authorizationCalls = 0
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = setOf("weight", "fat"),
+                grantedPermissions = setOf("weight"),
+            ),
+            onHealthConnectAuthorization = { authorizationCalls++ },
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
+            .performScrollTo()
+            .assertIsEnabled()
+            .assertContentDescriptionEquals(
+                SettingsScreenContentDescriptions.HealthConnectConnectAction,
+            )
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, authorizationCalls)
+            assertEquals(0, managementCalls)
+        }
+    }
+
+    @Test
+    fun completeHealthConnectActionOpensManagementInsteadOfRequestingPermissions() {
+        var authorizationCalls = 0
+        var managementCalls = 0
+        val requiredPermissions = setOf("weight", "fat")
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = requiredPermissions,
+                grantedPermissions = requiredPermissions,
+            ),
+            onHealthConnectAuthorization = { authorizationCalls++ },
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
+            .performScrollTo()
+            .assertIsEnabled()
+            .assertContentDescriptionEquals(
+                SettingsScreenContentDescriptions.HealthConnectOpenAction,
+            )
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(0, authorizationCalls)
+            assertEquals(1, managementCalls)
+        }
+    }
+
+    @Test
+    fun unavailableHealthConnectRowIsInactiveAndExplainsWhy() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.UNAVAILABLE,
+            ),
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText(
+            "Основной: Анна · Недоступно: устройство не поддерживает Health Connect",
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .assertHasNoClickAction()
+            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            assertEquals(0, managementCalls)
+        }
+    }
+
+    private fun setSettingsShell(
+        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
+        healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
+        account: Account? = completeAccount(),
+        onHuaweiAuthorization: () -> Unit = {},
+        onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAuthorization: () -> Unit = {},
+        onHealthConnectAccessManagement: () -> Unit = {},
+    ) {
         composeRule.setContent {
             val management = remember {
                 mutableStateOf(
                     AccountManagementUiState(
-                        accounts = listOf(account),
-                        primaryAccountId = account.id,
+                        accounts = listOfNotNull(account),
+                        primaryAccountId = account?.id,
                     ),
                 )
             }
@@ -121,9 +238,10 @@ class SettingsShellUiTest {
             HuaweiMiSyncScaffold(
                 state = MainUiState(
                     settings = AppSettings(),
+                    healthConnect = healthConnect,
                     huawei = huawei,
-                    accounts = listOf(account),
-                    accountSettings = AccountSettings(primaryAccountId = account.id),
+                    accounts = listOfNotNull(account),
+                    accountSettings = AccountSettings(primaryAccountId = account?.id),
                     accountManagement = management.value,
                 ),
                 currentSection = AppSection.SETTINGS,
@@ -139,6 +257,8 @@ class SettingsShellUiTest {
                 settingsCallbacks = settingsCallbacks(
                     onHuaweiAuthorization = onHuaweiAuthorization,
                     onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
+                    onHealthConnectAuthorization = onHealthConnectAuthorization,
+                    onHealthConnectAccessManagement = onHealthConnectAccessManagement,
                     accountManagement = AccountManagementCallbacks.None.copy(
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
@@ -152,12 +272,14 @@ class SettingsShellUiTest {
     private fun settingsCallbacks(
         onHuaweiAuthorization: () -> Unit = {},
         onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAuthorization: () -> Unit = {},
+        onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
-        onHealthConnectAuthorization = {},
-        onHealthConnectAccessManagement = {},
+        onHealthConnectAuthorization = onHealthConnectAuthorization,
+        onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
@@ -165,4 +287,23 @@ class SettingsShellUiTest {
         openApplicationSettings = {},
         accountManagement = accountManagement,
     )
+
+    private fun completeAccount(): Account = Account(
+        id = AccountId("primary"),
+        displayName = "Анна",
+        profile = AccountProfile.Complete(
+            heightCm = 181.5,
+            birthDate = LocalDate.of(1988, 2, 29),
+            sex = Sex.FEMALE,
+        ),
+        createdAt = Instant.parse("2026-08-15T00:00:00Z"),
+        updatedAt = Instant.parse("2026-08-15T00:00:00Z"),
+    )
+
+    private fun availableHealthConnectWithMissingPermissions(): HealthConnectPermissionsUiState =
+        HealthConnectPermissionsUiState.snapshot(
+            isAvailable = true,
+            requiredPermissions = setOf("weight"),
+            grantedPermissions = emptySet(),
+        )
 }

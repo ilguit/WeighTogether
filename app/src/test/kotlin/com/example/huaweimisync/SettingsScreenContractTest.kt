@@ -48,8 +48,33 @@ class SettingsScreenContractTest {
         )
 
         assertEquals("Подключено · все разрешения выданы", presentation.supportingText)
-        assertEquals("Отключить", presentation.actionLabel)
+        assertEquals("Открыть", presentation.actionLabel)
         assertTrue(presentation.actionOpensManagement)
+    }
+
+    @Test
+    fun `unavailable health connect explains cause and exposes no action`() {
+        val unsupported = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.UNAVAILABLE,
+            ),
+        )
+        val providerMissing = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+            ),
+        )
+
+        assertEquals(
+            "Недоступно: устройство не поддерживает Health Connect",
+            unsupported.supportingText,
+        )
+        assertNull(unsupported.actionLabel)
+        assertEquals(
+            "Недоступно: установите или обновите Health Connect",
+            providerMissing.supportingText,
+        )
+        assertNull(providerMissing.actionLabel)
     }
 
     @Test

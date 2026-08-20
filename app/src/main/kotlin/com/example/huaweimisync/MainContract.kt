@@ -210,6 +210,7 @@ enum class HealthConnectAvailability {
     CHECKING,
     AVAILABLE,
     UNAVAILABLE,
+    PROVIDER_UPDATE_REQUIRED,
     CHECK_FAILED,
 }
 
@@ -263,6 +264,27 @@ data class HealthConnectPermissionsUiState(
         )
     }
 }
+
+/**
+ * Independent capabilities used by the settings integration row.
+ *
+ * Opening system-owned Health Connect management depends only on SDK availability. Syncing a
+ * measurement additionally requires an eligible selected account and every mandatory permission.
+ */
+internal data class HealthConnectIntegrationCapabilities(
+    val systemManagementAvailable: Boolean,
+    val selectedAccountSyncEligible: Boolean,
+    val selectedAccountSyncReady: Boolean,
+)
+
+internal fun healthConnectIntegrationCapabilities(
+    permissions: HealthConnectPermissionsUiState,
+    selectedAccountSyncEligible: Boolean,
+): HealthConnectIntegrationCapabilities = HealthConnectIntegrationCapabilities(
+    systemManagementAvailable = permissions.availability == HealthConnectAvailability.AVAILABLE,
+    selectedAccountSyncEligible = selectedAccountSyncEligible,
+    selectedAccountSyncReady = selectedAccountSyncEligible && permissions.isConnected,
+)
 
 enum class HuaweiIntegrationStatus {
     UNAVAILABLE_IN_BUILD,

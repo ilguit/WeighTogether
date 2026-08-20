@@ -100,10 +100,18 @@ internal data class IntegrationPresentation(
 
 internal object SettingsScreenTestTags {
     const val ProfileRow = "settings-profile-row"
+    const val HealthConnectRow = "settings-health-connect-row"
+    const val HealthConnectAction = "settings-health-connect-action"
     const val AdditionalToggle = "settings-additional-toggle"
     const val AdditionalContent = "settings-additional-content"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
+}
+
+internal object SettingsScreenContentDescriptions {
+    const val HealthConnectRow = "Настройки Health Connect"
+    const val HealthConnectConnectAction = "Подключить Health Connect"
+    const val HealthConnectOpenAction = "Открыть Health Connect"
 }
 
 private val ProfileSummaryDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -128,7 +136,10 @@ internal fun healthConnectPresentation(
         actionEnabled = false,
     )
     HealthConnectAvailability.UNAVAILABLE -> IntegrationPresentation(
-        supportingText = "Недоступно на этом устройстве",
+        supportingText = "Недоступно: устройство не поддерживает Health Connect",
+    )
+    HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED -> IntegrationPresentation(
+        supportingText = "Недоступно: установите или обновите Health Connect",
     )
     HealthConnectAvailability.CHECK_FAILED -> IntegrationPresentation(
         supportingText = "Не удалось проверить разрешения",
@@ -137,7 +148,7 @@ internal fun healthConnectPresentation(
     HealthConnectAvailability.AVAILABLE -> if (state.isConnected) {
         IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
-            actionLabel = "Отключить",
+            actionLabel = "Открыть",
             actionOpensManagement = true,
         )
     } else {
@@ -233,6 +244,7 @@ private fun SettingsIntegrationsSection(
     callbacks: SettingsCallbacks,
 ) {
     val primary = state.primaryAccount
+    val healthConnectCapabilities = state.healthConnectCapabilities
     val primaryStatus = when {
         primary == null -> "Основной аккаунт не выбран"
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
@@ -240,7 +252,7 @@ private fun SettingsIntegrationsSection(
     }
     val healthConnect = healthConnectPresentation(state.healthConnect).forPrimaryAccount(
         primaryStatus,
-        state.canUseExternalIntegrations,
+        healthConnectCapabilities.selectedAccountSyncEligible,
     )
     val huawei = huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
         primaryStatus,
@@ -253,6 +265,14 @@ private fun SettingsIntegrationsSection(
                     icon = HuaweiIcons.Health,
                     title = "Health Connect",
                     supportingText = healthConnect.supportingText,
+                    modifier = Modifier
+                        .testTag(SettingsScreenTestTags.HealthConnectRow)
+                        .semantics {
+                            contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                        },
+                    onClick = callbacks.onHealthConnectAccessManagement.takeIf {
+                        healthConnectCapabilities.systemManagementAvailable
+                    },
                 ) {
                     healthConnect.actionLabel?.let { label ->
                         TextButton(
@@ -262,6 +282,15 @@ private fun SettingsIntegrationsSection(
                                 callbacks.onHealthConnectAuthorization
                             },
                             enabled = healthConnect.actionEnabled,
+                            modifier = Modifier
+                                .testTag(SettingsScreenTestTags.HealthConnectAction)
+                                .semantics {
+                                    contentDescription = if (healthConnect.actionOpensManagement) {
+                                        SettingsScreenContentDescriptions.HealthConnectOpenAction
+                                    } else {
+                                        SettingsScreenContentDescriptions.HealthConnectConnectAction
+                                    }
+                                },
                         ) { Text(label) }
                     }
                 }

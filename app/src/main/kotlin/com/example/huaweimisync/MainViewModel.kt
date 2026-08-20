@@ -76,6 +76,12 @@ data class MainUiState(
 
     val canUseExternalIntegrations: Boolean
         get() = primaryAccount?.profile is com.example.huaweimisync.domain.AccountProfile.Complete
+
+    internal val healthConnectCapabilities: HealthConnectIntegrationCapabilities
+        get() = healthConnectIntegrationCapabilities(
+            permissions = healthConnect,
+            selectedAccountSyncEligible = canUseExternalIntegrations,
+        )
 }
 
 private data class AccountsSnapshot(
@@ -112,11 +118,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
-    private val initialHealthConnectState = if (container.healthConnect.isAvailable()) {
+    private val initialHealthConnectAvailability = container.healthConnect.availability()
+    private val initialHealthConnectState = if (
+        initialHealthConnectAvailability == HealthConnectAvailability.AVAILABLE
+    ) {
         HealthConnectPermissionsUiState.checking(container.healthConnect.permissions)
     } else {
-        HealthConnectPermissionsUiState.snapshot(
-            isAvailable = false,
+        HealthConnectPermissionsUiState(
+            availability = initialHealthConnectAvailability,
             requiredPermissions = container.healthConnect.permissions,
             grantedPermissions = emptySet(),
         )
@@ -761,10 +770,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         grantedHint: Set<String>? = null,
     ) {
         val required = healthConnectPermissions
-        val isAvailable = container.healthConnect.isAvailable()
-        if (!isAvailable) {
-            healthConnect.value = HealthConnectPermissionsUiState.snapshot(
-                isAvailable = false,
+        val availability = container.healthConnect.availability()
+        if (availability != HealthConnectAvailability.AVAILABLE) {
+            healthConnect.value = HealthConnectPermissionsUiState(
+                availability = availability,
                 requiredPermissions = required,
                 grantedPermissions = emptySet(),
             )
