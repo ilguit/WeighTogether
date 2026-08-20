@@ -156,6 +156,31 @@ class SettingsShellUiTest {
         }
     }
 
+    @Test
+    fun completeHealthConnectActionOpensManagementInsteadOfRequestingPermissions() {
+        var authorizationCalls = 0
+        var managementCalls = 0
+        val requiredPermissions = setOf("weight", "fat")
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = requiredPermissions,
+                grantedPermissions = requiredPermissions,
+            ),
+            onHealthConnectAuthorization = { authorizationCalls++ },
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText("Открыть")
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(0, authorizationCalls)
+            assertEquals(1, managementCalls)
+        }
+    }
+
     private fun setSettingsShell(
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
