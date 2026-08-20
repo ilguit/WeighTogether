@@ -1,5 +1,6 @@
 package com.example.huaweimisync.ui.accounts
 
+import androidx.compose.runtime.saveable.SaverScope
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -28,11 +29,78 @@ class MultiAccountUiContractsTest {
     }
 
     @Test
-    fun `profile date parsing is strict and supports localized and iso dates`() {
-        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("29.02.2024"))
-        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("2024-02-29"))
-        assertNull(parseProfileDate("31.02.2024"))
-        assertNull(parseProfileDate("29.02.2023"))
+    fun `account editor saver round trips a leap birth date as epoch day`() {
+        val birthDate = LocalDate.of(2000, 2, 29)
+        val draft = AccountEditorDraft(
+            editingAccountId = AccountId("account"),
+            name = "Анна",
+            heightCm = "170,5",
+            birthDate = birthDate,
+            sex = Sex.FEMALE,
+        )
+
+        val saved = saveAccountEditorDraft(draft)
+
+        assertEquals(birthDate.toEpochDay(), (saved as List<*>)[3])
+        assertEquals(draft, AccountEditorDraftSaver.restore(saved))
+    }
+
+    @Test
+    fun `account editor saver round trips a missing birth date`() {
+        val draft = AccountEditorDraft.add().copy(name = "Новый")
+
+        val saved = saveAccountEditorDraft(draft)
+
+        assertTrue((saved as List<*>)[3] is Long)
+        assertEquals(draft, AccountEditorDraftSaver.restore(saved))
+        assertNull(AccountEditorDraftSaver.restore(saved)?.birthDate)
+    }
+
+    @Test
+    fun `account editor birth date action selects and clears typed value`() {
+        val birthDate = LocalDate.of(2000, 2, 29)
+        val selected = reduceAccountEditor(
+            AccountEditorDraft.add(),
+            AccountEditorAction.BirthDateChanged(birthDate),
+        )
+
+        assertEquals(birthDate, selected.birthDate)
+        assertNull(
+            reduceAccountEditor(
+                selected,
+                AccountEditorAction.BirthDateChanged(null),
+            ).birthDate,
+        )
+    }
+
+    @Test
+    fun `account editor accepts leap day through today and rejects future or missing date`() {
+        val today = LocalDate.of(2024, 2, 29)
+        val validDraft = AccountEditorDraft(
+            name = "Анна",
+            heightCm = "170",
+            birthDate = today,
+            sex = Sex.FEMALE,
+        )
+
+        val valid = validateAccountEditor(validDraft, emptyList(), today)
+        val future = validateAccountEditor(
+            validDraft.copy(birthDate = today.plusDays(1)),
+            emptyList(),
+            today,
+        )
+        val missing = validateAccountEditor(
+            validDraft.copy(birthDate = null),
+            emptyList(),
+            today,
+        )
+
+        assertTrue(valid.isValid)
+        assertEquals(today, valid.birthDate)
+        assertNotNull(future.error(AccountEditorField.BIRTH_DATE))
+        assertNull(future.birthDate)
+        assertNotNull(missing.error(AccountEditorField.BIRTH_DATE))
+        assertNull(missing.birthDate)
     }
 
     @Test
@@ -54,7 +122,7 @@ class MultiAccountUiContractsTest {
         val duplicate = AccountEditorDraft(
             name = "  АННА  ",
             heightCm = "170,5",
-            birthDate = "01.05.1990",
+            birthDate = LocalDate.of(1990, 5, 1),
             sex = Sex.FEMALE,
         )
         val duplicateValidation = validateAccountEditor(
@@ -325,4 +393,16 @@ class MultiAccountUiContractsTest {
         createdAt = Instant.parse("2026-01-01T00:00:00Z"),
         updatedAt = Instant.parse("2026-01-01T00:00:00Z"),
     )
+
+    private fun saveAccountEditorDraft(draft: AccountEditorDraft): Any = requireNotNull(
+        with(AccountEditorDraftSaver) {
+            with(SaveEverythingScope) {
+                save(draft)
+            }
+        },
+    )
+
+    private object SaveEverythingScope : SaverScope {
+        override fun canBeSaved(value: Any): Boolean = true
+    }
 }

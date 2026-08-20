@@ -10,7 +10,6 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.toRawScaleMeasurement
 import com.example.huaweimisync.ui.accounts.formatLocalizedDecimal
 import com.example.huaweimisync.ui.accounts.parseLocalizedDecimal
-import com.example.huaweimisync.ui.accounts.parseProfileDate
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -26,13 +25,13 @@ enum class UnsavedPreviewStep {
 @Immutable
 data class UnsavedPreviewProfileDraft(
     val heightCm: String = "",
-    val birthDate: String = "",
+    val birthDate: LocalDate? = null,
     val sex: Sex? = null,
 ) {
     companion object {
         fun from(profile: UserProfile): UnsavedPreviewProfileDraft = UnsavedPreviewProfileDraft(
             heightCm = formatLocalizedDecimal(profile.heightCm),
-            birthDate = profile.birthDate.toString(),
+            birthDate = profile.birthDate,
             sex = profile.sex,
         )
     }
@@ -59,7 +58,7 @@ fun validateUnsavedPreviewProfile(
     } else {
         null
     }
-    val birthDate = parseProfileDate(draft.birthDate)
+    val birthDate = draft.birthDate
     val birthDateError = if (birthDate == null || birthDate.isAfter(measurementDate)) {
         "Дата рождения должна быть не позже измерения"
     } else {

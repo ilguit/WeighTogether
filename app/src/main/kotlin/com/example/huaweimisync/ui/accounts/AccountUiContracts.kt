@@ -13,16 +13,13 @@ import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.normalizeAccountName
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
-import java.time.format.ResolverStyle
 
 @Immutable
 data class AccountEditorDraft(
     val editingAccountId: AccountId? = null,
     val name: String = "",
     val heightCm: String = "",
-    val birthDate: String = "",
+    val birthDate: LocalDate? = null,
     val sex: Sex? = null,
 ) {
     companion object {
@@ -32,7 +29,7 @@ data class AccountEditorDraft(
             editingAccountId = account.id,
             name = account.displayName,
             heightCm = account.profile.heightCm?.let(::formatLocalizedDecimal).orEmpty(),
-            birthDate = account.profile.birthDate?.format(DisplayDateFormatter).orEmpty(),
+            birthDate = account.profile.birthDate,
             sex = account.profile.sex,
         )
     }
@@ -44,20 +41,24 @@ val AccountEditorDraftSaver: Saver<AccountEditorDraft, Any> = listSaver(
             draft.editingAccountId?.value.orEmpty(),
             draft.name,
             draft.heightCm,
-            draft.birthDate,
+            draft.birthDate?.toEpochDay() ?: MissingBirthDateEpochDay,
             draft.sex?.name.orEmpty(),
         )
     },
     restore = { saved ->
         AccountEditorDraft(
-            editingAccountId = saved[0].takeIf(String::isNotEmpty)?.let(::AccountId),
-            name = saved[1],
-            heightCm = saved[2],
-            birthDate = saved[3],
-            sex = saved[4].takeIf(String::isNotEmpty)?.let(Sex::valueOf),
+            editingAccountId = (saved[0] as String).takeIf(String::isNotEmpty)?.let(::AccountId),
+            name = saved[1] as String,
+            heightCm = saved[2] as String,
+            birthDate = (saved[3] as Long)
+                .takeUnless { it == MissingBirthDateEpochDay }
+                ?.let(LocalDate::ofEpochDay),
+            sex = (saved[4] as String).takeIf(String::isNotEmpty)?.let(Sex::valueOf),
         )
     },
 )
+
+private const val MissingBirthDateEpochDay = Long.MIN_VALUE
 
 enum class AccountEditorField {
     NAME,
@@ -71,7 +72,7 @@ data class AccountEditorValidation(
     val errors: Map<AccountEditorField, String> = emptyMap(),
     val normalizedName: String? = null,
     val heightCm: Double? = null,
-    val parsedBirthDate: LocalDate? = null,
+    val birthDate: LocalDate? = null,
     val sex: Sex? = null,
 ) {
     val isValid: Boolean
@@ -102,7 +103,7 @@ fun validateAccountEditor(
         errors[AccountEditorField.HEIGHT] = "Допустимый рост: 100–230 см"
     }
 
-    val birthDate = parseProfileDate(draft.birthDate)
+    val birthDate = draft.birthDate
     if (birthDate == null || birthDate.isAfter(today)) {
         errors[AccountEditorField.BIRTH_DATE] = "Введите корректную дату рождения"
     }
@@ -113,7 +114,7 @@ fun validateAccountEditor(
         errors = errors,
         normalizedName = normalizedName.takeIf { displayName.length in ACCOUNT_NAME_LENGTH },
         heightCm = height?.takeIf { it in 100.0..230.0 },
-        parsedBirthDate = birthDate?.takeUnless { it.isAfter(today) },
+        birthDate = birthDate?.takeUnless { it.isAfter(today) },
         sex = draft.sex,
     )
 }
@@ -124,7 +125,7 @@ fun AccountEditorDraft.toNewAccountOrNull(validation: AccountEditorValidation): 
         displayName = name.trim(),
         profile = AccountProfile.Complete(
             heightCm = requireNotNull(validation.heightCm),
-            birthDate = requireNotNull(validation.parsedBirthDate),
+            birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
     )
@@ -138,7 +139,7 @@ fun AccountEditorDraft.toAccountUpdateOrNull(validation: AccountEditorValidation
         displayName = name.trim(),
         profile = AccountProfile.Complete(
             heightCm = requireNotNull(validation.heightCm),
-            birthDate = requireNotNull(validation.parsedBirthDate),
+            birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
     )
@@ -147,7 +148,7 @@ fun AccountEditorDraft.toAccountUpdateOrNull(validation: AccountEditorValidation
 sealed interface AccountEditorAction {
     data class NameChanged(val value: String) : AccountEditorAction
     data class HeightChanged(val value: String) : AccountEditorAction
-    data class BirthDateChanged(val value: String) : AccountEditorAction
+    data class BirthDateChanged(val value: LocalDate?) : AccountEditorAction
     data class SexChanged(val value: Sex) : AccountEditorAction
 }
 
@@ -336,22 +337,5 @@ fun reduceAccountManagement(
             primaryChange = null,
             deletion = null,
         )
-    }
-}
-
-private val DisplayDateFormatter: DateTimeFormatter = DateTimeFormatter
-    .ofPattern("dd.MM.uuuu")
-    .withResolverStyle(ResolverStyle.STRICT)
-
-fun parseProfileDate(input: String): LocalDate? {
-    val value = input.trim()
-    return try {
-        LocalDate.parse(value, DisplayDateFormatter)
-    } catch (_: DateTimeParseException) {
-        try {
-            LocalDate.parse(value)
-        } catch (_: DateTimeParseException) {
-            null
-        }
     }
 }

@@ -35,6 +35,7 @@ import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -163,20 +164,29 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
-    fun incompleteAutoTargetStaysPendingAndOneShotPreviewDoesNotSave() = runBlocking {
+    fun incompleteAutoTargetStaysPendingAndOneShotPreviewDoesNotCrossPersistence() = runBlocking {
         val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
         val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
         val persistence = FakeRoutingPersistence(accounts)
-        val coordinator = coordinator(persistence, accounts, UniqueFakeScheduler())
+        val scheduler = UniqueFakeScheduler()
+        val coordinator = coordinator(persistence, accounts, scheduler)
 
         val waiting = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+        val pendingBeforePreview = persistence.pendingSnapshot()
+        val accountsBeforePreview = accounts.observeAccounts().first()
+        val historiesBeforePreview = persistence.histories.toMap()
+        persistence.writeOperations.clear()
         val rawPreview = coordinator.previewWithoutSaving(waiting.pending.id)
         val calculated = coordinator.previewWithoutSaving(waiting.pending.id, completeProfile())
 
         assertNull(rawPreview?.composition)
         assertNotNull(calculated?.composition)
-        assertNotNull(persistence.getPending(waiting.pending.id))
+        assertEquals(pendingBeforePreview, persistence.pendingSnapshot())
+        assertEquals(accountsBeforePreview, accounts.observeAccounts().first())
+        assertEquals(historiesBeforePreview, persistence.histories)
+        assertTrue(persistence.writeOperations.isEmpty())
         assertTrue(persistence.finalized.isEmpty())
+        assertTrue(scheduler.enqueued.isEmpty())
         val discarded = coordinator.discard(waiting.pending.id)
             as DiscardPendingResult.Discarded
 
@@ -338,6 +348,7 @@ private class FakeRoutingPersistence(
 ) : MeasurementRoutingPersistence {
     val histories = mutableMapOf<AccountId, List<WeightHistoryRecord>>()
     val finalized = linkedMapOf<String, AccountMeasurement>()
+    val writeOperations = mutableListOf<String>()
     private val pending = linkedMapOf<PendingMeasurementId, PendingMeasurement>()
     private val finalizedByHash = mutableMapOf<String, AccountMeasurement>()
     private val tombstones = mutableSetOf<String>()
@@ -350,6 +361,7 @@ private class FakeRoutingPersistence(
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
+        writeOperations += "enqueue"
         val hash = hash(raw)
         if (hash in tombstones) return PendingPersistenceResult.Tombstoned
         finalizedByHash[hash]?.let { return PendingPersistenceResult.AlreadyFinalized(it) }
@@ -390,6 +402,7 @@ private class FakeRoutingPersistence(
         pendingId: PendingMeasurementId,
         accountId: AccountId,
     ): FinalizePendingResult {
+        writeOperations += "finalize"
         finalized[pendingId.value]?.let { return FinalizePendingResult.AlreadyFinalized(it) }
         val value = pending[pendingId] ?: return FinalizePendingResult.PendingNotFound
         val account = accounts.getAccount(accountId) ?: return FinalizePendingResult.AccountNotFound
@@ -416,6 +429,7 @@ private class FakeRoutingPersistence(
         pendingId: PendingMeasurementId,
         account: NewAccount,
     ): CreateAccountAndAssignResult {
+        writeOperations += "create-account-and-assign"
         val created = accounts.createAccount(account)
         return when (val result = finalizePending(pendingId, created.id)) {
             is FinalizePendingResult.Finalized -> CreateAccountAndAssignResult.Created(created, result.measurement)
@@ -430,6 +444,7 @@ private class FakeRoutingPersistence(
     override suspend fun discardPending(
         pendingId: PendingMeasurementId,
     ): DiscardPendingResult {
+        writeOperations += "discard"
         discardFailure?.let { throw it }
         finalized[pendingId.value]?.let { finalizedMeasurement ->
             return DiscardPendingResult.AlreadyFinalized(finalizedMeasurement)

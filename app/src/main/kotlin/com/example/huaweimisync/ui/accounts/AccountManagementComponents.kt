@@ -40,18 +40,22 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.ui.components.BirthDateField
+import com.example.huaweimisync.ui.components.BirthDateSelectionPolicy
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiSectionTitle
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
+import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 
 object AccountManagementTestTags {
     const val List = "account-management-list"
     const val Add = "account-management-add"
     const val Editor = "account-editor"
+    const val EditorBirthDate = "account-editor-birth-date"
     const val EditorSave = "account-editor-save"
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
@@ -261,8 +265,9 @@ fun AccountEditorDialog(
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
     onDismiss: () -> Unit,
+    today: LocalDate = LocalDate.now(),
 ) {
-    val validation = validateAccountEditor(draft, accounts)
+    val validation = validateAccountEditor(draft, accounts, today)
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.Editor),
         onDismissRequest = { if (!operationInProgress) onDismiss() },
@@ -297,19 +302,21 @@ fun AccountEditorDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                BirthDateField(
                     value = draft.birthDate,
-                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.BirthDateChanged(it))) },
-                    label = { Text("Дата рождения") },
-                    placeholder = { Text("ДД.ММ.ГГГГ") },
-                    singleLine = true,
-                    enabled = !operationInProgress,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    isError = validation.error(AccountEditorField.BIRTH_DATE) != null,
-                    supportingText = validation.error(AccountEditorField.BIRTH_DATE)?.let { message ->
-                        { Text(message) }
+                    onValueChange = { birthDate ->
+                        onDraftChanged(
+                            reduceAccountEditor(
+                                draft,
+                                AccountEditorAction.BirthDateChanged(birthDate),
+                            ),
+                        )
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    selectionPolicy = BirthDateSelectionPolicy.forAccount(today),
+                    enabled = !operationInProgress,
+                    isError = validation.error(AccountEditorField.BIRTH_DATE) != null,
+                    supportingText = validation.error(AccountEditorField.BIRTH_DATE),
+                    modifier = Modifier.testTag(AccountManagementTestTags.EditorBirthDate),
                 )
                 Text("Пол", style = MaterialTheme.typography.labelLarge)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
