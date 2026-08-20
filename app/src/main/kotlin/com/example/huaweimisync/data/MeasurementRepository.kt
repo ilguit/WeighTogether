@@ -375,6 +375,7 @@ class MeasurementRepository(
         edited: MeasurementEntity,
     ): MeasurementMutationResult {
         val updated = edited.copy(
+            rawWeight = current.rawWeight,
             huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
             huaweiError = null,

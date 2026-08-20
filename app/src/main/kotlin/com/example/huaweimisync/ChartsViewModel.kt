@@ -149,8 +149,8 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         )
         repository.observeRangeEntities(
             accountId = accountId,
-            startInclusive = Instant.ofEpochMilli(range.startInclusive),
-            endExclusive = Instant.ofEpochMilli(range.endExclusive),
+            startInclusive = Instant.ofEpochSecond(range.startInclusiveEpochSecond),
+            endExclusive = Instant.ofEpochSecond(range.endExclusiveEpochSecond),
         )
     }
 

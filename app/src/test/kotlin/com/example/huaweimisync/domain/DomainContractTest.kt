@@ -78,7 +78,13 @@ class DomainContractTest {
         payload[0] = 9
 
         assertArrayEquals(byteArrayOf(1, 2, 3), pending.rawPayload)
-        assertEquals(raw.copy(rawPayload = byteArrayOf(1, 2, 3)), pending.toRawScaleMeasurement())
+        assertEquals(
+            raw.copy(
+                measuredAt = Instant.ofEpochSecond(raw.measuredAt.epochSecond),
+                rawPayload = byteArrayOf(1, 2, 3),
+            ),
+            pending.toRawScaleMeasurement(),
+        )
     }
 
     @Test
@@ -98,11 +104,33 @@ class DomainContractTest {
         )
         val token = PendingDiscardUndoToken(pending)
 
+        assertEquals(0, pending.measuredAt.nano)
         assertEquals(pending, token.pending)
         assertEquals(pending.id, token.pendingId)
         assertEquals(pending.deduplicationHash, token.deduplicationHash)
         assertEquals(pending.enqueuedAt, token.enqueuedAt)
         assertFalse(Serializable::class.java.isAssignableFrom(token.javaClass))
+    }
+
+    @Test
+    fun aggregatingPendingIsHiddenUntilItsFinalizationDeadline() {
+        val enqueuedAt = Instant.parse("2026-08-20T10:00:00Z")
+        val pending = RawScaleMeasurement(
+            deviceAddress = "AA:BB",
+            measuredAt = enqueuedAt,
+            weightKg = 72.5,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        ).toPendingMeasurement(
+            id = PendingMeasurementId("pending-aggregate"),
+            deduplicationHash = "hash-aggregate",
+            enqueuedAt = enqueuedAt,
+        )
+
+        assertFalse(pending.isAwaitingDecisionAt(pending.finalizeAfter.minusMillis(1)))
+        assertTrue(pending.isAwaitingDecisionAt(pending.finalizeAfter))
     }
 
     private fun completeProfile() = AccountProfile.Complete(

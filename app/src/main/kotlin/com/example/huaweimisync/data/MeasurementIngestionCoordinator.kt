@@ -18,6 +18,7 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementPreview
 import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.RoutingDecision
+import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
@@ -198,8 +199,6 @@ class MeasurementIngestionCoordinator(
     private val syncScheduler: MeasurementSyncScheduler,
     private val notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     private val matchingEngine: MatchingEngine = MatchingEngine(),
-    /** Compatibility hook for explicit route/recovery calls; normal ingestion only aggregates. */
-    private val aggregateOnlyIngestion: Boolean = true,
 ) {
     private val pendingPresentationMutex = Mutex()
 
@@ -207,32 +206,14 @@ class MeasurementIngestionCoordinator(
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
         return when (val enqueued = persistence.enqueue(raw)) {
-            is PendingPersistenceResult.Inserted -> if (aggregateOnlyIngestion) {
+            is PendingPersistenceResult.Inserted ->
                 MeasurementIngestionResult.CreatedAggregate(enqueued.pending)
-            } else {
-                route(pending = enqueued.pending, allowAutomaticIgnore = true)
-            }
-            is PendingPersistenceResult.AlreadyPending -> if (aggregateOnlyIngestion) {
-                MeasurementIngestionResult.UpdatedAggregate(
-                    pending = enqueued.pending,
-                    wasEnriched = enqueued.wasEnriched,
-                )
-            } else {
-                route(enqueued.pending)
-            }
-            is PendingPersistenceResult.AlreadyFinalized -> if (aggregateOnlyIngestion) {
-                MeasurementIngestionResult.SuppressedFinal
-            } else {
-                MeasurementIngestionResult.Assigned(
-                    measurement = enqueued.measurement,
-                    wasAlreadyFinalized = true,
-                )
-            }
-            PendingPersistenceResult.Tombstoned -> if (aggregateOnlyIngestion) {
-                MeasurementIngestionResult.SuppressedTombstone
-            } else {
-                MeasurementIngestionResult.Tombstoned
-            }
+            is PendingPersistenceResult.AlreadyPending -> MeasurementIngestionResult.UpdatedAggregate(
+                pending = enqueued.pending,
+                wasEnriched = enqueued.wasEnriched,
+            )
+            is PendingPersistenceResult.AlreadyFinalized -> MeasurementIngestionResult.SuppressedFinal
+            PendingPersistenceResult.Tombstoned -> MeasurementIngestionResult.SuppressedTombstone
         }
     }
 
@@ -474,15 +455,13 @@ class MeasurementIngestionCoordinator(
     }
 
     suspend fun refreshPendingPresentation(): Int = pendingPresentationMutex.withLock {
-        val count = persistence.pendingSnapshot().size
+        val timestamp = Instant.now()
+        val count = persistence.pendingSnapshot().count { it.isAwaitingDecisionAt(timestamp) }
         notifier.updatePendingCount(count)
         count
     }
 
-    private suspend fun route(
-        pending: PendingMeasurement,
-        allowAutomaticIgnore: Boolean = false,
-    ): MeasurementIngestionResult {
+    private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {
         val accountSnapshot = accounts.observeAccounts().first()
         val settings = accounts.observeSettings().first()
         val histories = accountSnapshot.associate { account ->
@@ -515,29 +494,6 @@ class MeasurementIngestionCoordinator(
                 FinalizePendingResult.AccountNotFound,
                 FinalizePendingResult.ProfileIncomplete,
                 -> Unit // Keep the durable pending value for resolver/recovery.
-            }
-        }
-
-        if (
-            allowAutomaticIgnore &&
-            decision === RoutingDecision.NoMatch &&
-            settings.ignoreUnknownMeasurements
-        ) {
-            when (val ignored = persistence.discardUnknownPendingIfEnabled(pending.id)) {
-                AutoIgnorePendingPersistenceResult.Discarded -> {
-                    refreshPendingPresentation()
-                    return MeasurementIngestionResult.AutomaticallyIgnoredUnknown
-                }
-                is AutoIgnorePendingPersistenceResult.AlreadyFinalized -> {
-                    refreshPendingPresentation()
-                    return MeasurementIngestionResult.Assigned(
-                        measurement = ignored.measurement,
-                        wasAlreadyFinalized = true,
-                    )
-                }
-                AutoIgnorePendingPersistenceResult.PendingNotFound ->
-                    return alreadyFinalizedOrMissing(pending.id)
-                AutoIgnorePendingPersistenceResult.PolicyDisabled -> Unit
             }
         }
 

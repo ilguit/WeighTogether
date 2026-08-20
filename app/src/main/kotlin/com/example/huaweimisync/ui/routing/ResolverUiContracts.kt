@@ -6,7 +6,9 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.RoutingCandidate
+import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.domain.sortedForRouting
+import java.time.Instant
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
@@ -141,8 +143,11 @@ data class ResolverQueueState(
             pending: List<PendingMeasurement>,
             selectedPendingId: PendingMeasurementId? = null,
             notificationPermissionGranted: Boolean = true,
+            now: Instant = Instant.now(),
         ): ResolverQueueState {
-            val ordered = pending.sortedWith(PendingFifoComparator)
+            val ordered = pending
+                .filter { it.isAwaitingDecisionAt(now) }
+                .sortedWith(PendingFifoComparator)
             return ResolverQueueState(
                 pending = ordered,
                 selectedPendingId = selectedPendingId?.takeIf { selectedId ->
@@ -226,9 +231,13 @@ internal fun PendingResolverSession.activeCompletionFor(
 internal suspend fun oldestPendingResolverTarget(
     observedPending: List<PendingMeasurement>,
     durablePendingSnapshots: Flow<List<PendingMeasurement>>,
+    now: Instant = Instant.now(),
 ): PendingMeasurementId? {
     val available = observedPending.ifEmpty { durablePendingSnapshots.first() }
-    return available.minWithOrNull(PendingFifoComparator)?.id
+    return available
+        .filter { it.isAwaitingDecisionAt(now) }
+        .minWithOrNull(PendingFifoComparator)
+        ?.id
 }
 
 private fun ResolverQueueState.removePending(id: PendingMeasurementId): ResolverQueueState {

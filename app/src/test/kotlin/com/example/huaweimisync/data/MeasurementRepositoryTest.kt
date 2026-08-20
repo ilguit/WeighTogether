@@ -294,6 +294,7 @@ class MeasurementRepositoryTest {
             healthConnectStatus = SyncStatus.FAILED,
         ).copy(
             fingerprint = "immutable-weight-fingerprint",
+            rawWeight = 14_001,
             measurementType = MeasurementType.WEIGHT_ONLY,
             impedanceOhm = null,
             bmi = null,
@@ -323,6 +324,7 @@ class MeasurementRepositoryTest {
         assertEquals(MeasurementMutationResult.Success, result)
         val updated = dao.values.getValue(original.id)
         assertEquals(69.25, updated.weightKg, 0.0)
+        assertEquals(14_001, updated.rawWeight)
         assertEquals(MeasurementType.WEIGHT_ONLY, updated.measurementType)
         assertEquals(original.fingerprint, updated.fingerprint)
         assertNull(updated.fullValues)

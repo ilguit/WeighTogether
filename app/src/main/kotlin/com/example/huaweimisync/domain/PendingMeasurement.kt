@@ -66,6 +66,8 @@ data class PendingMeasurement(
     }
 }
 
+fun PendingMeasurement.isAwaitingDecisionAt(now: Instant): Boolean = !finalizeAfter.isAfter(now)
+
 fun RawScaleMeasurement.toPendingMeasurement(
     id: PendingMeasurementId,
     deduplicationHash: String,
@@ -73,7 +75,7 @@ fun RawScaleMeasurement.toPendingMeasurement(
 ): PendingMeasurement = PendingMeasurement(
     id = id,
     deviceAddress = deviceAddress,
-    measuredAt = measuredAt,
+    measuredAt = Instant.ofEpochSecond(measuredAt.epochSecond),
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
     isStable = isStable,
@@ -87,7 +89,7 @@ fun RawScaleMeasurement.toPendingMeasurement(
 
 fun PendingMeasurement.toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMeasurement(
     deviceAddress = deviceAddress,
-    measuredAt = measuredAt,
+    measuredAt = Instant.ofEpochSecond(measuredAt.epochSecond),
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
     isStable = isStable,

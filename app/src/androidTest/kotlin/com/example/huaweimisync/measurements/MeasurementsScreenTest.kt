@@ -199,7 +199,7 @@ class MeasurementsScreenTest {
                     editorOrigin = origin,
                     editor = MeasurementEditorState(
                         measurementId = id,
-                        measuredAtEpochMillis = item.measuredAtEpochMillis,
+                        measuredAtEpochSecond = item.measuredAtEpochSecond,
                         draft = MeasurementEditorDraft.from(item.values),
                     ),
                 )
@@ -209,7 +209,7 @@ class MeasurementsScreenTest {
                 state = state.copy(
                     deleteConfirmation = MeasurementDeleteConfirmation(
                         measurementId = id,
-                        measuredAtEpochMillis = item.measuredAtEpochMillis,
+                        measuredAtEpochSecond = item.measuredAtEpochSecond,
                         weightKg = item.values.weightKg,
                     ),
                 )
@@ -334,7 +334,7 @@ class MeasurementsScreenTest {
             isLoading = false,
             editor = MeasurementEditorState(
                 measurementId = "weight-only",
-                measuredAtEpochMillis = Instant.parse("2026-08-15T12:42:00Z").toEpochMilli(),
+                measuredAtEpochSecond = Instant.parse("2026-08-15T12:42:00Z").epochSecond,
                 draft = MeasurementEditorDraft.fromWeight(72.4),
                 type = MeasurementUiType.WEIGHT_ONLY,
             ),
@@ -422,9 +422,7 @@ class MeasurementsScreenTest {
         val measuredAt = Instant.parse(instant)
         return MeasurementUiItem(
             id = id,
-            measuredAtEpochMillis = measuredAt.toEpochMilli(),
             measuredAtEpochSecond = measuredAt.epochSecond,
-            measuredAtNano = measuredAt.nano,
             values = values,
             sync = sync,
             type = type,
@@ -441,9 +439,7 @@ class MeasurementsScreenTest {
         val measuredAt = Instant.parse(instant)
         return PendingMeasurementUiItem(
             id = PendingMeasurementId(id),
-            measuredAtEpochMillis = measuredAt.toEpochMilli(),
             measuredAtEpochSecond = measuredAt.epochSecond,
-            measuredAtNano = measuredAt.nano,
             weightKg = weight,
             impedanceOhm = impedance,
         )

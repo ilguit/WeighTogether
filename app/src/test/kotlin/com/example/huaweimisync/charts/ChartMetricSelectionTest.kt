@@ -111,8 +111,8 @@ class ChartMetricSelectionTest {
         )
 
         assertEquals(listOf(70.0, 71.5), weightPoints.map(ChartPoint::value))
-        assertEquals(listOf(100_000L, 200_000L), weightPoints.map(ChartPoint::measuredAtEpochMillis))
-        assertEquals(0, weightPoints.first().measuredAtNano)
+        assertEquals(listOf(100L, 200L), weightPoints.map(ChartPoint::measuredAtEpochSecond))
+        assertEquals(listOf(100_000L, 200_000L), weightPoints.map(ChartPoint::xEpochMillis))
         assertEquals(listOf(20.0), fatPoints.map(ChartPoint::value))
     }
 }

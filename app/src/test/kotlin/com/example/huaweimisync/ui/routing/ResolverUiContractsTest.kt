@@ -312,6 +312,29 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `aggregating pending stays out of queue and cold notification routing`() = runBlocking {
+        val now = Instant.parse("2026-08-15T10:00:00Z")
+        val aggregating = pending("aggregating", "2026-08-15T09:59:59Z").copy(
+            finalizeAfter = now.plusSeconds(9),
+        )
+        val awaiting = pending("awaiting", "2026-08-15T09:58:00Z").copy(
+            finalizeAfter = now,
+        )
+
+        val queue = ResolverQueueState.from(listOf(aggregating, awaiting), now = now)
+
+        assertEquals(listOf(awaiting.id), queue.pending.map(PendingMeasurement::id))
+        assertEquals(
+            awaiting.id,
+            oldestPendingResolverTarget(
+                observedPending = emptyList(),
+                durablePendingSnapshots = flowOf(listOf(aggregating, awaiting)),
+                now = now,
+            ),
+        )
+    }
+
+    @Test
     fun `already observed pending opens resolver without collecting another snapshot`() = runBlocking {
         val oldest = pending("oldest", "2026-08-15T10:00:00Z")
         val latest = pending("latest", "2026-08-15T10:01:00Z")

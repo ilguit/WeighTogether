@@ -78,7 +78,7 @@ class MeasurementEditorValidationTest {
             .withValue(MeasurementField.METABOLIC_AGE, "forty")
         val editor = MeasurementEditorState(
             measurementId = "measurement-1",
-            measuredAtEpochMillis = 0L,
+            measuredAtEpochSecond = 0L,
             draft = invalid,
         )
 
@@ -99,7 +99,7 @@ class MeasurementEditorValidationTest {
         val draft = MeasurementEditorDraft.fromWeight(70.0)
         val editor = MeasurementEditorState(
             measurementId = "weight-only",
-            measuredAtEpochMillis = 0L,
+            measuredAtEpochSecond = 0L,
             draft = draft,
             type = MeasurementUiType.WEIGHT_ONLY,
         )
@@ -136,7 +136,7 @@ class MeasurementEditorValidationTest {
         huaweiStatus: String,
     ) = MeasurementUiItem(
         id = "measurement-1",
-        measuredAtEpochMillis = 0L,
+        measuredAtEpochSecond = 0L,
         values = sampleValues(),
         sync = measurementSyncPresentation(
             healthConnectStatus = healthConnectStatus,

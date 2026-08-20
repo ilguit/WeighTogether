@@ -97,7 +97,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         accountSelector,
     ) { loadState, currentNavigation, currentEditor, deletion, selector ->
         val values = loadState.valuesOrEmpty()
-            .sortedByDescending(MeasurementEntity::measuredAtEpochMillis)
+            .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
         val protectedLatestId = repository.protectedLatestId(values)
         val items = values.map { value ->
             value.toUiItem(
@@ -190,9 +190,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         }
         editor.value = MeasurementEditorState(
             measurementId = value.id,
-            measuredAtEpochMillis = value.measuredAtEpochMillis,
             measuredAtEpochSecond = value.measuredAtEpochSecond,
-            measuredAtNano = value.measuredAtNano,
             draft = if (value.measurementType == MeasurementType.WEIGHT_ONLY) {
                 MeasurementEditorDraft.fromWeight(value.weightKg)
             } else {
@@ -328,9 +326,7 @@ internal fun measurementDeleteRequest(
     return MeasurementDeleteRequest.Confirm(
         MeasurementDeleteConfirmation(
             measurementId = value.id,
-            measuredAtEpochMillis = value.measuredAtEpochMillis,
             measuredAtEpochSecond = value.measuredAtEpochSecond,
-            measuredAtNano = value.measuredAtNano,
             weightKg = value.weightKg,
         ),
     )
@@ -349,9 +345,7 @@ private fun MeasurementEntity.toUiItem(
 ): MeasurementUiItem =
     MeasurementUiItem(
         id = id,
-        measuredAtEpochMillis = measuredAtEpochMillis,
         measuredAtEpochSecond = measuredAtEpochSecond,
-        measuredAtNano = measuredAtNano,
         values = toUiValues(),
         type = measurementType.toUiType(),
         sync = measurementSyncPresentation(

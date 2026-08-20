@@ -26,7 +26,7 @@ class MeasurementsViewModelTest {
             MeasurementDeleteRequest.Confirm(
                 confirmation = com.example.huaweimisync.measurements.MeasurementDeleteConfirmation(
                     measurementId = value.id,
-                    measuredAtEpochMillis = value.measuredAtEpochMillis,
+                    measuredAtEpochSecond = value.measuredAtEpochSecond,
                     weightKg = value.weightKg,
                 ),
             ),

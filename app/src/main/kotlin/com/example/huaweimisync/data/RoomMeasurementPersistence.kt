@@ -304,6 +304,9 @@ class RoomMeasurementPersistence(
             discardPendingWithoutUndoLocked(pendingEntity)
             return@withTransaction AtomicDueRoutingResult.AutomaticallyIgnoredUnknown
         }
+        check(pendingDao.notifyAwaitingDecision(pendingEntity.id) == 1) {
+            "Pending measurement disappeared while becoming resolver-visible"
+        }
         AtomicDueRoutingResult.AwaitingDecision(pending, decision)
     }
 

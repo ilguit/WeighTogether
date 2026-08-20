@@ -24,10 +24,8 @@ fun chartPointsForMetric(
 ): List<ChartPoint> = measurements.mapNotNull { measurement ->
     metric.valueOf(measurement)?.let { value ->
         ChartPoint(
-            measuredAtEpochMillis = measurement.measuredAtEpochMillis,
-            value = value,
             measuredAtEpochSecond = measurement.measuredAtEpochSecond,
-            measuredAtNano = measurement.measuredAtNano,
+            value = value,
         )
     }
 }

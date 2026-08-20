@@ -214,14 +214,12 @@ data class MeasurementSyncPresentation(
 
 data class MeasurementUiItem(
     val id: String,
-    val measuredAtEpochMillis: Long,
+    val measuredAtEpochSecond: Long,
     val values: MeasurementUiValues,
     val sync: MeasurementSyncPresentation,
     val type: MeasurementUiType = MeasurementUiType.FULL,
     val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 ) {
     val isWeightOnly: Boolean
         get() = type == MeasurementUiType.WEIGHT_ONLY
@@ -233,27 +231,23 @@ data class MeasurementUiItem(
         get() = sync.canRetry
 
     val measuredAt: Instant
-        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 }
 
 data class PendingMeasurementUiItem(
     val id: PendingMeasurementId,
-    val measuredAtEpochMillis: Long,
+    val measuredAtEpochSecond: Long,
     val weightKg: Double,
     val impedanceOhm: Int?,
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 )
 
 val PendingMeasurementUiItem.measuredAt: Instant
-    get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+    get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
 internal fun PendingMeasurement.toPendingMeasurementUiItem(): PendingMeasurementUiItem =
     PendingMeasurementUiItem(
         id = id,
-        measuredAtEpochMillis = measuredAt.toEpochMilli(),
         measuredAtEpochSecond = measuredAt.epochSecond,
-        measuredAtNano = measuredAt.nano,
         weightKg = weightKg,
         impedanceOhm = impedanceOhm.takeIf { hasImpedance },
     )
@@ -280,7 +274,7 @@ data class MeasurementSummaryPresentation(
 fun buildMeasurementSummary(
     measurements: List<MeasurementUiItem>,
 ): MeasurementSummaryPresentation? {
-    val ordered = measurements.sortedByDescending(MeasurementUiItem::measuredAtEpochMillis)
+    val ordered = measurements.sortedByDescending(MeasurementUiItem::measuredAtEpochSecond)
     val latest = ordered.firstOrNull() ?: return null
     val previous = ordered.getOrNull(1)
     return MeasurementSummaryPresentation(
@@ -298,7 +292,7 @@ fun buildMeasurementSummary(
 
 data class MeasurementEditorState(
     val measurementId: String,
-    val measuredAtEpochMillis: Long,
+    val measuredAtEpochSecond: Long,
     val draft: MeasurementEditorDraft,
     val type: MeasurementUiType = MeasurementUiType.FULL,
     val sections: List<MeasurementEditorSection> = when (type) {
@@ -306,8 +300,6 @@ data class MeasurementEditorState(
         MeasurementUiType.WEIGHT_ONLY -> weightOnlyEditorSections
     },
     val isSaving: Boolean = false,
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 ) {
     val isWeightOnly: Boolean
         get() = type == MeasurementUiType.WEIGHT_ONLY
@@ -316,20 +308,18 @@ data class MeasurementEditorState(
         get() = !isSaving && draft.isValid
 
     val measuredAt: Instant
-        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 }
 
 data class MeasurementDeleteConfirmation(
     val measurementId: String,
-    val measuredAtEpochMillis: Long,
+    val measuredAtEpochSecond: Long,
     val weightKg: Double,
     val isDeleting: Boolean = false,
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 )
 
 val MeasurementDeleteConfirmation.measuredAt: Instant
-    get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+    get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
 data class MeasurementsUiState(
     val destination: MeasurementsDestination = MeasurementsDestination.SUMMARY,

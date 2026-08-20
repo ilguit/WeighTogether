@@ -86,7 +86,7 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM HH:mm")
+private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -644,11 +644,11 @@ private fun MetricLineChart(
                 ?: return@ValueFormatter ""
             val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
             points.firstOrNull { point ->
-                point.measuredAtEpochMillis == target.x.toLong() && point.value == value
+                point.xEpochMillis == target.x.toLong() && point.value == value
             }?.let { point ->
                 formatChartMarkerText(point = point, metric = metric, zoneId = zoneId)
             } ?: formatChartMarkerText(
-                measuredAtEpochMillis = target.x.toLong(),
+                measuredAtEpochSecond = Math.floorDiv(target.x.toLong(), 1_000L),
                 value = value,
                 metric = metric,
                 zoneId = zoneId,
@@ -666,7 +666,7 @@ private fun MetricLineChart(
         modelProducer.runTransaction {
             lineModel {
                 series(
-                    x = points.map(ChartPoint::measuredAtEpochMillis),
+                    x = points.map(ChartPoint::xEpochMillis),
                     y = points.map(ChartPoint::value),
                 )
             }

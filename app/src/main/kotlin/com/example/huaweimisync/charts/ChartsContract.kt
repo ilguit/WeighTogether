@@ -58,14 +58,15 @@ enum class ChartFilterSheet {
 
 @Immutable
 data class ChartPoint(
-    val measuredAtEpochMillis: Long,
+    val measuredAtEpochSecond: Long,
     val value: Double,
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    val measuredAtNano: Int =
-        (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 ) {
     val measuredAt: Instant
-        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond)
+
+    /** Vico uses millisecond x coordinates; derive them only at this presentation boundary. */
+    val xEpochMillis: Long
+        get() = Math.multiplyExact(measuredAtEpochSecond, 1_000L)
 }
 
 @Immutable
@@ -142,8 +143,8 @@ data class ChartsCallbacks(
 )
 
 data class MeasurementEpochRange(
-    val startInclusive: Long,
-    val endExclusive: Long,
+    val startInclusiveEpochSecond: Long,
+    val endExclusiveEpochSecond: Long,
 )
 
 data class ChartXRange(
@@ -166,8 +167,8 @@ fun inclusiveDateRangeToEpochRange(
 ): MeasurementEpochRange {
     require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
     return MeasurementEpochRange(
-        startInclusive = startDate.atStartOfDay(zoneId).toInstant().toEpochMilli(),
-        endExclusive = endDateInclusive.plusDays(1).atStartOfDay(zoneId).toInstant().toEpochMilli(),
+        startInclusiveEpochSecond = startDate.atStartOfDay(zoneId).toEpochSecond(),
+        endExclusiveEpochSecond = endDateInclusive.plusDays(1).atStartOfDay(zoneId).toEpochSecond(),
     )
 }
 
@@ -184,20 +185,20 @@ fun chartXRange(
 ): ChartXRange {
     val epochRange = inclusiveDateRangeToEpochRange(startDate, endDateInclusive, zoneId)
     return ChartXRange(
-        minX = epochRange.startInclusive.toDouble(),
-        maxX = epochRange.endExclusive.toDouble(),
+        minX = Math.multiplyExact(epochRange.startInclusiveEpochSecond, 1_000L).toDouble(),
+        maxX = Math.multiplyExact(epochRange.endExclusiveEpochSecond, 1_000L).toDouble(),
     )
 }
 
 fun formatChartMarkerText(
-    measuredAtEpochMillis: Long,
+    measuredAtEpochSecond: Long,
     value: Double,
     metric: ChartMetricOption,
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
 ): String {
     return formatChartMarkerText(
-        measuredAt = Instant.ofEpochMilli(measuredAtEpochMillis),
+        measuredAt = Instant.ofEpochSecond(measuredAtEpochSecond),
         value = value,
         metric = metric,
         zoneId = zoneId,
@@ -236,10 +237,7 @@ private fun formatChartMarkerText(
 }
 
 fun orderedChartPoints(points: List<ChartPoint>): List<ChartPoint> =
-    points.sortedWith(
-        compareBy<ChartPoint>(ChartPoint::measuredAtEpochSecond)
-            .thenBy(ChartPoint::measuredAtNano),
-    )
+    points.sortedBy(ChartPoint::measuredAtEpochSecond)
 
 fun chartValueSummary(points: List<ChartPoint>): ChartValueSummary {
     val ordered = orderedChartPoints(points)

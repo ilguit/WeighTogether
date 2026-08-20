@@ -1496,18 +1496,12 @@ private fun formatDisplayValue(
 }
 
 fun formatMeasurementDateTime(
-    epochMillis: Long,
-    zoneId: ZoneId = ZoneId.systemDefault(),
-    locale: Locale = Locale.getDefault(),
-): String = formatMeasurementDateTime(Instant.ofEpochMilli(epochMillis), zoneId, locale)
-
-fun formatMeasurementDateTime(
     instant: Instant,
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
 ): String = DateTimeFormatter
-    .ofPattern("dd.MM.yyyy HH:mm:ss.nnnnnnnnn", locale)
-    .format(instant.atZone(zoneId))
+    .ofPattern("dd.MM.yyyy HH:mm:ss", locale)
+    .format(Instant.ofEpochSecond(instant.epochSecond).atZone(zoneId))
 
 fun formatMeasurementValue(
     field: MeasurementField,

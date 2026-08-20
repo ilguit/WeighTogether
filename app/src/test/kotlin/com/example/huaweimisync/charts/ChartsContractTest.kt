@@ -127,8 +127,17 @@ class ChartsContractTest {
         val zone = ZoneId.of("Asia/Kathmandu")
         val date = LocalDate.of(2026, 8, 14)
 
+        val repositoryRange = inclusiveDateRangeToEpochRange(date, date, zone)
         val range = chartXRange(date, date, zone)
 
+        assertEquals(
+            date.atStartOfDay(zone).toEpochSecond(),
+            repositoryRange.startInclusiveEpochSecond,
+        )
+        assertEquals(
+            date.plusDays(1).atStartOfDay(zone).toEpochSecond(),
+            repositoryRange.endExclusiveEpochSecond,
+        )
         assertEquals(date.atStartOfDay(zone).toInstant().toEpochMilli().toDouble(), range.minX, 0.0)
         assertEquals(
             date.plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
@@ -228,7 +237,7 @@ class ChartsContractTest {
         val instant = Instant.parse("2026-08-14T21:07:00Z")
 
         val text = formatChartMarkerText(
-            measuredAtEpochMillis = instant.toEpochMilli(),
+            measuredAtEpochSecond = instant.epochSecond,
             value = 123.4,
             metric = metric,
             zoneId = ZoneId.of("Europe/Moscow"),
@@ -236,24 +245,22 @@ class ChartsContractTest {
         )
 
         assertEquals(
-            "15.08.2026 00:07:00.000000000\n123.40 миллиметры ртутного столба",
+            "15.08.2026 00:07:00\n123.40 миллиметры ртутного столба",
             text,
         )
     }
 
     @Test
-    fun `chart marker preserves nanoseconds from persisted measurement`() {
+    fun `chart marker discards fractional seconds from measurement input`() {
         val metric = ChartMetricOption("weight", "Вес", "кг", 2)
         val instant = Instant.parse("2026-08-14T21:07:00.123456789Z")
         val point = ChartPoint(
-            measuredAtEpochMillis = instant.toEpochMilli(),
-            value = 70.25,
             measuredAtEpochSecond = instant.epochSecond,
-            measuredAtNano = instant.nano,
+            value = 70.25,
         )
 
         assertEquals(
-            "14.08.2026 21:07:00.123456789\n70.25 кг",
+            "14.08.2026 21:07:00\n70.25 кг",
             formatChartMarkerText(point, metric, ZoneId.of("UTC"), Locale.US),
         )
     }
@@ -262,15 +269,15 @@ class ChartsContractTest {
     fun `ordering preserves exact sub-day intervals`() {
         val ordered = orderedChartPoints(
             listOf(
-                ChartPoint(66_432L, 71.0),
-                ChartPoint(1_000L, 70.0),
-                ChartPoint(4_500L, 70.5),
+                ChartPoint(66L, 71.0),
+                ChartPoint(1L, 70.0),
+                ChartPoint(4L, 70.5),
             ),
         )
 
-        assertEquals(listOf(1_000L, 4_500L, 66_432L), ordered.map { it.measuredAtEpochMillis })
-        assertEquals(3_500L, ordered[1].measuredAtEpochMillis - ordered[0].measuredAtEpochMillis)
-        assertEquals(61_932L, ordered[2].measuredAtEpochMillis - ordered[1].measuredAtEpochMillis)
+        assertEquals(listOf(1L, 4L, 66L), ordered.map { it.measuredAtEpochSecond })
+        assertEquals(3_000L, ordered[1].xEpochMillis - ordered[0].xEpochMillis)
+        assertEquals(62_000L, ordered[2].xEpochMillis - ordered[1].xEpochMillis)
     }
 
     @Test

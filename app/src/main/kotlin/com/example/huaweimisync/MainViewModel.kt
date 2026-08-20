@@ -24,6 +24,7 @@ import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.RoutingDecision
@@ -48,6 +49,7 @@ import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
+import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.first
@@ -55,6 +57,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -143,7 +146,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.Eagerly,
         AccountsSnapshot(emptyList(), AccountSettings()),
     )
-    private val pending = container.repository.observePending().stateIn(
+    private val pending = container.repository.observePending().map { values ->
+        val now = Instant.now()
+        values.filter { it.isAwaitingDecisionAt(now) }
+    }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         emptyList(),

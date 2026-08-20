@@ -46,6 +46,13 @@ interface PendingMeasurementDao {
     @Update
     suspend fun update(pending: PendingMeasurementEntity): Int
 
+    /** Invalidates observers when a due aggregate becomes resolver-visible without changing data. */
+    @Query(
+        "UPDATE pending_measurements SET finalizeAfterEpochMillis = finalizeAfterEpochMillis " +
+            "WHERE id = :id",
+    )
+    suspend fun notifyAwaitingDecision(id: String): Int
+
     @Query("DELETE FROM pending_measurements WHERE id = :id")
     suspend fun delete(id: String): Int
 

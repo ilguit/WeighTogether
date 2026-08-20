@@ -21,6 +21,7 @@ class MeasurementsPresentationTest {
         assertEquals("latest", summary.latest.id)
         assertEquals("previous", summary.previous?.id)
         assertEquals(-0.4, summary.weightDeltaKg!!, 0.000_001)
+        assertEquals(0, summary.latest.measuredAt.nano)
     }
 
     @Test
@@ -61,7 +62,7 @@ class MeasurementsPresentationTest {
         assertEquals(
             PendingMeasurementUiItem(
                 id = pending.id,
-                measuredAtEpochMillis = measuredAt.toEpochMilli(),
+                measuredAtEpochSecond = measuredAt.epochSecond,
                 weightKg = 72.4,
                 impedanceOhm = 512,
             ),
@@ -180,7 +181,7 @@ class MeasurementsPresentationTest {
         values: MeasurementUiValues = sampleValues(weightKg),
     ) = MeasurementUiItem(
         id = id,
-        measuredAtEpochMillis = measuredAt,
+        measuredAtEpochSecond = measuredAt,
         values = values,
         sync = sync(health = "SYNCED", huawei = "DISABLED"),
         type = type,

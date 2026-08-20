@@ -133,7 +133,7 @@ class MeasurementIngestionCoordinatorTest {
         val scheduler = UniqueFakeScheduler(events)
         val coordinator = coordinator(persistence, accounts, scheduler)
 
-        val result = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.Assigned
+        val result = coordinator.ingestAndFinalize(raw(70.0)) as MeasurementIngestionResult.Assigned
 
         assertEquals(ExternalSyncPolicy.AUTO, result.measurement.externalSyncPolicy)
         assertTrue(events.indexOf("enqueue") < events.indexOf("accounts"))
@@ -152,7 +152,7 @@ class MeasurementIngestionCoordinatorTest {
         }
         val scheduler = UniqueFakeScheduler()
 
-        val result = coordinator(persistence, accounts, scheduler).ingest(raw(70.0))
+        val result = coordinator(persistence, accounts, scheduler).ingestAndFinalize(raw(70.0))
             as MeasurementIngestionResult.Assigned
 
         assertEquals(secondary.id, result.measurement.accountId)
@@ -177,9 +177,9 @@ class MeasurementIngestionCoordinatorTest {
             notifier,
         )
 
-        val first = coordinator.ingest(raw(70.0, RAW_TIME))
+        val first = coordinator.ingestAndFinalize(raw(70.0, RAW_TIME))
             as MeasurementIngestionResult.AwaitingDecision
-        val second = coordinator.ingest(raw(70.5, RAW_TIME.plusSeconds(1)))
+        val second = coordinator.ingestAndFinalize(raw(70.5, RAW_TIME.plusSeconds(1)))
             as MeasurementIngestionResult.AwaitingDecision
 
         assertTrue(first.decision is RoutingDecision.ChooseAccount)
@@ -199,7 +199,7 @@ class MeasurementIngestionCoordinatorTest {
             accounts,
             UniqueFakeScheduler(),
             notifier,
-        ).ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+        ).ingestAndFinalize(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
 
         assertEquals(RoutingDecision.NoMatch, result.decision)
         assertEquals(listOf(result.pending), persistence.pendingSnapshot())
@@ -223,11 +223,11 @@ class MeasurementIngestionCoordinatorTest {
 
         assertEquals(
             MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
-            coordinator.ingest(packet),
+            coordinator.ingestAndFinalize(packet),
         )
         assertTrue(persistence.pendingSnapshot().isEmpty())
         assertEquals(listOf(0), notifier.counts)
-        assertEquals(MeasurementIngestionResult.Tombstoned, coordinator.ingest(packet))
+        assertEquals(MeasurementIngestionResult.SuppressedTombstone, coordinator.ingest(packet))
     }
 
     @Test
@@ -242,7 +242,7 @@ class MeasurementIngestionCoordinatorTest {
             histories[third.id] = listOf(history(71.0))
         }
 
-        val result = coordinator(persistence, accounts, UniqueFakeScheduler()).ingest(raw(70.0))
+        val result = coordinator(persistence, accounts, UniqueFakeScheduler()).ingestAndFinalize(raw(70.0))
             as MeasurementIngestionResult.AwaitingDecision
 
         assertTrue(result.decision is RoutingDecision.ChooseAccount)
@@ -260,7 +260,7 @@ class MeasurementIngestionCoordinatorTest {
             UniqueFakeScheduler(),
             notifier,
         )
-        val waiting = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+        val waiting = coordinator.ingestAndFinalize(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
 
         accounts.updateIgnoreUnknownMeasurements(true)
 
@@ -286,10 +286,10 @@ class MeasurementIngestionCoordinatorTest {
         val coordinator = coordinator(persistence, accounts, scheduler)
         val packet = raw(70.0)
 
-        val first = coordinator.ingest(packet) as MeasurementIngestionResult.Assigned
-        val duplicate = coordinator.ingest(packet) as MeasurementIngestionResult.Assigned
+        val first = coordinator.ingestAndFinalize(packet) as MeasurementIngestionResult.Assigned
+        val duplicate = coordinator.ingest(packet)
 
-        assertTrue(duplicate.wasAlreadyFinalized)
+        assertEquals(MeasurementIngestionResult.SuppressedFinal, duplicate)
         assertEquals(1, persistence.finalized.size)
         assertEquals(setOf(first.measurement.measurementId), scheduler.enqueued)
 
@@ -299,7 +299,7 @@ class MeasurementIngestionCoordinatorTest {
         val waitingAccounts = waitingPersistence.accounts
         waitingPersistence.histories[primary.id] = listOf(history(50.0))
         val waitingCoordinator = coordinator(waitingPersistence, waitingAccounts, UniqueFakeScheduler())
-        val waiting = waitingCoordinator.ingest(packet) as MeasurementIngestionResult.AwaitingDecision
+        val waiting = waitingCoordinator.ingestAndFinalize(packet) as MeasurementIngestionResult.AwaitingDecision
         val chosen = waitingCoordinator.chooseAccount(waiting.pending.id, secondary.id)
         val tappedAgain = waitingCoordinator.chooseAccount(waiting.pending.id, secondary.id)
 
@@ -320,7 +320,7 @@ class MeasurementIngestionCoordinatorTest {
         val scheduler = UniqueFakeScheduler()
         val coordinator = coordinator(persistence, accounts, scheduler)
 
-        val waiting = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+        val waiting = coordinator.ingestAndFinalize(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
         val pendingBeforePreview = persistence.pendingSnapshot()
         val accountsBeforePreview = accounts.observeAccounts().first()
         val historiesBeforePreview = persistence.histories.toMap()
@@ -362,7 +362,7 @@ class MeasurementIngestionCoordinatorTest {
             UniqueFakeScheduler(),
             notifier,
         )
-        val waiting = coordinator.ingest(raw(70.0))
+        val waiting = coordinator.ingestAndFinalize(raw(70.0))
             as MeasurementIngestionResult.AwaitingDecision
         persistence.discardFailure = IllegalStateException("discard failed")
 
@@ -398,7 +398,7 @@ class MeasurementIngestionCoordinatorTest {
             UniqueFakeScheduler(),
             notifier,
         )
-        val waiting = coordinator.ingest(raw(70.0))
+        val waiting = coordinator.ingestAndFinalize(raw(70.0))
             as MeasurementIngestionResult.AwaitingDecision
         val token = (coordinator.discard(waiting.pending.id) as DiscardPendingResult.Discarded)
             .undoToken
@@ -429,7 +429,7 @@ class MeasurementIngestionCoordinatorTest {
             UniqueFakeScheduler(),
             notifier,
         )
-        val waiting = coordinator.ingest(raw(70.0))
+        val waiting = coordinator.ingestAndFinalize(raw(70.0))
             as MeasurementIngestionResult.AwaitingDecision
         val token = (coordinator.discard(waiting.pending.id) as DiscardPendingResult.Discarded)
             .undoToken
@@ -486,10 +486,21 @@ class MeasurementIngestionCoordinatorTest {
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         notifier = notifier,
-        aggregateOnlyIngestion = false,
     )
 
     private fun history(weight: Double) = WeightHistoryRecord(RAW_TIME.minusSeconds(1), weight)
+
+    private suspend fun MeasurementIngestionCoordinator.ingestAndFinalize(
+        raw: RawScaleMeasurement,
+    ): MeasurementIngestionResult = when (val ingested = ingest(raw)) {
+        is MeasurementIngestionResult.CreatedAggregate ->
+            (finalizeDue(ingested.pending.id, ingested.pending.finalizeAfter) as
+                AggregateFinalizationResult.Completed).outcome
+        is MeasurementIngestionResult.UpdatedAggregate ->
+            (finalizeDue(ingested.pending.id, ingested.pending.finalizeAfter) as
+                AggregateFinalizationResult.Completed).outcome
+        else -> ingested
+    }
 }
 
 private class FakeRoutingPersistence(

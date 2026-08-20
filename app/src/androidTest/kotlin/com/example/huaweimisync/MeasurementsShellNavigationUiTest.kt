@@ -170,7 +170,7 @@ class MeasurementsShellNavigationUiTest {
                 }?.let {
                     MeasurementEditorState(
                         measurementId = item.id,
-                        measuredAtEpochMillis = item.measuredAtEpochMillis,
+                        measuredAtEpochSecond = item.measuredAtEpochSecond,
                         draft = MeasurementEditorDraft.from(item.values),
                     )
                 },
@@ -235,7 +235,7 @@ class MeasurementsShellNavigationUiTest {
         )
         return MeasurementUiItem(
             id = "latest",
-            measuredAtEpochMillis = Instant.parse("2026-08-15T12:42:00Z").toEpochMilli(),
+            measuredAtEpochSecond = Instant.parse("2026-08-15T12:42:00Z").epochSecond,
             values = values,
             sync = MeasurementSyncPresentation(
                 state = MeasurementSyncPresentationState.SYNCED,
