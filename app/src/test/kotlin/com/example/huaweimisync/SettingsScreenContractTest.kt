@@ -53,6 +53,31 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `unavailable health connect explains cause and exposes no action`() {
+        val unsupported = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.UNAVAILABLE,
+            ),
+        )
+        val providerMissing = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+            ),
+        )
+
+        assertEquals(
+            "Недоступно: устройство не поддерживает Health Connect",
+            unsupported.supportingText,
+        )
+        assertNull(unsupported.actionLabel)
+        assertEquals(
+            "Недоступно: установите или обновите Health Connect",
+            providerMissing.supportingText,
+        )
+        assertNull(providerMissing.actionLabel)
+    }
+
+    @Test
     fun `huawei status is flavor aware and only configured enterprise can authorize`() {
         val personal = huaweiIntegrationPresentation(
             HuaweiIntegrationUiState(HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD),

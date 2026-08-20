@@ -108,11 +108,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val scanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
     private val scanning = MutableStateFlow(false)
-    private val initialHealthConnectState = if (container.healthConnect.isAvailable()) {
+    private val initialHealthConnectAvailability = container.healthConnect.availability()
+    private val initialHealthConnectState = if (
+        initialHealthConnectAvailability == HealthConnectAvailability.AVAILABLE
+    ) {
         HealthConnectPermissionsUiState.checking(container.healthConnect.permissions)
     } else {
-        HealthConnectPermissionsUiState.snapshot(
-            isAvailable = false,
+        HealthConnectPermissionsUiState(
+            availability = initialHealthConnectAvailability,
             requiredPermissions = container.healthConnect.permissions,
             grantedPermissions = emptySet(),
         )
@@ -669,10 +672,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         grantedHint: Set<String>? = null,
     ) {
         val required = healthConnectPermissions
-        val isAvailable = container.healthConnect.isAvailable()
-        if (!isAvailable) {
-            healthConnect.value = HealthConnectPermissionsUiState.snapshot(
-                isAvailable = false,
+        val availability = container.healthConnect.availability()
+        if (availability != HealthConnectAvailability.AVAILABLE) {
+            healthConnect.value = HealthConnectPermissionsUiState(
+                availability = availability,
                 requiredPermissions = required,
                 grantedPermissions = emptySet(),
             )

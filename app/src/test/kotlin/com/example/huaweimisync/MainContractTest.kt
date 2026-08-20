@@ -165,6 +165,13 @@ class MainContractTest {
             ),
             selectedAccountSyncEligible = true,
         )
+        val providerMissing = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+                requiredPermissions = required,
+            ),
+            selectedAccountSyncEligible = true,
+        )
 
         assertTrue(availableWithoutEligibleAccount.systemManagementAvailable)
         assertFalse(availableWithoutEligibleAccount.selectedAccountSyncEligible)
@@ -172,6 +179,8 @@ class MainContractTest {
         assertFalse(unavailableWithEligibleAccount.systemManagementAvailable)
         assertTrue(unavailableWithEligibleAccount.selectedAccountSyncEligible)
         assertFalse(unavailableWithEligibleAccount.selectedAccountSyncReady)
+        assertFalse(providerMissing.systemManagementAvailable)
+        assertFalse(providerMissing.selectedAccountSyncReady)
     }
 
     @Test

@@ -15,14 +15,18 @@ import androidx.health.connect.client.records.metadata.Metadata
 import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
 import androidx.health.connect.client.units.Power
+import com.example.huaweimisync.HealthConnectAvailability
 import java.time.Instant
 import java.time.ZoneId
 
 class HealthConnectGateway(private val context: Context) {
     val permissions: Set<String> = ALL_HEALTH_CONNECT_PERMISSIONS
 
-    fun isAvailable(): Boolean =
-        HealthConnectClient.getSdkStatus(context) == HealthConnectClient.SDK_AVAILABLE
+    fun availability(): HealthConnectAvailability = healthConnectAvailability(
+        HealthConnectClient.getSdkStatus(context),
+    )
+
+    fun isAvailable(): Boolean = availability() == HealthConnectAvailability.AVAILABLE
 
     suspend fun getGrantedPermissions(): Set<String> =
         if (isAvailable()) client().permissionController.getGrantedPermissions() else emptySet()
@@ -54,6 +58,14 @@ class HealthConnectGateway(private val context: Context) {
         else -> SyncResult.Retryable("$operation временно не выполнена: ${message ?: javaClass.simpleName}")
     }
 }
+
+internal fun healthConnectAvailability(sdkStatus: Int): HealthConnectAvailability =
+    when (sdkStatus) {
+        HealthConnectClient.SDK_AVAILABLE -> HealthConnectAvailability.AVAILABLE
+        HealthConnectClient.SDK_UNAVAILABLE_PROVIDER_UPDATE_REQUIRED ->
+            HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED
+        else -> HealthConnectAvailability.UNAVAILABLE
+    }
 
 internal fun requiredHealthConnectPermissions(payload: MeasurementSyncPayload): Set<String> =
     buildSet {

@@ -121,6 +121,7 @@ enum class HealthConnectAvailability {
     CHECKING,
     AVAILABLE,
     UNAVAILABLE,
+    PROVIDER_UPDATE_REQUIRED,
     CHECK_FAILED,
 }
 

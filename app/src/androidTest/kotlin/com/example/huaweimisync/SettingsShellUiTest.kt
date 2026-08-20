@@ -181,6 +181,26 @@ class SettingsShellUiTest {
         }
     }
 
+    @Test
+    fun unavailableHealthConnectRowIsInactiveAndExplainsWhy() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.UNAVAILABLE,
+            ),
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText(
+            "Основной: Анна · Недоступно: устройство не поддерживает Health Connect",
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNode(hasClickAction() and hasText("Health Connect")).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            assertEquals(0, managementCalls)
+        }
+    }
+
     private fun setSettingsShell(
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),

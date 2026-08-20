@@ -128,7 +128,10 @@ internal fun healthConnectPresentation(
         actionEnabled = false,
     )
     HealthConnectAvailability.UNAVAILABLE -> IntegrationPresentation(
-        supportingText = "Недоступно на этом устройстве",
+        supportingText = "Недоступно: устройство не поддерживает Health Connect",
+    )
+    HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED -> IntegrationPresentation(
+        supportingText = "Недоступно: установите или обновите Health Connect",
     )
     HealthConnectAvailability.CHECK_FAILED -> IntegrationPresentation(
         supportingText = "Не удалось проверить разрешения",
