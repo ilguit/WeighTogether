@@ -2,6 +2,8 @@ package com.example.huaweimisync
 
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -26,6 +28,26 @@ class MainContractTest {
         assertEquals(MainUiEvent.ShowSnackbar("Второе"), emitter.events.first())
         assertNull(withTimeoutOrNull(50) { emitter.events.first() })
     }
+
+    @Test
+    fun `pending completion event carries addressed id and explicit return destination`() =
+        runBlocking {
+            val emitter = MainUiEventEmitter()
+            val pendingId = PendingMeasurementId("pending")
+
+            emitter.pendingResolutionCompleted(
+                pendingId = pendingId,
+                returnDestination = PendingResolverReturnDestination.PENDING_QUEUE,
+            )
+
+            assertEquals(
+                MainUiEvent.PendingResolutionCompleted(
+                    pendingId,
+                    PendingResolverReturnDestination.PENDING_QUEUE,
+                ),
+                emitter.events.first(),
+            )
+        }
 
     @Test
     fun `opening editor copies the real profile using the existing date format`() {

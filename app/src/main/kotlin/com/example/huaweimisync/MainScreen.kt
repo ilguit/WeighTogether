@@ -46,6 +46,7 @@ import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.routing.MeasurementResolverCallbacks
 import com.example.huaweimisync.ui.routing.MeasurementResolverDialog
 import com.example.huaweimisync.ui.routing.PendingResolverForegroundFallback
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewDialog
 import com.example.huaweimisync.ui.routing.UnsavedPreviewCallbacks
 import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
@@ -121,6 +122,15 @@ fun HuaweiMiSyncApp(
         viewModel.events.collect { event ->
             when (event) {
                 is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is MainUiEvent.PendingResolutionCompleted -> {
+                    measurementsViewModel.onPendingResolutionCompleted(event.returnDestination)
+                    if (
+                        event.returnDestination ==
+                        PendingResolverReturnDestination.PENDING_QUEUE
+                    ) {
+                        currentSection = AppSection.MEASUREMENTS
+                    }
+                }
             }
         }
     }
@@ -180,8 +190,8 @@ fun HuaweiMiSyncApp(
                     },
                 ),
                 callbacks = measurementsViewModel.callbacks.copy(
-                    onPendingAssignRequested = viewModel::openResolver,
-                    onPendingPreviewRequested = viewModel::showPendingWithoutSaving,
+                    onPendingAssignRequested = viewModel::openResolverFromQueue,
+                    onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
                 ),
                 modifier = Modifier
                     .fillMaxSize()

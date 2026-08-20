@@ -136,6 +136,57 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `queue resolver completion returns to queue while external completion preserves screen`() {
+        val pendingId = PendingMeasurementId("selected")
+        val queueCompletion = PendingResolverSession(
+            pendingId = pendingId,
+            source = PendingResolverSource.PENDING_QUEUE,
+        ).completionFor(pendingId)
+        val externalCompletion = PendingResolverSession(
+            pendingId = pendingId,
+            source = PendingResolverSource.EXTERNAL,
+        ).completionFor(pendingId)
+
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            queueCompletion?.returnDestination,
+        )
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            externalCompletion?.returnDestination,
+        )
+    }
+
+    @Test
+    fun `terminal completion rejects callback from a stale resolver`() {
+        val session = PendingResolverSession(
+            pendingId = PendingMeasurementId("selected"),
+            source = PendingResolverSource.PENDING_QUEUE,
+        )
+
+        assertNull(session.completionFor(PendingMeasurementId("stale")))
+    }
+
+    @Test
+    fun `discard completion closes selected item without opening the fifo head`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val selected = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(
+            pending = listOf(first, selected),
+            selectedPendingId = selected.id,
+        )
+
+        val discarded = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingDiscarded(selected.id),
+        )
+
+        assertEquals(listOf(first.id), discarded.pending.map(PendingMeasurement::id))
+        assertNull(discarded.selectedPendingId)
+        assertFalse(discarded.isResolverVisible)
+    }
+
+    @Test
     fun `notification denial exposes foreground fallback without opening resolver`() {
         val state = ResolverQueueState.from(
             listOf(pending("a", "2026-08-15T10:00:00Z")),

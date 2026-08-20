@@ -2,7 +2,9 @@ package com.example.huaweimisync
 
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.sync.HuaweiPermissionCheckResult
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
@@ -13,6 +15,10 @@ import kotlinx.coroutines.flow.receiveAsFlow
 
 sealed interface MainUiEvent {
     data class ShowSnackbar(val message: String) : MainUiEvent
+    data class PendingResolutionCompleted(
+        val pendingId: PendingMeasurementId,
+        val returnDestination: PendingResolverReturnDestination,
+    ) : MainUiEvent
 }
 
 internal class MainUiEventEmitter {
@@ -24,6 +30,17 @@ internal class MainUiEventEmitter {
         check(channel.trySend(MainUiEvent.ShowSnackbar(message)).isSuccess) {
             "Main UI event channel is closed"
         }
+    }
+
+    fun pendingResolutionCompleted(
+        pendingId: PendingMeasurementId,
+        returnDestination: PendingResolverReturnDestination,
+    ) {
+        check(
+            channel.trySend(
+                MainUiEvent.PendingResolutionCompleted(pendingId, returnDestination),
+            ).isSuccess,
+        ) { "Main UI event channel is closed" }
     }
 }
 

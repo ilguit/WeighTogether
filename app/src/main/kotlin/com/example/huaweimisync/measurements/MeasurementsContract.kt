@@ -4,6 +4,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 
 /** State-based destinations owned by the measurements feature. */
 enum class MeasurementsDestination {
@@ -46,6 +47,13 @@ data class MeasurementsNavigationState(
         MeasurementsDestination.PENDING_QUEUE,
         MeasurementsDestination.HISTORY -> copy(destination = MeasurementsDestination.SUMMARY)
         MeasurementsDestination.SUMMARY -> this
+    }
+
+    fun afterPendingResolution(
+        returnDestination: PendingResolverReturnDestination,
+    ): MeasurementsNavigationState = when (returnDestination) {
+        PendingResolverReturnDestination.PENDING_QUEUE -> showPendingQueue()
+        PendingResolverReturnDestination.PRESERVE_CURRENT -> this
     }
 }
 

@@ -10,6 +10,43 @@ import com.example.huaweimisync.domain.sortedForRouting
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
+enum class PendingResolverSource {
+    PENDING_QUEUE,
+    EXTERNAL,
+}
+
+enum class PendingResolverReturnDestination {
+    PENDING_QUEUE,
+    PRESERVE_CURRENT,
+}
+
+@Immutable
+internal data class PendingResolverSession(
+    val pendingId: PendingMeasurementId,
+    val source: PendingResolverSource,
+) {
+    val returnDestination: PendingResolverReturnDestination
+        get() = when (source) {
+            PendingResolverSource.PENDING_QUEUE -> PendingResolverReturnDestination.PENDING_QUEUE
+            PendingResolverSource.EXTERNAL -> PendingResolverReturnDestination.PRESERVE_CURRENT
+        }
+
+    fun completionFor(requestedPendingId: PendingMeasurementId): PendingResolverCompletion? =
+        takeIf { pendingId == requestedPendingId }?.let {
+            PendingResolverCompletion(
+                pendingId = pendingId,
+                returnDestination = returnDestination,
+            )
+        }
+}
+
+/** Shared terminal callback contract for assignment now and discard once it is connected. */
+@Immutable
+internal data class PendingResolverCompletion(
+    val pendingId: PendingMeasurementId,
+    val returnDestination: PendingResolverReturnDestination,
+)
+
 @Immutable
 data class ResolverAccountOption(
     val accountId: AccountId,
