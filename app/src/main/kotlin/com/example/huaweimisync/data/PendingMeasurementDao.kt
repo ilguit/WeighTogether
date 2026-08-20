@@ -21,6 +21,25 @@ interface PendingMeasurementDao {
     @Query("SELECT * FROM pending_measurements WHERE deduplicationHash = :deduplicationHash")
     suspend fun getByHash(deduplicationHash: String): PendingMeasurementEntity?
 
+    @Query(
+        """
+        SELECT * FROM pending_measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+        ORDER BY ABS(measuredAtEpochSecond - :measuredAtEpochSecond),
+            measuredAtEpochSecond ASC, id ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun findNearestAggregate(
+        deviceAddress: String,
+        rawWeight: Int,
+        measuredAtEpochSecond: Long,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
+    ): PendingMeasurementEntity?
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(pending: PendingMeasurementEntity): Long
 
@@ -36,6 +55,27 @@ interface PendingMeasurementDao {
     )
     suspend fun getActiveTombstone(
         deduplicationHash: String,
+        nowEpochMillis: Long,
+    ): MeasurementTombstoneEntity?
+
+    @Query(
+        """
+        SELECT * FROM measurement_tombstones
+        WHERE expiresAtEpochMillis > :nowEpochMillis
+            AND deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+        ORDER BY ABS(measuredAtEpochSecond - :measuredAtEpochSecond),
+            measuredAtEpochSecond ASC, deduplicationHash ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun findNearestActiveTombstone(
+        deviceAddress: String,
+        rawWeight: Int,
+        measuredAtEpochSecond: Long,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
         nowEpochMillis: Long,
     ): MeasurementTombstoneEntity?
 

@@ -380,6 +380,7 @@ class MultiAccountPersistenceTest {
 
         val duplicate = persistence.enqueue(firstRaw.copy(rawPayload = byteArrayOf(9, 9)))
         assertTrue(duplicate is PendingPersistenceResult.AlreadyPending)
+        val extendedFirst = (duplicate as PendingPersistenceResult.AlreadyPending).pending
         assertEquals(
             listOf(first.pending.id, second.pending.id),
             persistence.observePending().first().map { it.id },
@@ -390,7 +391,7 @@ class MultiAccountPersistenceTest {
         assertEquals(first.pending.id, discarded.undoToken.pendingId)
         assertEquals(first.pending.deduplicationHash, discarded.undoToken.deduplicationHash)
         assertEquals(first.pending.enqueuedAt, discarded.undoToken.enqueuedAt)
-        assertEquals(first.pending, discarded.undoToken.pending)
+        assertEquals(extendedFirst, discarded.undoToken.pending)
         assertEquals(
             DiscardPendingResult.PendingNotFound,
             persistence.discardPending(first.pending.id),

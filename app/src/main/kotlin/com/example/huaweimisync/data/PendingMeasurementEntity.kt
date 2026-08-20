@@ -42,6 +42,7 @@ data class PendingMeasurementEntity(
         deduplicationHash = deduplicationHash,
         enqueuedAt = Instant.ofEpochMilli(enqueuedAtEpochMillis),
         rawWeight = rawWeight,
+        finalizeAfter = Instant.ofEpochMilli(finalizeAfterEpochMillis),
     )
 }
 

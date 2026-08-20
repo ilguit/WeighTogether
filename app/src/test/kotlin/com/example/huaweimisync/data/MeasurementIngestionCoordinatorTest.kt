@@ -69,6 +69,29 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
+    fun normalIngestionOnlyCreatesOrUpdatesAggregateWithoutRoutingOrSync() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events)
+        val scheduler = UniqueFakeScheduler(events)
+        val coordinator = MeasurementIngestionCoordinator(
+            persistence = persistence,
+            accounts = accounts,
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            syncScheduler = scheduler,
+        )
+
+        val created = coordinator.ingest(raw(70.0))
+        val updated = coordinator.ingest(raw(70.0))
+
+        assertTrue(created is MeasurementIngestionResult.CreatedAggregate)
+        assertTrue(updated is MeasurementIngestionResult.UpdatedAggregate)
+        assertEquals(listOf("enqueue", "enqueue"), events)
+        assertTrue(scheduler.enqueued.isEmpty())
+        assertEquals(1, persistence.pendingSnapshot().size)
+    }
+
+    @Test
     fun primaryAssignmentIsDurableBeforeMatchingAndSchedulesAfterAtomicFinalize() = runBlocking {
         val events = mutableListOf<String>()
         val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
@@ -433,6 +456,7 @@ class MeasurementIngestionCoordinatorTest {
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         notifier = notifier,
+        aggregateOnlyIngestion = false,
     )
 
     private fun history(weight: Double) = WeightHistoryRecord(RAW_TIME.minusSeconds(1), weight)

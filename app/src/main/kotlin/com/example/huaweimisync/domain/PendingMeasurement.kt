@@ -26,6 +26,7 @@ data class PendingMeasurement(
     val deduplicationHash: String,
     val enqueuedAt: Instant,
     val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
+    val finalizeAfter: Instant = enqueuedAt.plusSeconds(10),
 ) {
     init {
         require(deviceAddress.isNotBlank()) { "Device address must not be blank" }
@@ -45,7 +46,8 @@ data class PendingMeasurement(
             rawPayload.contentEquals(other.rawPayload) &&
             rawWeight == other.rawWeight &&
             deduplicationHash == other.deduplicationHash &&
-            enqueuedAt == other.enqueuedAt
+            enqueuedAt == other.enqueuedAt &&
+            finalizeAfter == other.finalizeAfter
 
     override fun hashCode(): Int {
         var result = id.hashCode()
@@ -59,6 +61,7 @@ data class PendingMeasurement(
         result = 31 * result + rawWeight
         result = 31 * result + deduplicationHash.hashCode()
         result = 31 * result + enqueuedAt.hashCode()
+        result = 31 * result + finalizeAfter.hashCode()
         return result
     }
 }
@@ -79,6 +82,7 @@ fun RawScaleMeasurement.toPendingMeasurement(
     deduplicationHash = deduplicationHash,
     enqueuedAt = enqueuedAt,
     rawWeight = rawWeight,
+    finalizeAfter = enqueuedAt.plusSeconds(10),
 )
 
 fun PendingMeasurement.toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMeasurement(

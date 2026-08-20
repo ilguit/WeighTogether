@@ -686,6 +686,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return@launch
         }
         when (val result = container.repository.ingestTestMeasurement(weightKg, impedanceOhm)) {
+            is MeasurementIngestionResult.CreatedAggregate ->
+                showMessage("Тестовое измерение ожидает завершения")
+            is MeasurementIngestionResult.UpdatedAggregate ->
+                showMessage("Окно тестового измерения продлено")
+            MeasurementIngestionResult.SuppressedFinal,
+            MeasurementIngestionResult.SuppressedTombstone,
+            -> showMessage("Такое тестовое измерение уже существует")
             is MeasurementIngestionResult.Assigned -> {
                 val accountName = container.accounts.getAccount(result.measurement.accountId)
                     ?.displayName
@@ -1001,6 +1008,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
+                is MeasurementIngestionResult.CreatedAggregate,
+                is MeasurementIngestionResult.UpdatedAggregate,
+                MeasurementIngestionResult.SuppressedFinal,
+                MeasurementIngestionResult.SuppressedTombstone,
                 MeasurementIngestionResult.PendingMissing,
                 MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
                 MeasurementIngestionResult.Tombstoned,

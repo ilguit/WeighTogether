@@ -17,6 +17,10 @@ class ProcessMeasurementWorker(
         val parsed = container.packetParser.parse(payload, mac) ?: return Result.success()
         if (!parsed.isStableWeight) return Result.success()
         return when (container.repository.ingest(parsed)) {
+            is MeasurementIngestionResult.CreatedAggregate,
+            is MeasurementIngestionResult.UpdatedAggregate,
+            MeasurementIngestionResult.SuppressedFinal,
+            MeasurementIngestionResult.SuppressedTombstone,
             is MeasurementIngestionResult.Assigned,
             is MeasurementIngestionResult.AwaitingDecision,
             MeasurementIngestionResult.IgnoredNotFinal,

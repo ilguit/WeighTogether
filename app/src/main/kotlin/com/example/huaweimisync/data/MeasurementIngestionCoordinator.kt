@@ -86,6 +86,17 @@ object NoOpPendingDecisionNotifier : PendingDecisionNotifier {
 
 sealed interface MeasurementIngestionResult {
     data object IgnoredNotFinal : MeasurementIngestionResult
+    /** A new durable debounce aggregate was created; no routing or sync has happened yet. */
+    data class CreatedAggregate(val pending: PendingMeasurement) : MeasurementIngestionResult
+    /** An existing aggregate was enriched or had its sliding deadline extended. */
+    data class UpdatedAggregate(
+        val pending: PendingMeasurement,
+        val wasEnriched: Boolean,
+    ) : MeasurementIngestionResult
+    /** A nearby finalized measurement authoritatively suppressed the packet. */
+    data object SuppressedFinal : MeasurementIngestionResult
+    /** A nearby active tombstone authoritatively suppressed the packet. */
+    data object SuppressedTombstone : MeasurementIngestionResult
     data object Tombstoned : MeasurementIngestionResult
     data object PendingMissing : MeasurementIngestionResult
     /** A NoMatch pending value was durably tombstoned according to the saved policy. */
@@ -122,6 +133,8 @@ class MeasurementIngestionCoordinator(
     private val syncScheduler: MeasurementSyncScheduler,
     private val notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     private val matchingEngine: MatchingEngine = MatchingEngine(),
+    /** Compatibility hook for explicit route/recovery calls; normal ingestion only aggregates. */
+    private val aggregateOnlyIngestion: Boolean = true,
 ) {
     private val pendingPresentationMutex = Mutex()
 
@@ -129,20 +142,32 @@ class MeasurementIngestionCoordinator(
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
         return when (val enqueued = persistence.enqueue(raw)) {
-            is PendingPersistenceResult.Inserted -> route(
-                pending = enqueued.pending,
-                allowAutomaticIgnore = true,
-            )
-            is PendingPersistenceResult.AlreadyPending -> route(enqueued.pending)
-            is PendingPersistenceResult.AlreadyFinalized -> {
-                scheduleIfEligible(enqueued.measurement)
-                refreshPendingPresentation()
+            is PendingPersistenceResult.Inserted -> if (aggregateOnlyIngestion) {
+                MeasurementIngestionResult.CreatedAggregate(enqueued.pending)
+            } else {
+                route(pending = enqueued.pending, allowAutomaticIgnore = true)
+            }
+            is PendingPersistenceResult.AlreadyPending -> if (aggregateOnlyIngestion) {
+                MeasurementIngestionResult.UpdatedAggregate(
+                    pending = enqueued.pending,
+                    wasEnriched = enqueued.wasEnriched,
+                )
+            } else {
+                route(enqueued.pending)
+            }
+            is PendingPersistenceResult.AlreadyFinalized -> if (aggregateOnlyIngestion) {
+                MeasurementIngestionResult.SuppressedFinal
+            } else {
                 MeasurementIngestionResult.Assigned(
                     measurement = enqueued.measurement,
                     wasAlreadyFinalized = true,
                 )
             }
-            PendingPersistenceResult.Tombstoned -> MeasurementIngestionResult.Tombstoned
+            PendingPersistenceResult.Tombstoned -> if (aggregateOnlyIngestion) {
+                MeasurementIngestionResult.SuppressedTombstone
+            } else {
+                MeasurementIngestionResult.Tombstoned
+            }
         }
     }
 
@@ -235,6 +260,10 @@ class MeasurementIngestionCoordinator(
                 is MeasurementIngestionResult.Assigned -> assigned += 1
                 is MeasurementIngestionResult.AwaitingDecision -> awaiting += 1
                 MeasurementIngestionResult.IgnoredNotFinal,
+                is MeasurementIngestionResult.CreatedAggregate,
+                is MeasurementIngestionResult.UpdatedAggregate,
+                MeasurementIngestionResult.SuppressedFinal,
+                MeasurementIngestionResult.SuppressedTombstone,
                 MeasurementIngestionResult.Tombstoned,
                 MeasurementIngestionResult.PendingMissing,
                 MeasurementIngestionResult.AutomaticallyIgnoredUnknown,

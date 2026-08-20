@@ -31,7 +31,10 @@ import kotlinx.coroutines.flow.map
 
 sealed interface PendingPersistenceResult {
     data class Inserted(val pending: PendingMeasurement) : PendingPersistenceResult
-    data class AlreadyPending(val pending: PendingMeasurement) : PendingPersistenceResult
+    data class AlreadyPending(
+        val pending: PendingMeasurement,
+        val wasEnriched: Boolean = false,
+    ) : PendingPersistenceResult
     data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
     data object Tombstoned : PendingPersistenceResult
 }
@@ -131,34 +134,70 @@ class RoomMeasurementPersistence(
             val timestampMillis = timestamp.toEpochMilli()
             pendingDao.deleteExpiredTombstones(timestampMillis)
             val hash = raw.deduplicationHash()
+            // v3 tombstones do not have provenance columns. Preserve their exact-hash behavior.
             if (pendingDao.getActiveTombstone(hash, timestampMillis) != null) {
                 return@withTransaction PendingPersistenceResult.Tombstoned
             }
-            measurementDao.getByDeduplicationHash(hash)?.let { finalized ->
-                val current = upgradeFinalizedIfNeeded(finalized, raw)
-                return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                    current.toAccountMeasurement(),
-                )
-            }
-            measurementDao.getByFingerprint(measurementFingerprint(raw))?.let { finalized ->
-                val current = upgradeFinalizedIfNeeded(finalized, raw)
-                return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                    current.toAccountMeasurement(),
-                )
-            }
-            pendingDao.getByHash(hash)?.let { pending ->
-                val current = if (!pending.hasFullBodyComposition() && raw.hasFullBodyComposition) {
-                    pending.copy(
-                        impedanceOhm = raw.impedanceOhm,
-                        isStable = raw.isStable,
-                        hasImpedance = raw.hasImpedance,
-                        rawPayload = raw.rawPayload.copyOf(),
-                        rawWeight = raw.rawWeight,
-                    ).also { upgraded -> check(pendingDao.update(upgraded) == 1) }
-                } else {
-                    pending
+
+            val measuredAtEpochSecond = raw.measuredAt.epochSecond
+            val minimumEpochSecond = measuredAtEpochSecond.saturatingMinus(DEBOUNCE_SECONDS - 1)
+            val maximumEpochSecond = measuredAtEpochSecond.saturatingPlus(DEBOUNCE_SECONDS - 1)
+            val candidate = listOfNotNull(
+                pendingDao.findNearestActiveTombstone(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    measuredAtEpochSecond = measuredAtEpochSecond,
+                    minimumEpochSecond = minimumEpochSecond,
+                    maximumEpochSecond = maximumEpochSecond,
+                    nowEpochMillis = timestampMillis,
+                )?.let { DeduplicationCandidate.Tombstone(it) },
+                measurementDao.findNearestDeduplicationCandidate(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    measuredAtEpochSecond = measuredAtEpochSecond,
+                    minimumEpochSecond = minimumEpochSecond,
+                    maximumEpochSecond = maximumEpochSecond,
+                )?.let { DeduplicationCandidate.Finalized(it) },
+                pendingDao.findNearestAggregate(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    measuredAtEpochSecond = measuredAtEpochSecond,
+                    minimumEpochSecond = minimumEpochSecond,
+                    maximumEpochSecond = maximumEpochSecond,
+                )?.let { DeduplicationCandidate.Pending(it) },
+            ).minWithOrNull(
+                compareBy<DeduplicationCandidate> {
+                    absoluteSecondDifference(it.measuredAtEpochSecond, measuredAtEpochSecond)
+                }.thenBy(DeduplicationCandidate::tieBreakPriority),
+            )
+
+            when (candidate) {
+                is DeduplicationCandidate.Tombstone ->
+                    return@withTransaction PendingPersistenceResult.Tombstoned
+                is DeduplicationCandidate.Finalized ->
+                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
+                        candidate.entity.toAccountMeasurement(),
+                    )
+                is DeduplicationCandidate.Pending -> {
+                    val pending = candidate.entity
+                    val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
+                    val current = pending.copy(
+                        impedanceOhm = if (enrich) raw.impedanceOhm else pending.impedanceOhm,
+                        isStable = if (enrich) raw.isStable else pending.isStable,
+                        hasImpedance = if (enrich) raw.hasImpedance else pending.hasImpedance,
+                        rawPayload = if (enrich) raw.rawPayload.copyOf() else pending.rawPayload,
+                        finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS)
+                            .toEpochMilli(),
+                    )
+                    check(pendingDao.update(current) == 1) {
+                        "Pending aggregate disappeared during ingestion"
+                    }
+                    return@withTransaction PendingPersistenceResult.AlreadyPending(
+                        pending = current.toDomain(),
+                        wasEnriched = enrich,
+                    )
                 }
-                return@withTransaction PendingPersistenceResult.AlreadyPending(current.toDomain())
+                null -> Unit
             }
             val entity = PendingMeasurementEntity(
                 id = newId(),
@@ -172,6 +211,7 @@ class RoomMeasurementPersistence(
                 deduplicationHash = hash,
                 enqueuedAtEpochMillis = timestampMillis,
                 rawWeight = raw.rawWeight,
+                finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli(),
             )
             if (pendingDao.insert(entity) == -1L) {
                 val concurrent = requireNotNull(pendingDao.getByHash(hash))
@@ -430,49 +470,40 @@ class RoomMeasurementPersistence(
         return FinalizePendingResult.Finalized(measurement.toAccountMeasurement())
     }
 
-    private suspend fun upgradeFinalizedIfNeeded(
-        current: MeasurementEntity,
-        raw: RawScaleMeasurement,
-    ): MeasurementEntity {
-        if (current.measurementType != MeasurementType.WEIGHT_ONLY ||
-            !raw.hasFullBodyComposition
-        ) {
-            return current
-        }
-        val account = accountDao.get(current.accountId) ?: return current
-        val profile = account.toDomain().profile.toUserProfileOrNull() ?: return current
-        val composition = calculator.calculate(raw, profile)
-        val candidate = composition.toEntity(
-            rawPayload = raw.rawPayload,
-            fingerprint = current.fingerprint,
-            huaweiSyncEnabled = huaweiSyncEnabled,
-            accountId = AccountId(current.accountId),
-            externalSyncPolicy = ExternalSyncPolicy.valueOf(current.externalSyncPolicy),
-            sourcePendingId = current.sourcePendingId,
-            deduplicationHash = current.deduplicationHash,
-        )
-        val upgraded = candidate.copy(
-            id = current.id,
-            huaweiStatus = current.huaweiStatus.requeueUnlessTerminal(),
-            healthConnectStatus = current.healthConnectStatus.requeueUnlessTerminal(),
-            huaweiError = current.huaweiError.preserveForTerminalStatus(current.huaweiStatus),
-            healthConnectError = current.healthConnectError.preserveForTerminalStatus(
-                current.healthConnectStatus,
-            ),
-            huaweiWeightSynced = current.huaweiWeightSynced,
-            healthConnectWeightSynced = current.healthConnectWeightSynced,
-            createdAtEpochMillis = current.createdAtEpochMillis,
-        )
-        check(measurementDao.update(upgraded) == 1) {
-            "Finalized measurement disappeared during full-composition upgrade"
-        }
-        return upgraded
-    }
-
     companion object {
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
+        const val DEBOUNCE_SECONDS: Long = 10L
     }
 }
+
+private sealed interface DeduplicationCandidate {
+    val measuredAtEpochSecond: Long
+    val tieBreakPriority: Int
+
+    data class Tombstone(val entity: MeasurementTombstoneEntity) : DeduplicationCandidate {
+        override val measuredAtEpochSecond: Long = requireNotNull(entity.measuredAtEpochSecond)
+        override val tieBreakPriority: Int = 0
+    }
+
+    data class Finalized(val entity: MeasurementEntity) : DeduplicationCandidate {
+        override val measuredAtEpochSecond: Long = entity.measuredAtEpochSecond
+        override val tieBreakPriority: Int = 1
+    }
+
+    data class Pending(val entity: PendingMeasurementEntity) : DeduplicationCandidate {
+        override val measuredAtEpochSecond: Long = entity.measuredAtEpochSecond
+        override val tieBreakPriority: Int = 2
+    }
+}
+
+private fun absoluteSecondDifference(first: Long, second: Long): ULong =
+    if (first >= second) first.toULong() - second.toULong() else second.toULong() - first.toULong()
+
+private fun Long.saturatingMinus(value: Long): Long =
+    if (this < Long.MIN_VALUE + value) Long.MIN_VALUE else this - value
+
+private fun Long.saturatingPlus(value: Long): Long =
+    if (this > Long.MAX_VALUE - value) Long.MAX_VALUE else this + value
 
 fun RawScaleMeasurement.deduplicationHash(): String {
     val material = buildString {
@@ -502,17 +533,8 @@ private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMea
     deduplicationHash = deduplicationHash,
     enqueuedAtEpochMillis = enqueuedAt.toEpochMilli(),
     rawWeight = rawWeight,
+    finalizeAfterEpochMillis = finalizeAfter.toEpochMilli(),
 )
-
-private fun String.requeueUnlessTerminal(): String = when (this) {
-    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
-    else -> SyncStatus.PENDING.name
-}
-
-private fun String?.preserveForTerminalStatus(status: String): String? = when (status) {
-    SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
-    else -> null
-}
 
 /** Smallest whole-second timestamp which is not before this instant. */
 private fun Instant.ceilToEpochSecond(): Long {

@@ -24,6 +24,25 @@ interface MultiAccountMeasurementDao {
     @Query("SELECT * FROM measurements WHERE fingerprint = :fingerprint LIMIT 1")
     suspend fun getByFingerprint(fingerprint: String): MeasurementEntity?
 
+    @Query(
+        """
+        SELECT * FROM measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+        ORDER BY ABS(measuredAtEpochSecond - :measuredAtEpochSecond),
+            measuredAtEpochSecond ASC, id ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun findNearestDeduplicationCandidate(
+        deviceAddress: String,
+        rawWeight: Int,
+        measuredAtEpochSecond: Long,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
+    ): MeasurementEntity?
+
     @Update
     suspend fun update(measurement: MeasurementEntity): Int
 
