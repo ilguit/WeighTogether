@@ -4,11 +4,12 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.hasClickAction
-import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
-import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -102,8 +103,10 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
-        composeRule.onNode(hasClickAction() and hasText("Health Connect"))
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
+            .assertHasClickAction()
+            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
             .performClick()
 
         composeRule.runOnIdle {
@@ -123,8 +126,9 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
-        composeRule.onNode(hasClickAction() and hasText("Health Connect"))
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
+            .assertHasClickAction()
             .performClick()
 
         composeRule.runOnIdle {
@@ -146,8 +150,12 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
-        composeRule.onNodeWithText("Подключить")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
             .performScrollTo()
+            .assertIsEnabled()
+            .assertContentDescriptionEquals(
+                SettingsScreenContentDescriptions.HealthConnectConnectAction,
+            )
             .performClick()
 
         composeRule.runOnIdle {
@@ -171,8 +179,12 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
-        composeRule.onNodeWithText("Открыть")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
             .performScrollTo()
+            .assertIsEnabled()
+            .assertContentDescriptionEquals(
+                SettingsScreenContentDescriptions.HealthConnectOpenAction,
+            )
             .performClick()
 
         composeRule.runOnIdle {
@@ -194,7 +206,10 @@ class SettingsShellUiTest {
         composeRule.onNodeWithText(
             "Основной: Анна · Недоступно: устройство не поддерживает Health Connect",
         ).performScrollTo().assertIsDisplayed()
-        composeRule.onNode(hasClickAction() and hasText("Health Connect")).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .assertHasNoClickAction()
+            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertDoesNotExist()
 
         composeRule.runOnIdle {
             assertEquals(0, managementCalls)

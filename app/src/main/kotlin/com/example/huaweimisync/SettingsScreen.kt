@@ -100,10 +100,18 @@ internal data class IntegrationPresentation(
 
 internal object SettingsScreenTestTags {
     const val ProfileRow = "settings-profile-row"
+    const val HealthConnectRow = "settings-health-connect-row"
+    const val HealthConnectAction = "settings-health-connect-action"
     const val AdditionalToggle = "settings-additional-toggle"
     const val AdditionalContent = "settings-additional-content"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
+}
+
+internal object SettingsScreenContentDescriptions {
+    const val HealthConnectRow = "Настройки Health Connect"
+    const val HealthConnectConnectAction = "Подключить Health Connect"
+    const val HealthConnectOpenAction = "Открыть Health Connect"
 }
 
 private val ProfileSummaryDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -257,6 +265,11 @@ private fun SettingsIntegrationsSection(
                     icon = HuaweiIcons.Health,
                     title = "Health Connect",
                     supportingText = healthConnect.supportingText,
+                    modifier = Modifier
+                        .testTag(SettingsScreenTestTags.HealthConnectRow)
+                        .semantics {
+                            contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                        },
                     onClick = callbacks.onHealthConnectAccessManagement.takeIf {
                         healthConnectCapabilities.systemManagementAvailable
                     },
@@ -269,6 +282,15 @@ private fun SettingsIntegrationsSection(
                                 callbacks.onHealthConnectAuthorization
                             },
                             enabled = healthConnect.actionEnabled,
+                            modifier = Modifier
+                                .testTag(SettingsScreenTestTags.HealthConnectAction)
+                                .semantics {
+                                    contentDescription = if (healthConnect.actionOpensManagement) {
+                                        SettingsScreenContentDescriptions.HealthConnectOpenAction
+                                    } else {
+                                        SettingsScreenContentDescriptions.HealthConnectConnectAction
+                                    }
+                                },
                         ) { Text(label) }
                     }
                 }
