@@ -9,15 +9,23 @@ import org.junit.Test
 class MeasurementFormattingTest {
     @Test
     fun dateTimeUsesProvidedZoneAndLocale() {
-        val instant = Instant.parse("2026-08-14T23:30:00Z")
+        val instant = Instant.parse("2026-08-14T23:30:00.123456789Z")
 
         assertEquals(
-            "15.08.2026 01:30",
+            "15.08.2026 01:30:00.123456789",
             formatMeasurementDateTime(
-                epochMillis = instant.toEpochMilli(),
+                instant = instant,
                 zoneId = ZoneId.of("Europe/Berlin"),
                 locale = Locale.US,
             ),
+        )
+    }
+
+    @Test
+    fun legacyMillisFormattingStillRendersNineFractionDigits() {
+        assertEquals(
+            "01.01.1970 00:00:00.123000000",
+            formatMeasurementDateTime(123L, ZoneId.of("UTC"), Locale.US),
         )
     }
 

@@ -1,5 +1,6 @@
 package com.example.huaweimisync.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -22,6 +23,8 @@ data class AppStateEntity(
     @PrimaryKey val singletonId: Int = SINGLETON_ID,
     val primaryAccountId: String? = null,
     val weightDeltaKg: Double = DEFAULT_WEIGHT_DELTA_KG,
+    @ColumnInfo(defaultValue = "0")
+    val ignoreUnknownMeasurements: Boolean = false,
 ) {
     init {
         require(singletonId == SINGLETON_ID) { "App state must use the singleton id" }

@@ -46,6 +46,9 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+        composeRule.onNodeWithText(
+            formatMeasurementDateTime(requireNotNull(state.summary).latest.measuredAt),
+        ).assertExists()
         composeRule.onNodeWithTag("summary-expand-metrics").performClick()
         composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
 
@@ -112,7 +115,7 @@ class MeasurementsScreenTest {
     fun pendingQueueShowsEveryReadingAndDispatchesAddressedActions() {
         val first = pendingItem(
             id = "pending-first",
-            instant = "2026-08-15T12:42:00Z",
+            instant = "2026-08-15T12:42:00.123456789Z",
             weight = 72.4,
             impedance = 512,
         )
@@ -142,7 +145,7 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithTag("pending-card-${first.id.value}").assertExists()
-        composeRule.onNodeWithText(formatMeasurementDateTime(first.measuredAtEpochMillis)).assertExists()
+        composeRule.onNodeWithText(formatMeasurementDateTime(first.measuredAt)).assertExists()
         composeRule.onNodeWithText(
             "${formatMeasurementValue(MeasurementField.WEIGHT_KG, first.weightKg)} кг",
         ).assertExists()
@@ -158,7 +161,7 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithTag("pending-card-${second.id.value}").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText(formatMeasurementDateTime(second.measuredAtEpochMillis))
+        composeRule.onNodeWithText(formatMeasurementDateTime(second.measuredAt))
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("—").assertExists()
@@ -299,7 +302,7 @@ class MeasurementsScreenTest {
     fun weightOnlySummaryShowsLabelAndDashesForMissingMetrics() {
         val latest = sampleItem(
             id = "weight-only",
-            instant = "2026-08-15T12:42:00Z",
+            instant = "2026-08-15T12:42:00.123456789Z",
             weight = 72.4,
             sync = syncedSync(),
             type = MeasurementUiType.WEIGHT_ONLY,
@@ -415,26 +418,36 @@ class MeasurementsScreenTest {
         type: MeasurementUiType = MeasurementUiType.FULL,
         values: MeasurementUiValues = sampleValues(weight),
         isDeleteProtected: Boolean = false,
-    ) = MeasurementUiItem(
-        id = id,
-        measuredAtEpochMillis = Instant.parse(instant).toEpochMilli(),
-        values = values,
-        sync = sync,
-        type = type,
-        isDeleteProtected = isDeleteProtected,
-    )
+    ): MeasurementUiItem {
+        val measuredAt = Instant.parse(instant)
+        return MeasurementUiItem(
+            id = id,
+            measuredAtEpochMillis = measuredAt.toEpochMilli(),
+            measuredAtEpochSecond = measuredAt.epochSecond,
+            measuredAtNano = measuredAt.nano,
+            values = values,
+            sync = sync,
+            type = type,
+            isDeleteProtected = isDeleteProtected,
+        )
+    }
 
     private fun pendingItem(
         id: String,
         instant: String,
         weight: Double,
         impedance: Int?,
-    ) = PendingMeasurementUiItem(
-        id = PendingMeasurementId(id),
-        measuredAtEpochMillis = Instant.parse(instant).toEpochMilli(),
-        weightKg = weight,
-        impedanceOhm = impedance,
-    )
+    ): PendingMeasurementUiItem {
+        val measuredAt = Instant.parse(instant)
+        return PendingMeasurementUiItem(
+            id = PendingMeasurementId(id),
+            measuredAtEpochMillis = measuredAt.toEpochMilli(),
+            measuredAtEpochSecond = measuredAt.epochSecond,
+            measuredAtNano = measuredAt.nano,
+            weightKg = weight,
+            impedanceOhm = impedance,
+        )
+    }
 
     private fun sampleValues(weight: Double) = MeasurementUiValues(
         weightKg = weight,

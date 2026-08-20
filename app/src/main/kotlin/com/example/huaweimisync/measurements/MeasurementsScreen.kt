@@ -236,7 +236,7 @@ private fun PendingMeasurementCard(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = formatMeasurementDateTime(pending.measuredAtEpochMillis),
+                text = formatMeasurementDateTime(pending.measuredAt),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -487,7 +487,7 @@ private fun MeasurementSummaryCard(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = formatMeasurementDateTime(summary.latest.measuredAtEpochMillis),
+                        text = formatMeasurementDateTime(summary.latest.measuredAt),
                         modifier = Modifier.weight(1f, fill = false),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
@@ -803,7 +803,7 @@ private fun MeasurementHistoryCard(
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
                         Text(
-                            text = formatMeasurementDateTime(item.measuredAtEpochMillis),
+                            text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
                         Text(
@@ -1109,7 +1109,7 @@ private fun MeasurementEditorScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        formatMeasurementDateTime(editor.measuredAtEpochMillis),
+                        formatMeasurementDateTime(editor.measuredAt),
                         style = MaterialTheme.typography.titleSmall,
                     )
                     if (editor.isWeightOnly) {
@@ -1385,7 +1385,7 @@ private fun DeleteMeasurementDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "${formatMeasurementDateTime(confirmation.measuredAtEpochMillis)} · " +
+                    "${formatMeasurementDateTime(confirmation.measuredAt)} · " +
                         "${formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg)} кг",
                     style = MaterialTheme.typography.titleSmall,
                 )
@@ -1499,9 +1499,15 @@ fun formatMeasurementDateTime(
     epochMillis: Long,
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
+): String = formatMeasurementDateTime(Instant.ofEpochMilli(epochMillis), zoneId, locale)
+
+fun formatMeasurementDateTime(
+    instant: Instant,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    locale: Locale = Locale.getDefault(),
 ): String = DateTimeFormatter
-    .ofPattern("dd.MM.yyyy HH:mm", locale)
-    .format(Instant.ofEpochMilli(epochMillis).atZone(zoneId))
+    .ofPattern("dd.MM.yyyy HH:mm:ss.nnnnnnnnn", locale)
+    .format(instant.atZone(zoneId))
 
 fun formatMeasurementValue(
     field: MeasurementField,

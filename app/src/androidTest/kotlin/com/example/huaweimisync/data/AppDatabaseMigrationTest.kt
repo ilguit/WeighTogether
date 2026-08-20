@@ -105,6 +105,68 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate2To3PreservesStateAndRestoresExactFieldsFromMillis() {
+        helper.createDatabase(MIGRATION_2_3_DB, 2).apply {
+            execSQL(
+                """
+                INSERT INTO accounts (
+                    id, displayName, normalizedName, heightCm, birthDateEpochDay, sex,
+                    isProfileComplete, createdAtEpochMillis, updatedAtEpochMillis
+                ) VALUES ('account', 'Alice', 'alice', 175.0, 7305, 'FEMALE', 1, 10, 20)
+                """.trimIndent(),
+            )
+            execSQL("INSERT INTO app_state VALUES (1, 'account', 4.25)")
+            fun insertMeasurement(id: String, millis: Long) {
+                execSQL(
+                    """
+                    INSERT INTO measurements (
+                        id, fingerprint, measurementType, deviceAddress, measuredAtEpochMillis,
+                        rawPayloadHex, weightKg, huaweiStatus, healthConnectStatus,
+                        huaweiWeightSynced, healthConnectWeightSynced, createdAtEpochMillis,
+                        accountId, externalSyncPolicy
+                    ) VALUES (?, ?, 'WEIGHT_ONLY', 'AA:BB:CC:DD:EE:FF', ?, '00', 70.0,
+                        'PENDING', 'PENDING', 0, 0, 30, 'account', 'AUTO')
+                    """.trimIndent(),
+                    arrayOf<Any>(id, "fingerprint-$id", millis),
+                )
+            }
+            insertMeasurement("positive", 1_786_451_696_123L)
+            insertMeasurement("negative", -1L)
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            MIGRATION_2_3_DB,
+            3,
+            true,
+            AppDatabase.MIGRATION_2_3,
+        )
+
+        migrated.query("SELECT primaryAccountId, weightDeltaKg, ignoreUnknownMeasurements FROM app_state").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("account", it.getString(0))
+            assertEquals(4.25, it.getDouble(1), 0.0)
+            assertEquals(0, it.getInt(2))
+        }
+        migrated.query(
+            "SELECT id, measuredAtEpochMillis, measuredAtEpochSecond, measuredAtNano " +
+                "FROM measurements ORDER BY id",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("negative", it.getString(0))
+            assertEquals(-1L, it.getLong(1))
+            assertEquals(-1L, it.getLong(2))
+            assertEquals(999_000_000, it.getInt(3))
+            assertTrue(it.moveToNext())
+            assertEquals("positive", it.getString(0))
+            assertEquals(1_786_451_696_123L, it.getLong(1))
+            assertEquals(1_786_451_696L, it.getLong(2))
+            assertEquals(123_000_000, it.getInt(3))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
@@ -259,5 +321,6 @@ class AppDatabaseMigrationTest {
 
     private companion object {
         const val MIGRATION_DB = "measurement-migration-test"
+        const val MIGRATION_2_3_DB = "measurement-migration-2-3-test"
     }
 }

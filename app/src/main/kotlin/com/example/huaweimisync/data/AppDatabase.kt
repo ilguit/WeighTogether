@@ -14,7 +14,7 @@ import androidx.room.migration.Migration
         PendingMeasurementEntity::class,
         MeasurementTombstoneEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,11 +37,13 @@ abstract class AppDatabase : RoomDatabase() {
             nowEpochMillis = nowEpochMillis,
         )
 
+        val MIGRATION_2_3: Migration = Migration2To3
+
         fun build(
             context: Context,
             databaseName: String = "huawei-mi-sync.db",
         ): AppDatabase = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
-            .addMigrations(migration1To2(context))
+            .addMigrations(migration1To2(context), MIGRATION_2_3)
             .build()
     }
 }

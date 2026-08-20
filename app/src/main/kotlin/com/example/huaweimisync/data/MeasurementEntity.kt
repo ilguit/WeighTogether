@@ -1,5 +1,6 @@
 package com.example.huaweimisync.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -116,6 +117,10 @@ data class MeasurementEntity(
     val measurementType: MeasurementType = MeasurementType.FULL,
     val deviceAddress: String,
     val measuredAtEpochMillis: Long,
+    @ColumnInfo(defaultValue = "0")
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    @ColumnInfo(defaultValue = "0")
+    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
     val rawPayloadHex: String,
     val weightKg: Double,
     val impedanceOhm: Int?,
@@ -187,7 +192,7 @@ data class MeasurementEntity(
         return BodyComposition(
             measurementId = id,
             deviceAddress = deviceAddress,
-            measuredAt = Instant.ofEpochMilli(measuredAtEpochMillis),
+            measuredAt = measuredAt,
             weightKg = composition.weightKg,
             impedanceOhm = composition.impedanceOhm,
             bmi = composition.bmi,
@@ -207,6 +212,9 @@ data class MeasurementEntity(
             algorithmVersion = algorithmVersion ?: return null,
         )
     }
+
+    val measuredAt: Instant
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
 }
 
 fun BodyComposition.toEntity(
@@ -223,6 +231,8 @@ fun BodyComposition.toEntity(
     measurementType = MeasurementType.FULL,
     deviceAddress = deviceAddress,
     measuredAtEpochMillis = measuredAt.toEpochMilli(),
+    measuredAtEpochSecond = measuredAt.epochSecond,
+    measuredAtNano = measuredAt.nano,
     rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
@@ -261,6 +271,8 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     measurementType = MeasurementType.WEIGHT_ONLY,
     deviceAddress = deviceAddress,
     measuredAtEpochMillis = measuredAt.toEpochMilli(),
+    measuredAtEpochSecond = measuredAt.epochSecond,
+    measuredAtNano = measuredAt.nano,
     rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
     weightKg = weightKg,
     impedanceOhm = null,

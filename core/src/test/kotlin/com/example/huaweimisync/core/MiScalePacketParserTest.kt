@@ -87,6 +87,20 @@ class MiScalePacketParserTest {
         assertEquals(70.0, parsed.weightKg, 0.0001)
     }
 
+    @Test
+    fun invalidScaleTimePreservesReceivedAtNanoseconds() {
+        val receivedAt = Instant.parse("2026-08-11T12:34:56.123456789Z")
+        val payload = validPayload().also {
+            it[2] = 0
+            it[3] = 0
+        }
+
+        val parsed = parser.parse(payload, "AA:BB:CC:DD:EE:FF", receivedAt)
+
+        assertNotNull(parsed)
+        assertEquals(receivedAt, parsed.measuredAt)
+    }
+
     private fun validPayload(): ByteArray = byteArrayOf(
         0x00,
         0x22,

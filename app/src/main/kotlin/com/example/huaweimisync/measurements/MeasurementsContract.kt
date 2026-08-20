@@ -5,6 +5,7 @@ import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
+import java.time.Instant
 
 /** State-based destinations owned by the measurements feature. */
 enum class MeasurementsDestination {
@@ -219,6 +220,8 @@ data class MeasurementUiItem(
     val type: MeasurementUiType = MeasurementUiType.FULL,
     val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 ) {
     val isWeightOnly: Boolean
         get() = type == MeasurementUiType.WEIGHT_ONLY
@@ -228,6 +231,9 @@ data class MeasurementUiItem(
 
     val canRetry: Boolean
         get() = sync.canRetry
+
+    val measuredAt: Instant
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
 }
 
 data class PendingMeasurementUiItem(
@@ -235,12 +241,19 @@ data class PendingMeasurementUiItem(
     val measuredAtEpochMillis: Long,
     val weightKg: Double,
     val impedanceOhm: Int?,
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 )
+
+val PendingMeasurementUiItem.measuredAt: Instant
+    get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
 
 internal fun PendingMeasurement.toPendingMeasurementUiItem(): PendingMeasurementUiItem =
     PendingMeasurementUiItem(
         id = id,
         measuredAtEpochMillis = measuredAt.toEpochMilli(),
+        measuredAtEpochSecond = measuredAt.epochSecond,
+        measuredAtNano = measuredAt.nano,
         weightKg = weightKg,
         impedanceOhm = impedanceOhm.takeIf { hasImpedance },
     )
@@ -293,12 +306,17 @@ data class MeasurementEditorState(
         MeasurementUiType.WEIGHT_ONLY -> weightOnlyEditorSections
     },
     val isSaving: Boolean = false,
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 ) {
     val isWeightOnly: Boolean
         get() = type == MeasurementUiType.WEIGHT_ONLY
 
     val canSave: Boolean
         get() = !isSaving && draft.isValid
+
+    val measuredAt: Instant
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
 }
 
 data class MeasurementDeleteConfirmation(
@@ -306,7 +324,12 @@ data class MeasurementDeleteConfirmation(
     val measuredAtEpochMillis: Long,
     val weightKg: Double,
     val isDeleting: Boolean = false,
+    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
+    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
 )
+
+val MeasurementDeleteConfirmation.measuredAt: Instant
+    get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
 
 data class MeasurementsUiState(
     val destination: MeasurementsDestination = MeasurementsDestination.SUMMARY,

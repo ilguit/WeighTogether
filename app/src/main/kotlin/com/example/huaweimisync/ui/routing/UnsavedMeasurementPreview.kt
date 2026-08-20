@@ -31,13 +31,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.BodyComposition
 import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.measurements.formatMeasurementDateTime
 import com.example.huaweimisync.ui.accounts.formatLocalizedDecimal
 import com.example.huaweimisync.ui.components.BirthDateField
 import com.example.huaweimisync.ui.components.BirthDateSelectionPolicy
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 
 object UnsavedPreviewTestTags {
     const val Dialog = "unsaved-preview"
@@ -181,7 +181,7 @@ private fun RawUnsavedSummary(
         )
         Text("Импеданс: ${state.pending.impedanceOhm} Ом")
         Text(
-            "Время: ${state.pending.measuredAt.atZone(zoneId).format(PreviewTimeFormatter)}",
+            "Время: ${formatMeasurementDateTime(state.pending.measuredAt, zoneId)}",
         )
         Text(
             "Профиль и рассчитанные показатели останутся только в памяти и не будут синхронизированы.",
@@ -322,5 +322,3 @@ private fun PreviewMetric(label: String, value: Double, unit: String, decimals: 
         Text("${formatLocalizedDecimal(value, decimals)} $unit".trim())
     }
 }
-
-private val PreviewTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm")

@@ -2,6 +2,7 @@ package com.example.huaweimisync.data
 
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import java.time.Instant
 import java.time.LocalDate
@@ -102,6 +103,18 @@ class MultiAccountDataContractTest {
             original.deduplicationHash() !=
                 raw(weightKg = 70.1, payload = byteArrayOf(1, 2, 3)).deduplicationHash(),
         )
+    }
+
+    @Test
+    fun finalizedEntityRetainsNanosecondTimestamp() {
+        val instant = Instant.parse("2026-08-15T12:00:00.123456789Z")
+        val raw = raw(weightKg = 70.0, payload = byteArrayOf(1, 2, 3)).copy(measuredAt = instant)
+        val entity = raw.toWeightOnlyEntity(accountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID))
+
+        assertEquals(instant.toEpochMilli(), entity.measuredAtEpochMillis)
+        assertEquals(instant.epochSecond, entity.measuredAtEpochSecond)
+        assertEquals(instant.nano, entity.measuredAtNano)
+        assertEquals(instant, entity.measuredAt)
     }
 
     private fun raw(weightKg: Double, payload: ByteArray) = RawScaleMeasurement(

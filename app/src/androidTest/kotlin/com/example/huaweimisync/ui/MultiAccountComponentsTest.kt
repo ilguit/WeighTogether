@@ -23,6 +23,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.measurements.formatMeasurementDateTime
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementTestTags
 import com.example.huaweimisync.ui.accounts.AccountManagementUiState
@@ -187,6 +188,7 @@ class MultiAccountComponentsTest {
         }
 
         composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete).performClick()
+        composeRule.onNodeWithText(formatMeasurementDateTime(pending.measuredAt)).assertExists()
         composeRule.runOnIdle { assertEquals(pending.id, deleted) }
     }
 
@@ -208,6 +210,9 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithTag(UnsavedPreviewTestTags.Close)
             .performClick()
             .assertIsNotEnabled()
+
+        composeRule.onNodeWithText("Время: ${formatMeasurementDateTime(pending.measuredAt)}")
+            .assertExists()
 
         composeRule.runOnIdle { assertEquals(listOf(pending.id), discarded) }
     }
@@ -345,7 +350,7 @@ class MultiAccountComponentsTest {
     private fun pending(): PendingMeasurement = PendingMeasurement(
         id = PendingMeasurementId("pending"),
         deviceAddress = "AA:BB:CC:DD:EE:FF",
-        measuredAt = Instant.parse("2026-08-15T09:59:00Z"),
+        measuredAt = Instant.parse("2026-08-15T09:59:00.123456789Z"),
         weightKg = 70.0,
         impedanceOhm = 500,
         isStable = true,

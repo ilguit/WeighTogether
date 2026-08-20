@@ -191,6 +191,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         editor.value = MeasurementEditorState(
             measurementId = value.id,
             measuredAtEpochMillis = value.measuredAtEpochMillis,
+            measuredAtEpochSecond = value.measuredAtEpochSecond,
+            measuredAtNano = value.measuredAtNano,
             draft = if (value.measurementType == MeasurementType.WEIGHT_ONLY) {
                 MeasurementEditorDraft.fromWeight(value.weightKg)
             } else {
@@ -327,6 +329,8 @@ internal fun measurementDeleteRequest(
         MeasurementDeleteConfirmation(
             measurementId = value.id,
             measuredAtEpochMillis = value.measuredAtEpochMillis,
+            measuredAtEpochSecond = value.measuredAtEpochSecond,
+            measuredAtNano = value.measuredAtNano,
             weightKg = value.weightKg,
         ),
     )
@@ -346,6 +350,8 @@ private fun MeasurementEntity.toUiItem(
     MeasurementUiItem(
         id = id,
         measuredAtEpochMillis = measuredAtEpochMillis,
+        measuredAtEpochSecond = measuredAtEpochSecond,
+        measuredAtNano = measuredAtNano,
         values = toUiValues(),
         type = measurementType.toUiType(),
         sync = measurementSyncPresentation(

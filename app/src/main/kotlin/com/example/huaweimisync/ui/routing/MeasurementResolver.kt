@@ -27,6 +27,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.measurements.formatMeasurementDateTime
 import com.example.huaweimisync.ui.accounts.formatLocalizedDecimal
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
@@ -89,6 +90,11 @@ fun MeasurementResolverDialog(
                 Text(
                     "${formatLocalizedDecimal(state.pending.weightKg)} кг · импеданс ${state.pending.impedanceOhm} Ом",
                     style = MaterialTheme.typography.titleMedium,
+                )
+                Text(
+                    formatMeasurementDateTime(state.pending.measuredAt),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
                 )
                 if (state.candidateCount > 0) {
                     Text(

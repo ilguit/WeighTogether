@@ -226,6 +226,29 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun nanosecondTimestampSurvivesPendingAndFinalization() = runBlocking {
+        val exact = Instant.parse("2026-08-15T10:00:00.123456789Z")
+        val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
+        val persistence = persistence()
+
+        val pending = persistence.enqueue(raw(exact.toString(), 70.0))
+            as PendingPersistenceResult.Inserted
+        assertEquals(exact, pending.pending.measuredAt)
+        assertEquals(exact, persistence.getPending(pending.pending.id)?.measuredAt)
+
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+        val stored = requireNotNull(
+            database.multiAccountMeasurementDao().get(finalized.measurement.measurementId),
+        )
+        assertEquals(exact.toEpochMilli(), stored.measuredAtEpochMillis)
+        assertEquals(exact.epochSecond, stored.measuredAtEpochSecond)
+        assertEquals(exact.nano, stored.measuredAtNano)
+        assertEquals(exact, stored.measuredAt)
+        assertEquals(exact, finalized.measurement.composition?.measuredAt)
+    }
+
+    @Test
     fun weightDeltaUpdateHonorsDomainBoundsAndPreservesValueAfterRejection() = runBlocking {
         val accounts = accountRepository()
 
