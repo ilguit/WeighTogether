@@ -54,7 +54,7 @@ class MultiAccountUiContractsTest {
         val duplicate = AccountEditorDraft(
             name = "  АННА  ",
             heightCm = "170,5",
-            birthDate = "01.05.1990",
+            birthDate = LocalDate.of(1990, 5, 1),
             sex = Sex.FEMALE,
         )
         val duplicateValidation = validateAccountEditor(

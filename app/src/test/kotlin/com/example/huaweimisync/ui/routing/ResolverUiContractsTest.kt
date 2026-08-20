@@ -170,7 +170,7 @@ class ResolverUiContractsTest {
         val pending = pending("preview", "2026-08-15T10:00:00Z")
         val draft = UnsavedPreviewProfileDraft(
             heightCm = "170,0",
-            birthDate = "01.01.1990",
+            birthDate = LocalDate.of(1990, 1, 1),
             sex = Sex.FEMALE,
         )
 
@@ -191,7 +191,7 @@ class ResolverUiContractsTest {
         val validation = validateUnsavedPreviewProfile(
             draft = UnsavedPreviewProfileDraft(
                 heightCm = "170",
-                birthDate = "16.08.2026",
+                birthDate = LocalDate.of(2026, 8, 16),
                 sex = Sex.MALE,
             ),
             measurementDate = LocalDate.of(2026, 8, 15),
@@ -210,7 +210,7 @@ class ResolverUiContractsTest {
             pending = invalidPending,
             draft = UnsavedPreviewProfileDraft(
                 heightCm = "170",
-                birthDate = "01.01.1990",
+                birthDate = LocalDate.of(1990, 1, 1),
                 sex = Sex.FEMALE,
             ),
             zoneId = ZoneOffset.UTC,
@@ -230,7 +230,7 @@ class ResolverUiContractsTest {
                 pending = initial.pending,
                 draft = UnsavedPreviewProfileDraft(
                     heightCm = "170",
-                    birthDate = "01.01.1990",
+                    birthDate = LocalDate.of(1990, 1, 1),
                     sex = Sex.FEMALE,
                 ),
                 zoneId = ZoneOffset.UTC,

@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.BodyComposition
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.ui.accounts.formatLocalizedDecimal
+import com.example.huaweimisync.ui.accounts.parseProfileDate
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import java.time.ZoneId
@@ -204,12 +205,16 @@ private fun PreviewProfileEditor(
             enabled = !state.isCalculating,
         )
         OutlinedTextField(
-            value = draft.birthDate,
-            onValueChange = {
+            value = draft.birthDate?.format(PreviewDateFormatter).orEmpty(),
+            onValueChange = { value ->
                 callbacks.onStateChange(
                     reduceUnsavedPreview(
                         state,
-                        UnsavedPreviewAction.ProfileChanged(draft.copy(birthDate = it)),
+                        UnsavedPreviewAction.ProfileChanged(
+                            draft.copy(
+                                birthDate = value.takeIf(String::isNotBlank)?.let(::parseProfileDate),
+                            ),
+                        ),
                     ),
                 )
             },
@@ -245,6 +250,8 @@ private fun PreviewProfileEditor(
         }
     }
 }
+
+private val PreviewDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.uuuu")
 
 @Composable
 private fun PreviewSexChoice(

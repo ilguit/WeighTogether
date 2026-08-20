@@ -298,8 +298,16 @@ fun AccountEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
-                    value = draft.birthDate,
-                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.BirthDateChanged(it))) },
+                    value = draft.birthDate?.format(EditorDateFormatter).orEmpty(),
+                    onValueChange = { value ->
+                        val birthDate = value.takeIf(String::isNotBlank)?.let(::parseProfileDate)
+                        onDraftChanged(
+                            reduceAccountEditor(
+                                draft,
+                                AccountEditorAction.BirthDateChanged(birthDate),
+                            ),
+                        )
+                    },
                     label = { Text("Дата рождения") },
                     placeholder = { Text("ДД.ММ.ГГГГ") },
                     singleLine = true,
@@ -340,6 +348,8 @@ fun AccountEditorDialog(
         },
     )
 }
+
+private val EditorDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.uuuu")
 
 @Composable
 private fun SexChoice(
