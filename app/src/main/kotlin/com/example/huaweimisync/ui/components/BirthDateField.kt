@@ -10,6 +10,7 @@ import androidx.compose.material3.DisplayMode
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SelectableDates
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDatePickerState
@@ -36,13 +37,15 @@ import java.time.format.DateTimeFormatter
  * Read-only birth-date input backed by the Material 3 date picker.
  *
  * Keeping the value typed as [LocalDate] prevents UI-specific picker milliseconds from leaking
- * into editor state. Date restrictions are intentionally owned by later contract steps.
+ * into editor state. [selectionPolicy] makes the context-specific upper bound explicit: callers
+ * use today's date for an account and the measurement date for an unsaved preview.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun BirthDateField(
     value: LocalDate?,
     onValueChange: (LocalDate) -> Unit,
+    selectionPolicy: BirthDateSelectionPolicy,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isError: Boolean = false,
@@ -85,19 +88,39 @@ fun BirthDateField(
     )
 
     if (isPickerOpen) {
+        val selectableDates = remember(selectionPolicy) {
+            birthDateSelectableDates(selectionPolicy)
+        }
         val pickerState = rememberDatePickerState(
-            initialSelectedDateMillis = value?.toBirthDatePickerMillis(),
-            initialDisplayedMonthMillis = initialBirthDatePickerDate(value).toBirthDatePickerMillis(),
+            initialSelectedDateMillis = value
+                ?.takeIf(selectionPolicy::allows)
+                ?.toBirthDatePickerMillis(),
+            initialDisplayedMonthMillis = initialBirthDatePickerDate(
+                value = value,
+                today = selectionPolicy.maxDateInclusive,
+            )
+                .coerceAtMost(selectionPolicy.maxDateInclusive)
+                .toBirthDatePickerMillis(),
             initialDisplayMode = DisplayMode.Picker,
+            selectableDates = selectableDates,
+        )
+        val confirmedDate = confirmedBirthDate(
+            selectedDateMillis = pickerState.selectedDateMillis,
+            selectionPolicy = selectionPolicy,
         )
         DatePickerDialog(
             onDismissRequest = { isPickerOpen = false },
             confirmButton = {
                 TextButton(
-                    enabled = pickerState.selectedDateMillis != null,
+                    enabled = confirmedDate != null,
                     onClick = {
-                        val selectedMillis = pickerState.selectedDateMillis ?: return@TextButton
-                        onValueChange(birthDateFromPickerMillis(selectedMillis))
+                        // Re-read and validate on click instead of trusting the previously composed
+                        // button state. This keeps the upper bound safe if picker state changes.
+                        val selectedDate = confirmedBirthDate(
+                            selectedDateMillis = pickerState.selectedDateMillis,
+                            selectionPolicy = selectionPolicy,
+                        ) ?: return@TextButton
+                        onValueChange(selectedDate)
                         isPickerOpen = false
                     },
                 ) {
@@ -134,3 +157,35 @@ internal fun LocalDate.toBirthDatePickerMillis(): Long =
 
 internal fun birthDateFromPickerMillis(utcMillis: Long): LocalDate =
     Instant.ofEpochMilli(utcMillis).atZone(ZoneOffset.UTC).toLocalDate()
+
+data class BirthDateSelectionPolicy(
+    val maxDateInclusive: LocalDate,
+) {
+    fun allows(date: LocalDate): Boolean = !date.isAfter(maxDateInclusive)
+
+    companion object {
+        fun forAccount(today: LocalDate): BirthDateSelectionPolicy =
+            BirthDateSelectionPolicy(maxDateInclusive = today)
+
+        fun forUnsavedPreview(measurementDate: LocalDate): BirthDateSelectionPolicy =
+            BirthDateSelectionPolicy(maxDateInclusive = measurementDate)
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+internal fun birthDateSelectableDates(
+    selectionPolicy: BirthDateSelectionPolicy,
+): SelectableDates = object : SelectableDates {
+    override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+        selectionPolicy.allows(birthDateFromPickerMillis(utcTimeMillis))
+
+    override fun isSelectableYear(year: Int): Boolean =
+        year <= selectionPolicy.maxDateInclusive.year
+}
+
+internal fun confirmedBirthDate(
+    selectedDateMillis: Long?,
+    selectionPolicy: BirthDateSelectionPolicy,
+): LocalDate? = selectedDateMillis
+    ?.let(::birthDateFromPickerMillis)
+    ?.takeIf(selectionPolicy::allows)
