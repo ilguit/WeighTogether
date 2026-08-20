@@ -8,7 +8,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
-import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -281,20 +281,23 @@ class RoomMeasurementPersistence(
     override suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult = database.withTransaction {
+    ): DiscardPendingAndUpdateIgnorePolicyResult = database.withTransaction {
         measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
-            return@withTransaction DiscardPendingWithoutUndoResult.AlreadyFinalized(
+            return@withTransaction DiscardPendingAndUpdateIgnorePolicyResult.AlreadyFinalized(
                 finalized.toAccountMeasurement(),
             )
         }
         val pending = pendingDao.get(pendingId.value)
-            ?: return@withTransaction DiscardPendingWithoutUndoResult.PendingNotFound
+            ?: return@withTransaction DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound
+        val undoToken = PendingDiscardUndoToken(pending.toDomain())
         discardPendingWithoutUndoLocked(pending)
         appStateDao.insertDefault()
         check(appStateDao.setIgnoreUnknownMeasurements(ignoreUnknownMeasurements) == 1) {
             "App state singleton is missing"
         }
-        DiscardPendingWithoutUndoResult.Discarded
+        DiscardPendingAndUpdateIgnorePolicyResult.Discarded(
+            undoToken = undoToken.takeUnless { ignoreUnknownMeasurements },
+        )
     }
 
     override suspend fun restorePending(

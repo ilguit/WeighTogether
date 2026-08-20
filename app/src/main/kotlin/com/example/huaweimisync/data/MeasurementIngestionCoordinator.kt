@@ -8,7 +8,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
-import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -62,7 +62,7 @@ interface MeasurementRoutingPersistence {
     suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult
+    ): DiscardPendingAndUpdateIgnorePolicyResult
 
     suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
 }
@@ -129,7 +129,10 @@ class MeasurementIngestionCoordinator(
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
         return when (val enqueued = persistence.enqueue(raw)) {
-            is PendingPersistenceResult.Inserted -> route(enqueued.pending)
+            is PendingPersistenceResult.Inserted -> route(
+                pending = enqueued.pending,
+                allowAutomaticIgnore = true,
+            )
             is PendingPersistenceResult.AlreadyPending -> route(enqueued.pending)
             is PendingPersistenceResult.AlreadyFinalized -> {
                 scheduleIfEligible(enqueued.measurement)
@@ -191,12 +194,14 @@ class MeasurementIngestionCoordinator(
     suspend fun discardAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult {
+    ): DiscardPendingAndUpdateIgnorePolicyResult {
         val result = persistence.discardPendingAndUpdateIgnorePolicy(
             pendingId,
             ignoreUnknownMeasurements,
         )
-        if (result is DiscardPendingWithoutUndoResult.Discarded) refreshPendingPresentation()
+        if (result is DiscardPendingAndUpdateIgnorePolicyResult.Discarded) {
+            refreshPendingPresentation()
+        }
         return result
     }
 
@@ -248,7 +253,10 @@ class MeasurementIngestionCoordinator(
         count
     }
 
-    private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {
+    private suspend fun route(
+        pending: PendingMeasurement,
+        allowAutomaticIgnore: Boolean = false,
+    ): MeasurementIngestionResult {
         val accountSnapshot = accounts.observeAccounts().first()
         val settings = accounts.observeSettings().first()
         val histories = accountSnapshot.associate { account ->
@@ -285,7 +293,11 @@ class MeasurementIngestionCoordinator(
             }
         }
 
-        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+        if (
+            allowAutomaticIgnore &&
+            decision === RoutingDecision.NoMatch &&
+            settings.ignoreUnknownMeasurements
+        ) {
             when (val ignored = persistence.discardUnknownPendingIfEnabled(pending.id)) {
                 AutoIgnorePendingPersistenceResult.Discarded -> {
                     refreshPendingPresentation()

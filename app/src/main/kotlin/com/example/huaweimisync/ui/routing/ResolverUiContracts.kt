@@ -247,6 +247,8 @@ private val PendingFifoComparator = compareBy<PendingMeasurement> { it.enqueuedA
 data class MeasurementResolverUiState(
     val pending: PendingMeasurement,
     val accountOptions: List<ResolverAccountOption>,
+    /** Null for every routing path except NoMatch. */
+    val ignoreUnknownMeasurements: Boolean? = null,
     val operationInProgress: Boolean = false,
 ) {
     init {
@@ -274,6 +276,7 @@ data class MeasurementResolverCallbacks(
     val onAccountSelected: (PendingMeasurementId, AccountId) -> Unit,
     val onCreateAccount: (PendingMeasurementId) -> Unit,
     val onShowWithoutSaving: (PendingMeasurementId) -> Unit,
+    val onIgnoreUnknownMeasurementsChanged: (PendingMeasurementId, Boolean) -> Unit,
     val onDelete: (PendingMeasurementId) -> Unit,
     val onLater: () -> Unit,
 ) {
@@ -282,6 +285,7 @@ data class MeasurementResolverCallbacks(
             onAccountSelected = { _, _ -> },
             onCreateAccount = {},
             onShowWithoutSaving = {},
+            onIgnoreUnknownMeasurementsChanged = { _, _ -> },
             onDelete = {},
             onLater = {},
         )

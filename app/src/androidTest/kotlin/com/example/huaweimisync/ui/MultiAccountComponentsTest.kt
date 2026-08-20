@@ -188,8 +188,34 @@ class MultiAccountComponentsTest {
         }
 
         composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete).performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.IgnoreUnknown).assertDoesNotExist()
         composeRule.onNodeWithText(formatMeasurementDateTime(pending.measuredAt)).assertExists()
         composeRule.runOnIdle { assertEquals(pending.id, deleted) }
+    }
+
+    @Test
+    fun noMatchResolverShowsSavedIgnorePolicyAndDispatchesDraftChange() {
+        val pending = pending()
+        var changed: Pair<PendingMeasurementId, Boolean>? = null
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending,
+                        accountOptions = emptyList(),
+                        ignoreUnknownMeasurements = true,
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None.copy(
+                        onIgnoreUnknownMeasurementsChanged = { pendingId, enabled ->
+                            changed = pendingId to enabled
+                        },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.IgnoreUnknown).performClick()
+        composeRule.runOnIdle { assertEquals(pending.id to false, changed) }
     }
 
     @Test

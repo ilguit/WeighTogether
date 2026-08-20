@@ -27,6 +27,7 @@ import java.time.Instant
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementTestTags
 import com.example.huaweimisync.ui.accounts.AccountManagementUiState
+import com.example.huaweimisync.ui.accounts.WeightDeltaEditorTestTags
 import com.example.huaweimisync.ui.accounts.reduceAccountManagement
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -74,6 +75,18 @@ class SettingsShellUiTest {
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
         composeRule.onNodeWithText("Настройки приложения").assertExists()
+    }
+
+    @Test
+    fun ignoreUnknownSettingIsNextToRecognitionAndDispatchesSavedPolicyChange() {
+        var enabled: Boolean? = null
+        setSettingsShell(onIgnoreUnknownMeasurementsChanged = { enabled = it })
+
+        composeRule.onNodeWithTag(WeightDeltaEditorTestTags.IgnoreUnknown)
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle { assertEquals(true, enabled) }
     }
 
     @Test
@@ -224,6 +237,7 @@ class SettingsShellUiTest {
         onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
+        onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     ) {
         composeRule.setContent {
             val management = remember {
@@ -262,6 +276,7 @@ class SettingsShellUiTest {
                     accountManagement = AccountManagementCallbacks.None.copy(
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
+                    onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
                 ),
                 measurementsContent = {},
                 chartsContent = {},
@@ -275,6 +290,7 @@ class SettingsShellUiTest {
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
+        onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
@@ -286,6 +302,7 @@ class SettingsShellUiTest {
         openBatterySettings = {},
         openApplicationSettings = {},
         accountManagement = accountManagement,
+        onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
     )
 
     private fun completeAccount(): Account = Account(

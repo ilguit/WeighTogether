@@ -13,7 +13,7 @@ import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
-import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -193,7 +193,7 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
-    fun policyChangeDoesNotSweepExistingPendingAndAtomicDeleteHasNoUndoToken() = runBlocking {
+    fun policyChangeDoesNotSweepExistingPendingAndAtomicDisableReturnsUndoToken() = runBlocking {
         val accounts = FakeAccountRepository(emptyList(), null)
         val persistence = FakeRoutingPersistence(accounts)
         val notifier = RecordingNotifier()
@@ -208,13 +208,17 @@ class MeasurementIngestionCoordinatorTest {
         accounts.updateIgnoreUnknownMeasurements(true)
 
         assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
-        assertEquals(
-            DiscardPendingWithoutUndoResult.Discarded,
-            coordinator.discardAndUpdateIgnorePolicy(waiting.pending.id, false),
+        assertTrue(
+            coordinator.route(waiting.pending.id) is MeasurementIngestionResult.AwaitingDecision,
         )
+        assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
+        val discarded = coordinator.discardAndUpdateIgnorePolicy(waiting.pending.id, false)
+            as DiscardPendingAndUpdateIgnorePolicyResult.Discarded
+
+        assertEquals(waiting.pending.id, requireNotNull(discarded.undoToken).pendingId)
         assertFalse(accounts.settings.value.ignoreUnknownMeasurements)
         assertTrue(persistence.pendingSnapshot().isEmpty())
-        assertEquals(listOf(1, 0), notifier.counts)
+        assertEquals(listOf(1, 1, 0), notifier.counts)
     }
 
     @Test
@@ -560,15 +564,17 @@ private class FakeRoutingPersistence(
     override suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult {
+    ): DiscardPendingAndUpdateIgnorePolicyResult {
         finalized[pendingId.value]?.let {
-            return DiscardPendingWithoutUndoResult.AlreadyFinalized(it)
+            return DiscardPendingAndUpdateIgnorePolicyResult.AlreadyFinalized(it)
         }
         val value = pending.remove(pendingId)
-            ?: return DiscardPendingWithoutUndoResult.PendingNotFound
+            ?: return DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound
         tombstones += value.deduplicationHash
         accounts.updateIgnoreUnknownMeasurements(ignoreUnknownMeasurements)
-        return DiscardPendingWithoutUndoResult.Discarded
+        return DiscardPendingAndUpdateIgnorePolicyResult.Discarded(
+            PendingDiscardUndoToken(value).takeUnless { ignoreUnknownMeasurements },
+        )
     }
 
     override suspend fun restorePending(

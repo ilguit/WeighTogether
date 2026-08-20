@@ -10,7 +10,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
-import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -332,7 +332,7 @@ class MeasurementRepository(
     override suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult =
+    ): DiscardPendingAndUpdateIgnorePolicyResult =
         requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
             .discardAndUpdateIgnorePolicy(pendingId, ignoreUnknownMeasurements)
 

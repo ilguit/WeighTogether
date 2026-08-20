@@ -208,6 +208,7 @@ fun HuaweiMiSyncApp(
             ),
             onWeightDeltaStateChanged = viewModel::updateWeightDeltaEditor,
             onWeightDeltaSave = viewModel::saveWeightDelta,
+            onIgnoreUnknownMeasurementsChanged = viewModel::setIgnoreUnknownMeasurements,
         ),
         resolverCallbacks = MeasurementResolverCallbacks(
             onAccountSelected = viewModel::choosePendingAccount,
@@ -216,6 +217,8 @@ fun HuaweiMiSyncApp(
                 currentSection = AppSection.SETTINGS
             },
             onShowWithoutSaving = viewModel::showPendingWithoutSaving,
+            onIgnoreUnknownMeasurementsChanged =
+                viewModel::updateResolverIgnoreUnknownMeasurements,
             onDelete = viewModel::deletePendingFromResolver,
             onLater = viewModel::resolveLater,
         ),

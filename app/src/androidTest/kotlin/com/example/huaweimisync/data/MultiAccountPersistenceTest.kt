@@ -10,7 +10,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
-import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -304,25 +304,48 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
-    fun atomicPolicyDiscardChangesSettingOnlyForSuccessfulNonUndoableDelete() = runBlocking {
+    fun atomicPolicyDiscardReturnsUndoOnlyWhenDisablingAndChangesSettingOnlyOnSuccess() = runBlocking {
         val accounts = accountRepository()
         val persistence = persistence()
         val pending = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
             as PendingPersistenceResult.Inserted
 
         assertEquals(
-            DiscardPendingWithoutUndoResult.Discarded,
+            DiscardPendingAndUpdateIgnorePolicyResult.Discarded(undoToken = null),
             persistence.discardPendingAndUpdateIgnorePolicy(pending.pending.id, true),
         )
         assertTrue(accounts.observeSettings().first().ignoreUnknownMeasurements)
         assertNull(persistence.getPending(pending.pending.id))
         assertEquals(1, database.pendingMeasurementDao().tombstoneCount())
 
+        val undoablePending = persistence.enqueue(raw("2026-08-15T10:01:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        val undoable = persistence.discardPendingAndUpdateIgnorePolicy(
+            undoablePending.pending.id,
+            false,
+        ) as DiscardPendingAndUpdateIgnorePolicyResult.Discarded
+
+        assertEquals(undoablePending.pending.id, requireNotNull(undoable.undoToken).pendingId)
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
+        assertNull(persistence.getPending(undoablePending.pending.id))
+
         assertEquals(
-            DiscardPendingWithoutUndoResult.PendingNotFound,
-            persistence.discardPendingAndUpdateIgnorePolicy(pending.pending.id, false),
+            DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound,
+            persistence.discardPendingAndUpdateIgnorePolicy(pending.pending.id, true),
         )
-        assertTrue(accounts.observeSettings().first().ignoreUnknownMeasurements)
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
+
+        val account = accounts.createAccount(NewAccount("Alice", completeProfile()))
+        val finalizedPending = persistence.enqueue(raw("2026-08-15T10:02:00Z", 72.0))
+            as PendingPersistenceResult.Inserted
+        persistence.finalizePending(finalizedPending.pending.id, account.id)
+        assertTrue(
+            persistence.discardPendingAndUpdateIgnorePolicy(
+                finalizedPending.pending.id,
+                true,
+            ) is DiscardPendingAndUpdateIgnorePolicyResult.AlreadyFinalized,
+        )
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
     }
 
     @Test

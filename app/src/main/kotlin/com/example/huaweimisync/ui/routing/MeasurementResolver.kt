@@ -11,6 +11,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -37,6 +38,7 @@ object MeasurementResolverTestTags {
     const val CreateAccount = "measurement-resolver-create-account"
     const val WithoutSaving = "measurement-resolver-without-saving"
     const val Delete = "measurement-resolver-delete"
+    const val IgnoreUnknown = "measurement-resolver-ignore-unknown"
     const val Later = "measurement-resolver-later"
     const val ForegroundFallback = "measurement-resolver-foreground-fallback"
     fun account(accountId: AccountId): String = "measurement-resolver-account-${accountId.value}"
@@ -122,6 +124,30 @@ fun MeasurementResolverDialog(
                     enabled = !state.operationInProgress,
                     modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.WithoutSaving),
                 ) { Text("Показать без сохранения") }
+                state.ignoreUnknownMeasurements?.let { checked ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Checkbox(
+                            checked = checked,
+                            onCheckedChange = { enabled ->
+                                callbacks.onIgnoreUnknownMeasurementsChanged(
+                                    state.pending.id,
+                                    enabled,
+                                )
+                            },
+                            enabled = !state.operationInProgress,
+                            modifier = Modifier.testTag(
+                                MeasurementResolverTestTags.IgnoreUnknown,
+                            ),
+                        )
+                        Text(
+                            "Всегда игнорировать неизвестные показания",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
                 OutlinedButton(
                     onClick = { callbacks.onDelete(state.pending.id) },
                     enabled = !state.operationInProgress,

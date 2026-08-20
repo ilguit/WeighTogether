@@ -77,6 +77,7 @@ internal data class SettingsCallbacks(
     val accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
     val onWeightDeltaStateChanged: (com.example.huaweimisync.ui.accounts.WeightDeltaEditorState) -> Unit = {},
     val onWeightDeltaSave: (Double) -> Unit = {},
+    val onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
 )
 
 internal enum class AdditionalExpansion {
@@ -222,6 +223,9 @@ internal fun SettingsScreen(
                     state = state.weightDeltaEditor,
                     onStateChanged = callbacks.onWeightDeltaStateChanged,
                     onSave = callbacks.onWeightDeltaSave,
+                    ignoreUnknownMeasurements = state.accountSettings.ignoreUnknownMeasurements,
+                    onIgnoreUnknownMeasurementsChanged =
+                        callbacks.onIgnoreUnknownMeasurementsChanged,
                 )
             }
             item { SettingsIntegrationsSection(state, callbacks) }

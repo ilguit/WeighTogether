@@ -114,14 +114,16 @@ sealed interface DiscardPendingResult {
     data object PendingNotFound : DiscardPendingResult
 }
 
-/** Result of a non-undoable discard, optionally coupled to a settings policy change. */
-sealed interface DiscardPendingWithoutUndoResult {
-    data object Discarded : DiscardPendingWithoutUndoResult
+/** Result of an atomic discard coupled to an unknown-measurement policy change. */
+sealed interface DiscardPendingAndUpdateIgnorePolicyResult {
+    /** A null token means the newly enabled policy intentionally made deletion non-undoable. */
+    data class Discarded(val undoToken: PendingDiscardUndoToken?) :
+        DiscardPendingAndUpdateIgnorePolicyResult
 
     data class AlreadyFinalized(val measurement: AccountMeasurement) :
-        DiscardPendingWithoutUndoResult
+        DiscardPendingAndUpdateIgnorePolicyResult
 
-    data object PendingNotFound : DiscardPendingWithoutUndoResult
+    data object PendingNotFound : DiscardPendingAndUpdateIgnorePolicyResult
 }
 
 sealed interface RestorePendingResult {
@@ -181,13 +183,14 @@ interface MeasurementRepository {
 
     /**
      * Atomically discards [pendingId] and persists [ignoreUnknownMeasurements]. A successful
-     * operation creates the normal deduplication tombstone but intentionally exposes no undo
-     * capability. Missing/finalized pending data must leave the policy unchanged.
+     * operation creates the normal deduplication tombstone. Enabling the policy intentionally
+     * exposes no undo capability; disabling it returns the normal undo token. Missing/finalized
+     * pending data must leave the policy unchanged.
      */
     suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
-    ): DiscardPendingWithoutUndoResult
+    ): DiscardPendingAndUpdateIgnorePolicyResult
 
     /** Restores a discarded snapshot atomically and consumes its tombstone only on success. */
     suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult

@@ -18,6 +18,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -92,6 +93,7 @@ private data class AccountsSnapshot(
 private data class PendingDecisionSnapshot(
     val pendingId: PendingMeasurementId,
     val decision: RoutingDecision,
+    val ignoreUnknownMeasurements: Boolean? = null,
 )
 
 private data class MainCoreState(
@@ -217,6 +219,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     primaryAccountId = accounts.settings.primaryAccountId,
                     candidates = candidates,
                 ),
+                ignoreUnknownMeasurements = decision
+                    ?.takeIf { it.pendingId == current.id }
+                    ?.ignoreUnknownMeasurements,
                 operationInProgress = operation,
             )
         } else {
@@ -438,6 +443,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             }
     }
 
+    fun setIgnoreUnknownMeasurements(enabled: Boolean) = viewModelScope.launch {
+        try {
+            container.accounts.updateIgnoreUnknownMeasurements(enabled)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            showMessage(error.userFacingMessage("Не удалось сохранить настройку"))
+        }
+    }
+
     fun openResolver() {
         val observedPending = pending.value
         if (observedPending.isNotEmpty()) {
@@ -538,6 +553,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
 
+    fun updateResolverIgnoreUnknownMeasurements(
+        pendingId: PendingMeasurementId,
+        enabled: Boolean,
+    ) {
+        val current = pendingDecision.value ?: return
+        if (
+            current.pendingId == pendingId &&
+            current.decision === RoutingDecision.NoMatch &&
+            current.ignoreUnknownMeasurements != null
+        ) {
+            pendingDecision.value = current.copy(ignoreUnknownMeasurements = enabled)
+        }
+    }
+
     fun deletePendingFromResolver(pendingId: PendingMeasurementId) = viewModelScope.launch {
         val completion = resolverSession.value?.activeCompletionFor(
             pending = pending.value,
@@ -547,7 +576,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
         resolverOperationInProgress.value = true
         try {
-            discardPending(completion.pendingId, completion)
+            val ignoreUnknownMeasurements = pendingDecision.value?.takeIf { decision ->
+                decision.pendingId == pendingId && decision.decision === RoutingDecision.NoMatch
+            }?.ignoreUnknownMeasurements
+            if (ignoreUnknownMeasurements == null) {
+                discardPending(completion.pendingId, completion)
+            } else {
+                discardPendingAndUpdateIgnorePolicy(
+                    pendingId = completion.pendingId,
+                    ignoreUnknownMeasurements = ignoreUnknownMeasurements,
+                    completion = completion,
+                )
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } finally {
@@ -843,6 +883,39 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private suspend fun discardPendingAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+        completion: PendingResolverCompletion,
+    ) {
+        if (!pendingDiscardsInProgress.add(pendingId)) return
+        try {
+            when (
+                val result = container.repository.discardPendingAndUpdateIgnorePolicy(
+                    pendingId,
+                    ignoreUnknownMeasurements,
+                )
+            ) {
+                is DiscardPendingAndUpdateIgnorePolicyResult.Discarded -> {
+                    completePendingResolution(completion)
+                    result.undoToken?.let(pendingDiscardUndo::show)
+                }
+                is DiscardPendingAndUpdateIgnorePolicyResult.AlreadyFinalized,
+                DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound,
+                -> {
+                    completePendingResolution(completion)
+                    showMessage("Измерение уже обработано")
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+        } finally {
+            pendingDiscardsInProgress.remove(pendingId)
+        }
+    }
+
     private fun selectPendingForResolver(
         pendingId: PendingMeasurementId,
         source: PendingResolverSource,
@@ -919,6 +992,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         pendingDecision.value = PendingDecisionSnapshot(
                             result.pending.id,
                             result.decision,
+                            ignoreUnknownMeasurements = resolverIgnoreUnknownPolicySelection(
+                                decision = result.decision,
+                                savedPolicy = accountsSnapshot.value.settings
+                                    .ignoreUnknownMeasurements,
+                            ),
                         )
                     }
                 }
@@ -962,6 +1040,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+internal fun resolverIgnoreUnknownPolicySelection(
+    decision: RoutingDecision,
+    savedPolicy: Boolean,
+): Boolean? = savedPolicy.takeIf { decision === RoutingDecision.NoMatch }
 
 private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (this) {
     is RoutingDecision.ChooseAccount -> candidates
