@@ -19,6 +19,8 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
@@ -51,11 +53,16 @@ fun UnsavedMeasurementPreviewDialog(
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
+    val closeRequested = remember(state.pending.id) { mutableStateOf(false) }
+    val requestClose = {
+        if (!state.isCalculating && !closeRequested.value) {
+            closeRequested.value = true
+            callbacks.onCloseAndDiscard(state.pending.id)
+        }
+    }
     AlertDialog(
         modifier = modifier.testTag(UnsavedPreviewTestTags.Dialog),
-        onDismissRequest = {
-            if (!state.isCalculating) callbacks.onCloseAndDiscard(state.pending.id)
-        },
+        onDismissRequest = requestClose,
         title = {
             Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text("Просмотр измерения")
@@ -101,7 +108,8 @@ fun UnsavedMeasurementPreviewDialog(
                     ) { Text("Рассчитать") }
                 }
                 UnsavedPreviewStep.RESULT -> Button(
-                    onClick = { callbacks.onCloseAndDiscard(state.pending.id) },
+                    onClick = requestClose,
+                    enabled = !closeRequested.value,
                     modifier = Modifier.testTag(UnsavedPreviewTestTags.Close),
                 ) { Text("Закрыть") }
             }
@@ -109,7 +117,8 @@ fun UnsavedMeasurementPreviewDialog(
         dismissButton = {
             if (state.step == UnsavedPreviewStep.RAW_SUMMARY) {
                 TextButton(
-                    onClick = { callbacks.onCloseAndDiscard(state.pending.id) },
+                    onClick = requestClose,
+                    enabled = !closeRequested.value,
                     modifier = Modifier.testTag(UnsavedPreviewTestTags.Close),
                 ) { Text("Закрыть") }
             } else {

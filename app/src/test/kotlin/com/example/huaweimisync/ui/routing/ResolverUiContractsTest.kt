@@ -218,6 +218,54 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `unsaved preview close consumes only its exact queue item and is one shot`() {
+        val fifoHead = pending("head", "2026-08-15T10:00:00Z")
+        val previewed = pending("previewed", "2026-08-15T10:01:00Z")
+        val coordinator = UnsavedPreviewSessionCoordinator()
+        coordinator.show(
+            state = UnsavedMeasurementPreviewState(previewed),
+            resolverSession = PendingResolverSession(
+                pendingId = previewed.id,
+                source = PendingResolverSource.PENDING_QUEUE,
+            ),
+        )
+
+        assertNull(coordinator.takeClose(fifoHead.id))
+        assertEquals(previewed.id, coordinator.active.value?.state?.pending?.id)
+
+        val completion = coordinator.takeClose(previewed.id)
+
+        assertEquals(previewed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            completion?.returnDestination,
+        )
+        assertNull(coordinator.active.value)
+        assertNull(coordinator.takeClose(previewed.id))
+    }
+
+    @Test
+    fun `external unsaved preview close preserves its source destination`() {
+        val previewed = pending("previewed", "2026-08-15T10:00:00Z")
+        val coordinator = UnsavedPreviewSessionCoordinator()
+        coordinator.show(
+            state = UnsavedMeasurementPreviewState(previewed),
+            resolverSession = PendingResolverSession(
+                pendingId = previewed.id,
+                source = PendingResolverSource.EXTERNAL,
+            ),
+        )
+
+        val completion = coordinator.takeClose(previewed.id)
+
+        assertEquals(previewed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            completion?.returnDestination,
+        )
+    }
+
+    @Test
     fun `discard completion closes selected item without opening the fifo head`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val selected = pending("b", "2026-08-15T10:01:00Z")

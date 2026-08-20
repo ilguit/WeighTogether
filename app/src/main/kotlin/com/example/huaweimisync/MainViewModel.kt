@@ -38,6 +38,7 @@ import com.example.huaweimisync.ui.routing.PendingResolverSession
 import com.example.huaweimisync.ui.routing.PendingResolverSource
 import com.example.huaweimisync.ui.routing.ResolverQueueState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
+import com.example.huaweimisync.ui.routing.UnsavedPreviewSessionCoordinator
 import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
@@ -144,8 +145,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val resolverOperationInProgress = MutableStateFlow(false)
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
-    private val unsavedPreview = MutableStateFlow<UnsavedMeasurementPreviewState?>(null)
-    private val unsavedPreviewSession = MutableStateFlow<PendingResolverSession?>(null)
+    private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
 
     val events = eventEmitter.events
 
@@ -188,8 +188,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         accountsSnapshot,
         pendingDecision,
         resolverOperationInProgress,
-        unsavedPreview,
-    ) { queue, accounts, decision, operation, preview ->
+        unsavedPreviewSession.active,
+    ) { queue, accounts, decision, operation, previewSession ->
+        val preview = previewSession?.state
         val current = queue.selected
         val resolver = if (
             queue.isResolverVisible && current != null && preview == null
@@ -282,10 +283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         values.any { it.id == decision.pendingId }
                     }
                 }
-                unsavedPreview.value = unsavedPreview.value?.takeIf { preview ->
-                    values.any { it.id == preview.pending.id }
-                }
-                if (unsavedPreview.value == null) unsavedPreviewSession.value = null
+                unsavedPreviewSession.retainAvailable(values.mapTo(mutableSetOf()) { it.id })
                 val createPendingSession = pendingForNewAccount.value
                 if (
                     createPendingSession != null &&
@@ -565,26 +563,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateUnsavedPreview(state: UnsavedMeasurementPreviewState) {
-        if (unsavedPreview.value?.pending?.id == state.pending.id) {
-            unsavedPreview.value = state
-        }
+        unsavedPreviewSession.update(state)
     }
 
     fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {
-        if (unsavedPreview.value?.pending?.id != pendingId) return@launch
-        val completion = unsavedPreviewSession.value?.completionFor(pendingId)
-        val result = container.repository.discardPending(pendingId)
-        unsavedPreview.value = null
-        unsavedPreviewSession.value = null
-        completion?.let(::completePendingResolution)
-        showMessage(
-            when (result) {
-                is DiscardPendingResult.Discarded -> "Измерение удалено без сохранения"
-                is DiscardPendingResult.AlreadyFinalized,
-                DiscardPendingResult.PendingNotFound,
-                -> "Измерение уже обработано"
-            },
-        )
+        val completion = unsavedPreviewSession.takeClose(pendingId) ?: return@launch
+        discardPending(pendingId, completion)
     }
 
     fun registerBackgroundScan() {
@@ -862,8 +846,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val pendingValue = pending.value.firstOrNull { it.id == pendingId } ?: return
         if (session.pendingId != pendingId) return
         resolverSession.value = null
-        unsavedPreviewSession.value = session
-        unsavedPreview.value = UnsavedMeasurementPreviewState(pendingValue)
+        unsavedPreviewSession.show(
+            state = UnsavedMeasurementPreviewState(pendingValue),
+            resolverSession = session,
+        )
     }
 
     private fun completePendingResolution(completion: PendingResolverCompletion) {
