@@ -172,7 +172,9 @@ fun HuaweiMiSyncApp(
         onOpenResolver = viewModel::openResolver,
         measurementsContent = { padding ->
             MeasurementsScreen(
-                state = measurementsState,
+                state = measurementsState.copy(
+                    pendingCount = state.resolverQueue.pendingCount,
+                ),
                 callbacks = measurementsViewModel.callbacks,
                 modifier = Modifier
                     .fillMaxSize()

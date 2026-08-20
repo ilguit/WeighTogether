@@ -34,6 +34,11 @@ class MeasurementsPresentationTest {
         assertFalse(MeasurementsUiState().hasNoLatestMeasurement)
     }
 
+    @Test(expected = IllegalArgumentException::class)
+    fun pendingCountCannotBeNegative() {
+        MeasurementsUiState(pendingCount = -1)
+    }
+
     @Test
     fun summaryProvidesFourKeyAndElevenAdditionalMetricsInTemplateOrder() {
         val summary = buildMeasurementSummary(listOf(sampleItem()))!!

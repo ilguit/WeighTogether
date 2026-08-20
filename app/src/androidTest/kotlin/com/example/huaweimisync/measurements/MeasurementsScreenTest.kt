@@ -54,6 +54,59 @@ class MeasurementsScreenTest {
     }
 
     @Test
+    fun pendingQueueCardOpensQueueFromPopulatedSummary() {
+        var state by mutableStateOf(sampleState().copy(pendingCount = 2))
+        val callbacks = callbacks(
+            onPendingQueueRequested = {
+                state = state.copy(destination = MeasurementsDestination.PENDING_QUEUE)
+            },
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertIsDisplayed()
+        composeRule.onNodeWithText("Не назначено: 2").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-queue-summary-card").performClick()
+        composeRule.onNodeWithTag("pending-queue").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingQueueCardRemainsAvailableWithoutSavedMeasurements() {
+        var opened = false
+        val state = MeasurementsUiState(
+            pendingCount = 3,
+            isLoading = false,
+        )
+        val callbacks = callbacks(onPendingQueueRequested = { opened = true })
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertIsDisplayed()
+        composeRule.onNodeWithText("Не назначено: 3").assertIsDisplayed()
+        composeRule.onNodeWithText("Пока нет измерений").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-queue-summary-card").performClick()
+        composeRule.runOnIdle { assertEquals(true, opened) }
+    }
+
+    @Test
+    fun emptyPendingQueueDoesNotAddSummaryCard() {
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(
+                    state = sampleState(),
+                    callbacks = MeasurementsCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertDoesNotExist()
+    }
+
+    @Test
     fun summaryMenuOpensEditAndDeleteActions() {
         var edited: Pair<String, MeasurementEditorOrigin>? = null
         var confirmedId: String? = null
@@ -221,12 +274,14 @@ class MeasurementsScreenTest {
     }
 
     private fun callbacks(
+        onPendingQueueRequested: () -> Unit = {},
         onHistoryRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
         onDeleteRequested: (String) -> Unit = {},
         onDeleteConfirmed: (String) -> Unit = {},
         onRetryRequested: (String) -> Unit = {},
     ) = MeasurementsCallbacks.None.copy(
+        onPendingQueueRequested = onPendingQueueRequested,
         onHistoryRequested = onHistoryRequested,
         onEditRequested = onEditRequested,
         onDeleteRequested = onDeleteRequested,
