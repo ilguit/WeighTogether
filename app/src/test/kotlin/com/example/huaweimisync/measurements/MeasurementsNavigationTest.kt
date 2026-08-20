@@ -5,6 +5,14 @@ import org.junit.Test
 
 class MeasurementsNavigationTest {
     @Test
+    fun pendingQueueBackReturnsToSummary() {
+        val pendingQueue = MeasurementsNavigationState().showPendingQueue()
+
+        assertEquals(MeasurementsDestination.PENDING_QUEUE, pendingQueue.destination)
+        assertEquals(MeasurementsDestination.SUMMARY, pendingQueue.back().destination)
+    }
+
+    @Test
     fun historyBackReturnsToSummary() {
         val history = MeasurementsNavigationState().showHistory()
 

@@ -119,6 +119,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     val callbacks = MeasurementsCallbacks(
         onSummaryRequested = ::showSummary,
+        onPendingQueueRequested = ::showPendingQueue,
         onHistoryRequested = ::showHistory,
         onBackRequested = ::navigateBack,
         onEditRequested = ::openEditor,
@@ -153,6 +154,12 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun showHistory() {
         if (editor.value?.isSaving == true) return
         navigation.update(MeasurementsNavigationState::showHistory)
+        editor.value = null
+    }
+
+    private fun showPendingQueue() {
+        if (editor.value?.isSaving == true) return
+        navigation.update(MeasurementsNavigationState::showPendingQueue)
         editor.value = null
     }
 

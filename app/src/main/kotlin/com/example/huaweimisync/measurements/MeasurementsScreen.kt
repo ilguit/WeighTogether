@@ -125,6 +125,10 @@ fun MeasurementsScreen(
                     callbacks = callbacks,
                 )
 
+                MeasurementsDestination.PENDING_QUEUE -> PendingQueueDestination(
+                    onBack = callbacks.onBackRequested,
+                )
+
                 MeasurementsDestination.HISTORY -> MeasurementHistoryScreen(
                     state = state,
                     expandedIds = expandedHistoryIds,
@@ -163,6 +167,29 @@ fun MeasurementsScreen(
             },
             onDismiss = { syncMeasurementId = null },
         )
+    }
+}
+
+@Composable
+private fun PendingQueueDestination(onBack: () -> Unit) {
+    LazyColumn(
+        modifier = Modifier
+            .widthIn(max = 680.dp)
+            .fillMaxHeight()
+            .fillMaxWidth()
+            .testTag("pending-queue"),
+        contentPadding = PaddingValues(
+            horizontal = HuaweiDimensions.ContentPadding,
+            vertical = HuaweiDimensions.CompactContentPadding,
+        ),
+    ) {
+        item {
+            NestedScreenHeader(
+                title = "Не назначено",
+                backContentDescription = "Назад к последнему измерению",
+                onBack = onBack,
+            )
+        }
     }
 }
 

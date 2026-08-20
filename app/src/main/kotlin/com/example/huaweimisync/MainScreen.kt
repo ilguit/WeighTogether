@@ -77,6 +77,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
             contentUsesSafeDrawingInsets = false,
         )
 
+        MeasurementsDestination.PENDING_QUEUE,
         MeasurementsDestination.HISTORY,
         MeasurementsDestination.EDITOR,
         -> MeasurementsChrome(

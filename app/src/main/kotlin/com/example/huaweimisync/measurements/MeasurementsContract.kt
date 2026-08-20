@@ -6,6 +6,7 @@ import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 /** State-based destinations owned by the measurements feature. */
 enum class MeasurementsDestination {
     SUMMARY,
+    PENDING_QUEUE,
     HISTORY,
     EDITOR,
 }
@@ -29,6 +30,10 @@ data class MeasurementsNavigationState(
         destination = MeasurementsDestination.HISTORY,
     )
 
+    fun showPendingQueue(): MeasurementsNavigationState = copy(
+        destination = MeasurementsDestination.PENDING_QUEUE,
+    )
+
     fun showEditor(origin: MeasurementEditorOrigin): MeasurementsNavigationState = copy(
         destination = MeasurementsDestination.EDITOR,
         editorOrigin = origin,
@@ -36,6 +41,7 @@ data class MeasurementsNavigationState(
 
     fun back(): MeasurementsNavigationState = when (destination) {
         MeasurementsDestination.EDITOR -> copy(destination = editorOrigin.destination)
+        MeasurementsDestination.PENDING_QUEUE,
         MeasurementsDestination.HISTORY -> copy(destination = MeasurementsDestination.SUMMARY)
         MeasurementsDestination.SUMMARY -> this
     }
@@ -307,6 +313,7 @@ sealed interface MeasurementsUiEvent {
 
 data class MeasurementsCallbacks(
     val onSummaryRequested: () -> Unit,
+    val onPendingQueueRequested: () -> Unit,
     val onHistoryRequested: () -> Unit,
     val onBackRequested: () -> Unit,
     val onEditRequested: (measurementId: String, origin: MeasurementEditorOrigin) -> Unit,
@@ -322,6 +329,7 @@ data class MeasurementsCallbacks(
     companion object {
         val None = MeasurementsCallbacks(
             onSummaryRequested = {},
+            onPendingQueueRequested = {},
             onHistoryRequested = {},
             onBackRequested = {},
             onEditRequested = { _, _ -> },
