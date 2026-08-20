@@ -168,6 +168,56 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `external resolver delete addresses displayed pending and preserves current screen`() {
+        val fifoHead = pending("a", "2026-08-15T10:00:00Z")
+        val displayed = pending("b", "2026-08-15T10:01:00Z")
+        val session = PendingResolverSession(
+            pendingId = displayed.id,
+            source = PendingResolverSource.EXTERNAL,
+        )
+
+        val completion = session.activeCompletionFor(
+            pending = listOf(fifoHead, displayed),
+            requestedPendingId = displayed.id,
+        )
+
+        assertEquals(displayed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            completion?.returnDestination,
+        )
+        assertNull(
+            session.activeCompletionFor(
+                pending = listOf(fifoHead, displayed),
+                requestedPendingId = fifoHead.id,
+            ),
+        )
+        assertNull(
+            session.activeCompletionFor(
+                pending = listOf(fifoHead),
+                requestedPendingId = displayed.id,
+            ),
+        )
+    }
+
+    @Test
+    fun `queue resolver delete returns to queue for the addressed pending`() {
+        val selected = pending("selected", "2026-08-15T10:00:00Z")
+        val session = PendingResolverSession(
+            pendingId = selected.id,
+            source = PendingResolverSource.PENDING_QUEUE,
+        )
+
+        val completion = session.activeCompletionFor(listOf(selected), selected.id)
+
+        assertEquals(selected.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            completion?.returnDestination,
+        )
+    }
+
+    @Test
     fun `discard completion closes selected item without opening the fifo head`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val selected = pending("b", "2026-08-15T10:01:00Z")

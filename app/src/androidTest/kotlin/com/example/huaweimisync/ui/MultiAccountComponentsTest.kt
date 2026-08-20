@@ -147,6 +147,28 @@ class MultiAccountComponentsTest {
     }
 
     @Test
+    fun resolverDeleteAddressesDisplayedPendingMeasurement() {
+        val pending = pending()
+        var deleted: PendingMeasurementId? = null
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending,
+                        accountOptions = emptyList(),
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None.copy(
+                        onDelete = { deleted = it },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete).performClick()
+        composeRule.runOnIdle { assertEquals(pending.id, deleted) }
+    }
+
+    @Test
     fun primaryDeletionRejectsAReplacementThatNoLongerExists() {
         val primary = account("primary", "Анна")
         val replacement = account("replacement", "Борис")

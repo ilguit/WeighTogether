@@ -174,6 +174,7 @@ fun HuaweiMiSyncApp(
                 currentSection = AppSection.SETTINGS
             },
             onShowWithoutSaving = viewModel::showPendingWithoutSaving,
+            onDelete = viewModel::deletePendingFromResolver,
             onLater = viewModel::resolveLater,
         ),
         unsavedPreviewCallbacks = UnsavedPreviewCallbacks(

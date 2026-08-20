@@ -205,6 +205,18 @@ internal fun isActivePendingResolverTarget(
 ): Boolean = selectedPendingId == requestedPendingId &&
     pending.any { it.id == requestedPendingId }
 
+/** Builds a terminal action only for the pending item still displayed by this resolver session. */
+internal fun PendingResolverSession.activeCompletionFor(
+    pending: List<PendingMeasurement>,
+    requestedPendingId: PendingMeasurementId,
+): PendingResolverCompletion? = completionFor(requestedPendingId)?.takeIf {
+    isActivePendingResolverTarget(
+        pending = pending,
+        selectedPendingId = pendingId,
+        requestedPendingId = requestedPendingId,
+    )
+}
+
 /**
  * Resolves a notification navigation request against durable state after process recreation.
  *
@@ -262,6 +274,7 @@ data class MeasurementResolverCallbacks(
     val onAccountSelected: (PendingMeasurementId, AccountId) -> Unit,
     val onCreateAccount: (PendingMeasurementId) -> Unit,
     val onShowWithoutSaving: (PendingMeasurementId) -> Unit,
+    val onDelete: (PendingMeasurementId) -> Unit,
     val onLater: () -> Unit,
 ) {
     companion object {
@@ -269,6 +282,7 @@ data class MeasurementResolverCallbacks(
             onAccountSelected = { _, _ -> },
             onCreateAccount = {},
             onShowWithoutSaving = {},
+            onDelete = {},
             onLater = {},
         )
     }

@@ -37,6 +37,7 @@ import com.example.huaweimisync.ui.routing.PendingResolverSession
 import com.example.huaweimisync.ui.routing.PendingResolverSource
 import com.example.huaweimisync.ui.routing.ResolverQueueState
 import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
+import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
@@ -524,6 +525,27 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             pendingId = pendingId,
             session = PendingResolverSession(pendingId, PendingResolverSource.PENDING_QUEUE),
         )
+    }
+
+    fun deletePendingFromResolver(pendingId: PendingMeasurementId) = viewModelScope.launch {
+        val completion = resolverSession.value?.activeCompletionFor(
+            pending = pending.value,
+            requestedPendingId = pendingId,
+        ) ?: return@launch
+        if (resolverOperationInProgress.value) return@launch
+
+        resolverOperationInProgress.value = true
+        try {
+            val discarded = container.repository.discardPending(completion.pendingId)
+            completePendingResolution(completion)
+            showMessage(if (discarded) "Измерение удалено" else "Измерение уже обработано")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+        } finally {
+            resolverOperationInProgress.value = false
+        }
     }
 
     fun updateUnsavedPreview(state: UnsavedMeasurementPreviewState) {
