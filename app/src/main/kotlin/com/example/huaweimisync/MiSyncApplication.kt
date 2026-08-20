@@ -16,6 +16,7 @@ import com.example.huaweimisync.sync.createHuaweiHealthGateway
 import com.example.huaweimisync.worker.MeasurementWorkSweepScheduler
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.SyncWorkScheduler
+import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
 
 class MiSyncApplication : Application() {
@@ -36,6 +37,7 @@ class AppContainer(application: Application) {
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(application)
+    val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
     val measurementPersistence = RoomMeasurementPersistence(

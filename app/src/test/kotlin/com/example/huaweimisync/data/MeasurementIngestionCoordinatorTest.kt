@@ -92,6 +92,40 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
+    fun finalizationRereadsDeadlineAndRoutesOnlyWhenDue() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events)
+        val scheduler = UniqueFakeScheduler(events)
+        val coordinator = MeasurementIngestionCoordinator(
+            persistence = persistence,
+            accounts = accounts,
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            syncScheduler = scheduler,
+        )
+        val created = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.CreatedAggregate
+
+        val early = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter.minusMillis(1))
+
+        assertTrue(early is AggregateFinalizationResult.Reschedule)
+        assertTrue(events.none { it == "accounts" || it.startsWith("finalize:") })
+        assertTrue(scheduler.enqueued.isEmpty())
+
+        val due = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
+            as AggregateFinalizationResult.Completed
+
+        assertTrue(due.outcome is MeasurementIngestionResult.Assigned)
+        assertEquals(1, persistence.finalized.size)
+        assertEquals(1, scheduler.enqueued.size)
+
+        val repeated = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
+            as AggregateFinalizationResult.Completed
+        assertEquals(MeasurementIngestionResult.PendingMissing, repeated.outcome)
+        assertEquals(1, persistence.finalized.size)
+        assertEquals(1, scheduler.enqueued.size)
+    }
+
+    @Test
     fun primaryAssignmentIsDurableBeforeMatchingAndSchedulesAfterAtomicFinalize() = runBlocking {
         val events = mutableListOf<String>()
         val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
@@ -235,17 +269,13 @@ class MeasurementIngestionCoordinatorTest {
             coordinator.route(waiting.pending.id) is MeasurementIngestionResult.AwaitingDecision,
         )
         assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
-        val sweep = coordinator.sweepPendingRouting()
-        assertEquals(0, sweep.assignedCount)
-        assertEquals(1, sweep.awaitingDecisionCount)
-        assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
         val discarded = coordinator.discardAndUpdateIgnorePolicy(waiting.pending.id, false)
             as DiscardPendingAndUpdateIgnorePolicyResult.Discarded
 
         assertEquals(waiting.pending.id, requireNotNull(discarded.undoToken).pendingId)
         assertFalse(accounts.settings.value.ignoreUnknownMeasurements)
         assertTrue(persistence.pendingSnapshot().isEmpty())
-        assertEquals(listOf(1, 1, 1, 1, 0), notifier.counts)
+        assertEquals(listOf(1, 1, 0), notifier.counts)
     }
 
     @Test

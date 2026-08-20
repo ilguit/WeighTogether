@@ -25,8 +25,13 @@ class MeasurementWorkSweepWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        val repository = (applicationContext as MiSyncApplication).container.repository
-        return runCatching { MeasurementWorkSweep(repository).run() }.fold(
+        val container = (applicationContext as MiSyncApplication).container
+        return runCatching {
+            // Restore any durable commit/enqueue gap. REPLACE also refreshes stale timers.
+            container.measurementPersistence.pendingSnapshot()
+                .forEach(container.finalizationScheduler::enqueue)
+            MeasurementWorkSweep(container.repository).run()
+        }.fold(
             onSuccess = { Result.success() },
             onFailure = { Result.retry() },
         )

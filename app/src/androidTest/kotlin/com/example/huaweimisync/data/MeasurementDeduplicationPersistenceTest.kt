@@ -8,6 +8,7 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.routing.MatchingEngine
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -167,6 +168,49 @@ class MeasurementDeduplicationPersistenceTest {
         assertEquals(1, results.count { it is PendingPersistenceResult.Inserted })
         assertEquals(7, results.count { it is PendingPersistenceResult.AlreadyPending })
         assertEquals(1, database.pendingMeasurementDao().getAll().size)
+    }
+
+    @Test
+    fun staleFinalizationCannotCloseExtendedWindowAndFinalizesExactlyOnce() = runBlocking {
+        val persistence = persistence()
+        val accounts = RoomAccountRepository(database, now = { now }, newId = ::newId)
+        accounts.createAccount(NewAccount("Alice", completeProfile()))
+        val first = persistence.enqueue(raw(second = 0, payload = byteArrayOf(1)))
+            as PendingPersistenceResult.Inserted
+        val originalDeadline = first.pending.finalizeAfter
+
+        now = now.plusSeconds(5)
+        val extended = persistence.enqueue(raw(second = 8, payload = byteArrayOf(9, 8, 7)))
+            as PendingPersistenceResult.AlreadyPending
+        val stale = persistence.routeDueAtomically(
+            first.pending.id,
+            originalDeadline,
+            MatchingEngine(),
+        )
+
+        assertTrue(stale is AtomicDueRoutingResult.NotDue)
+        assertEquals(extended.pending.finalizeAfter, (stale as AtomicDueRoutingResult.NotDue).pending.finalizeAfter)
+        assertTrue(database.multiAccountMeasurementDao().getByPendingId(first.pending.id.value) == null)
+
+        val finalized = persistence.routeDueAtomically(
+            first.pending.id,
+            extended.pending.finalizeAfter,
+            MatchingEngine(),
+        )
+        val repeated = persistence.routeDueAtomically(
+            first.pending.id,
+            extended.pending.finalizeAfter,
+            MatchingEngine(),
+        )
+
+        assertTrue(finalized is AtomicDueRoutingResult.Finalized)
+        assertTrue(repeated is AtomicDueRoutingResult.AlreadyFinalized)
+        val entity = database.multiAccountMeasurementDao().getByPendingId(first.pending.id.value)!!
+        assertEquals(first.pending.id.value, entity.sourcePendingId)
+        assertEquals(first.pending.measuredAt.epochSecond, entity.measuredAtEpochSecond)
+        assertEquals(first.pending.rawWeight, entity.rawWeight)
+        assertEquals("090807", entity.rawPayloadHex)
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
     }
 
     private fun persistence() = RoomMeasurementPersistence(

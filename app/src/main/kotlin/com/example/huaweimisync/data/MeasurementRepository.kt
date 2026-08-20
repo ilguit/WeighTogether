@@ -155,6 +155,13 @@ class MeasurementRepository(
         }
     }
 
+    suspend fun finalizeDue(
+        pendingId: PendingMeasurementId,
+        now: Instant = Instant.now(),
+    ): AggregateFinalizationResult = requireNotNull(ingestionCoordinator) {
+        "Multi-account ingestion is not configured"
+    }.finalizeDue(pendingId, now)
+
     suspend fun update(
         id: String,
         values: MeasurementValues,

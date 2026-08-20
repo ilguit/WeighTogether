@@ -47,6 +47,17 @@ interface MeasurementRoutingPersistence {
         accountId: AccountId,
     ): FinalizePendingResult
 
+    /** Room implementations must re-check the deadline in the finalize transaction. */
+    suspend fun finalizePendingIfDue(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+        now: Instant,
+    ): DuePendingPersistenceResult {
+        val pending = getPending(pendingId) ?: return DuePendingPersistenceResult.PendingNotFound
+        if (now < pending.finalizeAfter) return DuePendingPersistenceResult.NotDue(pending)
+        return finalizePending(pendingId, accountId).toDuePersistenceResult()
+    }
+
     suspend fun createAccountAndAssignPending(
         pendingId: PendingMeasurementId,
         account: NewAccount,
@@ -59,12 +70,66 @@ interface MeasurementRoutingPersistence {
         pendingId: PendingMeasurementId,
     ): AutoIgnorePendingPersistenceResult
 
+    /** Room implementations must re-check the deadline in the discard transaction. */
+    suspend fun discardUnknownPendingIfDue(
+        pendingId: PendingMeasurementId,
+        now: Instant,
+    ): DueUnknownDiscardPersistenceResult {
+        val pending = getPending(pendingId)
+            ?: return DueUnknownDiscardPersistenceResult.PendingNotFound
+        if (now < pending.finalizeAfter) return DueUnknownDiscardPersistenceResult.NotDue(pending)
+        return discardUnknownPendingIfEnabled(pendingId).toDueDiscardResult()
+    }
+
     suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,
     ): DiscardPendingAndUpdateIgnorePolicyResult
 
     suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
+
+    /** Optional Room fast path which matches and writes under one database transaction. */
+    suspend fun routeDueAtomically(
+        pendingId: PendingMeasurementId,
+        now: Instant,
+        matchingEngine: MatchingEngine,
+    ): AtomicDueRoutingResult? = null
+}
+
+sealed interface AtomicDueRoutingResult {
+    data class NotDue(val pending: PendingMeasurement) : AtomicDueRoutingResult
+    data class Finalized(val measurement: AccountMeasurement) : AtomicDueRoutingResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : AtomicDueRoutingResult
+    data class AwaitingDecision(
+        val pending: PendingMeasurement,
+        val decision: RoutingDecision,
+    ) : AtomicDueRoutingResult
+    data object AutomaticallyIgnoredUnknown : AtomicDueRoutingResult
+    data object PendingNotFound : AtomicDueRoutingResult
+    data object AccountUnavailable : AtomicDueRoutingResult
+}
+
+sealed interface DuePendingPersistenceResult {
+    data class NotDue(val pending: PendingMeasurement) : DuePendingPersistenceResult
+    data class Finalized(val measurement: AccountMeasurement) : DuePendingPersistenceResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : DuePendingPersistenceResult
+    data object PendingNotFound : DuePendingPersistenceResult
+    data object AccountNotFound : DuePendingPersistenceResult
+    data object ProfileIncomplete : DuePendingPersistenceResult
+}
+
+sealed interface DueUnknownDiscardPersistenceResult {
+    data class NotDue(val pending: PendingMeasurement) : DueUnknownDiscardPersistenceResult
+    data object Discarded : DueUnknownDiscardPersistenceResult
+    data object PolicyDisabled : DueUnknownDiscardPersistenceResult
+    data object PendingNotFound : DueUnknownDiscardPersistenceResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) :
+        DueUnknownDiscardPersistenceResult
+}
+
+sealed interface AggregateFinalizationResult {
+    data class Reschedule(val pending: PendingMeasurement) : AggregateFinalizationResult
+    data class Completed(val outcome: MeasurementIngestionResult) : AggregateFinalizationResult
 }
 
 sealed interface AutoIgnorePendingPersistenceResult {
@@ -177,6 +242,144 @@ class MeasurementIngestionCoordinator(
         return route(pending)
     }
 
+    /** Worker-only entry point: routing starts only after the persisted sliding deadline. */
+    suspend fun finalizeDue(
+        pendingId: PendingMeasurementId,
+        timestamp: Instant = Instant.now(),
+    ): AggregateFinalizationResult {
+        val pending = persistence.getPending(pendingId)
+            ?: return AggregateFinalizationResult.Completed(
+                alreadyFinalizedOrMissing(pendingId),
+            )
+        if (timestamp < pending.finalizeAfter) {
+            return AggregateFinalizationResult.Reschedule(pending)
+        }
+
+        persistence.routeDueAtomically(pendingId, timestamp, matchingEngine)?.let { atomic ->
+            return when (atomic) {
+                is AtomicDueRoutingResult.NotDue ->
+                    AggregateFinalizationResult.Reschedule(atomic.pending)
+                is AtomicDueRoutingResult.Finalized -> {
+                    scheduleIfEligible(atomic.measurement)
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.Assigned(atomic.measurement),
+                    )
+                }
+                is AtomicDueRoutingResult.AlreadyFinalized -> {
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.Assigned(
+                            atomic.measurement,
+                            wasAlreadyFinalized = true,
+                        ),
+                    )
+                }
+                is AtomicDueRoutingResult.AwaitingDecision ->
+                    awaitingDecision(atomic.pending, atomic.decision)
+                AtomicDueRoutingResult.AutomaticallyIgnoredUnknown -> {
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
+                    )
+                }
+                AtomicDueRoutingResult.PendingNotFound ->
+                    AggregateFinalizationResult.Completed(alreadyFinalizedOrMissing(pendingId))
+                AtomicDueRoutingResult.AccountUnavailable -> awaitingDecision(
+                    pending,
+                    RoutingDecision.NoMatch,
+                )
+            }
+        }
+
+        val accountSnapshot = accounts.observeAccounts().first()
+        val settings = accounts.observeSettings().first()
+        val histories = accountSnapshot.associate { account ->
+            account.id to persistence.latestHistoryBefore(account.id, pending.measuredAt)
+        }
+        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
+        val selectedAccountId = when (decision) {
+            is RoutingDecision.AssignPrimary -> decision.accountId
+            is RoutingDecision.AssignSingle -> decision.candidate.accountId
+            is RoutingDecision.ChooseAccount,
+            RoutingDecision.NoMatch,
+            -> null
+        }
+
+        if (selectedAccountId != null) {
+            return when (
+                val result = persistence.finalizePendingIfDue(
+                    pending.id,
+                    selectedAccountId,
+                    timestamp,
+                )
+            ) {
+                is DuePendingPersistenceResult.NotDue ->
+                    AggregateFinalizationResult.Reschedule(result.pending)
+                is DuePendingPersistenceResult.Finalized -> {
+                    scheduleIfEligible(result.measurement)
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.Assigned(result.measurement),
+                    )
+                }
+                is DuePendingPersistenceResult.AlreadyFinalized -> {
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.Assigned(
+                            result.measurement,
+                            wasAlreadyFinalized = true,
+                        ),
+                    )
+                }
+                DuePendingPersistenceResult.PendingNotFound ->
+                    AggregateFinalizationResult.Completed(alreadyFinalizedOrMissing(pending.id))
+                DuePendingPersistenceResult.AccountNotFound,
+                DuePendingPersistenceResult.ProfileIncomplete,
+                -> null
+            } ?: awaitingDecision(pending, decision)
+        }
+
+        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+            return when (val ignored = persistence.discardUnknownPendingIfDue(pending.id, timestamp)) {
+                is DueUnknownDiscardPersistenceResult.NotDue ->
+                    AggregateFinalizationResult.Reschedule(ignored.pending)
+                DueUnknownDiscardPersistenceResult.Discarded -> {
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
+                    )
+                }
+                is DueUnknownDiscardPersistenceResult.AlreadyFinalized -> {
+                    refreshPendingPresentation()
+                    AggregateFinalizationResult.Completed(
+                        MeasurementIngestionResult.Assigned(
+                            ignored.measurement,
+                            wasAlreadyFinalized = true,
+                        ),
+                    )
+                }
+                DueUnknownDiscardPersistenceResult.PendingNotFound ->
+                    AggregateFinalizationResult.Completed(alreadyFinalizedOrMissing(pending.id))
+                DueUnknownDiscardPersistenceResult.PolicyDisabled -> awaitingDecision(
+                    pending,
+                    decision,
+                )
+            }
+        }
+        return awaitingDecision(pending, decision)
+    }
+
+    private suspend fun awaitingDecision(
+        pending: PendingMeasurement,
+        decision: RoutingDecision,
+    ): AggregateFinalizationResult {
+        val count = refreshPendingPresentation()
+        return AggregateFinalizationResult.Completed(
+            MeasurementIngestionResult.AwaitingDecision(pending, decision, count),
+        )
+    }
+
     suspend fun chooseAccount(
         pendingId: PendingMeasurementId,
         accountId: AccountId,
@@ -184,7 +387,7 @@ class MeasurementIngestionCoordinator(
         val result = persistence.finalizePending(pendingId, accountId)
         when (result) {
             is FinalizePendingResult.Finalized -> scheduleIfEligible(result.measurement)
-            is FinalizePendingResult.AlreadyFinalized -> scheduleIfEligible(result.measurement)
+            is FinalizePendingResult.AlreadyFinalized -> Unit
             FinalizePendingResult.PendingNotFound,
             FinalizePendingResult.AccountNotFound,
             FinalizePendingResult.ProfileIncomplete,
@@ -201,7 +404,7 @@ class MeasurementIngestionCoordinator(
         val result = persistence.createAccountAndAssignPending(pendingId, account)
         when (result) {
             is CreateAccountAndAssignResult.Created -> scheduleIfEligible(result.measurement)
-            is CreateAccountAndAssignResult.AlreadyFinalized -> scheduleIfEligible(result.measurement)
+            is CreateAccountAndAssignResult.AlreadyFinalized -> Unit
             CreateAccountAndAssignResult.PendingNotFound,
             is CreateAccountAndAssignResult.NameConflict,
             -> Unit
@@ -254,22 +457,16 @@ class MeasurementIngestionCoordinator(
     suspend fun sweepPendingRouting(): MeasurementIngestionSweepResult {
         var assigned = 0
         var awaiting = 0
-        // Snapshot order is FIFO. A finalized earlier item is visible to matching the next item.
+        val timestamp = Instant.now()
+        // Snapshot order is FIFO. Only aggregates whose debounce deadline elapsed are routable.
         persistence.pendingSnapshot().forEach { pending ->
-            when (route(pending)) {
-                is MeasurementIngestionResult.Assigned -> assigned += 1
-                is MeasurementIngestionResult.AwaitingDecision -> awaiting += 1
-                MeasurementIngestionResult.IgnoredNotFinal,
-                is MeasurementIngestionResult.CreatedAggregate,
-                is MeasurementIngestionResult.UpdatedAggregate,
-                MeasurementIngestionResult.SuppressedFinal,
-                MeasurementIngestionResult.SuppressedTombstone,
-                MeasurementIngestionResult.Tombstoned,
-                MeasurementIngestionResult.PendingMissing,
-                MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
-                MeasurementIngestionResult.LegacyDuplicate,
-                MeasurementIngestionResult.LegacyProfileMissing,
-                -> Unit
+            when (val finalized = finalizeDue(pending.id, timestamp)) {
+                is AggregateFinalizationResult.Reschedule -> Unit
+                is AggregateFinalizationResult.Completed -> when (finalized.outcome) {
+                    is MeasurementIngestionResult.Assigned -> assigned += 1
+                    is MeasurementIngestionResult.AwaitingDecision -> awaiting += 1
+                    else -> Unit
+                }
             }
         }
         refreshPendingPresentation()
@@ -308,7 +505,6 @@ class MeasurementIngestionCoordinator(
                     return MeasurementIngestionResult.Assigned(finalized.measurement)
                 }
                 is FinalizePendingResult.AlreadyFinalized -> {
-                    scheduleIfEligible(finalized.measurement)
                     refreshPendingPresentation()
                     return MeasurementIngestionResult.Assigned(
                         measurement = finalized.measurement,
@@ -333,7 +529,6 @@ class MeasurementIngestionCoordinator(
                     return MeasurementIngestionResult.AutomaticallyIgnoredUnknown
                 }
                 is AutoIgnorePendingPersistenceResult.AlreadyFinalized -> {
-                    scheduleIfEligible(ignored.measurement)
                     refreshPendingPresentation()
                     return MeasurementIngestionResult.Assigned(
                         measurement = ignored.measurement,
@@ -366,3 +561,23 @@ class MeasurementIngestionCoordinator(
         syncScheduler.enqueue(measurement.measurementId)
     }
 }
+
+private fun FinalizePendingResult.toDuePersistenceResult(): DuePendingPersistenceResult = when (this) {
+    is FinalizePendingResult.Finalized -> DuePendingPersistenceResult.Finalized(measurement)
+    is FinalizePendingResult.AlreadyFinalized ->
+        DuePendingPersistenceResult.AlreadyFinalized(measurement)
+    FinalizePendingResult.PendingNotFound -> DuePendingPersistenceResult.PendingNotFound
+    FinalizePendingResult.AccountNotFound -> DuePendingPersistenceResult.AccountNotFound
+    FinalizePendingResult.ProfileIncomplete -> DuePendingPersistenceResult.ProfileIncomplete
+}
+
+private fun AutoIgnorePendingPersistenceResult.toDueDiscardResult():
+    DueUnknownDiscardPersistenceResult = when (this) {
+        AutoIgnorePendingPersistenceResult.Discarded -> DueUnknownDiscardPersistenceResult.Discarded
+        AutoIgnorePendingPersistenceResult.PolicyDisabled ->
+            DueUnknownDiscardPersistenceResult.PolicyDisabled
+        AutoIgnorePendingPersistenceResult.PendingNotFound ->
+            DueUnknownDiscardPersistenceResult.PendingNotFound
+        is AutoIgnorePendingPersistenceResult.AlreadyFinalized ->
+            DueUnknownDiscardPersistenceResult.AlreadyFinalized(measurement)
+    }

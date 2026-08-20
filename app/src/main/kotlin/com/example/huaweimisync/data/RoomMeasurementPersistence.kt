@@ -6,6 +6,7 @@ import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
+import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
@@ -16,9 +17,11 @@ import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.RestorePendingResult
+import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.toRawScaleMeasurement
 import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
+import com.example.huaweimisync.domain.routing.MatchingEngine
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.time.Duration
@@ -228,6 +231,82 @@ class RoomMeasurementPersistence(
         finalizePendingLocked(pendingId, accountId)
     }
 
+    override suspend fun finalizePendingIfDue(
+        pendingId: PendingMeasurementId,
+        accountId: AccountId,
+        now: Instant,
+    ): DuePendingPersistenceResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let {
+            return@withTransaction DuePendingPersistenceResult.AlreadyFinalized(
+                it.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction DuePendingPersistenceResult.PendingNotFound
+        if (now.toEpochMilli() < pending.finalizeAfterEpochMillis) {
+            return@withTransaction DuePendingPersistenceResult.NotDue(pending.toDomain())
+        }
+        finalizePendingLocked(pendingId, accountId).toDueResult()
+    }
+
+    override suspend fun routeDueAtomically(
+        pendingId: PendingMeasurementId,
+        now: Instant,
+        matchingEngine: MatchingEngine,
+    ): AtomicDueRoutingResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let {
+            return@withTransaction AtomicDueRoutingResult.AlreadyFinalized(
+                it.toAccountMeasurement(),
+            )
+        }
+        val pendingEntity = pendingDao.get(pendingId.value)
+            ?: return@withTransaction AtomicDueRoutingResult.PendingNotFound
+        val pending = pendingEntity.toDomain()
+        if (now.toEpochMilli() < pendingEntity.finalizeAfterEpochMillis) {
+            return@withTransaction AtomicDueRoutingResult.NotDue(pending)
+        }
+        val accountSnapshot = accountDao.getAll().map(AccountEntity::toDomain)
+        val state = appStateDao.get()
+        val settings = state?.let {
+            AccountSettings(
+                primaryAccountId = it.primaryAccountId?.let(::AccountId),
+                weightDeltaKg = it.weightDeltaKg,
+                ignoreUnknownMeasurements = it.ignoreUnknownMeasurements,
+            )
+        } ?: AccountSettings()
+        val histories = accountSnapshot.associate { account ->
+            account.id to measurementDao.latestHistoryBefore(
+                account.id.value,
+                pendingEntity.measuredAtEpochSecond,
+            ).map { WeightHistoryRecord(it.measuredAt, it.weightKg) }
+        }
+        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
+        val accountId = when (decision) {
+            is RoutingDecision.AssignPrimary -> decision.accountId
+            is RoutingDecision.AssignSingle -> decision.candidate.accountId
+            is RoutingDecision.ChooseAccount,
+            RoutingDecision.NoMatch,
+            -> null
+        }
+        if (accountId != null) {
+            return@withTransaction when (val result = finalizePendingLocked(pendingId, accountId)) {
+                is FinalizePendingResult.Finalized ->
+                    AtomicDueRoutingResult.Finalized(result.measurement)
+                is FinalizePendingResult.AlreadyFinalized ->
+                    AtomicDueRoutingResult.AlreadyFinalized(result.measurement)
+                FinalizePendingResult.PendingNotFound -> AtomicDueRoutingResult.PendingNotFound
+                FinalizePendingResult.AccountNotFound,
+                FinalizePendingResult.ProfileIncomplete,
+                -> AtomicDueRoutingResult.AccountUnavailable
+            }
+        }
+        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+            discardPendingWithoutUndoLocked(pendingEntity)
+            return@withTransaction AtomicDueRoutingResult.AutomaticallyIgnoredUnknown
+        }
+        AtomicDueRoutingResult.AwaitingDecision(pending, decision)
+    }
+
     override suspend fun createAccountAndAssignPending(
         pendingId: PendingMeasurementId,
         account: NewAccount,
@@ -318,6 +397,27 @@ class RoomMeasurementPersistence(
         }
         discardPendingWithoutUndoLocked(pending)
         AutoIgnorePendingPersistenceResult.Discarded
+    }
+
+    override suspend fun discardUnknownPendingIfDue(
+        pendingId: PendingMeasurementId,
+        now: Instant,
+    ): DueUnknownDiscardPersistenceResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let {
+            return@withTransaction DueUnknownDiscardPersistenceResult.AlreadyFinalized(
+                it.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction DueUnknownDiscardPersistenceResult.PendingNotFound
+        if (now.toEpochMilli() < pending.finalizeAfterEpochMillis) {
+            return@withTransaction DueUnknownDiscardPersistenceResult.NotDue(pending.toDomain())
+        }
+        if (appStateDao.get()?.ignoreUnknownMeasurements != true) {
+            return@withTransaction DueUnknownDiscardPersistenceResult.PolicyDisabled
+        }
+        discardPendingWithoutUndoLocked(pending)
+        DueUnknownDiscardPersistenceResult.Discarded
     }
 
     override suspend fun discardPendingAndUpdateIgnorePolicy(
@@ -474,6 +574,14 @@ class RoomMeasurementPersistence(
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
         const val DEBOUNCE_SECONDS: Long = 10L
     }
+}
+
+private fun FinalizePendingResult.toDueResult(): DuePendingPersistenceResult = when (this) {
+    is FinalizePendingResult.Finalized -> DuePendingPersistenceResult.Finalized(measurement)
+    is FinalizePendingResult.AlreadyFinalized -> DuePendingPersistenceResult.AlreadyFinalized(measurement)
+    FinalizePendingResult.PendingNotFound -> DuePendingPersistenceResult.PendingNotFound
+    FinalizePendingResult.AccountNotFound -> DuePendingPersistenceResult.AccountNotFound
+    FinalizePendingResult.ProfileIncomplete -> DuePendingPersistenceResult.ProfileIncomplete
 }
 
 private sealed interface DeduplicationCandidate {
