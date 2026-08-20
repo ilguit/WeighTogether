@@ -44,20 +44,24 @@ val AccountEditorDraftSaver: Saver<AccountEditorDraft, Any> = listSaver(
             draft.editingAccountId?.value.orEmpty(),
             draft.name,
             draft.heightCm,
-            draft.birthDate?.toString().orEmpty(),
+            draft.birthDate?.toEpochDay() ?: MissingBirthDateEpochDay,
             draft.sex?.name.orEmpty(),
         )
     },
     restore = { saved ->
         AccountEditorDraft(
-            editingAccountId = saved[0].takeIf(String::isNotEmpty)?.let(::AccountId),
-            name = saved[1],
-            heightCm = saved[2],
-            birthDate = saved[3].takeIf(String::isNotEmpty)?.let(LocalDate::parse),
-            sex = saved[4].takeIf(String::isNotEmpty)?.let(Sex::valueOf),
+            editingAccountId = (saved[0] as String).takeIf(String::isNotEmpty)?.let(::AccountId),
+            name = saved[1] as String,
+            heightCm = saved[2] as String,
+            birthDate = (saved[3] as Long)
+                .takeUnless { it == MissingBirthDateEpochDay }
+                ?.let(LocalDate::ofEpochDay),
+            sex = (saved[4] as String).takeIf(String::isNotEmpty)?.let(Sex::valueOf),
         )
     },
 )
+
+private const val MissingBirthDateEpochDay = Long.MIN_VALUE
 
 enum class AccountEditorField {
     NAME,
@@ -71,7 +75,7 @@ data class AccountEditorValidation(
     val errors: Map<AccountEditorField, String> = emptyMap(),
     val normalizedName: String? = null,
     val heightCm: Double? = null,
-    val parsedBirthDate: LocalDate? = null,
+    val birthDate: LocalDate? = null,
     val sex: Sex? = null,
 ) {
     val isValid: Boolean
@@ -113,7 +117,7 @@ fun validateAccountEditor(
         errors = errors,
         normalizedName = normalizedName.takeIf { displayName.length in ACCOUNT_NAME_LENGTH },
         heightCm = height?.takeIf { it in 100.0..230.0 },
-        parsedBirthDate = birthDate?.takeUnless { it.isAfter(today) },
+        birthDate = birthDate?.takeUnless { it.isAfter(today) },
         sex = draft.sex,
     )
 }
@@ -124,7 +128,7 @@ fun AccountEditorDraft.toNewAccountOrNull(validation: AccountEditorValidation): 
         displayName = name.trim(),
         profile = AccountProfile.Complete(
             heightCm = requireNotNull(validation.heightCm),
-            birthDate = requireNotNull(validation.parsedBirthDate),
+            birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
     )
@@ -138,7 +142,7 @@ fun AccountEditorDraft.toAccountUpdateOrNull(validation: AccountEditorValidation
         displayName = name.trim(),
         profile = AccountProfile.Complete(
             heightCm = requireNotNull(validation.heightCm),
-            birthDate = requireNotNull(validation.parsedBirthDate),
+            birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
     )

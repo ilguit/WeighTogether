@@ -188,11 +188,38 @@ class ResolverUiContractsTest {
 
     @Test
     fun `unsaved preview rejects a profile dated after the measurement`() {
+        val measurementDate = LocalDate.of(2024, 2, 29)
+        val atMeasurementLimit = validateUnsavedPreviewProfile(
+            draft = UnsavedPreviewProfileDraft(
+                heightCm = "170",
+                birthDate = measurementDate,
+                sex = Sex.MALE,
+            ),
+            measurementDate = measurementDate,
+        )
         val validation = validateUnsavedPreviewProfile(
             draft = UnsavedPreviewProfileDraft(
                 heightCm = "170",
-                birthDate = LocalDate.of(2026, 8, 16),
+                birthDate = measurementDate.plusDays(1),
                 sex = Sex.MALE,
+            ),
+            measurementDate = measurementDate,
+        )
+
+        assertTrue(atMeasurementLimit.isValid)
+        assertEquals(measurementDate, atMeasurementLimit.profile?.birthDate)
+        assertFalse(validation.isValid)
+        assertNotNull(validation.birthDateError)
+        assertNull(validation.profile)
+    }
+
+    @Test
+    fun `unsaved preview rejects a missing birth date`() {
+        val validation = validateUnsavedPreviewProfile(
+            draft = UnsavedPreviewProfileDraft(
+                heightCm = "170",
+                birthDate = null,
+                sex = Sex.FEMALE,
             ),
             measurementDate = LocalDate.of(2026, 8, 15),
         )
@@ -200,6 +227,28 @@ class ResolverUiContractsTest {
         assertFalse(validation.isValid)
         assertNotNull(validation.birthDateError)
         assertNull(validation.profile)
+    }
+
+    @Test
+    fun `unsaved preview reducer preserves and clears typed leap birth date`() {
+        val initial = UnsavedMeasurementPreviewState(pending("preview", "2026-08-15T10:00:00Z"))
+        val editing = reduceUnsavedPreview(initial, UnsavedPreviewAction.EnterProfileRequested)
+        val birthDate = LocalDate.of(2000, 2, 29)
+        val selected = reduceUnsavedPreview(
+            editing,
+            UnsavedPreviewAction.ProfileChanged(
+                editing.profileDraft.copy(birthDate = birthDate),
+            ),
+        )
+        val cleared = reduceUnsavedPreview(
+            selected,
+            UnsavedPreviewAction.ProfileChanged(
+                selected.profileDraft.copy(birthDate = null),
+            ),
+        )
+
+        assertEquals(birthDate, selected.profileDraft.birthDate)
+        assertNull(cleared.profileDraft.birthDate)
     }
 
     @Test
