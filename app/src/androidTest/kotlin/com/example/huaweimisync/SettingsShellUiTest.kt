@@ -132,12 +132,37 @@ class SettingsShellUiTest {
         }
     }
 
+    @Test
+    fun partialHealthConnectActionRequestsMissingPermissionsInsteadOfOpeningManagement() {
+        var authorizationCalls = 0
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = setOf("weight", "fat"),
+                grantedPermissions = setOf("weight"),
+            ),
+            onHealthConnectAuthorization = { authorizationCalls++ },
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText("Подключить")
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, authorizationCalls)
+            assertEquals(0, managementCalls)
+        }
+    }
+
     private fun setSettingsShell(
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
         account: Account? = completeAccount(),
         onHuaweiAuthorization: () -> Unit = {},
         onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
     ) {
         composeRule.setContent {
@@ -172,6 +197,7 @@ class SettingsShellUiTest {
                 settingsCallbacks = settingsCallbacks(
                     onHuaweiAuthorization = onHuaweiAuthorization,
                     onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
+                    onHealthConnectAuthorization = onHealthConnectAuthorization,
                     onHealthConnectAccessManagement = onHealthConnectAccessManagement,
                     accountManagement = AccountManagementCallbacks.None.copy(
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
@@ -186,12 +212,13 @@ class SettingsShellUiTest {
     private fun settingsCallbacks(
         onHuaweiAuthorization: () -> Unit = {},
         onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
-        onHealthConnectAuthorization = {},
+        onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualTest = { _, _ -> },
         onManualScan = {},
