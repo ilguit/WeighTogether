@@ -16,10 +16,11 @@ import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
-import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
 import com.example.huaweimisync.domain.toPendingMeasurement
@@ -208,6 +209,57 @@ class MeasurementIngestionCoordinatorTest {
         assertEquals(listOf(1), notifier.counts)
     }
 
+    @Test
+    fun restoreIsIdempotentWithoutChangingNotificationPresentation() = runBlocking {
+        val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
+        val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val waiting = coordinator.ingest(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+        val token = (coordinator.discard(waiting.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+
+        val restored = coordinator.restore(token)
+        val repeated = coordinator.restore(token)
+
+        assertEquals(RestorePendingResult.Restored(waiting.pending), restored)
+        assertEquals(RestorePendingResult.AlreadyRestored(waiting.pending), repeated)
+        assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
+        assertEquals(listOf(1, 0), notifier.counts)
+    }
+
+    @Test
+    fun restoreFailureKeepsDiscardedStateAndDoesNotRefreshPresentation() = runBlocking {
+        val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
+        val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val waiting = coordinator.ingest(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+        val token = (coordinator.discard(waiting.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+        persistence.restoreFailure = IllegalStateException("restore failed")
+
+        val failure = runCatching { coordinator.restore(token) }
+
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertNull(persistence.getPending(waiting.pending.id))
+        assertEquals(listOf(1, 0), notifier.counts)
+    }
+
     private fun coordinator(
         persistence: FakeRoutingPersistence,
         accounts: FakeAccountRepository,
@@ -235,6 +287,7 @@ private class FakeRoutingPersistence(
     private val tombstones = mutableSetOf<String>()
     private var nextId = 0
     var discardFailure: Throwable? = null
+    var restoreFailure: Throwable? = null
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
@@ -317,6 +370,30 @@ private class FakeRoutingPersistence(
         val value = pending.remove(pendingId) ?: return DiscardPendingResult.PendingNotFound
         tombstones += value.deduplicationHash
         return DiscardPendingResult.Discarded(PendingDiscardUndoToken(value))
+    }
+
+    override suspend fun restorePending(
+        undoToken: PendingDiscardUndoToken,
+    ): RestorePendingResult {
+        restoreFailure?.let { throw it }
+        val value = undoToken.pending
+        finalized[value.id.value]?.let { return RestorePendingResult.AlreadyFinalized(it) }
+        finalizedByHash[value.deduplicationHash]?.let {
+            return RestorePendingResult.AlreadyFinalized(it)
+        }
+        pending[value.id]?.let { existing ->
+            return if (existing == value) {
+                RestorePendingResult.AlreadyRestored(existing)
+            } else {
+                RestorePendingResult.Conflict(existing)
+            }
+        }
+        pending.values.firstOrNull {
+            it.deduplicationHash == value.deduplicationHash
+        }?.let { return RestorePendingResult.Conflict(it) }
+        pending[value.id] = value
+        tombstones -= value.deduplicationHash
+        return RestorePendingResult.Restored(value)
     }
 }
 

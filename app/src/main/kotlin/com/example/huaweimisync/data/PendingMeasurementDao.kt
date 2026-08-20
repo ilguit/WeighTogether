@@ -42,6 +42,9 @@ interface PendingMeasurementDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertTombstone(tombstone: MeasurementTombstoneEntity)
 
+    @Query("DELETE FROM measurement_tombstones WHERE deduplicationHash = :deduplicationHash")
+    suspend fun deleteTombstone(deduplicationHash: String): Int
+
     @Query("DELETE FROM measurement_tombstones WHERE expiresAtEpochMillis <= :nowEpochMillis")
     suspend fun deleteExpiredTombstones(nowEpochMillis: Long): Int
 

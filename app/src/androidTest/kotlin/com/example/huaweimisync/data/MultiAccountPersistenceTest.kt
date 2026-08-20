@@ -13,8 +13,12 @@ import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingEnqueueResult
+import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.RestorePendingResult
+import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -296,6 +300,178 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun restorePreservesIdentityFifoPositionAndConsumesTombstoneAfterInsert() = runBlocking {
+        val persistence = persistence()
+        val first = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        currentTime = currentTime.plusSeconds(1)
+        val second = persistence.enqueue(raw("2026-08-15T10:01:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        val token = (persistence.discardPending(first.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+
+        val restored = persistence.restorePending(token) as RestorePendingResult.Restored
+
+        assertEquals(first.pending, restored.pending)
+        assertEquals(first.pending.id, restored.pending.id)
+        assertEquals(first.pending.deduplicationHash, restored.pending.deduplicationHash)
+        assertEquals(first.pending.enqueuedAt, restored.pending.enqueuedAt)
+        assertEquals(
+            listOf(first.pending.id, second.pending.id),
+            persistence.observePending().first().map(PendingMeasurement::id),
+        )
+        assertEquals(0, database.pendingMeasurementDao().tombstoneCount())
+    }
+
+    @Test
+    fun failedTombstoneDeletionRollsBackRestoreInsertion() = runBlocking {
+        val normalPersistence = persistence()
+        val inserted = normalPersistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val token = (
+            normalPersistence.discardPending(inserted.pending.id) as
+                DiscardPendingResult.Discarded
+            ).undoToken
+        val actualDao = database.pendingMeasurementDao()
+        val failingDao = object : PendingMeasurementDao by actualDao {
+            override suspend fun deleteTombstone(deduplicationHash: String): Int {
+                error("tombstone delete failed")
+            }
+        }
+
+        val failure = runCatching {
+            persistence(failingDao).restorePending(token)
+        }
+
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertNull(normalPersistence.getPending(inserted.pending.id))
+        assertNotNull(
+            actualDao.getActiveTombstone(
+                inserted.pending.deduplicationHash,
+                currentTime.toEpochMilli(),
+            ),
+        )
+        assertEquals(
+            RestorePendingResult.Restored(inserted.pending),
+            normalPersistence.restorePending(token),
+        )
+    }
+
+    @Test
+    fun restoreRejectsPendingIdentityAndHashConflictsWithoutDeletingTombstone() = runBlocking {
+        val persistence = persistence()
+        val inserted = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val token = (persistence.discardPending(inserted.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+        val dao = database.pendingMeasurementDao()
+        val idConflict = inserted.pending.toEntityForTest(
+            deduplicationHash = "different-hash",
+        )
+        assertTrue(dao.insert(idConflict) > 0L)
+
+        assertEquals(
+            RestorePendingResult.Conflict(idConflict.toDomain()),
+            persistence.restorePending(token),
+        )
+        assertEquals(1, dao.tombstoneCount())
+
+        assertEquals(1, dao.delete(idConflict.id))
+        val hashConflict = inserted.pending.toEntityForTest(id = "different-id")
+        assertTrue(dao.insert(hashConflict) > 0L)
+        assertEquals(
+            RestorePendingResult.Conflict(hashConflict.toDomain()),
+            persistence.restorePending(token),
+        )
+        assertEquals(1, dao.tombstoneCount())
+    }
+
+    @Test
+    fun concurrentAndRepeatedRestoreCreateOnePendingAndNeverReviveFinalizedReading() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
+        val persistence = persistence()
+        val inserted = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val token = (persistence.discardPending(inserted.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+
+        val results = listOf(1, 2).map {
+            async(Dispatchers.Default) { persistence.restorePending(token) }
+        }.awaitAll()
+
+        assertEquals(1, results.count { it is RestorePendingResult.Restored })
+        assertEquals(1, results.count { it is RestorePendingResult.AlreadyRestored })
+        assertEquals(listOf(inserted.pending), persistence.observePending().first())
+        assertTrue(
+            persistence.finalizePending(inserted.pending.id, account.id) is
+                FinalizePendingResult.Finalized,
+        )
+        assertTrue(persistence.restorePending(token) is RestorePendingResult.AlreadyFinalized)
+        assertNull(persistence.getPending(inserted.pending.id))
+        assertEquals(1, persistence.observeAll(account.id).first().size)
+    }
+
+    @Test
+    fun finalizedConflictIsNotRestoredAndKeepsDiscardTombstone() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
+        val persistence = persistence()
+        val raw = raw("2026-08-15T10:00:00Z", 70.0)
+        val inserted = persistence.enqueue(raw) as PendingPersistenceResult.Inserted
+        val token = (persistence.discardPending(inserted.pending.id) as DiscardPendingResult.Discarded)
+            .undoToken
+        val finalized = raw.toWeightOnlyEntity(
+            huaweiSyncEnabled = false,
+            accountId = account.id,
+            sourcePendingId = inserted.pending.id.value,
+            deduplicationHash = inserted.pending.deduplicationHash,
+        )
+        assertTrue(database.multiAccountMeasurementDao().insert(finalized) > 0L)
+
+        val result = persistence.restorePending(token)
+
+        assertTrue(result is RestorePendingResult.AlreadyFinalized)
+        assertNull(persistence.getPending(inserted.pending.id))
+        assertEquals(1, database.pendingMeasurementDao().tombstoneCount())
+    }
+
+    @Test
+    fun repositoryExposesRestoreWithoutNotificationCountSideEffect() = runBlocking {
+        val counts = mutableListOf<Int>()
+        val repository = repository(
+            object : PendingDecisionNotifier {
+                override fun updatePendingCount(count: Int) {
+                    counts += count
+                }
+            },
+        )
+        val enqueued = repository.enqueuePending(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingEnqueueResult.Enqueued
+        val token = (
+            repository.discardPending(enqueued.pending.id) as DiscardPendingResult.Discarded
+            ).undoToken
+
+        val result = repository.restorePending(token)
+
+        assertEquals(RestorePendingResult.Restored(enqueued.pending), result)
+        assertEquals(enqueued.pending, repository.getPending(enqueued.pending.id))
+        assertEquals(listOf(0), counts)
+    }
+
+    @Test
+    fun pendingDaoDeletesOnlyTheRequestedTombstone() = runBlocking {
+        val dao = database.pendingMeasurementDao()
+        val expiresAt = currentTime.plusSeconds(60).toEpochMilli()
+        dao.upsertTombstone(MeasurementTombstoneEntity("hash-a", expiresAt))
+        dao.upsertTombstone(MeasurementTombstoneEntity("hash-b", expiresAt))
+
+        assertEquals(1, dao.deleteTombstone("hash-a"))
+
+        assertNull(dao.getActiveTombstone("hash-a", currentTime.toEpochMilli()))
+        assertNotNull(dao.getActiveTombstone("hash-b", currentTime.toEpochMilli()))
+        assertEquals(1, dao.tombstoneCount())
+    }
+
+    @Test
     fun createAccountAndAssignIsAtomicAndNameConflictLeavesPendingUntouched() = runBlocking {
         val persistence = persistence()
         val pending = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
@@ -376,12 +552,27 @@ class MultiAccountPersistenceTest {
         newId = { durableId() },
     )
 
-    private fun persistence() = RoomMeasurementPersistence(
+    private fun persistence(
+        pendingDao: PendingMeasurementDao = database.pendingMeasurementDao(),
+    ) = RoomMeasurementPersistence(
         database = database,
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         huaweiSyncEnabled = false,
+        pendingDao = pendingDao,
         now = { currentTime },
         newId = { durableId() },
+    )
+
+    private fun repository(notifier: PendingDecisionNotifier) = MeasurementRepository(
+        dao = database.measurementDao(),
+        profileProvider = { null },
+        scaleAddressProvider = { null },
+        calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+        syncScheduler = NoOpSyncScheduler,
+        huaweiSyncEnabled = false,
+        multiAccountPersistence = persistence(),
+        accountRepository = accountRepository(),
+        pendingDecisionNotifier = notifier,
     )
 
     private fun durableId(): String {
@@ -405,3 +596,27 @@ class MultiAccountPersistenceTest {
         rawPayload = byteArrayOf(1, 2, 3),
     )
 }
+
+private object NoOpSyncScheduler : MeasurementSyncScheduler {
+    override fun enqueue(measurementId: String) = Unit
+
+    override fun cancel(measurementId: String) = Unit
+}
+
+private fun PendingMeasurement.toEntityForTest(
+    id: String = this.id.value,
+    deduplicationHash: String = this.deduplicationHash,
+) = PendingMeasurementEntity(
+    id = id,
+    deviceAddress = deviceAddress,
+    measuredAtEpochSecond = measuredAt.epochSecond,
+    measuredAtNano = measuredAt.nano,
+    weightKg = weightKg,
+    impedanceOhm = impedanceOhm,
+    isStable = isStable,
+    hasImpedance = hasImpedance,
+    rawPayload = rawPayload.copyOf(),
+    deduplicationHash = deduplicationHash,
+    enqueuedAtEpochMillis = enqueuedAt.toEpochMilli(),
+    rawWeight = rawWeight,
+)

@@ -11,9 +11,11 @@ import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementPreview
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
@@ -48,6 +50,8 @@ interface MeasurementRoutingPersistence {
     ): CreateAccountAndAssignResult
 
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
+
+    suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
 }
 
 interface PendingDecisionNotifier {
@@ -158,6 +162,9 @@ class MeasurementIngestionCoordinator(
         refreshPendingPresentation()
         return result
     }
+
+    suspend fun restore(undoToken: PendingDiscardUndoToken): RestorePendingResult =
+        persistence.restorePending(undoToken)
 
     /** Calculates only in memory; the supplied profile and result never cross persistence. */
     suspend fun previewWithoutSaving(

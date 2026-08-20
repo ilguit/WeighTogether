@@ -110,6 +110,18 @@ sealed interface DiscardPendingResult {
     data object PendingNotFound : DiscardPendingResult
 }
 
+sealed interface RestorePendingResult {
+    data class Restored(val pending: PendingMeasurement) : RestorePendingResult
+
+    /** The same token was already restored; no second row was inserted. */
+    data class AlreadyRestored(val pending: PendingMeasurement) : RestorePendingResult
+
+    data class AlreadyFinalized(val measurement: AccountMeasurement) : RestorePendingResult
+
+    /** Another pending row already owns either the durable id or deduplication hash. */
+    data class Conflict(val conflictingPending: PendingMeasurement) : RestorePendingResult
+}
+
 interface MeasurementRepository {
     fun observeAll(accountId: AccountId): Flow<List<AccountMeasurement>>
 
@@ -152,4 +164,7 @@ interface MeasurementRepository {
      * Only a successful discard returns an in-memory undo token.
      */
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
+
+    /** Restores a discarded snapshot atomically and consumes its tombstone only on success. */
+    suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
 }
