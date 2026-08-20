@@ -75,4 +75,10 @@ class SyncAwareAccountRepository(
         // A larger delta can resolve an existing FIFO item without another BLE packet.
         measurements.sweepPendingRouting()
     }
+
+    override suspend fun updateIgnoreUnknownMeasurements(enabled: Boolean) {
+        // This policy intentionally applies only to routing triggered after the setting changes.
+        // Do not sweep the durable queue here.
+        settingsWriter.updateIgnoreUnknownMeasurements(enabled)
+    }
 }

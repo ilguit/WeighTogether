@@ -22,4 +22,7 @@ interface AppStateDao {
 
     @Query("UPDATE app_state SET weightDeltaKg = :weightDeltaKg WHERE singletonId = 1")
     suspend fun setWeightDelta(weightDeltaKg: Double): Int
+
+    @Query("UPDATE app_state SET ignoreUnknownMeasurements = :enabled WHERE singletonId = 1")
+    suspend fun setIgnoreUnknownMeasurements(enabled: Boolean): Int
 }

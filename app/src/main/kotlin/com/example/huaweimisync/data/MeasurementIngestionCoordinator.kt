@@ -8,6 +8,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
+import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -53,7 +54,25 @@ interface MeasurementRoutingPersistence {
 
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
 
+    /** Re-checks the persisted policy and discards in the same transaction. */
+    suspend fun discardUnknownPendingIfEnabled(
+        pendingId: PendingMeasurementId,
+    ): AutoIgnorePendingPersistenceResult
+
+    suspend fun discardPendingAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+    ): DiscardPendingWithoutUndoResult
+
     suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
+}
+
+sealed interface AutoIgnorePendingPersistenceResult {
+    data object Discarded : AutoIgnorePendingPersistenceResult
+    data object PolicyDisabled : AutoIgnorePendingPersistenceResult
+    data object PendingNotFound : AutoIgnorePendingPersistenceResult
+    data class AlreadyFinalized(val measurement: AccountMeasurement) :
+        AutoIgnorePendingPersistenceResult
 }
 
 interface PendingDecisionNotifier {
@@ -69,6 +88,8 @@ sealed interface MeasurementIngestionResult {
     data object IgnoredNotFinal : MeasurementIngestionResult
     data object Tombstoned : MeasurementIngestionResult
     data object PendingMissing : MeasurementIngestionResult
+    /** A NoMatch pending value was durably tombstoned according to the saved policy. */
+    data object AutomaticallyIgnoredUnknown : MeasurementIngestionResult
     /** Compatibility-only outcomes for the pre-integration repository constructor. */
     data object LegacyDuplicate : MeasurementIngestionResult
     data object LegacyProfileMissing : MeasurementIngestionResult
@@ -167,6 +188,18 @@ class MeasurementIngestionCoordinator(
         return result
     }
 
+    suspend fun discardAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+    ): DiscardPendingWithoutUndoResult {
+        val result = persistence.discardPendingAndUpdateIgnorePolicy(
+            pendingId,
+            ignoreUnknownMeasurements,
+        )
+        if (result is DiscardPendingWithoutUndoResult.Discarded) refreshPendingPresentation()
+        return result
+    }
+
     suspend fun restore(undoToken: PendingDiscardUndoToken): RestorePendingResult {
         val result = persistence.restorePending(undoToken)
         if (result is RestorePendingResult.Restored) refreshPendingPresentation()
@@ -199,6 +232,7 @@ class MeasurementIngestionCoordinator(
                 MeasurementIngestionResult.IgnoredNotFinal,
                 MeasurementIngestionResult.Tombstoned,
                 MeasurementIngestionResult.PendingMissing,
+                MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
                 MeasurementIngestionResult.LegacyDuplicate,
                 MeasurementIngestionResult.LegacyProfileMissing,
                 -> Unit
@@ -248,6 +282,26 @@ class MeasurementIngestionCoordinator(
                 FinalizePendingResult.AccountNotFound,
                 FinalizePendingResult.ProfileIncomplete,
                 -> Unit // Keep the durable pending value for resolver/recovery.
+            }
+        }
+
+        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+            when (val ignored = persistence.discardUnknownPendingIfEnabled(pending.id)) {
+                AutoIgnorePendingPersistenceResult.Discarded -> {
+                    refreshPendingPresentation()
+                    return MeasurementIngestionResult.AutomaticallyIgnoredUnknown
+                }
+                is AutoIgnorePendingPersistenceResult.AlreadyFinalized -> {
+                    scheduleIfEligible(ignored.measurement)
+                    refreshPendingPresentation()
+                    return MeasurementIngestionResult.Assigned(
+                        measurement = ignored.measurement,
+                        wasAlreadyFinalized = true,
+                    )
+                }
+                AutoIgnorePendingPersistenceResult.PendingNotFound ->
+                    return alreadyFinalizedOrMissing(pending.id)
+                AutoIgnorePendingPersistenceResult.PolicyDisabled -> Unit
             }
         }
 

@@ -10,6 +10,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
+import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -261,6 +262,88 @@ class MultiAccountPersistenceTest {
             assertTrue(runCatching { accounts.updateWeightDeltaKg(invalid) }.isFailure)
             assertEquals(50.0, accounts.observeSettings().first().weightDeltaKg, 0.0)
         }
+    }
+
+    @Test
+    fun ignoreUnknownSettingDefaultsFalsePersistsAndDoesNotSweepExistingPending() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val existing = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
+        accounts.updateIgnoreUnknownMeasurements(true)
+
+        assertTrue(accounts.observeSettings().first().ignoreUnknownMeasurements)
+        assertEquals(existing.pending, persistence.getPending(existing.pending.id))
+        accounts.updateIgnoreUnknownMeasurements(false)
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
+    }
+
+    @Test
+    fun automaticIgnoreRechecksPersistedPolicyAndCreatesNormalTombstone() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val packet = raw("2026-08-15T10:00:00Z", 70.0)
+        val pending = persistence.enqueue(packet) as PendingPersistenceResult.Inserted
+
+        assertEquals(
+            AutoIgnorePendingPersistenceResult.PolicyDisabled,
+            persistence.discardUnknownPendingIfEnabled(pending.pending.id),
+        )
+        assertNotNull(persistence.getPending(pending.pending.id))
+        accounts.updateIgnoreUnknownMeasurements(true)
+
+        assertEquals(
+            AutoIgnorePendingPersistenceResult.Discarded,
+            persistence.discardUnknownPendingIfEnabled(pending.pending.id),
+        )
+        assertNull(persistence.getPending(pending.pending.id))
+        assertEquals(1, database.pendingMeasurementDao().tombstoneCount())
+        assertEquals(PendingPersistenceResult.Tombstoned, persistence.enqueue(packet))
+    }
+
+    @Test
+    fun atomicPolicyDiscardChangesSettingOnlyForSuccessfulNonUndoableDelete() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val pending = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(
+            DiscardPendingWithoutUndoResult.Discarded,
+            persistence.discardPendingAndUpdateIgnorePolicy(pending.pending.id, true),
+        )
+        assertTrue(accounts.observeSettings().first().ignoreUnknownMeasurements)
+        assertNull(persistence.getPending(pending.pending.id))
+        assertEquals(1, database.pendingMeasurementDao().tombstoneCount())
+
+        assertEquals(
+            DiscardPendingWithoutUndoResult.PendingNotFound,
+            persistence.discardPendingAndUpdateIgnorePolicy(pending.pending.id, false),
+        )
+        assertTrue(accounts.observeSettings().first().ignoreUnknownMeasurements)
+    }
+
+    @Test
+    fun failedAtomicPolicyDiscardRollsBackPendingTombstoneAndSetting() = runBlocking {
+        val accounts = accountRepository()
+        val actualDao = database.pendingMeasurementDao()
+        val normalPersistence = persistence()
+        val pending = normalPersistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val failingDao = object : PendingMeasurementDao by actualDao {
+            override suspend fun delete(id: String): Int = 0
+        }
+
+        val failure = runCatching {
+            persistence(failingDao).discardPendingAndUpdateIgnorePolicy(pending.pending.id, true)
+        }
+
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertNotNull(normalPersistence.getPending(pending.pending.id))
+        assertEquals(0, actualDao.tombstoneCount())
+        assertFalse(accounts.observeSettings().first().ignoreUnknownMeasurements)
     }
 
     @Test

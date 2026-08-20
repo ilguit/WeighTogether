@@ -666,6 +666,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             MeasurementIngestionResult.Tombstoned,
             MeasurementIngestionResult.LegacyDuplicate,
             -> showMessage("Такое тестовое измерение уже существует")
+            MeasurementIngestionResult.AutomaticallyIgnoredUnknown -> Unit
             MeasurementIngestionResult.PendingMissing -> showMessage("Измерение уже обработано")
             MeasurementIngestionResult.IgnoredNotFinal -> showMessage("Измерение ещё не завершено")
             MeasurementIngestionResult.LegacyProfileMissing ->
@@ -923,6 +924,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
                 MeasurementIngestionResult.PendingMissing,
+                MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
                 MeasurementIngestionResult.Tombstoned,
                 MeasurementIngestionResult.IgnoredNotFinal,
                 MeasurementIngestionResult.LegacyDuplicate,

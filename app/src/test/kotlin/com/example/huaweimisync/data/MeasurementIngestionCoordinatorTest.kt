@@ -13,6 +13,7 @@ import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
+import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -38,6 +39,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -127,6 +129,92 @@ class MeasurementIngestionCoordinatorTest {
         assertTrue(second.decision is RoutingDecision.ChooseAccount)
         assertEquals(listOf(first.pending.id, second.pending.id), persistence.pendingSnapshot().map { it.id })
         assertEquals(listOf(1, 2), notifier.counts)
+    }
+
+    @Test
+    fun noMatchStaysPendingWhenIgnorePolicyIsDisabled() = runBlocking {
+        val accounts = FakeAccountRepository(emptyList(), null)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+
+        val result = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        ).ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+
+        assertEquals(RoutingDecision.NoMatch, result.decision)
+        assertEquals(listOf(result.pending), persistence.pendingSnapshot())
+        assertEquals(listOf(1), notifier.counts)
+    }
+
+    @Test
+    fun enabledPolicyAutomaticallyTombstonesOnlyNoMatchAndClearsPresentation() = runBlocking {
+        val accounts = FakeAccountRepository(emptyList(), null).apply {
+            updateIgnoreUnknownMeasurements(true)
+        }
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val packet = raw(70.0)
+
+        assertEquals(
+            MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
+            coordinator.ingest(packet),
+        )
+        assertTrue(persistence.pendingSnapshot().isEmpty())
+        assertEquals(listOf(0), notifier.counts)
+        assertEquals(MeasurementIngestionResult.Tombstoned, coordinator.ingest(packet))
+    }
+
+    @Test
+    fun enabledIgnorePolicyDoesNotChangeChooseAccountRouting() = runBlocking {
+        val third = testAccount("third", "Cara")
+        val accounts = FakeAccountRepository(listOf(primary, secondary, third), primary.id).apply {
+            updateIgnoreUnknownMeasurements(true)
+        }
+        val persistence = FakeRoutingPersistence(accounts).apply {
+            histories[primary.id] = listOf(history(50.0))
+            histories[secondary.id] = listOf(history(69.0))
+            histories[third.id] = listOf(history(71.0))
+        }
+
+        val result = coordinator(persistence, accounts, UniqueFakeScheduler()).ingest(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+
+        assertTrue(result.decision is RoutingDecision.ChooseAccount)
+        assertEquals(listOf(result.pending), persistence.pendingSnapshot())
+    }
+
+    @Test
+    fun policyChangeDoesNotSweepExistingPendingAndAtomicDeleteHasNoUndoToken() = runBlocking {
+        val accounts = FakeAccountRepository(emptyList(), null)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val waiting = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.AwaitingDecision
+
+        accounts.updateIgnoreUnknownMeasurements(true)
+
+        assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
+        assertEquals(
+            DiscardPendingWithoutUndoResult.Discarded,
+            coordinator.discardAndUpdateIgnorePolicy(waiting.pending.id, false),
+        )
+        assertFalse(accounts.settings.value.ignoreUnknownMeasurements)
+        assertTrue(persistence.pendingSnapshot().isEmpty())
+        assertEquals(listOf(1, 0), notifier.counts)
     }
 
     @Test
@@ -454,6 +542,35 @@ private class FakeRoutingPersistence(
         return DiscardPendingResult.Discarded(PendingDiscardUndoToken(value))
     }
 
+    override suspend fun discardUnknownPendingIfEnabled(
+        pendingId: PendingMeasurementId,
+    ): AutoIgnorePendingPersistenceResult {
+        if (!accounts.settings.value.ignoreUnknownMeasurements) {
+            return AutoIgnorePendingPersistenceResult.PolicyDisabled
+        }
+        finalized[pendingId.value]?.let {
+            return AutoIgnorePendingPersistenceResult.AlreadyFinalized(it)
+        }
+        val value = pending.remove(pendingId)
+            ?: return AutoIgnorePendingPersistenceResult.PendingNotFound
+        tombstones += value.deduplicationHash
+        return AutoIgnorePendingPersistenceResult.Discarded
+    }
+
+    override suspend fun discardPendingAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+    ): DiscardPendingWithoutUndoResult {
+        finalized[pendingId.value]?.let {
+            return DiscardPendingWithoutUndoResult.AlreadyFinalized(it)
+        }
+        val value = pending.remove(pendingId)
+            ?: return DiscardPendingWithoutUndoResult.PendingNotFound
+        tombstones += value.deduplicationHash
+        accounts.updateIgnoreUnknownMeasurements(ignoreUnknownMeasurements)
+        return DiscardPendingWithoutUndoResult.Discarded
+    }
+
     override suspend fun restorePending(
         undoToken: PendingDiscardUndoToken,
     ): RestorePendingResult {
@@ -514,6 +631,10 @@ private class FakeAccountRepository(
 
     override suspend fun updateWeightDeltaKg(weightDeltaKg: Double) {
         settings.value = settings.value.copy(weightDeltaKg = weightDeltaKg)
+    }
+
+    override suspend fun updateIgnoreUnknownMeasurements(enabled: Boolean) {
+        settings.value = settings.value.copy(ignoreUnknownMeasurements = enabled)
     }
 
     override suspend fun deleteAccount(accountId: AccountId) {

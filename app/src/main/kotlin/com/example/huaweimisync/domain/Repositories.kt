@@ -23,6 +23,8 @@ interface AccountRepository {
 
     suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
 
+    suspend fun updateIgnoreUnknownMeasurements(enabled: Boolean)
+
     suspend fun deleteAccount(accountId: AccountId)
 
     /**
@@ -39,6 +41,8 @@ interface AccountRepository {
 /** Explicit write side for account-level settings. */
 interface AccountSettingsWriter {
     suspend fun updateWeightDeltaKg(weightDeltaKg: Double)
+
+    suspend fun updateIgnoreUnknownMeasurements(enabled: Boolean)
 }
 
 data class AccountMeasurement(
@@ -110,6 +114,16 @@ sealed interface DiscardPendingResult {
     data object PendingNotFound : DiscardPendingResult
 }
 
+/** Result of a non-undoable discard, optionally coupled to a settings policy change. */
+sealed interface DiscardPendingWithoutUndoResult {
+    data object Discarded : DiscardPendingWithoutUndoResult
+
+    data class AlreadyFinalized(val measurement: AccountMeasurement) :
+        DiscardPendingWithoutUndoResult
+
+    data object PendingNotFound : DiscardPendingWithoutUndoResult
+}
+
 sealed interface RestorePendingResult {
     data class Restored(val pending: PendingMeasurement) : RestorePendingResult
 
@@ -164,6 +178,16 @@ interface MeasurementRepository {
      * Only a successful discard returns an in-memory undo token.
      */
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
+
+    /**
+     * Atomically discards [pendingId] and persists [ignoreUnknownMeasurements]. A successful
+     * operation creates the normal deduplication tombstone but intentionally exposes no undo
+     * capability. Missing/finalized pending data must leave the policy unchanged.
+     */
+    suspend fun discardPendingAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+    ): DiscardPendingWithoutUndoResult
 
     /** Restores a discarded snapshot atomically and consumes its tombstone only on success. */
     suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult

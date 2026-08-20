@@ -8,6 +8,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingResult
+import com.example.huaweimisync.domain.DiscardPendingWithoutUndoResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
@@ -260,6 +261,42 @@ class RoomMeasurementPersistence(
         DiscardPendingResult.Discarded(undoToken)
     }
 
+    override suspend fun discardUnknownPendingIfEnabled(
+        pendingId: PendingMeasurementId,
+    ): AutoIgnorePendingPersistenceResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return@withTransaction AutoIgnorePendingPersistenceResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction AutoIgnorePendingPersistenceResult.PendingNotFound
+        if (appStateDao.get()?.ignoreUnknownMeasurements != true) {
+            return@withTransaction AutoIgnorePendingPersistenceResult.PolicyDisabled
+        }
+        discardPendingWithoutUndoLocked(pending)
+        AutoIgnorePendingPersistenceResult.Discarded
+    }
+
+    override suspend fun discardPendingAndUpdateIgnorePolicy(
+        pendingId: PendingMeasurementId,
+        ignoreUnknownMeasurements: Boolean,
+    ): DiscardPendingWithoutUndoResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return@withTransaction DiscardPendingWithoutUndoResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction DiscardPendingWithoutUndoResult.PendingNotFound
+        discardPendingWithoutUndoLocked(pending)
+        appStateDao.insertDefault()
+        check(appStateDao.setIgnoreUnknownMeasurements(ignoreUnknownMeasurements) == 1) {
+            "App state singleton is missing"
+        }
+        DiscardPendingWithoutUndoResult.Discarded
+    }
+
     override suspend fun restorePending(
         undoToken: PendingDiscardUndoToken,
     ): RestorePendingResult = database.withTransaction {
@@ -307,6 +344,18 @@ class RoomMeasurementPersistence(
 
     suspend fun cleanupExpiredTombstones(): Int =
         pendingDao.deleteExpiredTombstones(now().toEpochMilli())
+
+    private suspend fun discardPendingWithoutUndoLocked(pending: PendingMeasurementEntity) {
+        pendingDao.upsertTombstone(
+            MeasurementTombstoneEntity(
+                deduplicationHash = pending.deduplicationHash,
+                expiresAtEpochMillis = now().plus(TOMBSTONE_TTL).toEpochMilli(),
+            ),
+        )
+        check(pendingDao.delete(pending.id) == 1) {
+            "Pending measurement disappeared inside its discard transaction"
+        }
+    }
 
     private suspend fun finalizePendingLocked(
         pendingId: PendingMeasurementId,

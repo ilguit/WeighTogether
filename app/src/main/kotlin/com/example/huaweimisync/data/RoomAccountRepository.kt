@@ -141,6 +141,15 @@ class RoomAccountRepository(
         }
     }
 
+    override suspend fun updateIgnoreUnknownMeasurements(enabled: Boolean) {
+        database.withTransaction {
+            ensureAppState()
+            check(appStateDao.setIgnoreUnknownMeasurements(enabled) == 1) {
+                "App state singleton is missing"
+            }
+        }
+    }
+
     private suspend fun ensureAppState() {
         appStateDao.insertDefault()
     }
@@ -161,6 +170,7 @@ class PrimaryAccountChangedException(val expectedAccountId: AccountId) :
 private fun AppStateEntity.toDomain(): AccountSettings = AccountSettings(
     primaryAccountId = primaryAccountId?.let(::AccountId),
     weightDeltaKg = weightDeltaKg,
+    ignoreUnknownMeasurements = ignoreUnknownMeasurements,
 )
 
 private fun NewAccount.toEntity(

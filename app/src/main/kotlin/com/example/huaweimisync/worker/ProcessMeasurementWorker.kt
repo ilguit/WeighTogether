@@ -22,6 +22,7 @@ class ProcessMeasurementWorker(
             MeasurementIngestionResult.IgnoredNotFinal,
             MeasurementIngestionResult.Tombstoned,
             MeasurementIngestionResult.PendingMissing,
+            MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
             MeasurementIngestionResult.LegacyDuplicate,
             -> Result.success()
             MeasurementIngestionResult.LegacyProfileMissing -> Result.failure()

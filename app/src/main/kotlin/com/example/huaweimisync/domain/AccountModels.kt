@@ -113,6 +113,7 @@ data class AccountUpdate(
 data class AccountSettings(
     val primaryAccountId: AccountId? = null,
     val weightDeltaKg: Double = DEFAULT_WEIGHT_DELTA_KG,
+    val ignoreUnknownMeasurements: Boolean = false,
 ) {
     init {
         require(weightDeltaKg.isFinite() && weightDeltaKg in WEIGHT_DELTA_KG_RANGE) {
