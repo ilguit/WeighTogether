@@ -30,7 +30,8 @@ import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.BodyComposition
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.ui.accounts.formatLocalizedDecimal
-import com.example.huaweimisync.ui.accounts.parseProfileDate
+import com.example.huaweimisync.ui.components.BirthDateField
+import com.example.huaweimisync.ui.components.BirthDateSelectionPolicy
 import com.example.huaweimisync.ui.theme.HuaweiColors
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import java.time.ZoneId
@@ -40,6 +41,7 @@ object UnsavedPreviewTestTags {
     const val Dialog = "unsaved-preview"
     const val UnsavedBadge = "unsaved-preview-badge"
     const val ProfileEditor = "unsaved-preview-profile"
+    const val BirthDate = "unsaved-preview-birth-date"
     const val Calculate = "unsaved-preview-calculate"
     const val Result = "unsaved-preview-result"
     const val Close = "unsaved-preview-close"
@@ -175,9 +177,10 @@ private fun PreviewProfileEditor(
     zoneId: ZoneId,
 ) {
     val draft = state.profileDraft
+    val measurementDate = state.pending.measuredAt.atZone(zoneId).toLocalDate()
     val validation = validateUnsavedPreviewProfile(
         draft,
-        state.pending.measuredAt.atZone(zoneId).toLocalDate(),
+        measurementDate,
     )
     Column(
         modifier = Modifier
@@ -204,27 +207,22 @@ private fun PreviewProfileEditor(
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isCalculating,
         )
-        OutlinedTextField(
-            value = draft.birthDate?.format(PreviewDateFormatter).orEmpty(),
-            onValueChange = { value ->
+        BirthDateField(
+            value = draft.birthDate,
+            onValueChange = { birthDate ->
                 callbacks.onStateChange(
                     reduceUnsavedPreview(
                         state,
                         UnsavedPreviewAction.ProfileChanged(
-                            draft.copy(
-                                birthDate = value.takeIf(String::isNotBlank)?.let(::parseProfileDate),
-                            ),
+                            draft.copy(birthDate = birthDate),
                         ),
                     ),
                 )
             },
-            label = { Text("Дата рождения") },
-            placeholder = { Text("ДД.ММ.ГГГГ") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            singleLine = true,
+            selectionPolicy = BirthDateSelectionPolicy.forUnsavedPreview(measurementDate),
             isError = validation.birthDateError != null,
-            supportingText = validation.birthDateError?.let { message -> { Text(message) } },
-            modifier = Modifier.fillMaxWidth(),
+            supportingText = validation.birthDateError,
+            modifier = Modifier.testTag(UnsavedPreviewTestTags.BirthDate),
             enabled = !state.isCalculating,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -250,8 +248,6 @@ private fun PreviewProfileEditor(
         }
     }
 }
-
-private val PreviewDateFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.uuuu")
 
 @Composable
 private fun PreviewSexChoice(

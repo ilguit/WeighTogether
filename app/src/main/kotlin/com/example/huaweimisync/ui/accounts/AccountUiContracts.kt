@@ -13,9 +13,6 @@ import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.normalizeAccountName
 import java.time.LocalDate
-import java.time.format.DateTimeFormatter
-import java.time.format.DateTimeParseException
-import java.time.format.ResolverStyle
 
 @Immutable
 data class AccountEditorDraft(
@@ -340,22 +337,5 @@ fun reduceAccountManagement(
             primaryChange = null,
             deletion = null,
         )
-    }
-}
-
-private val DisplayDateFormatter: DateTimeFormatter = DateTimeFormatter
-    .ofPattern("dd.MM.uuuu")
-    .withResolverStyle(ResolverStyle.STRICT)
-
-fun parseProfileDate(input: String): LocalDate? {
-    val value = input.trim()
-    return try {
-        LocalDate.parse(value, DisplayDateFormatter)
-    } catch (_: DateTimeParseException) {
-        try {
-            LocalDate.parse(value)
-        } catch (_: DateTimeParseException) {
-            null
-        }
     }
 }

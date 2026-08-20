@@ -29,14 +29,6 @@ class MultiAccountUiContractsTest {
     }
 
     @Test
-    fun `profile date parsing is strict and supports localized and iso dates`() {
-        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("29.02.2024"))
-        assertEquals(LocalDate.of(2024, 2, 29), parseProfileDate("2024-02-29"))
-        assertNull(parseProfileDate("31.02.2024"))
-        assertNull(parseProfileDate("29.02.2023"))
-    }
-
-    @Test
     fun `account editor saver round trips a leap birth date as epoch day`() {
         val birthDate = LocalDate.of(2000, 2, 29)
         val draft = AccountEditorDraft(
