@@ -233,6 +233,7 @@ private fun SettingsIntegrationsSection(
     callbacks: SettingsCallbacks,
 ) {
     val primary = state.primaryAccount
+    val healthConnectCapabilities = state.healthConnectCapabilities
     val primaryStatus = when {
         primary == null -> "Основной аккаунт не выбран"
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
@@ -240,7 +241,7 @@ private fun SettingsIntegrationsSection(
     }
     val healthConnect = healthConnectPresentation(state.healthConnect).forPrimaryAccount(
         primaryStatus,
-        state.canUseExternalIntegrations,
+        healthConnectCapabilities.selectedAccountSyncEligible,
     )
     val huawei = huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
         primaryStatus,

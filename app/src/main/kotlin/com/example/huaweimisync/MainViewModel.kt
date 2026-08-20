@@ -68,6 +68,12 @@ data class MainUiState(
 
     val canUseExternalIntegrations: Boolean
         get() = primaryAccount?.profile is com.example.huaweimisync.domain.AccountProfile.Complete
+
+    internal val healthConnectCapabilities: HealthConnectIntegrationCapabilities
+        get() = healthConnectIntegrationCapabilities(
+            permissions = healthConnect,
+            selectedAccountSyncEligible = canUseExternalIntegrations,
+        )
 }
 
 private data class AccountsSnapshot(

@@ -146,6 +146,59 @@ class MainContractTest {
         )
     }
 
+    @Test
+    fun `health connect management availability is independent from selected account sync`() {
+        val required = setOf("weight", "fat")
+        val availableWithoutEligibleAccount = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = required,
+                grantedPermissions = required,
+            ),
+            selectedAccountSyncEligible = false,
+        )
+        val unavailableWithEligibleAccount = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = false,
+                requiredPermissions = required,
+                grantedPermissions = required,
+            ),
+            selectedAccountSyncEligible = true,
+        )
+
+        assertTrue(availableWithoutEligibleAccount.systemManagementAvailable)
+        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncEligible)
+        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncReady)
+        assertFalse(unavailableWithEligibleAccount.systemManagementAvailable)
+        assertTrue(unavailableWithEligibleAccount.selectedAccountSyncEligible)
+        assertFalse(unavailableWithEligibleAccount.selectedAccountSyncReady)
+    }
+
+    @Test
+    fun `selected account sync readiness requires availability permissions and eligibility`() {
+        val required = setOf("weight", "fat")
+        val partialPermissions = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = required,
+                grantedPermissions = setOf("weight"),
+            ),
+            selectedAccountSyncEligible = true,
+        )
+        val ready = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = required,
+                grantedPermissions = required,
+            ),
+            selectedAccountSyncEligible = true,
+        )
+
+        assertTrue(partialPermissions.systemManagementAvailable)
+        assertFalse(partialPermissions.selectedAccountSyncReady)
+        assertTrue(ready.selectedAccountSyncReady)
+    }
+
     private fun controller(
         saved: MutableList<UserProfile> = mutableListOf(),
         emitter: MainUiEventEmitter = MainUiEventEmitter(),
