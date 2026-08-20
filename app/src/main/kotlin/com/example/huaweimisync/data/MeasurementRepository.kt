@@ -23,6 +23,7 @@ import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
+import com.example.huaweimisync.worker.PendingFinalizationScheduler
 import com.example.huaweimisync.worker.MeasurementWorkSweepResult
 import java.time.Instant
 import kotlinx.coroutines.flow.Flow
@@ -39,6 +40,7 @@ class MeasurementRepository(
     private val accountRepository: AccountRepository? = null,
     pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     matchingEngine: MatchingEngine = MatchingEngine(),
+    private val pendingFinalizationScheduler: PendingFinalizationScheduler? = null,
 ) : com.example.huaweimisync.domain.MeasurementRepository {
     private val ingestionCoordinator = if (
         multiAccountPersistence != null && accountRepository != null
@@ -126,17 +128,27 @@ class MeasurementRepository(
         weightKg: Double,
         impedanceOhm: Int,
         measuredAt: Instant = Instant.now(),
-    ): MeasurementIngestionResult = ingest(
-        RawScaleMeasurement(
-            deviceAddress = "manual",
-            measuredAt = measuredAt,
-            weightKg = weightKg,
-            impedanceOhm = impedanceOhm,
-            isStable = true,
-            hasImpedance = impedanceOhm in 80..3_000,
-            rawPayload = byteArrayOf(),
-        ),
-    )
+    ): MeasurementIngestionResult {
+        val result = ingest(
+            RawScaleMeasurement(
+                deviceAddress = "manual",
+                measuredAt = measuredAt,
+                weightKg = weightKg,
+                impedanceOhm = impedanceOhm,
+                isStable = true,
+                hasImpedance = impedanceOhm in 80..3_000,
+                rawPayload = byteArrayOf(),
+            ),
+        )
+        when (result) {
+            is MeasurementIngestionResult.CreatedAggregate ->
+                pendingFinalizationScheduler?.enqueue(result.pending)
+            is MeasurementIngestionResult.UpdatedAggregate ->
+                pendingFinalizationScheduler?.enqueue(result.pending)
+            else -> Unit
+        }
+        return result
+    }
 
     suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
         val coordinator = ingestionCoordinator

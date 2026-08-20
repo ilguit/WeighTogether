@@ -59,6 +59,7 @@ class AppContainer(application: Application) {
         multiAccountPersistence = measurementPersistence,
         accountRepository = baseAccounts,
         pendingDecisionNotifier = pendingMeasurementNotifications,
+        pendingFinalizationScheduler = finalizationScheduler,
     )
     val accounts = SyncAwareAccountRepository(
         delegate = baseAccounts,
