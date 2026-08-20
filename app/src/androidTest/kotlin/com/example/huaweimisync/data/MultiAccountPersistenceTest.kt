@@ -739,7 +739,6 @@ private fun PendingMeasurement.toEntityForTest(
     id = id,
     deviceAddress = deviceAddress,
     measuredAtEpochSecond = measuredAt.epochSecond,
-    measuredAtNano = measuredAt.nano,
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
     isStable = isStable,

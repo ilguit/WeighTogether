@@ -30,14 +30,14 @@ interface MultiAccountMeasurementDao {
     @Query(
         "SELECT * FROM measurements " +
             "WHERE accountId = :accountId " +
-            "ORDER BY measuredAtEpochMillis DESC, id DESC",
+            "ORDER BY measuredAtEpochSecond DESC, id DESC",
     )
     fun observeAll(accountId: String): Flow<List<MeasurementEntity>>
 
     @Query(
         "SELECT * FROM measurements " +
             "WHERE accountId = :accountId " +
-            "ORDER BY measuredAtEpochMillis DESC, id DESC LIMIT :limit",
+            "ORDER BY measuredAtEpochSecond DESC, id DESC LIMIT :limit",
     )
     fun observeLatest(accountId: String, limit: Int): Flow<List<MeasurementEntity>>
 
@@ -45,9 +45,9 @@ interface MultiAccountMeasurementDao {
         """
         SELECT * FROM measurements
         WHERE accountId = :accountId
-            AND measuredAtEpochMillis >= :startInclusive
-            AND measuredAtEpochMillis < :endExclusive
-        ORDER BY measuredAtEpochMillis ASC, id ASC
+            AND measuredAtEpochSecond >= :startInclusive
+            AND measuredAtEpochSecond < :endExclusive
+        ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
     )
     fun observeRange(
@@ -59,8 +59,8 @@ interface MultiAccountMeasurementDao {
     @Query(
         """
         SELECT weightKg FROM measurements
-        WHERE accountId = :accountId AND measuredAtEpochMillis < :measuredAtExclusive
-        ORDER BY measuredAtEpochMillis DESC, id DESC
+        WHERE accountId = :accountId AND measuredAtEpochSecond < :measuredAtExclusive
+        ORDER BY measuredAtEpochSecond DESC, id DESC
         LIMIT 3
         """,
     )
@@ -72,8 +72,8 @@ interface MultiAccountMeasurementDao {
     @Query(
         """
         SELECT * FROM measurements
-        WHERE accountId = :accountId AND measuredAtEpochMillis < :measuredAtExclusive
-        ORDER BY measuredAtEpochMillis DESC, id DESC
+        WHERE accountId = :accountId AND measuredAtEpochSecond < :measuredAtExclusive
+        ORDER BY measuredAtEpochSecond DESC, id DESC
         LIMIT 3
         """,
     )
@@ -147,7 +147,7 @@ interface MultiAccountMeasurementDao {
                 huaweiStatus NOT IN ('SYNCED', 'DISABLED')
                 OR healthConnectStatus != 'SYNCED'
             )
-        ORDER BY measuredAtEpochMillis ASC, id ASC
+        ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
     )
     suspend fun eligiblePendingSyncIds(primaryAccountId: String): List<String>
@@ -161,7 +161,7 @@ interface MultiAccountMeasurementDao {
                 huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
                 OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
             )
-        ORDER BY measuredAtEpochMillis ASC, id ASC
+        ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
     )
     suspend fun activeSyncWorkIds(accountId: String): List<String>

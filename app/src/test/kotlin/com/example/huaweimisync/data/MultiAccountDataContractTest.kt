@@ -106,15 +106,44 @@ class MultiAccountDataContractTest {
     }
 
     @Test
-    fun finalizedEntityRetainsNanosecondTimestamp() {
+    fun finalizedEntityTruncatesTimestampToWholeSeconds() {
         val instant = Instant.parse("2026-08-15T12:00:00.123456789Z")
         val raw = raw(weightKg = 70.0, payload = byteArrayOf(1, 2, 3)).copy(measuredAt = instant)
         val entity = raw.toWeightOnlyEntity(accountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID))
 
-        assertEquals(instant.toEpochMilli(), entity.measuredAtEpochMillis)
+        assertEquals(instant.epochSecond * 1_000L, entity.measuredAtEpochMillis)
         assertEquals(instant.epochSecond, entity.measuredAtEpochSecond)
-        assertEquals(instant.nano, entity.measuredAtNano)
-        assertEquals(instant, entity.measuredAt)
+        assertEquals(0, entity.measuredAtNano)
+        assertEquals(Instant.ofEpochSecond(instant.epochSecond), entity.measuredAt)
+    }
+
+    @Test
+    fun finalizedEntityKeepsOriginalRawWeightWhenUserFacingWeightChanges() {
+        val entity = raw(weightKg = 70.005, payload = byteArrayOf(1, 2, 3))
+            .toWeightOnlyEntity(accountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID))
+
+        val edited = entity.copy(weightKg = 75.0)
+
+        assertEquals(14_001, entity.rawWeight)
+        assertEquals(14_001, edited.rawWeight)
+    }
+
+    @Test
+    fun pendingEntityDefaultsFinalizationToTenSecondsAfterEnqueue() {
+        val entity = PendingMeasurementEntity(
+            id = "pending",
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAtEpochSecond = 100L,
+            weightKg = 70.0,
+            impedanceOhm = 500,
+            isStable = true,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(1, 2, 3),
+            deduplicationHash = "hash",
+            enqueuedAtEpochMillis = 50_000L,
+        )
+
+        assertEquals(60_000L, entity.finalizeAfterEpochMillis)
     }
 
     private fun raw(weightKg: Double, payload: ByteArray) = RawScaleMeasurement(

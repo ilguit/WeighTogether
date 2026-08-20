@@ -58,8 +58,8 @@ class RoomMeasurementPersistence(
         require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
         return measurementDao.observeRange(
             accountId = accountId.value,
-            startInclusive = startInclusive.ceilToEpochMilli(),
-            endExclusive = endExclusive.ceilToEpochMilli(),
+            startInclusive = startInclusive.ceilToEpochSecond(),
+            endExclusive = endExclusive.ceilToEpochSecond(),
         )
     }
 
@@ -83,8 +83,8 @@ class RoomMeasurementPersistence(
         require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
         return measurementDao.observeRange(
             accountId = accountId.value,
-            startInclusive = startInclusive.ceilToEpochMilli(),
-            endExclusive = endExclusive.ceilToEpochMilli(),
+            startInclusive = startInclusive.ceilToEpochSecond(),
+            endExclusive = endExclusive.ceilToEpochSecond(),
         ).map { values -> values.map(MeasurementEntity::toAccountMeasurement) }
     }
 
@@ -100,7 +100,7 @@ class RoomMeasurementPersistence(
         measuredAtExclusive: Instant,
     ): List<Double> = measurementDao.latestWeightsBefore(
         accountId.value,
-        measuredAtExclusive.ceilToEpochMilli(),
+        measuredAtExclusive.ceilToEpochSecond(),
     )
 
     override suspend fun latestHistoryBefore(
@@ -108,10 +108,10 @@ class RoomMeasurementPersistence(
         measuredAtExclusive: Instant,
     ): List<WeightHistoryRecord> = measurementDao.latestHistoryBefore(
         accountId.value,
-        measuredAtExclusive.ceilToEpochMilli(),
+        measuredAtExclusive.ceilToEpochSecond(),
     ).map { value ->
         WeightHistoryRecord(
-            measuredAt = Instant.ofEpochMilli(value.measuredAtEpochMillis),
+            measuredAt = value.measuredAt,
             weightKg = value.weightKg,
         )
     }
@@ -164,7 +164,6 @@ class RoomMeasurementPersistence(
                 id = newId(),
                 deviceAddress = raw.deviceAddress,
                 measuredAtEpochSecond = raw.measuredAt.epochSecond,
-                measuredAtNano = raw.measuredAt.nano,
                 weightKg = raw.weightKg,
                 impedanceOhm = raw.impedanceOhm,
                 isStable = raw.isStable,
@@ -253,6 +252,9 @@ class RoomMeasurementPersistence(
             MeasurementTombstoneEntity(
                 deduplicationHash = pending.deduplicationHash,
                 expiresAtEpochMillis = expiresAt,
+                deviceAddress = pending.deviceAddress,
+                measuredAtEpochSecond = pending.measuredAtEpochSecond,
+                rawWeight = pending.rawWeight,
             ),
         )
         check(pendingDao.delete(pendingId.value) == 1) {
@@ -353,6 +355,9 @@ class RoomMeasurementPersistence(
             MeasurementTombstoneEntity(
                 deduplicationHash = pending.deduplicationHash,
                 expiresAtEpochMillis = now().plus(TOMBSTONE_TTL).toEpochMilli(),
+                deviceAddress = pending.deviceAddress,
+                measuredAtEpochSecond = pending.measuredAtEpochSecond,
+                rawWeight = pending.rawWeight,
             ),
         )
         check(pendingDao.delete(pending.id) == 1) {
@@ -489,7 +494,6 @@ private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMea
     id = id.value,
     deviceAddress = deviceAddress,
     measuredAtEpochSecond = measuredAt.epochSecond,
-    measuredAtNano = measuredAt.nano,
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
     isStable = isStable,
@@ -510,14 +514,11 @@ private fun String?.preserveForTerminalStatus(status: String): String? = when (s
     else -> null
 }
 
-/** Smallest epoch-millisecond timestamp which is not before this instant. */
-private fun Instant.ceilToEpochMilli(): Long {
-    val epochMillis = toEpochMilli()
-    return if (nano % NANOS_PER_MILLISECOND == 0) {
-        epochMillis
+/** Smallest whole-second timestamp which is not before this instant. */
+private fun Instant.ceilToEpochSecond(): Long {
+    return if (nano == 0) {
+        epochSecond
     } else {
-        Math.addExact(epochMillis, 1L)
+        Math.addExact(epochSecond, 1L)
     }
 }
-
-private const val NANOS_PER_MILLISECOND: Int = 1_000_000

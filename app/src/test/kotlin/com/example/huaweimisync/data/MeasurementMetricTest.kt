@@ -44,7 +44,7 @@ class MeasurementMetricTest {
 private fun measurementForMetricTest() = MeasurementEntity(
     id = "metric-test",
     deviceAddress = "device",
-    measuredAtEpochMillis = 1L,
+    measuredAtEpochSecond = 0L,
     rawPayloadHex = "payload",
     weightKg = 1.0,
     impedanceOhm = 2,

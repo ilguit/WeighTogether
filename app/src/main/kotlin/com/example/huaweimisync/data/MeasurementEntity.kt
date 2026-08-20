@@ -1,6 +1,5 @@
 package com.example.huaweimisync.data
 
-import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -13,6 +12,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import java.time.Instant
+import kotlin.math.roundToInt
 
 enum class SyncStatus {
     PENDING,
@@ -106,7 +106,8 @@ enum class MeasurementMetric(
     ],
     indices = [
         Index(value = ["fingerprint"], unique = true),
-        Index(value = ["accountId", "measuredAtEpochMillis"]),
+        Index(value = ["accountId", "measuredAtEpochSecond"]),
+        Index(value = ["deviceAddress", "rawWeight", "measuredAtEpochSecond"]),
         Index(value = ["sourcePendingId"], unique = true),
         Index(value = ["deduplicationHash"], unique = true),
     ],
@@ -116,13 +117,10 @@ data class MeasurementEntity(
     val fingerprint: String = id,
     val measurementType: MeasurementType = MeasurementType.FULL,
     val deviceAddress: String,
-    val measuredAtEpochMillis: Long,
-    @ColumnInfo(defaultValue = "0")
-    val measuredAtEpochSecond: Long = Math.floorDiv(measuredAtEpochMillis, 1_000L),
-    @ColumnInfo(defaultValue = "0")
-    val measuredAtNano: Int = (Math.floorMod(measuredAtEpochMillis, 1_000L) * 1_000_000L).toInt(),
+    val measuredAtEpochSecond: Long,
     val rawPayloadHex: String,
     val weightKg: Double,
+    val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
     val impedanceOhm: Int?,
     val bmi: Double?,
     val bodyFatPercent: Double?,
@@ -214,7 +212,15 @@ data class MeasurementEntity(
     }
 
     val measuredAt: Instant
-        get() = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong())
+        get() = Instant.ofEpochSecond(measuredAtEpochSecond)
+
+    /** Milliseconds are derived only at presentation/integration boundaries, never persisted. */
+    val measuredAtEpochMillis: Long
+        get() = Math.multiplyExact(measuredAtEpochSecond, 1_000L)
+
+    /** Retained as a source-compatibility view while storage has whole-second precision. */
+    val measuredAtNano: Int
+        get() = 0
 }
 
 fun BodyComposition.toEntity(
@@ -230,9 +236,7 @@ fun BodyComposition.toEntity(
     fingerprint = fingerprint,
     measurementType = MeasurementType.FULL,
     deviceAddress = deviceAddress,
-    measuredAtEpochMillis = measuredAt.toEpochMilli(),
     measuredAtEpochSecond = measuredAt.epochSecond,
-    measuredAtNano = measuredAt.nano,
     rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
     weightKg = weightKg,
     impedanceOhm = impedanceOhm,
@@ -270,9 +274,7 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     fingerprint = measurementFingerprint(this),
     measurementType = MeasurementType.WEIGHT_ONLY,
     deviceAddress = deviceAddress,
-    measuredAtEpochMillis = measuredAt.toEpochMilli(),
     measuredAtEpochSecond = measuredAt.epochSecond,
-    measuredAtNano = measuredAt.nano,
     rawPayloadHex = rawPayload.joinToString("") { "%02x".format(it) },
     weightKg = weightKg,
     impedanceOhm = null,

@@ -88,7 +88,7 @@ private fun measurement(
 ) = MeasurementEntity(
     id = id,
     deviceAddress = deviceAddress,
-    measuredAtEpochMillis = measuredAt,
+    measuredAtEpochSecond = Math.floorDiv(measuredAt, 1_000L),
     rawPayloadHex = "010203",
     weightKg = 70.0,
     impedanceOhm = 500,

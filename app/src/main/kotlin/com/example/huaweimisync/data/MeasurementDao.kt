@@ -58,24 +58,24 @@ interface MeasurementDao {
         """
         SELECT * FROM measurements
         WHERE deviceAddress = :deviceAddress COLLATE NOCASE
-        ORDER BY measuredAtEpochMillis DESC, createdAtEpochMillis DESC, id DESC
+        ORDER BY measuredAtEpochSecond DESC, createdAtEpochMillis DESC, id DESC
         LIMIT 1
         """,
     )
     suspend fun getLatestForDevice(deviceAddress: String): MeasurementEntity?
 
-    @Query("SELECT * FROM measurements ORDER BY measuredAtEpochMillis DESC LIMIT :limit")
+    @Query("SELECT * FROM measurements ORDER BY measuredAtEpochSecond DESC LIMIT :limit")
     fun observeLatest(limit: Int = 30): Flow<List<MeasurementEntity>>
 
-    @Query("SELECT * FROM measurements ORDER BY measuredAtEpochMillis DESC")
+    @Query("SELECT * FROM measurements ORDER BY measuredAtEpochSecond DESC")
     fun observeAll(): Flow<List<MeasurementEntity>>
 
     @Query(
         """
         SELECT * FROM measurements
-        WHERE measuredAtEpochMillis >= :startInclusive
-            AND measuredAtEpochMillis < :endExclusive
-        ORDER BY measuredAtEpochMillis ASC
+        WHERE measuredAtEpochSecond >= :startInclusive
+            AND measuredAtEpochSecond < :endExclusive
+        ORDER BY measuredAtEpochSecond ASC
         """,
     )
     fun observeRange(
@@ -180,7 +180,7 @@ interface MeasurementDao {
                 huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
                 OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
             )
-        ORDER BY measuredAtEpochMillis ASC
+        ORDER BY measuredAtEpochSecond ASC
         """,
     )
     suspend fun idsNeedingSync(): List<String>
@@ -190,7 +190,7 @@ interface MeasurementDao {
         SELECT id FROM measurements
         WHERE externalSyncPolicy = 'AUTO'
             AND healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
-        ORDER BY measuredAtEpochMillis ASC
+        ORDER BY measuredAtEpochSecond ASC
         """,
     )
     suspend fun idsNeedingHealthConnectSync(): List<String>
@@ -200,7 +200,7 @@ interface MeasurementDao {
         SELECT id FROM measurements
         WHERE externalSyncPolicy = 'AUTO'
             AND huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
-        ORDER BY measuredAtEpochMillis ASC
+        ORDER BY measuredAtEpochSecond ASC
         """,
     )
     suspend fun idsNeedingHuaweiSync(): List<String>

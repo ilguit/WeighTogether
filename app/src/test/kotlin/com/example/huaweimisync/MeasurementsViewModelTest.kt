@@ -66,7 +66,7 @@ class MeasurementsViewModelTest {
 private fun measurement(id: String) = MeasurementEntity(
     id = id,
     deviceAddress = "AA:BB:CC:DD:EE:FF",
-    measuredAtEpochMillis = 1_000L,
+    measuredAtEpochSecond = 1L,
     rawPayloadHex = "010203",
     weightKg = 70.0,
     impedanceOhm = 500,

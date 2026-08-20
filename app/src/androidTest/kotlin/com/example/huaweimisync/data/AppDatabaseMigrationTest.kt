@@ -167,6 +167,168 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate3To4PreservesRowsRelationshipsAndStatusWhileDroppingSubseconds() {
+        helper.createDatabase(MIGRATION_3_4_DB, 3).apply {
+            execSQL(
+                """
+                INSERT INTO accounts (
+                    id, displayName, normalizedName, heightCm, birthDateEpochDay, sex,
+                    isProfileComplete, createdAtEpochMillis, updatedAtEpochMillis
+                ) VALUES
+                    ('account-a', 'Alice', 'alice', 175.0, 7305, 'FEMALE', 1, 10, 20),
+                    ('account-b', 'Bob', 'bob', 180.0, 7000, 'MALE', 1, 11, 21)
+                """.trimIndent(),
+            )
+            execSQL("INSERT INTO app_state VALUES (1, 'account-b', 4.25, 1)")
+            fun insertMeasurement(
+                id: String,
+                fingerprint: String,
+                millis: Long,
+                second: Long,
+                nano: Int,
+                accountId: String,
+                huaweiStatus: String,
+                healthStatus: String,
+                sourcePendingId: String?,
+                deduplicationHash: String,
+            ) {
+                execSQL(
+                    """
+                    INSERT INTO measurements (
+                        id, fingerprint, measurementType, deviceAddress, measuredAtEpochMillis,
+                        measuredAtEpochSecond, measuredAtNano, rawPayloadHex, weightKg,
+                        huaweiStatus, healthConnectStatus, huaweiError, healthConnectError,
+                        huaweiWeightSynced, healthConnectWeightSynced, createdAtEpochMillis,
+                        accountId, externalSyncPolicy, sourcePendingId, deduplicationHash
+                    ) VALUES (?, ?, 'WEIGHT_ONLY', 'AA:BB:CC:DD:EE:FF', ?, ?, ?, '00', 70.005,
+                        ?, ?, 'huawei-error', 'health-error', 1, 0, 30, ?, 'AUTO', ?, ?)
+                    """.trimIndent(),
+                    arrayOf<Any?>(
+                        id,
+                        fingerprint,
+                        millis,
+                        second,
+                        nano,
+                        huaweiStatus,
+                        healthStatus,
+                        accountId,
+                        sourcePendingId,
+                        deduplicationHash,
+                    ),
+                )
+            }
+            insertMeasurement(
+                id = "duplicate-a",
+                fingerprint = "fingerprint-a",
+                millis = 1_234L,
+                second = 1L,
+                nano = 234_000_000,
+                accountId = "account-a",
+                huaweiStatus = "SYNCED",
+                healthStatus = "FAILED",
+                sourcePendingId = "old-pending-a",
+                deduplicationHash = "hash-a",
+            )
+            insertMeasurement(
+                id = "duplicate-b",
+                fingerprint = "fingerprint-b",
+                millis = 1_999L,
+                second = 1L,
+                nano = 999_000_000,
+                accountId = "account-b",
+                huaweiStatus = "BLOCKED",
+                healthStatus = "SYNCED",
+                sourcePendingId = "old-pending-b",
+                deduplicationHash = "hash-b",
+            )
+            execSQL(
+                """
+                INSERT INTO pending_measurements VALUES (
+                    'pending', '11:22:33:44:55:66', 9, 987000000, 71.0, 501, 1, 1,
+                    X'0102', 'pending-hash', 5000, 14200
+                )
+                """.trimIndent(),
+            )
+            execSQL("INSERT INTO measurement_tombstones VALUES ('old-tombstone', 9000)")
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            MIGRATION_3_4_DB,
+            4,
+            true,
+            AppDatabase.MIGRATION_3_4,
+        )
+
+        migrated.query(
+            """
+            SELECT id, fingerprint, measuredAtEpochSecond, rawWeight, accountId,
+                huaweiStatus, healthConnectStatus, huaweiError, healthConnectError,
+                huaweiWeightSynced, healthConnectWeightSynced, sourcePendingId,
+                deduplicationHash
+            FROM measurements ORDER BY id
+            """.trimIndent(),
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("duplicate-a", it.getString(0))
+            assertEquals("fingerprint-a", it.getString(1))
+            assertEquals(1L, it.getLong(2))
+            assertEquals(14_001, it.getInt(3))
+            assertEquals("account-a", it.getString(4))
+            assertEquals("SYNCED", it.getString(5))
+            assertEquals("FAILED", it.getString(6))
+            assertEquals("huawei-error", it.getString(7))
+            assertEquals("health-error", it.getString(8))
+            assertEquals(1, it.getInt(9))
+            assertEquals(0, it.getInt(10))
+            assertEquals("old-pending-a", it.getString(11))
+            assertEquals("hash-a", it.getString(12))
+            assertTrue(it.moveToNext())
+            assertEquals("duplicate-b", it.getString(0))
+            assertEquals(1L, it.getLong(2))
+            assertEquals("account-b", it.getString(4))
+            assertTrue(!it.moveToNext())
+        }
+        migrated.query(
+            "SELECT measuredAtEpochSecond, rawWeight, finalizeAfterEpochMillis " +
+                "FROM pending_measurements WHERE id = 'pending'",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals(9L, it.getLong(0))
+            assertEquals(14_200, it.getInt(1))
+            assertEquals(15_000L, it.getLong(2))
+        }
+        migrated.query(
+            "SELECT expiresAtEpochMillis, deviceAddress, measuredAtEpochSecond, rawWeight " +
+                "FROM measurement_tombstones WHERE deduplicationHash = 'old-tombstone'",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals(9_000L, it.getLong(0))
+            assertTrue(it.isNull(1))
+            assertTrue(it.isNull(2))
+            assertTrue(it.isNull(3))
+        }
+        migrated.query("SELECT primaryAccountId FROM app_state").use {
+            assertTrue(it.moveToFirst())
+            assertEquals("account-b", it.getString(0))
+        }
+        migrated.query("PRAGMA table_info(measurements)").use {
+            val names = buildSet {
+                while (it.moveToNext()) add(it.getString(it.getColumnIndexOrThrow("name")))
+            }
+            assertTrue("measuredAtEpochMillis" !in names)
+            assertTrue("measuredAtNano" !in names)
+        }
+        migrated.query("PRAGMA table_info(pending_measurements)").use {
+            val names = buildSet {
+                while (it.moveToNext()) add(it.getString(it.getColumnIndexOrThrow("name")))
+            }
+            assertTrue("measuredAtNano" !in names)
+        }
+        migrated.close()
+    }
+
+    @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
@@ -278,7 +440,7 @@ class AppDatabaseMigrationTest {
         fingerprint = "AA:BB:CC:DD:EE:FF|$index|14000",
         measurementType = MeasurementType.WEIGHT_ONLY,
         deviceAddress = "AA:BB:CC:DD:EE:FF",
-        measuredAtEpochMillis = index * 1_000L,
+        measuredAtEpochSecond = index.toLong(),
         rawPayloadHex = "00",
         weightKg = 70.0,
         impedanceOhm = null,
@@ -322,5 +484,6 @@ class AppDatabaseMigrationTest {
     private companion object {
         const val MIGRATION_DB = "measurement-migration-test"
         const val MIGRATION_2_3_DB = "measurement-migration-2-3-test"
+        const val MIGRATION_3_4_DB = "measurement-migration-3-4-test"
     }
 }

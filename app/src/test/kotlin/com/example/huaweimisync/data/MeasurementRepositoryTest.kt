@@ -561,19 +561,19 @@ class MeasurementRepositoryTest {
     @Test
     fun observeAllIsDescendingAndRangeIsHalfOpenAscending() = runBlocking {
         val dao = FakeMeasurementDao()
-        listOf(9L, 10L, 15L, 20L, 21L).forEach { timestamp ->
+        listOf(9_000L, 10_000L, 15_000L, 20_000L, 21_000L).forEach { timestamp ->
             val value = measurement(id = timestamp.toString(), measuredAt = timestamp)
             dao.values[value.id] = value
         }
         val repository = repository(dao, FakeSyncScheduler())
 
         assertEquals(
-            listOf(21L, 20L, 15L, 10L, 9L),
+            listOf(21_000L, 20_000L, 15_000L, 10_000L, 9_000L),
             repository.observeAll().first().map(MeasurementEntity::measuredAtEpochMillis),
         )
         assertEquals(
-            listOf(10L, 15L),
-            repository.observeRange(Instant.ofEpochMilli(10L), Instant.ofEpochMilli(20L))
+            listOf(10_000L, 15_000L),
+            repository.observeRange(Instant.ofEpochSecond(10L), Instant.ofEpochSecond(20L))
                 .first()
                 .map(MeasurementEntity::measuredAtEpochMillis),
         )
@@ -665,17 +665,17 @@ private class FakeMeasurementDao(
     override suspend fun getLatestForDevice(deviceAddress: String): MeasurementEntity? = values.values
         .filter { it.deviceAddress.equals(deviceAddress, ignoreCase = true) }
         .maxWithOrNull(
-            compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochMillis)
+            compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochSecond)
                 .thenBy(MeasurementEntity::createdAtEpochMillis)
                 .thenBy(MeasurementEntity::id),
         )
 
     override fun observeLatest(limit: Int): Flow<List<MeasurementEntity>> = flowOf(
-        values.values.sortedByDescending(MeasurementEntity::measuredAtEpochMillis).take(limit),
+        values.values.sortedByDescending(MeasurementEntity::measuredAtEpochSecond).take(limit),
     )
 
     override fun observeAll(): Flow<List<MeasurementEntity>> = flowOf(
-        values.values.sortedByDescending(MeasurementEntity::measuredAtEpochMillis),
+        values.values.sortedByDescending(MeasurementEntity::measuredAtEpochSecond),
     )
 
     override fun observeRange(
@@ -683,9 +683,9 @@ private class FakeMeasurementDao(
         endExclusive: Long,
     ): Flow<List<MeasurementEntity>> = flowOf(
         values.values
-            .filter { it.measuredAtEpochMillis >= startInclusive }
-            .filter { it.measuredAtEpochMillis < endExclusive }
-            .sortedBy(MeasurementEntity::measuredAtEpochMillis),
+            .filter { it.measuredAtEpochSecond >= startInclusive }
+            .filter { it.measuredAtEpochSecond < endExclusive }
+            .sortedBy(MeasurementEntity::measuredAtEpochSecond),
     )
 
     override suspend fun update(measurement: MeasurementEntity): Int {
@@ -784,13 +784,13 @@ private class FakeMeasurementDao(
                 SyncStatus.LOCAL_ONLY.name,
             )
         }
-        .sortedBy(MeasurementEntity::measuredAtEpochMillis)
+        .sortedBy(MeasurementEntity::measuredAtEpochSecond)
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHealthConnectSync(): List<String> = values.values
         .filter { it.externalSyncPolicy == ExternalSyncPolicy.AUTO.name }
         .filter { it.healthConnectStatus !in setOf(SyncStatus.SYNCED.name, SyncStatus.LOCAL_ONLY.name) }
-        .sortedBy(MeasurementEntity::measuredAtEpochMillis)
+        .sortedBy(MeasurementEntity::measuredAtEpochSecond)
         .map(MeasurementEntity::id)
 
     override suspend fun idsNeedingHuaweiSync(): List<String> = values.values
@@ -802,7 +802,7 @@ private class FakeMeasurementDao(
                 SyncStatus.LOCAL_ONLY.name,
             )
         }
-        .sortedBy(MeasurementEntity::measuredAtEpochMillis)
+        .sortedBy(MeasurementEntity::measuredAtEpochSecond)
         .map(MeasurementEntity::id)
 }
 
@@ -833,7 +833,7 @@ private fun measurement(
 ) = MeasurementEntity(
     id = id,
     deviceAddress = "AA:BB:CC:DD:EE:FF",
-    measuredAtEpochMillis = measuredAt,
+    measuredAtEpochSecond = Math.floorDiv(measuredAt, 1_000L),
     rawPayloadHex = "010203",
     weightKg = 70.0,
     impedanceOhm = 500,

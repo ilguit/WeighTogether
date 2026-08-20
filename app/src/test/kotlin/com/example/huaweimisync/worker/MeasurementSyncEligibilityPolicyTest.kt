@@ -86,7 +86,7 @@ private fun completeAccount(id: String = "primary") = AccountEntity(
 private fun measurement(accountId: String = "primary") = MeasurementEntity(
     id = "measurement-1",
     deviceAddress = "AA:BB:CC:DD:EE:FF",
-    measuredAtEpochMillis = 1_754_912_096_000,
+    measuredAtEpochSecond = 1_754_912_096,
     rawPayloadHex = "00",
     weightKg = 70.0,
     impedanceOhm = 500,

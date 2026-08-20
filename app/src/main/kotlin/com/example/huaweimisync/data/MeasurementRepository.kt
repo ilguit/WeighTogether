@@ -66,8 +66,8 @@ class MeasurementRepository(
         startInclusive: Instant,
         endExclusive: Instant,
     ): Flow<List<MeasurementEntity>> = dao.observeRange(
-        startInclusive = startInclusive.toEpochMilli(),
-        endExclusive = endExclusive.toEpochMilli(),
+        startInclusive = startInclusive.ceilToEpochSecond(),
+        endExclusive = endExclusive.ceilToEpochSecond(),
     )
 
     fun observeRangeEntities(
@@ -385,7 +385,7 @@ class MeasurementRepository(
             .asSequence()
             .filter { it.isFromScale(scaleAddress) }
             .maxWithOrNull(
-                compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochMillis)
+                compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochSecond)
                     .thenBy(MeasurementEntity::createdAtEpochMillis)
                     .thenBy(MeasurementEntity::id),
             )
@@ -478,3 +478,7 @@ private val HEALTH_CONNECT_TERMINAL_STATUSES = setOf(
     SyncStatus.SYNCED.name,
     SyncStatus.LOCAL_ONLY.name,
 )
+
+/** Smallest whole-second timestamp which is not before this instant. */
+private fun Instant.ceilToEpochSecond(): Long =
+    if (nano == 0) epochSecond else Math.addExact(epochSecond, 1L)

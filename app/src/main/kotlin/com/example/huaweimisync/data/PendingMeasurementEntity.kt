@@ -20,7 +20,6 @@ data class PendingMeasurementEntity(
     @PrimaryKey val id: String,
     val deviceAddress: String,
     val measuredAtEpochSecond: Long,
-    val measuredAtNano: Int,
     val weightKg: Double,
     val impedanceOhm: Int,
     val isStable: Boolean,
@@ -29,11 +28,12 @@ data class PendingMeasurementEntity(
     val deduplicationHash: String,
     val enqueuedAtEpochMillis: Long,
     val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
+    val finalizeAfterEpochMillis: Long = enqueuedAtEpochMillis + 10_000L,
 ) {
     fun toDomain(): PendingMeasurement = PendingMeasurement(
         id = PendingMeasurementId(id),
         deviceAddress = deviceAddress,
-        measuredAt = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong()),
+        measuredAt = Instant.ofEpochSecond(measuredAtEpochSecond),
         weightKg = weightKg,
         impedanceOhm = impedanceOhm,
         isStable = isStable,
@@ -49,4 +49,7 @@ data class PendingMeasurementEntity(
 data class MeasurementTombstoneEntity(
     @PrimaryKey val deduplicationHash: String,
     val expiresAtEpochMillis: Long,
+    val deviceAddress: String? = null,
+    val measuredAtEpochSecond: Long? = null,
+    val rawWeight: Int? = null,
 )
