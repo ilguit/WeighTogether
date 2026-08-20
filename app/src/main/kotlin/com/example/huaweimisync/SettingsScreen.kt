@@ -254,6 +254,9 @@ private fun SettingsIntegrationsSection(
                     icon = HuaweiIcons.Health,
                     title = "Health Connect",
                     supportingText = healthConnect.supportingText,
+                    onClick = callbacks.onHealthConnectAccessManagement.takeIf {
+                        healthConnectCapabilities.systemManagementAvailable
+                    },
                 ) {
                     healthConnect.actionLabel?.let { label ->
                         TextButton(

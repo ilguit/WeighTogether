@@ -5,7 +5,10 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNode
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -90,30 +93,59 @@ class SettingsShellUiTest {
         }
     }
 
-    private fun setSettingsShell(
-        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
-    ) {
-        val profile = AccountProfile.Complete(
-            heightCm = 181.5,
-            birthDate = LocalDate.of(1988, 2, 29),
-            sex = Sex.FEMALE,
-        )
-        val account = Account(
-            id = AccountId("primary"),
-            displayName = "Анна",
-            profile = profile,
-            createdAt = Instant.parse("2026-08-15T00:00:00Z"),
-            updatedAt = Instant.parse("2026-08-15T00:00:00Z"),
+    @Test
+    fun availableHealthConnectRowOpensManagementWithoutPrimaryAccount() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = availableHealthConnectWithMissingPermissions(),
+            account = null,
+            onHealthConnectAccessManagement = { managementCalls++ },
         )
 
+        composeRule.onNode(hasClickAction() and hasText("Health Connect"))
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, managementCalls)
+        }
+    }
+
+    @Test
+    fun availableHealthConnectRowOpensManagementWithIncompletePrimaryProfile() {
+        var managementCalls = 0
+        val incompleteAccount = completeAccount().copy(
+            profile = AccountProfile.IncompleteRecovery(heightCm = 181.5),
+        )
+        setSettingsShell(
+            healthConnect = availableHealthConnectWithMissingPermissions(),
+            account = incompleteAccount,
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNode(hasClickAction() and hasText("Health Connect"))
+            .performScrollTo()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, managementCalls)
+        }
+    }
+
+    private fun setSettingsShell(
+        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
+        healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
+        account: Account? = completeAccount(),
+        onHuaweiAuthorization: () -> Unit = {},
+        onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAccessManagement: () -> Unit = {},
+    ) {
         composeRule.setContent {
             val management = remember {
                 mutableStateOf(
                     AccountManagementUiState(
-                        accounts = listOf(account),
-                        primaryAccountId = account.id,
+                        accounts = listOfNotNull(account),
+                        primaryAccountId = account?.id,
                     ),
                 )
             }
@@ -121,9 +153,10 @@ class SettingsShellUiTest {
             HuaweiMiSyncScaffold(
                 state = MainUiState(
                     settings = AppSettings(),
+                    healthConnect = healthConnect,
                     huawei = huawei,
-                    accounts = listOf(account),
-                    accountSettings = AccountSettings(primaryAccountId = account.id),
+                    accounts = listOfNotNull(account),
+                    accountSettings = AccountSettings(primaryAccountId = account?.id),
                     accountManagement = management.value,
                 ),
                 currentSection = AppSection.SETTINGS,
@@ -139,6 +172,7 @@ class SettingsShellUiTest {
                 settingsCallbacks = settingsCallbacks(
                     onHuaweiAuthorization = onHuaweiAuthorization,
                     onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
+                    onHealthConnectAccessManagement = onHealthConnectAccessManagement,
                     accountManagement = AccountManagementCallbacks.None.copy(
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
@@ -152,12 +186,13 @@ class SettingsShellUiTest {
     private fun settingsCallbacks(
         onHuaweiAuthorization: () -> Unit = {},
         onHuaweiPermissionRefresh: () -> Unit = {},
+        onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = {},
-        onHealthConnectAccessManagement = {},
+        onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
@@ -165,4 +200,23 @@ class SettingsShellUiTest {
         openApplicationSettings = {},
         accountManagement = accountManagement,
     )
+
+    private fun completeAccount(): Account = Account(
+        id = AccountId("primary"),
+        displayName = "Анна",
+        profile = AccountProfile.Complete(
+            heightCm = 181.5,
+            birthDate = LocalDate.of(1988, 2, 29),
+            sex = Sex.FEMALE,
+        ),
+        createdAt = Instant.parse("2026-08-15T00:00:00Z"),
+        updatedAt = Instant.parse("2026-08-15T00:00:00Z"),
+    )
+
+    private fun availableHealthConnectWithMissingPermissions(): HealthConnectPermissionsUiState =
+        HealthConnectPermissionsUiState.snapshot(
+            isAvailable = true,
+            requiredPermissions = setOf("weight"),
+            grantedPermissions = emptySet(),
+        )
 }
