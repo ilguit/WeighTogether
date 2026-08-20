@@ -25,6 +25,10 @@ import com.example.huaweimisync.ui.routing.MeasurementResolverDialog
 import com.example.huaweimisync.ui.routing.MeasurementResolverTestTags
 import com.example.huaweimisync.ui.routing.MeasurementResolverUiState
 import com.example.huaweimisync.ui.routing.ResolverAccountOption
+import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewDialog
+import com.example.huaweimisync.ui.routing.UnsavedMeasurementPreviewState
+import com.example.huaweimisync.ui.routing.UnsavedPreviewCallbacks
+import com.example.huaweimisync.ui.routing.UnsavedPreviewTestTags
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -144,6 +148,50 @@ class MultiAccountComponentsTest {
             .performScrollTo()
             .performClick()
         composeRule.runOnIdle { assertEquals(last.id, selected) }
+    }
+
+    @Test
+    fun resolverDeleteAddressesDisplayedPendingMeasurement() {
+        val pending = pending()
+        var deleted: PendingMeasurementId? = null
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending,
+                        accountOptions = emptyList(),
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None.copy(
+                        onDelete = { deleted = it },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete).performClick()
+        composeRule.runOnIdle { assertEquals(pending.id, deleted) }
+    }
+
+    @Test
+    fun unsavedPreviewCloseDispatchesDisplayedPendingOnlyOnce() {
+        val pending = pending()
+        val discarded = mutableListOf<PendingMeasurementId>()
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                UnsavedMeasurementPreviewDialog(
+                    state = UnsavedMeasurementPreviewState(pending),
+                    callbacks = UnsavedPreviewCallbacks.None.copy(
+                        onCloseAndDiscard = discarded::add,
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Close)
+            .performClick()
+            .assertIsNotEnabled()
+
+        composeRule.runOnIdle { assertEquals(listOf(pending.id), discarded) }
     }
 
     @Test

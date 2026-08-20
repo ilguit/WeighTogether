@@ -90,7 +90,7 @@ class ResolverUiContractsTest {
         val tieFirst = pending("a", "2026-08-15T10:00:00Z")
         val initial = ResolverQueueState.from(
             listOf(lateId, tieSecond, tieFirst),
-            isResolverVisible = true,
+            selectedPendingId = tieFirst.id,
         )
         assertEquals(tieFirst.id, initial.current?.id)
 
@@ -101,21 +101,187 @@ class ResolverUiContractsTest {
     }
 
     @Test
-    fun `only fifo head may be removed and resolver advances to next`() {
+    fun `selected non-head pending may be processed without disturbing fifo order`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val second = pending("b", "2026-08-15T10:01:00Z")
-        val initial = ResolverQueueState.from(listOf(first, second), isResolverVisible = true)
+        val third = pending("c", "2026-08-15T10:02:00Z")
+        val initial = ResolverQueueState.from(
+            listOf(third, second, first),
+            selectedPendingId = second.id,
+        )
 
-        assertSame(
-            initial,
-            reduceResolverQueue(initial, ResolverQueueAction.HeadFinalized(second.id)),
+        assertTrue(
+            isActivePendingResolverTarget(
+                pending = initial.pending,
+                selectedPendingId = initial.selectedPendingId,
+                requestedPendingId = second.id,
+            ),
         )
-        val advanced = reduceResolverQueue(
-            initial,
-            ResolverQueueAction.HeadFinalized(first.id),
+        assertFalse(
+            isActivePendingResolverTarget(
+                pending = initial.pending,
+                selectedPendingId = initial.selectedPendingId,
+                requestedPendingId = first.id,
+            ),
         )
-        assertEquals(second.id, advanced.current?.id)
-        assertTrue(advanced.isResolverVisible)
+        val processed = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingFinalized(second.id),
+        )
+
+        assertEquals(listOf(first.id, third.id), processed.pending.map(PendingMeasurement::id))
+        assertEquals(first.id, processed.current?.id)
+        assertNull(processed.selectedPendingId)
+        assertFalse(processed.isResolverVisible)
+    }
+
+    @Test
+    fun `queue resolver completion returns to queue while external completion preserves screen`() {
+        val pendingId = PendingMeasurementId("selected")
+        val queueCompletion = PendingResolverSession(
+            pendingId = pendingId,
+            source = PendingResolverSource.PENDING_QUEUE,
+        ).completionFor(pendingId)
+        val externalCompletion = PendingResolverSession(
+            pendingId = pendingId,
+            source = PendingResolverSource.EXTERNAL,
+        ).completionFor(pendingId)
+
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            queueCompletion?.returnDestination,
+        )
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            externalCompletion?.returnDestination,
+        )
+    }
+
+    @Test
+    fun `terminal completion rejects callback from a stale resolver`() {
+        val session = PendingResolverSession(
+            pendingId = PendingMeasurementId("selected"),
+            source = PendingResolverSource.PENDING_QUEUE,
+        )
+
+        assertNull(session.completionFor(PendingMeasurementId("stale")))
+    }
+
+    @Test
+    fun `external resolver delete addresses displayed pending and preserves current screen`() {
+        val fifoHead = pending("a", "2026-08-15T10:00:00Z")
+        val displayed = pending("b", "2026-08-15T10:01:00Z")
+        val session = PendingResolverSession(
+            pendingId = displayed.id,
+            source = PendingResolverSource.EXTERNAL,
+        )
+
+        val completion = session.activeCompletionFor(
+            pending = listOf(fifoHead, displayed),
+            requestedPendingId = displayed.id,
+        )
+
+        assertEquals(displayed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            completion?.returnDestination,
+        )
+        assertNull(
+            session.activeCompletionFor(
+                pending = listOf(fifoHead, displayed),
+                requestedPendingId = fifoHead.id,
+            ),
+        )
+        assertNull(
+            session.activeCompletionFor(
+                pending = listOf(fifoHead),
+                requestedPendingId = displayed.id,
+            ),
+        )
+    }
+
+    @Test
+    fun `queue resolver delete returns to queue for the addressed pending`() {
+        val selected = pending("selected", "2026-08-15T10:00:00Z")
+        val session = PendingResolverSession(
+            pendingId = selected.id,
+            source = PendingResolverSource.PENDING_QUEUE,
+        )
+
+        val completion = session.activeCompletionFor(listOf(selected), selected.id)
+
+        assertEquals(selected.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            completion?.returnDestination,
+        )
+    }
+
+    @Test
+    fun `unsaved preview close consumes only its exact queue item and is one shot`() {
+        val fifoHead = pending("head", "2026-08-15T10:00:00Z")
+        val previewed = pending("previewed", "2026-08-15T10:01:00Z")
+        val coordinator = UnsavedPreviewSessionCoordinator()
+        coordinator.show(
+            state = UnsavedMeasurementPreviewState(previewed),
+            resolverSession = PendingResolverSession(
+                pendingId = previewed.id,
+                source = PendingResolverSource.PENDING_QUEUE,
+            ),
+        )
+
+        assertNull(coordinator.takeClose(fifoHead.id))
+        assertEquals(previewed.id, coordinator.active.value?.state?.pending?.id)
+
+        val completion = coordinator.takeClose(previewed.id)
+
+        assertEquals(previewed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+            completion?.returnDestination,
+        )
+        assertNull(coordinator.active.value)
+        assertNull(coordinator.takeClose(previewed.id))
+    }
+
+    @Test
+    fun `external unsaved preview close preserves its source destination`() {
+        val previewed = pending("previewed", "2026-08-15T10:00:00Z")
+        val coordinator = UnsavedPreviewSessionCoordinator()
+        coordinator.show(
+            state = UnsavedMeasurementPreviewState(previewed),
+            resolverSession = PendingResolverSession(
+                pendingId = previewed.id,
+                source = PendingResolverSource.EXTERNAL,
+            ),
+        )
+
+        val completion = coordinator.takeClose(previewed.id)
+
+        assertEquals(previewed.id, completion?.pendingId)
+        assertEquals(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+            completion?.returnDestination,
+        )
+    }
+
+    @Test
+    fun `discard completion closes selected item without opening the fifo head`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val selected = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(
+            pending = listOf(first, selected),
+            selectedPendingId = selected.id,
+        )
+
+        val discarded = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingDiscarded(selected.id),
+        )
+
+        assertEquals(listOf(first.id), discarded.pending.map(PendingMeasurement::id))
+        assertNull(discarded.selectedPendingId)
+        assertFalse(discarded.isResolverVisible)
     }
 
     @Test
@@ -127,24 +293,33 @@ class ResolverUiContractsTest {
 
         assertTrue(state.showForegroundFallback)
         assertFalse(state.isResolverVisible)
-        assertFalse(state.copy(isResolverVisible = true).showForegroundFallback)
+        assertFalse(state.copy(selectedPendingId = state.pending.first().id).showForegroundFallback)
     }
 
     @Test
-    fun `cold notification launch waits for first durable pending snapshot`() = runBlocking {
+    fun `cold notification launch waits for durable snapshot and selects fifo head`() = runBlocking {
         val durablePending = pending("cold", "2026-08-15T10:00:00Z")
+        val laterPending = pending("later", "2026-08-15T10:01:00Z")
 
-        assertTrue(hasPendingResolverTarget(emptyList(), flowOf(listOf(durablePending))))
-        assertFalse(hasPendingResolverTarget(emptyList(), flowOf(emptyList())))
+        assertEquals(
+            durablePending.id,
+            oldestPendingResolverTarget(
+                emptyList(),
+                flowOf(listOf(laterPending, durablePending)),
+            ),
+        )
+        assertNull(oldestPendingResolverTarget(emptyList(), flowOf(emptyList())))
     }
 
     @Test
     fun `already observed pending opens resolver without collecting another snapshot`() = runBlocking {
-        val observed = pending("observed", "2026-08-15T10:00:00Z")
+        val oldest = pending("oldest", "2026-08-15T10:00:00Z")
+        val latest = pending("latest", "2026-08-15T10:01:00Z")
 
-        assertTrue(
-            hasPendingResolverTarget(
-                observedPending = listOf(observed),
+        assertEquals(
+            oldest.id,
+            oldestPendingResolverTarget(
+                observedPending = listOf(latest, oldest),
                 durablePendingSnapshots = flow { error("must not collect") },
             ),
         )
@@ -154,7 +329,10 @@ class ResolverUiContractsTest {
     fun `pending updates are re-sorted and preserve resolver visibility`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val second = pending("b", "2026-08-15T10:01:00Z")
-        val initial = ResolverQueueState.from(listOf(first), isResolverVisible = true)
+        val initial = ResolverQueueState.from(
+            listOf(first),
+            selectedPendingId = first.id,
+        )
 
         val updated = reduceResolverQueue(
             initial,
@@ -163,6 +341,55 @@ class ResolverUiContractsTest {
 
         assertEquals(listOf(first.id, second.id), updated.pending.map(PendingMeasurement::id))
         assertTrue(updated.isResolverVisible)
+    }
+
+    @Test
+    fun `durable removal clears stale resolver selection instead of opening fifo head`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val selected = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(
+            listOf(first, selected),
+            selectedPendingId = selected.id,
+        )
+
+        val updated = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.PendingChanged(listOf(first)),
+        )
+
+        assertEquals(first.id, updated.current?.id)
+        assertNull(updated.selectedPendingId)
+        assertFalse(updated.isResolverVisible)
+        assertFalse(
+            isActivePendingResolverTarget(
+                pending = updated.pending,
+                selectedPendingId = selected.id,
+                requestedPendingId = selected.id,
+            ),
+        )
+    }
+
+    @Test
+    fun `addressed open selects an existing pending item and rejects a stale id`() {
+        val first = pending("a", "2026-08-15T10:00:00Z")
+        val second = pending("b", "2026-08-15T10:01:00Z")
+        val initial = ResolverQueueState.from(listOf(first, second))
+
+        val selected = reduceResolverQueue(
+            initial,
+            ResolverQueueAction.OpenRequested(second.id),
+        )
+
+        assertEquals(second.id, selected.selectedPendingId)
+        assertEquals(second, selected.selected)
+        assertEquals(first, selected.current)
+        assertEquals(
+            second.id,
+            reduceResolverQueue(
+                selected,
+                ResolverQueueAction.OpenRequested(PendingMeasurementId("missing")),
+            ).selectedPendingId,
+        )
     }
 
     @Test

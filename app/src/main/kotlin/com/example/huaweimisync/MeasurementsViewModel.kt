@@ -26,6 +26,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -119,6 +120,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     val callbacks = MeasurementsCallbacks(
         onSummaryRequested = ::showSummary,
+        onPendingQueueRequested = ::showPendingQueue,
         onHistoryRequested = ::showHistory,
         onBackRequested = ::navigateBack,
         onEditRequested = ::openEditor,
@@ -154,6 +156,21 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         if (editor.value?.isSaving == true) return
         navigation.update(MeasurementsNavigationState::showHistory)
         editor.value = null
+    }
+
+    private fun showPendingQueue() {
+        if (editor.value?.isSaving == true) return
+        navigation.update(MeasurementsNavigationState::showPendingQueue)
+        editor.value = null
+    }
+
+    fun onPendingResolutionCompleted(
+        returnDestination: PendingResolverReturnDestination,
+    ) {
+        navigation.update { it.afterPendingResolution(returnDestination) }
+        if (returnDestination == PendingResolverReturnDestination.PENDING_QUEUE) {
+            editor.value = null
+        }
     }
 
     private fun navigateBack() {

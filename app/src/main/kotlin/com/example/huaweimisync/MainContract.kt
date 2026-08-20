@@ -2,8 +2,13 @@ package com.example.huaweimisync
 
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.sync.HuaweiPermissionCheckResult
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -13,6 +18,17 @@ import kotlinx.coroutines.flow.receiveAsFlow
 
 sealed interface MainUiEvent {
     data class ShowSnackbar(val message: String) : MainUiEvent
+    data class ShowPendingDiscardUndo(
+        val snackbarId: Long,
+        val pendingId: PendingMeasurementId,
+        val message: String = PENDING_DISCARDED_MESSAGE,
+        val actionLabel: String = PENDING_DISCARD_UNDO_ACTION,
+    ) : MainUiEvent
+
+    data class PendingResolutionCompleted(
+        val pendingId: PendingMeasurementId,
+        val returnDestination: PendingResolverReturnDestination,
+    ) : MainUiEvent
 }
 
 internal class MainUiEventEmitter {
@@ -25,6 +41,79 @@ internal class MainUiEventEmitter {
             "Main UI event channel is closed"
         }
     }
+
+    fun showPendingDiscardUndo(snackbarId: Long, pendingId: PendingMeasurementId) {
+        check(
+            channel.trySend(
+                MainUiEvent.ShowPendingDiscardUndo(
+                    snackbarId = snackbarId,
+                    pendingId = pendingId,
+                ),
+            ).isSuccess,
+        ) { "Main UI event channel is closed" }
+    }
+
+    fun pendingResolutionCompleted(
+        pendingId: PendingMeasurementId,
+        returnDestination: PendingResolverReturnDestination,
+    ) {
+        check(
+            channel.trySend(
+                MainUiEvent.PendingResolutionCompleted(pendingId, returnDestination),
+            ).isSuccess,
+        ) { "Main UI event channel is closed" }
+    }
+}
+
+/**
+ * Owns discard capabilities only while their addressed snackbar is active or waiting to be shown.
+ * The UI event deliberately carries an id instead of the process-local token.
+ */
+internal class PendingDiscardUndoCoordinator(
+    private val eventEmitter: MainUiEventEmitter,
+) {
+    private val lock = Any()
+    private val activeTokens = mutableMapOf<Long, PendingDiscardUndoToken>()
+    private var nextSnackbarId = 1L
+
+    fun show(token: PendingDiscardUndoToken) {
+        val snackbarId = synchronized(lock) {
+            nextSnackbarId++.also { activeTokens[it] = token }
+        }
+        try {
+            eventEmitter.showPendingDiscardUndo(snackbarId, token.pendingId)
+        } catch (error: Throwable) {
+            synchronized(lock) { activeTokens.remove(snackbarId) }
+            throw error
+        }
+    }
+
+    /** Returns a token exactly once and only when the addressed snackbar requested undo. */
+    fun finish(snackbarId: Long, undoRequested: Boolean): PendingDiscardUndoToken? =
+        synchronized(lock) {
+            activeTokens.remove(snackbarId)?.takeIf { undoRequested }
+        }
+
+    internal val activeSnackbarCount: Int
+        get() = synchronized(lock) { activeTokens.size }
+}
+
+internal fun RestorePendingResult.undoResultMessage(): String = when (this) {
+    is RestorePendingResult.Restored -> PENDING_RESTORED_MESSAGE
+    is RestorePendingResult.AlreadyRestored -> PENDING_ALREADY_RESTORED_MESSAGE
+    is RestorePendingResult.AlreadyFinalized -> PENDING_RESTORE_FINALIZED_MESSAGE
+    is RestorePendingResult.Conflict -> PENDING_RESTORE_CONFLICT_MESSAGE
+}
+
+internal suspend fun restorePendingForUndo(
+    undoToken: PendingDiscardUndoToken,
+    restorePending: suspend (PendingDiscardUndoToken) -> RestorePendingResult,
+): String = try {
+    restorePending(undoToken).undoResultMessage()
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (error: Throwable) {
+    error.message?.takeIf(String::isNotBlank) ?: PENDING_RESTORE_FAILURE_MESSAGE
 }
 
 data class ProfileEditorUiState(
@@ -220,6 +309,15 @@ internal const val PROFILE_FORMAT_ERROR_MESSAGE =
     "Проверьте рост и дату рождения (ГГГГ-ММ-ДД)"
 internal const val PROFILE_AGE_ERROR_MESSAGE = "Возраст для расчёта должен быть от 10 до 100 лет"
 internal const val PROFILE_SAVED_MESSAGE = "Профиль сохранён"
+internal const val PENDING_DISCARDED_MESSAGE = "Измерение удалено"
+internal const val PENDING_DISCARD_UNDO_ACTION = "Отменить"
+internal const val PENDING_RESTORED_MESSAGE = "Измерение восстановлено"
+internal const val PENDING_ALREADY_RESTORED_MESSAGE = "Измерение уже восстановлено"
+internal const val PENDING_RESTORE_FINALIZED_MESSAGE =
+    "Измерение уже назначено и не может быть восстановлено"
+internal const val PENDING_RESTORE_CONFLICT_MESSAGE =
+    "Не удалось восстановить измерение: запись уже существует"
+internal const val PENDING_RESTORE_FAILURE_MESSAGE = "Не удалось восстановить измерение"
 internal const val MINIMUM_PROFILE_AGE_YEARS = 10L
 internal const val MAXIMUM_PROFILE_AGE_YEARS = 100L
 

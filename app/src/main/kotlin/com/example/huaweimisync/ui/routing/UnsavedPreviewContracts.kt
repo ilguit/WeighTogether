@@ -13,6 +13,9 @@ import com.example.huaweimisync.ui.accounts.parseLocalizedDecimal
 import com.example.huaweimisync.ui.accounts.parseProfileDate
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 enum class UnsavedPreviewStep {
     RAW_SUMMARY,
@@ -98,6 +101,65 @@ data class UnsavedMeasurementPreviewState(
         }
         require(!isCalculating || step == UnsavedPreviewStep.PROFILE_EDITOR) {
             "Calculation may run only from the one-time profile editor"
+        }
+    }
+}
+
+@Immutable
+internal data class ActiveUnsavedPreview(
+    val state: UnsavedMeasurementPreviewState,
+    val resolverSession: PendingResolverSession,
+) {
+    init {
+        require(state.pending.id == resolverSession.pendingId) {
+            "An unsaved preview must retain the resolver session for its exact pending item"
+        }
+    }
+
+    fun completionFor(requestedPendingId: PendingMeasurementId): PendingResolverCompletion? =
+        resolverSession.completionFor(requestedPendingId)?.takeIf {
+            state.pending.id == requestedPendingId
+        }
+}
+
+/**
+ * Owns the in-memory preview and its origin as one atomic session.
+ *
+ * [takeClose] clears the session before the repository is called, so duplicate callbacks from a
+ * stale composition or Back cannot discard the same preview twice.
+ */
+internal class UnsavedPreviewSessionCoordinator {
+    private val mutableActive = MutableStateFlow<ActiveUnsavedPreview?>(null)
+    val active: StateFlow<ActiveUnsavedPreview?> = mutableActive.asStateFlow()
+
+    fun show(
+        state: UnsavedMeasurementPreviewState,
+        resolverSession: PendingResolverSession,
+    ) {
+        mutableActive.value = ActiveUnsavedPreview(state, resolverSession)
+    }
+
+    fun update(state: UnsavedMeasurementPreviewState) {
+        while (true) {
+            val current = mutableActive.value ?: return
+            if (current.state.pending.id != state.pending.id) return
+            if (mutableActive.compareAndSet(current, current.copy(state = state))) return
+        }
+    }
+
+    fun retainAvailable(pendingIds: Set<PendingMeasurementId>) {
+        while (true) {
+            val current = mutableActive.value ?: return
+            if (current.state.pending.id in pendingIds) return
+            if (mutableActive.compareAndSet(current, null)) return
+        }
+    }
+
+    fun takeClose(requestedPendingId: PendingMeasurementId): PendingResolverCompletion? {
+        while (true) {
+            val current = mutableActive.value ?: return null
+            val completion = current.completionFor(requestedPendingId) ?: return null
+            if (mutableActive.compareAndSet(current, null)) return completion
         }
     }
 }

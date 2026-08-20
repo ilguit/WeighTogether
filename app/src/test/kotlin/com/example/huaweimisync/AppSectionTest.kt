@@ -39,6 +39,11 @@ class AppSectionTest {
                 showBottomNavigation = false,
                 contentUsesSafeDrawingInsets = true,
             ),
+            MeasurementsDestination.PENDING_QUEUE to MeasurementsChrome(
+                showTopBar = false,
+                showBottomNavigation = false,
+                contentUsesSafeDrawingInsets = true,
+            ),
             MeasurementsDestination.EDITOR to MeasurementsChrome(
                 showTopBar = false,
                 showBottomNavigation = false,

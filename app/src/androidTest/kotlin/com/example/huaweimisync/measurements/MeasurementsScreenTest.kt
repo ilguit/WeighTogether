@@ -18,7 +18,9 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.huaweimisync.MeasurementsViewModel
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import kotlinx.coroutines.channels.Channel
@@ -51,6 +53,133 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
         composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
         composeRule.onNodeWithText("Изменить").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingQueueCardOpensQueueFromPopulatedSummary() {
+        var state by mutableStateOf(sampleState().copy(pendingCount = 2))
+        val callbacks = callbacks(
+            onPendingQueueRequested = {
+                state = state.copy(destination = MeasurementsDestination.PENDING_QUEUE)
+            },
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertIsDisplayed()
+        composeRule.onNodeWithText("Не назначено: 2").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-queue-summary-card").performClick()
+        composeRule.onNodeWithTag("pending-queue").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingQueueCardRemainsAvailableWithoutSavedMeasurements() {
+        var opened = false
+        val state = MeasurementsUiState(
+            pendingCount = 3,
+            isLoading = false,
+        )
+        val callbacks = callbacks(onPendingQueueRequested = { opened = true })
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertIsDisplayed()
+        composeRule.onNodeWithText("Не назначено: 3").assertIsDisplayed()
+        composeRule.onNodeWithText("Пока нет измерений").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-queue-summary-card").performClick()
+        composeRule.runOnIdle { assertEquals(true, opened) }
+    }
+
+    @Test
+    fun emptyPendingQueueDoesNotAddSummaryCard() {
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(
+                    state = sampleState(),
+                    callbacks = MeasurementsCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("pending-queue-summary-card").assertDoesNotExist()
+    }
+
+    @Test
+    fun pendingQueueShowsEveryReadingAndDispatchesAddressedActions() {
+        val first = pendingItem(
+            id = "pending-first",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            impedance = 512,
+        )
+        val second = pendingItem(
+            id = "pending-second",
+            instant = "2026-08-15T12:44:00Z",
+            weight = 73.1,
+            impedance = null,
+        )
+        var assignedId: PendingMeasurementId? = null
+        var previewedId: PendingMeasurementId? = null
+        var deletedId: PendingMeasurementId? = null
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.PENDING_QUEUE,
+            pendingCount = 2,
+            pendingMeasurements = listOf(first, second),
+            isLoading = false,
+        )
+        val callbacks = MeasurementsCallbacks.None.copy(
+            onPendingAssignRequested = { assignedId = it },
+            onPendingPreviewRequested = { previewedId = it },
+            onPendingDeleteRequested = { deletedId = it },
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+        }
+
+        composeRule.onNodeWithTag("pending-card-${first.id.value}").assertExists()
+        composeRule.onNodeWithText(formatMeasurementDateTime(first.measuredAtEpochMillis)).assertExists()
+        composeRule.onNodeWithText(
+            "${formatMeasurementValue(MeasurementField.WEIGHT_KG, first.weightKg)} кг",
+        ).assertExists()
+        composeRule.onNodeWithText("512 Ом").assertExists()
+
+        composeRule.onNodeWithTag("pending-assign-${first.id.value}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("pending-preview-${first.id.value}").performScrollTo().performClick()
+        composeRule.onNodeWithTag("pending-delete-${first.id.value}").performScrollTo().performClick()
+        composeRule.runOnIdle {
+            assertEquals(first.id, assignedId)
+            assertEquals(first.id, previewedId)
+            assertEquals(first.id, deletedId)
+        }
+
+        composeRule.onNodeWithTag("pending-card-${second.id.value}").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText(formatMeasurementDateTime(second.measuredAtEpochMillis))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("—").assertExists()
+    }
+
+    @Test
+    fun pendingQueueShowsEmptyStateAfterLastReadingIsHandled() {
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.PENDING_QUEUE,
+            isLoading = false,
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithTag("empty-pending-queue").assertIsDisplayed()
+        composeRule.onNodeWithText("Нет неназначенных измерений").assertIsDisplayed()
+        composeRule.onNodeWithText("Все измерения обработаны.").assertIsDisplayed()
     }
 
     @Test
@@ -221,12 +350,14 @@ class MeasurementsScreenTest {
     }
 
     private fun callbacks(
+        onPendingQueueRequested: () -> Unit = {},
         onHistoryRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
         onDeleteRequested: (String) -> Unit = {},
         onDeleteConfirmed: (String) -> Unit = {},
         onRetryRequested: (String) -> Unit = {},
     ) = MeasurementsCallbacks.None.copy(
+        onPendingQueueRequested = onPendingQueueRequested,
         onHistoryRequested = onHistoryRequested,
         onEditRequested = onEditRequested,
         onDeleteRequested = onDeleteRequested,
@@ -291,6 +422,18 @@ class MeasurementsScreenTest {
         sync = sync,
         type = type,
         isDeleteProtected = isDeleteProtected,
+    )
+
+    private fun pendingItem(
+        id: String,
+        instant: String,
+        weight: Double,
+        impedance: Int?,
+    ) = PendingMeasurementUiItem(
+        id = PendingMeasurementId(id),
+        measuredAtEpochMillis = Instant.parse(instant).toEpochMilli(),
+        weightKg = weight,
+        impedanceOhm = impedance,
     )
 
     private fun sampleValues(weight: Double) = MeasurementUiValues(

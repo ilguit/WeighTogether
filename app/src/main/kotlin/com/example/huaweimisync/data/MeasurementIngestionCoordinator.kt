@@ -7,12 +7,15 @@ import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementPreview
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
@@ -22,6 +25,8 @@ import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Small persistence boundary which keeps ingestion logic unit-testable without Room. */
 interface MeasurementRoutingPersistence {
@@ -46,7 +51,9 @@ interface MeasurementRoutingPersistence {
         account: NewAccount,
     ): CreateAccountAndAssignResult
 
-    suspend fun discardPending(pendingId: PendingMeasurementId): Boolean
+    suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
+
+    suspend fun restorePending(undoToken: PendingDiscardUndoToken): RestorePendingResult
 }
 
 interface PendingDecisionNotifier {
@@ -95,6 +102,8 @@ class MeasurementIngestionCoordinator(
     private val notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     private val matchingEngine: MatchingEngine = MatchingEngine(),
 ) {
+    private val pendingPresentationMutex = Mutex()
+
     suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
@@ -152,10 +161,16 @@ class MeasurementIngestionCoordinator(
         return result
     }
 
-    suspend fun discard(pendingId: PendingMeasurementId): Boolean {
-        val discarded = persistence.discardPending(pendingId)
-        refreshPendingPresentation()
-        return discarded
+    suspend fun discard(pendingId: PendingMeasurementId): DiscardPendingResult {
+        val result = persistence.discardPending(pendingId)
+        if (result is DiscardPendingResult.Discarded) refreshPendingPresentation()
+        return result
+    }
+
+    suspend fun restore(undoToken: PendingDiscardUndoToken): RestorePendingResult {
+        val result = persistence.restorePending(undoToken)
+        if (result is RestorePendingResult.Restored) refreshPendingPresentation()
+        return result
     }
 
     /** Calculates only in memory; the supplied profile and result never cross persistence. */
@@ -193,10 +208,10 @@ class MeasurementIngestionCoordinator(
         return MeasurementIngestionSweepResult(assigned, awaiting)
     }
 
-    suspend fun refreshPendingPresentation(): Int {
+    suspend fun refreshPendingPresentation(): Int = pendingPresentationMutex.withLock {
         val count = persistence.pendingSnapshot().size
         notifier.updatePendingCount(count)
-        return count
+        count
     }
 
     private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {

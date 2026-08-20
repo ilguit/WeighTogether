@@ -1,11 +1,15 @@
 package com.example.huaweimisync.measurements
 
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 
 /** State-based destinations owned by the measurements feature. */
 enum class MeasurementsDestination {
     SUMMARY,
+    PENDING_QUEUE,
     HISTORY,
     EDITOR,
 }
@@ -29,6 +33,10 @@ data class MeasurementsNavigationState(
         destination = MeasurementsDestination.HISTORY,
     )
 
+    fun showPendingQueue(): MeasurementsNavigationState = copy(
+        destination = MeasurementsDestination.PENDING_QUEUE,
+    )
+
     fun showEditor(origin: MeasurementEditorOrigin): MeasurementsNavigationState = copy(
         destination = MeasurementsDestination.EDITOR,
         editorOrigin = origin,
@@ -36,8 +44,16 @@ data class MeasurementsNavigationState(
 
     fun back(): MeasurementsNavigationState = when (destination) {
         MeasurementsDestination.EDITOR -> copy(destination = editorOrigin.destination)
+        MeasurementsDestination.PENDING_QUEUE,
         MeasurementsDestination.HISTORY -> copy(destination = MeasurementsDestination.SUMMARY)
         MeasurementsDestination.SUMMARY -> this
+    }
+
+    fun afterPendingResolution(
+        returnDestination: PendingResolverReturnDestination,
+    ): MeasurementsNavigationState = when (returnDestination) {
+        PendingResolverReturnDestination.PENDING_QUEUE -> showPendingQueue()
+        PendingResolverReturnDestination.PRESERVE_CURRENT -> this
     }
 }
 
@@ -214,6 +230,21 @@ data class MeasurementUiItem(
         get() = sync.canRetry
 }
 
+data class PendingMeasurementUiItem(
+    val id: PendingMeasurementId,
+    val measuredAtEpochMillis: Long,
+    val weightKg: Double,
+    val impedanceOhm: Int?,
+)
+
+internal fun PendingMeasurement.toPendingMeasurementUiItem(): PendingMeasurementUiItem =
+    PendingMeasurementUiItem(
+        id = id,
+        measuredAtEpochMillis = measuredAt.toEpochMilli(),
+        weightKg = weightKg,
+        impedanceOhm = impedanceOhm.takeIf { hasImpedance },
+    )
+
 data class MeasurementMetricPresentation(
     val field: MeasurementField,
     val value: Double?,
@@ -282,6 +313,8 @@ data class MeasurementsUiState(
     val editorOrigin: MeasurementEditorOrigin = MeasurementEditorOrigin.SUMMARY,
     val measurements: List<MeasurementUiItem> = emptyList(),
     val summary: MeasurementSummaryPresentation? = null,
+    val pendingCount: Int = 0,
+    val pendingMeasurements: List<PendingMeasurementUiItem> = emptyList(),
     val isLoading: Boolean = true,
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
@@ -291,6 +324,10 @@ data class MeasurementsUiState(
         primaryAccountId = null,
     ),
 ) {
+    init {
+        require(pendingCount >= 0) { "Pending measurement count cannot be negative" }
+    }
+
     val isHistoryEmpty: Boolean
         get() = !isLoading && measurements.isEmpty()
 
@@ -307,6 +344,7 @@ sealed interface MeasurementsUiEvent {
 
 data class MeasurementsCallbacks(
     val onSummaryRequested: () -> Unit,
+    val onPendingQueueRequested: () -> Unit,
     val onHistoryRequested: () -> Unit,
     val onBackRequested: () -> Unit,
     val onEditRequested: (measurementId: String, origin: MeasurementEditorOrigin) -> Unit,
@@ -318,10 +356,14 @@ data class MeasurementsCallbacks(
     val onDeleteDismissed: () -> Unit,
     val onRetryRequested: (measurementId: String) -> Unit,
     val onAccountSelected: (AccountId) -> Unit = {},
+    val onPendingAssignRequested: (PendingMeasurementId) -> Unit = {},
+    val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},
+    val onPendingDeleteRequested: (PendingMeasurementId) -> Unit = {},
 ) {
     companion object {
         val None = MeasurementsCallbacks(
             onSummaryRequested = {},
+            onPendingQueueRequested = {},
             onHistoryRequested = {},
             onBackRequested = {},
             onEditRequested = { _, _ -> },
@@ -333,6 +375,9 @@ data class MeasurementsCallbacks(
             onDeleteDismissed = {},
             onRetryRequested = {},
             onAccountSelected = {},
+            onPendingAssignRequested = {},
+            onPendingPreviewRequested = {},
+            onPendingDeleteRequested = {},
         )
     }
 }

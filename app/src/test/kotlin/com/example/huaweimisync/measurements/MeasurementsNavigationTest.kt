@@ -1,9 +1,18 @@
 package com.example.huaweimisync.measurements
 
+import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class MeasurementsNavigationTest {
+    @Test
+    fun pendingQueueBackReturnsToSummary() {
+        val pendingQueue = MeasurementsNavigationState().showPendingQueue()
+
+        assertEquals(MeasurementsDestination.PENDING_QUEUE, pendingQueue.destination)
+        assertEquals(MeasurementsDestination.SUMMARY, pendingQueue.back().destination)
+    }
+
     @Test
     fun historyBackReturnsToSummary() {
         val history = MeasurementsNavigationState().showHistory()
@@ -38,5 +47,27 @@ class MeasurementsNavigationTest {
         val summary = MeasurementsNavigationState()
 
         assertEquals(summary, summary.back())
+    }
+
+    @Test
+    fun queueOriginResolutionReturnsToPendingQueue() {
+        val history = MeasurementsNavigationState().showHistory()
+
+        val returned = history.afterPendingResolution(
+            PendingResolverReturnDestination.PENDING_QUEUE,
+        )
+
+        assertEquals(MeasurementsDestination.PENDING_QUEUE, returned.destination)
+    }
+
+    @Test
+    fun externalResolutionPreservesCurrentDestination() {
+        val history = MeasurementsNavigationState().showHistory()
+
+        val returned = history.afterPendingResolution(
+            PendingResolverReturnDestination.PRESERVE_CURRENT,
+        )
+
+        assertEquals(history, returned)
     }
 }

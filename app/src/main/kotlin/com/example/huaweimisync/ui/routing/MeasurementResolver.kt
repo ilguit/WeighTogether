@@ -10,6 +10,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -34,6 +35,7 @@ object MeasurementResolverTestTags {
     const val Dialog = "measurement-resolver"
     const val CreateAccount = "measurement-resolver-create-account"
     const val WithoutSaving = "measurement-resolver-without-saving"
+    const val Delete = "measurement-resolver-delete"
     const val Later = "measurement-resolver-later"
     const val ForegroundFallback = "measurement-resolver-foreground-fallback"
     fun account(accountId: AccountId): String = "measurement-resolver-account-${accountId.value}"
@@ -114,6 +116,16 @@ fun MeasurementResolverDialog(
                     enabled = !state.operationInProgress,
                     modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.WithoutSaving),
                 ) { Text("Показать без сохранения") }
+                OutlinedButton(
+                    onClick = { callbacks.onDelete(state.pending.id) },
+                    enabled = !state.operationInProgress,
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                    modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.Delete),
+                ) {
+                    Text("Удалить")
+                }
             }
         },
         confirmButton = {},

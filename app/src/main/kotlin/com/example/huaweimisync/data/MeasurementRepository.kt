@@ -9,13 +9,16 @@ import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingEnqueueResult
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementPreview
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
@@ -319,9 +322,17 @@ class MeasurementRepository(
         "Multi-account ingestion is not configured"
     }.createAccountAndAssign(pendingId, account)
 
-    override suspend fun discardPending(pendingId: PendingMeasurementId): Boolean =
+    override suspend fun discardPending(
+        pendingId: PendingMeasurementId,
+    ): DiscardPendingResult =
         requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
             .discard(pendingId)
+
+    override suspend fun restorePending(
+        undoToken: PendingDiscardUndoToken,
+    ): RestorePendingResult =
+        requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
+            .restore(undoToken)
 
     private suspend fun eligiblePendingEntities(): List<MeasurementEntity> {
         val accounts = requireNotNull(accountRepository)

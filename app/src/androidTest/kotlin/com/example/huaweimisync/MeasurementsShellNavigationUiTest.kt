@@ -39,6 +39,22 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
+    fun pendingQueueOwnsChromeAndSystemBackReturnsToSummary() {
+        setMeasurementsShell(MeasurementsNavigationState().showPendingQueue())
+
+        composeRule.onNodeWithTag("pending-queue").assertIsDisplayed()
+        composeRule.onNodeWithText("Не назначено").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+
+        pressSystemBack()
+
+        composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+    }
+
+    @Test
     fun historyOwnsChromeAndSystemBackReturnsToSummary() {
         setMeasurementsShell()
 
@@ -125,6 +141,9 @@ class MeasurementsShellNavigationUiTest {
             },
             onHistoryRequested = {
                 navigation.value = navigation.value.showHistory()
+            },
+            onPendingQueueRequested = {
+                navigation.value = navigation.value.showPendingQueue()
             },
             onBackRequested = {
                 navigation.value = navigation.value.back()

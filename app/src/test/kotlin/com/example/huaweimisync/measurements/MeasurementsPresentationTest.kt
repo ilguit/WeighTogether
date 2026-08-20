@@ -1,5 +1,8 @@
 package com.example.huaweimisync.measurements
 
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
+import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -32,6 +35,43 @@ class MeasurementsPresentationTest {
         assertTrue(MeasurementsUiState(isLoading = false).hasNoLatestMeasurement)
         assertTrue(MeasurementsUiState(isLoading = false).isHistoryEmpty)
         assertFalse(MeasurementsUiState().hasNoLatestMeasurement)
+    }
+
+    @Test(expected = IllegalArgumentException::class)
+    fun pendingCountCannotBeNegative() {
+        MeasurementsUiState(pendingCount = -1)
+    }
+
+    @Test
+    fun pendingReadingMapsLosslesslyToQueuePresentation() {
+        val measuredAt = Instant.parse("2026-08-15T12:42:00Z")
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("pending-1"),
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = measuredAt,
+            weightKg = 72.4,
+            impedanceOhm = 512,
+            isStable = true,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(1, 2, 3),
+            deduplicationHash = "hash-1",
+            enqueuedAt = measuredAt.plusSeconds(5),
+        )
+
+        assertEquals(
+            PendingMeasurementUiItem(
+                id = pending.id,
+                measuredAtEpochMillis = measuredAt.toEpochMilli(),
+                weightKg = 72.4,
+                impedanceOhm = 512,
+            ),
+            pending.toPendingMeasurementUiItem(),
+        )
+        assertNull(
+            pending.copy(hasImpedance = false)
+                .toPendingMeasurementUiItem()
+                .impedanceOhm,
+        )
     }
 
     @Test

@@ -7,11 +7,14 @@ import com.example.huaweimisync.core.measurementFingerprint
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
+import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.toRawScaleMeasurement
 import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
@@ -235,8 +238,15 @@ class RoomMeasurementPersistence(
 
     override suspend fun discardPending(
         pendingId: PendingMeasurementId,
-    ): Boolean = database.withTransaction {
-        val pending = pendingDao.get(pendingId.value) ?: return@withTransaction false
+    ): DiscardPendingResult = database.withTransaction {
+        measurementDao.getByPendingId(pendingId.value)?.let { finalized ->
+            return@withTransaction DiscardPendingResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+        val pending = pendingDao.get(pendingId.value)
+            ?: return@withTransaction DiscardPendingResult.PendingNotFound
+        val undoToken = PendingDiscardUndoToken(pending.toDomain())
         val expiresAt = now().plus(TOMBSTONE_TTL).toEpochMilli()
         pendingDao.upsertTombstone(
             MeasurementTombstoneEntity(
@@ -247,7 +257,52 @@ class RoomMeasurementPersistence(
         check(pendingDao.delete(pendingId.value) == 1) {
             "Pending measurement disappeared inside its discard transaction"
         }
-        true
+        DiscardPendingResult.Discarded(undoToken)
+    }
+
+    override suspend fun restorePending(
+        undoToken: PendingDiscardUndoToken,
+    ): RestorePendingResult = database.withTransaction {
+        val pending = undoToken.pending
+        val raw = pending.toRawScaleMeasurement()
+        val finalized = measurementDao.getByPendingId(pending.id.value)
+            ?: measurementDao.getByDeduplicationHash(pending.deduplicationHash)
+            ?: measurementDao.getByFingerprint(measurementFingerprint(raw))
+        if (finalized != null) {
+            return@withTransaction RestorePendingResult.AlreadyFinalized(
+                finalized.toAccountMeasurement(),
+            )
+        }
+
+        pendingDao.get(pending.id.value)?.let { existing ->
+            val existingPending = existing.toDomain()
+            return@withTransaction if (existingPending == pending) {
+                RestorePendingResult.AlreadyRestored(existingPending)
+            } else {
+                RestorePendingResult.Conflict(existingPending)
+            }
+        }
+        pendingDao.getByHash(pending.deduplicationHash)?.let { existing ->
+            return@withTransaction RestorePendingResult.Conflict(existing.toDomain())
+        }
+
+        val entity = pending.toEntity()
+        if (pendingDao.insert(entity) == -1L) {
+            val conflicting = pendingDao.get(pending.id.value)
+                ?: pendingDao.getByHash(pending.deduplicationHash)
+                ?: error("Pending restore conflicted without a durable matching record")
+            val conflictingPending = conflicting.toDomain()
+            return@withTransaction if (conflictingPending == pending) {
+                RestorePendingResult.AlreadyRestored(conflictingPending)
+            } else {
+                RestorePendingResult.Conflict(conflictingPending)
+            }
+        }
+
+        // The insert and tombstone deletion share this transaction. If deletion fails, Room rolls
+        // the restored row back and the tombstone remains authoritative.
+        pendingDao.deleteTombstone(pending.deduplicationHash)
+        RestorePendingResult.Restored(entity.toDomain())
     }
 
     suspend fun cleanupExpiredTombstones(): Int =
@@ -377,6 +432,21 @@ fun RawScaleMeasurement.deduplicationHash(): String {
 
 private fun PendingMeasurementEntity.hasFullBodyComposition(): Boolean =
     toDomain().toRawScaleMeasurement().hasFullBodyComposition
+
+private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMeasurementEntity(
+    id = id.value,
+    deviceAddress = deviceAddress,
+    measuredAtEpochSecond = measuredAt.epochSecond,
+    measuredAtNano = measuredAt.nano,
+    weightKg = weightKg,
+    impedanceOhm = impedanceOhm,
+    isStable = isStable,
+    hasImpedance = hasImpedance,
+    rawPayload = rawPayload.copyOf(),
+    deduplicationHash = deduplicationHash,
+    enqueuedAtEpochMillis = enqueuedAt.toEpochMilli(),
+    rawWeight = rawWeight,
+)
 
 private fun String.requeueUnlessTerminal(): String = when (this) {
     SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this

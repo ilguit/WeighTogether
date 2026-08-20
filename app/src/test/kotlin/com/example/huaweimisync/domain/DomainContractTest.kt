@@ -2,6 +2,7 @@ package com.example.huaweimisync.domain
 
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
+import java.io.Serializable
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertArrayEquals
@@ -78,6 +79,30 @@ class DomainContractTest {
 
         assertArrayEquals(byteArrayOf(1, 2, 3), pending.rawPayload)
         assertEquals(raw.copy(rawPayload = byteArrayOf(1, 2, 3)), pending.toRawScaleMeasurement())
+    }
+
+    @Test
+    fun discardUndoTokenIsAnInMemoryFullPendingSnapshot() {
+        val pending = RawScaleMeasurement(
+            deviceAddress = "AA:BB",
+            measuredAt = Instant.parse("2025-01-02T03:04:05.123456789Z"),
+            weightKg = 72.5,
+            impedanceOhm = 500,
+            isStable = true,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(1, 2, 3),
+        ).toPendingMeasurement(
+            id = PendingMeasurementId("pending-undo"),
+            deduplicationHash = "hash-undo",
+            enqueuedAt = Instant.parse("2025-01-02T03:04:06Z"),
+        )
+        val token = PendingDiscardUndoToken(pending)
+
+        assertEquals(pending, token.pending)
+        assertEquals(pending.id, token.pendingId)
+        assertEquals(pending.deduplicationHash, token.deduplicationHash)
+        assertEquals(pending.enqueuedAt, token.enqueuedAt)
+        assertFalse(Serializable::class.java.isAssignableFrom(token.javaClass))
     }
 
     private fun completeProfile() = AccountProfile.Complete(
