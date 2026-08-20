@@ -25,6 +25,8 @@ import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /** Small persistence boundary which keeps ingestion logic unit-testable without Room. */
 interface MeasurementRoutingPersistence {
@@ -100,6 +102,8 @@ class MeasurementIngestionCoordinator(
     private val notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     private val matchingEngine: MatchingEngine = MatchingEngine(),
 ) {
+    private val pendingPresentationMutex = Mutex()
+
     suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
@@ -159,12 +163,15 @@ class MeasurementIngestionCoordinator(
 
     suspend fun discard(pendingId: PendingMeasurementId): DiscardPendingResult {
         val result = persistence.discardPending(pendingId)
-        refreshPendingPresentation()
+        if (result is DiscardPendingResult.Discarded) refreshPendingPresentation()
         return result
     }
 
-    suspend fun restore(undoToken: PendingDiscardUndoToken): RestorePendingResult =
-        persistence.restorePending(undoToken)
+    suspend fun restore(undoToken: PendingDiscardUndoToken): RestorePendingResult {
+        val result = persistence.restorePending(undoToken)
+        if (result is RestorePendingResult.Restored) refreshPendingPresentation()
+        return result
+    }
 
     /** Calculates only in memory; the supplied profile and result never cross persistence. */
     suspend fun previewWithoutSaving(
@@ -201,10 +208,10 @@ class MeasurementIngestionCoordinator(
         return MeasurementIngestionSweepResult(assigned, awaiting)
     }
 
-    suspend fun refreshPendingPresentation(): Int {
+    suspend fun refreshPendingPresentation(): Int = pendingPresentationMutex.withLock {
         val count = persistence.pendingSnapshot().size
         notifier.updatePendingCount(count)
-        return count
+        count
     }
 
     private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {

@@ -25,9 +25,14 @@ import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
 import com.example.huaweimisync.domain.toPendingMeasurement
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
+import com.example.huaweimisync.worker.PendingDecisionFallback
+import com.example.huaweimisync.worker.PendingDecisionPresentationCoordinator
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
@@ -210,11 +215,24 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
-    fun restoreIsIdempotentWithoutChangingNotificationPresentation() = runBlocking {
+    fun deletingLastPendingCancelsNotificationAndRestoreRepostsExactlyOnce() = runBlocking {
         val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
         val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
         val persistence = FakeRoutingPersistence(accounts)
-        val notifier = RecordingNotifier()
+        val posted = mutableListOf<Int>()
+        var cancelled = 0
+        val presentation = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = posted::add,
+            cancelNotification = { cancelled += 1 },
+        )
+        val presentedCounts = mutableListOf<Int>()
+        val notifier = object : PendingDecisionNotifier {
+            override fun updatePendingCount(count: Int) {
+                presentedCounts += count
+                presentation.updatePendingCount(count)
+            }
+        }
         val coordinator = coordinator(
             persistence,
             accounts,
@@ -225,14 +243,19 @@ class MeasurementIngestionCoordinatorTest {
             as MeasurementIngestionResult.AwaitingDecision
         val token = (coordinator.discard(waiting.pending.id) as DiscardPendingResult.Discarded)
             .undoToken
+        val repeatedDelete = coordinator.discard(waiting.pending.id)
 
         val restored = coordinator.restore(token)
         val repeated = coordinator.restore(token)
 
+        assertEquals(DiscardPendingResult.PendingNotFound, repeatedDelete)
         assertEquals(RestorePendingResult.Restored(waiting.pending), restored)
         assertEquals(RestorePendingResult.AlreadyRestored(waiting.pending), repeated)
         assertEquals(listOf(waiting.pending), persistence.pendingSnapshot())
-        assertEquals(listOf(1, 0), notifier.counts)
+        assertEquals(listOf(1, 0, 1), presentedCounts)
+        assertEquals(listOf(1, 1), posted)
+        assertEquals(1, cancelled)
+        assertEquals(PendingDecisionFallback.Hidden, presentation.notificationDeniedFallback.value)
     }
 
     @Test
@@ -257,6 +280,39 @@ class MeasurementIngestionCoordinatorTest {
 
         assertTrue(failure.exceptionOrNull() is IllegalStateException)
         assertNull(persistence.getPending(waiting.pending.id))
+        assertEquals(listOf(1, 0), notifier.counts)
+    }
+
+    @Test
+    fun concurrentRefreshCannotPublishAnOlderPendingCountLast() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val inserted = persistence.enqueue(raw(70.0)) as PendingPersistenceResult.Inserted
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        )
+        val firstSnapshotCaptured = CompletableDeferred<Unit>()
+        val releaseFirstSnapshot = CompletableDeferred<Unit>()
+        persistence.firstPendingSnapshotCaptured = firstSnapshotCaptured
+        persistence.releaseFirstPendingSnapshot = releaseFirstSnapshot
+
+        val olderRefresh = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.refreshPendingPresentation()
+        }
+        firstSnapshotCaptured.await()
+        assertTrue(persistence.discardPending(inserted.pending.id) is DiscardPendingResult.Discarded)
+        val newerRefresh = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.refreshPendingPresentation()
+        }
+
+        releaseFirstSnapshot.complete(Unit)
+        olderRefresh.await()
+        newerRefresh.await()
+
         assertEquals(listOf(1, 0), notifier.counts)
     }
 
@@ -288,6 +344,9 @@ private class FakeRoutingPersistence(
     private var nextId = 0
     var discardFailure: Throwable? = null
     var restoreFailure: Throwable? = null
+    var firstPendingSnapshotCaptured: CompletableDeferred<Unit>? = null
+    var releaseFirstPendingSnapshot: CompletableDeferred<Unit>? = null
+    private var pendingSnapshotCallCount = 0
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
@@ -309,7 +368,15 @@ private class FakeRoutingPersistence(
 
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? = pending[id]
 
-    override suspend fun pendingSnapshot(): List<PendingMeasurement> = pending.values.toList()
+    override suspend fun pendingSnapshot(): List<PendingMeasurement> {
+        val snapshot = pending.values.toList()
+        pendingSnapshotCallCount += 1
+        if (pendingSnapshotCallCount == 1) {
+            firstPendingSnapshotCaptured?.complete(Unit)
+            releaseFirstPendingSnapshot?.await()
+        }
+        return snapshot
+    }
 
     override suspend fun latestHistoryBefore(
         accountId: AccountId,
