@@ -192,6 +192,8 @@ private class RecordingScheduler : MeasurementSyncScheduler {
 
     override fun enqueue(measurementId: String) = Unit
 
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
     override fun cancel(measurementId: String) = Unit
 
     override fun reschedule(measurementId: String, notBeforeEpochMillis: Long) {

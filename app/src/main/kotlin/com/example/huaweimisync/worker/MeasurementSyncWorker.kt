@@ -38,10 +38,10 @@ class MeasurementSyncWorker(
                 MeasurementSyncOutcome.Complete -> Result.success()
                 MeasurementSyncOutcome.Retry -> Result.retry()
                 is MeasurementSyncOutcome.Deferred -> {
-                    // Keep REPLACE inside the same critical section as deletion. Whichever
-                    // operation wins is final: deletion-after-defer cancels the replacement,
-                    // while deletion-before-defer makes the Room reload complete without it.
-                    container.syncScheduler.reschedule(id, outcome.notBeforeEpochMillis)
+                    // Append the deferred request while this worker still owns the operation
+                    // serializer. Deletion-after-defer cancels the whole chain, while
+                    // deletion-before-defer makes the Room reload complete without this id.
+                    container.syncScheduler.deferCurrent(id, outcome.notBeforeEpochMillis)
                     Result.success()
                 }
             }

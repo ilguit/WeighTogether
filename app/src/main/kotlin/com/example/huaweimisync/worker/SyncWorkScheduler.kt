@@ -3,6 +3,7 @@ package com.example.huaweimisync.worker
 import android.content.Context
 import androidx.work.BackoffPolicy
 import androidx.work.ExistingWorkPolicy
+import androidx.work.OneTimeWorkRequest
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -21,6 +22,8 @@ interface MeasurementSyncScheduler {
         measurementIds.forEach(::cancel)
     }
 
+    fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long)
+
     fun reschedule(measurementId: String, notBeforeEpochMillis: Long) {
         cancel(measurementId)
         enqueue(measurementId, notBeforeEpochMillis)
@@ -31,11 +34,21 @@ interface MeasurementSyncScheduler {
     }
 }
 
-class SyncWorkScheduler(
-    private val context: Context,
+class SyncWorkScheduler internal constructor(
+    private val workManager: MeasurementSyncWorkManager,
     private val pausedUntilProvider: () -> Long = { 0L },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) : MeasurementSyncScheduler {
+    constructor(
+        context: Context,
+        pausedUntilProvider: () -> Long = { 0L },
+        nowEpochMillis: () -> Long = System::currentTimeMillis,
+    ) : this(
+        workManager = AndroidMeasurementSyncWorkManager(WorkManager.getInstance(context)),
+        pausedUntilProvider = pausedUntilProvider,
+        nowEpochMillis = nowEpochMillis,
+    )
+
     override fun enqueue(measurementId: String) {
         enqueueUnique(measurementId, pausedUntilProvider(), ExistingWorkPolicy.KEEP)
     }
@@ -49,7 +62,19 @@ class SyncWorkScheduler(
     }
 
     override fun reschedule(measurementId: String, notBeforeEpochMillis: Long) {
-        enqueueUnique(measurementId, notBeforeEpochMillis, ExistingWorkPolicy.REPLACE)
+        enqueueUnique(
+            measurementId,
+            effectiveNotBeforeEpochMillis(notBeforeEpochMillis, pausedUntilProvider()),
+            ExistingWorkPolicy.REPLACE,
+        )
+    }
+
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) {
+        enqueueUnique(
+            measurementId,
+            effectiveNotBeforeEpochMillis(notBeforeEpochMillis, pausedUntilProvider()),
+            ExistingWorkPolicy.APPEND_OR_REPLACE,
+        )
     }
 
     private fun enqueueUnique(
@@ -65,7 +90,7 @@ class SyncWorkScheduler(
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
             .build()
-        WorkManager.getInstance(context).enqueueUniqueWork(
+        workManager.enqueueUniqueWork(
             "sync-$measurementId",
             policy,
             work,
@@ -73,7 +98,33 @@ class SyncWorkScheduler(
     }
 
     override fun cancel(measurementId: String) {
-        WorkManager.getInstance(context).cancelUniqueWork("sync-$measurementId")
+        workManager.cancelUniqueWork("sync-$measurementId")
+    }
+}
+
+internal interface MeasurementSyncWorkManager {
+    fun enqueueUniqueWork(
+        uniqueWorkName: String,
+        existingWorkPolicy: ExistingWorkPolicy,
+        work: OneTimeWorkRequest,
+    )
+
+    fun cancelUniqueWork(uniqueWorkName: String)
+}
+
+private class AndroidMeasurementSyncWorkManager(
+    private val workManager: WorkManager,
+) : MeasurementSyncWorkManager {
+    override fun enqueueUniqueWork(
+        uniqueWorkName: String,
+        existingWorkPolicy: ExistingWorkPolicy,
+        work: OneTimeWorkRequest,
+    ) {
+        workManager.enqueueUniqueWork(uniqueWorkName, existingWorkPolicy, work)
+    }
+
+    override fun cancelUniqueWork(uniqueWorkName: String) {
+        workManager.cancelUniqueWork(uniqueWorkName)
     }
 }
 

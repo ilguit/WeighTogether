@@ -451,6 +451,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
 private object NoOpSyncScheduler : MeasurementSyncScheduler {
     override fun enqueue(measurementId: String) = Unit
 
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
     override fun cancel(measurementId: String) = Unit
 }
 
