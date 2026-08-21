@@ -143,34 +143,38 @@ class RoomMeasurementPersistence(
             }
 
             val measuredAtEpochSecond = raw.measuredAt.epochSecond
-            val minimumEpochSecond = measuredAtEpochSecond.saturatingMinus(DEBOUNCE_SECONDS - 1)
-            val maximumEpochSecond = measuredAtEpochSecond.saturatingPlus(DEBOUNCE_SECONDS - 1)
+            val candidateBounds = MeasurementDeduplicationPolicy.epochSecondBounds(
+                measuredAtEpochSecond,
+            )
             val candidate = listOfNotNull(
                 pendingDao.findNearestActiveTombstone(
                     deviceAddress = raw.deviceAddress,
                     rawWeight = raw.rawWeight,
                     measuredAtEpochSecond = measuredAtEpochSecond,
-                    minimumEpochSecond = minimumEpochSecond,
-                    maximumEpochSecond = maximumEpochSecond,
+                    minimumEpochSecond = candidateBounds.first,
+                    maximumEpochSecond = candidateBounds.last,
                     nowEpochMillis = timestampMillis,
                 )?.let { DeduplicationCandidate.Tombstone(it) },
                 measurementDao.findNearestDeduplicationCandidate(
                     deviceAddress = raw.deviceAddress,
                     rawWeight = raw.rawWeight,
                     measuredAtEpochSecond = measuredAtEpochSecond,
-                    minimumEpochSecond = minimumEpochSecond,
-                    maximumEpochSecond = maximumEpochSecond,
+                    minimumEpochSecond = candidateBounds.first,
+                    maximumEpochSecond = candidateBounds.last,
                 )?.let { DeduplicationCandidate.Finalized(it) },
                 pendingDao.findNearestAggregate(
                     deviceAddress = raw.deviceAddress,
                     rawWeight = raw.rawWeight,
                     measuredAtEpochSecond = measuredAtEpochSecond,
-                    minimumEpochSecond = minimumEpochSecond,
-                    maximumEpochSecond = maximumEpochSecond,
+                    minimumEpochSecond = candidateBounds.first,
+                    maximumEpochSecond = candidateBounds.last,
                 )?.let { DeduplicationCandidate.Pending(it) },
-            ).minWithOrNull(
+            ).filter { it.isSameMeasurement(raw) }.minWithOrNull(
                 compareBy<DeduplicationCandidate> {
-                    absoluteSecondDifference(it.measuredAtEpochSecond, measuredAtEpochSecond)
+                    MeasurementDeduplicationPolicy.secondDifference(
+                        it.measuredAtEpochSecond,
+                        measuredAtEpochSecond,
+                    )
                 }.thenBy(DeduplicationCandidate::tieBreakPriority),
             )
 
@@ -575,7 +579,7 @@ class RoomMeasurementPersistence(
 
     companion object {
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
-        const val DEBOUNCE_SECONDS: Long = 10L
+        const val DEBOUNCE_SECONDS: Long = MeasurementDeduplicationPolicy.WINDOW_SECONDS
     }
 }
 
@@ -588,33 +592,42 @@ private fun FinalizePendingResult.toDueResult(): DuePendingPersistenceResult = w
 }
 
 private sealed interface DeduplicationCandidate {
+    val deviceAddress: String
+    val rawWeight: Int
     val measuredAtEpochSecond: Long
     val tieBreakPriority: Int
 
     data class Tombstone(val entity: MeasurementTombstoneEntity) : DeduplicationCandidate {
+        override val deviceAddress: String = requireNotNull(entity.deviceAddress)
+        override val rawWeight: Int = requireNotNull(entity.rawWeight)
         override val measuredAtEpochSecond: Long = requireNotNull(entity.measuredAtEpochSecond)
         override val tieBreakPriority: Int = 0
     }
 
     data class Finalized(val entity: MeasurementEntity) : DeduplicationCandidate {
+        override val deviceAddress: String = entity.deviceAddress
+        override val rawWeight: Int = entity.rawWeight
         override val measuredAtEpochSecond: Long = entity.measuredAtEpochSecond
         override val tieBreakPriority: Int = 1
     }
 
     data class Pending(val entity: PendingMeasurementEntity) : DeduplicationCandidate {
+        override val deviceAddress: String = entity.deviceAddress
+        override val rawWeight: Int = entity.rawWeight
         override val measuredAtEpochSecond: Long = entity.measuredAtEpochSecond
         override val tieBreakPriority: Int = 2
     }
 }
 
-private fun absoluteSecondDifference(first: Long, second: Long): ULong =
-    if (first >= second) first.toULong() - second.toULong() else second.toULong() - first.toULong()
-
-private fun Long.saturatingMinus(value: Long): Long =
-    if (this < Long.MIN_VALUE + value) Long.MIN_VALUE else this - value
-
-private fun Long.saturatingPlus(value: Long): Long =
-    if (this > Long.MAX_VALUE - value) Long.MAX_VALUE else this + value
+private fun DeduplicationCandidate.isSameMeasurement(raw: RawScaleMeasurement): Boolean =
+    MeasurementDeduplicationPolicy.isSameMeasurement(
+        deviceAddress = raw.deviceAddress,
+        rawWeight = raw.rawWeight,
+        measuredAtEpochSecond = raw.measuredAt.epochSecond,
+        candidateDeviceAddress = deviceAddress,
+        candidateRawWeight = rawWeight,
+        candidateMeasuredAtEpochSecond = measuredAtEpochSecond,
+    )
 
 fun RawScaleMeasurement.deduplicationHash(): String {
     val material = buildString {
