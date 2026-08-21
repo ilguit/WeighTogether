@@ -106,6 +106,7 @@ internal fun rememberChartMarker(
     return rememberDefaultCartesianMarker(
         label = label,
         valueFormatter = valueFormatter,
+        labelPosition = DefaultCartesianMarker.LabelPosition.AroundPoint,
         indicator = { color ->
             ShapeComponent(
                 fill = Fill(Color.White),
