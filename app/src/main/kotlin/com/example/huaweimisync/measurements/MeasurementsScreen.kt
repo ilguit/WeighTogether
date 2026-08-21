@@ -396,6 +396,14 @@ private fun MeasurementSummaryScreen(
                             },
                         )
                     }
+                    state.homeKgChart?.let { homeKgChart ->
+                        item {
+                            HomeKgChart(
+                                state = homeKgChart,
+                                onSeriesToggled = callbacks.onHomeKgChartSeriesToggled,
+                            )
+                        }
+                    }
                     item {
                         OutlinedButton(
                             onClick = callbacks.onHistoryRequested,
@@ -476,7 +484,12 @@ private fun MeasurementSummaryCard(
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         border = BorderStroke(1.dp, HuaweiColors.PrimaryContainerDim),
     ) {
-        Column(Modifier.padding(20.dp)) {
+        Column(
+            Modifier.padding(
+                horizontal = 16.dp,
+                vertical = HuaweiDimensions.CompactContentPadding,
+            ),
+        ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
@@ -543,7 +556,7 @@ private fun MeasurementSummaryCard(
             }
 
             Row(
-                modifier = Modifier.padding(top = 12.dp),
+                modifier = Modifier.padding(top = 4.dp),
                 verticalAlignment = Alignment.Bottom,
             ) {
                 Text(
@@ -551,8 +564,8 @@ private fun MeasurementSummaryCard(
                         MeasurementField.WEIGHT_KG,
                         summary.latest.values.weightKg,
                     ),
-                    fontSize = 40.sp,
-                    lineHeight = 44.sp,
+                    fontSize = 32.sp,
+                    lineHeight = 36.sp,
                     fontWeight = FontWeight.Medium,
                     letterSpacing = (-1).sp,
                 )
@@ -579,7 +592,7 @@ private fun MeasurementSummaryCard(
 
             MetricGrid(
                 metrics = summary.keyMetrics,
-                modifier = Modifier.padding(top = 18.dp),
+                modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
                 tileColor = HuaweiColors.SurfaceSubtle,
             )
 
@@ -620,9 +633,13 @@ private fun MetricGrid(
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val columnCount = if (maxWidth < 300.dp) 1 else 2
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             metrics.chunked(columnCount).forEach { rowMetrics ->
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(
+                        HuaweiDimensions.CompactItemSpacing,
+                    ),
+                ) {
                     rowMetrics.forEach { metric ->
                         MetricTile(
                             metric = metric,
@@ -644,15 +661,15 @@ private fun MetricTile(
     modifier: Modifier = Modifier,
 ) {
     Surface(
-        modifier = modifier.heightIn(min = 72.dp),
+        modifier = modifier.heightIn(min = 60.dp),
         shape = MaterialTheme.shapes.large,
         color = containerColor,
         contentColor = MaterialTheme.colorScheme.onSurface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(1.dp),
         ) {
             Text(
                 text = metric.label,

@@ -87,6 +87,7 @@ internal fun rememberChartBottomAxis(
 @Composable
 internal fun rememberChartMarker(
     valueFormatter: DefaultCartesianMarker.ValueFormatter,
+    lineCount: Int = 2,
 ): DefaultCartesianMarker {
     val background = rememberShapeComponent(
         fill = Fill(MaterialTheme.colorScheme.inverseSurface),
@@ -97,7 +98,7 @@ internal fun rememberChartMarker(
             color = MaterialTheme.colorScheme.inverseOnSurface,
             textAlign = TextAlign.Center,
         ),
-        lineCount = 2,
+        lineCount = lineCount,
         padding = Insets(10.dp, 7.dp),
         background = background,
         minWidth = TextComponent.MinWidth.text("00.00.0000 00:00"),

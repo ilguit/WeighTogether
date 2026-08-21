@@ -1,6 +1,8 @@
 package com.example.huaweimisync.measurements
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -11,7 +13,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,18 +24,146 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.MeasurementsViewModel
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
+import java.time.LocalDate
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class MeasurementsScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun collapsedSummaryKeepsEssentialContentWithinCompactHeight() {
+        val state = sampleState()
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                Box(Modifier.width(400.dp)) {
+                    MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+                }
+            }
+        }
+
+        val summaryCard = composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        val summaryBounds = summaryCard.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Collapsed summary should leave room for the home chart",
+            summaryBounds.bottom - summaryBounds.top <= 360.dp,
+        )
+        composeRule.onNodeWithText(
+            formatMeasurementDateTime(requireNotNull(state.summary).latest.measuredAt),
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            formatMeasurementValue(MeasurementField.WEIGHT_KG, 72.4),
+            substring = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг с прошлого измерения",
+        ).assertIsDisplayed()
+        listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
+            composeRule.onNodeWithText(label).assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-more-actions").assertIsDisplayed()
+        composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+    }
+
+    @Test
+    fun homeKgChartIsImmediatelyBelowSummaryAndLegendKeepsCatalogColors() {
+        val state = sampleState().copy(homeKgChart = homeChartState())
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        val summaryBottom = composeRule.onNodeWithTag("measurement-summary")
+            .getUnclippedBoundsInRoot().bottom
+        val chartTop = composeRule.onNodeWithTag("home-kg-chart")
+            .getUnclippedBoundsInRoot().top
+        assertTrue("The home chart must follow the summary card", chartTop >= summaryBottom)
+        composeRule.onNodeWithTag("home-kg-vico-chart").assertExists()
+        HomeKgChartSeriesCatalog.forEach { metric ->
+            val node = composeRule.onNodeWithTag("home-kg-legend-${metric.key}")
+            node.assertExists().assertIsSelected()
+            composeRule.onNodeWithContentDescription(
+                "${metric.label}, цвет ${metric.color.argb.toUInt().toString(16).uppercase()}",
+            ).assertExists()
+        }
+    }
+
+    @Test
+    fun homeKgLegendTapDispatchesKeyAndReflectsOwnerState() {
+        var toggledKeys = emptyList<String>()
+        var state by mutableStateOf(sampleState().copy(homeKgChart = homeChartState()))
+        val callbacks = MeasurementsCallbacks.None.copy(
+            onHomeKgChartSeriesToggled = { key ->
+                toggledKeys = toggledKeys + key
+                val chart = requireNotNull(state.homeKgChart)
+                state = state.copy(
+                    homeKgChart = chart.copy(
+                        activeSeriesKeys = if (key in chart.activeSeriesKeys) {
+                            chart.activeSeriesKeys - key
+                        } else {
+                            chart.activeSeriesKeys + key
+                        },
+                    ),
+                )
+            },
+        )
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, callbacks) }
+        }
+
+        val weight = composeRule.onNodeWithTag("home-kg-legend-weight_kg")
+        weight.assertIsSelected().performClick()
+        weight.assertIsNotSelected()
+        weight.performClick()
+        weight.assertIsSelected()
+        composeRule.runOnIdle {
+            assertEquals(listOf("weight_kg", "weight_kg"), toggledKeys)
+        }
+    }
+
+    @Test
+    fun homeKgChartShowsNoDataWhileKeepingAllEightLegendItems() {
+        val state = sampleState().copy(homeKgChart = homeChartState(withData = false))
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("home-kg-chart-no-data").assertExists()
+        composeRule.onNodeWithText("За последние 30 дней нет данных для графика.").assertExists()
+        HomeKgChartSeriesCatalog.forEach { metric ->
+            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertExists()
+        }
+    }
+
+    @Test
+    fun homeKgChartAllowsEverySeriesToBeDisabled() {
+        val state = sampleState().copy(
+            homeKgChart = homeChartState().copy(activeSeriesKeys = emptySet()),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("home-kg-chart-no-active").assertExists()
+        composeRule.onNodeWithText("Выберите показатели в легенде, чтобы показать график.")
+            .assertExists()
+        HomeKgChartSeriesCatalog.forEach { metric ->
+            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertIsNotSelected()
+        }
+    }
 
     @Test
     fun summaryAndHistoryCardsExpand() {
@@ -473,6 +606,36 @@ class MeasurementsScreenTest {
             isDeleteProtected = isDeleteProtected,
         )
     }
+
+    private fun homeChartState(withData: Boolean = true): HomeKgChartUiState = HomeKgChartUiState(
+        period = HomeKgChartPeriod(
+            startDate = LocalDate.of(2026, 7, 18),
+            endDateInclusive = LocalDate.of(2026, 8, 16),
+            startInclusiveEpochSecond = Instant.parse("2026-07-18T00:00:00Z").epochSecond,
+            endExclusiveEpochSecond = Instant.parse("2026-08-17T00:00:00Z").epochSecond,
+        ),
+        series = HomeKgChartSeriesCatalog.mapIndexed { index, metric ->
+            HomeKgChartSeries(
+                key = metric.key,
+                label = metric.label,
+                unit = metric.unit,
+                decimalPlaces = metric.decimalPlaces,
+                color = metric.color,
+                points = if (withData) {
+                    listOf(
+                        HomeKgChartPoint(
+                            measurementId = "latest",
+                            measuredAtEpochSecond = Instant.parse("2026-08-15T12:42:00Z").epochSecond,
+                            valueKg = 72.4 - index,
+                        ),
+                    )
+                } else {
+                    emptyList()
+                },
+            )
+        },
+        activeSeriesKeys = DefaultHomeKgChartSeriesKeys,
+    )
 
     private fun pendingItem(
         id: String,
