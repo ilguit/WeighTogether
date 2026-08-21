@@ -1,6 +1,8 @@
 package com.example.huaweimisync.measurements
 
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -12,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -19,18 +22,56 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.MeasurementsViewModel
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class MeasurementsScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun collapsedSummaryKeepsEssentialContentWithinCompactHeight() {
+        val state = sampleState()
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                Box(Modifier.width(400.dp)) {
+                    MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+                }
+            }
+        }
+
+        val summaryCard = composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        val summaryBounds = summaryCard.getUnclippedBoundsInRoot()
+        assertTrue(
+            "Collapsed summary should leave room for the home chart",
+            summaryBounds.bottom - summaryBounds.top <= 360.dp,
+        )
+        composeRule.onNodeWithText(
+            formatMeasurementDateTime(requireNotNull(state.summary).latest.measuredAt),
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            formatMeasurementValue(MeasurementField.WEIGHT_KG, 72.4),
+            substring = true,
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг с прошлого измерения",
+        ).assertIsDisplayed()
+        listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
+            composeRule.onNodeWithText(label).assertIsDisplayed()
+        }
+        composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-more-actions").assertIsDisplayed()
+        composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+    }
 
     @Test
     fun summaryAndHistoryCardsExpand() {
