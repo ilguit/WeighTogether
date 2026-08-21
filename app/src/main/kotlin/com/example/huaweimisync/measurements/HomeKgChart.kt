@@ -78,17 +78,20 @@ internal fun homeKgChartMarkerSelection(
 ): HomeKgChartMarkerSelection? {
     val activeSeries = state.series.filter { it.key in state.activeSeriesKeys }
     val targetEpochSecond = Math.floorDiv(targetXEpochMillis, 1_000L)
-    val measuredAt = activeSeries
+    val selectedPoint = activeSeries
         .asSequence()
         .flatMap { it.points.asSequence() }
-        .map(HomeKgChartPoint::measuredAtEpochSecond)
-        .distinct()
+        .distinctBy(HomeKgChartPoint::measurementId)
         .minWithOrNull(
-            compareBy<Long> { candidate -> abs(candidate - targetEpochSecond) }
-                .thenBy { it },
+            compareBy<HomeKgChartPoint> { candidate ->
+                abs(candidate.measuredAtEpochSecond - targetEpochSecond)
+            }.thenBy(HomeKgChartPoint::measuredAtEpochSecond),
         ) ?: return null
     val entries = activeSeries.mapNotNull { series ->
-        series.points.firstOrNull { it.measuredAtEpochSecond == measuredAt }?.let { point ->
+        series.points.firstOrNull { point ->
+            point.measurementId == selectedPoint.measurementId &&
+                point.measuredAtEpochSecond == selectedPoint.measuredAtEpochSecond
+        }?.let { point ->
             HomeKgChartMarkerEntry(
                 key = series.key,
                 label = series.label,
@@ -98,7 +101,10 @@ internal fun homeKgChartMarkerSelection(
             )
         }
     }
-    return HomeKgChartMarkerSelection(measuredAtEpochSecond = measuredAt, entries = entries)
+    return HomeKgChartMarkerSelection(
+        measuredAtEpochSecond = selectedPoint.measuredAtEpochSecond,
+        entries = entries,
+    )
 }
 
 internal fun formatHomeKgChartMarker(

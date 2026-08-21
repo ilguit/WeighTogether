@@ -51,6 +51,34 @@ class HomeKgChartTest {
     }
 
     @Test
+    fun markerDoesNotMergeDifferentMeasurementsRecordedInTheSameSecond() {
+        val state = chartState(
+            activeKeys = setOf("weight_kg", "body_fat_mass_kg"),
+        ).copy(
+            series = HomeKgChartSeriesCatalog.map { metric ->
+                val points = when (metric.key) {
+                    "weight_kg" -> listOf(HomeKgChartPoint("weight-measurement", 100L, 72.4))
+                    "body_fat_mass_kg" -> listOf(HomeKgChartPoint("fat-measurement", 100L, 13.5))
+                    else -> emptyList()
+                }
+                HomeKgChartSeries(
+                    key = metric.key,
+                    label = metric.label,
+                    unit = metric.unit,
+                    decimalPlaces = metric.decimalPlaces,
+                    color = metric.color,
+                    points = points,
+                )
+            },
+        )
+
+        val selection = requireNotNull(homeKgChartMarkerSelection(state, 100_000L))
+
+        assertEquals(100L, selection.measuredAtEpochSecond)
+        assertEquals(listOf("weight_kg"), selection.entries.map { it.key })
+    }
+
+    @Test
     fun markerHasNoSelectionWhenEverySeriesIsDisabled() {
         assertNull(homeKgChartMarkerSelection(chartState(activeKeys = emptySet()), 100_000L))
     }
