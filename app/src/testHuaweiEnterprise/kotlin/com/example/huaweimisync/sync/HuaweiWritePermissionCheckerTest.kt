@@ -120,6 +120,22 @@ class HuaweiWritePermissionCheckerTest {
     }
 
     @Test
+    fun `permission check times out and ignores callback that arrives afterwards`() = runBlocking {
+        lateinit var callback: HuaweiDataAuthStatusCallback
+        val api = HuaweiDataAuthStatusApi { _, _, value -> callback = value }
+
+        val result = HuaweiWritePermissionChecker(api, timeoutMillis = 20L).check()
+        callback.onResult(
+            HiHealthError.SUCCESS,
+            "late",
+            intArrayOf(REQUIRED_WRITE_WEIGHT_PERMISSION),
+            intArrayOf(),
+        )
+
+        assertEquals(HuaweiPermissionCheckResult.CHECK_FAILED, result)
+    }
+
+    @Test
     fun `authorization adapter ignores duplicate and late callbacks`() = runBlocking {
         lateinit var complete: (SyncResult) -> Unit
         val result = awaitSingleHuaweiResult(

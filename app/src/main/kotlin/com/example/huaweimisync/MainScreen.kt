@@ -46,6 +46,7 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsScreen
+import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.toPendingMeasurementUiItem
 import com.example.huaweimisync.ui.components.HuaweiIconButton
@@ -164,13 +165,13 @@ fun HuaweiMiSyncApp(
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
         activeState
     } else {
-        measurementsViewModel.uiState.value
+        MeasurementsUiState()
     }
     val chartsState = if (currentSection == AppSection.CHARTS) {
         val activeState by chartsViewModel.uiState.collectAsStateWithLifecycle()
         activeState
     } else {
-        chartsViewModel.uiState.value
+        chartsViewModel.initialUiState
     }
     val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(measurementsViewModel) {

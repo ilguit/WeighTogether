@@ -215,8 +215,9 @@ private class SdkHuaweiDataAuthStatusApi(
 
 internal class HuaweiWritePermissionChecker(
     private val api: HuaweiDataAuthStatusApi,
+    private val timeoutMillis: Long = HUAWEI_CALLBACK_TIMEOUT_MILLIS,
 ) {
-    suspend fun check(): HuaweiPermissionCheckResult =
+    suspend fun check(): HuaweiPermissionCheckResult = withTimeoutOrNull(timeoutMillis) {
         suspendCancellableCoroutine { continuation ->
             val completed = AtomicBoolean(false)
             continuation.invokeOnCancellation { completed.set(true) }
@@ -250,6 +251,7 @@ internal class HuaweiWritePermissionChecker(
                 resumeOnce(HuaweiPermissionCheckResult.CHECK_FAILED)
             }
         }
+    } ?: HuaweiPermissionCheckResult.CHECK_FAILED
 }
 
 /** Makes Huawei's callback-only authorization API safe for cancellation and bad SDK callbacks. */

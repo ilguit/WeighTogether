@@ -114,6 +114,10 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     private val initialSelectedMetrics = restoreChartMetricSelection(
         profileStore.settings.value.selectedChartMetricKeys,
     )
+    internal val initialUiState = ChartsUiState.initial(
+        metricOptions = metricOptionList,
+        defaultMetricKeys = initialSelectedMetrics.toPersistedChartMetricKeys(),
+    )
     private val filters = MutableStateFlow(
         ChartFilters.initial(
             today = today,
@@ -192,10 +196,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(),
-        ChartsUiState.initial(
-            metricOptions = metricOptionList,
-            defaultMetricKeys = initialSelectedMetrics.toPersistedChartMetricKeys(),
-        ),
+        initialUiState,
     )
 
     val callbacks = ChartsCallbacks(

@@ -400,6 +400,36 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `resolver lifecycle survives transient absence then accepts update and terminal removal`() {
+        val selected = pending("selected", "2026-08-15T10:00:00Z")
+        val session = PendingResolverSession(
+            pendingId = selected.id,
+            source = PendingResolverSource.EXTERNAL,
+            pendingSnapshot = selected,
+        )
+
+        val transientQueue = ResolverQueueState.from(
+            pendingForResolverLifecycle(emptyList(), session),
+            selectedPendingId = session.pendingId,
+        )
+        val enriched = selected.copy(impedanceOhm = 625, hasImpedance = true)
+        val updatedQueue = ResolverQueueState.from(
+            pendingForResolverLifecycle(listOf(enriched), session),
+            selectedPendingId = session.pendingId,
+        )
+        val terminalQueue = ResolverQueueState.from(
+            pendingForResolverLifecycle(emptyList(), session = null),
+            selectedPendingId = session.pendingId,
+        )
+
+        assertEquals(selected, transientQueue.selected)
+        assertEquals(enriched, updatedQueue.selected)
+        assertTrue(updatedQueue.isResolverVisible)
+        assertTrue(terminalQueue.pending.isEmpty())
+        assertFalse(terminalQueue.isResolverVisible)
+    }
+
+    @Test
     fun `durable removal clears stale resolver selection instead of opening fifo head`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val selected = pending("b", "2026-08-15T10:01:00Z")
