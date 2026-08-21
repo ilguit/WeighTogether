@@ -85,7 +85,7 @@ data class MainUiState(
     internal val healthConnectCapabilities: HealthConnectIntegrationCapabilities
         get() = healthConnectIntegrationCapabilities(
             permissions = healthConnect,
-            systemManagementAvailable = healthConnectSystemManagementAvailable,
+            managementIntentAvailable = healthConnectSystemManagementAvailable,
             selectedAccountSyncEligible = canUseExternalIntegrations,
         )
 }

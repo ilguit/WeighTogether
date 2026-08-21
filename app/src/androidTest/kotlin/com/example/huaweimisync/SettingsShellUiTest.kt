@@ -178,7 +178,7 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun completeHealthConnectActionOpensManagementInsteadOfRequestingPermissions() {
+    fun availableHealthConnectRowAndOpenActionLaunchManagement() {
         var authorizationCalls = 0
         var managementCalls = 0
         val requiredPermissions = setOf("weight", "fat")
@@ -192,6 +192,10 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertHasClickAction()
+            .performClick()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
             .performScrollTo()
             .assertIsEnabled()
@@ -202,7 +206,7 @@ class SettingsShellUiTest {
 
         composeRule.runOnIdle {
             assertEquals(0, authorizationCalls)
-            assertEquals(1, managementCalls)
+            assertEquals(2, managementCalls)
         }
     }
 
@@ -274,6 +278,27 @@ class SettingsShellUiTest {
         composeRule.runOnIdle {
             assertEquals(0, managementCalls)
         }
+    }
+
+    @Test
+    fun providerUpdateRequiredHealthConnectRowIsInactiveDespiteManagementHandler() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+            ),
+            healthConnectSystemManagementAvailable = true,
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText(
+            "Основной: Анна · Недоступно: установите или обновите Health Connect",
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertDoesNotExist()
+
+        composeRule.runOnIdle { assertEquals(0, managementCalls) }
     }
 
     private fun setSettingsShell(

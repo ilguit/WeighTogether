@@ -169,44 +169,44 @@ class MainContractTest {
     }
 
     @Test
+    fun `health connect management requires available sdk and management intent`() {
+        HealthConnectAvailability.values().forEach { availability ->
+            listOf(false, true).forEach { managementIntentAvailable ->
+                val capabilities = healthConnectIntegrationCapabilities(
+                    permissions = HealthConnectPermissionsUiState(
+                        availability = availability,
+                        requiredPermissions = setOf("weight"),
+                        grantedPermissions = setOf("weight"),
+                    ),
+                    managementIntentAvailable = managementIntentAvailable,
+                    selectedAccountSyncEligible = true,
+                )
+
+                assertEquals(
+                    "$availability with handler=$managementIntentAvailable",
+                    availability == HealthConnectAvailability.AVAILABLE &&
+                        managementIntentAvailable,
+                    capabilities.systemManagementAvailable,
+                )
+            }
+        }
+    }
+
+    @Test
     fun `health connect management availability is independent from selected account sync`() {
-        val required = setOf("weight", "fat")
-        val availableWithoutEligibleAccount = healthConnectIntegrationCapabilities(
+        val capabilities = healthConnectIntegrationCapabilities(
             permissions = HealthConnectPermissionsUiState.snapshot(
                 isAvailable = true,
-                requiredPermissions = required,
-                grantedPermissions = required,
+                requiredPermissions = setOf("weight", "fat"),
+                grantedPermissions = setOf("weight", "fat"),
             ),
-            systemManagementAvailable = true,
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = false,
         )
-        val sdkUnavailableWithHandler = healthConnectIntegrationCapabilities(
-            permissions = HealthConnectPermissionsUiState.snapshot(
-                isAvailable = false,
-                requiredPermissions = required,
-                grantedPermissions = required,
-            ),
-            systemManagementAvailable = true,
-            selectedAccountSyncEligible = true,
-        )
-        val sdkAvailableWithoutHandler = healthConnectIntegrationCapabilities(
-            permissions = HealthConnectPermissionsUiState.snapshot(
-                isAvailable = true,
-                requiredPermissions = required,
-                grantedPermissions = required,
-            ),
-            systemManagementAvailable = false,
-            selectedAccountSyncEligible = true,
-        )
 
-        assertTrue(availableWithoutEligibleAccount.systemManagementAvailable)
-        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncEligible)
-        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncReady)
-        assertTrue(sdkUnavailableWithHandler.systemManagementAvailable)
-        assertTrue(sdkUnavailableWithHandler.selectedAccountSyncEligible)
-        assertFalse(sdkUnavailableWithHandler.selectedAccountSyncReady)
-        assertFalse(sdkAvailableWithoutHandler.systemManagementAvailable)
-        assertTrue(sdkAvailableWithoutHandler.selectedAccountSyncReady)
+        assertTrue(capabilities.systemManagementAvailable)
+        assertFalse(capabilities.selectedAccountSyncEligible)
+        assertFalse(capabilities.selectedAccountSyncReady)
     }
 
     @Test
@@ -218,7 +218,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = setOf("weight"),
             ),
-            systemManagementAvailable = true,
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = true,
         )
         val ready = healthConnectIntegrationCapabilities(
@@ -227,7 +227,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = required,
             ),
-            systemManagementAvailable = true,
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = true,
         )
 
