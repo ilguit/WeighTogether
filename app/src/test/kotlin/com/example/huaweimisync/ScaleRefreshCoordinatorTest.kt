@@ -1,6 +1,8 @@
 package com.example.huaweimisync
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScaleRefreshCoordinatorTest {
@@ -19,6 +21,37 @@ class ScaleRefreshCoordinatorTest {
     @Test
     fun `refresh timeout is seven seconds`() {
         assertEquals(7_000L, SCALE_REFRESH_TIMEOUT_MILLIS)
+    }
+
+    @Test
+    fun `null address is rejected with settings message without activating refresh`() {
+        assertRejectedWithoutSideEffects(null)
+    }
+
+    @Test
+    fun `blank address is rejected with settings message without activating refresh`() {
+        assertRejectedWithoutSideEffects("  \t ")
+    }
+
+    @Test
+    fun `valid address starts refresh with guaranteed non-empty address`() {
+        assertEquals(
+            ScaleRefreshPreflightResult.Ready("AA:BB:CC:DD:EE:FF"),
+            scaleRefreshPreflight("AA:BB:CC:DD:EE:FF"),
+        )
+        val start = beginScaleRefresh(
+            address = "AA:BB:CC:DD:EE:FF",
+            coordinator = coordinator,
+            showMessage = messages::add,
+        )
+
+        requireNotNull(start)
+        assertEquals("AA:BB:CC:DD:EE:FF", start.address)
+        assertTrue(start.address.isNotEmpty())
+        assertEquals(listOf(true), refreshingStates)
+        assertEquals(emptyList<String>(), messages)
+
+        coordinator.complete(start.operation)
     }
 
     @Test
@@ -137,6 +170,31 @@ class ScaleRefreshCoordinatorTest {
 
     private fun start(): ScaleRefreshCoordinator.OperationToken =
         requireNotNull(coordinator.start())
+
+    private fun assertRejectedWithoutSideEffects(address: String?) {
+        assertEquals(
+            ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE),
+            scaleRefreshPreflight(address),
+        )
+        var timeoutCreations = 0
+        val start = beginScaleRefresh(
+            address = address,
+            coordinator = coordinator,
+            showMessage = messages::add,
+        )
+        if (start != null) {
+            timeoutCreations++
+            coordinator.attachTimeout(start.operation) { }
+        }
+
+        assertNull(start)
+        assertEquals(listOf(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE), messages)
+        assertEquals("Сначала выберите весы в настройках", messages.single())
+        assertEquals(emptyList<Boolean>(), refreshingStates)
+        assertEquals(0, timeoutCreations)
+        assertEquals(0, scannerStops)
+        assertEquals(0, automaticScanRestores)
+    }
 
     private fun assertFinished() {
         assertEquals(listOf(true, false), refreshingStates)

@@ -716,14 +716,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
-        val operation = scaleRefresh.start() ?: return
+        val refresh = beginScaleRefresh(
+            address = container.profileStore.settings.value.scaleAddress,
+            coordinator = scaleRefresh,
+            showMessage = ::showMessage,
+        ) ?: return
+        val operation = refresh.operation
         val started = runCatching {
             BackgroundScanRegistrar.unregister(getApplication())
             ReliabilityScanService.setEnabled(getApplication(), false)
         }.fold(
             onSuccess = {
                 refreshScanner.start(
-                    address = container.profileStore.settings.value.scaleAddress,
+                    address = refresh.address,
                     onResult = { result -> onRefreshScanResult(operation, result) },
                     onError = { error -> scaleRefresh.fail(operation, error) },
                 )

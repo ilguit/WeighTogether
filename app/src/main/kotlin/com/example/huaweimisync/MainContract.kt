@@ -65,6 +65,43 @@ internal class MainUiEventEmitter {
     }
 }
 
+internal const val SCALE_REFRESH_SCALE_REQUIRED_MESSAGE =
+    "Сначала выберите весы в настройках"
+
+internal sealed interface ScaleRefreshPreflightResult {
+    data class Ready(val address: String) : ScaleRefreshPreflightResult
+    data class Rejected(val message: String) : ScaleRefreshPreflightResult
+}
+
+internal fun scaleRefreshPreflight(address: String?): ScaleRefreshPreflightResult {
+    val selectedAddress = address?.trim()?.takeIf(String::isNotEmpty)
+        ?: return ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE)
+    return ScaleRefreshPreflightResult.Ready(selectedAddress)
+}
+
+/**
+ * Keeps address validation ahead of coordinator activation so a rejected gesture has no refresh,
+ * scanner, background-service, or timeout lifecycle to unwind.
+ */
+internal fun beginScaleRefresh(
+    address: String?,
+    coordinator: ScaleRefreshCoordinator,
+    showMessage: (String) -> Unit,
+): ScaleRefreshStart? = when (val preflight = scaleRefreshPreflight(address)) {
+    is ScaleRefreshPreflightResult.Rejected -> {
+        showMessage(preflight.message)
+        null
+    }
+    is ScaleRefreshPreflightResult.Ready -> coordinator.start()?.let { operation ->
+        ScaleRefreshStart(operation = operation, address = preflight.address)
+    }
+}
+
+internal data class ScaleRefreshStart(
+    val operation: ScaleRefreshCoordinator.OperationToken,
+    val address: String,
+)
+
 /**
  * Owns the lifecycle of the one-shot scale refresh independently from Settings scanning.
  * Scanner and timer implementations stay outside so the operation can be tested without Android.
