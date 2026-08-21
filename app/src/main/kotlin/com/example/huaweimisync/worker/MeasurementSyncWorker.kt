@@ -5,6 +5,8 @@ import androidx.work.CoroutineWorker
 import androidx.work.Data
 import androidx.work.WorkerParameters
 import com.example.huaweimisync.MiSyncApplication
+import com.example.huaweimisync.data.ExternalSyncDestination
+import com.example.huaweimisync.data.toCalculatedValuesSnapshot
 import com.example.huaweimisync.sync.SyncResult
 import com.example.huaweimisync.sync.toStateUpdate
 
@@ -61,6 +63,10 @@ class MeasurementSyncWorker(
             status = update.status.name,
             error = update.error,
             markWeightSynced = payload.includesWeight && result is SyncResult.Success,
+            syncedCalculatedValues = payload.successfulCalculatedValuesSnapshot(
+                result,
+                ExternalSyncDestination.HUAWEI,
+            ),
         )
     }
 
@@ -77,6 +83,10 @@ class MeasurementSyncWorker(
             status = update.status.name,
             error = update.error,
             markWeightSynced = payload.includesWeight && result is SyncResult.Success,
+            syncedCalculatedValues = payload.successfulCalculatedValuesSnapshot(
+                result,
+                ExternalSyncDestination.HEALTH_CONNECT,
+            ),
         )
     }
 
@@ -84,4 +94,13 @@ class MeasurementSyncWorker(
         private const val KEY_ID = "measurement_id"
         fun inputData(id: String): Data = Data.Builder().putString(KEY_ID, id).build()
     }
+}
+
+private fun com.example.huaweimisync.sync.MeasurementSyncPayload.successfulCalculatedValuesSnapshot(
+    result: SyncResult,
+    destination: ExternalSyncDestination,
+): String? = if (result is SyncResult.Success) {
+    composition?.toCalculatedValuesSnapshot(destination)?.encode()
+} else {
+    null
 }

@@ -816,6 +816,7 @@ private class FakeMeasurementDao(
         status: String,
         error: String?,
         markWeightSynced: Boolean,
+        syncedCalculatedValues: String?,
     ): Int {
         val value = values[id] ?: return 0
         if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
@@ -833,6 +834,14 @@ private class FakeMeasurementDao(
                 value.huaweiError
             },
             huaweiWeightSynced = value.huaweiWeightSynced || markWeightSynced,
+            huaweiSyncedCalculatedValues = if (
+                value.measurementType.name == expectedMeasurementType &&
+                syncedCalculatedValues != null
+            ) {
+                syncedCalculatedValues
+            } else {
+                value.huaweiSyncedCalculatedValues
+            },
         )
         return 1
     }
@@ -843,6 +852,7 @@ private class FakeMeasurementDao(
         status: String,
         error: String?,
         markWeightSynced: Boolean,
+        syncedCalculatedValues: String?,
     ): Int {
         val value = values[id] ?: return 0
         if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name ||
@@ -860,6 +870,14 @@ private class FakeMeasurementDao(
                 value.healthConnectError
             },
             healthConnectWeightSynced = value.healthConnectWeightSynced || markWeightSynced,
+            healthConnectSyncedCalculatedValues = if (
+                value.measurementType.name == expectedMeasurementType &&
+                syncedCalculatedValues != null
+            ) {
+                syncedCalculatedValues
+            } else {
+                value.healthConnectSyncedCalculatedValues
+            },
         )
         return 1
     }
