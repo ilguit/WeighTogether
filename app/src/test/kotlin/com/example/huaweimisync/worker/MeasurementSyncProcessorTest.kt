@@ -20,7 +20,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -37,7 +37,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("health-connect"), store.externalWrites)
         assertEquals(listOf("health-connect"), store.statusUpdates.map { it.first })
     }
@@ -55,7 +55,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(SyncStatus.LOCAL_ONLY.name, store.value?.huaweiStatus)
@@ -73,7 +73,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(2, store.loadCount)
         assertEquals(1, store.eligibilityChecks)
@@ -84,7 +84,7 @@ class MeasurementSyncProcessorTest {
         listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
             val store = FakeSyncStore(measurement(externalSyncPolicy = policy))
 
-            assertEquals(MeasurementSyncOutcome.COMPLETE, store.processor().sync(ID))
+            assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
             assertTrue("Gateway write for $policy", store.externalWrites.isEmpty())
             assertTrue(store.statusUpdates.isEmpty())
         }
@@ -97,7 +97,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(2, store.loadCount)
         assertEquals(2, store.eligibilityChecks)
@@ -114,7 +114,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -128,7 +128,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.RETRY, outcome)
+        assertEquals(MeasurementSyncOutcome.Retry, outcome)
         assertEquals(listOf("huawei", "health-connect"), store.externalWrites)
         assertEquals(2, store.statusUpdates.size)
     }
@@ -139,7 +139,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei", "health-connect"), store.payloads.map { it.first })
         store.payloads.forEach { (_, payload) ->
             assertTrue(payload.includesWeight)
@@ -217,8 +217,46 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun activePauseDefersBeforeFirstGatewayWithoutUpdatingStatus() = runBlocking {
+        val store = FakeSyncStore(measurement()).also {
+            it.nowEpochMillis = 1_000L
+            it.pausedUntilEpochMillis = 301_000L
+        }
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(1, store.loadCount)
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun pauseStartingBetweenGatewaysDefersSecondGateway() = runBlocking {
+        val store = FakeSyncStore(measurement()).also { value ->
+            value.nowEpochMillis = 1_000L
+            value.afterHuaweiWrite = { value.pausedUntilEpochMillis = 301_000L }
+        }
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(listOf("huawei"), store.statusUpdates.map { it.first })
+    }
+
+    @Test
+    fun canceledWorkerStartingAfterDeletionCompletesWithoutGateway() = runBlocking {
+        val store = FakeSyncStore(null)
+
+        assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
     }
@@ -236,6 +274,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
     var afterHuaweiWrite: () -> Unit = {}
     var eligible: Boolean = true
     var eligibilityChecks: Int = 0
+    var pausedUntilEpochMillis: Long = 0L
+    var nowEpochMillis: Long = 0L
     val externalWrites = mutableListOf<String>()
     val payloads = mutableListOf<Pair<String, MeasurementSyncPayload>>()
     val statusUpdates = mutableListOf<Pair<String, SyncResult>>()
@@ -290,6 +330,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
                 )
             }
         },
+        pausedUntilProvider = { pausedUntilEpochMillis },
+        nowEpochMillis = { nowEpochMillis },
     )
 }
 

@@ -50,10 +50,14 @@ class ExternalSyncPauseCoordinatorTest {
 }
 
 private class FakePauseSettings(
-    override var externalSyncPausedUntilEpochMillis: Long = 0L,
+    initialPausedUntilEpochMillis: Long = 0L,
 ) : ExternalSyncPauseSettingsStore {
+    private var pausedUntilEpochMillis = initialPausedUntilEpochMillis
+    override val externalSyncPausedUntilEpochMillis: Long
+        get() = pausedUntilEpochMillis
+
     override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
-        externalSyncPausedUntilEpochMillis = value
+        pausedUntilEpochMillis = value
     }
 }
 

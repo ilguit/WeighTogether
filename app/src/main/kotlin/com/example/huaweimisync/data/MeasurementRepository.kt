@@ -23,6 +23,7 @@ import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.isComplete
 import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.PendingFinalizationScheduler
 import com.example.huaweimisync.worker.MeasurementWorkSweepResult
 import java.time.Instant
@@ -41,6 +42,8 @@ class MeasurementRepository(
     pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
     matchingEngine: MatchingEngine = MatchingEngine(),
     private val pendingFinalizationScheduler: PendingFinalizationScheduler? = null,
+    private val externalSyncOperations: ExternalSyncOperationSerializer =
+        ExternalSyncOperationSerializer(),
 ) : com.example.huaweimisync.domain.MeasurementRepository {
     private val ingestionCoordinator = if (
         multiAccountPersistence != null && accountRepository != null
@@ -214,19 +217,22 @@ class MeasurementRepository(
         return persistEdited(current, current.copy(weightKg = weightKg))
     }
 
-    suspend fun delete(id: String): MeasurementMutationResult {
-        val current = dao.get(id) ?: return MeasurementMutationResult.NotFound
-        if (isProtectedLatest(current)) {
-            return MeasurementMutationResult.ProtectedLatest
+    suspend fun delete(id: String): MeasurementMutationResult =
+        externalSyncOperations.runExclusive {
+            val current = dao.get(id) ?: return@runExclusive MeasurementMutationResult.NotFound
+            if (isProtectedLatest(current)) {
+                return@runExclusive MeasurementMutationResult.ProtectedLatest
+            }
+            if (dao.markLocalOnly(id) == 0) {
+                return@runExclusive MeasurementMutationResult.NotFound
+            }
+            syncScheduler.cancel(id)
+            if (dao.delete(id) > 0) {
+                MeasurementMutationResult.Success
+            } else {
+                MeasurementMutationResult.NotFound
+            }
         }
-        if (dao.markLocalOnly(id) == 0) return MeasurementMutationResult.NotFound
-        syncScheduler.cancel(id)
-        return if (dao.delete(id) > 0) {
-            MeasurementMutationResult.Success
-        } else {
-            MeasurementMutationResult.NotFound
-        }
-    }
 
     suspend fun isProtectedLatest(id: String): Boolean =
         dao.get(id)?.let { isProtectedLatest(it) } == true

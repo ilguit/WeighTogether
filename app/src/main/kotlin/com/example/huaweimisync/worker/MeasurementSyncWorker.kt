@@ -28,11 +28,16 @@ class MeasurementSyncWorker(
             applyHealthConnectResult = { measurementId, payload, result ->
                 applyHealthConnectResult(dao, measurementId, payload, result)
             },
+            pausedUntilProvider = { container.profileStore.externalSyncPausedUntilEpochMillis },
         ).sync(id)
 
         return when (outcome) {
-            MeasurementSyncOutcome.COMPLETE -> Result.success()
-            MeasurementSyncOutcome.RETRY -> Result.retry()
+            MeasurementSyncOutcome.Complete -> Result.success()
+            MeasurementSyncOutcome.Retry -> Result.retry()
+            is MeasurementSyncOutcome.Deferred -> {
+                container.syncScheduler.reschedule(id, outcome.notBeforeEpochMillis)
+                Result.success()
+            }
         }
     }
 
