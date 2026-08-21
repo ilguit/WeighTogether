@@ -160,8 +160,15 @@ fun toggleHomeKgChartSeriesKey(
 fun homeKgChartPeriod(
     zoneId: ZoneId = ZoneId.systemDefault(),
     clock: Clock = Clock.system(zoneId),
+): HomeKgChartPeriod = homeKgChartPeriod(
+    today = LocalDate.now(clock.withZone(zoneId)),
+    zoneId = zoneId,
+)
+
+internal fun homeKgChartPeriod(
+    today: LocalDate,
+    zoneId: ZoneId,
 ): HomeKgChartPeriod {
-    val today = LocalDate.now(clock.withZone(zoneId))
     val startDate = today.minusDays(HOME_KG_CHART_PREVIOUS_DAY_COUNT)
     return HomeKgChartPeriod(
         startDate = startDate,
@@ -179,6 +186,29 @@ fun buildHomeKgChartUiState(
     clock: Clock = Clock.system(zoneId),
 ): HomeKgChartUiState {
     val period = homeKgChartPeriod(zoneId = zoneId, clock = clock)
+    return buildHomeKgChartUiState(
+        measurements = measurements,
+        persistedActiveSeriesKeys = persistedActiveSeriesKeys,
+        period = period,
+    )
+}
+
+internal fun buildHomeKgChartUiState(
+    measurements: List<MeasurementUiItem>,
+    persistedActiveSeriesKeys: Set<String>?,
+    currentDate: LocalDate,
+    zoneId: ZoneId,
+): HomeKgChartUiState = buildHomeKgChartUiState(
+    measurements = measurements,
+    persistedActiveSeriesKeys = persistedActiveSeriesKeys,
+    period = homeKgChartPeriod(today = currentDate, zoneId = zoneId),
+)
+
+private fun buildHomeKgChartUiState(
+    measurements: List<MeasurementUiItem>,
+    persistedActiveSeriesKeys: Set<String>?,
+    period: HomeKgChartPeriod,
+): HomeKgChartUiState {
     val orderedMeasurements = measurements
         .asSequence()
         .filter { period.contains(it.measuredAtEpochSecond) }
