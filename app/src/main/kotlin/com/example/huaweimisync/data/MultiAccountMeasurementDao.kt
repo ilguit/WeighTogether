@@ -27,6 +27,17 @@ interface MultiAccountMeasurementDao {
     @Query(
         """
         SELECT * FROM measurements
+        WHERE accountId = :accountId
+            AND measurementType = 'FULL'
+            AND externalSyncPolicy != 'USER_LOCAL'
+        ORDER BY measuredAtEpochSecond ASC, id ASC
+        """,
+    )
+    suspend fun getProfileRecalculationCandidates(accountId: String): List<MeasurementEntity>
+
+    @Query(
+        """
+        SELECT * FROM measurements
         WHERE deviceAddress = :deviceAddress COLLATE NOCASE
             AND rawWeight = :rawWeight
             AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
