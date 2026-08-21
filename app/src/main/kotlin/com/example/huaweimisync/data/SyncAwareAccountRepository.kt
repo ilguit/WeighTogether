@@ -27,7 +27,7 @@ class SyncAwareAccountRepository(
     private val externalSyncOperations: ExternalSyncOperationSerializer,
 ) : AccountRepository, AccountSettingsWriter {
     private val accountUpdater = SerializedAccountUpdater(
-        update = delegate::updateAccount,
+        updateDelegate = delegate::updateAccount,
         sweepPendingRouting = measurements::sweepPendingRouting,
         operations = externalSyncOperations,
     )
@@ -95,12 +95,12 @@ class SyncAwareAccountRepository(
  * serializer: it may start workers, but it must not keep their external gateway locked out.
  */
 internal class SerializedAccountUpdater(
-    private val update: suspend (AccountUpdate) -> Account,
+    private val updateDelegate: suspend (AccountUpdate) -> Account,
     private val sweepPendingRouting: suspend () -> Unit,
     private val operations: ExternalSyncOperationSerializer,
 ) {
     suspend fun update(account: AccountUpdate): Account {
-        val updated = operations.runExclusive { update(account) }
+        val updated = operations.runExclusive { updateDelegate(account) }
         sweepPendingRouting()
         return updated
     }
