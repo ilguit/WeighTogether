@@ -9,6 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import androidx.health.connect.client.PermissionController
 import com.example.huaweimisync.ble.BleSupport
@@ -18,6 +21,7 @@ class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val measurementsViewModel: MeasurementsViewModel by viewModels()
     private val chartsViewModel: ChartsViewModel by viewModels()
+    private var healthConnectSystemManagementAvailable by mutableStateOf(false)
 
     private val bluetoothPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -47,6 +51,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        refreshHealthConnectSystemManagementAvailability()
         val systemBarColor = getColor(R.color.huawei_primary)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(systemBarColor),
@@ -57,6 +62,8 @@ class MainActivity : ComponentActivity() {
                 viewModel = viewModel,
                 measurementsViewModel = measurementsViewModel,
                 chartsViewModel = chartsViewModel,
+                healthConnectSystemManagementAvailable =
+                    healthConnectSystemManagementAvailable,
                 requestHealthConnectPermissions = {
                     if (viewModel.healthConnectAvailable) {
                         healthPermissions.launch(viewModel.healthConnectPermissions)
@@ -83,6 +90,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        refreshHealthConnectSystemManagementAvailability()
         viewModel.onForeground()
     }
 
@@ -128,6 +136,11 @@ class MainActivity : ComponentActivity() {
             intent = healthConnectManagementIntent(),
             launch = ::startActivity,
         )
+        healthConnectSystemManagementAvailable = opened
         if (!opened) viewModel.setMessage("Не удалось открыть управление доступом Health Connect")
+    }
+
+    private fun refreshHealthConnectSystemManagementAvailability() {
+        healthConnectSystemManagementAvailable = healthConnectManagementIntent() != null
     }
 }

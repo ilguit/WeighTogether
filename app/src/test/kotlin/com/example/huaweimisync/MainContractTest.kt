@@ -177,32 +177,36 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = required,
             ),
+            systemManagementAvailable = true,
             selectedAccountSyncEligible = false,
         )
-        val unavailableWithEligibleAccount = healthConnectIntegrationCapabilities(
+        val sdkUnavailableWithHandler = healthConnectIntegrationCapabilities(
             permissions = HealthConnectPermissionsUiState.snapshot(
                 isAvailable = false,
                 requiredPermissions = required,
                 grantedPermissions = required,
             ),
+            systemManagementAvailable = true,
             selectedAccountSyncEligible = true,
         )
-        val providerMissing = healthConnectIntegrationCapabilities(
-            permissions = HealthConnectPermissionsUiState(
-                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+        val sdkAvailableWithoutHandler = healthConnectIntegrationCapabilities(
+            permissions = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
                 requiredPermissions = required,
+                grantedPermissions = required,
             ),
+            systemManagementAvailable = false,
             selectedAccountSyncEligible = true,
         )
 
         assertTrue(availableWithoutEligibleAccount.systemManagementAvailable)
         assertFalse(availableWithoutEligibleAccount.selectedAccountSyncEligible)
         assertFalse(availableWithoutEligibleAccount.selectedAccountSyncReady)
-        assertFalse(unavailableWithEligibleAccount.systemManagementAvailable)
-        assertTrue(unavailableWithEligibleAccount.selectedAccountSyncEligible)
-        assertFalse(unavailableWithEligibleAccount.selectedAccountSyncReady)
-        assertFalse(providerMissing.systemManagementAvailable)
-        assertFalse(providerMissing.selectedAccountSyncReady)
+        assertTrue(sdkUnavailableWithHandler.systemManagementAvailable)
+        assertTrue(sdkUnavailableWithHandler.selectedAccountSyncEligible)
+        assertFalse(sdkUnavailableWithHandler.selectedAccountSyncReady)
+        assertFalse(sdkAvailableWithoutHandler.systemManagementAvailable)
+        assertTrue(sdkAvailableWithoutHandler.selectedAccountSyncReady)
     }
 
     @Test
@@ -214,6 +218,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = setOf("weight"),
             ),
+            systemManagementAvailable = true,
             selectedAccountSyncEligible = true,
         )
         val ready = healthConnectIntegrationCapabilities(
@@ -222,6 +227,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = required,
             ),
+            systemManagementAvailable = true,
             selectedAccountSyncEligible = true,
         )
 

@@ -279,9 +279,10 @@ internal data class HealthConnectIntegrationCapabilities(
 
 internal fun healthConnectIntegrationCapabilities(
     permissions: HealthConnectPermissionsUiState,
+    systemManagementAvailable: Boolean,
     selectedAccountSyncEligible: Boolean,
 ): HealthConnectIntegrationCapabilities = HealthConnectIntegrationCapabilities(
-    systemManagementAvailable = permissions.availability == HealthConnectAvailability.AVAILABLE,
+    systemManagementAvailable = systemManagementAvailable,
     selectedAccountSyncEligible = selectedAccountSyncEligible,
     selectedAccountSyncReady = selectedAccountSyncEligible && permissions.isConnected,
 )
