@@ -1,8 +1,6 @@
 package com.example.huaweimisync
 
-import android.content.ActivityNotFoundException
 import android.content.Intent
-import android.os.Build
 import android.os.Bundle
 import android.provider.Settings
 import androidx.activity.ComponentActivity
@@ -126,10 +124,9 @@ class MainActivity : ComponentActivity() {
 
     /** Opens system-owned permission management; the app never revokes HC permissions itself. */
     private fun openHealthConnectAccessManagement() {
-        val opened = launchFirstAvailableActivity(
-            targets = healthConnectManagementTargets(Build.VERSION.SDK_INT),
-            launch = { target -> startActivity(target.toIntent(packageName)) },
-            isActivityNotFound = { error -> error is ActivityNotFoundException },
+        val opened = launchHealthConnectManagement(
+            intent = healthConnectManagementIntent(),
+            launch = ::startActivity,
         )
         if (!opened) viewModel.setMessage("Не удалось открыть управление доступом Health Connect")
     }

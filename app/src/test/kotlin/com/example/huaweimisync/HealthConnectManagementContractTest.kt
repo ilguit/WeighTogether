@@ -2,96 +2,95 @@ package com.example.huaweimisync
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertThrows
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HealthConnectManagementContractTest {
     @Test
-    fun `android 14 starts with app-specific permissions then preserves both fallbacks`() {
-        assertEquals(
-            listOf(
-                HealthConnectManagementTarget.APP_PERMISSION_MANAGEMENT,
-                HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS,
-                HealthConnectManagementTarget.APPLICATION_SETTINGS,
-            ),
-            healthConnectManagementTargets(sdkInt = 34),
+    fun `SDK management intent is exposed when a system handler is available`() {
+        val sdkIntent = Any()
+
+        val resolved = resolveAvailableHealthConnectManagementIntent(
+            createIntent = { sdkIntent },
+            canResolve = { true },
         )
+
+        assertSame(sdkIntent, resolved)
     }
 
     @Test
-    fun `older android starts with general Health Connect settings then app settings`() {
-        assertEquals(
-            listOf(
-                HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS,
-                HealthConnectManagementTarget.APPLICATION_SETTINGS,
-            ),
-            healthConnectManagementTargets(sdkInt = 33),
+    fun `SDK management intent is unavailable when no system handler exists`() {
+        val sdkIntent = Any()
+
+        val resolved = resolveAvailableHealthConnectManagementIntent(
+            createIntent = { sdkIntent },
+            canResolve = { false },
         )
+
+        assertNull(resolved)
     }
 
     @Test
-    fun `ActivityNotFound falls through in order until app settings opens`() {
-        val attempts = mutableListOf<HealthConnectManagementTarget>()
+    fun `missing SDK management intent is unavailable without querying a handler`() {
+        var resolverCalled = false
 
-        val opened = launchFirstAvailableActivity(
-            targets = healthConnectManagementTargets(sdkInt = 34),
-            launch = { target ->
-                attempts += target
-                if (target != HealthConnectManagementTarget.APPLICATION_SETTINGS) {
-                    throw FakeActivityNotFoundException()
-                }
+        val resolved = resolveAvailableHealthConnectManagementIntent<Any>(
+            createIntent = { null },
+            canResolve = {
+                resolverCalled = true
+                true
             },
-            isActivityNotFound = { error -> error is FakeActivityNotFoundException },
         )
+
+        assertNull(resolved)
+        assertFalse(resolverCalled)
+    }
+
+    @Test
+    fun `SDK or package manager failures make management unavailable`() {
+        val sdkFailure = resolveAvailableHealthConnectManagementIntent<Any>(
+            createIntent = { throw IllegalStateException("SDK failed") },
+            canResolve = { true },
+        )
+        val resolverFailure = resolveAvailableHealthConnectManagementIntent(
+            createIntent = { Any() },
+            canResolve = { throw SecurityException("query denied") },
+        )
+
+        assertNull(sdkFailure)
+        assertNull(resolverFailure)
+    }
+
+    @Test
+    fun `resolved SDK management intent launches exactly once`() {
+        val sdkIntent = Any()
+        val launched = mutableListOf<Any>()
+
+        val opened = launchHealthConnectManagement(sdkIntent) { launched += it }
 
         assertTrue(opened)
-        assertEquals(
-            listOf(
-                HealthConnectManagementTarget.APP_PERMISSION_MANAGEMENT,
-                HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS,
-                HealthConnectManagementTarget.APPLICATION_SETTINGS,
-            ),
-            attempts,
-        )
+        assertEquals(listOf(sdkIntent), launched)
     }
 
     @Test
-    fun `all missing activities report that management could not be opened`() {
-        val attempts = mutableListOf<HealthConnectManagementTarget>()
+    fun `missing management intent is not launched`() {
+        var launchCalled = false
 
-        val opened = launchFirstAvailableActivity(
-            targets = healthConnectManagementTargets(sdkInt = 33),
-            launch = { target ->
-                attempts += target
-                throw FakeActivityNotFoundException()
-            },
-            isActivityNotFound = { error -> error is FakeActivityNotFoundException },
-        )
+        val opened = launchHealthConnectManagement<Any>(null) { launchCalled = true }
 
         assertFalse(opened)
-        assertEquals(
-            listOf(
-                HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS,
-                HealthConnectManagementTarget.APPLICATION_SETTINGS,
-            ),
-            attempts,
-        )
+        assertFalse(launchCalled)
     }
 
     @Test
-    fun `unexpected launch failures are not swallowed as ActivityNotFound`() {
-        val failure = IllegalStateException("broken launcher")
-
-        val thrown = assertThrows(IllegalStateException::class.java) {
-            launchFirstAvailableActivity(
-                targets = listOf(HealthConnectManagementTarget.APPLICATION_SETTINGS),
-                launch = { throw failure },
-                isActivityNotFound = { error -> error is FakeActivityNotFoundException },
-            )
+    fun `launch exception is handled as management unavailable`() {
+        val opened = launchHealthConnectManagement(Any()) {
+            throw FakeActivityNotFoundException()
         }
 
-        assertEquals(failure, thrown)
+        assertFalse(opened)
     }
 
     private class FakeActivityNotFoundException : RuntimeException()
