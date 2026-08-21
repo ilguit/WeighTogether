@@ -268,8 +268,9 @@ data class HealthConnectPermissionsUiState(
 /**
  * Independent capabilities used by the settings integration row.
  *
- * Opening system-owned Health Connect management depends only on SDK availability. Syncing a
- * measurement additionally requires an eligible selected account and every mandatory permission.
+ * Opening system-owned Health Connect management requires both an available SDK and a resolvable
+ * canonical intent. Syncing a measurement additionally requires an eligible selected account and
+ * every mandatory permission.
  */
 internal data class HealthConnectIntegrationCapabilities(
     val systemManagementAvailable: Boolean,
@@ -279,9 +280,11 @@ internal data class HealthConnectIntegrationCapabilities(
 
 internal fun healthConnectIntegrationCapabilities(
     permissions: HealthConnectPermissionsUiState,
+    managementIntentAvailable: Boolean,
     selectedAccountSyncEligible: Boolean,
 ): HealthConnectIntegrationCapabilities = HealthConnectIntegrationCapabilities(
-    systemManagementAvailable = permissions.availability == HealthConnectAvailability.AVAILABLE,
+    systemManagementAvailable = managementIntentAvailable &&
+        permissions.availability == HealthConnectAvailability.AVAILABLE,
     selectedAccountSyncEligible = selectedAccountSyncEligible,
     selectedAccountSyncReady = selectedAccountSyncEligible && permissions.isConnected,
 )
