@@ -4,6 +4,12 @@ import com.example.huaweimisync.data.ExternalSyncPauseSettingsStore
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+sealed interface ExternalSyncPauseTransition {
+    data class Paused(val pausedUntilEpochMillis: Long) : ExternalSyncPauseTransition
+
+    data object Resumed : ExternalSyncPauseTransition
+}
+
 class ExternalSyncPauseCoordinator(
     private val settings: ExternalSyncPauseSettingsStore,
     private val currentSyncIds: suspend () -> List<String>,
@@ -13,16 +19,33 @@ class ExternalSyncPauseCoordinator(
 ) {
     private val transitionMutex = Mutex()
 
+    suspend fun toggle(): ExternalSyncPauseTransition = transitionMutex.withLock {
+        if (settings.externalSyncPausedUntilEpochMillis > nowEpochMillis()) {
+            resumeLocked()
+            ExternalSyncPauseTransition.Resumed
+        } else {
+            ExternalSyncPauseTransition.Paused(pauseForFiveMinutesLocked())
+        }
+    }
+
     suspend fun pauseForFiveMinutes(): Long = transitionMutex.withLock {
+        pauseForFiveMinutesLocked()
+    }
+
+    suspend fun resume() = transitionMutex.withLock {
+        resumeLocked()
+    }
+
+    private suspend fun pauseForFiveMinutesLocked(): Long {
         val pausedUntil = nowEpochMillis() + PAUSE_DURATION_MILLIS
         settings.setExternalSyncPausedUntilEpochMillis(pausedUntil)
         operations.runExclusive {
             scheduler.rescheduleAll(currentSyncIds(), pausedUntil)
         }
-        pausedUntil
+        return pausedUntil
     }
 
-    suspend fun resume() = transitionMutex.withLock {
+    private suspend fun resumeLocked() {
         settings.setExternalSyncPausedUntilEpochMillis(0L)
         operations.runExclusive {
             scheduler.rescheduleAll(currentSyncIds(), 0L)

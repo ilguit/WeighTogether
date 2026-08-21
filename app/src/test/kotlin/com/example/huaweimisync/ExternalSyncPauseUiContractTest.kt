@@ -1,6 +1,7 @@
 package com.example.huaweimisync
 
 import com.example.huaweimisync.data.AppSettings
+import com.example.huaweimisync.worker.ExternalSyncPauseTransition
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
@@ -33,5 +34,17 @@ class ExternalSyncPauseUiContractTest {
             .toList()
 
         assertEquals(listOf(true, false), states)
+    }
+
+    @Test
+    fun pauseToggleSnackbarUsesCompletedTransitionResult() {
+        assertEquals(
+            EXTERNAL_SYNC_PAUSED_MESSAGE,
+            ExternalSyncPauseTransition.Paused(301_000L).snackbarMessage(),
+        )
+        assertEquals(
+            EXTERNAL_SYNC_RESUMED_MESSAGE,
+            ExternalSyncPauseTransition.Resumed.snackbarMessage(),
+        )
     }
 }

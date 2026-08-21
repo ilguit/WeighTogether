@@ -97,6 +97,80 @@ class ExternalSyncPauseCoordinatorTest {
             scheduler.rescheduled,
         )
     }
+
+    @Test
+    fun concurrentTogglesFromResumedStatePauseThenResume() = runBlocking {
+        val firstRebuildStarted = CompletableDeferred<Unit>()
+        val releaseFirstRebuild = CompletableDeferred<Unit>()
+        var rebuildCount = 0
+        val settings = FakePauseSettings()
+        val coordinator = ExternalSyncPauseCoordinator(
+            settings = settings,
+            currentSyncIds = {
+                if (rebuildCount++ == 0) {
+                    firstRebuildStarted.complete(Unit)
+                    releaseFirstRebuild.await()
+                }
+                emptyList()
+            },
+            scheduler = RecordingScheduler(),
+            nowEpochMillis = { 1_000L },
+        )
+
+        val first = async(start = CoroutineStart.UNDISPATCHED) { coordinator.toggle() }
+        firstRebuildStarted.await()
+        val second = async(start = CoroutineStart.UNDISPATCHED) { coordinator.toggle() }
+
+        assertEquals(301_000L, settings.externalSyncPausedUntilEpochMillis)
+        assertFalse(first.isCompleted)
+        assertFalse(second.isCompleted)
+
+        releaseFirstRebuild.complete(Unit)
+
+        assertEquals(
+            ExternalSyncPauseTransition.Paused(301_000L),
+            first.await(),
+        )
+        assertEquals(ExternalSyncPauseTransition.Resumed, second.await())
+        assertEquals(0L, settings.externalSyncPausedUntilEpochMillis)
+    }
+
+    @Test
+    fun concurrentTogglesFromPausedStateResumeThenPause() = runBlocking {
+        val firstRebuildStarted = CompletableDeferred<Unit>()
+        val releaseFirstRebuild = CompletableDeferred<Unit>()
+        var rebuildCount = 0
+        val settings = FakePauseSettings(initialPausedUntilEpochMillis = 301_000L)
+        val coordinator = ExternalSyncPauseCoordinator(
+            settings = settings,
+            currentSyncIds = {
+                if (rebuildCount++ == 0) {
+                    firstRebuildStarted.complete(Unit)
+                    releaseFirstRebuild.await()
+                }
+                emptyList()
+            },
+            scheduler = RecordingScheduler(),
+            nowEpochMillis = { 1_000L },
+        )
+
+        val first = async(start = CoroutineStart.UNDISPATCHED) { coordinator.toggle() }
+        firstRebuildStarted.await()
+        val second = async(start = CoroutineStart.UNDISPATCHED) { coordinator.toggle() }
+
+        assertEquals(0L, settings.externalSyncPausedUntilEpochMillis)
+        assertFalse(first.isCompleted)
+        assertFalse(second.isCompleted)
+
+        releaseFirstRebuild.complete(Unit)
+
+        assertEquals(ExternalSyncPauseTransition.Resumed, first.await())
+        assertEquals(
+            ExternalSyncPauseTransition.Paused(301_000L),
+            second.await(),
+        )
+        assertEquals(301_000L, settings.externalSyncPausedUntilEpochMillis)
+    }
 }
 
 private class FakePauseSettings(

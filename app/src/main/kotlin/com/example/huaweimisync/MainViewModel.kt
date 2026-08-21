@@ -46,6 +46,7 @@ import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
+import com.example.huaweimisync.worker.ExternalSyncPauseTransition
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
@@ -685,18 +686,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleExternalSyncPause() = viewModelScope.launch {
-        if (
-            isExternalSyncPaused(
-                container.profileStore.externalSyncPausedUntilEpochMillis,
-                System.currentTimeMillis(),
-            )
-        ) {
-            container.externalSyncPause.resume()
-            showMessage(EXTERNAL_SYNC_RESUMED_MESSAGE)
-        } else {
-            container.externalSyncPause.pauseForFiveMinutes()
-            showMessage(EXTERNAL_SYNC_PAUSED_MESSAGE)
-        }
+        showMessage(container.externalSyncPause.toggle().snackbarMessage())
     }
 
     fun setReliabilityMode(enabled: Boolean) {
@@ -1097,6 +1087,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =
     "Внешняя синхронизация приостановлена на 5 минут"
 internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "Внешняя синхронизация возобновлена"
+
+internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
+    is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
+    ExternalSyncPauseTransition.Resumed -> EXTERNAL_SYNC_RESUMED_MESSAGE
+}
 
 internal fun isExternalSyncPaused(pausedUntilEpochMillis: Long, nowEpochMillis: Long): Boolean =
     pausedUntilEpochMillis > nowEpochMillis
