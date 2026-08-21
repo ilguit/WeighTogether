@@ -394,6 +394,7 @@ internal fun HuaweiMiSyncScaffold(
                                     isRefreshing = state.isRefreshing,
                                     modifier = Modifier
                                         .align(Alignment.TopCenter)
+                                        .padding(top = padding.calculateTopPadding())
                                         .testTag(MainScreenTestTags.PullToRefreshIndicator),
                                 )
                             },

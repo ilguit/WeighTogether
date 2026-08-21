@@ -1,8 +1,6 @@
 package com.example.huaweimisync
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScaleRefreshCoordinatorTest {
@@ -19,10 +17,22 @@ class ScaleRefreshCoordinatorTest {
     )
 
     @Test
-    fun `active refresh ignores repeated requests`() {
-        assertTrue(coordinator.start())
-        assertFalse(coordinator.start())
+    fun `refresh timeout is seven seconds`() {
+        assertEquals(7_000L, SCALE_REFRESH_TIMEOUT_MILLIS)
+    }
 
+    @Test
+    fun `repeated gesture starts exactly one scanner operation`() {
+        var scannerStarts = 0
+        fun requestRefresh() {
+            coordinator.start() ?: return
+            scannerStarts++
+        }
+
+        requestRefresh()
+        requestRefresh()
+
+        assertEquals(1, scannerStarts)
         assertEquals(listOf(true), refreshingStates)
         assertEquals(0, scannerStops)
         assertEquals(0, automaticScanRestores)
@@ -30,22 +40,22 @@ class ScaleRefreshCoordinatorTest {
 
     @Test
     fun `stable measurement completes refresh and cancels timeout`() {
-        coordinator.start()
-        coordinator.attachTimeout { timeoutCancellations++ }
+        val operation = start()
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
-        coordinator.complete()
+        coordinator.complete(operation)
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertTrue(messages.isEmpty())
+        assertEquals(emptyList<String>(), messages)
     }
 
     @Test
-    fun `scanner error completes refresh and exposes its message`() {
-        coordinator.start()
-        coordinator.attachTimeout { timeoutCancellations++ }
+    fun `asynchronous scanner error completes refresh and exposes its message`() {
+        val operation = start()
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
-        coordinator.fail("Ошибка BLE-сканирования: 2")
+        coordinator.fail(operation, "Ошибка BLE-сканирования: 2")
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
@@ -54,10 +64,10 @@ class ScaleRefreshCoordinatorTest {
 
     @Test
     fun `timeout stops direct scan restores automatic scan and reports unavailable scale`() {
-        coordinator.start()
-        coordinator.attachTimeout { timeoutCancellations++ }
+        val operation = start()
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
-        coordinator.timeout()
+        coordinator.timeout(operation)
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
@@ -66,31 +76,71 @@ class ScaleRefreshCoordinatorTest {
 
     @Test
     fun `clear cancels operation without user feedback`() {
-        coordinator.start()
-        coordinator.attachTimeout { timeoutCancellations++ }
+        val operation = start()
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
         coordinator.clear()
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertTrue(messages.isEmpty())
+        assertEquals(emptyList<String>(), messages)
     }
 
     @Test
-    fun `late timeout attachment is cancelled after synchronous start failure`() {
-        coordinator.start()
-        coordinator.fail("Bluetooth выключен")
+    fun `start error finishes before timer and late attachment is cancelled`() {
+        val operation = start()
+        coordinator.fail(operation, "Bluetooth выключен")
 
-        coordinator.attachTimeout { timeoutCancellations++ }
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
+        assertFinished()
         assertEquals(1, timeoutCancellations)
         assertEquals(listOf("Bluetooth выключен"), messages)
     }
+
+    @Test
+    fun `duplicate terminal events restore scanning exactly once`() {
+        val operation = start()
+        coordinator.attachTimeout(operation) { timeoutCancellations++ }
+
+        coordinator.complete(operation)
+        coordinator.fail(operation, "late error")
+        coordinator.timeout(operation)
+
+        assertFinished()
+        assertEquals(1, timeoutCancellations)
+        assertEquals(emptyList<String>(), messages)
+    }
+
+    @Test
+    fun `events and timeout attachment from prior operation cannot finish replacement`() {
+        val prior = start()
+        coordinator.complete(prior)
+        val replacement = start()
+
+        coordinator.attachTimeout(prior) { timeoutCancellations++ }
+        coordinator.fail(prior, "stale error")
+        coordinator.timeout(prior)
+
+        assertEquals(listOf(true, false, true), refreshingStates)
+        assertEquals(1, scannerStops)
+        assertEquals(1, automaticScanRestores)
+        assertEquals(1, timeoutCancellations)
+        assertEquals(emptyList<String>(), messages)
+
+        coordinator.complete(replacement)
+
+        assertEquals(listOf(true, false, true, false), refreshingStates)
+        assertEquals(2, scannerStops)
+        assertEquals(2, automaticScanRestores)
+    }
+
+    private fun start(): ScaleRefreshCoordinator.OperationToken =
+        requireNotNull(coordinator.start())
 
     private fun assertFinished() {
         assertEquals(listOf(true, false), refreshingStates)
         assertEquals(1, scannerStops)
         assertEquals(1, automaticScanRestores)
-        assertTrue(coordinator.start())
     }
 }

@@ -76,22 +76,25 @@ internal class ScaleRefreshCoordinator(
     private val showMessage: (String) -> Unit,
 ) {
     private val lock = Any()
-    private var phase = Phase.IDLE
-    private var cancelTimeout: (() -> Unit)? = null
+    private var nextOperationId = 0L
+    private var operation: Operation? = null
 
-    fun start(): Boolean {
-        synchronized(lock) {
-            if (phase != Phase.IDLE) return false
-            phase = Phase.ACTIVE
+    fun start(): OperationToken? {
+        val token = synchronized(lock) {
+            if (operation != null) return null
+            OperationToken(++nextOperationId).also {
+                operation = Operation(token = it)
+            }
         }
         setRefreshing(true)
-        return true
+        return token
     }
 
-    fun attachTimeout(cancel: () -> Unit) {
+    fun attachTimeout(token: OperationToken, cancel: () -> Unit) {
         val cancelImmediately = synchronized(lock) {
-            if (phase == Phase.ACTIVE) {
-                cancelTimeout = cancel
+            val active = operation
+            if (active?.token == token && active.phase == Phase.ACTIVE) {
+                active.cancelTimeout = cancel
                 false
             } else {
                 true
@@ -100,19 +103,23 @@ internal class ScaleRefreshCoordinator(
         if (cancelImmediately) cancel()
     }
 
-    fun complete() = finish()
+    fun complete(token: OperationToken) = finish(token)
 
-    fun fail(message: String) = finish(message)
+    fun fail(token: OperationToken, message: String) = finish(token, message)
 
-    fun timeout() = finish(SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+    fun timeout(token: OperationToken) = finish(token, SCALE_REFRESH_UNAVAILABLE_MESSAGE)
 
-    fun clear() = finish()
+    fun clear() {
+        val token = synchronized(lock) { operation?.token } ?: return
+        finish(token)
+    }
 
-    private fun finish(message: String? = null) {
+    private fun finish(token: OperationToken, message: String? = null) {
         val cancel = synchronized(lock) {
-            if (phase != Phase.ACTIVE) return
-            phase = Phase.FINISHING
-            cancelTimeout.also { cancelTimeout = null }
+            val active = operation
+            if (active?.token != token || active.phase != Phase.ACTIVE) return
+            active.phase = Phase.FINISHING
+            active.cancelTimeout.also { active.cancelTimeout = null }
         }
         try {
             cancel?.invoke()
@@ -121,11 +128,21 @@ internal class ScaleRefreshCoordinator(
             restoreAutomaticScanning()
             message?.let(showMessage)
         } finally {
-            synchronized(lock) { phase = Phase.IDLE }
+            synchronized(lock) {
+                if (operation?.token == token) operation = null
+            }
         }
     }
 
-    private enum class Phase { IDLE, ACTIVE, FINISHING }
+    internal class OperationToken internal constructor(internal val id: Long)
+
+    private data class Operation(
+        val token: OperationToken,
+        var phase: Phase = Phase.ACTIVE,
+        var cancelTimeout: (() -> Unit)? = null,
+    )
+
+    private enum class Phase { ACTIVE, FINISHING }
 }
 
 /**

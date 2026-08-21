@@ -716,12 +716,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
-        if (!scaleRefresh.start()) return
-
-        if (scanning.value) {
-            scanner.stop()
-            scanning.value = false
-        }
+        val operation = scaleRefresh.start() ?: return
         val started = runCatching {
             BackgroundScanRegistrar.unregister(getApplication())
             ReliabilityScanService.setEnabled(getApplication(), false)
@@ -729,20 +724,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onSuccess = {
                 refreshScanner.start(
                     address = container.profileStore.settings.value.scaleAddress,
-                    onResult = ::onRefreshScanResult,
-                    onError = scaleRefresh::fail,
+                    onResult = { result -> onRefreshScanResult(operation, result) },
+                    onError = { error -> scaleRefresh.fail(operation, error) },
                 )
             },
             onFailure = { Result.failure(it) },
         )
         started.onFailure { error ->
-            scaleRefresh.fail(error.message ?: "Не удалось запустить сканирование")
+            scaleRefresh.fail(operation, error.message ?: "Не удалось запустить сканирование")
         }.onSuccess {
             val timeoutJob = viewModelScope.launch {
                 delay(SCALE_REFRESH_TIMEOUT_MILLIS)
-                scaleRefresh.timeout()
+                scaleRefresh.timeout(operation)
             }
-            scaleRefresh.attachTimeout(timeoutJob::cancel)
+            scaleRefresh.attachTimeout(operation, timeoutJob::cancel)
         }
     }
 
@@ -900,7 +895,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     @SuppressLint("MissingPermission")
-    private fun onRefreshScanResult(result: ScanResult) {
+    private fun onRefreshScanResult(
+        operation: ScaleRefreshCoordinator.OperationToken,
+        result: ScanResult,
+    ) {
         if (!BleSupport.hasConnectPermission(getApplication())) return
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
@@ -908,10 +906,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!parsed.isStableWeight) return
 
         ScanWorkScheduler.enqueue(getApplication(), result)
-        scaleRefresh.complete()
+        scaleRefresh.complete(operation)
     }
 
     private fun restoreAutomaticScanning() {
+        if (scanning.value) return
         if (container.profileStore.settings.value.scaleAddress == null) return
         BackgroundScanRegistrar.register(getApplication())
         if (container.profileStore.settings.value.reliabilityMode) {
