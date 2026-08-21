@@ -26,6 +26,7 @@ enum class PendingResolverReturnDestination {
 internal data class PendingResolverSession(
     val pendingId: PendingMeasurementId,
     val source: PendingResolverSource,
+    val pendingSnapshot: PendingMeasurement? = null,
 ) {
     val returnDestination: PendingResolverReturnDestination
         get() = when (source) {
@@ -40,6 +41,20 @@ internal data class PendingResolverSession(
                 returnDestination = returnDestination,
             )
         }
+}
+
+/**
+ * Keeps the displayed item stable across technical intermediate Room emissions. The snapshot is
+ * scoped to the active resolver session and disappears with that session; terminal repository
+ * outcomes remain responsible for closing it.
+ */
+internal fun pendingForResolverLifecycle(
+    pending: List<PendingMeasurement>,
+    session: PendingResolverSession?,
+): List<PendingMeasurement> {
+    val snapshot = session?.pendingSnapshot ?: return pending
+    if (snapshot.id != session.pendingId || pending.any { it.id == snapshot.id }) return pending
+    return pending + snapshot
 }
 
 /** Shared terminal callback contract for assignment now and discard once it is connected. */

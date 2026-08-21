@@ -130,7 +130,9 @@ class PendingMeasurementNotificationHelper(
                 .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(text)
                 .setContentIntent(contentIntent)
-                .setAutoCancel(true)
+                // Opening the resolver is navigation, not resolution. Only a durable queue change
+                // may remove this ongoing entry via updatePendingCount(0).
+                .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
                 .setNumber(count)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)

@@ -92,6 +92,30 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
+    fun updatedAwaitingAggregateRepostsAuthoritativePendingCount() = runBlocking {
+        val incomplete = primary.copy(
+            profile = AccountProfile.IncompleteRecovery(heightCm = 175.0),
+        )
+        val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val coordinator = coordinator(
+            persistence = persistence,
+            accounts = accounts,
+            scheduler = UniqueFakeScheduler(),
+            notifier = notifier,
+        )
+        val waiting = coordinator.ingestAndFinalize(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+
+        val updated = coordinator.ingest(raw(70.0))
+            as MeasurementIngestionResult.UpdatedAggregate
+
+        assertEquals(waiting.pending.id, updated.pending.id)
+        assertEquals(listOf(1, 1), notifier.counts)
+    }
+
+    @Test
     fun finalizationRereadsDeadlineAndRoutesOnlyWhenDue() = runBlocking {
         val events = mutableListOf<String>()
         val accounts = FakeAccountRepository(listOf(primary), primary.id, events)

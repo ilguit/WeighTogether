@@ -367,6 +367,39 @@ class ResolverUiContractsTest {
     }
 
     @Test
+    fun `open resolver retains its snapshot across technical intermediate absence`() {
+        val selected = pending("selected", "2026-08-15T10:00:00Z")
+        val session = PendingResolverSession(
+            pendingId = selected.id,
+            source = PendingResolverSource.EXTERNAL,
+            pendingSnapshot = selected,
+        )
+
+        val transient = pendingForResolverLifecycle(emptyList(), session)
+        val queue = ResolverQueueState.from(transient, selectedPendingId = session.pendingId)
+
+        assertEquals(listOf(selected), transient)
+        assertEquals(selected, queue.selected)
+        assertTrue(queue.isResolverVisible)
+        assertTrue(pendingForResolverLifecycle(emptyList(), null).isEmpty())
+    }
+
+    @Test
+    fun `durable pending update supersedes resolver snapshot`() {
+        val selected = pending("selected", "2026-08-15T10:00:00Z")
+        val enriched = selected.copy(impedanceOhm = 625)
+        val session = PendingResolverSession(
+            pendingId = selected.id,
+            source = PendingResolverSource.PENDING_QUEUE,
+            pendingSnapshot = selected,
+        )
+
+        val current = pendingForResolverLifecycle(listOf(enriched), session)
+
+        assertEquals(listOf(enriched), current)
+    }
+
+    @Test
     fun `durable removal clears stale resolver selection instead of opening fifo head`() {
         val first = pending("a", "2026-08-15T10:00:00Z")
         val selected = pending("b", "2026-08-15T10:01:00Z")

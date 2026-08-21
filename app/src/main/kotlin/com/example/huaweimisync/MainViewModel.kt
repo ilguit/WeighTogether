@@ -46,6 +46,7 @@ import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
+import com.example.huaweimisync.ui.routing.pendingForResolverLifecycle
 import com.example.huaweimisync.worker.ExternalSyncPauseTransition
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
@@ -245,7 +246,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         notificationPermissionGranted,
     ) { pendingValues, session, notificationsGranted ->
         ResolverQueueState.from(
-            pending = pendingValues,
+            pending = pendingForResolverLifecycle(pendingValues, session),
             selectedPendingId = session?.pendingId,
             notificationPermissionGranted = notificationsGranted,
         )
@@ -343,17 +344,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             pending.collectLatest { values ->
-                val head = values.firstOrNull()
-                val selectedId = resolverSession.value?.pendingId
-                if (selectedId != null && values.none { it.id == selectedId }) {
-                    resolverSession.value = null
-                }
-                if (head == null) {
-                    pendingDecision.value = null
-                } else {
-                    pendingDecision.value = pendingDecision.value?.takeIf { decision ->
-                        values.any { it.id == decision.pendingId }
+                resolverSession.value?.let { session ->
+                    values.firstOrNull { it.id == session.pendingId }?.let { current ->
+                        if (session.pendingSnapshot != current) {
+                            resolverSession.value = session.copy(pendingSnapshot = current)
+                        }
                     }
+                }
+                val selectedId = resolverSession.value?.pendingId
+                pendingDecision.value = pendingDecision.value?.takeIf { decision ->
+                    decision.pendingId == selectedId || values.any { it.id == decision.pendingId }
                 }
                 unsavedPreviewSession.retainAvailable(values.mapTo(mutableSetOf()) { it.id })
                 val createPendingSession = pendingForNewAccount.value
@@ -378,9 +378,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 accountsSnapshot,
                 resolverSession,
             ) { pendingValues, snapshot, session ->
-                val routingTargetId = session?.pendingId?.takeIf { id ->
-                    pendingValues.any { it.id == id }
-                } ?: pendingValues.firstOrNull()?.id
+                val routingTargetId = session?.pendingId ?: pendingValues.firstOrNull()?.id
                 routingTargetId to snapshot
             }.collectLatest { (pendingId, _) ->
                 if (pendingId == null) {
@@ -542,7 +540,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun resolveLater() {
-        resolverSession.value = null
+        clearResolverSession()
     }
 
     fun choosePendingAccount(pendingId: PendingMeasurementId, accountId: AccountId) =
@@ -594,7 +592,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         pendingForNewAccount.value = session
-        resolverSession.value = null
+        clearResolverSession(session.pendingId)
         onAccountManagementAction(AccountManagementAction.AddRequested)
     }
 
@@ -1041,7 +1039,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         pendingId: PendingMeasurementId,
         source: PendingResolverSource,
     ) {
-        resolverSession.value = PendingResolverSession(pendingId, source)
+        resolverSession.value = PendingResolverSession(
+            pendingId = pendingId,
+            source = source,
+            pendingSnapshot = pending.value.firstOrNull { it.id == pendingId },
+        )
     }
 
     private fun showPendingWithoutSaving(
@@ -1050,7 +1052,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) {
         val pendingValue = pending.value.firstOrNull { it.id == pendingId } ?: return
         if (session.pendingId != pendingId) return
-        resolverSession.value = null
+        clearResolverSession(pendingId)
         unsavedPreviewSession.show(
             state = UnsavedMeasurementPreviewState(pendingValue),
             resolverSession = session,
@@ -1058,13 +1060,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun completePendingResolution(completion: PendingResolverCompletion) {
-        if (resolverSession.value?.pendingId == completion.pendingId) {
-            resolverSession.value = null
-        }
+        clearResolverSession(completion.pendingId)
         eventEmitter.pendingResolutionCompleted(
             pendingId = completion.pendingId,
             returnDestination = completion.returnDestination,
         )
+    }
+
+    private fun clearResolverSession(pendingId: PendingMeasurementId? = null) {
+        if (pendingId == null || resolverSession.value?.pendingId == pendingId) {
+            resolverSession.value = null
+        }
     }
 
     private fun runAccountOperation(block: suspend () -> Unit) {
@@ -1121,13 +1127,20 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
                 }
-                is MeasurementIngestionResult.Assigned -> pendingDecision.value = null
+                is MeasurementIngestionResult.Assigned -> {
+                    clearResolverSession(pendingId)
+                    pendingDecision.value = null
+                }
+                MeasurementIngestionResult.PendingMissing,
+                MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
+                -> {
+                    clearResolverSession(pendingId)
+                    pendingDecision.value = null
+                }
                 is MeasurementIngestionResult.CreatedAggregate,
                 is MeasurementIngestionResult.UpdatedAggregate,
                 MeasurementIngestionResult.SuppressedFinal,
                 MeasurementIngestionResult.SuppressedTombstone,
-                MeasurementIngestionResult.PendingMissing,
-                MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
                 MeasurementIngestionResult.Tombstoned,
                 MeasurementIngestionResult.IgnoredNotFinal,
                 MeasurementIngestionResult.LegacyDuplicate,

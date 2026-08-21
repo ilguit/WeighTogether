@@ -209,11 +209,18 @@ class MeasurementIngestionCoordinator(
         return when (val enqueued = persistence.enqueue(raw)) {
             is PendingPersistenceResult.Inserted ->
                 MeasurementIngestionResult.CreatedAggregate(enqueued.pending)
-            is PendingPersistenceResult.AlreadyPending -> MeasurementIngestionResult.UpdatedAggregate(
-                pending = enqueued.pending,
-                wasEnriched = enqueued.wasEnriched,
-                shouldScheduleFinalization = enqueued.shouldScheduleFinalization,
-            )
+            is PendingPersistenceResult.AlreadyPending -> {
+                // An awaiting aggregate may be enriched after it was already presented. Re-posting
+                // the authoritative count keeps notification/fallback state aligned with Room.
+                if (enqueued.pending.isAwaitingDecisionAt(Instant.now())) {
+                    refreshPendingPresentation()
+                }
+                MeasurementIngestionResult.UpdatedAggregate(
+                    pending = enqueued.pending,
+                    wasEnriched = enqueued.wasEnriched,
+                    shouldScheduleFinalization = enqueued.shouldScheduleFinalization,
+                )
+            }
             is PendingPersistenceResult.AlreadyFinalized -> MeasurementIngestionResult.SuppressedFinal
             PendingPersistenceResult.Tombstoned -> MeasurementIngestionResult.SuppressedTombstone
         }
