@@ -158,6 +158,7 @@ sealed interface MeasurementIngestionResult {
     data class UpdatedAggregate(
         val pending: PendingMeasurement,
         val wasEnriched: Boolean,
+        val shouldScheduleFinalization: Boolean = true,
     ) : MeasurementIngestionResult
     /** A nearby finalized measurement authoritatively suppressed the packet. */
     data object SuppressedFinal : MeasurementIngestionResult
@@ -211,6 +212,7 @@ class MeasurementIngestionCoordinator(
             is PendingPersistenceResult.AlreadyPending -> MeasurementIngestionResult.UpdatedAggregate(
                 pending = enqueued.pending,
                 wasEnriched = enqueued.wasEnriched,
+                shouldScheduleFinalization = enqueued.shouldScheduleFinalization,
             )
             is PendingPersistenceResult.AlreadyFinalized -> MeasurementIngestionResult.SuppressedFinal
             PendingPersistenceResult.Tombstoned -> MeasurementIngestionResult.SuppressedTombstone

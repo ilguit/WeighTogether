@@ -37,6 +37,7 @@ sealed interface PendingPersistenceResult {
     data class AlreadyPending(
         val pending: PendingMeasurement,
         val wasEnriched: Boolean = false,
+        val shouldScheduleFinalization: Boolean = true,
     ) : PendingPersistenceResult
     data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
     data object Tombstoned : PendingPersistenceResult
@@ -188,20 +189,31 @@ class RoomMeasurementPersistence(
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
                     val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
+                    val shouldScheduleFinalization =
+                        timestampMillis < pending.finalizeAfterEpochMillis
+                    // Once the aggregate is due it is resolver-visible. Keep that transition
+                    // irreversible even if a delayed BLE callback is processed afterwards.
+                    val finalizeAfterEpochMillis = if (shouldScheduleFinalization) {
+                        timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli()
+                    } else {
+                        pending.finalizeAfterEpochMillis
+                    }
                     val current = pending.copy(
                         impedanceOhm = if (enrich) raw.impedanceOhm else pending.impedanceOhm,
                         isStable = if (enrich) raw.isStable else pending.isStable,
                         hasImpedance = if (enrich) raw.hasImpedance else pending.hasImpedance,
                         rawPayload = if (enrich) raw.rawPayload.copyOf() else pending.rawPayload,
-                        finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS)
-                            .toEpochMilli(),
+                        finalizeAfterEpochMillis = finalizeAfterEpochMillis,
                     )
-                    check(pendingDao.update(current) == 1) {
-                        "Pending aggregate disappeared during ingestion"
+                    if (enrich || shouldScheduleFinalization) {
+                        check(pendingDao.update(current) == 1) {
+                            "Pending aggregate disappeared during ingestion"
+                        }
                     }
                     return@withTransaction PendingPersistenceResult.AlreadyPending(
                         pending = current.toDomain(),
                         wasEnriched = enrich,
+                        shouldScheduleFinalization = shouldScheduleFinalization,
                     )
                 }
                 null -> Unit

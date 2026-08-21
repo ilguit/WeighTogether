@@ -25,7 +25,8 @@ class MeasurementFinalizationOrchestrationTest {
         assertEquals("finalize-pending-1", extended.uniqueName)
         assertEquals(10_000L, first.delayMillis)
         assertEquals(15_000L, extended.delayMillis)
-        assertEquals(ExistingWorkPolicy.REPLACE, FINALIZATION_EXISTING_WORK_POLICY)
+        assertEquals(ExistingWorkPolicy.KEEP, FINALIZATION_ENSURE_POLICY)
+        assertEquals(ExistingWorkPolicy.REPLACE, FINALIZATION_RESCHEDULE_POLICY)
     }
 
     @Test
@@ -37,27 +38,39 @@ class MeasurementFinalizationOrchestrationTest {
     }
 
     @Test
-    fun onlyCreatedAndUpdatedAggregatesScheduleFinalization() = kotlinx.coroutines.runBlocking {
-        val scheduled = mutableListOf<PendingMeasurement>()
-        val scheduler = object : PendingFinalizationScheduler {
-            override fun enqueue(pending: PendingMeasurement) {
-                scheduled += pending
+    fun onlyCreatedAndNonDueUpdatedAggregatesEnsureFinalization() =
+        kotlinx.coroutines.runBlocking {
+            val scheduled = mutableListOf<PendingMeasurement>()
+            val ensured = mutableListOf<PendingMeasurement>()
+            val scheduler = object : PendingFinalizationScheduler {
+                override fun enqueue(pending: PendingMeasurement) {
+                    scheduled += pending
+                }
+
+                override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                    ensured += pending
+                }
             }
-        }
-        val outcomes = listOf<MeasurementIngestionResult>(
-            MeasurementIngestionResult.CreatedAggregate(pending()),
-            MeasurementIngestionResult.UpdatedAggregate(pending(), wasEnriched = true),
-            MeasurementIngestionResult.SuppressedFinal,
-            MeasurementIngestionResult.SuppressedTombstone,
-        )
+            val outcomes = listOf<MeasurementIngestionResult>(
+                MeasurementIngestionResult.CreatedAggregate(pending()),
+                MeasurementIngestionResult.UpdatedAggregate(pending(), wasEnriched = true),
+                MeasurementIngestionResult.UpdatedAggregate(
+                    pending(),
+                    wasEnriched = true,
+                    shouldScheduleFinalization = false,
+                ),
+                MeasurementIngestionResult.SuppressedFinal,
+                MeasurementIngestionResult.SuppressedTombstone,
+            )
 
-        outcomes.forEach { outcome ->
-            MeasurementIngestionWorkOrchestrator({ outcome }, scheduler).process(raw())
-        }
+            outcomes.forEach { outcome ->
+                MeasurementIngestionWorkOrchestrator({ outcome }, scheduler).process(raw())
+            }
 
-        assertEquals(2, scheduled.size)
-        assertTrue(scheduled.all { it.id == PendingMeasurementId("pending-1") })
-    }
+            assertTrue(scheduled.isEmpty())
+            assertEquals(2, ensured.size)
+            assertTrue(ensured.all { it.id == PendingMeasurementId("pending-1") })
+        }
 }
 
 private fun pending(finalizeAfter: Instant = NOW.plusSeconds(10)) = PendingMeasurement(

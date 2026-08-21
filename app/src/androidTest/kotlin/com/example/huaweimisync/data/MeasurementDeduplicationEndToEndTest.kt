@@ -9,6 +9,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import com.example.huaweimisync.worker.PendingFinalizationScheduler
 import java.time.Instant
@@ -149,6 +150,60 @@ class MeasurementDeduplicationEndToEndTest {
         assertTrue(repository.observePending().first().isEmpty())
         assertEquals(1, sync.enqueued.size)
         assertEquals(3, finalization.pendingIds.size)
+    }
+
+    @Test
+    fun lateDuplicateEnrichesAwaitingDecisionWithoutReturningItToAggregation() = runBlocking {
+        val finalization = RecordingFinalizationScheduler()
+        val notifications = RecordingPendingNotifier()
+        val accounts = RoomAccountRepository(database, now = { now })
+        val calculator = BodyCompositionCalculator(ZoneId.of("UTC"))
+        val repository = MeasurementRepository(
+            dao = database.measurementDao(),
+            profileProvider = { null },
+            scaleAddressProvider = { null },
+            calculator = calculator,
+            syncScheduler = RecordingSyncScheduler(),
+            huaweiSyncEnabled = true,
+            multiAccountPersistence = RoomMeasurementPersistence(
+                database = database,
+                calculator = calculator,
+                huaweiSyncEnabled = true,
+                now = { now },
+            ),
+            accountRepository = accounts,
+            pendingDecisionNotifier = notifications,
+            pendingFinalizationScheduler = finalization,
+        )
+
+        val created = repository.ingestTestMeasurement(70.0, 0, MEASURED_AT)
+            as MeasurementIngestionResult.CreatedAggregate
+        now = created.pending.finalizeAfter
+        val due = repository.finalizeDue(created.pending.id, now)
+            as AggregateFinalizationResult.Completed
+
+        assertTrue(due.outcome is MeasurementIngestionResult.AwaitingDecision)
+        assertTrue(
+            requireNotNull(repository.getPending(created.pending.id)).isAwaitingDecisionAt(now),
+        )
+        assertEquals(listOf(1), notifications.counts)
+
+        now = now.plusSeconds(2)
+        val repeated = repository.ingestTestMeasurement(
+            weightKg = 70.0,
+            impedanceOhm = 500,
+            measuredAt = MEASURED_AT.plusSeconds(8),
+        ) as MeasurementIngestionResult.UpdatedAggregate
+        val persisted = requireNotNull(repository.getPending(created.pending.id))
+
+        assertTrue(repeated.wasEnriched)
+        assertTrue(!repeated.shouldScheduleFinalization)
+        assertEquals(created.pending.id, repeated.pending.id)
+        assertEquals(created.pending.finalizeAfter, repeated.pending.finalizeAfter)
+        assertEquals(500, persisted.impedanceOhm)
+        assertTrue(persisted.hasImpedance)
+        assertTrue(persisted.isAwaitingDecisionAt(now))
+        assertEquals(listOf(created.pending.id), finalization.pendingIds)
     }
 
     @Test

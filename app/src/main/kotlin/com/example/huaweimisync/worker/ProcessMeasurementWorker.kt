@@ -15,9 +15,12 @@ class MeasurementIngestionWorkOrchestrator(
         val outcome = ingest(raw)
         when (outcome) {
             is MeasurementIngestionResult.CreatedAggregate ->
-                finalizationScheduler.enqueue(outcome.pending)
-            is MeasurementIngestionResult.UpdatedAggregate ->
-                finalizationScheduler.enqueue(outcome.pending)
+                finalizationScheduler.enqueueIfAbsent(outcome.pending)
+            is MeasurementIngestionResult.UpdatedAggregate -> if (
+                outcome.shouldScheduleFinalization
+            ) {
+                finalizationScheduler.enqueueIfAbsent(outcome.pending)
+            }
             else -> Unit
         }
         return outcome

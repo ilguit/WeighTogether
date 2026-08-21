@@ -16,10 +16,15 @@ import java.time.Instant
 import java.util.concurrent.TimeUnit
 
 interface PendingFinalizationScheduler {
+    /** Schedules the exact persisted deadline, including replacing the currently running watchdog. */
     fun enqueue(pending: PendingMeasurement)
+
+    /** Ensures a watchdog exists without cancelling/replacing one already queued or running. */
+    fun enqueueIfAbsent(pending: PendingMeasurement) = enqueue(pending)
 }
 
-internal val FINALIZATION_EXISTING_WORK_POLICY: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE
+internal val FINALIZATION_RESCHEDULE_POLICY: ExistingWorkPolicy = ExistingWorkPolicy.REPLACE
+internal val FINALIZATION_ENSURE_POLICY: ExistingWorkPolicy = ExistingWorkPolicy.KEEP
 
 data class PendingFinalizationWorkPlan(
     val uniqueName: String,
@@ -41,6 +46,14 @@ class WorkManagerPendingFinalizationScheduler(
     private val now: () -> Instant = Instant::now,
 ) : PendingFinalizationScheduler {
     override fun enqueue(pending: PendingMeasurement) {
+        schedule(pending, FINALIZATION_RESCHEDULE_POLICY)
+    }
+
+    override fun enqueueIfAbsent(pending: PendingMeasurement) {
+        schedule(pending, FINALIZATION_ENSURE_POLICY)
+    }
+
+    private fun schedule(pending: PendingMeasurement, policy: ExistingWorkPolicy) {
         val plan = pendingFinalizationWorkPlan(pending, now())
         val request = OneTimeWorkRequestBuilder<MeasurementFinalizationWorker>()
             .setInputData(MeasurementFinalizationWorker.inputData(plan.pendingId))
@@ -48,7 +61,7 @@ class WorkManagerPendingFinalizationScheduler(
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             plan.uniqueName,
-            FINALIZATION_EXISTING_WORK_POLICY,
+            policy,
             request,
         )
     }

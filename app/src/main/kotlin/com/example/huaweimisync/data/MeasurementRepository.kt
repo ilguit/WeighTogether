@@ -145,9 +145,12 @@ class MeasurementRepository(
         )
         when (result) {
             is MeasurementIngestionResult.CreatedAggregate ->
-                pendingFinalizationScheduler?.enqueue(result.pending)
-            is MeasurementIngestionResult.UpdatedAggregate ->
-                pendingFinalizationScheduler?.enqueue(result.pending)
+                pendingFinalizationScheduler?.enqueueIfAbsent(result.pending)
+            is MeasurementIngestionResult.UpdatedAggregate -> if (
+                result.shouldScheduleFinalization
+            ) {
+                pendingFinalizationScheduler?.enqueueIfAbsent(result.pending)
+            }
             else -> Unit
         }
         return result
