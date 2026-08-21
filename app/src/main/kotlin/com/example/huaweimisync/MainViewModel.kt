@@ -729,7 +729,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             onSuccess = {
                 refreshScanner.start(
                     address = refresh.address,
-                    onResult = { result -> onRefreshScanResult(operation, result) },
+                    onResult = { result ->
+                        onRefreshScanResult(operation, refresh.address, result)
+                    },
                     onError = { error -> scaleRefresh.fail(operation, error) },
                 )
             },
@@ -902,11 +904,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     @SuppressLint("MissingPermission")
     private fun onRefreshScanResult(
         operation: ScaleRefreshCoordinator.OperationToken,
+        selectedAddress: String,
         result: ScanResult,
     ) {
         if (!BleSupport.hasConnectPermission(getApplication())) return
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
+        if (!isSelectedScaleAddress(selectedAddress, address)) return
         val parsed = container.packetParser.parse(payload, address) ?: return
         if (!parsed.isStableWeight) return
 

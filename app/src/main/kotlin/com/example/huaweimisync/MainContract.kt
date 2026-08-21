@@ -73,11 +73,17 @@ internal sealed interface ScaleRefreshPreflightResult {
     data class Rejected(val message: String) : ScaleRefreshPreflightResult
 }
 
+private val BLUETOOTH_DEVICE_ADDRESS =
+    Regex("(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
+
 internal fun scaleRefreshPreflight(address: String?): ScaleRefreshPreflightResult {
-    val selectedAddress = address?.trim()?.takeIf(String::isNotEmpty)
+    val selectedAddress = address?.trim()?.takeIf(BLUETOOTH_DEVICE_ADDRESS::matches)
         ?: return ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE)
     return ScaleRefreshPreflightResult.Ready(selectedAddress)
 }
+
+internal fun isSelectedScaleAddress(selectedAddress: String, observedAddress: String): Boolean =
+    selectedAddress.equals(observedAddress.trim(), ignoreCase = true)
 
 /**
  * Keeps address validation ahead of coordinator activation so a rejected gesture has no refresh,

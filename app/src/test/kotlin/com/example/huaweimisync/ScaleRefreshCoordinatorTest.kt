@@ -34,13 +34,20 @@ class ScaleRefreshCoordinatorTest {
     }
 
     @Test
-    fun `valid address starts refresh with guaranteed non-empty address`() {
+    fun `non MAC address is rejected without activating refresh`() {
+        assertRejectedWithoutSideEffects("selected-scale")
+        assertRejectedWithoutSideEffects("AA:BB:CC:DD:EE")
+        assertRejectedWithoutSideEffects("AA:BB:CC:DD:EE:GG")
+    }
+
+    @Test
+    fun `valid address is trimmed before refresh starts`() {
         assertEquals(
             ScaleRefreshPreflightResult.Ready("AA:BB:CC:DD:EE:FF"),
-            scaleRefreshPreflight("AA:BB:CC:DD:EE:FF"),
+            scaleRefreshPreflight("  AA:BB:CC:DD:EE:FF\n"),
         )
         val start = beginScaleRefresh(
-            address = "AA:BB:CC:DD:EE:FF",
+            address = "  AA:BB:CC:DD:EE:FF\n",
             coordinator = coordinator,
             showMessage = messages::add,
         )
@@ -55,10 +62,24 @@ class ScaleRefreshCoordinatorTest {
     }
 
     @Test
+    fun `only selected scale address is accepted case insensitively`() {
+        assertTrue(isSelectedScaleAddress("AA:BB:CC:DD:EE:FF", "aa:bb:cc:dd:ee:ff"))
+        assertTrue(isSelectedScaleAddress("AA:BB:CC:DD:EE:FF", " AA:BB:CC:DD:EE:FF "))
+        assertEquals(
+            false,
+            isSelectedScaleAddress("AA:BB:CC:DD:EE:FF", "11:22:33:44:55:66"),
+        )
+    }
+
+    @Test
     fun `repeated gesture starts exactly one scanner operation`() {
         var scannerStarts = 0
         fun requestRefresh() {
-            coordinator.start() ?: return
+            beginScaleRefresh(
+                address = "AA:BB:CC:DD:EE:FF",
+                coordinator = coordinator,
+                showMessage = messages::add,
+            ) ?: return
             scannerStarts++
         }
 
@@ -69,6 +90,7 @@ class ScaleRefreshCoordinatorTest {
         assertEquals(listOf(true), refreshingStates)
         assertEquals(0, scannerStops)
         assertEquals(0, automaticScanRestores)
+        assertEquals(emptyList<String>(), messages)
     }
 
     @Test
@@ -172,6 +194,7 @@ class ScaleRefreshCoordinatorTest {
         requireNotNull(coordinator.start())
 
     private fun assertRejectedWithoutSideEffects(address: String?) {
+        val initialMessageCount = messages.size
         assertEquals(
             ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE),
             scaleRefreshPreflight(address),
@@ -188,8 +211,9 @@ class ScaleRefreshCoordinatorTest {
         }
 
         assertNull(start)
-        assertEquals(listOf(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE), messages)
-        assertEquals("Сначала выберите весы в настройках", messages.single())
+        assertEquals(initialMessageCount + 1, messages.size)
+        assertEquals(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE, messages.last())
+        assertEquals("Сначала выберите весы в настройках", messages.last())
         assertEquals(emptyList<Boolean>(), refreshingStates)
         assertEquals(0, timeoutCreations)
         assertEquals(0, scannerStops)
