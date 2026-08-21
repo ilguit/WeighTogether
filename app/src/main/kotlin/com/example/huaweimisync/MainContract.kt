@@ -65,6 +65,129 @@ internal class MainUiEventEmitter {
     }
 }
 
+internal const val SCALE_REFRESH_SCALE_REQUIRED_MESSAGE =
+    "Сначала выберите весы в настройках"
+
+internal sealed interface ScaleRefreshPreflightResult {
+    data class Ready(val address: String) : ScaleRefreshPreflightResult
+    data class Rejected(val message: String) : ScaleRefreshPreflightResult
+}
+
+private val BLUETOOTH_DEVICE_ADDRESS =
+    Regex("(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}")
+
+internal fun scaleRefreshPreflight(address: String?): ScaleRefreshPreflightResult {
+    val selectedAddress = address?.trim()?.takeIf(BLUETOOTH_DEVICE_ADDRESS::matches)
+        ?: return ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE)
+    return ScaleRefreshPreflightResult.Ready(selectedAddress)
+}
+
+internal fun isSelectedScaleAddress(selectedAddress: String, observedAddress: String): Boolean =
+    selectedAddress.equals(observedAddress.trim(), ignoreCase = true)
+
+/**
+ * Keeps address validation ahead of coordinator activation so a rejected gesture has no refresh,
+ * scanner, background-service, or timeout lifecycle to unwind.
+ */
+internal fun beginScaleRefresh(
+    address: String?,
+    coordinator: ScaleRefreshCoordinator,
+    showMessage: (String) -> Unit,
+): ScaleRefreshStart? = when (val preflight = scaleRefreshPreflight(address)) {
+    is ScaleRefreshPreflightResult.Rejected -> {
+        showMessage(preflight.message)
+        null
+    }
+    is ScaleRefreshPreflightResult.Ready -> coordinator.start()?.let { operation ->
+        ScaleRefreshStart(operation = operation, address = preflight.address)
+    }
+}
+
+internal data class ScaleRefreshStart(
+    val operation: ScaleRefreshCoordinator.OperationToken,
+    val address: String,
+)
+
+/**
+ * Owns the lifecycle of the one-shot scale refresh independently from Settings scanning.
+ * Scanner and timer implementations stay outside so the operation can be tested without Android.
+ */
+internal class ScaleRefreshCoordinator(
+    private val setRefreshing: (Boolean) -> Unit,
+    private val stopScanner: () -> Unit,
+    private val restoreAutomaticScanning: () -> Unit,
+    private val showMessage: (String) -> Unit,
+) {
+    private val lock = Any()
+    private var nextOperationId = 0L
+    private var operation: Operation? = null
+
+    fun start(): OperationToken? {
+        val token = synchronized(lock) {
+            if (operation != null) return null
+            OperationToken(++nextOperationId).also {
+                operation = Operation(token = it)
+            }
+        }
+        setRefreshing(true)
+        return token
+    }
+
+    fun attachTimeout(token: OperationToken, cancel: () -> Unit) {
+        val cancelImmediately = synchronized(lock) {
+            val active = operation
+            if (active?.token == token && active.phase == Phase.ACTIVE) {
+                active.cancelTimeout = cancel
+                false
+            } else {
+                true
+            }
+        }
+        if (cancelImmediately) cancel()
+    }
+
+    fun complete(token: OperationToken) = finish(token)
+
+    fun fail(token: OperationToken, message: String) = finish(token, message)
+
+    fun timeout(token: OperationToken) = finish(token, SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+
+    fun clear() {
+        val token = synchronized(lock) { operation?.token } ?: return
+        finish(token)
+    }
+
+    private fun finish(token: OperationToken, message: String? = null) {
+        val cancel = synchronized(lock) {
+            val active = operation
+            if (active?.token != token || active.phase != Phase.ACTIVE) return
+            active.phase = Phase.FINISHING
+            active.cancelTimeout.also { active.cancelTimeout = null }
+        }
+        try {
+            cancel?.invoke()
+            stopScanner()
+            setRefreshing(false)
+            restoreAutomaticScanning()
+            message?.let(showMessage)
+        } finally {
+            synchronized(lock) {
+                if (operation?.token == token) operation = null
+            }
+        }
+    }
+
+    internal class OperationToken internal constructor(internal val id: Long)
+
+    private data class Operation(
+        val token: OperationToken,
+        var phase: Phase = Phase.ACTIVE,
+        var cancelTimeout: (() -> Unit)? = null,
+    )
+
+    private enum class Phase { ACTIVE, FINISHING }
+}
+
 /**
  * Owns discard capabilities only while their addressed snackbar is active or waiting to be shown.
  * The UI event deliberately carries an id instead of the process-local token.
