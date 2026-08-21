@@ -29,20 +29,36 @@ import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 /**
  * Creates the common line used by both single- and multi-series charts.
  *
- * Points and an area fill are deliberately absent: a marker supplies the interactive point only
- * while the user is inspecting the chart.
+ * An isolated value gets a persistent point because its cubic path contains only `moveTo` and is
+ * otherwise invisible. Longer series deliberately omit points: the marker supplies the
+ * interactive point only while the user is inspecting the chart.
  */
-internal fun smoothChartLine(color: Color): LineCartesianLayer.Line =
+internal fun smoothChartLine(
+    color: Color,
+    pointCount: Int,
+): LineCartesianLayer.Line =
     LineCartesianLayer.Line(
         fill = LineCartesianLayer.LineFill.single(Fill(color)),
         areaFill = null,
-        pointProvider = null,
+        pointProvider = if (pointCount == 1) {
+            LineCartesianLayer.PointProvider.single(
+                LineCartesianLayer.Point(
+                    component = ShapeComponent(fill = Fill(color), shape = CircleShape),
+                    size = 8.dp,
+                ),
+            )
+        } else {
+            null
+        },
         interpolator = LineCartesianLayer.Interpolator.cubic(),
     )
 
 @Composable
-internal fun rememberSmoothChartLine(color: Color): LineCartesianLayer.Line =
-    remember(color) { smoothChartLine(color) }
+internal fun rememberSmoothChartLine(
+    color: Color,
+    pointCount: Int,
+): LineCartesianLayer.Line =
+    remember(color, pointCount) { smoothChartLine(color, pointCount) }
 
 @Composable
 internal fun rememberSmoothLineLayer(

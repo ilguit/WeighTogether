@@ -274,7 +274,12 @@ private fun HomeKgVicoChart(
             override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange?.max ?: maxY
         }
     }
-    val lines = plottedSeries.map { rememberSmoothChartLine(Color(it.color.argb)) }
+    val lines = plottedSeries.map { series ->
+        rememberSmoothChartLine(
+            color = Color(series.color.argb),
+            pointCount = series.points.size,
+        )
+    }
     val bottomFormatter = remember(zoneId) {
         CartesianValueFormatter { _, value, _ ->
             HomeAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
