@@ -15,6 +15,7 @@ import com.huawei.hihealthkit.data.type.HiHealthPointType
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 
 fun createHuaweiHealthGateway(context: Context): HuaweiHealthGateway =
     ExtendedHuaweiHealthGateway(context)
@@ -254,23 +255,28 @@ internal class HuaweiWritePermissionChecker(
 /** Makes Huawei's callback-only authorization API safe for cancellation and bad SDK callbacks. */
 internal suspend fun awaitSingleHuaweiResult(
     synchronousFailure: SyncResult,
+    timeoutMillis: Long = HUAWEI_CALLBACK_TIMEOUT_MILLIS,
     register: (complete: (SyncResult) -> Unit) -> Unit,
-): SyncResult = suspendCancellableCoroutine { continuation ->
-    val completed = AtomicBoolean(false)
-    continuation.invokeOnCancellation { completed.set(true) }
+): SyncResult = withTimeoutOrNull(timeoutMillis) {
+    suspendCancellableCoroutine { continuation ->
+        val completed = AtomicBoolean(false)
+        continuation.invokeOnCancellation { completed.set(true) }
 
-    fun resumeOnce(result: SyncResult) {
-        if (completed.compareAndSet(false, true) && continuation.isActive) {
-            continuation.resume(result)
+        fun resumeOnce(result: SyncResult) {
+            if (completed.compareAndSet(false, true) && continuation.isActive) {
+                continuation.resume(result)
+            }
+        }
+
+        try {
+            register(::resumeOnce)
+        } catch (_: Exception) {
+            resumeOnce(synchronousFailure)
         }
     }
+} ?: synchronousFailure
 
-    try {
-        register(::resumeOnce)
-    } catch (_: Exception) {
-        resumeOnce(synchronousFailure)
-    }
-}
+internal const val HUAWEI_CALLBACK_TIMEOUT_MILLIS = 30_000L
 
 internal fun mapHuaweiDataAuthStatus(
     resultCode: Int,

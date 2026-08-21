@@ -154,6 +154,21 @@ class HuaweiWritePermissionCheckerTest {
             assertTrue(job.isCancelled)
         }
 
+    @Test
+    fun `authorization adapter times out and ignores callback that arrives afterwards`() =
+        runBlocking {
+            val expectedFailure = SyncResult.Retryable("callback timeout")
+            lateinit var complete: (SyncResult) -> Unit
+
+            val result = awaitSingleHuaweiResult(
+                synchronousFailure = expectedFailure,
+                timeoutMillis = 20L,
+            ) { complete = it }
+            complete(SyncResult.Success)
+
+            assertEquals(expectedFailure, result)
+        }
+
     private class FakeApi(
         private val response: (HuaweiDataAuthStatusCallback) -> Unit,
     ) : HuaweiDataAuthStatusApi {

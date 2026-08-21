@@ -158,11 +158,21 @@ fun HuaweiMiSyncApp(
     openBatterySettings: () -> Unit,
     openApplicationSettings: () -> Unit,
 ) {
-    val state by viewModel.uiState.collectAsStateWithLifecycle()
-    val measurementsState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
-    val chartsState by chartsViewModel.uiState.collectAsStateWithLifecycle()
-    val snackbarHostState = remember { SnackbarHostState() }
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
+        val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
+        activeState
+    } else {
+        measurementsViewModel.uiState.value
+    }
+    val chartsState = if (currentSection == AppSection.CHARTS) {
+        val activeState by chartsViewModel.uiState.collectAsStateWithLifecycle()
+        activeState
+    } else {
+        chartsViewModel.uiState.value
+    }
+    val snackbarHostState = remember { SnackbarHostState() }
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
             when (event) {

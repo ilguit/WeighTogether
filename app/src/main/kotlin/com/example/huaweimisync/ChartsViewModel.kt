@@ -20,15 +20,17 @@ import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.withContext
 
 internal data class ChartFilters(
     val startDate: LocalDate,
@@ -141,39 +143,55 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     private val measurements = combine(filters, accountSelector) { current, selector ->
         current to selector.selectedAccountId
     }.flatMapLatest { (current, accountId) ->
-        if (accountId == null) return@flatMapLatest flowOf(emptyList())
-        val range = inclusiveDateRangeToEpochRange(
-            current.startDate,
-            current.endDateInclusive,
-            zoneId,
-        )
-        repository.observeRangeEntities(
+        accountScopedLoad(
             accountId = accountId,
-            startInclusive = Instant.ofEpochSecond(range.startInclusiveEpochSecond),
-            endExclusive = Instant.ofEpochSecond(range.endExclusiveEpochSecond),
-        )
+            emptyValue = emptyList(),
+        ) { selectedAccountId ->
+            val range = inclusiveDateRangeToEpochRange(
+                current.startDate,
+                current.endDateInclusive,
+                zoneId,
+            )
+            repository.observeRangeEntities(
+                accountId = selectedAccountId,
+                startInclusive = Instant.ofEpochSecond(range.startInclusiveEpochSecond),
+                endExclusive = Instant.ofEpochSecond(range.endExclusiveEpochSecond),
+            )
+        }
     }
 
-    val uiState = combine(filters, measurements, accountSelector) { current, values, selector ->
+    private val series = combine(filters, measurements) { current, loadState ->
+        current to loadState
+    }.mapLatest { (current, loadState) ->
+        withContext(Dispatchers.Default) {
+            ChartsPresentation(
+                loadState = loadState,
+                series = current.selectedMetrics.map { metric ->
+                    ChartSeries(
+                        metric = metricOptions.getValue(metric),
+                        points = chartPointsForMetric(loadState.valuesOrEmpty(), metric),
+                    )
+                },
+            )
+        }
+    }
+
+    val uiState = combine(filters, series, accountSelector) { current, presentation, selector ->
         ChartsUiState(
             startDate = current.startDate,
             endDateInclusive = current.endDateInclusive,
             metricOptions = metricOptionList,
             selectedMetricKeys = current.selectedMetrics.mapTo(linkedSetOf(), MeasurementMetric::name),
-            series = current.selectedMetrics.map { metric ->
-                ChartSeries(
-                    metric = metricOptions.getValue(metric),
-                    points = chartPointsForMetric(values, metric),
-                )
-            },
+            series = presentation.series,
             rangePreset = current.rangePreset,
             activeFilterSheet = current.activeFilterSheet,
             isCustomDatePickerOpen = current.isCustomDatePickerOpen,
+            isLoading = presentation.loadState is AccountScopedLoad.Loading,
             accountSelector = selector,
         )
     }.stateIn(
         viewModelScope,
-        SharingStarted.WhileSubscribed(5_000),
+        SharingStarted.WhileSubscribed(),
         ChartsUiState.initial(
             metricOptions = metricOptionList,
             defaultMetricKeys = initialSelectedMetrics.toPersistedChartMetricKeys(),
@@ -256,3 +274,15 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         profileStore.saveSelectedChartMetricKeys(orderedSelection.toPersistedChartMetricKeys())
     }
 }
+
+private fun AccountScopedLoad<List<com.example.huaweimisync.data.MeasurementEntity>>.valuesOrEmpty():
+    List<com.example.huaweimisync.data.MeasurementEntity> =
+    when (this) {
+        AccountScopedLoad.Loading -> emptyList()
+        is AccountScopedLoad.Loaded -> value
+    }
+
+private data class ChartsPresentation(
+    val loadState: AccountScopedLoad<List<com.example.huaweimisync.data.MeasurementEntity>>,
+    val series: List<ChartSeries>,
+)

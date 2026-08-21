@@ -33,6 +33,7 @@ import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.Clock
 import java.time.ZoneId
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -40,13 +41,14 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
@@ -75,10 +77,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         ),
     )
     private val measurements = accountSelector.flatMapLatest { selector ->
-        selector.selectedAccountId?.let(repository::observeAllEntities) ?: flowOf(emptyList())
+        accountScopedLoad(
+            accountId = selector.selectedAccountId,
+            emptyValue = emptyList(),
+            observe = repository::observeAllEntities,
+        )
     }
-        .map<List<MeasurementEntity>, MeasurementsLoadState>(MeasurementsLoadState::Loaded)
-        .stateIn(viewModelScope, SharingStarted.Eagerly, MeasurementsLoadState.Loading)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AccountScopedLoad.Loading)
     private val navigation = MutableStateFlow(MeasurementsNavigationState())
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
     private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
@@ -106,41 +111,54 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         ),
     )
 
+    private val presentation = measurementsWithChartRefresh.mapLatest { refresh ->
+        withContext(Dispatchers.Default) {
+            val values = refresh.measurements.valuesOrEmpty()
+                .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
+            val protectedLatestId = repository.protectedLatestId(values)
+            val items = values.map { value ->
+                value.toMeasurementUiItem(
+                    isDeleteProtected = value.id == protectedLatestId,
+                    isOperationInProgress = false,
+                )
+            }
+            MeasurementsPresentation(
+                loadState = refresh.measurements,
+                items = items,
+                summary = buildMeasurementSummary(items),
+                homeKgChart = buildHomeKgChartUiState(
+                    measurements = items,
+                    persistedActiveSeriesKeys = refresh.persistedActiveSeriesKeys,
+                    zoneId = homeChartZoneId,
+                    currentDate = refresh.currentDate,
+                ),
+            )
+        }
+    }
+
     val uiState = combine(
-        measurementsWithChartRefresh,
+        presentation,
         navigation,
         editor,
         deleteConfirmation,
         accountSelector,
-    ) { chartRefresh, currentNavigation, currentEditor, deletion, selector ->
-        val loadState = chartRefresh.measurements
-        val values = loadState.valuesOrEmpty()
-            .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
-        val protectedLatestId = repository.protectedLatestId(values)
-        val items = values.map { value ->
-            value.toMeasurementUiItem(
-                isDeleteProtected = value.id == protectedLatestId,
-                isOperationInProgress = deletion?.isDeleting == true &&
-                    deletion.measurementId == value.id,
-            )
+    ) { current, currentNavigation, currentEditor, deletion, selector ->
+        val deletingId = deletion?.measurementId.takeIf { deletion?.isDeleting == true }
+        val items = if (deletingId == null) current.items else current.items.map { item ->
+            item.copy(isOperationInProgress = item.id == deletingId)
         }
         MeasurementsUiState(
             destination = currentNavigation.destination,
             editorOrigin = currentNavigation.editorOrigin,
             measurements = items,
-            summary = buildMeasurementSummary(items),
-            isLoading = loadState is MeasurementsLoadState.Loading,
+            summary = current.summary,
+            isLoading = current.loadState is AccountScopedLoad.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
-            homeKgChart = buildHomeKgChartUiState(
-                measurements = items,
-                persistedActiveSeriesKeys = chartRefresh.persistedActiveSeriesKeys,
-                zoneId = homeChartZoneId,
-                currentDate = chartRefresh.currentDate,
-            ),
+            homeKgChart = current.homeKgChart,
             accountSelector = selector,
         )
-    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), MeasurementsUiState())
 
     val callbacks = MeasurementsCallbacks(
         onSummaryRequested = ::showSummary,
@@ -436,15 +454,15 @@ private fun MeasurementType.toUiType(): MeasurementUiType = when (this) {
     MeasurementType.WEIGHT_ONLY -> MeasurementUiType.WEIGHT_ONLY
 }
 
-private sealed interface MeasurementsLoadState {
-    data object Loading : MeasurementsLoadState
+private data class MeasurementsPresentation(
+    val loadState: AccountScopedLoad<List<MeasurementEntity>>,
+    val items: List<MeasurementUiItem>,
+    val summary: com.example.huaweimisync.measurements.MeasurementSummaryPresentation?,
+    val homeKgChart: com.example.huaweimisync.measurements.HomeKgChartUiState,
+)
 
-    data class Loaded(
-        val values: List<MeasurementEntity>,
-    ) : MeasurementsLoadState
-}
-
-private fun MeasurementsLoadState.valuesOrEmpty(): List<MeasurementEntity> = when (this) {
-    MeasurementsLoadState.Loading -> emptyList()
-    is MeasurementsLoadState.Loaded -> values
-}
+private fun AccountScopedLoad<List<MeasurementEntity>>.valuesOrEmpty(): List<MeasurementEntity> =
+    when (this) {
+        AccountScopedLoad.Loading -> emptyList()
+        is AccountScopedLoad.Loaded -> value
+    }

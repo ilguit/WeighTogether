@@ -53,6 +53,7 @@ import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -484,7 +485,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (!weightDeltaEditor.value.isSaving) weightDeltaEditor.value = state
     }
 
-    fun saveWeightDelta(weightDeltaKg: Double) = viewModelScope.launch {
+    fun saveWeightDelta(weightDeltaKg: Double) = viewModelScope.launch(Dispatchers.Default) {
         if (!weightDeltaEditor.value.canSave) return@launch
         weightDeltaEditor.value = weightDeltaEditor.value.copy(isSaving = true)
         runCatching { container.accounts.updateWeightDeltaKg(weightDeltaKg) }
@@ -1078,7 +1079,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         accountManagementDialog.value = accountManagementDialog.value.copy(
             operationInProgress = true,
         )
-        viewModelScope.launch {
+        viewModelScope.launch(Dispatchers.Default) {
             try {
                 block()
             } catch (cancelled: CancellationException) {
