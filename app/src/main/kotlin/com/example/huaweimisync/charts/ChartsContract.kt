@@ -84,6 +84,13 @@ data class ChartValueSummary(
 }
 
 @Immutable
+data class ChartStatistics(
+    val minimum: Double,
+    val maximum: Double,
+    val average: Double,
+)
+
+@Immutable
 data class ChartsUiState(
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
@@ -253,7 +260,22 @@ fun previousChartPoint(points: List<ChartPoint>): ChartPoint? = chartValueSummar
 
 fun chartDelta(points: List<ChartPoint>): Double? = chartValueSummary(points).delta
 
+fun chartStatistics(points: List<ChartPoint>): ChartStatistics? {
+    if (points.isEmpty()) return null
+    return ChartStatistics(
+        minimum = points.minOf(ChartPoint::value),
+        maximum = points.maxOf(ChartPoint::value),
+        average = points.map(ChartPoint::value).average(),
+    )
+}
+
 fun formatChartCurrentValue(
+    value: Double?,
+    metric: ChartMetricOption,
+    locale: Locale = Locale.getDefault(),
+): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+
+fun formatChartStatistic(
     value: Double?,
     metric: ChartMetricOption,
     locale: Locale = Locale.getDefault(),

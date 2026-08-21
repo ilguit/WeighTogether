@@ -21,12 +21,16 @@ import com.example.huaweimisync.measurements.MeasurementsNavigationState
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
+import com.example.huaweimisync.measurements.buildHomeKgChartUiState
 import com.example.huaweimisync.measurements.measurementSyncPresentation
+import com.example.huaweimisync.measurements.toggleHomeKgChartSeriesKey
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
+import java.time.Clock
+import java.time.ZoneId
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -46,6 +50,9 @@ import kotlinx.coroutines.launch
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as MiSyncApplication).container
     private val repository = container.repository
+    private val profileStore = container.profileStore
+    private val homeChartZoneId = ZoneId.systemDefault()
+    private val homeChartClock = Clock.system(homeChartZoneId)
     private val accountSelector = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
@@ -89,13 +96,19 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     val events = eventChannel.receiveAsFlow()
 
-    val uiState = combine(
+    private val measurementsWithSettings = combine(
         measurements,
+        profileStore.settings,
+        ::Pair,
+    )
+
+    val uiState = combine(
+        measurementsWithSettings,
         navigation,
         editor,
         deleteConfirmation,
         accountSelector,
-    ) { loadState, currentNavigation, currentEditor, deletion, selector ->
+    ) { (loadState, settings), currentNavigation, currentEditor, deletion, selector ->
         val values = loadState.valuesOrEmpty()
             .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
         val protectedLatestId = repository.protectedLatestId(values)
@@ -114,6 +127,12 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             isLoading = loadState is MeasurementsLoadState.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
+            homeKgChart = buildHomeKgChartUiState(
+                measurements = items,
+                persistedActiveSeriesKeys = settings.homeKgChartSeriesKeys,
+                zoneId = homeChartZoneId,
+                clock = homeChartClock,
+            ),
             accountSelector = selector,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), MeasurementsUiState())
@@ -132,7 +151,16 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         onDeleteDismissed = ::dismissDelete,
         onRetryRequested = ::retry,
         onAccountSelected = ::selectAccount,
+        onHomeKgChartSeriesToggled = ::toggleHomeKgChartSeries,
     )
+
+    private fun toggleHomeKgChartSeries(seriesKey: String) {
+        val updatedKeys = toggleHomeKgChartSeriesKey(
+            persistedKeys = profileStore.settings.value.homeKgChartSeriesKeys,
+            toggledKey = seriesKey,
+        ) ?: return
+        profileStore.saveHomeKgChartSeriesKeys(updatedKeys)
+    }
 
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.none { it.id == accountId }) return
