@@ -152,7 +152,7 @@ internal fun HomeKgChart(
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text("Динамика состава тела", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Последние 30 дней · кг",
+                    "Последние 14 дней · кг",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -160,7 +160,7 @@ internal fun HomeKgChart(
 
             when {
                 !hasPeriodData -> HomeChartMessage(
-                    text = "За последние 30 дней нет данных для графика.",
+                    text = "За последние 14 дней нет данных для графика.",
                     tag = "home-kg-chart-no-data",
                 )
 
@@ -323,7 +323,7 @@ private fun HomeKgVicoChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(230.dp)
-            .semantics { contentDescription = "График динамики состава тела за последние 30 дней" }
+            .semantics { contentDescription = "График динамики состава тела за последние 14 дней" }
             .testTag("home-kg-vico-chart"),
         scrollState = rememberVicoScrollState(scrollEnabled = true),
         zoomState = zoomState,

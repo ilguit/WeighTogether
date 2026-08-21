@@ -245,4 +245,4 @@ private fun HomeKgChartMetric.valueOf(measurement: MeasurementUiItem): Double? {
     return measurement.values[measurementField]
 }
 
-private const val HOME_KG_CHART_PREVIOUS_DAY_COUNT = 29L
+private const val HOME_KG_CHART_PREVIOUS_DAY_COUNT = 13L

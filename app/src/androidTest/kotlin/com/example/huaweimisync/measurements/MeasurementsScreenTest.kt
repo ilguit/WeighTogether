@@ -141,7 +141,7 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithTag("home-kg-chart-no-data").assertExists()
-        composeRule.onNodeWithText("За последние 30 дней нет данных для графика.").assertExists()
+        composeRule.onNodeWithText("За последние 14 дней нет данных для графика.").assertExists()
         HomeKgChartSeriesCatalog.forEach { metric ->
             composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertExists()
         }

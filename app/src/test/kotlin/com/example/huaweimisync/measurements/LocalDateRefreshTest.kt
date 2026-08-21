@@ -61,7 +61,7 @@ class LocalDateRefreshTest {
         val zoneId = ZoneOffset.UTC
         val boundaryMeasurement = refreshMeasurement(
             id = "old-boundary",
-            measuredAt = Instant.parse("2026-07-23T12:00:00Z").epochSecond,
+            measuredAt = Instant.parse("2026-08-08T12:00:00Z").epochSecond,
         )
         val dates = Channel<LocalDate>(Channel.RENDEZVOUS)
         val states = Channel<HomeKgChartUiState>(Channel.UNLIMITED)
@@ -88,9 +88,9 @@ class LocalDateRefreshTest {
         val afterMidnight = states.receive()
         collector.cancelAndJoin()
 
-        assertEquals(LocalDate.of(2026, 7, 23), beforeMidnight.period.startDate)
+        assertEquals(LocalDate.of(2026, 8, 8), beforeMidnight.period.startDate)
         assertEquals(listOf("old-boundary"), beforeMidnight.series.first().points.map { it.measurementId })
-        assertEquals(LocalDate.of(2026, 7, 24), afterMidnight.period.startDate)
+        assertEquals(LocalDate.of(2026, 8, 9), afterMidnight.period.startDate)
         assertTrue(afterMidnight.series.first().points.isEmpty())
     }
 

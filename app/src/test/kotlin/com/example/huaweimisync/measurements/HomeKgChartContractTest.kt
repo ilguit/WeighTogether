@@ -45,25 +45,25 @@ class HomeKgChartContractTest {
     }
 
     @Test
-    fun `period uses today and previous twenty nine local calendar days across DST`() {
+    fun `period uses today and previous thirteen local calendar days across DST`() {
         val zoneId = ZoneId.of("Europe/Berlin")
         val clock = Clock.fixed(Instant.parse("2026-03-29T12:00:00Z"), ZoneOffset.UTC)
 
         val period = homeKgChartPeriod(zoneId = zoneId, clock = clock)
 
-        assertEquals(LocalDate.of(2026, 2, 28), period.startDate)
+        assertEquals(LocalDate.of(2026, 3, 16), period.startDate)
         assertEquals(LocalDate.of(2026, 3, 29), period.endDateInclusive)
         assertEquals(
-            LocalDate.of(2026, 2, 28).atStartOfDay(zoneId).toEpochSecond(),
+            LocalDate.of(2026, 3, 16).atStartOfDay(zoneId).toEpochSecond(),
             period.startInclusiveEpochSecond,
         )
         assertEquals(
             LocalDate.of(2026, 3, 30).atStartOfDay(zoneId).toEpochSecond(),
             period.endExclusiveEpochSecond,
         )
-        assertEquals(30L, period.startDate.datesUntil(period.endDateInclusive.plusDays(1)).count())
+        assertEquals(14L, period.startDate.datesUntil(period.endDateInclusive.plusDays(1)).count())
         assertEquals(
-            30L * 24L * 60L * 60L - 60L * 60L,
+            14L * 24L * 60L * 60L - 60L * 60L,
             period.endExclusiveEpochSecond - period.startInclusiveEpochSecond,
         )
     }
