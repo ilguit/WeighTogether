@@ -17,8 +17,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
@@ -41,12 +39,10 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
@@ -57,28 +53,15 @@ import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
-import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
-import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
-import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine
-import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
-import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
-import com.patrykandpatrick.vico.compose.common.Fill
-import com.patrykandpatrick.vico.compose.common.Insets
-import com.patrykandpatrick.vico.compose.common.MarkerCornerBasedShape
-import com.patrykandpatrick.vico.compose.common.component.ShapeComponent
-import com.patrykandpatrick.vico.compose.common.component.TextComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
-import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import java.time.Instant
 import java.time.LocalDate
@@ -670,21 +653,7 @@ private fun MetricLineChart(
         }
     }
     val primaryColor = MaterialTheme.colorScheme.primary
-    val pointComponent = rememberShapeComponent(
-        fill = Fill(MaterialTheme.colorScheme.surface),
-        shape = CircleShape,
-        strokeFill = Fill(primaryColor),
-        strokeThickness = 2.dp,
-    )
-    val line = LineCartesianLayer.rememberLine(
-        fill = LineCartesianLayer.LineFill.single(Fill(primaryColor)),
-        areaFill = LineCartesianLayer.AreaFill.single(
-            Fill(primaryColor.copy(alpha = ChartAreaAlpha)),
-        ),
-        pointProvider = LineCartesianLayer.PointProvider.single(
-            LineCartesianLayer.Point(pointComponent),
-        ),
-    )
+    val line = rememberSmoothChartLine(primaryColor)
     val bottomFormatter = remember(zoneId) {
         CartesianValueFormatter { _, value, _ ->
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
@@ -726,21 +695,17 @@ private fun MetricLineChart(
     }
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberLineCartesianLayer(
-                lineProvider = LineCartesianLayer.LineProvider.series(listOf(line)),
+            rememberSmoothLineLayer(
+                lines = listOf(line),
                 rangeProvider = rangeProvider,
             ),
-            startAxis = VerticalAxis.rememberStart(
+            startAxis = rememberChartStartAxis(
                 valueFormatter = CartesianValueFormatter.decimal(
                     decimalCount = metric.decimalPlaces,
                     suffix = metric.unit.takeIf(String::isNotBlank)?.let { " $it" }.orEmpty(),
                 ),
             ),
-            bottomAxis = HorizontalAxis.rememberBottom(
-                guideline = null,
-                labelRotationDegrees = 35f,
-                valueFormatter = bottomFormatter,
-            ),
+            bottomAxis = rememberChartBottomAxis(bottomFormatter),
             marker = rememberChartMarker(markerValueFormatter),
         ),
         modelProducer = modelProducer,
@@ -750,39 +715,6 @@ private fun MetricLineChart(
             .semantics { this.contentDescription = contentDescription },
         scrollState = rememberVicoScrollState(scrollEnabled = true),
         zoomState = zoomState,
-    )
-}
-
-@Composable
-private fun rememberChartMarker(
-    valueFormatter: DefaultCartesianMarker.ValueFormatter,
-): DefaultCartesianMarker {
-    val background = rememberShapeComponent(
-        fill = Fill(MaterialTheme.colorScheme.inverseSurface),
-        shape = MarkerCornerBasedShape(RoundedCornerShape(12.dp)),
-    )
-    val label = rememberTextComponent(
-        style = TextStyle(
-            color = MaterialTheme.colorScheme.inverseOnSurface,
-            textAlign = TextAlign.Center,
-        ),
-        lineCount = 2,
-        padding = Insets(10.dp, 7.dp),
-        background = background,
-        minWidth = TextComponent.MinWidth.text("00.00.0000 00:00"),
-    )
-    return rememberDefaultCartesianMarker(
-        label = label,
-        valueFormatter = valueFormatter,
-        indicator = { color ->
-            ShapeComponent(
-                fill = Fill(Color.White),
-                shape = CircleShape,
-                strokeFill = Fill(color),
-                strokeThickness = 2.dp,
-            )
-        },
-        indicatorSize = 14.dp,
     )
 }
 
@@ -809,5 +741,3 @@ private fun ChartRangePreset.title(): String = when (this) {
 
 private fun ChartMetricOption.labelWithUnit(): String =
     if (unit.isBlank()) displayName else "$displayName, $unit"
-
-private const val ChartAreaAlpha = 0.20f
