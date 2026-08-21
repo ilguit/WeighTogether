@@ -107,6 +107,7 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test:runner:1.5.0")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
+    androidTestImplementation("androidx.work:work-testing:2.10.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.11.4")
 }

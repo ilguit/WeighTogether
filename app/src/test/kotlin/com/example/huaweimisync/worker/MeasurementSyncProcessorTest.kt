@@ -1,11 +1,15 @@
 package com.example.huaweimisync.worker
 
+import com.example.huaweimisync.data.ExternalSyncPauseSettingsStore
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.sync.MeasurementSyncPayload
 import com.example.huaweimisync.sync.SyncResult
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,7 +24,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -37,7 +41,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("health-connect"), store.externalWrites)
         assertEquals(listOf("health-connect"), store.statusUpdates.map { it.first })
     }
@@ -55,7 +59,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(SyncStatus.LOCAL_ONLY.name, store.value?.huaweiStatus)
@@ -73,7 +77,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(2, store.loadCount)
         assertEquals(1, store.eligibilityChecks)
@@ -84,7 +88,7 @@ class MeasurementSyncProcessorTest {
         listOf(ExternalSyncPolicy.ACCOUNT_LOCAL, ExternalSyncPolicy.USER_LOCAL).forEach { policy ->
             val store = FakeSyncStore(measurement(externalSyncPolicy = policy))
 
-            assertEquals(MeasurementSyncOutcome.COMPLETE, store.processor().sync(ID))
+            assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
             assertTrue("Gateway write for $policy", store.externalWrites.isEmpty())
             assertTrue(store.statusUpdates.isEmpty())
         }
@@ -97,7 +101,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(2, store.loadCount)
         assertEquals(2, store.eligibilityChecks)
@@ -114,7 +118,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -128,7 +132,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.RETRY, outcome)
+        assertEquals(MeasurementSyncOutcome.Retry, outcome)
         assertEquals(listOf("huawei", "health-connect"), store.externalWrites)
         assertEquals(2, store.statusUpdates.size)
     }
@@ -139,7 +143,7 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
         assertEquals(listOf("huawei", "health-connect"), store.payloads.map { it.first })
         store.payloads.forEach { (_, payload) ->
             assertTrue(payload.includesWeight)
@@ -217,7 +221,152 @@ class MeasurementSyncProcessorTest {
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.COMPLETE, outcome)
+        assertEquals(MeasurementSyncOutcome.Complete, outcome)
+        assertEquals(2, store.loadCount)
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun activePauseDefersBeforeFirstGatewayWithoutUpdatingStatus() = runBlocking {
+        val store = FakeSyncStore(measurement()).also {
+            it.nowEpochMillis = 1_000L
+            it.pausedUntilEpochMillis = 301_000L
+        }
+
+        val outcome = store.processor().sync(ID)
+
+        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(1, store.loadCount)
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun pauseStartingBetweenGatewaysDefersSecondGateway() = runBlocking {
+        val store = FakeSyncStore(measurement()).also { it.nowEpochMillis = 1_000L }
+        val operations = ExternalSyncOperationSerializer()
+        val huaweiCompleted = CompletableDeferred<Unit>()
+        val pausePersisted = CompletableDeferred<Unit>()
+        store.afterHuaweiResultApplied = {
+            huaweiCompleted.complete(Unit)
+            pausePersisted.await()
+        }
+        val settings = object : ExternalSyncPauseSettingsStore {
+            override val externalSyncPausedUntilEpochMillis: Long
+                get() = store.pausedUntilEpochMillis
+
+            override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+                store.pausedUntilEpochMillis = value
+                if (value > 0L) pausePersisted.complete(Unit)
+            }
+        }
+        val coordinator = ExternalSyncPauseCoordinator(
+            settings = settings,
+            currentSyncIds = { listOf(ID) },
+            scheduler = NoOpSyncScheduler,
+            nowEpochMillis = { store.nowEpochMillis },
+            operations = operations,
+        )
+
+        val worker = async(start = CoroutineStart.UNDISPATCHED) {
+            operations.runExclusive { store.processor().sync(ID) }
+        }
+        huaweiCompleted.await()
+        val pause = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.pauseForFiveMinutes()
+        }
+
+        val outcome = worker.await()
+        pause.await()
+
+        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(listOf("huawei"), store.statusUpdates.map { it.first })
+    }
+
+    @Test
+    fun workersAlreadyWaitingForSerializerDeferWithoutCallingGatewaysAfterPausePersists() =
+        runBlocking {
+            val operations = ExternalSyncOperationSerializer()
+            val releaseCurrentWorker = CompletableDeferred<Unit>()
+            val currentWorker = async(start = CoroutineStart.UNDISPATCHED) {
+                operations.runExclusive { releaseCurrentWorker.await() }
+            }
+            val stores = List(3) {
+                FakeSyncStore(measurement()).also { store -> store.nowEpochMillis = 1_000L }
+            }
+            val waitingWorkers = stores.map { store ->
+                async(start = CoroutineStart.UNDISPATCHED) {
+                    operations.runExclusive { store.processor().sync(ID) }
+                }
+            }
+            var pausedUntilEpochMillis = 0L
+            val settings = object : ExternalSyncPauseSettingsStore {
+                override val externalSyncPausedUntilEpochMillis: Long
+                    get() = pausedUntilEpochMillis
+
+                override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+                    pausedUntilEpochMillis = value
+                    stores.forEach { it.pausedUntilEpochMillis = value }
+                }
+            }
+            val coordinator = ExternalSyncPauseCoordinator(
+                settings = settings,
+                currentSyncIds = { listOf(ID) },
+                scheduler = NoOpSyncScheduler,
+                nowEpochMillis = { 1_000L },
+                operations = operations,
+            )
+
+            val pause = async(start = CoroutineStart.UNDISPATCHED) {
+                coordinator.pauseForFiveMinutes()
+            }
+            assertEquals(301_000L, pausedUntilEpochMillis)
+
+            releaseCurrentWorker.complete(Unit)
+            currentWorker.await()
+            val outcomes = waitingWorkers.map { it.await() }
+            pause.await()
+
+            assertEquals(List(3) { MeasurementSyncOutcome.Deferred(301_000L) }, outcomes)
+            stores.forEach { store ->
+                assertTrue(store.externalWrites.isEmpty())
+                assertTrue(store.statusUpdates.isEmpty())
+            }
+        }
+
+    @Test
+    fun canceledWorkerStartingAfterDeletionCompletesWithoutGateway() = runBlocking {
+        val store = FakeSyncStore(null)
+
+        assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun workerWaitingBehindDeletionReloadsRoomAndNeverCallsGateway() = runBlocking {
+        val store = FakeSyncStore(measurement())
+        val operations = ExternalSyncOperationSerializer()
+        val deletionStarted = CompletableDeferred<Unit>()
+        val allowDeletion = CompletableDeferred<Unit>()
+
+        val deletion = async {
+            operations.runExclusive {
+                deletionStarted.complete(Unit)
+                allowDeletion.await()
+                store.value = null
+            }
+        }
+        deletionStarted.await()
+        val worker = async {
+            operations.runExclusive { store.processor().sync(ID) }
+        }
+        allowDeletion.complete(Unit)
+
+        deletion.await()
+        assertEquals(MeasurementSyncOutcome.Complete, worker.await())
         assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -233,9 +382,12 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
     var loadCount: Int = 0
     var huaweiResult: SyncResult = SyncResult.Success
     var healthConnectResult: SyncResult = SyncResult.Success
-    var afterHuaweiWrite: () -> Unit = {}
+    var afterHuaweiWrite: suspend () -> Unit = {}
+    var afterHuaweiResultApplied: suspend () -> Unit = {}
     var eligible: Boolean = true
     var eligibilityChecks: Int = 0
+    var pausedUntilEpochMillis: Long = 0L
+    var nowEpochMillis: Long = 0L
     val externalWrites = mutableListOf<String>()
     val payloads = mutableListOf<Pair<String, MeasurementSyncPayload>>()
     val statusUpdates = mutableListOf<Pair<String, SyncResult>>()
@@ -273,6 +425,7 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
                         (payload.includesWeight && result is SyncResult.Success),
                 )
             }
+            afterHuaweiResultApplied()
         },
         applyHealthConnectResult = { _, payload, result ->
             statusUpdates += "health-connect" to result
@@ -290,7 +443,17 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
                 )
             }
         },
+        pausedUntilProvider = { pausedUntilEpochMillis },
+        nowEpochMillis = { nowEpochMillis },
     )
+}
+
+private object NoOpSyncScheduler : MeasurementSyncScheduler {
+    override fun enqueue(measurementId: String) = Unit
+
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
+    override fun cancel(measurementId: String) = Unit
 }
 
 private fun SyncResult.statusName(): String = when (this) {

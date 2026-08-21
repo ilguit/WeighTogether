@@ -17,22 +17,34 @@ class MeasurementSyncWorker(
         val container = (applicationContext as MiSyncApplication).container
         val dao = container.database.measurementDao()
         val eligibility = MeasurementSyncEligibilityPolicy(container.database)
-        val outcome = MeasurementSyncProcessor(
-            loadMeasurement = dao::get,
-            isEligible = eligibility::isEligible,
-            writeHuawei = container.huaweiHealth::write,
-            writeHealthConnect = container.healthConnect::write,
-            applyHuaweiResult = { measurementId, payload, result ->
-                applyHuaweiResult(dao, measurementId, payload, result)
-            },
-            applyHealthConnectResult = { measurementId, payload, result ->
-                applyHealthConnectResult(dao, measurementId, payload, result)
-            },
-        ).sync(id)
+        return container.externalSyncOperations.runExclusive {
+            val outcome = MeasurementSyncProcessor(
+                loadMeasurement = dao::get,
+                isEligible = eligibility::isEligible,
+                writeHuawei = container.huaweiHealth::write,
+                writeHealthConnect = container.healthConnect::write,
+                applyHuaweiResult = { measurementId, payload, result ->
+                    applyHuaweiResult(dao, measurementId, payload, result)
+                },
+                applyHealthConnectResult = { measurementId, payload, result ->
+                    applyHealthConnectResult(dao, measurementId, payload, result)
+                },
+                pausedUntilProvider = {
+                    container.profileStore.externalSyncPausedUntilEpochMillis
+                },
+            ).sync(id)
 
-        return when (outcome) {
-            MeasurementSyncOutcome.COMPLETE -> Result.success()
-            MeasurementSyncOutcome.RETRY -> Result.retry()
+            when (outcome) {
+                MeasurementSyncOutcome.Complete -> Result.success()
+                MeasurementSyncOutcome.Retry -> Result.retry()
+                is MeasurementSyncOutcome.Deferred -> {
+                    // Append the deferred request while this worker still owns the operation
+                    // serializer. Deletion-after-defer cancels the whole chain, while
+                    // deletion-before-defer makes the Room reload complete without this id.
+                    container.syncScheduler.deferCurrent(id, outcome.notBeforeEpochMillis)
+                    Result.success()
+                }
+            }
         }
     }
 

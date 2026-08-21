@@ -11,9 +11,16 @@ data class AppSettings(
     val scaleName: String? = null,
     val reliabilityMode: Boolean = false,
     val selectedChartMetricKeys: Set<String>? = null,
+    val externalSyncPausedUntilEpochMillis: Long = 0L,
 )
 
-class ProfileStore(context: Context) {
+interface ExternalSyncPauseSettingsStore {
+    val externalSyncPausedUntilEpochMillis: Long
+
+    fun setExternalSyncPausedUntilEpochMillis(value: Long)
+}
+
+class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
     private val preferences = context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
     private val mutableSettings = MutableStateFlow(read())
     val settings: StateFlow<AppSettings> = mutableSettings.asStateFlow()
@@ -44,6 +51,20 @@ class ProfileStore(context: Context) {
         refresh()
     }
 
+    override val externalSyncPausedUntilEpochMillis: Long
+        get() = settings.value.externalSyncPausedUntilEpochMillis
+
+    override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+        preferences.edit {
+            if (value > 0L) {
+                putLong(KEY_EXTERNAL_SYNC_PAUSED_UNTIL, value)
+            } else {
+                remove(KEY_EXTERNAL_SYNC_PAUSED_UNTIL)
+            }
+        }
+        refresh()
+    }
+
     private fun refresh() {
         mutableSettings.value = read()
     }
@@ -56,6 +77,10 @@ class ProfileStore(context: Context) {
             selectedChartMetricKeys = preferences
                 .getStringSet(KEY_SELECTED_CHART_METRICS, null)
                 ?.toSet(),
+            externalSyncPausedUntilEpochMillis = preferences.getLong(
+                KEY_EXTERNAL_SYNC_PAUSED_UNTIL,
+                0L,
+            ),
         )
     }
 
@@ -64,5 +89,6 @@ class ProfileStore(context: Context) {
         const val KEY_SCALE_NAME = "scale_name"
         const val KEY_RELIABILITY = "reliability"
         const val KEY_SELECTED_CHART_METRICS = "selected_chart_metrics"
+        const val KEY_EXTERNAL_SYNC_PAUSED_UNTIL = "external_sync_paused_until_epoch_millis"
     }
 }

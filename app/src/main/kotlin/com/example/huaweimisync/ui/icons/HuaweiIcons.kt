@@ -137,6 +137,14 @@ object HuaweiIcons {
         outlineIcon("Bluetooth", listOf("M7 7L17 17L12 21V3L17 7L7 17"))
     }
 
+    val Pause: ImageVector by lazy {
+        outlineIcon("Pause", listOf("M8 5V19", "M16 5V19"))
+    }
+
+    val Play: ImageVector by lazy {
+        outlineIcon("Play", listOf("M8 5L19 12L8 19Z"))
+    }
+
     val Lab: ImageVector by lazy {
         outlineIcon(
             "Lab",
