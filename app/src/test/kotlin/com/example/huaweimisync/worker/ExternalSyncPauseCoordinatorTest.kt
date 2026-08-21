@@ -1,8 +1,13 @@
 package com.example.huaweimisync.worker
 
 import com.example.huaweimisync.data.ExternalSyncPauseSettingsStore
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExternalSyncPauseCoordinatorTest {
@@ -47,10 +52,56 @@ class ExternalSyncPauseCoordinatorTest {
             scheduler.rescheduled,
         )
     }
+
+    @Test
+    fun pausePersistsBeforeWaitingForWorkerAndSerializesFollowingResume() = runBlocking {
+        val pausePersisted = CompletableDeferred<Unit>()
+        val settings = FakePauseSettings { value ->
+            if (value > 0L) pausePersisted.complete(Unit)
+        }
+        val scheduler = RecordingScheduler()
+        val operations = ExternalSyncOperationSerializer()
+        val releaseWorker = CompletableDeferred<Unit>()
+        val worker = async(start = CoroutineStart.UNDISPATCHED) {
+            operations.runExclusive { releaseWorker.await() }
+        }
+        val coordinator = ExternalSyncPauseCoordinator(
+            settings = settings,
+            currentSyncIds = { listOf("measurement") },
+            scheduler = scheduler,
+            nowEpochMillis = { 1_000L },
+            operations = operations,
+        )
+
+        val pause = async(start = CoroutineStart.UNDISPATCHED) {
+            coordinator.pauseForFiveMinutes()
+        }
+        pausePersisted.await()
+
+        assertEquals(301_000L, settings.externalSyncPausedUntilEpochMillis)
+        assertFalse(pause.isCompleted)
+        assertTrue(scheduler.rescheduled.isEmpty())
+
+        val resume = async(start = CoroutineStart.UNDISPATCHED) { coordinator.resume() }
+        assertEquals(301_000L, settings.externalSyncPausedUntilEpochMillis)
+        assertFalse(resume.isCompleted)
+
+        releaseWorker.complete(Unit)
+        worker.await()
+        assertEquals(301_000L, pause.await())
+        resume.await()
+
+        assertEquals(0L, settings.externalSyncPausedUntilEpochMillis)
+        assertEquals(
+            listOf("measurement" to 301_000L, "measurement" to 0L),
+            scheduler.rescheduled,
+        )
+    }
 }
 
 private class FakePauseSettings(
     initialPausedUntilEpochMillis: Long = 0L,
+    private val onSet: (Long) -> Unit = {},
 ) : ExternalSyncPauseSettingsStore {
     private var pausedUntilEpochMillis = initialPausedUntilEpochMillis
     override val externalSyncPausedUntilEpochMillis: Long
@@ -58,6 +109,7 @@ private class FakePauseSettings(
 
     override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
         pausedUntilEpochMillis = value
+        onSet(value)
     }
 }
 

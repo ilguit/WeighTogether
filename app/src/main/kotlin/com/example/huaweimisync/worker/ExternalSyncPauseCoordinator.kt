@@ -1,6 +1,8 @@
 package com.example.huaweimisync.worker
 
 import com.example.huaweimisync.data.ExternalSyncPauseSettingsStore
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class ExternalSyncPauseCoordinator(
     private val settings: ExternalSyncPauseSettingsStore,
@@ -9,16 +11,22 @@ class ExternalSyncPauseCoordinator(
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
     private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
 ) {
-    suspend fun pauseForFiveMinutes(): Long = operations.runExclusive {
+    private val transitionMutex = Mutex()
+
+    suspend fun pauseForFiveMinutes(): Long = transitionMutex.withLock {
         val pausedUntil = nowEpochMillis() + PAUSE_DURATION_MILLIS
         settings.setExternalSyncPausedUntilEpochMillis(pausedUntil)
-        scheduler.rescheduleAll(currentSyncIds(), pausedUntil)
+        operations.runExclusive {
+            scheduler.rescheduleAll(currentSyncIds(), pausedUntil)
+        }
         pausedUntil
     }
 
-    suspend fun resume() = operations.runExclusive {
+    suspend fun resume() = transitionMutex.withLock {
         settings.setExternalSyncPausedUntilEpochMillis(0L)
-        scheduler.rescheduleAll(currentSyncIds(), 0L)
+        operations.runExclusive {
+            scheduler.rescheduleAll(currentSyncIds(), 0L)
+        }
     }
 
     companion object {
