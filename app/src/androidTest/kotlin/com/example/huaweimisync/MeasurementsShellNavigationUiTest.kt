@@ -1,20 +1,28 @@
 package com.example.huaweimisync
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipe
+import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
 import com.example.huaweimisync.measurements.MeasurementEditorState
@@ -40,8 +48,7 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarExposesBluetoothAndPausePlayActionsWithSemantics() {
-        var bluetoothClicks = 0
+    fun summaryTopBarOmitsBluetoothAndKeepsPausePlayActionWithSemantics() {
         var pauseClicks = 0
         val paused = mutableStateOf(false)
 
@@ -59,7 +66,6 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                onManualScan = { bluetoothClicks += 1 },
                 onToggleExternalSyncPause = {
                     pauseClicks += 1
                     paused.value = !paused.value
@@ -69,9 +75,8 @@ class MeasurementsShellNavigationUiTest {
             )
         }
 
-        composeRule.onNodeWithTag(MainScreenTestTags.BluetoothAction)
-            .assertContentDescriptionEquals("Подключиться к весам по Bluetooth")
-            .performClick()
+        composeRule.onNodeWithContentDescription("Подключиться к весам по Bluetooth")
+            .assertDoesNotExist()
         composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
             .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию на 5 минут")
             .performClick()
@@ -80,9 +85,84 @@ class MeasurementsShellNavigationUiTest {
             .performClick()
 
         composeRule.runOnIdle {
-            assertEquals(1, bluetoothClicks)
             assertEquals(2, pauseClicks)
         }
+    }
+
+    @Test
+    fun summaryPullGestureCallsRefreshExactlyOnce() {
+        var refreshCalls = 0
+
+        composeRule.setContent {
+            HuaweiMiSyncScaffold(
+                state = MainUiState(),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = {},
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                onRefreshFromScale = { refreshCalls += 1 },
+                measurementsContent = { padding ->
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize().padding(padding),
+                    ) {
+                        item { Spacer(Modifier.height(2_000.dp)) }
+                    }
+                },
+                chartsContent = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefresh).performTouchInput {
+            swipe(
+                start = Offset(center.x, top + 1),
+                end = Offset(center.x, bottom - 1),
+                durationMillis = 1_000,
+            )
+        }
+
+        composeRule.runOnIdle { assertEquals(1, refreshCalls) }
+    }
+
+    @Test
+    fun summaryPullIndicatorFollowsRefreshingState() {
+        val refreshing = mutableStateOf(false)
+
+        composeRule.setContent {
+            HuaweiMiSyncScaffold(
+                state = MainUiState(isRefreshing = refreshing.value),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = {},
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                measurementsContent = {},
+                chartsContent = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
+            .assertIsNotDisplayed()
+
+        composeRule.runOnIdle { refreshing.value = true }
+        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
+            .assertIsDisplayed()
+
+        composeRule.runOnIdle { refreshing.value = false }
+        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
+            .assertIsNotDisplayed()
     }
 
     @Test

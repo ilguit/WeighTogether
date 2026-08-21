@@ -24,6 +24,9 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,6 +35,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
@@ -95,8 +99,9 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
-    const val BluetoothAction = "measurements-bluetooth-action"
     const val ExternalSyncAction = "measurements-external-sync-action"
+    const val PullToRefresh = "measurements-pull-to-refresh"
+    const val PullToRefreshIndicator = "measurements-pull-to-refresh-indicator"
     const val BottomNavigation = "main-bottom-navigation"
     const val SnackbarHost = "main-snackbar-host"
 }
@@ -189,7 +194,7 @@ fun HuaweiMiSyncApp(
         measurementsCallbacks = measurementsViewModel.callbacks,
         snackbarHostState = snackbarHostState,
         onSectionSelected = { currentSection = it },
-        onManualScan = viewModel::toggleManualScan,
+        onRefreshFromScale = viewModel::refreshFromScale,
         onToggleExternalSyncPause = viewModel::toggleExternalSyncPause,
         onCloseProfile = {},
         onSaveProfile = {},
@@ -283,7 +288,7 @@ internal fun HuaweiMiSyncScaffold(
     onProfileBirthDateChanged: (String) -> Unit,
     onProfileSexChanged: (Sex) -> Unit,
     settingsCallbacks: SettingsCallbacks,
-    onManualScan: () -> Unit = {},
+    onRefreshFromScale: () -> Unit = {},
     onToggleExternalSyncPause: () -> Unit = {},
     resolverCallbacks: MeasurementResolverCallbacks = MeasurementResolverCallbacks.None,
     unsavedPreviewCallbacks: UnsavedPreviewCallbacks = UnsavedPreviewCallbacks.None,
@@ -336,7 +341,6 @@ internal fun HuaweiMiSyncScaffold(
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
                             isExternalSyncPaused = state.isExternalSyncPaused,
-                            onManualScan = onManualScan,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
                     }
@@ -373,6 +377,31 @@ internal fun HuaweiMiSyncScaffold(
                         callbacks = settingsCallbacks,
                         contentPadding = padding,
                     )
+
+                    currentSection == AppSection.MEASUREMENTS &&
+                        measurementsDestination == MeasurementsDestination.SUMMARY -> {
+                        val pullToRefreshState = rememberPullToRefreshState()
+                        PullToRefreshBox(
+                            isRefreshing = state.isRefreshing,
+                            onRefresh = onRefreshFromScale,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .testTag(MainScreenTestTags.PullToRefresh),
+                            state = pullToRefreshState,
+                            indicator = {
+                                PullToRefreshDefaults.Indicator(
+                                    state = pullToRefreshState,
+                                    isRefreshing = state.isRefreshing,
+                                    modifier = Modifier
+                                        .align(Alignment.TopCenter)
+                                        .padding(top = padding.calculateTopPadding())
+                                        .testTag(MainScreenTestTags.PullToRefreshIndicator),
+                                )
+                            },
+                        ) {
+                            measurementsContent(padding)
+                        }
+                    }
 
                     currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding)
 
@@ -411,7 +440,6 @@ private fun HuaweiTopBar(
     onBack: () -> Unit,
     showMeasurementActions: Boolean,
     isExternalSyncPaused: Boolean,
-    onManualScan: () -> Unit,
     onToggleExternalSyncPause: () -> Unit,
 ) {
     TopAppBar(
@@ -428,12 +456,6 @@ private fun HuaweiTopBar(
         },
         actions = {
             if (showMeasurementActions) {
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Bluetooth,
-                    contentDescription = "Подключиться к весам по Bluetooth",
-                    onClick = onManualScan,
-                    modifier = Modifier.testTag(MainScreenTestTags.BluetoothAction),
-                )
                 HuaweiIconButton(
                     icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
                     contentDescription = if (isExternalSyncPaused) {
