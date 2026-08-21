@@ -327,6 +327,26 @@ data class MeasurementEntity(
         destination: ExternalSyncDestination,
     ): CalculatedValuesSnapshot? = fullValues?.toCalculatedValuesSnapshot(destination)
 
+    /**
+     * Preserves the last payload of legacy synced rows before profile recalculation overwrites it.
+     * Snapshot backfill is intentionally lazy so database migration remains a schema-only change.
+     */
+    internal fun backfillMissingSyncedCalculatedValues(): MeasurementEntity {
+        val current = fullValues ?: return this
+        return copy(
+            huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues.ifMissingAndSynced(
+                huaweiStatus,
+            ) {
+                current.toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI).encode()
+            },
+            healthConnectSyncedCalculatedValues =
+                healthConnectSyncedCalculatedValues.ifMissingAndSynced(healthConnectStatus) {
+                    current.toCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT)
+                        .encode()
+                },
+        )
+    }
+
     /** True for a known snapshot mismatch; legacy synced rows with no snapshot remain unknown. */
     val hasProfileSyncMismatch: Boolean
         get() = hasProfileSyncMismatch(huaweiSyncedCalculatedValues) ||
@@ -388,6 +408,11 @@ data class MeasurementEntity(
     val measuredAtNano: Int
         get() = 0
 }
+
+private inline fun String?.ifMissingAndSynced(
+    status: String,
+    snapshot: () -> String,
+): String? = if (isNullOrBlank() && status == SyncStatus.SYNCED.name) snapshot() else this
 
 fun BodyComposition.toEntity(
     rawPayload: ByteArray,

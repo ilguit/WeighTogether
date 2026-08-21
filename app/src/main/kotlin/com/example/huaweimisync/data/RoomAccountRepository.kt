@@ -68,7 +68,10 @@ class RoomAccountRepository(
         if (current.requiresProfileRecalculation(updated)) {
             val profile = account.profile.toUserProfile()
             measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
-                check(measurementDao.update(measurement.recalculate(calculator, profile)) == 1) {
+                val recalculated = measurement
+                    .backfillMissingSyncedCalculatedValues()
+                    .recalculate(calculator, profile)
+                check(measurementDao.update(recalculated) == 1) {
                     "Measurement ${measurement.id} disappeared during profile recalculation"
                 }
             }

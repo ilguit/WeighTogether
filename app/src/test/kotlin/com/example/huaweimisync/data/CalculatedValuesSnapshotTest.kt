@@ -73,6 +73,68 @@ class CalculatedValuesSnapshotTest {
         )
     }
 
+    @Test
+    fun legacyBackfillCapturesEachSyncedDestinationIndependently() {
+        val original = fullMeasurement().copy(
+            huaweiStatus = SyncStatus.SYNCED.name,
+            healthConnectStatus = SyncStatus.FAILED.name,
+        )
+
+        val huaweiOnly = original.backfillMissingSyncedCalculatedValues()
+        assertEquals(
+            original.fullValues?.toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
+                ?.encode(),
+            huaweiOnly.huaweiSyncedCalculatedValues,
+        )
+        assertEquals(null, huaweiOnly.healthConnectSyncedCalculatedValues)
+
+        val healthConnectOnly = original.copy(
+            huaweiStatus = SyncStatus.PENDING.name,
+            healthConnectStatus = SyncStatus.SYNCED.name,
+        ).backfillMissingSyncedCalculatedValues()
+        assertEquals(null, healthConnectOnly.huaweiSyncedCalculatedValues)
+        assertEquals(
+            original.fullValues?.toCalculatedValuesSnapshot(
+                ExternalSyncDestination.HEALTH_CONNECT,
+            )?.encode(),
+            healthConnectOnly.healthConnectSyncedCalculatedValues,
+        )
+    }
+
+    @Test
+    fun legacyBackfillPreservesExistingNonblankSnapshotsIncludingMalformedValues() {
+        val original = fullMeasurement().copy(
+            huaweiStatus = SyncStatus.SYNCED.name,
+            healthConnectStatus = SyncStatus.SYNCED.name,
+            huaweiSyncedCalculatedValues = "existing",
+            healthConnectSyncedCalculatedValues = "malformed",
+        )
+
+        assertEquals(original, original.backfillMissingSyncedCalculatedValues())
+    }
+
+    @Test
+    fun legacyBackfillReplacesBlankButIgnoresEveryNonSyncedStatus() {
+        val expectedHuawei = fullMeasurement().fullValues
+            ?.toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
+            ?.encode()
+        assertEquals(
+            expectedHuawei,
+            fullMeasurement().copy(
+                huaweiStatus = SyncStatus.SYNCED.name,
+                huaweiSyncedCalculatedValues = "  ",
+            ).backfillMissingSyncedCalculatedValues().huaweiSyncedCalculatedValues,
+        )
+
+        SyncStatus.entries.filterNot { it == SyncStatus.SYNCED }.forEach { status ->
+            val original = fullMeasurement().copy(
+                huaweiStatus = status.name,
+                healthConnectStatus = status.name,
+            )
+            assertEquals(original, original.backfillMissingSyncedCalculatedValues())
+        }
+    }
+
     private fun fullMeasurement() = MeasurementEntity(
         id = "measurement",
         deviceAddress = "AA:BB:CC:DD:EE:FF",

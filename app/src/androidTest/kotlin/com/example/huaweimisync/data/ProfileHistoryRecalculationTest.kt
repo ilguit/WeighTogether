@@ -171,6 +171,39 @@ class ProfileHistoryRecalculationTest {
     }
 
     @Test
+    fun recalculationBackfillsOnlyMissingSnapshotsForSyncedDestinations() = runBlocking {
+        val repository = repository()
+        val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
+        val packet = raw("2026-08-15T10:00:00Z", 72.35, 517)
+        val original = entity(packet, account.id, ORIGINAL_PROFILE).copy(
+            huaweiStatus = SyncStatus.SYNCED.name,
+            healthConnectStatus = SyncStatus.PENDING.name,
+            huaweiSyncedCalculatedValues = null,
+            healthConnectSyncedCalculatedValues = null,
+        )
+        assertTrue(database.multiAccountMeasurementDao().insert(original) != -1L)
+        val oldHuaweiSnapshot = requireNotNull(original.fullValues)
+            .toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
+            .encode()
+
+        repository.updateAccount(
+            AccountUpdate(
+                account.id,
+                "Alice",
+                ORIGINAL_PROFILE.copy(heightCm = 181.0),
+            ),
+        )
+
+        val recalculated = requireNotNull(database.measurementDao().get(original.id))
+        assertEquals(oldHuaweiSnapshot, recalculated.huaweiSyncedCalculatedValues)
+        assertEquals(null, recalculated.healthConnectSyncedCalculatedValues)
+        assertEquals(SyncStatus.SYNCED.name, recalculated.huaweiStatus)
+        assertEquals(SyncStatus.PENDING.name, recalculated.healthConnectStatus)
+        assertNotEquals(original.fullValues, recalculated.fullValues)
+        assertTrue(recalculated.hasProfileSyncMismatch)
+    }
+
+    @Test
     fun malformedFullHistoryRollsBackProfileAndEarlierRecalculations() = runBlocking {
         val repository = repository()
         val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))

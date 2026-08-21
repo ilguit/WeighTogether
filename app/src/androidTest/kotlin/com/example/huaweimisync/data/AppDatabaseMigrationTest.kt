@@ -6,7 +6,15 @@ import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.example.huaweimisync.core.BodyCompositionCalculator
+import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountProfile
+import com.example.huaweimisync.domain.AccountUpdate
 import java.io.IOException
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -329,7 +337,7 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate4To5PreservesAccountsHistoryAndSyncStateWithoutInventingSnapshots() {
+    fun migrate4To5PreservesAccountsHistoryAndSyncStateWithoutInventingSnapshots() = runBlocking {
         helper.createDatabase(MIGRATION_4_5_DB, 4).apply {
             execSQL(
                 """
@@ -352,7 +360,7 @@ class AppDatabaseMigrationTest {
                     healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
                     createdAtEpochMillis, accountId, externalSyncPolicy
                 ) VALUES (
-                    'measurement', 'fingerprint', 'FULL', 'AA:BB:CC:DD:EE:FF', 123,
+                    'measurement', 'fingerprint', 'FULL', 'AA:BB:CC:DD:EE:FF', 1786451696,
                     '00', 70.0, 14000, 500, 22.9, 20.0, 14.0, 55.0, 38.5, 40.0,
                     20.0, 3.0, 18.0, 12.6, 7.0, 1500.0, 35, 56.0, 'algorithm',
                     'SYNCED', 'FAILED', NULL, 'retry', 1, 0, 30, 'account', 'AUTO'
@@ -396,6 +404,42 @@ class AppDatabaseMigrationTest {
             assertEquals(4.25, it.getDouble(1), 0.0)
         }
         migrated.close()
+
+        val room = AppDatabase.build(context, MIGRATION_4_5_DB)
+        openedDatabase = room
+        val beforeRecalculation = requireNotNull(room.measurementDao().get("measurement"))
+        val legacyHuaweiSnapshot = requireNotNull(beforeRecalculation.fullValues)
+            .toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
+            .encode()
+        val repository = RoomAccountRepository(
+            database = room,
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            now = { Instant.parse("2026-08-21T12:00:00Z") },
+        )
+
+        repository.updateAccount(
+            AccountUpdate(
+                id = AccountId("account"),
+                displayName = "Alice",
+                profile = AccountProfile.Complete(
+                    heightCm = 181.0,
+                    birthDate = LocalDate.of(1990, 1, 1),
+                    sex = Sex.FEMALE,
+                ),
+            ),
+        )
+
+        val recalculated = requireNotNull(room.measurementDao().get("measurement"))
+        assertEquals(legacyHuaweiSnapshot, recalculated.huaweiSyncedCalculatedValues)
+        assertTrue(recalculated.healthConnectSyncedCalculatedValues == null)
+        assertEquals(SyncStatus.SYNCED.name, recalculated.huaweiStatus)
+        assertEquals(SyncStatus.FAILED.name, recalculated.healthConnectStatus)
+        assertEquals("retry", recalculated.healthConnectError)
+        assertEquals(beforeRecalculation.rawPayloadHex, recalculated.rawPayloadHex)
+        assertEquals(beforeRecalculation.rawWeight, recalculated.rawWeight)
+        assertEquals(beforeRecalculation.impedanceOhm, recalculated.impedanceOhm)
+        assertTrue(beforeRecalculation.fullValues != recalculated.fullValues)
+        assertTrue(recalculated.hasProfileSyncMismatch)
     }
 
     @Test
