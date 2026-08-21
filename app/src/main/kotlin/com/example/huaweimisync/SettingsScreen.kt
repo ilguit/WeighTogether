@@ -278,7 +278,10 @@ private fun SettingsIntegrationsSection(
                         healthConnectCapabilities.systemManagementAvailable
                     },
                 ) {
-                    healthConnect.actionLabel?.let { label ->
+                    healthConnect.actionLabel?.takeUnless {
+                        healthConnect.actionOpensManagement &&
+                            !healthConnectCapabilities.systemManagementAvailable
+                    }?.let { label ->
                         TextButton(
                             onClick = if (healthConnect.actionOpensManagement) {
                                 callbacks.onHealthConnectAccessManagement

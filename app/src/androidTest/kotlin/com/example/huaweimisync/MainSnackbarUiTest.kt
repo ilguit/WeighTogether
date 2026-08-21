@@ -21,6 +21,16 @@ class MainSnackbarUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
+    fun externalSyncPauseFeedbackIsShownInSnackbar() {
+        assertSnackbarMessage(EXTERNAL_SYNC_PAUSED_MESSAGE)
+    }
+
+    @Test
+    fun externalSyncResumeFeedbackIsShownInSnackbar() {
+        assertSnackbarMessage(EXTERNAL_SYNC_RESUMED_MESSAGE)
+    }
+
+    @Test
     fun pendingDiscardSnackbarShowsUndoAndReportsItsAddressedAction() {
         val channel = Channel<MainUiEvent>(Channel.UNLIMITED)
         val events = channel.receiveAsFlow()
@@ -53,5 +63,26 @@ class MainSnackbarUiTest {
         composeRule.runOnIdle {
             assertEquals(listOf(event.snackbarId to true), results)
         }
+    }
+
+    private fun assertSnackbarMessage(message: String) {
+        val channel = Channel<MainUiEvent>(Channel.UNLIMITED)
+        composeRule.setContent {
+            val snackbarHostState = remember { SnackbarHostState() }
+            HuaweiMiSyncTheme {
+                SnackbarHost(snackbarHostState)
+                MainUiEventHandler(
+                    events = channel.receiveAsFlow(),
+                    snackbarHostState = snackbarHostState,
+                    onPendingResolutionCompleted = {},
+                    onPendingDiscardSnackbarResult = { _, _ -> },
+                )
+            }
+        }
+
+        composeRule.runOnIdle {
+            channel.trySend(MainUiEvent.ShowSnackbar(message)).getOrThrow()
+        }
+        composeRule.onNodeWithText(message).assertIsDisplayed()
     }
 }

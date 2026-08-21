@@ -239,6 +239,8 @@ class MeasurementDeduplicationEndToEndTest {
             enqueued += measurementId
         }
 
+        override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
         override fun cancel(measurementId: String) = Unit
     }
 

@@ -178,7 +178,7 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun completeHealthConnectActionOpensManagementInsteadOfRequestingPermissions() {
+    fun availableHealthConnectRowAndOpenActionLaunchManagement() {
         var authorizationCalls = 0
         var managementCalls = 0
         val requiredPermissions = setOf("weight", "fat")
@@ -192,6 +192,10 @@ class SettingsShellUiTest {
             onHealthConnectAccessManagement = { managementCalls++ },
         )
 
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertHasClickAction()
+            .performClick()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
             .performScrollTo()
             .assertIsEnabled()
@@ -202,8 +206,55 @@ class SettingsShellUiTest {
 
         composeRule.runOnIdle {
             assertEquals(0, authorizationCalls)
-            assertEquals(1, managementCalls)
+            assertEquals(2, managementCalls)
         }
+    }
+
+    @Test
+    fun missingHealthConnectManagementHandlerHidesOnlyOpenAndDisablesRow() {
+        var managementCalls = 0
+        val requiredPermissions = setOf("weight", "fat")
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = requiredPermissions,
+                grantedPermissions = requiredPermissions,
+            ),
+            healthConnectSystemManagementAvailable = false,
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText("Основной: Анна · Подключено · все разрешения выданы")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
+            .assertDoesNotExist()
+
+        composeRule.runOnIdle { assertEquals(0, managementCalls) }
+    }
+
+    @Test
+    fun missingHealthConnectManagementHandlerKeepsPermissionAction() {
+        var authorizationCalls = 0
+        setSettingsShell(
+            healthConnect = availableHealthConnectWithMissingPermissions(),
+            healthConnectSystemManagementAvailable = false,
+            onHealthConnectAuthorization = { authorizationCalls++ },
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
+            .assertIsEnabled()
+            .assertContentDescriptionEquals(
+                SettingsScreenContentDescriptions.HealthConnectConnectAction,
+            )
+            .performClick()
+
+        composeRule.runOnIdle { assertEquals(1, authorizationCalls) }
     }
 
     @Test
@@ -229,9 +280,31 @@ class SettingsShellUiTest {
         }
     }
 
+    @Test
+    fun providerUpdateRequiredHealthConnectRowIsInactiveDespiteManagementHandler() {
+        var managementCalls = 0
+        setSettingsShell(
+            healthConnect = HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
+            ),
+            healthConnectSystemManagementAvailable = true,
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText(
+            "Основной: Анна · Недоступно: установите или обновите Health Connect",
+        ).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertDoesNotExist()
+
+        composeRule.runOnIdle { assertEquals(0, managementCalls) }
+    }
+
     private fun setSettingsShell(
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
+        healthConnectSystemManagementAvailable: Boolean = true,
         account: Account? = completeAccount(),
         onHuaweiAuthorization: () -> Unit = {},
         onHuaweiPermissionRefresh: () -> Unit = {},
@@ -253,6 +326,8 @@ class SettingsShellUiTest {
                 state = MainUiState(
                     settings = AppSettings(),
                     healthConnect = healthConnect,
+                    healthConnectSystemManagementAvailable =
+                        healthConnectSystemManagementAvailable,
                     huawei = huawei,
                     accounts = listOfNotNull(account),
                     accountSettings = AccountSettings(primaryAccountId = account?.id),

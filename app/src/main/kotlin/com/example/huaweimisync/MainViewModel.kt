@@ -46,13 +46,20 @@ import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
+import com.example.huaweimisync.worker.ExternalSyncPauseTransition
 import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.PendingDecisionFallback
 import com.example.huaweimisync.sync.SyncResult
 import java.time.Instant
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -64,7 +71,9 @@ import kotlinx.coroutines.launch
 data class MainUiState(
     val settings: AppSettings = AppSettings(),
     val scanning: Boolean = false,
+    val isExternalSyncPaused: Boolean = false,
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
+    val healthConnectSystemManagementAvailable: Boolean = false,
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
     val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
     val accounts: List<Account> = emptyList(),
@@ -84,6 +93,7 @@ data class MainUiState(
     internal val healthConnectCapabilities: HealthConnectIntegrationCapabilities
         get() = healthConnectIntegrationCapabilities(
             permissions = healthConnect,
+            managementIntentAvailable = healthConnectSystemManagementAvailable,
             selectedAccountSyncEligible = canUseExternalIntegrations,
         )
 }
@@ -102,6 +112,7 @@ private data class PendingDecisionSnapshot(
 private data class MainCoreState(
     val settings: AppSettings,
     val scanning: Boolean,
+    val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
     val huawei: HuaweiIntegrationUiState,
 )
@@ -164,18 +175,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
     private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
+    private val externalSyncPaused = container.profileStore.settings
+        .externalSyncPausedState()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.Eagerly,
+            isExternalSyncPaused(
+                container.profileStore.externalSyncPausedUntilEpochMillis,
+                System.currentTimeMillis(),
+            ),
+        )
 
     val events = eventEmitter.events
 
     private val coreState = combine(
         container.profileStore.settings,
         scanning,
+        externalSyncPaused,
         healthConnect,
         huawei,
-    ) { settings, isScanning, healthConnectState, huaweiState ->
+    ) { settings, isScanning, isSyncPaused, healthConnectState, huaweiState ->
         MainCoreState(
             settings = settings,
             scanning = isScanning,
+            isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
             huawei = huaweiState,
         )
@@ -246,6 +269,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         MainUiState(
             settings = core.settings,
             scanning = core.scanning,
+            isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
             huawei = core.huawei,
             accounts = accountSnapshot.accounts,
@@ -663,6 +687,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun toggleExternalSyncPause() = viewModelScope.launch {
+        showMessage(container.externalSyncPause.toggle().snackbarMessage())
+    }
+
     fun setReliabilityMode(enabled: Boolean) {
         if (!BleSupport.hasScanPermission(getApplication())) {
             showMessage("Сначала разрешите Bluetooth-сканирование")
@@ -1057,6 +1085,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 }
+
+internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =
+    "Внешняя синхронизация приостановлена на 5 минут"
+internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "Внешняя синхронизация возобновлена"
+
+internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
+    is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
+    ExternalSyncPauseTransition.Resumed -> EXTERNAL_SYNC_RESUMED_MESSAGE
+}
+
+internal fun isExternalSyncPaused(pausedUntilEpochMillis: Long, nowEpochMillis: Long): Boolean =
+    pausedUntilEpochMillis > nowEpochMillis
+
+/** Emits again at the persisted deadline and rechecks wall time after every wake-up. */
+@OptIn(ExperimentalCoroutinesApi::class)
+internal fun Flow<AppSettings>.externalSyncPausedState(
+    nowEpochMillis: () -> Long = System::currentTimeMillis,
+): Flow<Boolean> = flatMapLatest { settings ->
+    flow {
+        val deadline = settings.externalSyncPausedUntilEpochMillis
+        var paused = isExternalSyncPaused(deadline, nowEpochMillis())
+        emit(paused)
+        while (paused) {
+            delay((deadline - nowEpochMillis()).coerceAtLeast(1L))
+            paused = isExternalSyncPaused(deadline, nowEpochMillis())
+        }
+        if (deadline > 0L) emit(false)
+    }
+}.distinctUntilChanged()
 
 internal fun resolverIgnoreUnknownPolicySelection(
     decision: RoutingDecision,

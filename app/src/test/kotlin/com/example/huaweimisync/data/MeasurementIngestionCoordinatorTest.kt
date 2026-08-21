@@ -737,6 +737,8 @@ private class UniqueFakeScheduler(
         enqueued += measurementId
     }
 
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
     override fun cancel(measurementId: String) {
         cancelled += measurementId
     }

@@ -5,6 +5,8 @@ import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
+import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import java.time.LocalDate
@@ -12,6 +14,8 @@ import java.time.ZoneId
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -397,6 +401,69 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun deleteDuringPauseDoesNotReturnDeletedRowsToQueueAndPreservesOthers() = runBlocking {
+        val dao = FakeMeasurementDao().also {
+            it.values["delete-one"] = measurement(id = "delete-one")
+            it.values["keep"] = measurement(id = "keep", measuredAt = 2_000L)
+            it.values["delete-two"] = measurement(id = "delete-two", measuredAt = 3_000L)
+        }
+        val scheduler = FakeSyncScheduler()
+        val operations = ExternalSyncOperationSerializer()
+        val repository = repository(dao, scheduler, operations = operations)
+        val pause = ExternalSyncPauseCoordinator(
+            settings = FakePauseSettings(),
+            currentSyncIds = dao::idsNeedingSync,
+            scheduler = scheduler,
+            nowEpochMillis = { 1_000L },
+            operations = operations,
+        )
+
+        pause.pauseForFiveMinutes()
+        repository.delete("delete-one")
+        repository.delete("delete-two")
+        scheduler.rescheduled.clear()
+        pause.resume()
+
+        assertEquals(setOf("keep"), dao.values.keys)
+        assertEquals(listOf("delete-one", "delete-two"), scheduler.cancelled)
+        assertEquals(listOf("keep" to 0L), scheduler.rescheduled)
+    }
+
+    @Test
+    fun concurrentResumeCannotLeaveDeletedIdRequeued() = runBlocking {
+        val events = mutableListOf<String>()
+        val dao = FakeMeasurementDao().also { it.values["deleted"] = measurement(id = "deleted") }
+        val scheduler = FakeSyncScheduler(
+            onCancel = { id -> events += "cancel:$id" },
+            onReschedule = { id, _ -> events += "reschedule:$id" },
+        )
+        val operations = ExternalSyncOperationSerializer()
+        val repository = repository(dao, scheduler, operations = operations)
+        val idsReadStarted = CompletableDeferred<Unit>()
+        val allowIdsRead = CompletableDeferred<Unit>()
+        val pause = ExternalSyncPauseCoordinator(
+            settings = FakePauseSettings(301_000L),
+            currentSyncIds = {
+                idsReadStarted.complete(Unit)
+                allowIdsRead.await()
+                dao.idsNeedingSync()
+            },
+            scheduler = scheduler,
+            operations = operations,
+        )
+
+        val resume = async { pause.resume() }
+        idsReadStarted.await()
+        val deletion = async { repository.delete("deleted") }
+        allowIdsRead.complete(Unit)
+        resume.await()
+        deletion.await()
+
+        assertTrue("deleted" !in dao.values)
+        assertEquals(listOf("reschedule:deleted", "cancel:deleted"), events)
+    }
+
+    @Test
     fun latestMeasurementFromCurrentlyLinkedScaleIsProtectedWithoutMutationOrCancellation() =
         runBlocking {
             val events = mutableListOf<String>()
@@ -622,6 +689,7 @@ class MeasurementRepositoryTest {
         scheduler: MeasurementSyncScheduler,
         huaweiSyncEnabled: Boolean = false,
         scaleAddress: String? = null,
+        operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     ) = MeasurementRepository(
         dao = dao,
         profileProvider = { profile },
@@ -629,22 +697,44 @@ class MeasurementRepositoryTest {
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         huaweiSyncEnabled = huaweiSyncEnabled,
+        externalSyncOperations = operations,
     )
 }
 
 private class FakeSyncScheduler(
     private val onCancel: (String) -> Unit = {},
+    private val onReschedule: (String, Long) -> Unit = { _, _ -> },
 ) : MeasurementSyncScheduler {
     val enqueued = mutableListOf<String>()
     val cancelled = mutableListOf<String>()
+    val rescheduled = mutableListOf<Pair<String, Long>>()
 
     override fun enqueue(measurementId: String) {
         enqueued += measurementId
     }
 
+    override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
+
     override fun cancel(measurementId: String) {
         cancelled += measurementId
         onCancel(measurementId)
+    }
+
+    override fun reschedule(measurementId: String, notBeforeEpochMillis: Long) {
+        rescheduled += measurementId to notBeforeEpochMillis
+        onReschedule(measurementId, notBeforeEpochMillis)
+    }
+}
+
+private class FakePauseSettings(
+    initialPausedUntilEpochMillis: Long = 0L,
+) : ExternalSyncPauseSettingsStore {
+    private var pausedUntilEpochMillis = initialPausedUntilEpochMillis
+    override val externalSyncPausedUntilEpochMillis: Long
+        get() = pausedUntilEpochMillis
+
+    override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+        pausedUntilEpochMillis = value
     }
 }
 

@@ -14,6 +14,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
 import com.example.huaweimisync.measurements.MeasurementEditorState
@@ -37,6 +38,52 @@ import org.junit.Test
 class MeasurementsShellNavigationUiTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test
+    fun summaryTopBarExposesBluetoothAndPausePlayActionsWithSemantics() {
+        var bluetoothClicks = 0
+        var pauseClicks = 0
+        val paused = mutableStateOf(false)
+
+        composeRule.setContent {
+            HuaweiMiSyncScaffold(
+                state = MainUiState(isExternalSyncPaused = paused.value),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = {},
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                onManualScan = { bluetoothClicks += 1 },
+                onToggleExternalSyncPause = {
+                    pauseClicks += 1
+                    paused.value = !paused.value
+                },
+                measurementsContent = {},
+                chartsContent = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(MainScreenTestTags.BluetoothAction)
+            .assertContentDescriptionEquals("Подключиться к весам по Bluetooth")
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
+            .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию на 5 минут")
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
+            .assertContentDescriptionEquals("Возобновить внешнюю синхронизацию")
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(1, bluetoothClicks)
+            assertEquals(2, pauseClicks)
+        }
+    }
 
     @Test
     fun pendingQueueOwnsChromeAndSystemBackReturnsToSummary() {

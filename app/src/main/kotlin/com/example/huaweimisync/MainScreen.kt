@@ -95,6 +95,8 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
+    const val BluetoothAction = "measurements-bluetooth-action"
+    const val ExternalSyncAction = "measurements-external-sync-action"
     const val BottomNavigation = "main-bottom-navigation"
     const val SnackbarHost = "main-snackbar-host"
 }
@@ -145,6 +147,7 @@ fun HuaweiMiSyncApp(
     viewModel: MainViewModel,
     measurementsViewModel: MeasurementsViewModel,
     chartsViewModel: ChartsViewModel,
+    healthConnectSystemManagementAvailable: Boolean,
     requestHealthConnectPermissions: () -> Unit,
     openHealthConnectAccessManagement: () -> Unit,
     openBatterySettings: () -> Unit,
@@ -177,12 +180,17 @@ fun HuaweiMiSyncApp(
         },
     )
     HuaweiMiSyncScaffold(
-        state = state,
+        state = state.copy(
+            healthConnectSystemManagementAvailable =
+                healthConnectSystemManagementAvailable,
+        ),
         currentSection = currentSection,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
         snackbarHostState = snackbarHostState,
         onSectionSelected = { currentSection = it },
+        onManualScan = viewModel::toggleManualScan,
+        onToggleExternalSyncPause = viewModel::toggleExternalSyncPause,
         onCloseProfile = {},
         onSaveProfile = {},
         onProfileHeightChanged = {},
@@ -275,6 +283,8 @@ internal fun HuaweiMiSyncScaffold(
     onProfileBirthDateChanged: (String) -> Unit,
     onProfileSexChanged: (Sex) -> Unit,
     settingsCallbacks: SettingsCallbacks,
+    onManualScan: () -> Unit = {},
+    onToggleExternalSyncPause: () -> Unit = {},
     resolverCallbacks: MeasurementResolverCallbacks = MeasurementResolverCallbacks.None,
     unsavedPreviewCallbacks: UnsavedPreviewCallbacks = UnsavedPreviewCallbacks.None,
     onOpenResolver: () -> Unit = {},
@@ -322,6 +332,12 @@ internal fun HuaweiMiSyncScaffold(
                             title = if (profileEditorOpen) "Профиль" else currentSection.title,
                             showBack = profileEditorOpen,
                             onBack = onCloseProfile,
+                            showMeasurementActions = !profileEditorOpen &&
+                                currentSection == AppSection.MEASUREMENTS &&
+                                measurementsDestination == MeasurementsDestination.SUMMARY,
+                            isExternalSyncPaused = state.isExternalSyncPaused,
+                            onManualScan = onManualScan,
+                            onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
                     }
                 },
@@ -393,6 +409,10 @@ private fun HuaweiTopBar(
     title: String,
     showBack: Boolean,
     onBack: () -> Unit,
+    showMeasurementActions: Boolean,
+    isExternalSyncPaused: Boolean,
+    onManualScan: () -> Unit,
+    onToggleExternalSyncPause: () -> Unit,
 ) {
     TopAppBar(
         modifier = Modifier.testTag(MainScreenTestTags.TopBar),
@@ -403,6 +423,26 @@ private fun HuaweiTopBar(
                     icon = HuaweiIcons.Back,
                     contentDescription = "Закрыть редактор профиля",
                     onClick = onBack,
+                )
+            }
+        },
+        actions = {
+            if (showMeasurementActions) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Bluetooth,
+                    contentDescription = "Подключиться к весам по Bluetooth",
+                    onClick = onManualScan,
+                    modifier = Modifier.testTag(MainScreenTestTags.BluetoothAction),
+                )
+                HuaweiIconButton(
+                    icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
+                    contentDescription = if (isExternalSyncPaused) {
+                        "Возобновить внешнюю синхронизацию"
+                    } else {
+                        "Приостановить внешнюю синхронизацию на 5 минут"
+                    },
+                    onClick = onToggleExternalSyncPause,
+                    modifier = Modifier.testTag(MainScreenTestTags.ExternalSyncAction),
                 )
             }
         },

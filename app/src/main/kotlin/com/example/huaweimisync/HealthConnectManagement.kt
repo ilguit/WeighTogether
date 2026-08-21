@@ -1,58 +1,44 @@
 package com.example.huaweimisync
 
+import android.content.Context
 import android.content.Intent
-import android.health.connect.HealthConnectManager
-import android.os.Build
-import android.provider.Settings
-import androidx.core.net.toUri
 import androidx.health.connect.client.HealthConnectClient
 
-internal enum class HealthConnectManagementTarget {
-    APP_PERMISSION_MANAGEMENT,
-    GENERAL_HEALTH_CONNECT_SETTINGS,
-    APPLICATION_SETTINGS,
+/**
+ * Returns the SDK-owned Health Connect management destination only when Android can handle it.
+ *
+ * The generic boundary keeps the availability contract covered by local unit tests without
+ * requiring Android framework objects.
+ */
+internal fun <T> resolveAvailableHealthConnectManagementIntent(
+    createIntent: () -> T?,
+    canResolve: (T) -> Boolean,
+): T? = try {
+    createIntent()?.takeIf(canResolve)
+} catch (_: RuntimeException) {
+    null
+}
+
+/** Safely launches a previously resolved destination. */
+internal fun <T> launchHealthConnectManagement(
+    intent: T?,
+    launch: (T) -> Unit,
+): Boolean {
+    if (intent == null) return false
+    return try {
+        launch(intent)
+        true
+    } catch (_: RuntimeException) {
+        false
+    }
 }
 
 /**
- * Ordered system-owned destinations for managing this app's Health Connect access.
- *
- * Android 14 introduced app-specific permission management. The general Health Connect screen is
- * retained as a compatibility fallback before the app settings screen because device vendors can
- * ship Health Connect independently from the platform implementation.
+ * Creates the canonical management intent supplied by Health Connect and verifies that a system
+ * Activity is available before exposing the destination to callers.
  */
-internal fun healthConnectManagementTargets(sdkInt: Int): List<HealthConnectManagementTarget> =
-    buildList {
-        if (sdkInt >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            add(HealthConnectManagementTarget.APP_PERMISSION_MANAGEMENT)
-        }
-        add(HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS)
-        add(HealthConnectManagementTarget.APPLICATION_SETTINGS)
-    }
-
-internal fun HealthConnectManagementTarget.toIntent(packageName: String): Intent = when (this) {
-    HealthConnectManagementTarget.APP_PERMISSION_MANAGEMENT ->
-        Intent(HealthConnectManager.ACTION_MANAGE_HEALTH_PERMISSIONS).apply {
-            putExtra(Intent.EXTRA_PACKAGE_NAME, packageName)
-        }
-    HealthConnectManagementTarget.GENERAL_HEALTH_CONNECT_SETTINGS ->
-        Intent(HealthConnectClient.ACTION_HEALTH_CONNECT_SETTINGS)
-    HealthConnectManagementTarget.APPLICATION_SETTINGS ->
-        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri())
-}
-
-/** Tries the next destination only when the current one has no matching Activity. */
-internal fun <T> launchFirstAvailableActivity(
-    targets: List<T>,
-    launch: (T) -> Unit,
-    isActivityNotFound: (RuntimeException) -> Boolean,
-): Boolean {
-    targets.forEach { target ->
-        try {
-            launch(target)
-            return true
-        } catch (error: RuntimeException) {
-            if (!isActivityNotFound(error)) throw error
-        }
-    }
-    return false
-}
+internal fun Context.healthConnectManagementIntent(): Intent? =
+    resolveAvailableHealthConnectManagementIntent(
+        createIntent = { HealthConnectClient.getHealthConnectManageDataIntent(this) },
+        canResolve = { intent -> intent.resolveActivity(packageManager) != null },
+    )
