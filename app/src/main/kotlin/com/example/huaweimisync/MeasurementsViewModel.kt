@@ -22,6 +22,8 @@ import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
 import com.example.huaweimisync.measurements.buildHomeKgChartUiState
+import com.example.huaweimisync.measurements.currentLocalDates
+import com.example.huaweimisync.measurements.homeChartRefreshInputs
 import com.example.huaweimisync.measurements.measurementSyncPresentation
 import com.example.huaweimisync.measurements.toggleHomeKgChartSeriesKey
 import com.example.huaweimisync.domain.AccountId
@@ -52,7 +54,6 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val repository = container.repository
     private val profileStore = container.profileStore
     private val homeChartZoneId = ZoneId.systemDefault()
-    private val homeChartClock = Clock.system(homeChartZoneId)
     private val accountSelector = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
@@ -96,19 +97,23 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     val events = eventChannel.receiveAsFlow()
 
-    private val measurementsWithSettings = combine(
+    private val measurementsWithChartRefresh = homeChartRefreshInputs(
         measurements,
-        profileStore.settings,
-        ::Pair,
+        profileStore.settings.map { it.homeKgChartSeriesKeys },
+        currentLocalDates(
+            zoneId = homeChartZoneId,
+            clock = Clock.system(homeChartZoneId),
+        ),
     )
 
     val uiState = combine(
-        measurementsWithSettings,
+        measurementsWithChartRefresh,
         navigation,
         editor,
         deleteConfirmation,
         accountSelector,
-    ) { (loadState, settings), currentNavigation, currentEditor, deletion, selector ->
+    ) { chartRefresh, currentNavigation, currentEditor, deletion, selector ->
+        val loadState = chartRefresh.measurements
         val values = loadState.valuesOrEmpty()
             .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
         val protectedLatestId = repository.protectedLatestId(values)
@@ -129,9 +134,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             deleteConfirmation = deletion,
             homeKgChart = buildHomeKgChartUiState(
                 measurements = items,
-                persistedActiveSeriesKeys = settings.homeKgChartSeriesKeys,
+                persistedActiveSeriesKeys = chartRefresh.persistedActiveSeriesKeys,
                 zoneId = homeChartZoneId,
-                clock = homeChartClock,
+                currentDate = chartRefresh.currentDate,
             ),
             accountSelector = selector,
         )

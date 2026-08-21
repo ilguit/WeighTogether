@@ -57,6 +57,7 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProdu
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
+import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
@@ -624,13 +625,14 @@ private fun ChartStatistic(
 }
 
 @Composable
-private fun MetricLineChart(
+internal fun MetricLineChart(
     metric: ChartMetricOption,
     points: List<ChartPoint>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
+    markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
@@ -653,7 +655,7 @@ private fun MetricLineChart(
         }
     }
     val primaryColor = MaterialTheme.colorScheme.primary
-    val line = rememberSmoothChartLine(primaryColor)
+    val line = rememberSmoothChartLine(primaryColor, points.size)
     val bottomFormatter = remember(zoneId) {
         CartesianValueFormatter { _, value, _ ->
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
@@ -707,6 +709,7 @@ private fun MetricLineChart(
             ),
             bottomAxis = rememberChartBottomAxis(bottomFormatter),
             marker = rememberChartMarker(markerValueFormatter),
+            markerVisibilityListener = markerVisibilityListener,
         ),
         modelProducer = modelProducer,
         modifier = Modifier
