@@ -163,6 +163,33 @@ class MeasurementsPresentationTest {
         assertEquals("permission denied", presentation.directions.single().message)
     }
 
+    @Test
+    fun historyAnnotationsAreIndependentFromLocalOnlySyncPresentation() {
+        val localOnly = sampleItem().copy(
+            sync = sync(health = "LOCAL_ONLY", huawei = "DISABLED"),
+        )
+        val bothAnnotations = sampleItem().copy(
+            isManuallyEdited = true,
+            hasProfileSyncMismatch = true,
+        )
+
+        assertTrue(localOnly.isLocalOnly)
+        assertFalse(localOnly.isManuallyEdited)
+        assertFalse(localOnly.hasProfileSyncMismatch)
+        assertTrue(bothAnnotations.isManuallyEdited)
+        assertTrue(bothAnnotations.hasProfileSyncMismatch)
+        assertEquals(
+            "Измерение изменено вручную. Изменения хранятся только на этом устройстве и " +
+                "не отправляются во внешние сервисы.",
+            MANUALLY_EDITED_HISTORY_MESSAGE,
+        )
+        assertEquals(
+            "Локальные показатели пересчитаны по обновлённому профилю. " +
+                "Ранее синхронизированные данные во внешних сервисах не изменились.",
+            PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE,
+        )
+    }
+
     private fun sync(
         health: String,
         huawei: String,

@@ -218,6 +218,8 @@ data class MeasurementUiItem(
     val values: MeasurementUiValues,
     val sync: MeasurementSyncPresentation,
     val type: MeasurementUiType = MeasurementUiType.FULL,
+    val isManuallyEdited: Boolean = false,
+    val hasProfileSyncMismatch: Boolean = false,
     val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
 ) {
@@ -233,6 +235,14 @@ data class MeasurementUiItem(
     val measuredAt: Instant
         get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 }
+
+internal const val MANUALLY_EDITED_HISTORY_MESSAGE =
+    "Измерение изменено вручную. Изменения хранятся только на этом устройстве " +
+        "и не отправляются во внешние сервисы."
+
+internal const val PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE =
+    "Локальные показатели пересчитаны по обновлённому профилю. " +
+        "Ранее синхронизированные данные во внешних сервисах не изменились."
 
 data class PendingMeasurementUiItem(
     val id: PendingMeasurementId,

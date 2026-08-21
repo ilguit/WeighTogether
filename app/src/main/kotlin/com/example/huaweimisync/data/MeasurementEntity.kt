@@ -313,6 +313,10 @@ data class MeasurementEntity(
         get() = hasProfileSyncMismatch(huaweiSyncedCalculatedValues) ||
             hasProfileSyncMismatch(healthConnectSyncedCalculatedValues)
 
+    /** Only an explicit user edit is presented as manual; account-local routing is not an edit. */
+    val isManuallyEdited: Boolean
+        get() = externalSyncPolicy == ExternalSyncPolicy.USER_LOCAL.name
+
     private fun hasProfileSyncMismatch(encodedSnapshot: String?): Boolean {
         if (encodedSnapshot == null) return false
         val current = fullValues ?: return true

@@ -853,15 +853,31 @@ private fun MeasurementHistoryCard(
                         },
                         modifier = Modifier.padding(top = 4.dp),
                     )
-                    if (item.isLocalOnly) {
+                    if (item.isManuallyEdited) {
                         HuaweiSurface(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("history-manual-notice-${item.id}"),
                             containerColor = HuaweiColors.SurfaceInfo,
                             contentPadding = PaddingValues(14.dp),
                         ) {
                             Text(
-                                "Запись изменена вручную и хранится только на этом устройстве. " +
-                                    "Она больше не отправляется во внешние сервисы.",
+                                MANUALLY_EDITED_HISTORY_MESSAGE,
+                                color = MaterialTheme.colorScheme.secondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                    }
+                    if (item.hasProfileSyncMismatch) {
+                        HuaweiSurface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("history-profile-mismatch-notice-${item.id}"),
+                            containerColor = HuaweiColors.SurfaceInfo,
+                            contentPadding = PaddingValues(14.dp),
+                        ) {
+                            Text(
+                                PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE,
                                 color = MaterialTheme.colorScheme.secondary,
                                 style = MaterialTheme.typography.bodyMedium,
                             )

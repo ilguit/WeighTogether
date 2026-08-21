@@ -59,6 +59,46 @@ class MeasurementsScreenTest {
     }
 
     @Test
+    fun historyShowsManualAndProfileMismatchNoticesAsIndependentStates() {
+        val both = sampleItem(
+            id = "both",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = syncedSync(),
+            isManuallyEdited = true,
+            hasProfileSyncMismatch = true,
+        )
+        val neither = sampleItem(
+            id = "neither",
+            instant = "2026-08-13T11:58:00Z",
+            weight = 72.8,
+            sync = localOnlySync(),
+        )
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.HISTORY,
+            isLoading = false,
+            measurements = listOf(both, neither),
+            summary = buildMeasurementSummary(listOf(both, neither)),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithTag("history-toggle-both").performClick()
+        composeRule.onNodeWithTag("history-manual-notice-both").assertIsDisplayed()
+        composeRule.onNodeWithText(MANUALLY_EDITED_HISTORY_MESSAGE).assertIsDisplayed()
+        composeRule.onNodeWithTag("history-profile-mismatch-notice-both").assertIsDisplayed()
+        composeRule.onNodeWithText(PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE).assertIsDisplayed()
+
+        composeRule.onNodeWithTag("history-toggle-neither").performScrollTo().performClick()
+        composeRule.onNodeWithTag("history-manual-notice-neither").assertDoesNotExist()
+        composeRule.onNodeWithTag("history-profile-mismatch-notice-neither").assertDoesNotExist()
+    }
+
+    @Test
     fun pendingQueueCardOpensQueueFromPopulatedSummary() {
         var state by mutableStateOf(sampleState().copy(pendingCount = 2))
         val callbacks = callbacks(
@@ -417,6 +457,8 @@ class MeasurementsScreenTest {
         sync: MeasurementSyncPresentation,
         type: MeasurementUiType = MeasurementUiType.FULL,
         values: MeasurementUiValues = sampleValues(weight),
+        isManuallyEdited: Boolean = false,
+        hasProfileSyncMismatch: Boolean = false,
         isDeleteProtected: Boolean = false,
     ): MeasurementUiItem {
         val measuredAt = Instant.parse(instant)
@@ -426,6 +468,8 @@ class MeasurementsScreenTest {
             values = values,
             sync = sync,
             type = type,
+            isManuallyEdited = isManuallyEdited,
+            hasProfileSyncMismatch = hasProfileSyncMismatch,
             isDeleteProtected = isDeleteProtected,
         )
     }
@@ -507,6 +551,19 @@ class MeasurementsScreenTest {
             ),
         ),
         canRetry = true,
+    )
+
+    private fun localOnlySync() = MeasurementSyncPresentation(
+        state = MeasurementSyncPresentationState.LOCAL_ONLY,
+        directions = listOf(
+            MeasurementSyncDirectionPresentation(
+                direction = MeasurementSyncDirection.HEALTH_CONNECT,
+                state = MeasurementSyncPresentationState.LOCAL_ONLY,
+                message = "Данные остаются на устройстве",
+                canRetry = false,
+            ),
+        ),
+        canRetry = false,
     )
 
     private companion object {
