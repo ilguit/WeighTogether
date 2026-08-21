@@ -341,6 +341,7 @@ data class MeasurementsUiState(
     val isLoading: Boolean = true,
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+    val homeKgChart: HomeKgChartUiState? = null,
     val accountSelector: AccountSelectorUiState = AccountSelectorUiState(
         accounts = emptyList(),
         selectedAccountId = null,
@@ -382,6 +383,7 @@ data class MeasurementsCallbacks(
     val onPendingAssignRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingDeleteRequested: (PendingMeasurementId) -> Unit = {},
+    val onHomeKgChartSeriesToggled: (seriesKey: String) -> Unit = {},
 ) {
     companion object {
         val None = MeasurementsCallbacks(
@@ -401,6 +403,7 @@ data class MeasurementsCallbacks(
             onPendingAssignRequested = {},
             onPendingPreviewRequested = {},
             onPendingDeleteRequested = {},
+            onHomeKgChartSeriesToggled = {},
         )
     }
 }
