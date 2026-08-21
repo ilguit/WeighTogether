@@ -259,15 +259,18 @@ class MeasurementRepository(
     }
 
     suspend fun sweepPendingSync(): Int {
-        val ids = if (accountRepository == null) {
+        val ids = currentPendingSyncIds()
+        ids.forEach(syncScheduler::enqueue)
+        return ids.size
+    }
+
+    suspend fun currentPendingSyncIds(): List<String> =
+        if (accountRepository == null) {
             dao.idsNeedingSync()
         } else {
             eligiblePendingEntities().filter(MeasurementEntity::hasPendingDestination)
                 .map(MeasurementEntity::id)
         }
-        ids.forEach(syncScheduler::enqueue)
-        return ids.size
-    }
 
     suspend fun sweepPendingRouting(): MeasurementIngestionSweepResult =
         requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }

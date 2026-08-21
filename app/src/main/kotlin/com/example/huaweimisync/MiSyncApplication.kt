@@ -13,6 +13,7 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.sync.HealthConnectGateway
 import com.example.huaweimisync.sync.HuaweiHealthGateway
 import com.example.huaweimisync.sync.createHuaweiHealthGateway
+import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.MeasurementWorkSweepScheduler
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.SyncWorkScheduler
@@ -36,7 +37,10 @@ class AppContainer(application: Application) {
     val packetParser = MiScalePacketParser()
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
-    val syncScheduler = SyncWorkScheduler(application)
+    val syncScheduler = SyncWorkScheduler(
+        context = application,
+        pausedUntilProvider = { profileStore.externalSyncPausedUntilEpochMillis },
+    )
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
@@ -60,6 +64,11 @@ class AppContainer(application: Application) {
         accountRepository = baseAccounts,
         pendingDecisionNotifier = pendingMeasurementNotifications,
         pendingFinalizationScheduler = finalizationScheduler,
+    )
+    val externalSyncPause = ExternalSyncPauseCoordinator(
+        settings = profileStore,
+        currentSyncIds = repository::currentPendingSyncIds,
+        scheduler = syncScheduler,
     )
     val accounts = SyncAwareAccountRepository(
         delegate = baseAccounts,
