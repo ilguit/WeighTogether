@@ -31,6 +31,11 @@ class MainSnackbarUiTest {
     }
 
     @Test
+    fun unavailableScaleRefreshFeedbackIsShownInSnackbar() {
+        assertSnackbarMessage(SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+    }
+
+    @Test
     fun pendingDiscardSnackbarShowsUndoAndReportsItsAddressedAction() {
         val channel = Channel<MainUiEvent>(Channel.UNLIMITED)
         val events = channel.receiveAsFlow()
