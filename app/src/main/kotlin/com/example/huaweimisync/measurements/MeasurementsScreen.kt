@@ -396,6 +396,14 @@ private fun MeasurementSummaryScreen(
                             },
                         )
                     }
+                    state.homeKgChart?.let { homeKgChart ->
+                        item {
+                            HomeKgChart(
+                                state = homeKgChart,
+                                onSeriesToggled = callbacks.onHomeKgChartSeriesToggled,
+                            )
+                        }
+                    }
                     item {
                         OutlinedButton(
                             onClick = callbacks.onHistoryRequested,
