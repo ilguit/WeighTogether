@@ -147,6 +147,7 @@ fun HuaweiMiSyncApp(
     viewModel: MainViewModel,
     measurementsViewModel: MeasurementsViewModel,
     chartsViewModel: ChartsViewModel,
+    healthConnectSystemManagementAvailable: Boolean,
     requestHealthConnectPermissions: () -> Unit,
     openHealthConnectAccessManagement: () -> Unit,
     openBatterySettings: () -> Unit,
@@ -179,7 +180,10 @@ fun HuaweiMiSyncApp(
         },
     )
     HuaweiMiSyncScaffold(
-        state = state,
+        state = state.copy(
+            healthConnectSystemManagementAvailable =
+                healthConnectSystemManagementAvailable,
+        ),
         currentSection = currentSection,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,

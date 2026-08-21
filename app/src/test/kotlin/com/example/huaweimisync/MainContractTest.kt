@@ -169,40 +169,44 @@ class MainContractTest {
     }
 
     @Test
+    fun `health connect management requires available sdk and management intent`() {
+        HealthConnectAvailability.values().forEach { availability ->
+            listOf(false, true).forEach { managementIntentAvailable ->
+                val capabilities = healthConnectIntegrationCapabilities(
+                    permissions = HealthConnectPermissionsUiState(
+                        availability = availability,
+                        requiredPermissions = setOf("weight"),
+                        grantedPermissions = setOf("weight"),
+                    ),
+                    managementIntentAvailable = managementIntentAvailable,
+                    selectedAccountSyncEligible = true,
+                )
+
+                assertEquals(
+                    "$availability with handler=$managementIntentAvailable",
+                    availability == HealthConnectAvailability.AVAILABLE &&
+                        managementIntentAvailable,
+                    capabilities.systemManagementAvailable,
+                )
+            }
+        }
+    }
+
+    @Test
     fun `health connect management availability is independent from selected account sync`() {
-        val required = setOf("weight", "fat")
-        val availableWithoutEligibleAccount = healthConnectIntegrationCapabilities(
+        val capabilities = healthConnectIntegrationCapabilities(
             permissions = HealthConnectPermissionsUiState.snapshot(
                 isAvailable = true,
-                requiredPermissions = required,
-                grantedPermissions = required,
+                requiredPermissions = setOf("weight", "fat"),
+                grantedPermissions = setOf("weight", "fat"),
             ),
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = false,
         )
-        val unavailableWithEligibleAccount = healthConnectIntegrationCapabilities(
-            permissions = HealthConnectPermissionsUiState.snapshot(
-                isAvailable = false,
-                requiredPermissions = required,
-                grantedPermissions = required,
-            ),
-            selectedAccountSyncEligible = true,
-        )
-        val providerMissing = healthConnectIntegrationCapabilities(
-            permissions = HealthConnectPermissionsUiState(
-                availability = HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED,
-                requiredPermissions = required,
-            ),
-            selectedAccountSyncEligible = true,
-        )
 
-        assertTrue(availableWithoutEligibleAccount.systemManagementAvailable)
-        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncEligible)
-        assertFalse(availableWithoutEligibleAccount.selectedAccountSyncReady)
-        assertFalse(unavailableWithEligibleAccount.systemManagementAvailable)
-        assertTrue(unavailableWithEligibleAccount.selectedAccountSyncEligible)
-        assertFalse(unavailableWithEligibleAccount.selectedAccountSyncReady)
-        assertFalse(providerMissing.systemManagementAvailable)
-        assertFalse(providerMissing.selectedAccountSyncReady)
+        assertTrue(capabilities.systemManagementAvailable)
+        assertFalse(capabilities.selectedAccountSyncEligible)
+        assertFalse(capabilities.selectedAccountSyncReady)
     }
 
     @Test
@@ -214,6 +218,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = setOf("weight"),
             ),
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = true,
         )
         val ready = healthConnectIntegrationCapabilities(
@@ -222,6 +227,7 @@ class MainContractTest {
                 requiredPermissions = required,
                 grantedPermissions = required,
             ),
+            managementIntentAvailable = true,
             selectedAccountSyncEligible = true,
         )
 

@@ -73,6 +73,7 @@ data class MainUiState(
     val scanning: Boolean = false,
     val isExternalSyncPaused: Boolean = false,
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
+    val healthConnectSystemManagementAvailable: Boolean = false,
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
     val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
     val accounts: List<Account> = emptyList(),
@@ -92,6 +93,7 @@ data class MainUiState(
     internal val healthConnectCapabilities: HealthConnectIntegrationCapabilities
         get() = healthConnectIntegrationCapabilities(
             permissions = healthConnect,
+            managementIntentAvailable = healthConnectSystemManagementAvailable,
             selectedAccountSyncEligible = canUseExternalIntegrations,
         )
 }
