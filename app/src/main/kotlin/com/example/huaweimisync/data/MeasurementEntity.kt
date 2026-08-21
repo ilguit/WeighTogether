@@ -108,7 +108,7 @@ data class CalculatedValuesSnapshot(
             val parts = value.split(SEPARATOR)
             if (parts.size != PART_COUNT || parts.first() != FORMAT_VERSION) return null
             return runCatching {
-                CalculatedValuesSnapshot(
+                val snapshot = CalculatedValuesSnapshot(
                     bmi = parts[1].toOptionalDouble(),
                     bodyFatPercent = parts[2].toOptionalDouble(),
                     bodyFatMassKg = parts[3].toOptionalDouble(),
@@ -124,14 +124,33 @@ data class CalculatedValuesSnapshot(
                     metabolicAge = parts[13].toOptionalInt(),
                     leanBodyMassKg = parts[14].toOptionalDouble(),
                 )
+                snapshot.takeIf(CalculatedValuesSnapshot::hasAnyValue)
             }.getOrNull()
         }
 
         private fun String.toOptionalDouble(): Double? =
-            if (this == MISSING_VALUE) null else toDouble()
+            if (this == MISSING_VALUE) null else toDouble().also {
+                require(it.isFinite()) { "Snapshot values must be finite" }
+            }
 
         private fun String.toOptionalInt(): Int? = if (this == MISSING_VALUE) null else toInt()
     }
+
+    private fun hasAnyValue(): Boolean =
+        bmi != null ||
+            bodyFatPercent != null ||
+            bodyFatMassKg != null ||
+            waterPercent != null ||
+            waterMassKg != null ||
+            muscleMassKg != null ||
+            skeletalMuscleMassKg != null ||
+            boneMassKg != null ||
+            proteinPercent != null ||
+            proteinMassKg != null ||
+            visceralFatLevel != null ||
+            basalMetabolicRateKcal != null ||
+            metabolicAge != null ||
+            leanBodyMassKg != null
 }
 
 private fun Double?.matches(current: Double): Boolean = this == null || this == current

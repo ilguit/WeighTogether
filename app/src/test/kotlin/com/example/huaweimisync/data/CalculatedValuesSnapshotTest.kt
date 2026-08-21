@@ -42,6 +42,23 @@ class CalculatedValuesSnapshotTest {
     }
 
     @Test
+    fun emptyAndNonFiniteSnapshotsAreRejectedInsteadOfHidingMismatch() {
+        val emptySnapshot = "v1|_|_|_|_|_|_|_|_|_|_|_|_|_|_"
+        val nonFiniteSnapshot = "v1|NaN|_|_|_|_|_|_|_|_|_|_|_|_|_"
+
+        assertEquals(null, CalculatedValuesSnapshot.decode(emptySnapshot))
+        assertEquals(null, CalculatedValuesSnapshot.decode(nonFiniteSnapshot))
+        assertTrue(
+            fullMeasurement().copy(huaweiSyncedCalculatedValues = emptySnapshot)
+                .hasProfileSyncMismatch,
+        )
+        assertTrue(
+            fullMeasurement().copy(huaweiSyncedCalculatedValues = nonFiniteSnapshot)
+                .hasProfileSyncMismatch,
+        )
+    }
+
+    @Test
     fun healthConnectSnapshotIgnoresValuesThatDestinationDoesNotStore() {
         val original = fullMeasurement()
         val snapshot = original.currentCalculatedValuesSnapshot(

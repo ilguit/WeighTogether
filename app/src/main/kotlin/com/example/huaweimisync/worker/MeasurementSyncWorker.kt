@@ -96,7 +96,7 @@ class MeasurementSyncWorker(
     }
 }
 
-private fun com.example.huaweimisync.sync.MeasurementSyncPayload.successfulCalculatedValuesSnapshot(
+internal fun com.example.huaweimisync.sync.MeasurementSyncPayload.successfulCalculatedValuesSnapshot(
     result: SyncResult,
     destination: ExternalSyncDestination,
 ): String? = if (result is SyncResult.Success) {
