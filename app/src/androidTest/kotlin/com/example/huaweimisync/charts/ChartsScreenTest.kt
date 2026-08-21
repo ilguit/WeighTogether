@@ -22,6 +22,7 @@ import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.LocalDate
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -92,6 +93,34 @@ class ChartsScreenTest {
         }
         composeRule.onNodeWithText("Показатели").assertIsDisplayed()
         composeRule.onNodeWithText("Выбрано: 0").assertIsDisplayed()
+    }
+
+    @Test
+    fun metricCardShowsMinimumMaximumAndAverageStatistics() {
+        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val state = chartsState().copy(
+            selectedMetricKeys = setOf(metric.key),
+            series = listOf(
+                ChartSeries(
+                    metric = metric,
+                    points = listOf(
+                        ChartPoint(2L, 71.25),
+                        ChartPoint(1L, 70.0),
+                    ),
+                ),
+            ),
+        )
+        setContent(stateProvider = { state }, stateUpdater = {})
+
+        composeRule.onNodeWithContentDescription(
+            "Минимум: ${formatChartStatistic(70.0, metric, Locale.getDefault())}",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Максимум: ${formatChartStatistic(71.25, metric, Locale.getDefault())}",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(
+            "Среднее: ${formatChartStatistic(70.625, metric, Locale.getDefault())}",
+        ).assertIsDisplayed()
     }
 
     @Test

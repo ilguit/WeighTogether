@@ -312,6 +312,52 @@ class ChartsContractTest {
     }
 
     @Test
+    fun `statistics are absent for an empty series`() {
+        assertNull(chartStatistics(emptyList()))
+    }
+
+    @Test
+    fun `single point is minimum maximum and average`() {
+        val statistics = chartStatistics(listOf(ChartPoint(10L, 72.45)))!!
+
+        assertEquals(72.45, statistics.minimum, 0.0)
+        assertEquals(72.45, statistics.maximum, 0.0)
+        assertEquals(72.45, statistics.average, 0.0)
+    }
+
+    @Test
+    fun `statistics use all unsorted negative and fractional values`() {
+        val statistics = chartStatistics(
+            listOf(
+                ChartPoint(30L, -1.25),
+                ChartPoint(10L, 2.75),
+                ChartPoint(20L, -0.5),
+            ),
+        )!!
+
+        assertEquals(-1.25, statistics.minimum, 0.0)
+        assertEquals(2.75, statistics.maximum, 0.0)
+        assertEquals(1.0 / 3.0, statistics.average, 0.000_000_001)
+    }
+
+    @Test
+    fun `statistics formatting rounds average with metric precision and unit`() {
+        val metric = ChartMetricOption("weight", "Вес", "кг", 2)
+        val statistics = chartStatistics(
+            listOf(
+                ChartPoint(1L, 1.234),
+                ChartPoint(2L, 1.238),
+            ),
+        )!!
+
+        assertEquals(1.236, statistics.average, 0.000_000_001)
+        assertEquals("1.23 кг", formatChartStatistic(statistics.minimum, metric, Locale.US))
+        assertEquals("1.24 кг", formatChartStatistic(statistics.maximum, metric, Locale.US))
+        assertEquals("1.24 кг", formatChartStatistic(statistics.average, metric, Locale.US))
+        assertEquals("—", formatChartStatistic(null, metric, Locale.US))
+    }
+
+    @Test
     fun `empty single and constant series have safe y ranges`() {
         assertNull(chartYRange(emptyList(), 2))
 
