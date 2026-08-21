@@ -11,6 +11,7 @@ data class AppSettings(
     val scaleName: String? = null,
     val reliabilityMode: Boolean = false,
     val selectedChartMetricKeys: Set<String>? = null,
+    val homeKgChartSeriesKeys: Set<String>? = null,
     val externalSyncPausedUntilEpochMillis: Long = 0L,
 )
 
@@ -51,6 +52,11 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
         refresh()
     }
 
+    fun saveHomeKgChartSeriesKeys(keys: Set<String>) {
+        preferences.edit { putStringSet(KEY_HOME_KG_CHART_SERIES, keys.toSet()) }
+        refresh()
+    }
+
     override val externalSyncPausedUntilEpochMillis: Long
         get() = settings.value.externalSyncPausedUntilEpochMillis
 
@@ -77,6 +83,9 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
             selectedChartMetricKeys = preferences
                 .getStringSet(KEY_SELECTED_CHART_METRICS, null)
                 ?.toSet(),
+            homeKgChartSeriesKeys = preferences
+                .getStringSet(KEY_HOME_KG_CHART_SERIES, null)
+                ?.toSet(),
             externalSyncPausedUntilEpochMillis = preferences.getLong(
                 KEY_EXTERNAL_SYNC_PAUSED_UNTIL,
                 0L,
@@ -89,6 +98,7 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
         const val KEY_SCALE_NAME = "scale_name"
         const val KEY_RELIABILITY = "reliability"
         const val KEY_SELECTED_CHART_METRICS = "selected_chart_metrics"
+        const val KEY_HOME_KG_CHART_SERIES = "home_kg_chart_series"
         const val KEY_EXTERNAL_SYNC_PAUSED_UNTIL = "external_sync_paused_until_epoch_millis"
     }
 }
