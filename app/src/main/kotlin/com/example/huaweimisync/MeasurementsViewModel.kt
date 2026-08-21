@@ -100,7 +100,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
         val protectedLatestId = repository.protectedLatestId(values)
         val items = values.map { value ->
-            value.toUiItem(
+            value.toMeasurementUiItem(
                 isDeleteProtected = value.id == protectedLatestId,
                 isOperationInProgress = deletion?.isDeleting == true &&
                     deletion.measurementId == value.id,
@@ -339,7 +339,7 @@ internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): 
     MeasurementMutationResult.ProtectedLatest -> MeasurementsViewModel.PROTECTED_LATEST_MESSAGE
 }
 
-private fun MeasurementEntity.toUiItem(
+internal fun MeasurementEntity.toMeasurementUiItem(
     isDeleteProtected: Boolean,
     isOperationInProgress: Boolean,
 ): MeasurementUiItem =
@@ -354,6 +354,8 @@ private fun MeasurementEntity.toUiItem(
             huaweiStatus = huaweiStatus,
             huaweiError = huaweiError,
         ),
+        isManuallyEdited = isManuallyEdited,
+        hasProfileSyncMismatch = hasProfileSyncMismatch,
         isDeleteProtected = isDeleteProtected,
         isOperationInProgress = isOperationInProgress,
     )

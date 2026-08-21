@@ -47,6 +47,149 @@ data class MeasurementValues(
     val leanBodyMassKg: Double,
 )
 
+/** Profile-dependent values written to one external destination after a successful sync. */
+data class CalculatedValuesSnapshot(
+    val bmi: Double? = null,
+    val bodyFatPercent: Double? = null,
+    val bodyFatMassKg: Double? = null,
+    val waterPercent: Double? = null,
+    val waterMassKg: Double? = null,
+    val muscleMassKg: Double? = null,
+    val skeletalMuscleMassKg: Double? = null,
+    val boneMassKg: Double? = null,
+    val proteinPercent: Double? = null,
+    val proteinMassKg: Double? = null,
+    val visceralFatLevel: Double? = null,
+    val basalMetabolicRateKcal: Double? = null,
+    val metabolicAge: Int? = null,
+    val leanBodyMassKg: Double? = null,
+) {
+    fun encode(): String = listOf(
+        FORMAT_VERSION,
+        bmi,
+        bodyFatPercent,
+        bodyFatMassKg,
+        waterPercent,
+        waterMassKg,
+        muscleMassKg,
+        skeletalMuscleMassKg,
+        boneMassKg,
+        proteinPercent,
+        proteinMassKg,
+        visceralFatLevel,
+        basalMetabolicRateKcal,
+        metabolicAge,
+        leanBodyMassKg,
+    ).joinToString(SEPARATOR) { it?.toString() ?: MISSING_VALUE }
+
+    fun matches(current: MeasurementValues): Boolean =
+        bmi.matches(current.bmi) &&
+            bodyFatPercent.matches(current.bodyFatPercent) &&
+            bodyFatMassKg.matches(current.bodyFatMassKg) &&
+            waterPercent.matches(current.waterPercent) &&
+            waterMassKg.matches(current.waterMassKg) &&
+            muscleMassKg.matches(current.muscleMassKg) &&
+            skeletalMuscleMassKg.matches(current.skeletalMuscleMassKg) &&
+            boneMassKg.matches(current.boneMassKg) &&
+            proteinPercent.matches(current.proteinPercent) &&
+            proteinMassKg.matches(current.proteinMassKg) &&
+            visceralFatLevel.matches(current.visceralFatLevel) &&
+            basalMetabolicRateKcal.matches(current.basalMetabolicRateKcal) &&
+            metabolicAge.matches(current.metabolicAge) &&
+            leanBodyMassKg.matches(current.leanBodyMassKg)
+
+    companion object {
+        private const val FORMAT_VERSION = "v1"
+        private const val SEPARATOR = "|"
+        private const val MISSING_VALUE = "_"
+        private const val PART_COUNT = 15
+
+        fun decode(value: String): CalculatedValuesSnapshot? {
+            val parts = value.split(SEPARATOR)
+            if (parts.size != PART_COUNT || parts.first() != FORMAT_VERSION) return null
+            return runCatching {
+                val snapshot = CalculatedValuesSnapshot(
+                    bmi = parts[1].toOptionalDouble(),
+                    bodyFatPercent = parts[2].toOptionalDouble(),
+                    bodyFatMassKg = parts[3].toOptionalDouble(),
+                    waterPercent = parts[4].toOptionalDouble(),
+                    waterMassKg = parts[5].toOptionalDouble(),
+                    muscleMassKg = parts[6].toOptionalDouble(),
+                    skeletalMuscleMassKg = parts[7].toOptionalDouble(),
+                    boneMassKg = parts[8].toOptionalDouble(),
+                    proteinPercent = parts[9].toOptionalDouble(),
+                    proteinMassKg = parts[10].toOptionalDouble(),
+                    visceralFatLevel = parts[11].toOptionalDouble(),
+                    basalMetabolicRateKcal = parts[12].toOptionalDouble(),
+                    metabolicAge = parts[13].toOptionalInt(),
+                    leanBodyMassKg = parts[14].toOptionalDouble(),
+                )
+                snapshot.takeIf(CalculatedValuesSnapshot::hasAnyValue)
+            }.getOrNull()
+        }
+
+        private fun String.toOptionalDouble(): Double? =
+            if (this == MISSING_VALUE) null else toDouble().also {
+                require(it.isFinite()) { "Snapshot values must be finite" }
+            }
+
+        private fun String.toOptionalInt(): Int? = if (this == MISSING_VALUE) null else toInt()
+    }
+
+    private fun hasAnyValue(): Boolean =
+        bmi != null ||
+            bodyFatPercent != null ||
+            bodyFatMassKg != null ||
+            waterPercent != null ||
+            waterMassKg != null ||
+            muscleMassKg != null ||
+            skeletalMuscleMassKg != null ||
+            boneMassKg != null ||
+            proteinPercent != null ||
+            proteinMassKg != null ||
+            visceralFatLevel != null ||
+            basalMetabolicRateKcal != null ||
+            metabolicAge != null ||
+            leanBodyMassKg != null
+}
+
+private fun Double?.matches(current: Double): Boolean = this == null || this == current
+
+private fun Int?.matches(current: Int): Boolean = this == null || this == current
+
+enum class ExternalSyncDestination {
+    HUAWEI,
+    HEALTH_CONNECT,
+}
+
+/** Captures only values actually supported by the selected destination. */
+fun MeasurementValues.toCalculatedValuesSnapshot(
+    destination: ExternalSyncDestination,
+): CalculatedValuesSnapshot = when (destination) {
+    ExternalSyncDestination.HUAWEI -> CalculatedValuesSnapshot(
+        bmi = bmi,
+        bodyFatPercent = bodyFatPercent,
+        waterPercent = waterPercent,
+        waterMassKg = waterMassKg,
+        muscleMassKg = muscleMassKg,
+        skeletalMuscleMassKg = skeletalMuscleMassKg,
+        boneMassKg = boneMassKg,
+        proteinPercent = proteinPercent,
+        proteinMassKg = proteinMassKg,
+        visceralFatLevel = visceralFatLevel,
+        basalMetabolicRateKcal = basalMetabolicRateKcal,
+        metabolicAge = metabolicAge,
+    )
+
+    ExternalSyncDestination.HEALTH_CONNECT -> CalculatedValuesSnapshot(
+        bodyFatPercent = bodyFatPercent,
+        waterMassKg = waterMassKg,
+        boneMassKg = boneMassKg,
+        basalMetabolicRateKcal = basalMetabolicRateKcal,
+        leanBodyMassKg = leanBodyMassKg,
+    )
+}
+
 enum class MeasurementMetric(
     val displayName: String,
     val unit: String,
@@ -149,6 +292,10 @@ data class MeasurementEntity(
     val externalSyncPolicy: String = ExternalSyncPolicy.AUTO.name,
     val sourcePendingId: String? = null,
     val deduplicationHash: String? = null,
+    /** Exact profile-dependent values last successfully sent to Huawei by this app version. */
+    val huaweiSyncedCalculatedValues: String? = null,
+    /** Exact profile-dependent values last successfully sent to Health Connect. */
+    val healthConnectSyncedCalculatedValues: String? = null,
 ) {
     val values: MeasurementValues
         get() = checkNotNull(fullValues) { "Weight-only measurement $id has no composition values" }
@@ -175,6 +322,45 @@ data class MeasurementEntity(
                 leanBodyMassKg = leanBodyMassKg ?: return null,
             )
         }
+
+    fun currentCalculatedValuesSnapshot(
+        destination: ExternalSyncDestination,
+    ): CalculatedValuesSnapshot? = fullValues?.toCalculatedValuesSnapshot(destination)
+
+    /**
+     * Preserves the last payload of legacy synced rows before profile recalculation overwrites it.
+     * Snapshot backfill is intentionally lazy so database migration remains a schema-only change.
+     */
+    internal fun backfillMissingSyncedCalculatedValues(): MeasurementEntity {
+        val current = fullValues ?: return this
+        return copy(
+            huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues.ifMissingAndSynced(
+                huaweiStatus,
+            ) {
+                current.toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI).encode()
+            },
+            healthConnectSyncedCalculatedValues =
+                healthConnectSyncedCalculatedValues.ifMissingAndSynced(healthConnectStatus) {
+                    current.toCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT)
+                        .encode()
+                },
+        )
+    }
+
+    /** True for a known snapshot mismatch; legacy synced rows with no snapshot remain unknown. */
+    val hasProfileSyncMismatch: Boolean
+        get() = hasProfileSyncMismatch(huaweiSyncedCalculatedValues) ||
+            hasProfileSyncMismatch(healthConnectSyncedCalculatedValues)
+
+    /** Only an explicit user edit is presented as manual; account-local routing is not an edit. */
+    val isManuallyEdited: Boolean
+        get() = externalSyncPolicy == ExternalSyncPolicy.USER_LOCAL.name
+
+    private fun hasProfileSyncMismatch(encodedSnapshot: String?): Boolean {
+        if (encodedSnapshot == null) return false
+        val current = fullValues ?: return true
+        return CalculatedValuesSnapshot.decode(encodedSnapshot)?.matches(current) != true
+    }
 
     fun toAccountMeasurement(): AccountMeasurement = AccountMeasurement(
         accountId = AccountId(accountId),
@@ -222,6 +408,11 @@ data class MeasurementEntity(
     val measuredAtNano: Int
         get() = 0
 }
+
+private inline fun String?.ifMissingAndSynced(
+    status: String,
+    snapshot: () -> String,
+): String? = if (isNullOrBlank() && status == SyncStatus.SYNCED.name) snapshot() else this
 
 fun BodyComposition.toEntity(
     rawPayload: ByteArray,

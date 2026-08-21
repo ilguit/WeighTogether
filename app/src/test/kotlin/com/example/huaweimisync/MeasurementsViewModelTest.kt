@@ -1,8 +1,12 @@
 package com.example.huaweimisync
 
+import com.example.huaweimisync.data.ExternalSyncDestination
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementMutationResult
+import com.example.huaweimisync.domain.ExternalSyncPolicy
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MeasurementsViewModelTest {
@@ -59,6 +63,47 @@ class MeasurementsViewModelTest {
         assertEquals(
             "Локальное измерение удалено",
             measurementDeleteResultMessage(MeasurementMutationResult.Success),
+        )
+    }
+
+    @Test
+    fun historyFlagsDoNotInferManualEditFromLocalOnlySyncStatus() {
+        val accountLocal = measurement(id = "account-local").copy(
+            externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL.name,
+            huaweiStatus = "LOCAL_ONLY",
+            healthConnectStatus = "LOCAL_ONLY",
+        ).toMeasurementUiItem(false, false)
+
+        val userLocal = measurement(id = "user-local").copy(
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
+            huaweiStatus = "SYNCED",
+            healthConnectStatus = "SYNCED",
+        ).toMeasurementUiItem(false, false)
+
+        assertFalse(accountLocal.isManuallyEdited)
+        assertTrue(accountLocal.isLocalOnly)
+        assertTrue(userLocal.isManuallyEdited)
+        assertFalse(userLocal.isLocalOnly)
+    }
+
+    @Test
+    fun historyMismatchMapsSnapshotDivergenceIndependentlyFromManualEdit() {
+        val original = measurement(id = "mismatch")
+        val syncedSnapshot = original.currentCalculatedValuesSnapshot(
+            ExternalSyncDestination.HUAWEI,
+        )!!.encode()
+
+        val item = original.copy(
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
+            huaweiSyncedCalculatedValues = syncedSnapshot,
+            bmi = original.bmi!! + 1.0,
+        ).toMeasurementUiItem(false, false)
+
+        assertTrue(item.isManuallyEdited)
+        assertTrue(item.hasProfileSyncMismatch)
+        assertEquals(
+            com.example.huaweimisync.measurements.MeasurementSyncPresentationState.PENDING,
+            item.sync.state,
         )
     }
 }

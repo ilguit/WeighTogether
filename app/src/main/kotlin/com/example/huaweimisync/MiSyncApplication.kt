@@ -52,7 +52,7 @@ class AppContainer(application: Application) {
         huaweiSyncEnabled = huaweiHealth.isAvailableInBuild,
     )
     /** Read-side dependency for ingestion. It must not depend on measurement orchestration. */
-    val baseAccounts = RoomAccountRepository(database)
+    val baseAccounts = RoomAccountRepository(database, calculator = calculator)
     val repository = MeasurementRepository(
         database.measurementDao(),
         // The legacy provider is never reached in live DI because all writes use the configured
@@ -80,6 +80,7 @@ class AppContainer(application: Application) {
         persistence = measurementPersistence,
         measurements = repository,
         syncScheduler = syncScheduler,
+        externalSyncOperations = externalSyncOperations,
     )
 
     /** One application-wide selection shared by Measurements and Charts. */

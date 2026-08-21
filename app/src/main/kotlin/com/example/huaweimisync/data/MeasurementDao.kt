@@ -40,6 +40,8 @@ interface MeasurementDao {
             externalSyncPolicy = current.externalSyncPolicy,
             sourcePendingId = current.sourcePendingId,
             deduplicationHash = current.deduplicationHash,
+            huaweiSyncedCalculatedValues = current.huaweiSyncedCalculatedValues,
+            healthConnectSyncedCalculatedValues = current.healthConnectSyncedCalculatedValues,
         )
         return if (update(upgraded) == 1) {
             MeasurementUpsertResult.Upgraded(upgraded)
@@ -130,6 +132,12 @@ interface MeasurementDao {
             huaweiWeightSynced = CASE
                 WHEN :markWeightSynced THEN 1
                 ELSE huaweiWeightSynced
+            END,
+            huaweiSyncedCalculatedValues = CASE
+                WHEN measurementType = :expectedMeasurementType
+                    AND :syncedCalculatedValues IS NOT NULL
+                    THEN :syncedCalculatedValues
+                ELSE huaweiSyncedCalculatedValues
             END
         WHERE id = :id
             AND externalSyncPolicy = 'AUTO'
@@ -142,6 +150,7 @@ interface MeasurementDao {
         status: String,
         error: String?,
         markWeightSynced: Boolean,
+        syncedCalculatedValues: String? = null,
     ): Int
 
     @Query(
@@ -158,6 +167,12 @@ interface MeasurementDao {
             healthConnectWeightSynced = CASE
                 WHEN :markWeightSynced THEN 1
                 ELSE healthConnectWeightSynced
+            END,
+            healthConnectSyncedCalculatedValues = CASE
+                WHEN measurementType = :expectedMeasurementType
+                    AND :syncedCalculatedValues IS NOT NULL
+                    THEN :syncedCalculatedValues
+                ELSE healthConnectSyncedCalculatedValues
             END
         WHERE id = :id
             AND externalSyncPolicy = 'AUTO'
@@ -170,6 +185,7 @@ interface MeasurementDao {
         status: String,
         error: String?,
         markWeightSynced: Boolean,
+        syncedCalculatedValues: String? = null,
     ): Int
 
     @Query(

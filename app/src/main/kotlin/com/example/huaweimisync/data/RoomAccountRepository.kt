@@ -1,8 +1,12 @@
 package com.example.huaweimisync.data
 
 import androidx.room.withTransaction
+import com.example.huaweimisync.core.BodyCompositionCalculator
+import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountRepository
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountSettingsWriter
@@ -20,6 +24,7 @@ class RoomAccountRepository(
     private val accountDao: AccountDao = database.accountDao(),
     private val appStateDao: AppStateDao = database.appStateDao(),
     private val measurementDao: MultiAccountMeasurementDao = database.multiAccountMeasurementDao(),
+    private val calculator: BodyCompositionCalculator = BodyCompositionCalculator(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : AccountRepository, AccountSettingsWriter {
@@ -60,6 +65,17 @@ class RoomAccountRepository(
             ?.takeIf { it.id != current.id }
             ?.let { throw AccountNameConflictException(account.normalizedName) }
         val updated = account.toEntity(current, now())
+        if (current.requiresProfileRecalculation(updated)) {
+            val profile = account.profile.toUserProfile()
+            measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
+                val recalculated = measurement
+                    .backfillMissingSyncedCalculatedValues()
+                    .recalculate(calculator, profile)
+                check(measurementDao.update(recalculated) == 1) {
+                    "Measurement ${measurement.id} disappeared during profile recalculation"
+                }
+            }
+        }
         if (accountDao.update(updated) != 1) throw AccountNotFoundException(account.id)
         updated.toDomain()
     }
@@ -199,3 +215,58 @@ private fun AccountUpdate.toEntity(current: AccountEntity, updatedAt: Instant): 
         isProfileComplete = true,
         updatedAtEpochMillis = updatedAt.toEpochMilli(),
     )
+
+private fun AccountEntity.requiresProfileRecalculation(updated: AccountEntity): Boolean =
+    !isProfileComplete ||
+        heightCm != updated.heightCm ||
+        birthDateEpochDay != updated.birthDateEpochDay ||
+        sex != updated.sex
+
+private fun AccountProfile.Complete.toUserProfile(): UserProfile =
+    UserProfile(
+        heightCm = heightCm,
+        birthDate = birthDate,
+        sex = sex,
+    )
+
+internal fun MeasurementEntity.recalculate(
+    calculator: BodyCompositionCalculator,
+    profile: UserProfile,
+): MeasurementEntity {
+    require(measurementType == MeasurementType.FULL) {
+        "Only full measurements can be recalculated"
+    }
+    val composition = calculator.calculate(
+        raw = RawScaleMeasurement(
+            deviceAddress = deviceAddress,
+            measuredAt = measuredAt,
+            weightKg = weightKg,
+            impedanceOhm = requireNotNull(impedanceOhm) {
+                "Full measurement $id has no impedance"
+            },
+            isStable = true,
+            hasImpedance = true,
+            // The calculator does not interpret the packet. Keep the persisted payload untouched.
+            rawPayload = byteArrayOf(),
+            rawWeight = rawWeight,
+        ),
+        profile = profile,
+    )
+    return copy(
+        bmi = composition.bmi,
+        bodyFatPercent = composition.bodyFatPercent,
+        bodyFatMassKg = composition.bodyFatMassKg,
+        waterPercent = composition.waterPercent,
+        waterMassKg = composition.waterMassKg,
+        muscleMassKg = composition.muscleMassKg,
+        skeletalMuscleMassKg = composition.skeletalMuscleMassKg,
+        boneMassKg = composition.boneMassKg,
+        proteinPercent = composition.proteinPercent,
+        proteinMassKg = composition.proteinMassKg,
+        visceralFatLevel = composition.visceralFatLevel,
+        basalMetabolicRateKcal = composition.basalMetabolicRateKcal,
+        metabolicAge = composition.metabolicAge,
+        leanBodyMassKg = composition.leanBodyMassKg,
+        algorithmVersion = composition.algorithmVersion,
+    )
+}

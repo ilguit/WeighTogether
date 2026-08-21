@@ -8,6 +8,7 @@ import com.example.huaweimisync.domain.AccountSettingsWriter
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -23,7 +24,14 @@ class SyncAwareAccountRepository(
     private val persistence: RoomMeasurementPersistence,
     private val measurements: MeasurementRepository,
     private val syncScheduler: MeasurementSyncScheduler,
+    private val externalSyncOperations: ExternalSyncOperationSerializer,
 ) : AccountRepository, AccountSettingsWriter {
+    private val accountUpdater = SerializedAccountUpdater(
+        updateDelegate = delegate::updateAccount,
+        sweepPendingRouting = measurements::sweepPendingRouting,
+        operations = externalSyncOperations,
+    )
+
     override fun observeAccounts(): Flow<List<Account>> = delegate.observeAccounts()
 
     override fun observeSettings(): Flow<AccountSettings> = delegate.observeSettings()
@@ -34,8 +42,7 @@ class SyncAwareAccountRepository(
         measurements.sweepPendingRouting()
     }
 
-    override suspend fun updateAccount(account: AccountUpdate): Account =
-        delegate.updateAccount(account).also { measurements.sweepPendingRouting() }
+    override suspend fun updateAccount(account: AccountUpdate): Account = accountUpdater.update(account)
 
     override suspend fun setPrimaryAccount(
         accountId: AccountId,
@@ -80,5 +87,21 @@ class SyncAwareAccountRepository(
         // This policy intentionally applies only to routing triggered after the setting changes.
         // Do not sweep the durable queue here.
         settingsWriter.updateIgnoreUnknownMeasurements(enabled)
+    }
+}
+
+/**
+ * Owns the cross-system ordering for account writes. Routing is deliberately outside the
+ * serializer: it may start workers, but it must not keep their external gateway locked out.
+ */
+internal class SerializedAccountUpdater(
+    private val updateDelegate: suspend (AccountUpdate) -> Account,
+    private val sweepPendingRouting: suspend () -> Unit,
+    private val operations: ExternalSyncOperationSerializer,
+) {
+    suspend fun update(account: AccountUpdate): Account {
+        val updated = operations.runExclusive { updateDelegate(account) }
+        sweepPendingRouting()
+        return updated
     }
 }
