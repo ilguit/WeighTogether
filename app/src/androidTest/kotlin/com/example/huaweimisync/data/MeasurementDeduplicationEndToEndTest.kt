@@ -3,6 +3,7 @@ package com.example.huaweimisync.data
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.huaweimisync.core.BodyCompositionCalculator
+import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.DiscardPendingResult
@@ -150,6 +151,87 @@ class MeasurementDeduplicationEndToEndTest {
         assertEquals(3, finalization.pendingIds.size)
     }
 
+    @Test
+    fun parsedAdjacentRawWeightsProduceIndependentHistoryAndSync() = runBlocking {
+        val sync = RecordingSyncScheduler()
+        val accounts = RoomAccountRepository(database, now = { now })
+        val account = accounts.createAccount(
+            NewAccount(
+                displayName = "Alice",
+                profile = AccountProfile.Complete(
+                    heightCm = 175.0,
+                    birthDate = LocalDate.of(1990, 1, 1),
+                    sex = Sex.FEMALE,
+                ),
+            ),
+        )
+        val calculator = BodyCompositionCalculator(ZoneId.of("UTC"))
+        val repository = MeasurementRepository(
+            dao = database.measurementDao(),
+            profileProvider = { null },
+            scaleAddressProvider = { null },
+            calculator = calculator,
+            syncScheduler = sync,
+            huaweiSyncEnabled = true,
+            multiAccountPersistence = RoomMeasurementPersistence(
+                database = database,
+                calculator = calculator,
+                huaweiSyncEnabled = true,
+                now = { now },
+            ),
+            accountRepository = accounts,
+        )
+        val parser = MiScalePacketParser(ZoneId.of("UTC"))
+
+        val first = repository.ingest(
+            requireNotNull(
+                parser.parse(scalePayload(rawWeight = 14_000, second = 0), DEVICE.lowercase()),
+            ),
+        ) as MeasurementIngestionResult.CreatedAggregate
+        val repeated = repository.ingest(
+            requireNotNull(parser.parse(scalePayload(rawWeight = 14_000, second = 8), DEVICE)),
+        ) as MeasurementIngestionResult.UpdatedAggregate
+        val adjacent = repository.ingest(
+            requireNotNull(parser.parse(scalePayload(rawWeight = 14_001, second = 8), DEVICE)),
+        ) as MeasurementIngestionResult.CreatedAggregate
+
+        assertEquals(first.pending.id, repeated.pending.id)
+        assertTrue(adjacent.pending.id != first.pending.id)
+        assertEquals(2, repository.observePending().first().size)
+
+        val firstAssigned = (
+            repository.finalizeDue(first.pending.id, repeated.pending.finalizeAfter) as
+                AggregateFinalizationResult.Completed
+            ).outcome as MeasurementIngestionResult.Assigned
+        val adjacentAssigned = (
+            repository.finalizeDue(adjacent.pending.id, adjacent.pending.finalizeAfter) as
+                AggregateFinalizationResult.Completed
+            ).outcome as MeasurementIngestionResult.Assigned
+
+        val history = repository.observeAllEntities(account.id).first()
+        assertEquals(setOf(14_000, 14_001), history.map { it.rawWeight }.toSet())
+        assertEquals(
+            setOf(firstAssigned.measurement.measurementId, adjacentAssigned.measurement.measurementId),
+            history.map { it.id }.toSet(),
+        )
+        assertEquals(history.map { it.id }.toSet(), sync.enqueued.toSet())
+        assertEquals(2, sync.enqueued.size)
+        assertTrue(repository.observePending().first().isEmpty())
+    }
+
+    private fun scalePayload(rawWeight: Int, second: Int): ByteArray = byteArrayOf(
+        0x00,
+        0x22,
+        0xea.toByte(), 0x07,
+        0x08,
+        0x14,
+        0x0a,
+        0x00,
+        second.toByte(),
+        0xf4.toByte(), 0x01,
+        rawWeight.toByte(), (rawWeight ushr 8).toByte(),
+    )
+
     private class RecordingSyncScheduler : MeasurementSyncScheduler {
         val enqueued = mutableListOf<String>()
 
@@ -179,6 +261,7 @@ class MeasurementDeduplicationEndToEndTest {
     }
 
     private companion object {
+        const val DEVICE = "AA:BB:CC:DD:EE:FF"
         val MEASURED_AT: Instant = Instant.parse("2026-08-20T10:00:00Z")
     }
 }

@@ -43,35 +43,79 @@ class MeasurementDeduplicationPersistenceTest {
     fun closeDatabase() = database.close()
 
     @Test
-    fun secondsZeroThroughNineAggregateButExactlyTenCreatesAnotherAggregate() = runBlocking {
+    fun sameRawWeightAtZeroNineTenAndThirtySecondsUsesStrictWindow() = runBlocking {
         val persistence = persistence()
         val first = persistence.enqueue(raw(second = 0)) as PendingPersistenceResult.Inserted
+        val sameSecond = persistence.enqueue(raw(second = 0)) as PendingPersistenceResult.AlreadyPending
+        val nineSeconds = persistence.enqueue(raw(second = 9)) as PendingPersistenceResult.AlreadyPending
+        val tenSeconds = persistence.enqueue(raw(second = 10)) as PendingPersistenceResult.Inserted
+        val thirtySeconds = persistence.enqueue(raw(second = 30)) as PendingPersistenceResult.Inserted
 
-        for (offset in 0L..9L) {
-            now = now.plusMillis(1)
-            val result = persistence.enqueue(raw(second = offset))
-            assertTrue("offset=$offset", result is PendingPersistenceResult.AlreadyPending)
-            assertEquals(first.pending.id, (result as PendingPersistenceResult.AlreadyPending).pending.id)
-        }
-
-        assertTrue(persistence.enqueue(raw(second = 10)) is PendingPersistenceResult.Inserted)
-        assertEquals(2, database.pendingMeasurementDao().getAll().size)
+        assertEquals(first.pending.id, sameSecond.pending.id)
+        assertEquals(first.pending.id, nineSeconds.pending.id)
+        assertTrue(tenSeconds.pending.id != first.pending.id)
+        assertTrue(thirtySeconds.pending.id != first.pending.id)
+        assertTrue(thirtySeconds.pending.id != tenSeconds.pending.id)
+        assertEquals(3, database.pendingMeasurementDao().getAll().size)
     }
 
     @Test
-    fun differentRawWeightOrDeviceCreatesIndependentAggregate() = runBlocking {
+    fun differentRawWeightAtZeroNineTenAndThirtySecondsAlwaysCreatesIndependentAggregate() = runBlocking {
         val persistence = persistence()
-        persistence.enqueue(raw(second = 0, rawWeight = 14_000))
+        val first = persistence.enqueue(raw(second = 0, rawWeight = 14_000))
+            as PendingPersistenceResult.Inserted
 
-        assertTrue(
-            persistence.enqueue(raw(second = 5, rawWeight = 14_001)) is
-                PendingPersistenceResult.Inserted,
-        )
+        val differentWeights = listOf(0L, 9L, 10L, 30L).mapIndexed { index, second ->
+            persistence.enqueue(raw(second = second, rawWeight = 14_001 + index))
+                as PendingPersistenceResult.Inserted
+        }
+
+        assertTrue(differentWeights.all { it.pending.id != first.pending.id })
+        assertEquals(5, database.pendingMeasurementDao().getAll().size)
+    }
+
+    @Test
+    fun differentDeviceCreatesIndependentAggregateInsideWindow() = runBlocking {
+        val persistence = persistence()
+        persistence.enqueue(raw(second = 0))
+
         assertTrue(
             persistence.enqueue(raw(second = 5, device = "11:22:33:44:55:66")) is
                 PendingPersistenceResult.Inserted,
         )
-        assertEquals(3, database.pendingMeasurementDao().getAll().size)
+        assertEquals(2, database.pendingMeasurementDao().getAll().size)
+    }
+
+    @Test
+    fun differentRawWeightsAtSameSecondFinalizeIntoTwoIndependentRecords() = runBlocking {
+        val persistence = persistence()
+        val accounts = RoomAccountRepository(database, now = { now }, newId = ::newId)
+        val account = accounts.createAccount(NewAccount("Alice", completeProfile()))
+        val first = persistence.enqueue(raw(second = 0, rawWeight = 14_000))
+            as PendingPersistenceResult.Inserted
+        val second = persistence.enqueue(raw(second = 0, rawWeight = 14_001))
+            as PendingPersistenceResult.Inserted
+
+        assertTrue(
+            persistence.finalizePending(first.pending.id, account.id) is
+                FinalizePendingResult.Finalized,
+        )
+        assertTrue(
+            persistence.finalizePending(second.pending.id, account.id) is
+                FinalizePendingResult.Finalized,
+        )
+
+        val records = listOf(
+            requireNotNull(
+                database.multiAccountMeasurementDao().getByPendingId(first.pending.id.value),
+            ),
+            requireNotNull(
+                database.multiAccountMeasurementDao().getByPendingId(second.pending.id.value),
+            ),
+        )
+        assertEquals(setOf(14_000, 14_001), records.map { it.rawWeight }.toSet())
+        assertEquals(2, records.map { it.sourcePendingId }.distinct().size)
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
     }
 
     @Test
