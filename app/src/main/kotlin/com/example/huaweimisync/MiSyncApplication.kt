@@ -80,6 +80,7 @@ class AppContainer(application: Application) {
         persistence = measurementPersistence,
         measurements = repository,
         syncScheduler = syncScheduler,
+        externalSyncOperations = externalSyncOperations,
     )
 
     /** One application-wide selection shared by Measurements and Charts. */
