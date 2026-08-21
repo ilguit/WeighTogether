@@ -528,6 +528,16 @@ private fun MetricChartCard(
     val delta = remember(summary.delta, series.metric) {
         formatChartDelta(summary.delta, series.metric)
     }
+    val statistics = remember(points) { chartStatistics(points) }
+    val minimum = remember(statistics?.minimum, series.metric) {
+        formatChartStatistic(statistics?.minimum, series.metric)
+    }
+    val maximum = remember(statistics?.maximum, series.metric) {
+        formatChartStatistic(statistics?.maximum, series.metric)
+    }
+    val average = remember(statistics?.average, series.metric) {
+        formatChartStatistic(statistics?.average, series.metric)
+    }
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
@@ -553,6 +563,26 @@ private fun MetricChartCard(
                         textAlign = TextAlign.End,
                     )
                 }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                ChartStatistic(
+                    label = "Минимум",
+                    value = minimum,
+                    modifier = Modifier.weight(1f),
+                )
+                ChartStatistic(
+                    label = "Максимум",
+                    value = maximum,
+                    modifier = Modifier.weight(1f),
+                )
+                ChartStatistic(
+                    label = "Среднее",
+                    value = average,
+                    modifier = Modifier.weight(1f),
+                )
             }
             when {
                 points.isEmpty() -> Text(
@@ -585,6 +615,28 @@ private fun MetricChartCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun ChartStatistic(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+) {
+    Column(
+        modifier = modifier.semantics { contentDescription = "$label: $value" },
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+    ) {
+        Text(
+            text = label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 
