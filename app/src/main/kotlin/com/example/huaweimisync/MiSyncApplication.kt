@@ -45,7 +45,7 @@ class AppContainer(application: Application) {
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
-    private val externalSyncOperations = ExternalSyncOperationSerializer()
+    internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
         calculator = calculator,

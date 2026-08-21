@@ -17,26 +17,33 @@ class MeasurementSyncWorker(
         val container = (applicationContext as MiSyncApplication).container
         val dao = container.database.measurementDao()
         val eligibility = MeasurementSyncEligibilityPolicy(container.database)
-        val outcome = MeasurementSyncProcessor(
-            loadMeasurement = dao::get,
-            isEligible = eligibility::isEligible,
-            writeHuawei = container.huaweiHealth::write,
-            writeHealthConnect = container.healthConnect::write,
-            applyHuaweiResult = { measurementId, payload, result ->
-                applyHuaweiResult(dao, measurementId, payload, result)
-            },
-            applyHealthConnectResult = { measurementId, payload, result ->
-                applyHealthConnectResult(dao, measurementId, payload, result)
-            },
-            pausedUntilProvider = { container.profileStore.externalSyncPausedUntilEpochMillis },
-        ).sync(id)
+        return container.externalSyncOperations.runExclusive {
+            val outcome = MeasurementSyncProcessor(
+                loadMeasurement = dao::get,
+                isEligible = eligibility::isEligible,
+                writeHuawei = container.huaweiHealth::write,
+                writeHealthConnect = container.healthConnect::write,
+                applyHuaweiResult = { measurementId, payload, result ->
+                    applyHuaweiResult(dao, measurementId, payload, result)
+                },
+                applyHealthConnectResult = { measurementId, payload, result ->
+                    applyHealthConnectResult(dao, measurementId, payload, result)
+                },
+                pausedUntilProvider = {
+                    container.profileStore.externalSyncPausedUntilEpochMillis
+                },
+            ).sync(id)
 
-        return when (outcome) {
-            MeasurementSyncOutcome.Complete -> Result.success()
-            MeasurementSyncOutcome.Retry -> Result.retry()
-            is MeasurementSyncOutcome.Deferred -> {
-                container.syncScheduler.reschedule(id, outcome.notBeforeEpochMillis)
-                Result.success()
+            when (outcome) {
+                MeasurementSyncOutcome.Complete -> Result.success()
+                MeasurementSyncOutcome.Retry -> Result.retry()
+                is MeasurementSyncOutcome.Deferred -> {
+                    // Keep REPLACE inside the same critical section as deletion. Whichever
+                    // operation wins is final: deletion-after-defer cancels the replacement,
+                    // while deletion-before-defer makes the Room reload complete without it.
+                    container.syncScheduler.reschedule(id, outcome.notBeforeEpochMillis)
+                    Result.success()
+                }
             }
         }
     }

@@ -3,7 +3,7 @@ package com.example.huaweimisync.worker
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
-/** Serializes Room exclusion/deletion with queue rebuilds performed by pause and resume. */
+/** Serializes external writes with Room exclusion/deletion and pause/resume queue rebuilds. */
 class ExternalSyncOperationSerializer {
     private val mutex = Mutex()
 

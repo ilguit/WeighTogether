@@ -6,6 +6,8 @@ import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.sync.MeasurementSyncPayload
 import com.example.huaweimisync.sync.SyncResult
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -257,6 +259,33 @@ class MeasurementSyncProcessorTest {
         val store = FakeSyncStore(null)
 
         assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
+        assertTrue(store.externalWrites.isEmpty())
+        assertTrue(store.statusUpdates.isEmpty())
+    }
+
+    @Test
+    fun workerWaitingBehindDeletionReloadsRoomAndNeverCallsGateway() = runBlocking {
+        val store = FakeSyncStore(measurement())
+        val operations = ExternalSyncOperationSerializer()
+        val deletionStarted = CompletableDeferred<Unit>()
+        val allowDeletion = CompletableDeferred<Unit>()
+
+        val deletion = async {
+            operations.runExclusive {
+                deletionStarted.complete(Unit)
+                allowDeletion.await()
+                store.value = null
+            }
+        }
+        deletionStarted.await()
+        val worker = async {
+            operations.runExclusive { store.processor().sync(ID) }
+        }
+        allowDeletion.complete(Unit)
+
+        deletion.await()
+        assertEquals(MeasurementSyncOutcome.Complete, worker.await())
+        assertEquals(2, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
     }
