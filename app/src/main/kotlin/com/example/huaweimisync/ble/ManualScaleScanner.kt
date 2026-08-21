@@ -9,7 +9,11 @@ class ManualScaleScanner(private val context: Context) {
     private var callback: ScanCallback? = null
 
     @SuppressLint("MissingPermission")
-    fun start(onResult: (ScanResult) -> Unit, onError: (String) -> Unit): Result<Unit> = runCatching {
+    fun start(
+        address: String? = null,
+        onResult: (ScanResult) -> Unit,
+        onError: (String) -> Unit,
+    ): Result<Unit> = runCatching {
         check(BleSupport.hasScanPermission(context)) { "Нет разрешения Bluetooth Scan" }
         stop()
         val scanner = checkNotNull(BleSupport.scanner(context)) { "Bluetooth выключен" }
@@ -26,7 +30,7 @@ class ManualScaleScanner(private val context: Context) {
         }
         callback = newCallback
         scanner.startScan(
-            listOf(BleSupport.scanFilter()),
+            listOf(BleSupport.scanFilter(address)),
             BleSupport.lowLatencySettings(),
             newCallback,
         )

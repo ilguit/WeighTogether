@@ -66,6 +66,69 @@ internal class MainUiEventEmitter {
 }
 
 /**
+ * Owns the lifecycle of the one-shot scale refresh independently from Settings scanning.
+ * Scanner and timer implementations stay outside so the operation can be tested without Android.
+ */
+internal class ScaleRefreshCoordinator(
+    private val setRefreshing: (Boolean) -> Unit,
+    private val stopScanner: () -> Unit,
+    private val restoreAutomaticScanning: () -> Unit,
+    private val showMessage: (String) -> Unit,
+) {
+    private val lock = Any()
+    private var phase = Phase.IDLE
+    private var cancelTimeout: (() -> Unit)? = null
+
+    fun start(): Boolean {
+        synchronized(lock) {
+            if (phase != Phase.IDLE) return false
+            phase = Phase.ACTIVE
+        }
+        setRefreshing(true)
+        return true
+    }
+
+    fun attachTimeout(cancel: () -> Unit) {
+        val cancelImmediately = synchronized(lock) {
+            if (phase == Phase.ACTIVE) {
+                cancelTimeout = cancel
+                false
+            } else {
+                true
+            }
+        }
+        if (cancelImmediately) cancel()
+    }
+
+    fun complete() = finish()
+
+    fun fail(message: String) = finish(message)
+
+    fun timeout() = finish(SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+
+    fun clear() = finish()
+
+    private fun finish(message: String? = null) {
+        val cancel = synchronized(lock) {
+            if (phase != Phase.ACTIVE) return
+            phase = Phase.FINISHING
+            cancelTimeout.also { cancelTimeout = null }
+        }
+        try {
+            cancel?.invoke()
+            stopScanner()
+            setRefreshing(false)
+            restoreAutomaticScanning()
+            message?.let(showMessage)
+        } finally {
+            synchronized(lock) { phase = Phase.IDLE }
+        }
+    }
+
+    private enum class Phase { IDLE, ACTIVE, FINISHING }
+}
+
+/**
  * Owns discard capabilities only while their addressed snackbar is active or waiting to be shown.
  * The UI event deliberately carries an id instead of the process-local token.
  */

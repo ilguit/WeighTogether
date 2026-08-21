@@ -68,9 +68,13 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
+internal const val SCALE_REFRESH_TIMEOUT_MILLIS = 7_000L
+internal const val SCALE_REFRESH_UNAVAILABLE_MESSAGE = "Весы недоступны"
+
 data class MainUiState(
     val settings: AppSettings = AppSettings(),
     val scanning: Boolean = false,
+    val isRefreshing: Boolean = false,
     val isExternalSyncPaused: Boolean = false,
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
     val healthConnectSystemManagementAvailable: Boolean = false,
@@ -112,9 +116,16 @@ private data class PendingDecisionSnapshot(
 private data class MainCoreState(
     val settings: AppSettings,
     val scanning: Boolean,
+    val isRefreshing: Boolean,
     val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
     val huawei: HuaweiIntegrationUiState,
+)
+
+private data class ScaleScanningState(
+    val settings: AppSettings,
+    val scanning: Boolean,
+    val isRefreshing: Boolean,
 )
 
 private data class RoutingUiSnapshot(
@@ -130,10 +141,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         retryPendingHuawei = container.repository::retryPendingHuawei,
     )
     private val scanner = ManualScaleScanner(application)
+    private val refreshScanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
+    private val refreshing = MutableStateFlow(false)
+    private val scaleRefresh = ScaleRefreshCoordinator(
+        setRefreshing = { refreshing.value = it },
+        stopScanner = refreshScanner::stop,
+        restoreAutomaticScanning = ::restoreAutomaticScanning,
+        showMessage = ::showMessage,
+    )
     private val initialHealthConnectAvailability = container.healthConnect.availability()
     private val initialHealthConnectState = if (
         initialHealthConnectAvailability == HealthConnectAvailability.AVAILABLE
@@ -188,16 +207,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     val events = eventEmitter.events
 
-    private val coreState = combine(
+    private val scaleScanningState = combine(
         container.profileStore.settings,
         scanning,
+        refreshing,
+    ) { settings, isScanning, isRefreshing ->
+        ScaleScanningState(settings, isScanning, isRefreshing)
+    }
+    private val coreState = combine(
+        scaleScanningState,
         externalSyncPaused,
         healthConnect,
         huawei,
-    ) { settings, isScanning, isSyncPaused, healthConnectState, huaweiState ->
+    ) { scanState, isSyncPaused, healthConnectState, huaweiState ->
         MainCoreState(
-            settings = settings,
-            scanning = isScanning,
+            settings = scanState.settings,
+            scanning = scanState.scanning,
+            isRefreshing = scanState.isRefreshing,
             isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
             huawei = huaweiState,
@@ -269,6 +295,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         MainUiState(
             settings = core.settings,
             scanning = core.scanning,
+            isRefreshing = core.isRefreshing,
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
             huawei = core.huawei,
@@ -687,6 +714,38 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
+    fun refreshFromScale() {
+        if (!scaleRefresh.start()) return
+
+        if (scanning.value) {
+            scanner.stop()
+            scanning.value = false
+        }
+        val started = runCatching {
+            BackgroundScanRegistrar.unregister(getApplication())
+            ReliabilityScanService.setEnabled(getApplication(), false)
+        }.fold(
+            onSuccess = {
+                refreshScanner.start(
+                    address = container.profileStore.settings.value.scaleAddress,
+                    onResult = ::onRefreshScanResult,
+                    onError = scaleRefresh::fail,
+                )
+            },
+            onFailure = { Result.failure(it) },
+        )
+        started.onFailure { error ->
+            scaleRefresh.fail(error.message ?: "Не удалось запустить сканирование")
+        }.onSuccess {
+            val timeoutJob = viewModelScope.launch {
+                delay(SCALE_REFRESH_TIMEOUT_MILLIS)
+                scaleRefresh.timeout()
+            }
+            scaleRefresh.attachTimeout(timeoutJob::cancel)
+        }
+    }
+
     fun toggleExternalSyncPause() = viewModelScope.launch {
         showMessage(container.externalSyncPause.toggle().snackbarMessage())
     }
@@ -818,6 +877,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        scaleRefresh.clear()
         scanner.stop()
         super.onCleared()
     }
@@ -837,6 +897,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ScanWorkScheduler.enqueue(getApplication(), result)
         restoreAutomaticScanning()
         showMessage("Весы выбраны: ${name ?: address}. Измерение принято")
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun onRefreshScanResult(result: ScanResult) {
+        if (!BleSupport.hasConnectPermission(getApplication())) return
+        val payload = BleSupport.serviceData(result) ?: return
+        val address = runCatching { result.device.address }.getOrNull() ?: return
+        val parsed = container.packetParser.parse(payload, address) ?: return
+        if (!parsed.isStableWeight) return
+
+        ScanWorkScheduler.enqueue(getApplication(), result)
+        scaleRefresh.complete()
     }
 
     private fun restoreAutomaticScanning() {
