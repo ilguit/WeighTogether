@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -27,5 +28,17 @@ class ProfileStorePersistenceTest {
 
         ProfileStore(context).setExternalSyncPausedUntilEpochMillis(0L)
         assertEquals(0L, ProfileStore(context).settings.value.externalSyncPausedUntilEpochMillis)
+    }
+
+    @Test
+    fun homeChartSelectionDistinguishesMissingAndEmptyAndSurvivesRecreation() {
+        assertNull(ProfileStore(context).settings.value.homeKgChartSeriesKeys)
+
+        ProfileStore(context).saveHomeKgChartSeriesKeys(emptySet())
+        assertEquals(emptySet<String>(), ProfileStore(context).settings.value.homeKgChartSeriesKeys)
+
+        val selected = linkedSetOf("weight_kg", "bone_mass_kg")
+        ProfileStore(context).saveHomeKgChartSeriesKeys(selected)
+        assertEquals(selected, ProfileStore(context).settings.value.homeKgChartSeriesKeys)
     }
 }

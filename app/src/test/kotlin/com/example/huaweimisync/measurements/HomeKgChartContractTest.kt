@@ -149,6 +149,37 @@ class HomeKgChartContractTest {
         )
         assertTrue(restoreHomeKgChartSeriesKeys(setOf("removed_metric", "future_metric")).isEmpty())
     }
+
+    @Test
+    fun `first launch toggle persists canonical selection and second toggle restores series`() {
+        val withoutWeight = toggleHomeKgChartSeriesKey(null, "weight_kg")
+
+        assertEquals(DefaultHomeKgChartSeriesKeys - "weight_kg", withoutWeight)
+        assertEquals(
+            DefaultHomeKgChartSeriesKeys,
+            toggleHomeKgChartSeriesKey(withoutWeight, "weight_kg"),
+        )
+    }
+
+    @Test
+    fun `toggle permits an explicitly empty persisted selection`() {
+        val onlyWeight = setOf("weight_kg")
+
+        assertTrue(toggleHomeKgChartSeriesKey(onlyWeight, "weight_kg")!!.isEmpty())
+        assertEquals(setOf("weight_kg"), toggleHomeKgChartSeriesKey(emptySet(), "weight_kg"))
+    }
+
+    @Test
+    fun `toggle drops stale persisted keys and ignores unknown event keys`() {
+        assertEquals(
+            linkedSetOf("weight_kg", "bone_mass_kg"),
+            toggleHomeKgChartSeriesKey(
+                persistedKeys = setOf("weight_kg", "removed_metric"),
+                toggledKey = "bone_mass_kg",
+            ),
+        )
+        assertEquals(null, toggleHomeKgChartSeriesKey(setOf("weight_kg"), "removed_metric"))
+    }
 }
 
 private fun measurement(

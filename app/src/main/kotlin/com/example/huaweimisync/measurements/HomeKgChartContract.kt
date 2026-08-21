@@ -143,6 +143,20 @@ fun restoreHomeKgChartSeriesKeys(persistedKeys: Set<String>?): Set<String> {
         .filterTo(linkedSetOf()) { it in persistedKeys }
 }
 
+/** Returns null for an unknown key so callers do not overwrite preferences for stale UI events. */
+fun toggleHomeKgChartSeriesKey(
+    persistedKeys: Set<String>?,
+    toggledKey: String,
+): Set<String>? {
+    if (HomeKgChartSeriesCatalog.none { it.key == toggledKey }) return null
+    val current = restoreHomeKgChartSeriesKeys(persistedKeys)
+    return HomeKgChartSeriesCatalog
+        .map(HomeKgChartMetric::key)
+        .filterTo(linkedSetOf()) { key ->
+            if (key == toggledKey) key !in current else key in current
+        }
+}
+
 fun homeKgChartPeriod(
     zoneId: ZoneId = ZoneId.systemDefault(),
     clock: Clock = Clock.system(zoneId),
