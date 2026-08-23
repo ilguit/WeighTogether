@@ -577,10 +577,9 @@ private fun MeasurementSummaryCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            MetricGrid(
+            MetricDetailsGrid(
                 metrics = summary.keyMetrics,
                 modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
-                tileColor = HuaweiColors.SurfaceSubtle,
             )
 
             TextButton(
