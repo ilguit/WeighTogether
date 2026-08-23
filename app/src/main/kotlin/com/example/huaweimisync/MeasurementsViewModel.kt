@@ -27,6 +27,7 @@ import com.example.huaweimisync.measurements.homeChartRefreshInputs
 import com.example.huaweimisync.measurements.measurementSyncPresentation
 import com.example.huaweimisync.measurements.toggleHomeKgChartSeriesKey
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
@@ -396,6 +397,9 @@ internal fun MeasurementEntity.toMeasurementUiItem(
 ): MeasurementUiItem =
     MeasurementUiItem(
         id = id,
+        presentationKey = sourcePendingId ?: id,
+        finalMeasurementId = id,
+        sourcePendingId = sourcePendingId?.let(::PendingMeasurementId),
         measuredAtEpochSecond = measuredAtEpochSecond,
         values = toUiValues(),
         type = measurementType.toUiType(),

@@ -3,6 +3,8 @@ package com.example.huaweimisync.measurements
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PreliminaryDecisionReadiness
+import com.example.huaweimisync.domain.lifecycleAt
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.Instant
@@ -222,7 +224,30 @@ data class MeasurementUiItem(
     val hasProfileSyncMismatch: Boolean = false,
     val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
+    /** Stable across pending replacement by a finalized Room row. */
+    val presentationKey: String = id,
+    /** Room row id used by edit/delete/retry/sync; absent while the item is preliminary. */
+    val finalMeasurementId: String? = id,
+    val sourcePendingId: PendingMeasurementId? = null,
+    val isPreliminary: Boolean = false,
+    val preliminaryDecisionReadiness: PreliminaryDecisionReadiness? = null,
 ) {
+    init {
+        require(presentationKey.isNotBlank()) { "Presentation key must not be blank" }
+        if (isPreliminary) {
+            require(sourcePendingId != null) { "Preliminary measurement must retain its pending id" }
+            require(finalMeasurementId == null) { "Preliminary measurement cannot address a final row" }
+            require(preliminaryDecisionReadiness != null) {
+                "Preliminary measurement must expose decision readiness"
+            }
+        } else {
+            require(finalMeasurementId != null) { "Finalized measurement must address its Room row" }
+            require(preliminaryDecisionReadiness == null) {
+                "Finalized measurement cannot expose preliminary readiness"
+            }
+        }
+    }
+
     val isWeightOnly: Boolean
         get() = type == MeasurementUiType.WEIGHT_ONLY
 
@@ -230,7 +255,25 @@ data class MeasurementUiItem(
         get() = sync.state == MeasurementSyncPresentationState.LOCAL_ONLY
 
     val canRetry: Boolean
-        get() = sync.canRetry
+        get() = hasFinalActions && sync.canRetry
+
+    val mutationId: String?
+        get() = finalMeasurementId.takeIf { hasFinalActions }
+
+    val isReadyForDecision: Boolean
+        get() = preliminaryDecisionReadiness == PreliminaryDecisionReadiness.READY_FOR_DECISION
+
+    val hasFinalActions: Boolean
+        get() = !isPreliminary && finalMeasurementId != null
+
+    val canEdit: Boolean
+        get() = hasFinalActions && !isOperationInProgress
+
+    val canDelete: Boolean
+        get() = hasFinalActions && !isDeleteProtected && !isOperationInProgress
+
+    val canSync: Boolean
+        get() = hasFinalActions && !isOperationInProgress
 
     val measuredAt: Instant
         get() = Instant.ofEpochSecond(measuredAtEpochSecond)
@@ -261,6 +304,48 @@ internal fun PendingMeasurement.toPendingMeasurementUiItem(): PendingMeasurement
         weightKg = weightKg,
         impedanceOhm = impedanceOhm.takeIf { hasImpedance },
     )
+
+/**
+ * Summary/chart projection for the short-lived aggregate. It deliberately exposes only weight and
+ * carries no final-row identity, so consumers cannot accidentally offer mutations or sync.
+ */
+internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(now: Instant): MeasurementUiItem {
+    val lifecycle = lifecycleAt(now)
+    return MeasurementUiItem(
+        id = id.value,
+        presentationKey = lifecycle.presentationKey.value,
+        finalMeasurementId = null,
+        sourcePendingId = id,
+        isPreliminary = true,
+        preliminaryDecisionReadiness = lifecycle.decisionReadiness,
+        measuredAtEpochSecond = measuredAt.epochSecond,
+        values = MeasurementUiValues(
+            weightKg = weightKg,
+            impedanceOhm = impedanceOhm.takeIf { hasImpedance },
+            bmi = null,
+            bodyFatPercent = null,
+            bodyFatMassKg = null,
+            waterPercent = null,
+            waterMassKg = null,
+            muscleMassKg = null,
+            skeletalMuscleMassKg = null,
+            boneMassKg = null,
+            proteinPercent = null,
+            proteinMassKg = null,
+            visceralFatLevel = null,
+            basalMetabolicRateKcal = null,
+            metabolicAge = null,
+            leanBodyMassKg = null,
+        ),
+        sync = measurementSyncPresentation(
+            healthConnectStatus = "LOCAL_ONLY",
+            healthConnectError = null,
+            huaweiStatus = "DISABLED",
+            huaweiError = null,
+        ),
+        type = MeasurementUiType.WEIGHT_ONLY,
+    )
+}
 
 data class MeasurementMetricPresentation(
     val field: MeasurementField,

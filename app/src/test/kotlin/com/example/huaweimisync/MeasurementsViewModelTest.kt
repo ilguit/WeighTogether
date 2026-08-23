@@ -4,6 +4,7 @@ import com.example.huaweimisync.data.ExternalSyncDestination
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementMutationResult
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PendingMeasurementId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -105,6 +106,22 @@ class MeasurementsViewModelTest {
             com.example.huaweimisync.measurements.MeasurementSyncPresentationState.PENDING,
             item.sync.state,
         )
+    }
+
+    @Test
+    fun finalizedProjectionKeepsPendingPresentationKeyAndUsesRowIdForMutations() {
+        val item = measurement(id = "measurement-row").copy(
+            sourcePendingId = "pending-stable",
+        ).toMeasurementUiItem(false, false)
+
+        assertEquals("pending-stable", item.presentationKey)
+        assertEquals(PendingMeasurementId("pending-stable"), item.sourcePendingId)
+        assertEquals("measurement-row", item.finalMeasurementId)
+        assertEquals("measurement-row", item.mutationId)
+        assertFalse(item.isPreliminary)
+        assertTrue(item.canEdit)
+        assertTrue(item.canDelete)
+        assertTrue(item.canSync)
     }
 }
 

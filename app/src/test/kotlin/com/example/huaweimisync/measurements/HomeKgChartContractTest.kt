@@ -1,5 +1,7 @@
 package com.example.huaweimisync.measurements
 
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -121,6 +123,58 @@ class HomeKgChartContractTest {
         val weightSeries = state.series.single { it.key == "weight_kg" }
         assertEquals(listOf(69.5), weightSeries.points.map(HomeKgChartPoint::valueKg))
         assertTrue(state.series.filterNot { it.key == "weight_kg" }.all { it.points.isEmpty() })
+    }
+
+    @Test
+    fun `preliminary measurement contributes to home weight series`() {
+        val now = Instant.parse("2026-08-20T08:00:00Z")
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("pending-chart"),
+            deviceAddress = "AA:BB",
+            measuredAt = now,
+            weightKg = 69.5,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+            deduplicationHash = "hash-chart",
+            enqueuedAt = now,
+        )
+
+        val state = buildHomeKgChartUiState(
+            measurements = listOf(pending.toPreliminaryMeasurementUiItem(now)),
+            clock = Clock.fixed(now.plusSeconds(60), ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        val point = state.series.single { it.key == "weight_kg" }.points.single()
+        assertEquals(pending.id.value, point.measurementId)
+        assertEquals(69.5, point.valueKg, 0.0)
+        assertTrue(state.series.filterNot { it.key == "weight_kg" }.all { it.points.isEmpty() })
+    }
+
+    @Test
+    fun `chart point identity remains pending key after finalization`() {
+        val now = Instant.parse("2026-08-20T08:00:00Z")
+        val finalized = measurement(
+            id = "measurement-row",
+            measuredAt = now.epochSecond,
+        ).copy(
+            presentationKey = "pending-stable",
+            finalMeasurementId = "measurement-row",
+            sourcePendingId = PendingMeasurementId("pending-stable"),
+        )
+
+        val state = buildHomeKgChartUiState(
+            measurements = listOf(finalized),
+            clock = Clock.fixed(now.plusSeconds(60), ZoneOffset.UTC),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(
+            "pending-stable",
+            state.series.single { it.key == "weight_kg" }.points.single().measurementId,
+        )
     }
 
     @Test
