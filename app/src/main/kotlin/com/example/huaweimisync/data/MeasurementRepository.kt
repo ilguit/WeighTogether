@@ -21,6 +21,8 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementPreview
 import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.isComplete
+import com.example.huaweimisync.domain.toRawScaleMeasurement
+import com.example.huaweimisync.domain.toUserProfileOrNull
 import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
@@ -66,6 +68,15 @@ class MeasurementRepository(
 
     fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
         requireMultiAccountPersistence().observeAllEntities(accountId)
+
+    fun observePreliminary(accountId: AccountId): Flow<List<PendingMeasurement>> =
+        requireMultiAccountPersistence().observePreliminary(accountId)
+
+    /** Calculates an account-scoped preview in memory; no entity or sync work is created. */
+    fun preliminaryComposition(
+        pending: PendingMeasurement,
+        profile: AccountProfile,
+    ) = calculatePreliminaryComposition(pending, profile, calculator)
 
     fun observeRange(
         startInclusive: Instant,
@@ -327,6 +338,9 @@ class MeasurementRepository(
     override fun observePending(): Flow<List<PendingMeasurement>> =
         requireMultiAccountPersistence().observePending()
 
+    override fun observeUnassignedPending(): Flow<List<PendingMeasurement>> =
+        requireMultiAccountPersistence().observeUnassignedPending()
+
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
         requireMultiAccountPersistence().getPending(id)
 
@@ -436,6 +450,16 @@ class MeasurementRepository(
 
     private companion object {
         const val MANUAL_DEVICE_ADDRESS = "manual"
+    }
+}
+
+internal fun calculatePreliminaryComposition(
+    pending: PendingMeasurement,
+    profile: AccountProfile,
+    calculator: BodyCompositionCalculator,
+) = profile.toUserProfileOrNull()?.let { completeProfile ->
+    pending.toRawScaleMeasurement().takeIf { it.hasFullBodyComposition }?.let { raw ->
+        calculator.calculate(raw, completeProfile)
     }
 }
 

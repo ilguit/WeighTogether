@@ -7,6 +7,8 @@ import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementMutationResult
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.MeasurementValues
+import com.example.huaweimisync.domain.Account
+import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.measurements.MeasurementDeleteConfirmation
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
 import com.example.huaweimisync.measurements.MeasurementEditorOrigin
@@ -18,6 +20,7 @@ import com.example.huaweimisync.measurements.MeasurementUiType
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsNavigationState
+import com.example.huaweimisync.measurements.PendingMeasurementUiItem
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
@@ -25,13 +28,19 @@ import com.example.huaweimisync.measurements.buildHomeKgChartUiState
 import com.example.huaweimisync.measurements.currentLocalDates
 import com.example.huaweimisync.measurements.homeChartRefreshInputs
 import com.example.huaweimisync.measurements.measurementSyncPresentation
+import com.example.huaweimisync.measurements.toPendingMeasurementUiItem
+import com.example.huaweimisync.measurements.toPreliminaryMeasurementUiItem
 import com.example.huaweimisync.measurements.toggleHomeKgChartSeriesKey
 import com.example.huaweimisync.domain.AccountId
+import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PendingMeasurementReadinessSnapshot
+import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.Clock
+import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -79,11 +88,29 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val measurements = accountSelector.flatMapLatest { selector ->
         accountScopedLoad(
             accountId = selector.selectedAccountId,
-            emptyValue = emptyList(),
-            observe = repository::observeAllEntities,
+            emptyValue = AccountMeasurementPresentationSource(),
+            observe = { accountId ->
+                combine(
+                    repository.observeAllEntities(accountId),
+                    repository.observePreliminary(accountId),
+                ) { finalized, preliminary ->
+                    AccountMeasurementPresentationSource(
+                        finalized = finalized,
+                        preliminary = preliminary,
+                        account = selector.accounts.firstOrNull { it.id == accountId },
+                    )
+                }
+            },
         )
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AccountScopedLoad.Loading)
+    private val pending = repository.observeUnassignedPending()
+        .withPendingMeasurementReadiness()
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(),
+            PendingMeasurementReadinessSnapshot(emptyList(), Instant.EPOCH),
+        )
     private val navigation = MutableStateFlow(MeasurementsNavigationState())
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
     private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
@@ -113,15 +140,15 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     private val presentation = measurementsWithChartRefresh.mapLatest { refresh ->
         withContext(Dispatchers.Default) {
-            val values = refresh.measurements.valuesOrEmpty()
-                .sortedByDescending(MeasurementEntity::measuredAtEpochSecond)
-            val protectedLatestId = repository.protectedLatestId(values)
-            val items = values.map { value ->
-                value.toMeasurementUiItem(
-                    isDeleteProtected = value.id == protectedLatestId,
-                    isOperationInProgress = false,
-                )
-            }
+            val source = refresh.measurements.valuesOrEmpty()
+            val items = buildMeasurementPresentationItems(
+                source = source,
+                protectedLatestId = repository.protectedLatestId(source.finalized),
+                now = Instant.now(),
+                preliminaryComposition = { preliminary, account ->
+                    repository.preliminaryComposition(preliminary, account.profile)
+                },
+            )
             MeasurementsPresentation(
                 loadState = refresh.measurements,
                 items = items,
@@ -135,9 +162,16 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             )
         }
     }
+    private val presentationWithPending = combine(presentation, pending) { current, snapshot ->
+        current.copy(
+            pending = snapshot.measurements.map { value ->
+                value.toPendingMeasurementUiItem(snapshot.observedAt)
+            },
+        )
+    }
 
     val uiState = combine(
-        presentation,
+        presentationWithPending,
         navigation,
         editor,
         deleteConfirmation,
@@ -152,6 +186,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             editorOrigin = currentNavigation.editorOrigin,
             measurements = items,
             summary = current.summary,
+            pendingMeasurements = current.pending,
             isLoading = current.loadState is AccountScopedLoad.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
@@ -235,7 +270,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun openEditor(id: String, origin: MeasurementEditorOrigin) {
-        val value = measurements.value.valuesOrEmpty().firstOrNull { it.id == id } ?: run {
+        val value = measurements.value.valuesOrEmpty().finalized.firstOrNull { it.id == id } ?: run {
             showMessage("Измерение уже удалено")
             return
         }
@@ -299,7 +334,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun requestDelete(id: String) {
-        val values = measurements.value.valuesOrEmpty()
+        val values = measurements.value.valuesOrEmpty().finalized
         if (values.none { it.id == id }) {
             showMessage("Измерение уже удалено")
             return
@@ -359,6 +394,10 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 }
 
+internal fun unassignedPendingMeasurements(
+    values: List<PendingMeasurement>,
+): List<PendingMeasurement> = values.filter { it.provisionalAccountId == null }
+
 internal sealed interface MeasurementDeleteRequest {
     data object NotFound : MeasurementDeleteRequest
     data object ProtectedLatest : MeasurementDeleteRequest
@@ -396,6 +435,9 @@ internal fun MeasurementEntity.toMeasurementUiItem(
 ): MeasurementUiItem =
     MeasurementUiItem(
         id = id,
+        presentationKey = sourcePendingId ?: id,
+        finalMeasurementId = id,
+        sourcePendingId = sourcePendingId?.let(::PendingMeasurementId),
         measuredAtEpochSecond = measuredAtEpochSecond,
         values = toUiValues(),
         type = measurementType.toUiType(),
@@ -455,14 +497,50 @@ private fun MeasurementType.toUiType(): MeasurementUiType = when (this) {
 }
 
 private data class MeasurementsPresentation(
-    val loadState: AccountScopedLoad<List<MeasurementEntity>>,
+    val loadState: AccountScopedLoad<AccountMeasurementPresentationSource>,
     val items: List<MeasurementUiItem>,
     val summary: com.example.huaweimisync.measurements.MeasurementSummaryPresentation?,
     val homeKgChart: com.example.huaweimisync.measurements.HomeKgChartUiState,
+    val pending: List<PendingMeasurementUiItem> = emptyList(),
 )
 
-private fun AccountScopedLoad<List<MeasurementEntity>>.valuesOrEmpty(): List<MeasurementEntity> =
+internal data class AccountMeasurementPresentationSource(
+    val finalized: List<MeasurementEntity> = emptyList(),
+    val preliminary: List<PendingMeasurement> = emptyList(),
+    val account: Account? = null,
+)
+
+internal fun buildMeasurementPresentationItems(
+    source: AccountMeasurementPresentationSource,
+    protectedLatestId: String?,
+    now: Instant,
+    preliminaryComposition: (PendingMeasurement, Account) ->
+        com.example.huaweimisync.core.BodyComposition?,
+): List<MeasurementUiItem> {
+    val finalizedPendingIds = source.finalized.mapNotNull(MeasurementEntity::sourcePendingId).toSet()
+    val finalizedItems = source.finalized.map { value ->
+        value.toMeasurementUiItem(
+            isDeleteProtected = value.id == protectedLatestId,
+            isOperationInProgress = false,
+        )
+    }
+    val preliminaryItems = source.preliminary
+        .filterNot { it.id.value in finalizedPendingIds }
+        .map { pending ->
+            pending.toPreliminaryMeasurementUiItem(
+                now = now,
+                composition = source.account?.let { preliminaryComposition(pending, it) },
+            )
+        }
+    return (finalizedItems + preliminaryItems).sortedWith(
+        compareByDescending<MeasurementUiItem> { it.measuredAtEpochSecond }
+            .thenByDescending { it.presentationKey },
+    )
+}
+
+private fun AccountScopedLoad<AccountMeasurementPresentationSource>.valuesOrEmpty():
+    AccountMeasurementPresentationSource =
     when (this) {
-        AccountScopedLoad.Loading -> emptyList()
+        AccountScopedLoad.Loading -> AccountMeasurementPresentationSource()
         is AccountScopedLoad.Loaded -> value
     }

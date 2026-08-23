@@ -224,7 +224,7 @@ private fun buildHomeKgChartUiState(
             points = orderedMeasurements.mapNotNull { measurement ->
                 metric.valueOf(measurement)?.takeIf(Double::isFinite)?.let { value ->
                     HomeKgChartPoint(
-                        measurementId = measurement.id,
+                        measurementId = measurement.presentationKey,
                         measuredAtEpochSecond = measurement.measuredAtEpochSecond,
                         valueKg = value,
                     )

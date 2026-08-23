@@ -27,6 +27,8 @@ data class PendingMeasurement(
     val enqueuedAt: Instant,
     val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
     val finalizeAfter: Instant = enqueuedAt.plusSeconds(10),
+    /** Best-effort weight-only match. Finalization always recalculates this decision. */
+    val provisionalAccountId: AccountId? = null,
 ) {
     init {
         require(deviceAddress.isNotBlank()) { "Device address must not be blank" }
@@ -47,7 +49,8 @@ data class PendingMeasurement(
             rawWeight == other.rawWeight &&
             deduplicationHash == other.deduplicationHash &&
             enqueuedAt == other.enqueuedAt &&
-            finalizeAfter == other.finalizeAfter
+            finalizeAfter == other.finalizeAfter &&
+            provisionalAccountId == other.provisionalAccountId
 
     override fun hashCode(): Int {
         var result = id.hashCode()
@@ -62,9 +65,82 @@ data class PendingMeasurement(
         result = 31 * result + deduplicationHash.hashCode()
         result = 31 * result + enqueuedAt.hashCode()
         result = 31 * result + finalizeAfter.hashCode()
+        result = 31 * result + (provisionalAccountId?.hashCode() ?: 0)
         return result
     }
 }
+
+enum class PreliminaryMeasurementStage {
+    AGGREGATING,
+    ENRICHED,
+}
+
+enum class PreliminaryDecisionReadiness {
+    AGGREGATING,
+    READY_FOR_DECISION,
+}
+
+/**
+ * Stable lifecycle identity shared by a pending aggregate and any final row created from it.
+ * Suppression is terminal and intentionally has no final measurement id.
+ */
+sealed interface MeasurementLifecycle {
+    val presentationKey: PendingMeasurementId
+    val finalMeasurementId: String?
+
+    data class Preliminary(
+        override val presentationKey: PendingMeasurementId,
+        val stage: PreliminaryMeasurementStage,
+        val decisionReadiness: PreliminaryDecisionReadiness,
+    ) : MeasurementLifecycle {
+        override val finalMeasurementId: String? = null
+        val isReadyForDecision: Boolean
+            get() = decisionReadiness == PreliminaryDecisionReadiness.READY_FOR_DECISION
+    }
+
+    data class Finalized(
+        override val presentationKey: PendingMeasurementId,
+        override val finalMeasurementId: String,
+    ) : MeasurementLifecycle {
+        init {
+            require(finalMeasurementId.isNotBlank()) { "Final measurement id must not be blank" }
+        }
+    }
+
+    data class Suppressed(
+        override val presentationKey: PendingMeasurementId,
+    ) : MeasurementLifecycle {
+        override val finalMeasurementId: String? = null
+    }
+}
+
+/** A pending row is preliminary regardless of whether impedance enrichment has arrived. */
+val PendingMeasurement.isPreliminary: Boolean
+    get() = true
+
+fun PendingMeasurement.lifecycleAt(now: Instant): MeasurementLifecycle.Preliminary =
+    MeasurementLifecycle.Preliminary(
+        presentationKey = id,
+        stage = if (hasImpedance) {
+            PreliminaryMeasurementStage.ENRICHED
+        } else {
+            PreliminaryMeasurementStage.AGGREGATING
+        },
+        decisionReadiness = if (isAwaitingDecisionAt(now)) {
+            PreliminaryDecisionReadiness.READY_FOR_DECISION
+        } else {
+            PreliminaryDecisionReadiness.AGGREGATING
+        },
+    )
+
+fun PendingMeasurement.finalizedLifecycle(finalMeasurementId: String): MeasurementLifecycle.Finalized =
+    MeasurementLifecycle.Finalized(
+        presentationKey = id,
+        finalMeasurementId = finalMeasurementId,
+    )
+
+fun PendingMeasurement.suppressedLifecycle(): MeasurementLifecycle.Suppressed =
+    MeasurementLifecycle.Suppressed(presentationKey = id)
 
 fun PendingMeasurement.isAwaitingDecisionAt(now: Instant): Boolean = !finalizeAfter.isAfter(now)
 

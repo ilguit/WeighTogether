@@ -34,9 +34,17 @@ import kotlinx.coroutines.sync.withLock
 interface MeasurementRoutingPersistence {
     suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult
 
+    suspend fun enqueue(
+        raw: RawScaleMeasurement,
+        matchingEngine: MatchingEngine,
+    ): PendingPersistenceResult = enqueue(raw)
+
     suspend fun getPending(id: PendingMeasurementId): PendingMeasurement?
 
     suspend fun pendingSnapshot(): List<PendingMeasurement>
+
+    /** Refreshes best-effort preliminary matches after account or routing-setting changes. */
+    suspend fun reclassifyPending(matchingEngine: MatchingEngine): List<PendingMeasurement>? = null
 
     suspend fun latestHistoryBefore(
         accountId: AccountId,
@@ -206,7 +214,7 @@ class MeasurementIngestionCoordinator(
     suspend fun ingest(raw: RawScaleMeasurement): MeasurementIngestionResult {
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
-        return when (val enqueued = persistence.enqueue(raw)) {
+        return when (val enqueued = persistence.enqueue(raw, matchingEngine)) {
             is PendingPersistenceResult.Inserted ->
                 MeasurementIngestionResult.CreatedAggregate(enqueued.pending)
             is PendingPersistenceResult.AlreadyPending -> {
@@ -449,7 +457,9 @@ class MeasurementIngestionCoordinator(
         var awaiting = 0
         val timestamp = Instant.now()
         // Snapshot order is FIFO. Only aggregates whose debounce deadline elapsed are routable.
-        persistence.pendingSnapshot().forEach { pending ->
+        val pendingSnapshot = persistence.reclassifyPending(matchingEngine)
+            ?: persistence.pendingSnapshot()
+        pendingSnapshot.forEach { pending ->
             when (val finalized = finalizeDue(pending.id, timestamp)) {
                 is AggregateFinalizationResult.Reschedule -> Unit
                 is AggregateFinalizationResult.Completed -> when (finalized.outcome) {

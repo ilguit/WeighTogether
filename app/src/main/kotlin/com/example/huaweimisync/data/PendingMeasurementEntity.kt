@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Instant
@@ -14,6 +15,7 @@ import kotlin.math.roundToInt
     indices = [
         Index(value = ["deduplicationHash"], unique = true),
         Index(value = ["enqueuedAtEpochMillis", "id"]),
+        Index(value = ["provisionalAccountId", "measuredAtEpochSecond", "id"]),
     ],
 )
 data class PendingMeasurementEntity(
@@ -29,6 +31,7 @@ data class PendingMeasurementEntity(
     val enqueuedAtEpochMillis: Long,
     val rawWeight: Int = (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt(),
     val finalizeAfterEpochMillis: Long = enqueuedAtEpochMillis + 10_000L,
+    val provisionalAccountId: String? = null,
 ) {
     fun toDomain(): PendingMeasurement = PendingMeasurement(
         id = PendingMeasurementId(id),
@@ -43,6 +46,7 @@ data class PendingMeasurementEntity(
         enqueuedAt = Instant.ofEpochMilli(enqueuedAtEpochMillis),
         rawWeight = rawWeight,
         finalizeAfter = Instant.ofEpochMilli(finalizeAfterEpochMillis),
+        provisionalAccountId = provisionalAccountId?.let(::AccountId),
     )
 }
 

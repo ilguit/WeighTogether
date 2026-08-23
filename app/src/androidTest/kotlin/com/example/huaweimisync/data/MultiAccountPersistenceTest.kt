@@ -19,6 +19,8 @@ import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RestorePendingResult
+import com.example.huaweimisync.domain.RoutingDecision
+import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import java.time.Instant
 import java.time.LocalDate
@@ -674,6 +676,152 @@ class MultiAccountPersistenceTest {
         assertEquals(0, database.accountDao().count())
         assertNotNull(persistence.getPending(pending.pending.id))
         assertNull(database.appStateDao().get())
+    }
+
+    @Test
+    fun enqueueClassifiesPrimarySecondaryAmbiguousAndNoMatch() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val primary = accounts.createAccount(NewAccount("Primary", completeProfile()))
+        val secondary = accounts.createAccount(NewAccount("Secondary", completeProfile()))
+        val third = accounts.createAccount(NewAccount("Third", completeProfile()))
+        seedHistory(persistence, primary.id, "2026-08-15T09:00:00Z", 70.0)
+        seedHistory(persistence, secondary.id, "2026-08-15T09:01:00Z", 80.0)
+
+        val primaryMatch = persistence.enqueue(raw("2026-08-15T10:00:00Z", 72.0))
+            as PendingPersistenceResult.Inserted
+        val secondaryMatch = persistence.enqueue(raw("2026-08-15T10:01:00Z", 78.0))
+            as PendingPersistenceResult.Inserted
+        seedHistory(persistence, third.id, "2026-08-15T09:02:00Z", 82.0)
+        val ambiguous = persistence.enqueue(raw("2026-08-15T10:02:00Z", 81.0))
+            as PendingPersistenceResult.Inserted
+        val noMatch = persistence.enqueue(raw("2026-08-15T10:03:00Z", 110.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(primary.id, primaryMatch.pending.provisionalAccountId)
+        assertEquals(secondary.id, secondaryMatch.pending.provisionalAccountId)
+        assertNull(ambiguous.pending.provisionalAccountId)
+        assertNull(noMatch.pending.provisionalAccountId)
+    }
+
+    @Test
+    fun preliminaryFlowIsAccountScopedWhileUnassignedRemainsImmediatelyObservable() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val first = accounts.createAccount(NewAccount("First", completeProfile()))
+        val second = accounts.createAccount(NewAccount("Second", completeProfile()))
+        seedHistory(persistence, first.id, "2026-08-15T09:00:00Z", 70.0)
+        seedHistory(persistence, second.id, "2026-08-15T09:01:00Z", 90.0)
+
+        val firstMatch = persistence.enqueue(raw("2026-08-15T10:00:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        val unassigned = persistence.enqueue(raw("2026-08-15T10:01:00Z", 120.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(
+            listOf(unassigned.pending.id),
+            persistence.observeUnassignedPending().first().map(PendingMeasurement::id),
+        )
+
+        currentTime = currentTime.plusMillis(1)
+        val laterUnassigned = persistence.enqueue(raw("2026-08-15T10:02:00Z", 121.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(
+            listOf(firstMatch.pending.id),
+            persistence.observePreliminary(first.id).first().map(PendingMeasurement::id),
+        )
+        assertTrue(persistence.observePreliminary(second.id).first().isEmpty())
+        assertEquals(
+            setOf(firstMatch.pending.id, unassigned.pending.id, laterUnassigned.pending.id),
+            persistence.observePending().first().map(PendingMeasurement::id).toSet(),
+        )
+        assertEquals(
+            listOf(unassigned.pending.id, laterUnassigned.pending.id),
+            persistence.observeUnassignedPending().first().map(PendingMeasurement::id),
+        )
+        assertEquals(
+            listOf(unassigned.pending.id, laterUnassigned.pending.id),
+            repository(NoOpPendingDecisionNotifier)
+                .observeUnassignedPending()
+                .first()
+                .map(PendingMeasurement::id),
+        )
+        assertTrue(currentTime.isBefore(unassigned.pending.finalizeAfter))
+    }
+
+    @Test
+    fun impedanceEnrichmentKeepsOnePreliminaryRowAndItsClassification() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val weightOnly = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            impedanceOhm = 0,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        )
+        val first = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+
+        val enriched = persistence.enqueue(
+            weightOnly.copy(
+                impedanceOhm = 500,
+                hasImpedance = true,
+                rawPayload = byteArrayOf(1, 2, 3),
+            ),
+        ) as PendingPersistenceResult.AlreadyPending
+
+        assertTrue(enriched.wasEnriched)
+        assertEquals(first.pending.id, enriched.pending.id)
+        assertEquals(account.id, enriched.pending.provisionalAccountId)
+        assertEquals(1, database.pendingMeasurementDao().getAll().size)
+        assertTrue(database.pendingMeasurementDao().getAll().single().hasImpedance)
+    }
+
+    @Test
+    fun sweepReclassifiesPreliminaryButFinalizationReevaluatesAuthoritatively() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val primary = accounts.createAccount(NewAccount("Primary", completeProfile()))
+        seedHistory(persistence, primary.id, "2026-08-15T09:00:00Z", 70.0)
+        currentTime = Instant.parse("2099-08-15T12:00:00Z")
+        val preliminary = persistence.enqueue(raw("2026-08-15T10:00:00Z", 90.0))
+            as PendingPersistenceResult.Inserted
+        assertNull(preliminary.pending.provisionalAccountId)
+
+        accounts.updateWeightDeltaKg(25.0)
+        val coordinator = MeasurementIngestionCoordinator(
+            persistence = persistence,
+            accounts = accounts,
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            syncScheduler = NoOpSyncScheduler,
+            matchingEngine = MatchingEngine(),
+        )
+        coordinator.sweepPendingRouting()
+        assertEquals(primary.id, persistence.getPending(preliminary.pending.id)?.provisionalAccountId)
+
+        accounts.updateWeightDeltaKg(5.0)
+        currentTime = currentTime.plusSeconds(RoomMeasurementPersistence.DEBOUNCE_SECONDS + 1)
+        val finalized = coordinator.finalizeDue(preliminary.pending.id, currentTime)
+        val awaiting = finalized as AggregateFinalizationResult.Completed
+        assertTrue(awaiting.outcome is MeasurementIngestionResult.AwaitingDecision)
+        assertEquals(
+            RoutingDecision.NoMatch,
+            (awaiting.outcome as MeasurementIngestionResult.AwaitingDecision).decision,
+        )
+        assertNotNull(persistence.getPending(preliminary.pending.id))
+    }
+
+    private suspend fun seedHistory(
+        persistence: RoomMeasurementPersistence,
+        accountId: AccountId,
+        measuredAt: String,
+        weightKg: Double,
+    ) {
+        val pending = persistence.enqueue(raw(measuredAt, weightKg))
+            as PendingPersistenceResult.Inserted
+        assertTrue(
+            persistence.finalizePending(pending.pending.id, accountId) is
+                FinalizePendingResult.Finalized,
+        )
     }
 
     private fun accountRepository() = RoomAccountRepository(

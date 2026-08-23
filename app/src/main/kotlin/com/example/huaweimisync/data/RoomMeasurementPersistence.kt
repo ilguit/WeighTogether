@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.measurementFingerprint
+import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountSettings
@@ -42,6 +43,21 @@ sealed interface PendingPersistenceResult {
     data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
     data object Tombstoned : PendingPersistenceResult
 }
+
+internal data class PendingReplayPlan(
+    val shouldSlideDeadline: Boolean,
+    val shouldScheduleFinalization: Boolean,
+)
+
+internal fun pendingReplayPlan(
+    exactReplay: Boolean,
+    isBeforeDeadline: Boolean,
+): PendingReplayPlan = PendingReplayPlan(
+    shouldSlideDeadline = !exactReplay && isBeforeDeadline,
+    // Scheduling is an idempotent watchdog repair, independent of whether the deadline moves.
+    // An exact replay can be the durable fallback after the original enqueue attempt failed.
+    shouldScheduleFinalization = exactReplay || isBeforeDeadline,
+)
 
 class RoomMeasurementPersistence(
     private val database: AppDatabase,
@@ -99,6 +115,16 @@ class RoomMeasurementPersistence(
         values.map(PendingMeasurementEntity::toDomain)
     }
 
+    fun observeUnassignedPending(): Flow<List<PendingMeasurement>> =
+        pendingDao.observeUnassigned().map { values ->
+            values.map(PendingMeasurementEntity::toDomain)
+        }
+
+    fun observePreliminary(accountId: AccountId): Flow<List<PendingMeasurement>> =
+        pendingDao.observeForAccount(accountId.value).map { values ->
+            values.map(PendingMeasurementEntity::toDomain)
+        }
+
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
         pendingDao.get(id.value)?.toDomain()
 
@@ -133,6 +159,12 @@ class RoomMeasurementPersistence(
         measurementDao.activeSyncWorkIds(accountId.value)
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
+        enqueue(raw, MatchingEngine())
+
+    override suspend fun enqueue(
+        raw: RawScaleMeasurement,
+        matchingEngine: MatchingEngine,
+    ): PendingPersistenceResult =
         database.withTransaction {
             val timestamp = now()
             val timestampMillis = timestamp.toEpochMilli()
@@ -189,11 +221,17 @@ class RoomMeasurementPersistence(
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
                     val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
-                    val shouldScheduleFinalization =
-                        timestampMillis < pending.finalizeAfterEpochMillis
+                    val exactReplay = pending.deduplicationHash == hash
+                    val replayPlan = pendingReplayPlan(
+                        exactReplay = exactReplay,
+                        isBeforeDeadline = timestampMillis < pending.finalizeAfterEpochMillis,
+                    )
+                    val shouldScheduleFinalization = replayPlan.shouldScheduleFinalization
+                    // Direct processing and its durable fallback can both observe the same packet.
+                    // That exact replay may enrich the aggregate but must not slide its deadline.
                     // Once the aggregate is due it is resolver-visible. Keep that transition
                     // irreversible even if a delayed BLE callback is processed afterwards.
-                    val finalizeAfterEpochMillis = if (shouldScheduleFinalization) {
+                    val finalizeAfterEpochMillis = if (replayPlan.shouldSlideDeadline) {
                         timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli()
                     } else {
                         pending.finalizeAfterEpochMillis
@@ -204,8 +242,8 @@ class RoomMeasurementPersistence(
                         hasImpedance = if (enrich) raw.hasImpedance else pending.hasImpedance,
                         rawPayload = if (enrich) raw.rawPayload.copyOf() else pending.rawPayload,
                         finalizeAfterEpochMillis = finalizeAfterEpochMillis,
-                    )
-                    if (enrich || shouldScheduleFinalization) {
+                    ).let { withPreliminaryDecision(it, matchingEngine) }
+                    if (current != pending) {
                         check(pendingDao.update(current) == 1) {
                             "Pending aggregate disappeared during ingestion"
                         }
@@ -231,7 +269,7 @@ class RoomMeasurementPersistence(
                 enqueuedAtEpochMillis = timestampMillis,
                 rawWeight = raw.rawWeight,
                 finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli(),
-            )
+            ).let { withPreliminaryDecision(it, matchingEngine) }
             if (pendingDao.insert(entity) == -1L) {
                 val concurrent = requireNotNull(pendingDao.getByHash(hash))
                 PendingPersistenceResult.AlreadyPending(concurrent.toDomain())
@@ -281,29 +319,9 @@ class RoomMeasurementPersistence(
         if (now.toEpochMilli() < pendingEntity.finalizeAfterEpochMillis) {
             return@withTransaction AtomicDueRoutingResult.NotDue(pending)
         }
-        val accountSnapshot = accountDao.getAll().map(AccountEntity::toDomain)
-        val state = appStateDao.get()
-        val settings = state?.let {
-            AccountSettings(
-                primaryAccountId = it.primaryAccountId?.let(::AccountId),
-                weightDeltaKg = it.weightDeltaKg,
-                ignoreUnknownMeasurements = it.ignoreUnknownMeasurements,
-            )
-        } ?: AccountSettings()
-        val histories = accountSnapshot.associate { account ->
-            account.id to measurementDao.latestHistoryBefore(
-                account.id.value,
-                pendingEntity.measuredAtEpochSecond,
-            ).map { WeightHistoryRecord(it.measuredAt, it.weightKg) }
-        }
-        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
-        val accountId = when (decision) {
-            is RoutingDecision.AssignPrimary -> decision.accountId
-            is RoutingDecision.AssignSingle -> decision.candidate.accountId
-            is RoutingDecision.ChooseAccount,
-            RoutingDecision.NoMatch,
-            -> null
-        }
+        val snapshot = routingSnapshotLocked(pendingEntity.measuredAtEpochSecond)
+        val decision = snapshot.decide(pending, matchingEngine)
+        val accountId = decision.unambiguousAccountId()
         if (accountId != null) {
             return@withTransaction when (val result = finalizePendingLocked(pendingId, accountId)) {
                 is FinalizePendingResult.Finalized ->
@@ -316,7 +334,7 @@ class RoomMeasurementPersistence(
                 -> AtomicDueRoutingResult.AccountUnavailable
             }
         }
-        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+        if (decision === RoutingDecision.NoMatch && snapshot.settings.ignoreUnknownMeasurements) {
             discardPendingWithoutUndoLocked(pendingEntity)
             return@withTransaction AtomicDueRoutingResult.AutomaticallyIgnoredUnknown
         }
@@ -324,6 +342,20 @@ class RoomMeasurementPersistence(
             "Pending measurement disappeared while becoming resolver-visible"
         }
         AtomicDueRoutingResult.AwaitingDecision(pending, decision)
+    }
+
+    override suspend fun reclassifyPending(
+        matchingEngine: MatchingEngine,
+    ): List<PendingMeasurement> = database.withTransaction {
+        pendingDao.getAll().map { pending ->
+            val reclassified = withPreliminaryDecision(pending, matchingEngine)
+            if (reclassified.provisionalAccountId != pending.provisionalAccountId) {
+                check(pendingDao.update(reclassified) == 1) {
+                    "Pending measurement disappeared during preliminary reclassification"
+                }
+            }
+            reclassified.toDomain()
+        }
     }
 
     override suspend fun createAccountAndAssignPending(
@@ -589,6 +621,36 @@ class RoomMeasurementPersistence(
         return FinalizePendingResult.Finalized(measurement.toAccountMeasurement())
     }
 
+    private suspend fun routingSnapshotLocked(
+        measuredAtEpochSecond: Long,
+    ): RoutingSnapshot {
+        val accounts = accountDao.getAll().map(AccountEntity::toDomain)
+        val state = appStateDao.get()
+        val settings = state?.let {
+            AccountSettings(
+                primaryAccountId = it.primaryAccountId?.let(::AccountId),
+                weightDeltaKg = it.weightDeltaKg,
+                ignoreUnknownMeasurements = it.ignoreUnknownMeasurements,
+            )
+        } ?: AccountSettings()
+        val histories = accounts.associate { account ->
+            account.id to measurementDao.latestHistoryBefore(
+                account.id.value,
+                measuredAtEpochSecond,
+            ).map { WeightHistoryRecord(it.measuredAt, it.weightKg) }
+        }
+        return RoutingSnapshot(accounts, histories, settings)
+    }
+
+    private suspend fun withPreliminaryDecision(
+        pending: PendingMeasurementEntity,
+        matchingEngine: MatchingEngine,
+    ): PendingMeasurementEntity {
+        val decision = routingSnapshotLocked(pending.measuredAtEpochSecond)
+            .decide(pending.toDomain(), matchingEngine)
+        return pending.copy(provisionalAccountId = decision.unambiguousAccountId()?.value)
+    }
+
     companion object {
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
         const val DEBOUNCE_SECONDS: Long = MeasurementDeduplicationPolicy.WINDOW_SECONDS
@@ -670,7 +732,25 @@ private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMea
     enqueuedAtEpochMillis = enqueuedAt.toEpochMilli(),
     rawWeight = rawWeight,
     finalizeAfterEpochMillis = finalizeAfter.toEpochMilli(),
+    provisionalAccountId = provisionalAccountId?.value,
 )
+
+private data class RoutingSnapshot(
+    val accounts: List<Account>,
+    val histories: Map<AccountId, List<WeightHistoryRecord>>,
+    val settings: AccountSettings,
+) {
+    fun decide(pending: PendingMeasurement, matchingEngine: MatchingEngine): RoutingDecision =
+        matchingEngine.match(pending, accounts, histories, settings)
+}
+
+private fun RoutingDecision.unambiguousAccountId(): AccountId? = when (this) {
+    is RoutingDecision.AssignPrimary -> accountId
+    is RoutingDecision.AssignSingle -> candidate.accountId
+    is RoutingDecision.ChooseAccount,
+    RoutingDecision.NoMatch,
+    -> null
+}
 
 /** Smallest whole-second timestamp which is not before this instant. */
 private fun Instant.ceilToEpochSecond(): Long {

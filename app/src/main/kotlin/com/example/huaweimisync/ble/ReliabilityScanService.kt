@@ -66,11 +66,11 @@ class ReliabilityScanService : Service() {
         }
         val newCallback = object : ScanCallback() {
             override fun onScanResult(callbackType: Int, result: ScanResult) {
-                ScanWorkScheduler.enqueue(this@ReliabilityScanService, result)
+                ScanWorkScheduler.processDirect(this@ReliabilityScanService, result)
             }
 
             override fun onBatchScanResults(results: MutableList<ScanResult>) {
-                results.forEach { ScanWorkScheduler.enqueue(this@ReliabilityScanService, it) }
+                results.forEach { ScanWorkScheduler.processDirect(this@ReliabilityScanService, it) }
             }
         }
         callback = newCallback

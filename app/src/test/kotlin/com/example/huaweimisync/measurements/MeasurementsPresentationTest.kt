@@ -71,6 +71,74 @@ class MeasurementsPresentationTest {
     }
 
     @Test
+    fun pendingQueueShowsAggregateImmediatelyButDisablesDecisionActionsUntilDeadline() {
+        val enqueuedAt = Instant.parse("2026-08-15T12:42:00Z")
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("pending-processing"),
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = enqueuedAt,
+            weightKg = 72.4,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+            deduplicationHash = "hash-processing",
+            enqueuedAt = enqueuedAt,
+        )
+
+        val processing = pending.toPendingMeasurementUiItem(pending.finalizeAfter.minusMillis(1))
+        val ready = pending.toPendingMeasurementUiItem(pending.finalizeAfter)
+
+        assertTrue(processing.isProcessing)
+        assertFalse(processing.canAssign)
+        assertFalse(processing.canPreview)
+        assertFalse(processing.canDelete)
+        assertFalse(ready.isProcessing)
+        assertTrue(ready.canAssign)
+        assertTrue(ready.canPreview)
+        assertTrue(ready.canDelete)
+    }
+
+    @Test
+    fun preliminaryProjectionParticipatesInSummaryWithoutFinalActions() {
+        val measuredAt = Instant.parse("2026-08-15T12:42:00Z")
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("pending-summary"),
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = measuredAt,
+            weightKg = 72.4,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+            deduplicationHash = "hash-summary",
+            enqueuedAt = measuredAt,
+        )
+        val previous = sampleItem(
+            id = "previous",
+            measuredAt = measuredAt.minusSeconds(60).epochSecond,
+            weightKg = 72.8,
+        )
+
+        val preliminary = pending.toPreliminaryMeasurementUiItem(pending.finalizeAfter)
+        val summary = buildMeasurementSummary(listOf(previous, preliminary))!!
+
+        assertEquals(pending.id.value, preliminary.presentationKey)
+        assertEquals(pending.id, preliminary.sourcePendingId)
+        assertNull(preliminary.finalMeasurementId)
+        assertNull(preliminary.mutationId)
+        assertTrue(preliminary.isPreliminary)
+        assertTrue(preliminary.isReadyForDecision)
+        assertFalse(preliminary.canEdit)
+        assertFalse(preliminary.canDelete)
+        assertFalse(preliminary.canRetry)
+        assertFalse(preliminary.canSync)
+        assertEquals(preliminary, summary.latest)
+        assertEquals(previous, summary.previous)
+        assertEquals(-0.4, summary.weightDeltaKg!!, 0.000_001)
+    }
+
+    @Test
     fun summaryProvidesFourKeyAndElevenAdditionalMetricsInTemplateOrder() {
         val summary = buildMeasurementSummary(listOf(sampleItem()))!!
 

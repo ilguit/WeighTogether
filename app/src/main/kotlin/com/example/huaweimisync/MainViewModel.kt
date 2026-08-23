@@ -25,6 +25,7 @@ import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.isAwaitingDecisionAt
+import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.RoutingDecision
@@ -178,10 +179,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.Eagerly,
         AccountsSnapshot(emptyList(), AccountSettings()),
     )
-    private val pending = container.repository.observePending().map { values ->
-        val now = Instant.now()
-        values.filter { it.isAwaitingDecisionAt(now) }
-    }.stateIn(
+    private val pending = container.repository.observeUnassignedPending()
+        .withPendingMeasurementReadiness()
+        .map { snapshot ->
+            snapshot.measurements.filter { it.isAwaitingDecisionAt(snapshot.observedAt) }
+        }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         emptyList(),
@@ -522,7 +524,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 oldestPendingResolverTarget(
                     observedPending = observedPending,
-                    durablePendingSnapshots = container.repository.observePending(),
+                    durablePendingSnapshots = container.repository.observeUnassignedPending(),
                 )?.let { pendingId ->
                     selectPendingForResolver(pendingId, PendingResolverSource.EXTERNAL)
                 }
@@ -895,7 +897,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         container.profileStore.saveScale(address, name)
         scanner.stop()
         scanning.value = false
-        ScanWorkScheduler.enqueue(getApplication(), result)
+        ScanWorkScheduler.processDirect(getApplication(), result)
         restoreAutomaticScanning()
         showMessage("Весы выбраны: ${name ?: address}. Измерение принято")
     }
@@ -913,7 +915,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val parsed = container.packetParser.parse(payload, address) ?: return
         if (!parsed.isStableWeight) return
 
-        ScanWorkScheduler.enqueue(getApplication(), result)
+        ScanWorkScheduler.processDirect(getApplication(), result)
         scaleRefresh.complete(operation)
     }
 

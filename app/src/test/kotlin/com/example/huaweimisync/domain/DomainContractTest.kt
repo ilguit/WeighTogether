@@ -133,6 +133,49 @@ class DomainContractTest {
         assertTrue(pending.isAwaitingDecisionAt(pending.finalizeAfter))
     }
 
+    @Test
+    fun preliminaryLifecycleKeepsIdentityAcrossEnrichmentAndTerminalOutcomes() {
+        val now = Instant.parse("2026-08-20T10:00:00Z")
+        val aggregating = RawScaleMeasurement(
+            deviceAddress = "AA:BB",
+            measuredAt = now,
+            weightKg = 72.5,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        ).toPendingMeasurement(
+            id = PendingMeasurementId("pending-lifecycle"),
+            deduplicationHash = "hash-lifecycle",
+            enqueuedAt = now,
+        )
+        val enriched = aggregating.copy(
+            impedanceOhm = 512,
+            hasImpedance = true,
+        )
+
+        val aggregatingLifecycle = aggregating.lifecycleAt(now)
+        val enrichedLifecycle = enriched.lifecycleAt(enriched.finalizeAfter)
+        val finalized = enriched.finalizedLifecycle("measurement-row")
+        val suppressed = enriched.suppressedLifecycle()
+
+        assertTrue(aggregating.isPreliminary)
+        assertEquals(PreliminaryMeasurementStage.AGGREGATING, aggregatingLifecycle.stage)
+        assertEquals(PreliminaryDecisionReadiness.AGGREGATING, aggregatingLifecycle.decisionReadiness)
+        assertFalse(aggregatingLifecycle.isReadyForDecision)
+        assertEquals(PreliminaryMeasurementStage.ENRICHED, enrichedLifecycle.stage)
+        assertEquals(
+            PreliminaryDecisionReadiness.READY_FOR_DECISION,
+            enrichedLifecycle.decisionReadiness,
+        )
+        assertTrue(enrichedLifecycle.isReadyForDecision)
+        assertEquals(aggregating.id, enrichedLifecycle.presentationKey)
+        assertEquals(aggregating.id, finalized.presentationKey)
+        assertEquals("measurement-row", finalized.finalMeasurementId)
+        assertEquals(aggregating.id, suppressed.presentationKey)
+        assertNull(suppressed.finalMeasurementId)
+    }
+
     private fun completeProfile() = AccountProfile.Complete(
         heightCm = 180.0,
         birthDate = LocalDate.of(1990, 1, 1),

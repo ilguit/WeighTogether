@@ -5,6 +5,9 @@ import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.AccountProfile
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
@@ -33,6 +36,40 @@ class MeasurementRepositoryTest {
         hasImpedance = true,
         rawPayload = ByteArray(13),
     )
+
+    @Test
+    fun preliminaryCompositionRequiresFullPacketAndCompleteProfile() {
+        val calculator = BodyCompositionCalculator(ZoneId.of("UTC"))
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("preview"),
+            deviceAddress = raw.deviceAddress,
+            measuredAt = raw.measuredAt,
+            weightKg = raw.weightKg,
+            impedanceOhm = raw.impedanceOhm,
+            isStable = raw.isStable,
+            hasImpedance = raw.hasImpedance,
+            rawPayload = raw.rawPayload,
+            deduplicationHash = "preview-hash",
+            enqueuedAt = raw.measuredAt,
+        )
+        val complete = AccountProfile.Complete(profile.heightCm, profile.birthDate, profile.sex)
+
+        assertTrue(calculatePreliminaryComposition(pending, complete, calculator) != null)
+        assertNull(
+            calculatePreliminaryComposition(
+                pending.copy(hasImpedance = false, impedanceOhm = 0),
+                complete,
+                calculator,
+            ),
+        )
+        assertNull(
+            calculatePreliminaryComposition(
+                pending,
+                AccountProfile.IncompleteRecovery(heightCm = 175.0),
+                calculator,
+            ),
+        )
+    }
 
     @Test
     fun repeatedPacketIsStoredAndScheduledOnlyOnce() = runBlocking {

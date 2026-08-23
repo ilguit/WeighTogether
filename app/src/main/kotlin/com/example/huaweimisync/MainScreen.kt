@@ -53,7 +53,6 @@ import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
-import com.example.huaweimisync.measurements.toPendingMeasurementUiItem
 import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.routing.MeasurementResolverCallbacks
@@ -273,11 +272,7 @@ fun HuaweiMiSyncApp(
         onOpenResolver = viewModel::openResolver,
         measurementsContent = { padding ->
             MeasurementsScreen(
-                state = measurementsState.copy(
-                    pendingMeasurements = state.resolverQueue.pending.map {
-                        it.toPendingMeasurementUiItem()
-                    },
-                ),
+                state = measurementsState,
                 callbacks = measurementsViewModel.callbacks.copy(
                     onPendingAssignRequested = viewModel::openResolverFromQueue,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
