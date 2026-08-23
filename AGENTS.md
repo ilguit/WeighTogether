@@ -1,0 +1,169 @@
+# Repository Guidelines
+
+## Project Structure & Module Organization
+
+HuaweiMiSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose UI, BLE scanning, Room persistence, WorkManager jobs, and Health Connect integration. Production code is under `app/src/main/kotlin/`; JVM tests are in `app/src/test/`, device tests in `app/src/androidTest/`, and resources in `app/src/main/res/`. Huawei code is isolated in `app/src/huaweiEnterprise/`; personal builds must not depend on it. Version Room schemas in `app/schemas/`.
+
+`core/` is the platform-independent parsing and body-composition library. User setup is in `README.md`. Do not create separate plan files unless the user explicitly requests one; record task planning in the relevant GitHub issue.
+
+## Build, Test, and Development Commands
+
+Use JDK 17 and Android SDK Platform 36; set `sdk.dir` in untracked `local.properties`.
+
+- `./gradlew testPersonalDebugUnitTest` runs personal-flavor JVM tests.
+- `./gradlew :core:test` tests packet parsing and calculations.
+- `./gradlew lintPersonalDebug` runs Android lint.
+- `./gradlew assemblePersonalDebug` creates the normal debug APK.
+- `./gradlew connectedPersonalDebugAndroidTest` runs instrumentation and Compose UI tests on a connected emulator or device.
+
+Before opening a PR, run the combined check documented in the README: `./gradlew testPersonalDebugUnitTest lintPersonalDebug assemblePersonalDebug`.
+
+Before building an APK, delete the previous APK artifact for the target variant from `app/build/outputs/apk/<flavor>/<buildType>/`; do not delete unrelated build outputs. Every final APK build must increment the build component of `versionName` using the `0.1.<build>` format (for example, `0.1.4` → `0.1.5`) and also increment Android `versionCode`. Commit both version changes with the final build.
+
+## Coding Style & Naming Conventions
+
+Follow existing Kotlin style: four-space indentation, trailing commas in multiline declarations, and package names rooted at `com.example.huaweimisync`. Use `UpperCamelCase` for classes/composables and `lowerCamelCase` for functions/properties. Keep domain logic out of Compose screens; place persistence in `data`, synchronization in `sync` or `worker`, and reusable UI in `ui`. No formatter is configured, so use IDE Kotlin formatting and clean imports.
+
+## Testing Guidelines
+
+Tests use JUnit 4/Kotlin Test plus AndroidX, Room, WorkManager, and Compose test libraries. Name files `*Test.kt` and methods as behavior statements, such as `repeatedPacketIsStoredAndScheduledOnlyOnce`. Prefer JVM tests for pure behavior and instrumentation tests for migrations, WorkManager, or Compose. No coverage threshold is enforced; every fix should include regression coverage. Commit schema updates with migrations.
+
+## Commit & Pull Request Guidelines
+
+Use short, imperative commit subjects and append the related GitHub issue number in parentheses: `Fix chart marker overlay layout (#42)`. Optional `fix:` or `feat:` prefixes remain acceptable, for example `fix: validate scale identity (#42)`. Every task commit must reference its issue; keep commits focused. Do not use `Fixes #42`, `Closes #42`, or `Resolves #42` in ordinary commits because GitHub can close the issue when such a commit reaches the default branch. Issue closure remains part of the regulated post-review workflow. PRs should explain impact, list verification commands/devices, link issues or plans, and include screenshots for Compose changes. Call out migrations, permission changes, and flavor-specific behavior.
+
+## Security & Configuration
+
+Never commit `local.properties`, credentials, Huawei app IDs, health data, or device identifiers. Pass the experimental ID with `-PHUAWEI_APP_ID=...`; do not enable enterprise functionality in the personal flavor.
+
+## Регламент работы с задачами GitHub
+
+### Общие положения
+
+- Для любых операций с GitHub сразу использовать подключённый GitHub-плагин. Не проверять наличие GitHub CLI (`gh`) и не использовать его как предварительный или резервный способ доступа, если пользователь явно не потребовал обратного.
+- Источником требований является GitHub issue.
+- Планирование, результаты исследования, резюме реализации и замечания ревью сохраняются в комментариях issue.
+- Отдельные файлы планов в репозитории не создаются, если пользователь явно не попросил об этом.
+- Процессные метки: `In Progress`, `Planning`, `Plan Ready`, `Coding`, `Ready for Review`, `Code Review`, `Need Fix`, `Done`.
+- Метки приоритета: `Priority: Blocker`, `Priority: High`, `Priority: Medium`, `Priority: Low`.
+- При оформлении задачи необходимо выбрать ровно одну метку приоритета. Альтернативные обозначения, включая `P0`, `P1`, `P2` и `P3`, не используются.
+- При изменении приоритета старую метку следует заменить новой напрямую, не оставляя задачу без метки приоритета и не назначая несколько приоритетов одновременно.
+- Одновременно у задачи должна быть только одна метка, обозначающая текущую стадию процесса.
+- При снятии процессной метки, если в тот же момент не устанавливается другая процессная метка, обязательно поставить `In Progress`. Issue не должен оставаться без процессной метки в промежуточном состоянии.
+- При установке любой процессной метки, кроме `In Progress`, метку `In Progress` необходимо сразу снять. Переход между стадиями следует по возможности выполнять как прямую замену одной процессной метки другой.
+- Новая задача — открытый issue без процессных меток.
+- После выставления `Need Fix` автоматическая работа приостанавливается до ручной проверки замечаний пользователем.
+- Под отдельным рабочим пространством понимается Git-ветка и worktree, а не новый GitHub-репозиторий.
+
+### Оценка токенозатратности
+
+- Метки сложности: `Complexity: Low`, `Complexity: Medium`, `Complexity: High`, `Complexity: Extreme`.
+- Одновременно у issue может быть не более одной метки сложности. При изменении оценки старую метку необходимо заменить новой напрямую.
+- Оценка выполняется только по явному запросу пользователя и вне стадии `Planning`. Наличие готового плана и метки `Plan Ready` не является обязательным.
+- На стадии `Planning` токенозатратность не оценивается. Планирование нельзя расширять дополнительным исследованием ради оценки.
+- До `Planning` допускается предварительная оценка по описанию issue, актуальным комментариям и минимальному целевому read-only исследованию текущего кода. Такая оценка должна содержать уровень уверенности и не должна превращаться в полноценное планирование.
+- Если в issue уже опубликована **Предварительная оценка**, на стадии `Planning` необходимо учитывать её выводы, выявленные компоненты, риски и результаты исследования, чтобы не повторять выполненную работу и экономить токены. Саму категорию сложности во время `Planning` не пересчитывать.
+- После `Plan Ready` допускается уточнённая оценка по готовому плану и уже полученным результатам исследования. Код повторно не исследуется, если план достаточно конкретен; дополнительное чтение допускается только при существенном пробеле, не позволяющем определить категорию.
+- Если готовый план уже существует, он используется как основной источник, но ради оценки нельзя отдельно запускать или повторять стадию `Planning`.
+- Учитывается полный цикл задачи по всем агентам: уже выполненное планирование, реализация, передача контекста, тесты и сборки, анализ ошибок, итоговая проверка, независимое ревью, GitHub-операции и резерв на неопределённость. Параллельная работа не считается экономией токенов.
+- Если доступна фактическая статистика, учитываются входные токены, включая кэшированные, и выходные токены. Reasoning-токены отдельно повторно не прибавляются, если они уже входят в выходные или общие токены.
+- Категории определяются по верхней границе ожидаемого полного расхода с учётом резерва:
+  - `Complexity: Low` — до 500 000 токенов включительно; резерв 15%.
+  - `Complexity: Medium` — свыше 500 000 до 2 000 000 токенов включительно; резерв 25%.
+  - `Complexity: High` — свыше 2 000 000 до 5 000 000 токенов включительно; резерв 40%.
+  - `Complexity: Extreme` — свыше 5 000 000 токенов; резерв 50%.
+- Если диапазон пересекает границу категорий, выбирается более высокая категория.
+- Для `Complexity: Extreme` обязательно предложить декомпозицию или сокращение объёма. Не начинать реализацию без отдельного решения пользователя.
+- Результат оценки публикуется отдельным комментарием в issue и содержит категорию, полный диапазон, приблизительный оставшийся расход, уверенность, основные факторы и риск перехода в следующую категорию. После публикации issue назначается соответствующая метка сложности.
+- Если фактическая работа достигает 80% верхней границы, а обязательные этапы ещё не завершены, сообщить о риске превышения и пересчитать категорию только после подтверждения пользователя.
+
+### 1. Планирование
+
+#### Выбор задачи
+
+В планирование можно брать:
+
+1. Новую задачу без процессных меток.
+2. Задачу с меткой `Need Fix`, но только после комментария пользователя, подтверждающего замечания или уточняющего, какие из них необходимо исправить.
+
+#### Источники информации
+
+Для новой задачи учитываются описание issue и все последующие содержательные комментарии; последние уточнения имеют приоритет над более ранними требованиями.
+
+Для задачи с `Need Fix` учитываются замечания последнего ревью, все последующие комментарии, решение пользователя о требуемых исправлениях и актуальная часть предыдущего плана. Явно заменённые планы, решения и замечания считаются историей.
+
+#### Порядок работы
+
+1. Для задачи с `Need Fix` снять эту метку.
+2. Поставить `Planning`.
+3. Исследовать проблему.
+4. Определить причину или вероятный источник, затрагиваемые компоненты, шаги реализации, независимые подзадачи, тесты, проверки и критерии готовности.
+5. Опубликовать план отдельным комментарием в issue.
+6. Снять `Planning` и поставить `Plan Ready`.
+
+На стадии `Planning` запрещены изменения рабочих файлов, реализация, создание реализационных веток и worktree, коммиты, merge и push. Разрешены только read-only исследования и обновление issue.
+
+### 2. Внесение изменений
+
+#### Начало работы
+
+1. Прочитать последний актуальный комментарий с планом.
+2. Убедиться, что задача имеет метку `Plan Ready`.
+3. Снять `Plan Ready` и поставить `Coding`.
+4. Перед созданием новой ветки получить с GitHub все актуальные изменения и обновить локальную `main` относительно удалённого репозитория.
+5. Только после успешной синхронизации создать для задачи отдельную ветку от актуальной `main` и отдельный worktree.
+
+После `Need Fix` использовать существующую ветку задачи, если она ещё не слита или не удалена.
+
+#### Выполнение плана
+
+- Разбить основную задачу на последовательные шаги согласно плану; каждый шаг выполняет новый агент.
+- Передать агенту актуальный план, состояние ветки, резюме предыдущего агента и критерии готовности шага.
+- Агент работает только в назначенной ветке и worktree.
+- После шага агент выполняет предусмотренные проверки, делает отдельный коммит при наличии изменений, не создаёт пустых коммитов и передаёт краткое резюме с проверками и ограничениями.
+- Каждый коммит по задаче содержит ссылку на её GitHub issue в конце темы: `Краткое действие (#<номер>)`. Closing keywords (`Fixes`, `Closes`, `Resolves`) в обычных коммитах не используются, чтобы issue не закрылся до завершения ревью и финального этапа регламента.
+
+#### Параллельные подзадачи
+
+1. Для каждой независимой подзадачи создать отдельную ветку от ветки основной задачи и отдельный worktree.
+2. Выполнять независимые подзадачи параллельно, разбивая каждую на последовательные шаги и назначая новый агент на каждый шаг.
+3. Каждый агент коммитит только в ветку своей подзадачи.
+4. После завершения назначить нового интеграционного агента: он мержит ветки подзадач в основную ветку задачи, разрешает конфликты, проверяет совместную работу, запускает общие тесты и при необходимости создаёт интеграционный коммит.
+
+#### Завершение Coding
+
+После выполнения плана отдельный агент должен:
+
+1. Выполнить итоговую проверку ветки задачи.
+2. Определить диапазон ревью: в первом цикле — от точки расхождения с `main` до текущего HEAD; в повторном — от последнего проверенного SHA до текущего HEAD.
+3. Опубликовать в issue краткое резюме, название ветки, начальный и конечный SHA, выполненные тесты и проверки.
+4. Запушить ветку задачи.
+5. Снять `Coding` и поставить `Ready for Review`.
+
+### 3. Ревью изменений
+
+#### Начало и проведение ревью
+
+1. Убедиться, что задача имеет `Ready for Review`.
+2. Снять `Ready for Review` и поставить `Code Review`.
+3. Назначить нового агента, не выполнявшего проверяемые шаги реализации.
+4. Прочитать последнее резюме и проверить явно указанный диапазон SHA.
+
+Ревью проверяет соответствие issue и актуальному плану, корректность логики, регрессии, пограничные случаи, достаточность тестов, результаты сборки и отсутствие посторонних изменений. При необходимости проверяется взаимодействие с существующим кодом. После ревью снять `Code Review`.
+
+#### Если найдены замечания
+
+1. Опубликовать все замечания в issue, указав проблему, расположение или компонент, требуемое исправление и приоритет.
+2. Поставить `Need Fix`.
+3. Не начинать новый цикл автоматически; дождаться ручного подтверждения пользователя или уточнения объёма исправлений.
+
+#### Если замечаний нет
+
+1. Назначить нового агента, не выполнявшего реализацию и ревью.
+2. Убедиться, что проверенный HEAD совпадает с текущим HEAD ветки.
+3. Синхронизировать локальную `main` с удалённой и при её изменении повторить необходимые итоговые проверки.
+4. Смержить ветку задачи в `main` и убедиться, что merge завершился успешно.
+5. Удалить замерженную ветку задачи локально и на GitHub, затем запушить изменения `main`.
+6. Поставить `Done` и закрыть issue.
+
+Если прямой merge или push запрещён правилами GitHub, создать PR из ветки задачи в `main` и указать ссылку в issue. Не ставить `Done` и не закрывать issue до фактического слияния. После слияния удалить замерженную ветку локально и на GitHub, синхронизировать локальную `main`, запушить необходимые изменения, поставить `Done` и закрыть issue.
