@@ -9,6 +9,7 @@ import android.bluetooth.le.ScanResult
 import android.content.Context
 import android.content.Intent
 import android.os.IBinder
+import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.example.huaweimisync.R
@@ -23,7 +24,7 @@ class ReliabilityScanService : Service() {
         startForeground(
             NOTIFICATION_ID,
             NotificationCompat.Builder(this, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
+                .setSmallIcon(reliabilityScanNotificationSmallIcon())
                 .setContentTitle(getString(R.string.app_name))
                 .setContentText("Повышенная надёжность: весы ожидаются")
                 .setOngoing(true)
@@ -111,3 +112,6 @@ class ReliabilityScanService : Service() {
         }
     }
 }
+
+@DrawableRes
+internal fun reliabilityScanNotificationSmallIcon(): Int = R.drawable.ic_app_monochrome
