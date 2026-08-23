@@ -30,6 +30,9 @@ jobs:
       - name: Prepare APK artifact
         id: artifact
         shell: bash
+        env:
+          RUN_NUMBER: ${{ github.run_number }}
+          RUN_ATTEMPT: ${{ github.run_attempt }}
         run: |
           set -euo pipefail
 
@@ -45,17 +48,18 @@ jobs:
           fi
 
           artifact_dir="build-artifacts"
-          artifact_file="HuaweiMiSync-personal-${version_name}.apk"
+          artifact_name="HuaweiMiSync-personal-${version_name}-run-${RUN_NUMBER}-attempt-${RUN_ATTEMPT}"
+          artifact_file="${artifact_name}.apk"
           mkdir -p "${artifact_dir}"
           cp "${apk_files[0]}" "${artifact_dir}/${artifact_file}"
 
-          echo "version_name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
           echo "artifact_path=${artifact_dir}/${artifact_file}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload personal APK
         uses: actions/upload-artifact@v7
         with:
-          name: HuaweiMiSync-personal-${{ steps.artifact.outputs.version_name }}-run-${{ github.run_number }}
+          name: ${{ steps.artifact.outputs.artifact_name }}
           path: ${{ steps.artifact.outputs.artifact_path }}
           if-no-files-found: error
           retention-days: 14
