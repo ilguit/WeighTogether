@@ -113,6 +113,11 @@ class RoomMeasurementPersistence(
         values.map(PendingMeasurementEntity::toDomain)
     }
 
+    fun observePreliminary(accountId: AccountId): Flow<List<PendingMeasurement>> =
+        pendingDao.observeForAccount(accountId.value).map { values ->
+            values.map(PendingMeasurementEntity::toDomain)
+        }
+
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
         pendingDao.get(id.value)?.toDomain()
 

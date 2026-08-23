@@ -71,6 +71,35 @@ class MeasurementsPresentationTest {
     }
 
     @Test
+    fun pendingQueueShowsAggregateImmediatelyButDisablesDecisionActionsUntilDeadline() {
+        val enqueuedAt = Instant.parse("2026-08-15T12:42:00Z")
+        val pending = PendingMeasurement(
+            id = PendingMeasurementId("pending-processing"),
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = enqueuedAt,
+            weightKg = 72.4,
+            impedanceOhm = 0,
+            isStable = true,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+            deduplicationHash = "hash-processing",
+            enqueuedAt = enqueuedAt,
+        )
+
+        val processing = pending.toPendingMeasurementUiItem(pending.finalizeAfter.minusMillis(1))
+        val ready = pending.toPendingMeasurementUiItem(pending.finalizeAfter)
+
+        assertTrue(processing.isProcessing)
+        assertFalse(processing.canAssign)
+        assertFalse(processing.canPreview)
+        assertFalse(processing.canDelete)
+        assertFalse(ready.isProcessing)
+        assertTrue(ready.canAssign)
+        assertTrue(ready.canPreview)
+        assertTrue(ready.canDelete)
+    }
+
+    @Test
     fun preliminaryProjectionParticipatesInSummaryWithoutFinalActions() {
         val measuredAt = Instant.parse("2026-08-15T12:42:00Z")
         val pending = PendingMeasurement(

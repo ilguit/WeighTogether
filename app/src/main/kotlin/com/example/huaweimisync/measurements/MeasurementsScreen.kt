@@ -102,7 +102,7 @@ fun MeasurementsScreen(
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var syncMeasurementId by rememberSaveable { mutableStateOf<String?>(null) }
-    val syncItem = state.measurements.firstOrNull { it.id == syncMeasurementId }
+    val syncItem = state.measurements.firstOrNull { it.finalMeasurementId == syncMeasurementId }
 
     Column(modifier = modifier.fillMaxSize()) {
         if (
@@ -124,7 +124,7 @@ fun MeasurementsScreen(
                     state = state,
                     metricsExpanded = summaryMetricsExpanded,
                     onMetricsExpandedChange = { summaryMetricsExpanded = it },
-                    onSyncRequested = { syncMeasurementId = it.id },
+                    onSyncRequested = { syncMeasurementId = it.finalMeasurementId },
                     callbacks = callbacks,
                 )
 
@@ -146,7 +146,7 @@ fun MeasurementsScreen(
                             expandedHistoryIds - id
                         }
                     },
-                    onSyncRequested = { syncMeasurementId = it.id },
+                    onSyncRequested = { syncMeasurementId = it.finalMeasurementId },
                     callbacks = callbacks,
                 )
 
@@ -257,44 +257,69 @@ private fun PendingMeasurementCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            Button(
-                onClick = onAssign,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
-                    .testTag("pending-assign-${pending.id.value}"),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text("Назначить")
-            }
-            OutlinedButton(
-                onClick = onPreview,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
-                    .testTag("pending-preview-${pending.id.value}"),
-                shape = MaterialTheme.shapes.medium,
-            ) {
-                Text("Показать без сохранения")
-            }
-            TextButton(
-                onClick = onDelete,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
-                    .testTag("pending-delete-${pending.id.value}"),
-                colors = ButtonDefaults.textButtonColors(
-                    contentColor = MaterialTheme.colorScheme.error,
-                ),
-            ) {
-                Icon(
-                    imageVector = HuaweiIcons.Delete,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp),
+            if (pending.isProcessing) {
+                ProcessingStatus(
+                    modifier = Modifier.testTag("pending-processing-${pending.id.value}"),
                 )
-                Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+            } else {
+                Button(
+                    onClick = onAssign,
+                    enabled = pending.canAssign,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag("pending-assign-${pending.id.value}"),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Text("Назначить")
+                }
+                OutlinedButton(
+                    onClick = onPreview,
+                    enabled = pending.canPreview,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag("pending-preview-${pending.id.value}"),
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Text("Показать без сохранения")
+                }
+                TextButton(
+                    onClick = onDelete,
+                    enabled = pending.canDelete,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag("pending-delete-${pending.id.value}"),
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    ),
+                ) {
+                    Icon(
+                        imageVector = HuaweiIcons.Delete,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                }
             }
         }
+    }
+}
+
+@Composable
+private fun ProcessingStatus(modifier: Modifier = Modifier) {
+    HuaweiSurface(
+        modifier = modifier.fillMaxWidth(),
+        containerColor = HuaweiColors.SurfaceInfo,
+        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+    ) {
+        Text(
+            text = "Обрабатывается",
+            color = MaterialTheme.colorScheme.secondary,
+            fontWeight = FontWeight.Medium,
+            style = MaterialTheme.typography.labelLarge,
+        )
     }
 }
 
@@ -410,7 +435,7 @@ private fun MeasurementSummaryCard(
     onEditRequested: () -> Unit,
     onDeleteRequested: () -> Unit,
 ) {
-    var menuExpanded by rememberSaveable(summary.latest.id) { mutableStateOf(false) }
+    var menuExpanded by rememberSaveable(summary.latest.presentationKey) { mutableStateOf(false) }
 
     Surface(
         modifier = Modifier
@@ -443,21 +468,24 @@ private fun MeasurementSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    HuaweiStatusAction(
-                        icon = summary.latest.sync.state.icon,
-                        contentDescription = summary.latest.sync.label,
-                        onClick = onSyncRequested,
-                        tone = summary.latest.sync.state.tone,
-                        enabled = !summary.latest.isOperationInProgress,
-                        modifier = Modifier.testTag("summary-sync-status"),
-                    )
+                    if (summary.latest.hasFinalActions) {
+                        HuaweiStatusAction(
+                            icon = summary.latest.sync.state.icon,
+                            contentDescription = summary.latest.sync.label,
+                            onClick = onSyncRequested,
+                            tone = summary.latest.sync.state.tone,
+                            enabled = summary.latest.canSync,
+                            modifier = Modifier.testTag("summary-sync-status"),
+                        )
+                    }
                 }
-                Box {
+                if (summary.latest.hasFinalActions) Box {
                     HuaweiIconButton(
                         icon = HuaweiIcons.More,
                         contentDescription = "Действия с последним измерением",
                         onClick = { menuExpanded = true },
-                        enabled = !summary.latest.isOperationInProgress,
+                        enabled = summary.latest.canEdit || summary.latest.canDelete ||
+                            summary.latest.isDeleteProtected,
                         modifier = Modifier.testTag("summary-more-actions"),
                     )
                     DropdownMenu(
@@ -473,6 +501,7 @@ private fun MeasurementSummaryCard(
                                 menuExpanded = false
                                 onEditRequested()
                             },
+                            enabled = summary.latest.canEdit,
                         )
                         DropdownMenuItem(
                             text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
@@ -488,6 +517,7 @@ private fun MeasurementSummaryCard(
                                 menuExpanded = false
                                 onDeleteRequested()
                             },
+                            enabled = summary.latest.canDelete || summary.latest.isDeleteProtected,
                         )
                     }
                 }
@@ -521,6 +551,9 @@ private fun MeasurementSummaryCard(
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.labelLarge,
                 )
+            }
+            if (summary.latest.isPreliminary) {
+                ProcessingStatus(modifier = Modifier.testTag("summary-processing-status"))
             }
             Text(
                 text = formatWeightDelta(summary.weightDeltaKg),
@@ -641,11 +674,11 @@ private fun MeasurementHistoryScreen(
         if (state.isHistoryEmpty) {
             item { EmptyHistoryCard() }
         } else {
-            items(state.measurements, key = { it.id }) { item ->
+            items(state.measurements, key = { it.presentationKey }) { item ->
                 MeasurementHistoryCard(
                     item = item,
-                    expanded = item.id in expandedIds,
-                    onExpandedChange = { onExpandedChange(item.id, it) },
+                    expanded = item.presentationKey in expandedIds,
+                    onExpandedChange = { onExpandedChange(item.presentationKey, it) },
                     onSyncRequested = { onSyncRequested(item) },
                     callbacks = callbacks,
                 )
@@ -711,6 +744,13 @@ private fun MeasurementHistoryCard(
                                 style = MaterialTheme.typography.labelMedium,
                             )
                         }
+                        if (item.isPreliminary) {
+                            ProcessingStatus(
+                                modifier = Modifier.testTag(
+                                    "history-processing-status-${item.presentationKey}",
+                                ),
+                            )
+                        }
                         Text(
                             text = historySubtitle(item),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -724,14 +764,16 @@ private fun MeasurementHistoryCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                HuaweiStatusAction(
-                    icon = item.sync.state.icon,
-                    contentDescription = item.sync.label,
-                    onClick = onSyncRequested,
-                    tone = item.sync.state.tone,
-                    enabled = !item.isOperationInProgress,
-                    modifier = Modifier.padding(end = 8.dp).testTag("history-sync-${item.id}"),
-                )
+                if (item.hasFinalActions) {
+                    HuaweiStatusAction(
+                        icon = item.sync.state.icon,
+                        contentDescription = item.sync.label,
+                        onClick = onSyncRequested,
+                        tone = item.sync.state.tone,
+                        enabled = item.canSync,
+                        modifier = Modifier.padding(end = 8.dp).testTag("history-sync-${item.id}"),
+                    )
+                }
             }
 
             if (expanded) {
@@ -776,7 +818,7 @@ private fun MeasurementHistoryCard(
                             )
                         }
                     }
-                    Row(
+                    if (item.hasFinalActions) Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
@@ -785,7 +827,7 @@ private fun MeasurementHistoryCard(
                             onClick = {
                                 callbacks.onEditRequested(item.id, MeasurementEditorOrigin.HISTORY)
                             },
-                            enabled = !item.isOperationInProgress,
+                            enabled = item.canEdit,
                             modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
                         ) {
                             Icon(HuaweiIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -793,7 +835,7 @@ private fun MeasurementHistoryCard(
                         }
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
-                            enabled = !item.isOperationInProgress,
+                            enabled = item.canDelete || item.isDeleteProtected,
                             modifier = Modifier
                                 .heightIn(min = HuaweiDimensions.TouchTarget)
                                 .testTag("history-delete-${item.id}"),
@@ -806,7 +848,7 @@ private fun MeasurementHistoryCard(
                     if (item.canRetry) {
                         OutlinedButton(
                             onClick = { callbacks.onRetryRequested(item.id) },
-                            enabled = !item.isOperationInProgress,
+                            enabled = item.canRetry,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = HuaweiDimensions.TouchTarget),

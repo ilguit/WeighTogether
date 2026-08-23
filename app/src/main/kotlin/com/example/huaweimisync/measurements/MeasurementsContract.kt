@@ -292,24 +292,45 @@ data class PendingMeasurementUiItem(
     val measuredAtEpochSecond: Long,
     val weightKg: Double,
     val impedanceOhm: Int?,
+    val decisionReadiness: PreliminaryDecisionReadiness =
+        PreliminaryDecisionReadiness.READY_FOR_DECISION,
 )
+
+val PendingMeasurementUiItem.isProcessing: Boolean
+    get() = decisionReadiness == PreliminaryDecisionReadiness.AGGREGATING
+
+val PendingMeasurementUiItem.canAssign: Boolean
+    get() = !isProcessing
+
+val PendingMeasurementUiItem.canPreview: Boolean
+    get() = !isProcessing
+
+val PendingMeasurementUiItem.canDelete: Boolean
+    get() = !isProcessing
 
 val PendingMeasurementUiItem.measuredAt: Instant
     get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
-internal fun PendingMeasurement.toPendingMeasurementUiItem(): PendingMeasurementUiItem =
+internal fun PendingMeasurement.toPendingMeasurementUiItem(
+    now: Instant = Instant.now(),
+): PendingMeasurementUiItem =
     PendingMeasurementUiItem(
         id = id,
         measuredAtEpochSecond = measuredAt.epochSecond,
         weightKg = weightKg,
         impedanceOhm = impedanceOhm.takeIf { hasImpedance },
+        decisionReadiness = lifecycleAt(now).decisionReadiness,
     )
 
 /**
- * Summary/chart projection for the short-lived aggregate. It deliberately exposes only weight and
- * carries no final-row identity, so consumers cannot accidentally offer mutations or sync.
+ * Summary/chart projection for the short-lived aggregate. Calculated metrics, when available, are
+ * presentation-only and it carries no final-row identity, so consumers cannot offer mutations or
+ * sync.
  */
-internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(now: Instant): MeasurementUiItem {
+internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(
+    now: Instant,
+    composition: com.example.huaweimisync.core.BodyComposition? = null,
+): MeasurementUiItem {
     val lifecycle = lifecycleAt(now)
     return MeasurementUiItem(
         id = id.value,
@@ -319,7 +340,26 @@ internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(now: Instant): Me
         isPreliminary = true,
         preliminaryDecisionReadiness = lifecycle.decisionReadiness,
         measuredAtEpochSecond = measuredAt.epochSecond,
-        values = MeasurementUiValues(
+        values = composition?.let {
+            MeasurementUiValues(
+                weightKg = it.weightKg,
+                impedanceOhm = it.impedanceOhm,
+                bmi = it.bmi,
+                bodyFatPercent = it.bodyFatPercent,
+                bodyFatMassKg = it.bodyFatMassKg,
+                waterPercent = it.waterPercent,
+                waterMassKg = it.waterMassKg,
+                muscleMassKg = it.muscleMassKg,
+                skeletalMuscleMassKg = it.skeletalMuscleMassKg,
+                boneMassKg = it.boneMassKg,
+                proteinPercent = it.proteinPercent,
+                proteinMassKg = it.proteinMassKg,
+                visceralFatLevel = it.visceralFatLevel,
+                basalMetabolicRateKcal = it.basalMetabolicRateKcal,
+                metabolicAge = it.metabolicAge,
+                leanBodyMassKg = it.leanBodyMassKg,
+            )
+        } ?: MeasurementUiValues(
             weightKg = weightKg,
             impedanceOhm = impedanceOhm.takeIf { hasImpedance },
             bmi = null,
@@ -343,7 +383,7 @@ internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(now: Instant): Me
             huaweiStatus = "DISABLED",
             huaweiError = null,
         ),
-        type = MeasurementUiType.WEIGHT_ONLY,
+        type = if (composition == null) MeasurementUiType.WEIGHT_ONLY else MeasurementUiType.FULL,
     )
 }
 

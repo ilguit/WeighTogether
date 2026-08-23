@@ -705,6 +705,32 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun preliminaryFlowIsAccountScopedWhileUnassignedRemainsImmediatelyObservable() = runBlocking {
+        val accounts = accountRepository()
+        val persistence = persistence()
+        val first = accounts.createAccount(NewAccount("First", completeProfile()))
+        val second = accounts.createAccount(NewAccount("Second", completeProfile()))
+        seedHistory(persistence, first.id, "2026-08-15T09:00:00Z", 70.0)
+        seedHistory(persistence, second.id, "2026-08-15T09:01:00Z", 90.0)
+
+        val firstMatch = persistence.enqueue(raw("2026-08-15T10:00:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        val unassigned = persistence.enqueue(raw("2026-08-15T10:01:00Z", 120.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(
+            listOf(firstMatch.pending.id),
+            persistence.observePreliminary(first.id).first().map(PendingMeasurement::id),
+        )
+        assertTrue(persistence.observePreliminary(second.id).first().isEmpty())
+        assertEquals(
+            setOf(firstMatch.pending.id, unassigned.pending.id),
+            persistence.observePending().first().map(PendingMeasurement::id).toSet(),
+        )
+        assertTrue(currentTime.isBefore(unassigned.pending.finalizeAfter))
+    }
+
+    @Test
     fun impedanceEnrichmentKeepsOnePreliminaryRowAndItsClassification() = runBlocking {
         val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
         val persistence = persistence()

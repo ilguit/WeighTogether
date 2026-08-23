@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.MeasurementsViewModel
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PreliminaryDecisionReadiness
 import com.example.huaweimisync.ui.accounts.AccountSelectorTestTags
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
@@ -386,6 +387,136 @@ class MeasurementsScreenTest {
     }
 
     @Test
+    fun processingPendingReadingShowsStatusUntilDecisionActionsBecomeReady() {
+        val id = "pending-processing"
+        var state by mutableStateOf(
+            MeasurementsUiState(
+                destination = MeasurementsDestination.PENDING_QUEUE,
+                pendingMeasurements = listOf(
+                    pendingItem(
+                        id = id,
+                        instant = "2026-08-15T12:42:00Z",
+                        weight = 72.4,
+                        impedance = null,
+                        decisionReadiness = PreliminaryDecisionReadiness.AGGREGATING,
+                    ),
+                ),
+                isLoading = false,
+            ),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("pending-processing-$id").assertIsDisplayed()
+        composeRule.onNodeWithText("Обрабатывается").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-assign-$id").assertDoesNotExist()
+        composeRule.onNodeWithTag("pending-preview-$id").assertDoesNotExist()
+        composeRule.onNodeWithTag("pending-delete-$id").assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            state = state.copy(
+                pendingMeasurements = listOf(
+                    pendingItem(
+                        id = id,
+                        instant = "2026-08-15T12:42:00Z",
+                        weight = 72.4,
+                        impedance = 512,
+                    ),
+                ),
+            )
+        }
+
+        composeRule.onNodeWithTag("pending-processing-$id").assertDoesNotExist()
+        composeRule.onNodeWithTag("pending-assign-$id").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-preview-$id").assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-delete-$id").assertIsDisplayed()
+    }
+
+    @Test
+    fun preliminarySummaryReplacesEmptyStateAndHidesFinalActions() {
+        val preliminary = preliminaryItem("pending-summary", "2026-08-15T12:42:00Z", 72.4)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(preliminary),
+            summary = buildMeasurementSummary(listOf(preliminary)),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-processing-status").assertIsDisplayed()
+        composeRule.onNodeWithText("Пока нет измерений").assertDoesNotExist()
+        composeRule.onNodeWithTag("summary-sync-status").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Действия с последним измерением")
+            .assertDoesNotExist()
+    }
+
+    @Test
+    fun preliminaryHistoryShowsProcessingWithoutMutationOrSyncActions() {
+        val preliminary = preliminaryItem("pending-history", "2026-08-15T12:42:00Z", 72.4)
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.HISTORY,
+            isLoading = false,
+            measurements = listOf(preliminary),
+            summary = buildMeasurementSummary(listOf(preliminary)),
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("history-processing-status-${preliminary.presentationKey}")
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("history-sync-${preliminary.id}").assertDoesNotExist()
+        composeRule.onNodeWithTag("history-toggle-${preliminary.id}").performClick()
+        composeRule.onNodeWithText("Изменить").assertDoesNotExist()
+        composeRule.onNodeWithTag("history-delete-${preliminary.id}").assertDoesNotExist()
+        composeRule.onNodeWithText("Повторить отправку").assertDoesNotExist()
+        composeRule.onNodeWithTag("empty-history").assertDoesNotExist()
+    }
+
+    @Test
+    fun preliminaryWeightOnlySummaryUpdatesToFullFinalizedMeasurement() {
+        val presentationKey = "pending-reconciled"
+        var state by mutableStateOf(
+            preliminaryItem(presentationKey, "2026-08-15T12:42:00Z", 72.4).let { item ->
+                MeasurementsUiState(
+                    isLoading = false,
+                    measurements = listOf(item),
+                    summary = buildMeasurementSummary(listOf(item)),
+                )
+            },
+        )
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+        composeRule.onNodeWithTag("summary-weight-only-label").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-processing-status").assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            val finalized = sampleItem(
+                id = "room-finalized",
+                instant = "2026-08-15T12:42:00Z",
+                weight = 72.4,
+                sync = syncedSync(),
+            ).copy(presentationKey = presentationKey)
+            state = state.copy(
+                measurements = listOf(finalized),
+                summary = buildMeasurementSummary(listOf(finalized)),
+            )
+        }
+
+        composeRule.onNodeWithTag("summary-weight-only-label").assertDoesNotExist()
+        composeRule.onNodeWithTag("summary-processing-status").assertDoesNotExist()
+        composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
+    }
+
+    @Test
     fun summaryMenuOpensEditAndDeleteActions() {
         var edited: Pair<String, MeasurementEditorOrigin>? = null
         var confirmedId: String? = null
@@ -667,6 +798,8 @@ class MeasurementsScreenTest {
         instant: String,
         weight: Double,
         impedance: Int?,
+        decisionReadiness: PreliminaryDecisionReadiness =
+            PreliminaryDecisionReadiness.READY_FOR_DECISION,
     ): PendingMeasurementUiItem {
         val measuredAt = Instant.parse(instant)
         return PendingMeasurementUiItem(
@@ -674,8 +807,26 @@ class MeasurementsScreenTest {
             measuredAtEpochSecond = measuredAt.epochSecond,
             weightKg = weight,
             impedanceOhm = impedance,
+            decisionReadiness = decisionReadiness,
         )
     }
+
+    private fun preliminaryItem(
+        id: String,
+        instant: String,
+        weight: Double,
+    ): MeasurementUiItem = MeasurementUiItem(
+        id = id,
+        presentationKey = id,
+        finalMeasurementId = null,
+        sourcePendingId = PendingMeasurementId(id),
+        isPreliminary = true,
+        preliminaryDecisionReadiness = PreliminaryDecisionReadiness.AGGREGATING,
+        measuredAtEpochSecond = Instant.parse(instant).epochSecond,
+        values = weightOnlyValues(weight),
+        sync = localOnlySync(),
+        type = MeasurementUiType.WEIGHT_ONLY,
+    )
 
     private fun sampleValues(weight: Double) = MeasurementUiValues(
         weightKg = weight,
