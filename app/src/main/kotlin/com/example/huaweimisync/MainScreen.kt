@@ -11,12 +11,15 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -39,6 +42,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
@@ -100,6 +104,8 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
+    const val PendingQueueAction = "measurements-pending-queue-action"
+    const val PendingQueueBadge = "measurements-pending-queue-badge"
     const val HistoryAction = "measurements-history-action"
     const val ExternalSyncAction = "measurements-external-sync-action"
     const val PullToRefresh = "measurements-pull-to-refresh"
@@ -255,7 +261,6 @@ fun HuaweiMiSyncApp(
         measurementsContent = { padding ->
             MeasurementsScreen(
                 state = measurementsState.copy(
-                    pendingCount = state.resolverQueue.pendingCount,
                     pendingMeasurements = state.resolverQueue.pending.map {
                         it.toPendingMeasurementUiItem()
                     },
@@ -352,6 +357,9 @@ internal fun HuaweiMiSyncScaffold(
                             showMeasurementActions = !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
+                            pendingCount = state.resolverQueue.pendingCount,
+                            onPendingQueueRequested =
+                                measurementsCallbacks.onPendingQueueRequested,
                             onHistoryRequested = measurementsCallbacks.onHistoryRequested,
                             isExternalSyncPaused = state.isExternalSyncPaused,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
@@ -452,6 +460,8 @@ private fun HuaweiTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
     showMeasurementActions: Boolean,
+    pendingCount: Int,
+    onPendingQueueRequested: () -> Unit,
     onHistoryRequested: () -> Unit,
     isExternalSyncPaused: Boolean,
     onToggleExternalSyncPause: () -> Unit,
@@ -470,6 +480,10 @@ private fun HuaweiTopBar(
         },
         actions = {
             if (showMeasurementActions) {
+                PendingQueueAction(
+                    pendingCount = pendingCount,
+                    onClick = onPendingQueueRequested,
+                )
                 HuaweiIconButton(
                     icon = HuaweiIcons.Calendar,
                     contentDescription = "Открыть историю измерений",
@@ -493,6 +507,47 @@ private fun HuaweiTopBar(
             titleContentColor = MaterialTheme.colorScheme.onBackground,
         ),
     )
+}
+
+@Composable
+private fun PendingQueueAction(
+    pendingCount: Int,
+    onClick: () -> Unit,
+) {
+    Box {
+        HuaweiIconButton(
+            icon = HuaweiIcons.Pending,
+            contentDescription = if (pendingCount == 0) {
+                "Открыть неназначенные измерения. Очередь пуста"
+            } else {
+                "Открыть неназначенные измерения. Ожидают назначения: $pendingCount"
+            },
+            onClick = onClick,
+            modifier = Modifier.testTag(MainScreenTestTags.PendingQueueAction),
+        )
+        if (pendingCount > 0) {
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(top = 6.dp, end = 6.dp)
+                    .size(if (pendingCount <= 9) 16.dp else 8.dp)
+                    .testTag(MainScreenTestTags.PendingQueueBadge),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.error,
+                contentColor = MaterialTheme.colorScheme.onError,
+            ) {
+                if (pendingCount <= 9) {
+                    Box(contentAlignment = Alignment.Center) {
+                        Text(
+                            text = pendingCount.toString(),
+                            modifier = Modifier.clearAndSetSemantics { },
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

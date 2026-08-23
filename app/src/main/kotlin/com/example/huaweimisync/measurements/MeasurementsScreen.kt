@@ -348,10 +348,7 @@ private fun MeasurementSummaryScreen(
     Box(Modifier.fillMaxSize()) {
         when {
             state.isLoading && state.summary == null -> LoadingState("Загрузка последнего измерения")
-            state.hasNoLatestMeasurement -> NoLatestMeasurementState(
-                pendingCount = state.pendingCount,
-                onPendingQueueRequested = callbacks.onPendingQueueRequested,
-            )
+            state.hasNoLatestMeasurement -> NoLatestMeasurementState()
 
             state.summary != null -> {
                 LazyColumn(
@@ -368,14 +365,6 @@ private fun MeasurementSummaryScreen(
                 ) {
                     if (state.isLoading) {
                         item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
-                    }
-                    if (state.pendingCount > 0) {
-                        item {
-                            PendingQueueSummaryCard(
-                                pendingCount = state.pendingCount,
-                                onClick = callbacks.onPendingQueueRequested,
-                            )
-                        }
                     }
                     item {
                         MeasurementSummaryCard(
@@ -405,46 +394,6 @@ private fun MeasurementSummaryScreen(
                     item { Spacer(Modifier.height(12.dp)) }
                 }
             }
-        }
-    }
-}
-
-@Composable
-private fun PendingQueueSummaryCard(
-    pendingCount: Int,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    HuaweiSurface(
-        modifier = modifier.fillMaxWidth(),
-        contentPadding = PaddingValues(0.dp),
-        containerColor = HuaweiColors.SurfaceInfo,
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(min = 72.dp)
-                .clickable(
-                    role = Role.Button,
-                    onClickLabel = "Открыть неназначенные измерения",
-                    onClick = onClick,
-                )
-                .testTag("pending-queue-summary-card")
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            HuaweiRowIcon(icon = HuaweiIcons.Pending)
-            Text(
-                text = "Не назначено: $pendingCount",
-                modifier = Modifier.weight(1f),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Icon(
-                imageVector = HuaweiIcons.ChevronRight,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
     }
 }
@@ -1240,26 +1189,11 @@ private fun NestedScreenHeader(
 }
 
 @Composable
-private fun NoLatestMeasurementState(
-    pendingCount: Int,
-    onPendingQueueRequested: () -> Unit,
-) {
+private fun NoLatestMeasurementState() {
     Column(
         modifier = Modifier.fillMaxSize(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        if (pendingCount > 0) {
-            PendingQueueSummaryCard(
-                pendingCount = pendingCount,
-                onClick = onPendingQueueRequested,
-                modifier = Modifier
-                    .widthIn(max = 680.dp)
-                    .padding(
-                        horizontal = HuaweiDimensions.ContentPadding,
-                        vertical = HuaweiDimensions.CompactContentPadding,
-                    ),
-            )
-        }
         Box(
             modifier = Modifier.fillMaxWidth().weight(1f),
             contentAlignment = Alignment.Center,

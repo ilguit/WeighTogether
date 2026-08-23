@@ -336,7 +336,6 @@ data class MeasurementsUiState(
     val editorOrigin: MeasurementEditorOrigin = MeasurementEditorOrigin.SUMMARY,
     val measurements: List<MeasurementUiItem> = emptyList(),
     val summary: MeasurementSummaryPresentation? = null,
-    val pendingCount: Int = 0,
     val pendingMeasurements: List<PendingMeasurementUiItem> = emptyList(),
     val isLoading: Boolean = true,
     val editor: MeasurementEditorState? = null,
@@ -348,10 +347,6 @@ data class MeasurementsUiState(
         primaryAccountId = null,
     ),
 ) {
-    init {
-        require(pendingCount >= 0) { "Pending measurement count cannot be negative" }
-    }
-
     val isHistoryEmpty: Boolean
         get() = !isLoading && measurements.isEmpty()
 
