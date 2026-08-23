@@ -67,7 +67,7 @@ class DirectPacketProcessingOrchestrator(
     private val enqueueFallback: (ScalePacket) -> Unit,
 ) {
     suspend fun process(packet: ScalePacket): DirectPacketProcessingResult = try {
-        process(packet)
+        this.process.invoke(packet)
         DirectPacketProcessingResult.PROCESSED_DIRECTLY
     } catch (cancelled: CancellationException) {
         throw cancelled
