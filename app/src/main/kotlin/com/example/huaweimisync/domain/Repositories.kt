@@ -155,6 +155,9 @@ interface MeasurementRepository {
     /** Pending values are emitted in FIFO order (enqueuedAt, then durable id). */
     fun observePending(): Flow<List<PendingMeasurement>>
 
+    /** Unassigned pending values are emitted in FIFO order (enqueuedAt, then durable id). */
+    fun observeUnassignedPending(): Flow<List<PendingMeasurement>>
+
     suspend fun getPending(id: PendingMeasurementId): PendingMeasurement?
 
     suspend fun enqueuePending(raw: RawScaleMeasurement): PendingEnqueueResult

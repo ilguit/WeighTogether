@@ -719,13 +719,33 @@ class MultiAccountPersistenceTest {
             as PendingPersistenceResult.Inserted
 
         assertEquals(
+            listOf(unassigned.pending.id),
+            persistence.observeUnassignedPending().first().map(PendingMeasurement::id),
+        )
+
+        currentTime = currentTime.plusMillis(1)
+        val laterUnassigned = persistence.enqueue(raw("2026-08-15T10:02:00Z", 121.0))
+            as PendingPersistenceResult.Inserted
+
+        assertEquals(
             listOf(firstMatch.pending.id),
             persistence.observePreliminary(first.id).first().map(PendingMeasurement::id),
         )
         assertTrue(persistence.observePreliminary(second.id).first().isEmpty())
         assertEquals(
-            setOf(firstMatch.pending.id, unassigned.pending.id),
+            setOf(firstMatch.pending.id, unassigned.pending.id, laterUnassigned.pending.id),
             persistence.observePending().first().map(PendingMeasurement::id).toSet(),
+        )
+        assertEquals(
+            listOf(unassigned.pending.id, laterUnassigned.pending.id),
+            persistence.observeUnassignedPending().first().map(PendingMeasurement::id),
+        )
+        assertEquals(
+            listOf(unassigned.pending.id, laterUnassigned.pending.id),
+            repository(NoOpPendingDecisionNotifier)
+                .observeUnassignedPending()
+                .first()
+                .map(PendingMeasurement::id),
         )
         assertTrue(currentTime.isBefore(unassigned.pending.finalizeAfter))
     }

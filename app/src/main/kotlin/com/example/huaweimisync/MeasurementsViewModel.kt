@@ -101,11 +101,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         )
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AccountScopedLoad.Loading)
-    private val pending = repository.observePending().stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(),
-        emptyList(),
-    )
+    private val pending = repository.observeUnassignedPending()
+        .map(::unassignedPendingMeasurements)
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(),
+            emptyList(),
+        )
     private val navigation = MutableStateFlow(MeasurementsNavigationState())
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
     private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
@@ -384,6 +386,10 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
     }
 }
+
+internal fun unassignedPendingMeasurements(
+    values: List<PendingMeasurement>,
+): List<PendingMeasurement> = values.filter { it.provisionalAccountId == null }
 
 internal sealed interface MeasurementDeleteRequest {
     data object NotFound : MeasurementDeleteRequest

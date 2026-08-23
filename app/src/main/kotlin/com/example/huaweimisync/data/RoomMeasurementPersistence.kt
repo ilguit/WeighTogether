@@ -115,6 +115,11 @@ class RoomMeasurementPersistence(
         values.map(PendingMeasurementEntity::toDomain)
     }
 
+    fun observeUnassignedPending(): Flow<List<PendingMeasurement>> =
+        pendingDao.observeUnassigned().map { values ->
+            values.map(PendingMeasurementEntity::toDomain)
+        }
+
     fun observePreliminary(accountId: AccountId): Flow<List<PendingMeasurement>> =
         pendingDao.observeForAccount(accountId.value).map { values ->
             values.map(PendingMeasurementEntity::toDomain)

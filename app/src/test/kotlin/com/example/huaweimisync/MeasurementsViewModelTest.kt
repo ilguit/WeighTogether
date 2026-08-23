@@ -227,6 +227,19 @@ class MeasurementsViewModelTest {
         assertEquals(listOf("pending-move"), first.map { it.presentationKey })
         assertTrue(second.isEmpty())
     }
+
+    @Test
+    fun unassignedQueueImmediatelyIncludesNullProvisionalAndExcludesAssignedPreliminary() {
+        val unassigned = pending(id = "pending-unassigned", hasImpedance = false)
+        val assigned = pending(id = "pending-assigned", hasImpedance = true).copy(
+            provisionalAccountId = AccountId("account-a"),
+        )
+
+        assertEquals(
+            listOf(unassigned),
+            unassignedPendingMeasurements(listOf(assigned, unassigned)),
+        )
+    }
 }
 
 private fun account(id: String) = Account(

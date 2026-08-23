@@ -338,6 +338,9 @@ class MeasurementRepository(
     override fun observePending(): Flow<List<PendingMeasurement>> =
         requireMultiAccountPersistence().observePending()
 
+    override fun observeUnassignedPending(): Flow<List<PendingMeasurement>> =
+        requireMultiAccountPersistence().observeUnassignedPending()
+
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? =
         requireMultiAccountPersistence().getPending(id)
 

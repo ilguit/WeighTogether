@@ -13,6 +13,12 @@ interface PendingMeasurementDao {
     fun observeAll(): Flow<List<PendingMeasurementEntity>>
 
     @Query(
+        "SELECT * FROM pending_measurements WHERE provisionalAccountId IS NULL " +
+            "ORDER BY enqueuedAtEpochMillis ASC, id ASC",
+    )
+    fun observeUnassigned(): Flow<List<PendingMeasurementEntity>>
+
+    @Query(
         "SELECT * FROM pending_measurements WHERE provisionalAccountId = :accountId " +
             "ORDER BY measuredAtEpochSecond DESC, id DESC",
     )

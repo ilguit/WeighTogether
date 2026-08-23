@@ -178,7 +178,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.Eagerly,
         AccountsSnapshot(emptyList(), AccountSettings()),
     )
-    private val pending = container.repository.observePending().map { values ->
+    private val pending = container.repository.observeUnassignedPending().map { values ->
         val now = Instant.now()
         values.filter { it.isAwaitingDecisionAt(now) }
     }.stateIn(
@@ -522,7 +522,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 oldestPendingResolverTarget(
                     observedPending = observedPending,
-                    durablePendingSnapshots = container.repository.observePending(),
+                    durablePendingSnapshots = container.repository.observeUnassignedPending(),
                 )?.let { pendingId ->
                     selectPendingForResolver(pendingId, PendingResolverSource.EXTERNAL)
                 }
