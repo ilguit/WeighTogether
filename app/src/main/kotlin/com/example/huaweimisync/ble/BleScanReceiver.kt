@@ -7,6 +7,8 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.util.Log
+import com.example.huaweimisync.MiSyncApplication
+import kotlinx.coroutines.launch
 
 class BleScanReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -16,7 +18,20 @@ class BleScanReceiver : BroadcastReceiver() {
             Log.e(TAG, "Background BLE scan failed: $errorCode")
             return
         }
-        scanResults(intent).forEach { ScanWorkScheduler.enqueue(context, it) }
+        val pendingResult = goAsync()
+        val container = (context.applicationContext as? MiSyncApplication)?.container ?: run {
+            pendingResult.finish()
+            return
+        }
+        container.applicationScope.launch {
+            try {
+                scanResults(intent).forEach {
+                    ScanWorkScheduler.processDirectOrEnqueue(context, it)
+                }
+            } finally {
+                pendingResult.finish()
+            }
+        }
     }
 
     @Suppress("DEPRECATION")
