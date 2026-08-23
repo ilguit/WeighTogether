@@ -25,6 +25,8 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
+import com.example.huaweimisync.domain.PendingMeasurement
+import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.measurements.MeasurementEditorDraft
 import com.example.huaweimisync.measurements.MeasurementEditorState
 import com.example.huaweimisync.measurements.MeasurementSyncDirection
@@ -39,6 +41,7 @@ import com.example.huaweimisync.measurements.MeasurementsNavigationState
 import com.example.huaweimisync.measurements.MeasurementsScreen
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
+import com.example.huaweimisync.ui.routing.ResolverQueueState
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -50,11 +53,13 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarShowsHistoryBeforePausePlayWithSemantics() {
+    fun summaryTopBarShowsPendingHistoryAndPauseActionsInOrderWithSemantics() {
+        var pendingQueueClicks = 0
         var historyClicks = 0
         var pauseClicks = 0
         val paused = mutableStateOf(false)
         val callbacks = MeasurementsCallbacks.None.copy(
+            onPendingQueueRequested = { pendingQueueClicks += 1 },
             onHistoryRequested = { historyClicks += 1 },
         )
 
@@ -83,13 +88,22 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithContentDescription("Подключиться к весам по Bluetooth")
             .assertDoesNotExist()
+        val pendingQueueAction = composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueAction)
         val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
         val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
         assertTrue(
-            "History action must be immediately before external sync action",
+            "Pending queue action must not overlap the history action",
+            pendingQueueAction.getUnclippedBoundsInRoot().right <=
+                historyAction.getUnclippedBoundsInRoot().left,
+        )
+        assertTrue(
+            "History action must not overlap the external sync action",
             historyAction.getUnclippedBoundsInRoot().right <=
                 externalSyncAction.getUnclippedBoundsInRoot().left,
         )
+        pendingQueueAction
+            .assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
+            .performClick()
         historyAction
             .assertContentDescriptionEquals("Открыть историю измерений")
             .performClick()
@@ -101,9 +115,67 @@ class MeasurementsShellNavigationUiTest {
             .performClick()
 
         composeRule.runOnIdle {
+            assertEquals(1, pendingQueueClicks)
             assertEquals(1, historyClicks)
             assertEquals(2, pauseClicks)
         }
+    }
+
+    @Test
+    fun pendingQueueBadgeReactivelyShowsCountsThenReturnsToEmptyState() {
+        val pendingCount = mutableStateOf(0)
+
+        composeRule.setContent {
+            HuaweiMiSyncScaffold(
+                state = MainUiState(
+                    resolverQueue = ResolverQueueState(
+                        pending = pendingMeasurements(pendingCount.value),
+                    ),
+                ),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = {},
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                onToggleExternalSyncPause = {},
+                measurementsContent = {},
+                chartsContent = {},
+            )
+        }
+
+        val action = composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueAction)
+        val badge = composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueBadge)
+        action.assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
+        badge.assertDoesNotExist()
+
+        setPendingCount(pendingCount, 1)
+        action.assertContentDescriptionEquals(
+            "Открыть неназначенные измерения. Ожидают назначения: 1",
+        )
+        badge.assertIsDisplayed()
+
+        setPendingCount(pendingCount, 9)
+        action.assertContentDescriptionEquals(
+            "Открыть неназначенные измерения. Ожидают назначения: 9",
+        )
+        badge.assertIsDisplayed()
+
+        setPendingCount(pendingCount, 10)
+        action.assertContentDescriptionEquals(
+            "Открыть неназначенные измерения. Ожидают назначения: 10",
+        )
+        badge.assertIsDisplayed()
+        composeRule.onNodeWithText("10", useUnmergedTree = true).assertDoesNotExist()
+
+        setPendingCount(pendingCount, 0)
+        action.assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
+        badge.assertDoesNotExist()
     }
 
     @Test
@@ -184,7 +256,9 @@ class MeasurementsShellNavigationUiTest {
 
     @Test
     fun pendingQueueOwnsChromeAndSystemBackReturnsToSummary() {
-        setMeasurementsShell(MeasurementsNavigationState().showPendingQueue())
+        setMeasurementsShell(pendingCount = 1)
+
+        composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueAction).performClick()
 
         composeRule.onNodeWithTag("pending-queue").assertIsDisplayed()
         composeRule.onNodeWithText("Не назначено").assertIsDisplayed()
@@ -275,6 +349,7 @@ class MeasurementsShellNavigationUiTest {
 
     private fun setMeasurementsShell(
         initialNavigation: MeasurementsNavigationState = MeasurementsNavigationState(),
+        pendingCount: Int = 0,
     ): MeasurementsShellHarness {
         val navigation = mutableStateOf(initialNavigation)
         val profileEditor = mutableStateOf(ProfileEditorUiState())
@@ -320,7 +395,12 @@ class MeasurementsShellNavigationUiTest {
                 },
             )
             HuaweiMiSyncScaffold(
-                state = MainUiState(profileEditor = profileEditor.value),
+                state = MainUiState(
+                    profileEditor = profileEditor.value,
+                    resolverQueue = ResolverQueueState(
+                        pending = pendingMeasurements(pendingCount),
+                    ),
+                ),
                 currentSection = AppSection.MEASUREMENTS,
                 measurementsDestination = measurementState.destination,
                 measurementsCallbacks = callbacks,
@@ -357,6 +437,26 @@ class MeasurementsShellNavigationUiTest {
         openBatterySettings = {},
         openApplicationSettings = {},
     )
+
+    private fun setPendingCount(state: MutableState<Int>, count: Int) {
+        composeRule.runOnIdle { state.value = count }
+        composeRule.waitForIdle()
+    }
+
+    private fun pendingMeasurements(count: Int): List<PendingMeasurement> = List(count) { index ->
+        PendingMeasurement(
+            id = PendingMeasurementId("pending-$index"),
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = Instant.parse("2026-08-15T12:42:00Z").plusSeconds(index.toLong()),
+            weightKg = 72.4,
+            impedanceOhm = 512,
+            isStable = true,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(index.toByte()),
+            deduplicationHash = "hash-$index",
+            enqueuedAt = Instant.parse("2026-08-15T12:43:00Z").plusSeconds(index.toLong()),
+        )
+    }
 
     private fun sampleItem(): MeasurementUiItem {
         val values = MeasurementUiValues(
