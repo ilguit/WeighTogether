@@ -60,7 +60,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
@@ -607,67 +606,6 @@ private fun MeasurementSummaryCard(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-        }
-    }
-}
-
-@Composable
-private fun MetricGrid(
-    metrics: List<MeasurementMetricPresentation>,
-    modifier: Modifier = Modifier,
-    tileColor: Color = MaterialTheme.colorScheme.surface,
-) {
-    BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columnCount = if (maxWidth < 300.dp) 1 else 2
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-            metrics.chunked(columnCount).forEach { rowMetrics ->
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(
-                        HuaweiDimensions.CompactItemSpacing,
-                    ),
-                ) {
-                    rowMetrics.forEach { metric ->
-                        MetricTile(
-                            metric = metric,
-                            containerColor = tileColor,
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    repeat(columnCount - rowMetrics.size) { Spacer(Modifier.weight(1f)) }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun MetricTile(
-    metric: MeasurementMetricPresentation,
-    containerColor: Color,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier.heightIn(min = 60.dp),
-        shape = MaterialTheme.shapes.large,
-        color = containerColor,
-        contentColor = MaterialTheme.colorScheme.onSurface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-    ) {
-        Column(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalArrangement = Arrangement.spacedBy(1.dp),
-        ) {
-            Text(
-                text = metric.label,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Text(
-                text = metric.displayValue(),
-                style = MaterialTheme.typography.titleMedium,
-            )
         }
     }
 }
