@@ -55,8 +55,8 @@ class MeasurementsScreenTest {
         val summaryCard = composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
         val summaryBounds = summaryCard.getUnclippedBoundsInRoot()
         assertTrue(
-            "Collapsed summary should leave room for the home chart",
-            summaryBounds.bottom - summaryBounds.top <= 360.dp,
+            "Collapsed summary should leave room for the home chart within 320 dp",
+            summaryBounds.bottom - summaryBounds.top <= 320.dp,
         )
         composeRule.onNodeWithText(
             formatMeasurementDateTime(requireNotNull(state.summary).latest.measuredAt),
