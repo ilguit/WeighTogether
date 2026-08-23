@@ -895,7 +895,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         container.profileStore.saveScale(address, name)
         scanner.stop()
         scanning.value = false
-        ScanWorkScheduler.enqueue(getApplication(), result)
+        ScanWorkScheduler.processDirect(getApplication(), result)
         restoreAutomaticScanning()
         showMessage("Весы выбраны: ${name ?: address}. Измерение принято")
     }
@@ -913,7 +913,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val parsed = container.packetParser.parse(payload, address) ?: return
         if (!parsed.isStableWeight) return
 
-        ScanWorkScheduler.enqueue(getApplication(), result)
+        ScanWorkScheduler.processDirect(getApplication(), result)
         scaleRefresh.complete(operation)
     }
 

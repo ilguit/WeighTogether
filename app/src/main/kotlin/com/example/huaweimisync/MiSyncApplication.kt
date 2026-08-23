@@ -17,9 +17,13 @@ import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.MeasurementWorkSweepScheduler
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
+import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class MiSyncApplication : Application() {
     lateinit var container: AppContainer
@@ -33,6 +37,7 @@ class MiSyncApplication : Application() {
 }
 
 class AppContainer(application: Application) {
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val database: AppDatabase = AppDatabase.build(application)
     val profileStore = ProfileStore(application)
     val packetParser = MiScalePacketParser()
@@ -67,6 +72,11 @@ class AppContainer(application: Application) {
         pendingDecisionNotifier = pendingMeasurementNotifications,
         pendingFinalizationScheduler = finalizationScheduler,
         externalSyncOperations = externalSyncOperations,
+    )
+    val packetProcessor = ScalePacketProcessor(
+        parser = packetParser,
+        ingest = repository::ingest,
+        finalizationScheduler = finalizationScheduler,
     )
     val externalSyncPause = ExternalSyncPauseCoordinator(
         settings = profileStore,

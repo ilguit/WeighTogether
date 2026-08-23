@@ -44,6 +44,19 @@ sealed interface PendingPersistenceResult {
     data object Tombstoned : PendingPersistenceResult
 }
 
+internal data class PendingReplayPlan(
+    val shouldSlideDeadline: Boolean,
+    val shouldScheduleFinalization: Boolean,
+)
+
+internal fun pendingReplayPlan(
+    exactReplay: Boolean,
+    isBeforeDeadline: Boolean,
+): PendingReplayPlan = PendingReplayPlan(
+    shouldSlideDeadline = !exactReplay && isBeforeDeadline,
+    shouldScheduleFinalization = !exactReplay && isBeforeDeadline,
+)
+
 class RoomMeasurementPersistence(
     private val database: AppDatabase,
     private val calculator: BodyCompositionCalculator,
@@ -196,11 +209,17 @@ class RoomMeasurementPersistence(
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
                     val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
-                    val shouldScheduleFinalization =
-                        timestampMillis < pending.finalizeAfterEpochMillis
+                    val exactReplay = pending.deduplicationHash == hash
+                    val replayPlan = pendingReplayPlan(
+                        exactReplay = exactReplay,
+                        isBeforeDeadline = timestampMillis < pending.finalizeAfterEpochMillis,
+                    )
+                    val shouldScheduleFinalization = replayPlan.shouldScheduleFinalization
+                    // Direct processing and its durable fallback can both observe the same packet.
+                    // That exact replay may enrich the aggregate but must not slide its deadline.
                     // Once the aggregate is due it is resolver-visible. Keep that transition
                     // irreversible even if a delayed BLE callback is processed afterwards.
-                    val finalizeAfterEpochMillis = if (shouldScheduleFinalization) {
+                    val finalizeAfterEpochMillis = if (replayPlan.shouldSlideDeadline) {
                         timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli()
                     } else {
                         pending.finalizeAfterEpochMillis

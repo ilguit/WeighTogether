@@ -12,6 +12,71 @@ import org.junit.Test
 
 class MeasurementFinalizationOrchestrationTest {
     @Test
+    fun directSuccessDoesNotEnqueueFallback() = kotlinx.coroutines.runBlocking {
+        val processed = mutableListOf<ScalePacket>()
+        val fallback = mutableListOf<ScalePacket>()
+        val packet = ScalePacket(byteArrayOf(1), "AA")
+
+        val result = DirectPacketProcessingOrchestrator(
+            process = { processed += it },
+            enqueueFallback = { fallback += it },
+        ).process(packet)
+
+        assertEquals(DirectPacketProcessingResult.PROCESSED_DIRECTLY, result)
+        assertEquals(listOf(packet), processed)
+        assertTrue(fallback.isEmpty())
+    }
+
+    @Test
+    fun directFailureEnqueuesExactlyOneDurableFallback() = kotlinx.coroutines.runBlocking {
+        val fallback = mutableListOf<ScalePacket>()
+        val packet = ScalePacket(byteArrayOf(1), "AA")
+
+        val result = DirectPacketProcessingOrchestrator(
+            process = { error("Room unavailable") },
+            enqueueFallback = { fallback += it },
+        ).process(packet)
+
+        assertEquals(DirectPacketProcessingResult.FALLBACK_ENQUEUED, result)
+        assertEquals(1, fallback.size)
+        assertEquals(packet, fallback.single())
+    }
+
+    @Test
+    fun packetProcessorParsesFiltersPersistsAndSchedulesOnce() = kotlinx.coroutines.runBlocking {
+        var ingested = 0
+        val ensured = mutableListOf<PendingMeasurement>()
+        val created = pending()
+        val processor = ScalePacketProcessor(
+            parse = { _, _ -> raw() },
+            ingestion = MeasurementIngestionWorkOrchestrator(
+                ingest = {
+                    ingested += 1
+                    if (ingested == 1) MeasurementIngestionResult.CreatedAggregate(created)
+                    else MeasurementIngestionResult.UpdatedAggregate(
+                        pending = created,
+                        wasEnriched = false,
+                        shouldScheduleFinalization = false,
+                    )
+                },
+                finalizationScheduler = object : PendingFinalizationScheduler {
+                    override fun enqueue(pending: PendingMeasurement) = Unit
+                    override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                        ensured += pending
+                    }
+                },
+            ),
+        )
+        val packet = ScalePacket(byteArrayOf(1), "AA")
+
+        processor.process(packet)
+        processor.process(packet)
+
+        assertEquals(2, ingested)
+        assertEquals(listOf(created), ensured)
+    }
+
+    @Test
     fun workPlanIsUniqueByPendingIdAndUsesRemainingSlidingDelay() {
         val pending = pending(finalizeAfter = NOW.plusSeconds(10))
 
