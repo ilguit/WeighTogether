@@ -224,6 +224,10 @@ class Migration1To2Test {
                     nowEpochMillis = { Instant.parse("2026-08-15T12:00:00Z").toEpochMilli() },
                     newAccountId = { accountId },
                 ),
+                AppDatabase.MIGRATION_2_3,
+                AppDatabase.MIGRATION_3_4,
+                AppDatabase.MIGRATION_4_5,
+                AppDatabase.MIGRATION_5_6,
             )
             .allowMainThreadQueries()
             .build()

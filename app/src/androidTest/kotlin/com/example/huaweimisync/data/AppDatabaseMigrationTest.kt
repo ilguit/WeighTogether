@@ -443,6 +443,49 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate5To6PreservesPendingRowsAsUnassignedAndAddsAccountIndex() {
+        helper.createDatabase(MIGRATION_5_6_DB, 5).apply {
+            execSQL(
+                """
+                INSERT INTO pending_measurements (
+                    id, deviceAddress, measuredAtEpochSecond, weightKg, impedanceOhm,
+                    isStable, hasImpedance, rawPayload, deduplicationHash,
+                    enqueuedAtEpochMillis, rawWeight, finalizeAfterEpochMillis
+                ) VALUES (
+                    'pending', 'AA:BB:CC:DD:EE:FF', 1786451696, 70.0, 0,
+                    1, 0, X'01', 'hash', 1000, 14000, 11000
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        val migrated = helper.runMigrationsAndValidate(
+            MIGRATION_5_6_DB,
+            6,
+            true,
+            AppDatabase.MIGRATION_5_6,
+        )
+        migrated.query(
+            "SELECT id, provisionalAccountId FROM pending_measurements WHERE id = 'pending'",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("pending", it.getString(0))
+            assertTrue(it.isNull(1))
+        }
+        migrated.query("PRAGMA index_list('pending_measurements')").use { cursor ->
+            val nameIndex = cursor.getColumnIndexOrThrow("name")
+            val names = buildSet {
+                while (cursor.moveToNext()) add(cursor.getString(nameIndex))
+            }
+            assertTrue(
+                "index_pending_measurements_provisionalAccountId_measuredAtEpochSecond_id" in names,
+            )
+        }
+        migrated.close()
+    }
+
+    @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
@@ -636,5 +679,6 @@ class AppDatabaseMigrationTest {
         const val MIGRATION_2_3_DB = "measurement-migration-2-3-test"
         const val MIGRATION_3_4_DB = "measurement-migration-3-4-test"
         const val MIGRATION_4_5_DB = "measurement-migration-4-5-test"
+        const val MIGRATION_5_6_DB = "measurement-migration-5-6-test"
     }
 }

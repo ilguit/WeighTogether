@@ -4,6 +4,7 @@ import androidx.room.withTransaction
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.measurementFingerprint
+import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountMeasurement
 import com.example.huaweimisync.domain.AccountSettings
@@ -133,6 +134,12 @@ class RoomMeasurementPersistence(
         measurementDao.activeSyncWorkIds(accountId.value)
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult =
+        enqueue(raw, MatchingEngine())
+
+    override suspend fun enqueue(
+        raw: RawScaleMeasurement,
+        matchingEngine: MatchingEngine,
+    ): PendingPersistenceResult =
         database.withTransaction {
             val timestamp = now()
             val timestampMillis = timestamp.toEpochMilli()
@@ -204,8 +211,8 @@ class RoomMeasurementPersistence(
                         hasImpedance = if (enrich) raw.hasImpedance else pending.hasImpedance,
                         rawPayload = if (enrich) raw.rawPayload.copyOf() else pending.rawPayload,
                         finalizeAfterEpochMillis = finalizeAfterEpochMillis,
-                    )
-                    if (enrich || shouldScheduleFinalization) {
+                    ).let { withPreliminaryDecision(it, matchingEngine) }
+                    if (current != pending) {
                         check(pendingDao.update(current) == 1) {
                             "Pending aggregate disappeared during ingestion"
                         }
@@ -231,7 +238,7 @@ class RoomMeasurementPersistence(
                 enqueuedAtEpochMillis = timestampMillis,
                 rawWeight = raw.rawWeight,
                 finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli(),
-            )
+            ).let { withPreliminaryDecision(it, matchingEngine) }
             if (pendingDao.insert(entity) == -1L) {
                 val concurrent = requireNotNull(pendingDao.getByHash(hash))
                 PendingPersistenceResult.AlreadyPending(concurrent.toDomain())
@@ -281,29 +288,9 @@ class RoomMeasurementPersistence(
         if (now.toEpochMilli() < pendingEntity.finalizeAfterEpochMillis) {
             return@withTransaction AtomicDueRoutingResult.NotDue(pending)
         }
-        val accountSnapshot = accountDao.getAll().map(AccountEntity::toDomain)
-        val state = appStateDao.get()
-        val settings = state?.let {
-            AccountSettings(
-                primaryAccountId = it.primaryAccountId?.let(::AccountId),
-                weightDeltaKg = it.weightDeltaKg,
-                ignoreUnknownMeasurements = it.ignoreUnknownMeasurements,
-            )
-        } ?: AccountSettings()
-        val histories = accountSnapshot.associate { account ->
-            account.id to measurementDao.latestHistoryBefore(
-                account.id.value,
-                pendingEntity.measuredAtEpochSecond,
-            ).map { WeightHistoryRecord(it.measuredAt, it.weightKg) }
-        }
-        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
-        val accountId = when (decision) {
-            is RoutingDecision.AssignPrimary -> decision.accountId
-            is RoutingDecision.AssignSingle -> decision.candidate.accountId
-            is RoutingDecision.ChooseAccount,
-            RoutingDecision.NoMatch,
-            -> null
-        }
+        val snapshot = routingSnapshotLocked(pendingEntity.measuredAtEpochSecond)
+        val decision = snapshot.decide(pending, matchingEngine)
+        val accountId = decision.unambiguousAccountId()
         if (accountId != null) {
             return@withTransaction when (val result = finalizePendingLocked(pendingId, accountId)) {
                 is FinalizePendingResult.Finalized ->
@@ -316,7 +303,7 @@ class RoomMeasurementPersistence(
                 -> AtomicDueRoutingResult.AccountUnavailable
             }
         }
-        if (decision === RoutingDecision.NoMatch && settings.ignoreUnknownMeasurements) {
+        if (decision === RoutingDecision.NoMatch && snapshot.settings.ignoreUnknownMeasurements) {
             discardPendingWithoutUndoLocked(pendingEntity)
             return@withTransaction AtomicDueRoutingResult.AutomaticallyIgnoredUnknown
         }
@@ -324,6 +311,20 @@ class RoomMeasurementPersistence(
             "Pending measurement disappeared while becoming resolver-visible"
         }
         AtomicDueRoutingResult.AwaitingDecision(pending, decision)
+    }
+
+    override suspend fun reclassifyPending(
+        matchingEngine: MatchingEngine,
+    ): List<PendingMeasurement> = database.withTransaction {
+        pendingDao.getAll().map { pending ->
+            val reclassified = withPreliminaryDecision(pending, matchingEngine)
+            if (reclassified.provisionalAccountId != pending.provisionalAccountId) {
+                check(pendingDao.update(reclassified) == 1) {
+                    "Pending measurement disappeared during preliminary reclassification"
+                }
+            }
+            reclassified.toDomain()
+        }
     }
 
     override suspend fun createAccountAndAssignPending(
@@ -589,6 +590,36 @@ class RoomMeasurementPersistence(
         return FinalizePendingResult.Finalized(measurement.toAccountMeasurement())
     }
 
+    private suspend fun routingSnapshotLocked(
+        measuredAtEpochSecond: Long,
+    ): RoutingSnapshot {
+        val accounts = accountDao.getAll().map(AccountEntity::toDomain)
+        val state = appStateDao.get()
+        val settings = state?.let {
+            AccountSettings(
+                primaryAccountId = it.primaryAccountId?.let(::AccountId),
+                weightDeltaKg = it.weightDeltaKg,
+                ignoreUnknownMeasurements = it.ignoreUnknownMeasurements,
+            )
+        } ?: AccountSettings()
+        val histories = accounts.associate { account ->
+            account.id to measurementDao.latestHistoryBefore(
+                account.id.value,
+                measuredAtEpochSecond,
+            ).map { WeightHistoryRecord(it.measuredAt, it.weightKg) }
+        }
+        return RoutingSnapshot(accounts, histories, settings)
+    }
+
+    private suspend fun withPreliminaryDecision(
+        pending: PendingMeasurementEntity,
+        matchingEngine: MatchingEngine,
+    ): PendingMeasurementEntity {
+        val decision = routingSnapshotLocked(pending.measuredAtEpochSecond)
+            .decide(pending.toDomain(), matchingEngine)
+        return pending.copy(provisionalAccountId = decision.unambiguousAccountId()?.value)
+    }
+
     companion object {
         val TOMBSTONE_TTL: Duration = Duration.ofDays(30)
         const val DEBOUNCE_SECONDS: Long = MeasurementDeduplicationPolicy.WINDOW_SECONDS
@@ -670,7 +701,25 @@ private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMea
     enqueuedAtEpochMillis = enqueuedAt.toEpochMilli(),
     rawWeight = rawWeight,
     finalizeAfterEpochMillis = finalizeAfter.toEpochMilli(),
+    provisionalAccountId = provisionalAccountId?.value,
 )
+
+private data class RoutingSnapshot(
+    val accounts: List<Account>,
+    val histories: Map<AccountId, List<WeightHistoryRecord>>,
+    val settings: AccountSettings,
+) {
+    fun decide(pending: PendingMeasurement, matchingEngine: MatchingEngine): RoutingDecision =
+        matchingEngine.match(pending, accounts, histories, settings)
+}
+
+private fun RoutingDecision.unambiguousAccountId(): AccountId? = when (this) {
+    is RoutingDecision.AssignPrimary -> accountId
+    is RoutingDecision.AssignSingle -> candidate.accountId
+    is RoutingDecision.ChooseAccount,
+    RoutingDecision.NoMatch,
+    -> null
+}
 
 /** Smallest whole-second timestamp which is not before this instant. */
 private fun Instant.ceilToEpochSecond(): Long {

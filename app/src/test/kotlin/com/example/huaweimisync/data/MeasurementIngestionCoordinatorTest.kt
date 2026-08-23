@@ -23,6 +23,7 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.domain.RoutingDecision
+import com.example.huaweimisync.domain.routing.MatchingEngine
 import com.example.huaweimisync.domain.routing.WeightHistoryRecord
 import com.example.huaweimisync.domain.toPendingMeasurement
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
@@ -89,6 +90,26 @@ class MeasurementIngestionCoordinatorTest {
         assertEquals(listOf("enqueue", "enqueue"), events)
         assertTrue(scheduler.enqueued.isEmpty())
         assertEquals(1, persistence.pendingSnapshot().size)
+    }
+
+    @Test
+    fun earlyClassificationAndSweepUseCoordinatorMatchingEngine() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val matchingEngine = MatchingEngine()
+        val coordinator = MeasurementIngestionCoordinator(
+            persistence = persistence,
+            accounts = accounts,
+            calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
+            syncScheduler = UniqueFakeScheduler(),
+            matchingEngine = matchingEngine,
+        )
+
+        coordinator.ingest(raw(70.0))
+        coordinator.sweepPendingRouting()
+
+        assertTrue(persistence.enqueueMatchingEngine === matchingEngine)
+        assertTrue(persistence.reclassificationMatchingEngine === matchingEngine)
     }
 
     @Test
@@ -542,6 +563,8 @@ private class FakeRoutingPersistence(
     var restoreFailure: Throwable? = null
     var firstPendingSnapshotCaptured: CompletableDeferred<Unit>? = null
     var releaseFirstPendingSnapshot: CompletableDeferred<Unit>? = null
+    var enqueueMatchingEngine: MatchingEngine? = null
+    var reclassificationMatchingEngine: MatchingEngine? = null
     private var pendingSnapshotCallCount = 0
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
@@ -561,6 +584,21 @@ private class FakeRoutingPersistence(
         )
         pending[value.id] = value
         return PendingPersistenceResult.Inserted(value)
+    }
+
+    override suspend fun enqueue(
+        raw: RawScaleMeasurement,
+        matchingEngine: MatchingEngine,
+    ): PendingPersistenceResult {
+        enqueueMatchingEngine = matchingEngine
+        return enqueue(raw)
+    }
+
+    override suspend fun reclassifyPending(
+        matchingEngine: MatchingEngine,
+    ): List<PendingMeasurement> {
+        reclassificationMatchingEngine = matchingEngine
+        return pending.values.toList()
     }
 
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? = pending[id]

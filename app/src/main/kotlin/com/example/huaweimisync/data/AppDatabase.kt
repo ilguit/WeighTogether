@@ -14,7 +14,7 @@ import androidx.room.migration.Migration
         PendingMeasurementEntity::class,
         MeasurementTombstoneEntity::class,
     ],
-    version = 5,
+    version = 6,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +40,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_2_3: Migration = Migration2To3
         val MIGRATION_3_4: Migration = Migration3To4
         val MIGRATION_4_5: Migration = Migration4To5
+        val MIGRATION_5_6: Migration = Migration5To6
 
         fun build(
             context: Context,
@@ -50,6 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_2_3,
                 MIGRATION_3_4,
                 MIGRATION_4_5,
+                MIGRATION_5_6,
             )
             .build()
     }
