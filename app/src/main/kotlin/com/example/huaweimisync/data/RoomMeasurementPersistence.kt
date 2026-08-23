@@ -54,7 +54,9 @@ internal fun pendingReplayPlan(
     isBeforeDeadline: Boolean,
 ): PendingReplayPlan = PendingReplayPlan(
     shouldSlideDeadline = !exactReplay && isBeforeDeadline,
-    shouldScheduleFinalization = !exactReplay && isBeforeDeadline,
+    // Scheduling is an idempotent watchdog repair, independent of whether the deadline moves.
+    // An exact replay can be the durable fallback after the original enqueue attempt failed.
+    shouldScheduleFinalization = exactReplay || isBeforeDeadline,
 )
 
 class RoomMeasurementPersistence(

@@ -6,11 +6,11 @@ import org.junit.Test
 
 class PendingReplayPlanTest {
     @Test
-    fun exactReplayKeepsOriginalDeadlineAndExistingFinalizationWork() {
+    fun exactReplayKeepsOriginalDeadlineAndEnsuresFinalizationWatchdog() {
         val plan = pendingReplayPlan(exactReplay = true, isBeforeDeadline = true)
 
         assertFalse(plan.shouldSlideDeadline)
-        assertFalse(plan.shouldScheduleFinalization)
+        assertTrue(plan.shouldScheduleFinalization)
     }
 
     @Test
@@ -27,5 +27,13 @@ class PendingReplayPlanTest {
 
         assertFalse(plan.shouldSlideDeadline)
         assertFalse(plan.shouldScheduleFinalization)
+    }
+
+    @Test
+    fun lateExactReplayRepairsWatchdogWithoutSlidingDeadline() {
+        val plan = pendingReplayPlan(exactReplay = true, isBeforeDeadline = false)
+
+        assertFalse(plan.shouldSlideDeadline)
+        assertTrue(plan.shouldScheduleFinalization)
     }
 }

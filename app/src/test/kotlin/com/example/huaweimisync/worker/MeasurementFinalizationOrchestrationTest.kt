@@ -3,6 +3,7 @@ package com.example.huaweimisync.worker
 import androidx.work.ExistingWorkPolicy
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.data.MeasurementIngestionResult
+import com.example.huaweimisync.data.pendingReplayPlan
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Instant
@@ -41,6 +42,71 @@ class MeasurementFinalizationOrchestrationTest {
         assertEquals(1, fallback.size)
         assertEquals(packet, fallback.single())
     }
+
+    @Test
+    fun exactFallbackReplayRepairsUniqueWatchdogWithoutSlidingDeadline() =
+        kotlinx.coroutines.runBlocking {
+            val original = pending()
+            val pendingRows = mutableListOf<PendingMeasurement>()
+            val uniqueWatchdogs = linkedSetOf<String>()
+            val fallback = mutableListOf<ScalePacket>()
+            var schedulerAttempts = 0
+            val processor = ScalePacketProcessor(
+                parse = { _, _ -> raw() },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        val existing = pendingRows.singleOrNull()
+                        if (existing == null) {
+                            pendingRows += original
+                            MeasurementIngestionResult.CreatedAggregate(original)
+                        } else {
+                            val replayPlan = pendingReplayPlan(
+                                exactReplay = true,
+                                isBeforeDeadline = true,
+                            )
+                            MeasurementIngestionResult.UpdatedAggregate(
+                                pending = existing.copy(
+                                    finalizeAfter = if (replayPlan.shouldSlideDeadline) {
+                                        NOW.plusSeconds(20)
+                                    } else {
+                                        existing.finalizeAfter
+                                    },
+                                ),
+                                wasEnriched = false,
+                                shouldScheduleFinalization =
+                                    replayPlan.shouldScheduleFinalization,
+                            )
+                        }
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            schedulerAttempts += 1
+                            if (schedulerAttempts == 1) error("scheduler unavailable")
+                            uniqueWatchdogs += pendingFinalizationWorkPlan(pending, NOW).uniqueName
+                        }
+                    },
+                ),
+            )
+            val direct = DirectPacketProcessingOrchestrator(
+                process = { processor.process(it) },
+                enqueueFallback = { fallback += it },
+            )
+            val packet = ScalePacket(byteArrayOf(1), "AA")
+
+            assertEquals(DirectPacketProcessingResult.FALLBACK_ENQUEUED, direct.process(packet))
+            assertEquals(1, pendingRows.size)
+            assertEquals(original.finalizeAfter, pendingRows.single().finalizeAfter)
+            assertEquals(1, fallback.size)
+
+            processor.process(fallback.single())
+
+            assertEquals(2, schedulerAttempts)
+            assertEquals(1, pendingRows.size)
+            assertEquals(original.finalizeAfter, pendingRows.single().finalizeAfter)
+            assertEquals(setOf("finalize-pending-1"), uniqueWatchdogs)
+        }
 
     @Test
     fun packetProcessorParsesFiltersPersistsAndSchedulesOnce() = kotlinx.coroutines.runBlocking {
