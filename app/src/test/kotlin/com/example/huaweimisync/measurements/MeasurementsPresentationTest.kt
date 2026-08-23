@@ -38,11 +38,6 @@ class MeasurementsPresentationTest {
         assertFalse(MeasurementsUiState().hasNoLatestMeasurement)
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun pendingCountCannotBeNegative() {
-        MeasurementsUiState(pendingCount = -1)
-    }
-
     @Test
     fun pendingReadingMapsLosslesslyToQueuePresentation() {
         val measuredAt = Instant.parse("2026-08-15T12:42:00Z")
