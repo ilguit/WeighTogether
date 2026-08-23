@@ -105,7 +105,10 @@ fun MeasurementsScreen(
     val syncItem = state.measurements.firstOrNull { it.id == syncMeasurementId }
 
     Column(modifier = modifier.fillMaxSize()) {
-        if (state.destination != MeasurementsDestination.EDITOR) {
+        if (
+            state.destination == MeasurementsDestination.SUMMARY ||
+            state.destination == MeasurementsDestination.HISTORY
+        ) {
             AccountSelector(
                 state = state.accountSelector,
                 onAccountSelected = callbacks.onAccountSelected,

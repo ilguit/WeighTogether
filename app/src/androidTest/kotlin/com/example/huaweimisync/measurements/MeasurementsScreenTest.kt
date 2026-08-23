@@ -27,6 +27,7 @@ import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.MeasurementsViewModel
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.ui.accounts.AccountSelectorTestTags
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -39,6 +40,36 @@ import org.junit.Test
 class MeasurementsScreenTest {
     @get:Rule
     val composeRule = createComposeRule()
+
+    @Test
+    fun accountSelectorIsVisibleOnlyOnSummaryAndHistory() {
+        var state by mutableStateOf(sampleState())
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountSelectorTestTags.Selector).assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            state = state.copy(destination = MeasurementsDestination.HISTORY)
+        }
+        composeRule.onNodeWithTag(AccountSelectorTestTags.Selector).assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            state = state.copy(
+                destination = MeasurementsDestination.EDITOR,
+                editor = MeasurementEditorState(
+                    measurementId = "latest",
+                    measuredAtEpochSecond = requireNotNull(state.summary).latest.measuredAtEpochSecond,
+                    draft = MeasurementEditorDraft.from(requireNotNull(state.summary).latest.values),
+                ),
+            )
+        }
+        composeRule.onNodeWithTag(AccountSelectorTestTags.Selector).assertDoesNotExist()
+    }
 
     @Test
     fun collapsedSummaryKeepsEssentialContentWithinCompactHeight() {
@@ -312,6 +343,7 @@ class MeasurementsScreenTest {
             HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
         }
 
+        composeRule.onNodeWithTag(AccountSelectorTestTags.Selector).assertDoesNotExist()
         composeRule.onNodeWithTag("pending-card-${first.id.value}").assertExists()
         composeRule.onNodeWithText(formatMeasurementDateTime(first.measuredAt)).assertExists()
         composeRule.onNodeWithText(
