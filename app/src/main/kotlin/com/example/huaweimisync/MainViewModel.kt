@@ -25,6 +25,7 @@ import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.isAwaitingDecisionAt
+import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.RoutingDecision
@@ -178,10 +179,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         SharingStarted.Eagerly,
         AccountsSnapshot(emptyList(), AccountSettings()),
     )
-    private val pending = container.repository.observeUnassignedPending().map { values ->
-        val now = Instant.now()
-        values.filter { it.isAwaitingDecisionAt(now) }
-    }.stateIn(
+    private val pending = container.repository.observeUnassignedPending()
+        .withPendingMeasurementReadiness()
+        .map { snapshot ->
+            snapshot.measurements.filter { it.isAwaitingDecisionAt(snapshot.observedAt) }
+        }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         emptyList(),

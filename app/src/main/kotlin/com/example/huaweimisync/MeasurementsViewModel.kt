@@ -20,6 +20,7 @@ import com.example.huaweimisync.measurements.MeasurementUiType
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsNavigationState
+import com.example.huaweimisync.measurements.PendingMeasurementUiItem
 import com.example.huaweimisync.measurements.MeasurementsUiEvent
 import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
@@ -32,6 +33,8 @@ import com.example.huaweimisync.measurements.toPreliminaryMeasurementUiItem
 import com.example.huaweimisync.measurements.toggleHomeKgChartSeriesKey
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.domain.PendingMeasurementReadinessSnapshot
+import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
@@ -102,11 +105,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AccountScopedLoad.Loading)
     private val pending = repository.observeUnassignedPending()
-        .map(::unassignedPendingMeasurements)
+        .withPendingMeasurementReadiness()
         .stateIn(
             viewModelScope,
             SharingStarted.WhileSubscribed(),
-            emptyList(),
+            PendingMeasurementReadinessSnapshot(emptyList(), Instant.EPOCH),
         )
     private val navigation = MutableStateFlow(MeasurementsNavigationState())
     private val editor = MutableStateFlow<MeasurementEditorState?>(null)
@@ -159,8 +162,12 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             )
         }
     }
-    private val presentationWithPending = combine(presentation, pending) { current, values ->
-        current.copy(pending = values)
+    private val presentationWithPending = combine(presentation, pending) { current, snapshot ->
+        current.copy(
+            pending = snapshot.measurements.map { value ->
+                value.toPendingMeasurementUiItem(snapshot.observedAt)
+            },
+        )
     }
 
     val uiState = combine(
@@ -179,7 +186,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             editorOrigin = currentNavigation.editorOrigin,
             measurements = items,
             summary = current.summary,
-            pendingMeasurements = current.pending.map { it.toPendingMeasurementUiItem() },
+            pendingMeasurements = current.pending,
             isLoading = current.loadState is AccountScopedLoad.Loading,
             editor = currentEditor,
             deleteConfirmation = deletion,
@@ -494,7 +501,7 @@ private data class MeasurementsPresentation(
     val items: List<MeasurementUiItem>,
     val summary: com.example.huaweimisync.measurements.MeasurementSummaryPresentation?,
     val homeKgChart: com.example.huaweimisync.measurements.HomeKgChartUiState,
-    val pending: List<PendingMeasurement> = emptyList(),
+    val pending: List<PendingMeasurementUiItem> = emptyList(),
 )
 
 internal data class AccountMeasurementPresentationSource(
