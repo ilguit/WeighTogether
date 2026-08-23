@@ -17,6 +17,12 @@ data class AppRelease(
 object AppReleaseHistory {
     val releases: List<AppRelease> = listOf(
         AppRelease(
+            version = "0.1.5",
+            changes = listOf(
+                ReleaseChange(3, "Новые измерения отображаются сразу во время обработки"),
+            ),
+        ),
+        AppRelease(
             version = "0.1.4",
             changes = listOf(
                 ReleaseChange(16, "Добавлена встроенная история версий"),

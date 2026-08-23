@@ -21,15 +21,15 @@ class ChangelogScreenTest {
     fun screenShowsReleaseDetailsInNewestFirstOrder() {
         setContent()
 
-        composeRule.onNodeWithText("Версия 0.1.4").assertIsDisplayed()
-        composeRule.onNodeWithText("Добавлена встроенная история версий").assertIsDisplayed()
-        composeRule.onNodeWithText("Задача #16").assertIsDisplayed()
+        composeRule.onNodeWithText("Версия 0.1.5").assertIsDisplayed()
+        composeRule.onNodeWithText("Новые измерения отображаются сразу во время обработки").assertIsDisplayed()
+        composeRule.onNodeWithText("Задача #3").assertIsDisplayed()
 
         val newestTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.4"))
+            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.5"))
             .fetchSemanticsNode().boundsInRoot.top
         val previousTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.3"))
+            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.4"))
             .fetchSemanticsNode().boundsInRoot.top
         assertTrue(newestTop < previousTop)
     }
@@ -39,7 +39,7 @@ class ChangelogScreenTest {
         setContent()
 
         composeRule.onNodeWithTag(ChangelogScreenTestTags.release("0.1.1")).assertDoesNotExist()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(3)
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(4)
         composeRule.onNodeWithTag(ChangelogScreenTestTags.release("0.1.1")).assertIsDisplayed()
         composeRule.onNodeWithText("Задача #11").assertIsDisplayed()
     }
