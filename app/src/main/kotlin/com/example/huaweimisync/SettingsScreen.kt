@@ -103,6 +103,9 @@ internal object SettingsScreenTestTags {
     const val ProfileRow = "settings-profile-row"
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
+    const val HuaweiHealthDivider = "settings-huawei-health-divider"
+    const val HuaweiHealthRow = "settings-huawei-health-row"
+    const val HuaweiHealthAction = "settings-huawei-health-action"
     const val AdditionalToggle = "settings-additional-toggle"
     const val AdditionalContent = "settings-additional-content"
     const val ProfileEditor = "profile-editor"
@@ -258,10 +261,14 @@ private fun SettingsIntegrationsSection(
         primaryStatus,
         healthConnectCapabilities.selectedAccountSyncEligible,
     )
-    val huawei = huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
-        primaryStatus,
-        state.canUseExternalIntegrations,
-    )
+    val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
+        huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
+            primaryStatus,
+            state.canUseExternalIntegrations,
+        )
+    } else {
+        null
+    }
     SettingsSection(title = "Интеграции") {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
@@ -301,21 +308,29 @@ private fun SettingsIntegrationsSection(
                         ) { Text(label) }
                     }
                 }
-                SettingsDivider()
-                HuaweiSettingRow(
-                    icon = HuaweiIcons.Link,
-                    title = "Huawei Health",
-                    supportingText = huawei.supportingText,
-                ) {
-                    huawei.actionLabel?.let { label ->
-                        TextButton(
-                            onClick = if (huawei.actionRetriesCheck) {
-                                callbacks.onHuaweiPermissionRefresh
-                            } else {
-                                callbacks.onHuaweiAuthorization
-                            },
-                            enabled = huawei.actionEnabled,
-                        ) { Text(label) }
+                huawei?.let { presentation ->
+                    SettingsDivider(
+                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthDivider),
+                    )
+                    HuaweiSettingRow(
+                        icon = HuaweiIcons.Link,
+                        title = "Huawei Health",
+                        supportingText = presentation.supportingText,
+                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthRow),
+                    ) {
+                        presentation.actionLabel?.let { label ->
+                            TextButton(
+                                onClick = if (presentation.actionRetriesCheck) {
+                                    callbacks.onHuaweiPermissionRefresh
+                                } else {
+                                    callbacks.onHuaweiAuthorization
+                                },
+                                enabled = presentation.actionEnabled,
+                                modifier = Modifier.testTag(
+                                    SettingsScreenTestTags.HuaweiHealthAction,
+                                ),
+                            ) { Text(label) }
+                        }
                     }
                 }
             }
@@ -559,9 +574,9 @@ private fun SettingsSection(
 }
 
 @Composable
-private fun SettingsDivider() {
+private fun SettingsDivider(modifier: Modifier = Modifier) {
     HorizontalDivider(
-        modifier = Modifier.padding(start = 68.dp),
+        modifier = modifier.padding(start = 68.dp),
         color = MaterialTheme.colorScheme.outlineVariant,
     )
 }

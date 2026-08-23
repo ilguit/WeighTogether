@@ -30,6 +30,8 @@ import com.example.huaweimisync.ui.accounts.AccountManagementUiState
 import com.example.huaweimisync.ui.accounts.WeightDeltaEditorTestTags
 import com.example.huaweimisync.ui.accounts.reduceAccountManagement
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeFalse
+import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -90,7 +92,8 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun huaweiCheckFailureRetriesPermissionRefreshInsteadOfAuthorization() {
+    fun personalFlavorOmitsHuaweiIntegrationAndCannotDispatchItsCallbacks() {
+        assumeFalse(BuildConfig.HUAWEI_EXTENDED_ENABLED)
         var refreshCalls = 0
         var authorizationCalls = 0
         setSettingsShell(
@@ -99,7 +102,39 @@ class SettingsShellUiTest {
             onHuaweiPermissionRefresh = { refreshCalls++ },
         )
 
-        composeRule.onNodeWithText("Повторить").performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Huawei Health").assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            assertEquals(0, refreshCalls)
+            assertEquals(0, authorizationCalls)
+        }
+    }
+
+    @Test
+    fun enterpriseFlavorShowsHuaweiIntegrationAndRetriesPermissionRefresh() {
+        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        var refreshCalls = 0
+        var authorizationCalls = 0
+        setSettingsShell(
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
+            onHuaweiAuthorization = { authorizationCalls++ },
+            onHuaweiPermissionRefresh = { refreshCalls++ },
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow)
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Huawei Health").assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction)
+            .assertIsEnabled()
+            .performClick()
 
         composeRule.runOnIdle {
             assertEquals(1, refreshCalls)
