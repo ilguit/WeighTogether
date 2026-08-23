@@ -1,0 +1,61 @@
+name: Build personal APK
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Make Gradle wrapper executable
+        run: chmod +x gradlew
+
+      - name: Build personal debug APK
+        run: ./gradlew assemblePersonalDebug --no-daemon
+
+      - name: Prepare APK artifact
+        id: artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          output_dir="app/build/outputs/apk/personal/debug"
+          metadata_file="${output_dir}/output-metadata.json"
+          version_name="$(jq -er '.elements[0].versionName' "${metadata_file}")"
+
+          shopt -s nullglob
+          apk_files=("${output_dir}"/*.apk)
+          if [[ ${#apk_files[@]} -ne 1 ]]; then
+            echo "Expected exactly one APK in ${output_dir}, found ${#apk_files[@]}" >&2
+            exit 1
+          fi
+
+          artifact_dir="build-artifacts"
+          artifact_file="HuaweiMiSync-personal-${version_name}.apk"
+          mkdir -p "${artifact_dir}"
+          cp "${apk_files[0]}" "${artifact_dir}/${artifact_file}"
+
+          echo "version_name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_path=${artifact_dir}/${artifact_file}" >> "${GITHUB_OUTPUT}"
+
+      - name: Upload personal APK
+        uses: actions/upload-artifact@v7
+        with:
+          name: HuaweiMiSync-personal-${{ steps.artifact.outputs.version_name }}-run-${{ github.run_number }}
+          path: ${{ steps.artifact.outputs.artifact_path }}
+          if-no-files-found: error
+          retention-days: 14
