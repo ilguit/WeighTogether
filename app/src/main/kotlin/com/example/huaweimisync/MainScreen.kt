@@ -46,6 +46,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
+import com.example.huaweimisync.changelog.ChangelogScreen
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
@@ -77,6 +78,11 @@ internal enum class AppSection(
 }
 
 internal val defaultAppSection = AppSection.MEASUREMENTS
+
+internal enum class AppDestination {
+    ROOT,
+    CHANGELOG,
+}
 
 internal data class MeasurementsChrome(
     val showTopBar: Boolean,
@@ -167,6 +173,7 @@ fun HuaweiMiSyncApp(
     openApplicationSettings: () -> Unit,
 ) {
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
+    var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
@@ -208,10 +215,15 @@ fun HuaweiMiSyncApp(
                 healthConnectSystemManagementAvailable,
         ),
         currentSection = currentSection,
+        currentDestination = currentDestination,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
         snackbarHostState = snackbarHostState,
-        onSectionSelected = { currentSection = it },
+        onSectionSelected = {
+            currentSection = it
+            currentDestination = AppDestination.ROOT
+        },
+        onDestinationChanged = { currentDestination = it },
         onRefreshFromScale = viewModel::refreshFromScale,
         onToggleExternalSyncPause = viewModel::toggleExternalSyncPause,
         onCloseProfile = {},
@@ -220,6 +232,7 @@ fun HuaweiMiSyncApp(
         onProfileBirthDateChanged = {},
         onProfileSexChanged = {},
         settingsCallbacks = SettingsCallbacks(
+            onOpenChangelog = { currentDestination = AppDestination.CHANGELOG },
             onHuaweiAuthorization = viewModel::authorizeHuawei,
             onHuaweiPermissionRefresh = viewModel::refreshHuaweiAuthorization,
             onHealthConnectAuthorization = requestHealthConnectPermissions,
@@ -295,10 +308,12 @@ fun HuaweiMiSyncApp(
 internal fun HuaweiMiSyncScaffold(
     state: MainUiState,
     currentSection: AppSection,
+    currentDestination: AppDestination = AppDestination.ROOT,
     measurementsDestination: MeasurementsDestination,
     measurementsCallbacks: MeasurementsCallbacks,
     snackbarHostState: SnackbarHostState,
     onSectionSelected: (AppSection) -> Unit,
+    onDestinationChanged: (AppDestination) -> Unit = {},
     onCloseProfile: () -> Unit,
     onSaveProfile: () -> Unit,
     onProfileHeightChanged: (String) -> Unit,
@@ -314,13 +329,14 @@ internal fun HuaweiMiSyncScaffold(
     chartsContent: @Composable (PaddingValues) -> Unit,
 ) {
     val profileEditorOpen = state.profileEditor.isOpen
+    val changelogOpen = !profileEditorOpen && currentDestination == AppDestination.CHANGELOG
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
         profileEditorOpen -> true
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
         else -> true
     }
-    val showBottomNavigation = !profileEditorOpen && when (currentSection) {
+    val showBottomNavigation = !profileEditorOpen && !changelogOpen && when (currentSection) {
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
@@ -334,6 +350,10 @@ internal fun HuaweiMiSyncScaffold(
         WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
     }
 
+    BackHandler(
+        enabled = changelogOpen,
+        onBack = { onDestinationChanged(AppDestination.ROOT) },
+    )
     BackHandler(
         enabled = !profileEditorOpen &&
             currentSection == AppSection.MEASUREMENTS &&
@@ -351,9 +371,22 @@ internal fun HuaweiMiSyncScaffold(
                 topBar = {
                     if (showTopBar) {
                         HuaweiTopBar(
-                            title = if (profileEditorOpen) "Профиль" else currentSection.title,
-                            showBack = profileEditorOpen,
-                            onBack = onCloseProfile,
+                            title = when {
+                                profileEditorOpen -> "Профиль"
+                                changelogOpen -> "История изменений"
+                                else -> currentSection.title
+                            },
+                            showBack = profileEditorOpen || changelogOpen,
+                            onBack = if (changelogOpen) {
+                                { onDestinationChanged(AppDestination.ROOT) }
+                            } else {
+                                onCloseProfile
+                            },
+                            backContentDescription = if (changelogOpen) {
+                                "Вернуться к настройкам"
+                            } else {
+                                "Закрыть редактор профиля"
+                            },
                             showMeasurementActions = !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
@@ -392,6 +425,8 @@ internal fun HuaweiMiSyncScaffold(
                         onSexChanged = onProfileSexChanged,
                         contentPadding = padding,
                     )
+
+                    changelogOpen -> ChangelogScreen(contentPadding = padding)
 
                     currentSection == AppSection.SETTINGS -> SettingsScreen(
                         state = state,
@@ -459,6 +494,7 @@ private fun HuaweiTopBar(
     title: String,
     showBack: Boolean,
     onBack: () -> Unit,
+    backContentDescription: String,
     showMeasurementActions: Boolean,
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
@@ -473,7 +509,7 @@ private fun HuaweiTopBar(
             if (showBack) {
                 HuaweiIconButton(
                     icon = HuaweiIcons.Back,
-                    contentDescription = "Закрыть редактор профиля",
+                    contentDescription = backContentDescription,
                     onClick = onBack,
                 )
             }

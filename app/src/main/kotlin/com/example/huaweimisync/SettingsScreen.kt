@@ -65,6 +65,7 @@ import java.util.Locale
 
 internal data class SettingsCallbacks(
     val onOpenProfile: () -> Unit = {},
+    val onOpenChangelog: () -> Unit = {},
     val onHuaweiAuthorization: () -> Unit,
     val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
@@ -100,6 +101,7 @@ internal data class IntegrationPresentation(
 )
 
 internal object SettingsScreenTestTags {
+    const val List = "settings-list"
     const val ProfileRow = "settings-profile-row"
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
@@ -108,6 +110,7 @@ internal object SettingsScreenTestTags {
     const val HuaweiHealthAction = "settings-huawei-health-action"
     const val AdditionalToggle = "settings-additional-toggle"
     const val AdditionalContent = "settings-additional-content"
+    const val ChangelogRow = "settings-changelog-row"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
 }
@@ -206,7 +209,11 @@ internal fun SettingsScreen(
         contentAlignment = Alignment.TopCenter,
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxHeight().fillMaxWidth().widthIn(max = 720.dp),
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .widthIn(max = 720.dp)
+                .testTag(SettingsScreenTestTags.List),
             contentPadding = PaddingValues(
                 start = HuaweiDimensions.ContentPadding,
                 end = HuaweiDimensions.ContentPadding,
@@ -240,6 +247,25 @@ internal fun SettingsScreen(
                     onToggle = { additionalExpansion = additionalExpansion.toggled() },
                     callbacks = callbacks,
                 )
+            }
+            item {
+                SettingsSection(title = "О приложении") {
+                    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+                        HuaweiSettingRow(
+                            icon = HuaweiIcons.Calendar,
+                            title = "История изменений",
+                            supportingText = "Что нового в версиях приложения",
+                            modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
+                            onClick = callbacks.onOpenChangelog,
+                        ) {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.ChevronRight,
+                                contentDescription = "Открыть историю изменений",
+                                onClick = callbacks.onOpenChangelog,
+                            )
+                        }
+                    }
+                }
             }
         }
     }
