@@ -166,16 +166,13 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun summaryAndHistoryCardsExpand() {
-        var state by mutableStateOf(sampleState())
-        val callbacks = callbacks(
-            onHistoryRequested = {
-                state = state.copy(destination = MeasurementsDestination.HISTORY)
-            },
-        )
+    fun summaryCardExpandsWithoutLegacyHistoryActions() {
+        val state = sampleState()
 
         composeRule.setContent {
-            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = callbacks) }
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
         }
 
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
@@ -184,11 +181,40 @@ class MeasurementsScreenTest {
         ).assertExists()
         composeRule.onNodeWithTag("summary-expand-metrics").performClick()
         composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
+        composeRule.onNodeWithTag("measurements-history-cta").assertDoesNotExist()
+        composeRule.onNodeWithText("История измерений").assertDoesNotExist()
+        composeRule.onNodeWithText("Открыть историю").assertDoesNotExist()
+    }
 
-        composeRule.onNodeWithTag("measurements-history-cta").performClick()
+    @Test
+    fun historyCardExpandsFromHistoryDestination() {
+        val state = sampleState().copy(destination = MeasurementsDestination.HISTORY)
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
         composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
         composeRule.onNodeWithText("Изменить").assertIsDisplayed()
+    }
+
+    @Test
+    fun emptySummaryOmitsLegacyHistoryActions() {
+        val state = MeasurementsUiState(isLoading = false)
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None)
+            }
+        }
+
+        composeRule.onNodeWithText("Пока нет измерений").assertIsDisplayed()
+        composeRule.onNodeWithTag("measurements-history-cta").assertDoesNotExist()
+        composeRule.onNodeWithText("История измерений").assertDoesNotExist()
+        composeRule.onNodeWithText("Открыть историю").assertDoesNotExist()
     }
 
     @Test
@@ -527,14 +553,12 @@ class MeasurementsScreenTest {
 
     private fun callbacks(
         onPendingQueueRequested: () -> Unit = {},
-        onHistoryRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
         onDeleteRequested: (String) -> Unit = {},
         onDeleteConfirmed: (String) -> Unit = {},
         onRetryRequested: (String) -> Unit = {},
     ) = MeasurementsCallbacks.None.copy(
         onPendingQueueRequested = onPendingQueueRequested,
-        onHistoryRequested = onHistoryRequested,
         onEditRequested = onEditRequested,
         onDeleteRequested = onDeleteRequested,
         onDeleteConfirmed = onDeleteConfirmed,

@@ -100,6 +100,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
+    const val HistoryAction = "measurements-history-action"
     const val ExternalSyncAction = "measurements-external-sync-action"
     const val PullToRefresh = "measurements-pull-to-refresh"
     const val PullToRefreshIndicator = "measurements-pull-to-refresh-indicator"
@@ -351,6 +352,7 @@ internal fun HuaweiMiSyncScaffold(
                             showMeasurementActions = !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
+                            onHistoryRequested = measurementsCallbacks.onHistoryRequested,
                             isExternalSyncPaused = state.isExternalSyncPaused,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
@@ -450,6 +452,7 @@ private fun HuaweiTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
     showMeasurementActions: Boolean,
+    onHistoryRequested: () -> Unit,
     isExternalSyncPaused: Boolean,
     onToggleExternalSyncPause: () -> Unit,
 ) {
@@ -467,6 +470,12 @@ private fun HuaweiTopBar(
         },
         actions = {
             if (showMeasurementActions) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Calendar,
+                    contentDescription = "Открыть историю измерений",
+                    onClick = onHistoryRequested,
+                    modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
+                )
                 HuaweiIconButton(
                     icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
                     contentDescription = if (isExternalSyncPaused) {

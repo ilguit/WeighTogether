@@ -15,6 +15,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -40,6 +41,7 @@ import com.example.huaweimisync.measurements.MeasurementsUiState
 import com.example.huaweimisync.measurements.buildMeasurementSummary
 import java.time.Instant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -48,16 +50,20 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarOmitsBluetoothAndKeepsPausePlayActionWithSemantics() {
+    fun summaryTopBarShowsHistoryBeforePausePlayWithSemantics() {
+        var historyClicks = 0
         var pauseClicks = 0
         val paused = mutableStateOf(false)
+        val callbacks = MeasurementsCallbacks.None.copy(
+            onHistoryRequested = { historyClicks += 1 },
+        )
 
         composeRule.setContent {
             HuaweiMiSyncScaffold(
                 state = MainUiState(isExternalSyncPaused = paused.value),
                 currentSection = AppSection.MEASUREMENTS,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
-                measurementsCallbacks = MeasurementsCallbacks.None,
+                measurementsCallbacks = callbacks,
                 snackbarHostState = remember { SnackbarHostState() },
                 onSectionSelected = {},
                 onCloseProfile = {},
@@ -77,7 +83,17 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithContentDescription("Подключиться к весам по Bluetooth")
             .assertDoesNotExist()
-        composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
+        val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
+        val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
+        assertTrue(
+            "History action must be immediately before external sync action",
+            historyAction.getUnclippedBoundsInRoot().right <=
+                externalSyncAction.getUnclippedBoundsInRoot().left,
+        )
+        historyAction
+            .assertContentDescriptionEquals("Открыть историю измерений")
+            .performClick()
+        externalSyncAction
             .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию на 5 минут")
             .performClick()
         composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
@@ -85,6 +101,7 @@ class MeasurementsShellNavigationUiTest {
             .performClick()
 
         composeRule.runOnIdle {
+            assertEquals(1, historyClicks)
             assertEquals(2, pauseClicks)
         }
     }
@@ -187,7 +204,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
-        composeRule.onNodeWithTag("measurements-history-cta").performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
 
         composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
         composeRule.onNodeWithText("История").assertIsDisplayed()
@@ -214,7 +231,7 @@ class MeasurementsShellNavigationUiTest {
         composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
 
-        composeRule.onNodeWithTag("measurements-history-cta").performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
         composeRule.onNodeWithText("Изменить").performClick()
         assertNestedEditorChrome()

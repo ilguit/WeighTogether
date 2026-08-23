@@ -352,7 +352,6 @@ private fun MeasurementSummaryScreen(
             state.hasNoLatestMeasurement -> NoLatestMeasurementState(
                 pendingCount = state.pendingCount,
                 onPendingQueueRequested = callbacks.onPendingQueueRequested,
-                onHistoryRequested = callbacks.onHistoryRequested,
             )
 
             state.summary != null -> {
@@ -402,18 +401,6 @@ private fun MeasurementSummaryScreen(
                                 state = homeKgChart,
                                 onSeriesToggled = callbacks.onHomeKgChartSeriesToggled,
                             )
-                        }
-                    }
-                    item {
-                        OutlinedButton(
-                            onClick = callbacks.onHistoryRequested,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = HuaweiDimensions.TouchTarget)
-                                .testTag("measurements-history-cta"),
-                            shape = MaterialTheme.shapes.medium,
-                        ) {
-                            Text("История измерений")
                         }
                     }
                     item { Spacer(Modifier.height(12.dp)) }
@@ -1319,7 +1306,6 @@ private fun NestedScreenHeader(
 private fun NoLatestMeasurementState(
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
-    onHistoryRequested: () -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize(),
@@ -1356,13 +1342,6 @@ private fun NoLatestMeasurementState(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
-                    OutlinedButton(
-                        onClick = onHistoryRequested,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-                        shape = MaterialTheme.shapes.medium,
-                    ) {
-                        Text("Открыть историю")
-                    }
                 }
             }
         }
