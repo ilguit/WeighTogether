@@ -71,3 +71,14 @@ artifact, а затем создаёт annotated Git-тег `apk/<versionName>`.
   "versionName": "0.1.6"
 }
 ```
+
+### Фрагменты релизных заметок
+
+Каждая задача во время реализации добавляет пользовательский или технический
+YAML-фрагмент в `.release-notes/`. Полный контракт и примеры находятся в
+`.release-notes/README.md`. Перед передачей задачи на ревью запустите локальную
+проверку, не использующую GitHub API:
+
+```bash
+.github/scripts/validate-release-note-fragments.sh
+```
