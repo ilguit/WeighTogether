@@ -14,6 +14,27 @@ class ReleaseHistoryGeneratorTest {
     lateinit var directory: Path
 
     @Test
+    fun `uses baseline boundary when repository has no release tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        git.fragment(25, "generated-history", true, "Автоматическая история версий")
+        git.commit("Generate release history (#25)")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение")))),
+        )
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.7", ReleaseFlavor.PERSONAL, baseline)
+
+        assertEquals(listOf("0.1.7", "0.1.5"), history.releases.map { it.version })
+        assertEquals(listOf(25), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
     fun `builds newest-first history from annotated first-parent tags`() {
         val git = TestGit(directory)
         git.init()

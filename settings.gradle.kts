@@ -1,4 +1,5 @@
 pluginManagement {
+    includeBuild("tools/release-history-generator")
     repositories {
         google()
         mavenCentral()
@@ -17,4 +18,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "HuaweiMiSync"
 include(":app", ":core")
-

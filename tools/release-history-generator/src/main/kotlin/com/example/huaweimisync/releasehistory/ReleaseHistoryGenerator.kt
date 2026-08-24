@@ -4,15 +4,27 @@ class ReleaseHistoryGenerator(
     private val repository: GitRepository,
     private val fragmentParser: FragmentParser = FragmentParser(),
 ) {
-    fun generate(headRevision: String, currentVersion: String, flavor: ReleaseFlavor): GeneratedHistory {
+    fun generate(
+        headRevision: String,
+        currentVersion: String,
+        flavor: ReleaseFlavor,
+        baseline: ReleaseHistoryBaseline? = null,
+    ): GeneratedHistory {
         val head = repository.resolve(headRevision)
         val tags = repository.reachableAnnotatedApkTags(head)
-        val points = listOf(ReleasePoint(currentVersion, head)) + tags.map { ReleasePoint(it.version, it.commitSha) }
+        baseline?.let {
+            if (!repository.isAncestor(it.boundaryCommit, head)) {
+                throw GenerationException("Baseline boundary ${it.boundaryCommit} is not an ancestor of $head")
+            }
+        }
+        val taggedPoints = tags.filter { baseline == null || repository.isAncestor(baseline.boundaryCommit, it.commitSha) }
+            .map { ReleasePoint(it.version, it.commitSha) }
+        val points = listOf(ReleasePoint(currentVersion, head)) + taggedPoints
         val releases = points.mapIndexed { index, point ->
-            val base = points.getOrNull(index + 1)?.commitSha
+            val base = points.getOrNull(index + 1)?.commitSha ?: baseline?.boundaryCommit
             generateRelease(point, base, flavor)
         }
-        return GeneratedHistory(releases)
+        return GeneratedHistory(releases + baseline.orEmpty())
     }
 
     private fun generateRelease(point: ReleasePoint, exclusiveBase: String?, flavor: ReleaseFlavor): GeneratedRelease {
@@ -54,6 +66,8 @@ class ReleaseHistoryGenerator(
     }
 
     private data class ReleasePoint(val version: String, val commitSha: String)
+
+    private fun ReleaseHistoryBaseline?.orEmpty(): List<GeneratedRelease> = this?.releases.orEmpty()
 
     private companion object {
         val ISSUE_SUFFIX = Regex("\\(#([1-9][0-9]*)\\)(?=\\s*$)")

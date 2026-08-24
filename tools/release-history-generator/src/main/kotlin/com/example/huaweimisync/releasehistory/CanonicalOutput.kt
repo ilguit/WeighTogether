@@ -23,18 +23,17 @@ object CanonicalOutput {
 
     fun kotlinSource(history: GeneratedHistory, packageName: String): String = buildString {
         append("package ").append(packageName).append("\n\n")
-        append("internal object GeneratedAppReleaseHistory {\n")
+        append("object AppReleaseHistory {\n")
         append("    val releases: List<AppRelease> = listOf(")
         history.releases.forEachIndexed { releaseIndex, release ->
             if (releaseIndex > 0) append(',')
             append("\n        AppRelease(\n")
             append("            version = ").append(kotlinString(release.version)).append(",\n")
-            append("            commitSha = ").append(kotlinString(release.commitSha)).append(",\n")
             append("            changes = listOf(")
             release.changes.forEachIndexed { changeIndex, change ->
                 if (changeIndex > 0) append(',')
-                append("\n                ReleaseChange(issue = ").append(change.issue)
-                    .append(", text = ").append(kotlinString(change.text)).append(')')
+                append("\n                ReleaseChange(issueNumber = ").append(change.issue)
+                    .append(", description = ").append(kotlinString(change.text)).append(')')
             }
             if (release.changes.isNotEmpty()) append('\n').append("            ")
             append(")\n        )")
