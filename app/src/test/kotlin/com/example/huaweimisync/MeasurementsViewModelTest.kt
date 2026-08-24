@@ -11,7 +11,11 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.measurements.MeasurementDeleteConfirmation
+import com.example.huaweimisync.measurements.MeasurementEditorDraft
 import com.example.huaweimisync.measurements.MeasurementEditorOrigin
+import com.example.huaweimisync.measurements.MeasurementEditorState
+import com.example.huaweimisync.measurements.MeasurementUiType
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsNavigationState
 import java.time.Instant
@@ -23,27 +27,54 @@ import org.junit.Test
 
 class MeasurementsViewModelTest {
     @Test
-    fun accountSelectionTransitionPreservesHistoryAndClearsTransientState() {
-        val transition = accountSelectionUiTransition(
-            MeasurementsNavigationState().showHistory(),
+    fun newAccountSnapshotPreservesHistoryAndAtomicallyClearsOldEditorAndDelete() {
+        val oldAccount = AccountId("account-a")
+        val editor = MeasurementEditorState(
+            measurementId = "old-measurement",
+            measuredAtEpochSecond = 1L,
+            draft = MeasurementEditorDraft.fromWeight(70.0),
+            type = MeasurementUiType.WEIGHT_ONLY,
+        )
+        val stale = MeasurementsInteractionState(
+            accountId = oldAccount,
+            navigation = MeasurementsNavigationState()
+                .showHistory()
+                .showEditor(MeasurementEditorOrigin.HISTORY),
+            editor = editor,
+            deleteConfirmation = MeasurementDeleteConfirmation(
+                measurementId = "old-measurement",
+                measuredAtEpochSecond = 1L,
+                weightKg = 70.0,
+            ),
         )
 
-        assertEquals(MeasurementsDestination.HISTORY, transition.navigation.destination)
-        assertEquals(null, transition.editor)
-        assertEquals(null, transition.deleteConfirmation)
+        val normalized = stale.normalizedFor(AccountId("account-b"))
+
+        assertEquals(AccountId("account-b"), normalized.accountId)
+        assertEquals(MeasurementsDestination.HISTORY, normalized.navigation.destination)
+        assertEquals(null, normalized.editor)
+        assertEquals(null, normalized.deleteConfirmation)
     }
 
     @Test
-    fun accountSelectionTransitionClosesEditorToHistoryOrigin() {
-        val transition = accountSelectionUiTransition(
-            MeasurementsNavigationState()
-                .showHistory()
-                .showEditor(MeasurementEditorOrigin.HISTORY),
+    fun staleDeleteOperationCannotAttachConfirmationToNewAccount() {
+        val confirmation = MeasurementDeleteConfirmation(
+            measurementId = "old-measurement",
+            measuredAtEpochSecond = 1L,
+            weightKg = 70.0,
+        )
+        val current = MeasurementsInteractionState(
+            accountId = AccountId("account-b"),
+            navigation = MeasurementsNavigationState().showHistory(),
         )
 
-        assertEquals(MeasurementsDestination.HISTORY, transition.navigation.destination)
-        assertEquals(null, transition.editor)
-        assertEquals(null, transition.deleteConfirmation)
+        val rejected = current.withDeleteConfirmation(
+            ownerAccountId = AccountId("account-a"),
+            confirmation = confirmation,
+        )
+
+        assertEquals(current, rejected)
+        assertEquals(null, rejected.deleteConfirmation)
     }
 
     @Test

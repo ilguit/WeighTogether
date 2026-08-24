@@ -35,7 +35,6 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.PendingMeasurementReadinessSnapshot
 import com.example.huaweimisync.domain.withPendingMeasurementReadiness
-import com.example.huaweimisync.ui.accounts.AccountSelectionChangeTracker
 import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import com.example.huaweimisync.ui.accounts.reconcileAccountSelection
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
@@ -47,7 +46,6 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
@@ -120,21 +118,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             SharingStarted.WhileSubscribed(),
             PendingMeasurementReadinessSnapshot(emptyList(), Instant.EPOCH),
         )
-    private val navigation = MutableStateFlow(MeasurementsNavigationState())
-    private val editor = MutableStateFlow<MeasurementEditorState?>(null)
-    private val deleteConfirmation = MutableStateFlow<MeasurementDeleteConfirmation?>(null)
+    private val interaction = MutableStateFlow(MeasurementsInteractionState())
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
-    private val accountSelectionChanges = AccountSelectionChangeTracker()
-
-    init {
-        viewModelScope.launch {
-            accountSelector.collectLatest { selector ->
-                if (!selector.isLoading && accountSelectionChanges.update(selector.selectedAccountId)) {
-                    resetAccountScopedUi()
-                }
-            }
-        }
-    }
 
     val events = eventChannel.receiveAsFlow()
 
@@ -182,22 +167,24 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     val uiState = combine(
         presentationWithPending,
-        navigation,
-        editor,
-        deleteConfirmation,
-    ) { current, currentNavigation, currentEditor, deletion ->
+        interaction,
+    ) { current, rawInteraction ->
+        val currentInteraction = rawInteraction.normalizedFor(
+            current.accountSelector.selectedAccountId,
+        )
+        val deletion = currentInteraction.deleteConfirmation
         val deletingId = deletion?.measurementId.takeIf { deletion?.isDeleting == true }
         val items = if (deletingId == null) current.items else current.items.map { item ->
             item.copy(isOperationInProgress = item.id == deletingId)
         }
         MeasurementsUiState(
-            destination = currentNavigation.destination,
-            editorOrigin = currentNavigation.editorOrigin,
+            destination = currentInteraction.navigation.destination,
+            editorOrigin = currentInteraction.navigation.editorOrigin,
             measurements = items,
             summary = current.summary,
             pendingMeasurements = current.pending,
             isLoading = current.loadState is AccountScopedLoad.Loading,
-            editor = currentEditor,
+            editor = currentInteraction.editor,
             deleteConfirmation = deletion,
             homeKgChart = current.homeKgChart,
             accountSelector = current.accountSelector,
@@ -234,56 +221,71 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         container.selectedAccountId.value = accountId
     }
 
-    private fun resetAccountScopedUi() {
-        val transition = accountSelectionUiTransition(navigation.value)
-        navigation.value = transition.navigation
-        editor.value = transition.editor
-        deleteConfirmation.value = transition.deleteConfirmation
+    private fun currentInteraction(): MeasurementsInteractionState {
+        val accountId = measurements.value.selection.selectedAccountId
+        interaction.update { it.normalizedFor(accountId) }
+        return interaction.value
     }
 
     private fun showSummary() {
-        if (editor.value?.isSaving == true) return
-        navigation.update(MeasurementsNavigationState::showSummary)
-        editor.value = null
+        val current = currentInteraction()
+        if (current.editor?.isSaving == true) return
+        interaction.value = current.copy(
+            navigation = current.navigation.showSummary(),
+            editor = null,
+        )
     }
 
     private fun showHistory() {
-        if (editor.value?.isSaving == true) return
-        navigation.update(MeasurementsNavigationState::showHistory)
-        editor.value = null
+        val current = currentInteraction()
+        if (current.editor?.isSaving == true) return
+        interaction.value = current.copy(
+            navigation = current.navigation.showHistory(),
+            editor = null,
+        )
     }
 
     private fun showPendingQueue() {
-        if (editor.value?.isSaving == true) return
-        navigation.update(MeasurementsNavigationState::showPendingQueue)
-        editor.value = null
+        val current = currentInteraction()
+        if (current.editor?.isSaving == true) return
+        interaction.value = current.copy(
+            navigation = current.navigation.showPendingQueue(),
+            editor = null,
+        )
     }
 
     fun onPendingResolutionCompleted(
         returnDestination: PendingResolverReturnDestination,
     ) {
-        navigation.update { it.afterPendingResolution(returnDestination) }
-        if (returnDestination == PendingResolverReturnDestination.PENDING_QUEUE) {
-            editor.value = null
-        }
+        val current = currentInteraction()
+        interaction.value = current.copy(
+            navigation = current.navigation.afterPendingResolution(returnDestination),
+            editor = current.editor.takeUnless {
+                returnDestination == PendingResolverReturnDestination.PENDING_QUEUE
+            },
+        )
     }
 
     private fun navigateBack() {
-        if (navigation.value.destination == MeasurementsDestination.EDITOR) {
-            if (editor.value?.isSaving == true) return
-            navigation.update(MeasurementsNavigationState::back)
-            editor.value = null
-            return
-        }
-        navigation.update(MeasurementsNavigationState::back)
+        val current = currentInteraction()
+        if (current.navigation.destination == MeasurementsDestination.EDITOR &&
+            current.editor?.isSaving == true
+        ) return
+        interaction.value = current.copy(
+            navigation = current.navigation.back(),
+            editor = current.editor.takeUnless {
+                current.navigation.destination == MeasurementsDestination.EDITOR
+            },
+        )
     }
 
     private fun openEditor(id: String, origin: MeasurementEditorOrigin) {
+        val current = currentInteraction()
         val value = measurements.value.load.valuesOrEmpty().finalized.firstOrNull { it.id == id } ?: run {
             showMessage("Измерение уже удалено")
             return
         }
-        editor.value = MeasurementEditorState(
+        val nextEditor = MeasurementEditorState(
             measurementId = value.id,
             measuredAtEpochSecond = value.measuredAtEpochSecond,
             draft = if (value.measurementType == MeasurementType.WEIGHT_ONLY) {
@@ -293,20 +295,28 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             },
             type = value.measurementType.toUiType(),
         )
-        navigation.update { it.showEditor(origin) }
+        interaction.value = current.copy(
+            navigation = current.navigation.showEditor(origin),
+            editor = nextEditor,
+        )
     }
 
     private fun updateEditorField(field: MeasurementField, value: String) {
-        editor.update { current ->
-            current?.takeUnless { it.isSaving }?.copy(draft = current.draft.withValue(field, value))
-                ?: current
+        val normalized = currentInteraction()
+        interaction.update { current ->
+            if (current.accountId != normalized.accountId) current else current.copy(
+                editor = current.editor?.takeUnless { it.isSaving }
+                    ?.copy(draft = current.editor.draft.withValue(field, value))
+                    ?: current.editor,
+            )
         }
     }
 
     private fun saveEditor(id: String, values: MeasurementUiValues) {
-        val current = editor.value ?: return
+        val owner = currentInteraction()
+        val current = owner.editor ?: return
         if (current.measurementId != id || current.isSaving) return
-        editor.value = current.copy(isSaving = true)
+        interaction.value = owner.copy(editor = current.copy(isSaving = true))
         viewModelScope.launch {
             val result = if (current.isWeightOnly) {
                 repository.updateWeightOnly(id, values.weightKg)
@@ -316,22 +326,22 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             }
             when (result) {
                 MeasurementMutationResult.Success -> {
-                    closeEditor()
+                    closeOwnedEditor(owner.accountId, id)
                     showMessage("Локальное измерение изменено")
                 }
 
                 MeasurementMutationResult.NotFound -> {
-                    closeEditor()
+                    closeOwnedEditor(owner.accountId, id)
                     showMessage("Измерение уже удалено")
                 }
 
                 MeasurementMutationResult.Invalid -> {
-                    editor.update { it?.copy(isSaving = false) }
+                    updateOwnedEditor(owner.accountId) { it.copy(isSaving = false) }
                     showMessage("Проверьте введённые значения")
                 }
 
                 MeasurementMutationResult.ProtectedLatest -> {
-                    editor.update { it?.copy(isSaving = false) }
+                    updateOwnedEditor(owner.accountId) { it.copy(isSaving = false) }
                     showMessage("Не удалось изменить измерение")
                 }
             }
@@ -339,10 +349,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun dismissEditor() {
-        if (editor.value?.isSaving != true) navigateBack()
+        if (currentInteraction().editor?.isSaving != true) navigateBack()
     }
 
     private fun requestDelete(id: String) {
+        val owner = currentInteraction()
         val values = measurements.value.load.valuesOrEmpty().finalized
         if (values.none { it.id == id }) {
             showMessage("Измерение уже удалено")
@@ -359,38 +370,74 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 MeasurementDeleteRequest.NotFound -> showMessage("Измерение уже удалено")
                 MeasurementDeleteRequest.ProtectedLatest -> showProtectedLatestMessage()
                 is MeasurementDeleteRequest.Confirm -> {
-                    deleteConfirmation.value = request.confirmation
+                    interaction.update { current ->
+                        current.withDeleteConfirmation(
+                            ownerAccountId = owner.accountId,
+                            confirmation = request.confirmation,
+                        )
+                    }
                 }
             }
         }
     }
 
     private fun confirmDelete(id: String) {
-        val confirmation = deleteConfirmation.value ?: return
+        val owner = currentInteraction()
+        val confirmation = owner.deleteConfirmation ?: return
         if (confirmation.measurementId != id || confirmation.isDeleting) return
-        deleteConfirmation.value = confirmation.copy(isDeleting = true)
+        interaction.value = owner.copy(
+            deleteConfirmation = confirmation.copy(isDeleting = true),
+        )
         viewModelScope.launch {
             showMessage(measurementDeleteResultMessage(repository.delete(id)))
-            deleteConfirmation.value = null
+            interaction.update { current ->
+                if (current.accountId == owner.accountId) {
+                    current.copy(deleteConfirmation = null)
+                } else current
+            }
         }
     }
 
     private fun dismissDelete() {
-        if (deleteConfirmation.value?.isDeleting != true) deleteConfirmation.value = null
+        val current = currentInteraction()
+        if (current.deleteConfirmation?.isDeleting != true) {
+            interaction.value = current.copy(deleteConfirmation = null)
+        }
     }
 
-    private fun retry(id: String) = viewModelScope.launch {
-        repository.retry(id)
-        showMessage("Повторная отправка поставлена в очередь")
+    private fun retry(id: String) {
+        currentInteraction()
+        if (measurements.value.load.valuesOrEmpty().finalized.none { it.id == id }) return
+        viewModelScope.launch {
+            repository.retry(id)
+            showMessage("Повторная отправка поставлена в очередь")
+        }
     }
 
     private fun showMessage(message: String) {
         eventChannel.trySend(MeasurementsUiEvent.ShowSnackbar(message))
     }
 
-    private fun closeEditor() {
-        navigation.update(MeasurementsNavigationState::back)
-        editor.value = null
+    private fun closeOwnedEditor(accountId: AccountId?, measurementId: String) {
+        interaction.update { current ->
+            if (current.accountId == accountId && current.editor?.measurementId == measurementId) {
+                current.copy(
+                    navigation = current.navigation.back(),
+                    editor = null,
+                )
+            } else current
+        }
+    }
+
+    private fun updateOwnedEditor(
+        accountId: AccountId?,
+        transform: (MeasurementEditorState) -> MeasurementEditorState,
+    ) {
+        interaction.update { current ->
+            if (current.accountId == accountId && current.editor != null) {
+                current.copy(editor = transform(current.editor))
+            } else current
+        }
     }
 
     private fun showProtectedLatestMessage() {
@@ -403,17 +450,29 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 }
 
-internal data class AccountSelectionUiTransition(
-    val navigation: MeasurementsNavigationState,
+internal data class MeasurementsInteractionState(
+    val accountId: AccountId? = null,
+    val navigation: MeasurementsNavigationState = MeasurementsNavigationState(),
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
-)
+) {
+    fun normalizedFor(accountId: AccountId?): MeasurementsInteractionState =
+        if (this.accountId == accountId) this else copy(
+            accountId = accountId,
+            navigation = navigation.afterAccountSelectionChanged(),
+            editor = null,
+            deleteConfirmation = null,
+        )
 
-internal fun accountSelectionUiTransition(
-    navigation: MeasurementsNavigationState,
-): AccountSelectionUiTransition = AccountSelectionUiTransition(
-    navigation = navigation.afterAccountSelectionChanged(),
-)
+    fun withDeleteConfirmation(
+        ownerAccountId: AccountId?,
+        confirmation: MeasurementDeleteConfirmation,
+    ): MeasurementsInteractionState = if (accountId == ownerAccountId) {
+        copy(deleteConfirmation = confirmation)
+    } else {
+        this
+    }
+}
 
 internal fun unassignedPendingMeasurements(
     values: List<PendingMeasurement>,
