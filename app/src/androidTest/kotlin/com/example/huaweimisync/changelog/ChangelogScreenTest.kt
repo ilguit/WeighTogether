@@ -21,26 +21,35 @@ class ChangelogScreenTest {
     fun screenShowsReleaseDetailsInNewestFirstOrder() {
         setContent()
 
-        composeRule.onNodeWithText("Версия 0.1.5").assertIsDisplayed()
-        composeRule.onNodeWithText("Новые измерения отображаются сразу во время обработки").assertIsDisplayed()
-        composeRule.onNodeWithText("Задача #3").assertIsDisplayed()
+        composeRule.onNodeWithText("Версия 0.1.10").assertIsDisplayed()
+        composeRule.onNodeWithText("История версий теперь формируется автоматически из релизных заметок")
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Задача #25").assertIsDisplayed()
 
         val newestTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.5"))
+            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.10"))
             .fetchSemanticsNode().boundsInRoot.top
         val previousTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.4"))
+            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.6"))
             .fetchSemanticsNode().boundsInRoot.top
         assertTrue(newestTop < previousTop)
     }
 
     @Test
-    fun listScrollsToOldestRelease() {
+    fun listContainsCompleteHistoryIncludingVersion016() {
         setContent()
 
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.release("0.1.1")).assertDoesNotExist()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(4)
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.release("0.1.1")).assertIsDisplayed()
+        val versions = listOf("0.1.10", "0.1.6", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1")
+        versions.forEachIndexed { index, version ->
+            composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(index)
+            composeRule.onNodeWithTag(ChangelogScreenTestTags.release(version)).assertIsDisplayed()
+        }
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(1)
+        composeRule.onNodeWithText("Задача #19").assertIsDisplayed()
+        composeRule.onNodeWithText("Задача #20").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(6)
         composeRule.onNodeWithText("Задача #11").assertIsDisplayed()
     }
 

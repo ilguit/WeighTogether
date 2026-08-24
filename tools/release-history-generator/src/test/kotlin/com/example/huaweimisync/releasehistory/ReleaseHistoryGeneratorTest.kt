@@ -24,7 +24,17 @@ class ReleaseHistoryGeneratorTest {
         git.commit("Generate release history (#25)")
         val baseline = ReleaseHistoryBaseline(
             boundary,
-            listOf(GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение")))),
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение"))),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.UNKNOWN,
+                        boundaryCommit = null,
+                        candidateCommit = boundary,
+                        source = "test candidate",
+                    ),
+                ),
+            ),
         )
 
         val history = ReleaseHistoryGenerator(GitRepository(directory))
