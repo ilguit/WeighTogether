@@ -6,6 +6,7 @@ import com.example.huaweimisync.domain.PendingDiscardUndoToken
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.RestorePendingResult
 import com.example.huaweimisync.sync.HuaweiPermissionCheckResult
+import com.example.huaweimisync.ui.routing.PendingResolverCompletion
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -63,6 +64,20 @@ internal class MainUiEventEmitter {
             ).isSuccess,
         ) { "Main UI event channel is closed" }
     }
+}
+
+/**
+ * Successful assignment is already reflected by the persisted measurement and resolver closure.
+ * Keep that completion signal, but do not add a redundant transient success notification.
+ */
+internal fun completeSuccessfulPendingAssignment(
+    completion: PendingResolverCompletion,
+    eventEmitter: MainUiEventEmitter,
+) {
+    eventEmitter.pendingResolutionCompleted(
+        pendingId = completion.pendingId,
+        returnDestination = completion.returnDestination,
+    )
 }
 
 internal const val SCALE_REFRESH_SCALE_REQUIRED_MESSAGE =

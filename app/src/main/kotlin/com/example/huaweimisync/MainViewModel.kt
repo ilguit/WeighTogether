@@ -564,7 +564,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 when (container.repository.finalizePending(pendingId, accountId)) {
                     is FinalizePendingResult.Finalized -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение назначено аккаунту")
                     }
                     is FinalizePendingResult.AlreadyFinalized -> {
                         completePendingResolution(completion)
@@ -1064,10 +1063,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun completePendingResolution(completion: PendingResolverCompletion) {
         clearResolverSession(completion.pendingId)
-        eventEmitter.pendingResolutionCompleted(
-            pendingId = completion.pendingId,
-            returnDestination = completion.returnDestination,
-        )
+        completeSuccessfulPendingAssignment(completion, eventEmitter)
     }
 
     private fun clearResolverSession(pendingId: PendingMeasurementId? = null) {
