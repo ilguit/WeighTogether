@@ -252,10 +252,12 @@ class RoomMeasurementPersistence(
             when (candidate) {
                 is DeduplicationCandidate.Tombstone ->
                     return@withTransaction PendingPersistenceResult.Tombstoned
-                is DeduplicationCandidate.Finalized ->
-                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                        candidate.entity.toAccountMeasurement(),
-                    )
+                is DeduplicationCandidate.Finalized -> {
+                    return@withTransaction upgradeFinalizedMeasurement(candidate.entity, raw)
+                        ?: PendingPersistenceResult.AlreadyFinalized(
+                            candidate.entity.toAccountMeasurement(),
+                        )
+                }
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
                     val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
@@ -329,67 +331,10 @@ class RoomMeasurementPersistence(
                         minimumEpochSecond = enrichmentBounds.first,
                         maximumEpochSecond = enrichmentBounds.last,
                     )
-                if (finalizedCandidate?.measurementType == MeasurementType.FULL &&
-                    finalizedCandidate.rawPayloadHex == raw.rawPayload.toHexString()
-                ) {
-                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                        finalizedCandidate.toAccountMeasurement(),
-                    )
-                }
-                if (finalizedCandidate != null && MeasurementEnrichmentPolicy.canEnrich(
-                        finalizedCandidate.toRawScaleMeasurement(),
-                        raw,
-                    )
-                ) {
-                    val account = accountDao.get(finalizedCandidate.accountId)
-                    val profile = account?.toDomain()?.profile?.toUserProfileOrNull()
-                    if (profile == null) {
-                        return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                            finalizedCandidate.toAccountMeasurement(),
-                        )
+                if (finalizedCandidate != null) {
+                    upgradeFinalizedMeasurement(finalizedCandidate, raw)?.let {
+                        return@withTransaction it
                     }
-                    val compositionRaw = raw.copy(
-                        measuredAt = finalizedCandidate.measuredAt,
-                    )
-                    val calculated = calculator.calculate(compositionRaw, profile).toEntity(
-                        rawPayload = raw.rawPayload,
-                        fingerprint = finalizedCandidate.fingerprint,
-                        huaweiSyncEnabled = huaweiSyncEnabled,
-                        accountId = AccountId(finalizedCandidate.accountId),
-                        externalSyncPolicy = ExternalSyncPolicy.valueOf(
-                            finalizedCandidate.externalSyncPolicy,
-                        ),
-                        sourcePendingId = finalizedCandidate.sourcePendingId,
-                        deduplicationHash = finalizedCandidate.deduplicationHash,
-                    )
-                    val upgraded = calculated.copy(
-                        id = finalizedCandidate.id,
-                        huaweiStatus = finalizedCandidate.huaweiStatus.requeueUnlessTerminal(),
-                        healthConnectStatus = finalizedCandidate.healthConnectStatus
-                            .requeueUnlessTerminal(),
-                        huaweiError = finalizedCandidate.huaweiError.preserveForTerminalStatus(
-                            finalizedCandidate.huaweiStatus,
-                        ),
-                        healthConnectError = finalizedCandidate.healthConnectError
-                            .preserveForTerminalStatus(finalizedCandidate.healthConnectStatus),
-                        huaweiWeightSynced = finalizedCandidate.huaweiWeightSynced,
-                        healthConnectWeightSynced = finalizedCandidate.healthConnectWeightSynced,
-                        createdAtEpochMillis = finalizedCandidate.createdAtEpochMillis,
-                        accountId = finalizedCandidate.accountId,
-                        externalSyncPolicy = finalizedCandidate.externalSyncPolicy,
-                        sourcePendingId = finalizedCandidate.sourcePendingId,
-                        deduplicationHash = finalizedCandidate.deduplicationHash,
-                        huaweiSyncedCalculatedValues = finalizedCandidate
-                            .huaweiSyncedCalculatedValues,
-                        healthConnectSyncedCalculatedValues = finalizedCandidate
-                            .healthConnectSyncedCalculatedValues,
-                    )
-                    check(measurementDao.update(upgraded) == 1) {
-                        "Finalized measurement disappeared during enrichment"
-                    }
-                    return@withTransaction PendingPersistenceResult.UpgradedFinalized(
-                        upgraded.toAccountMeasurement(),
-                    )
                 }
             }
             val entity = PendingMeasurementEntity(
@@ -413,6 +358,56 @@ class RoomMeasurementPersistence(
                 PendingPersistenceResult.Inserted(entity.toDomain())
             }
         }
+
+    private suspend fun upgradeFinalizedMeasurement(
+        candidate: MeasurementEntity,
+        incoming: RawScaleMeasurement,
+    ): PendingPersistenceResult? {
+        if (candidate.measurementType == MeasurementType.FULL &&
+            candidate.rawPayloadHex == incoming.rawPayload.toHexString()
+        ) {
+            return PendingPersistenceResult.AlreadyFinalized(candidate.toAccountMeasurement())
+        }
+        if (!MeasurementEnrichmentPolicy.canEnrich(candidate.toRawScaleMeasurement(), incoming)) {
+            return null
+        }
+
+        val account = accountDao.get(candidate.accountId)
+        val profile = account?.toDomain()?.profile?.toUserProfileOrNull()
+            ?: return PendingPersistenceResult.AlreadyFinalized(candidate.toAccountMeasurement())
+        val compositionRaw = incoming.copy(measuredAt = candidate.measuredAt)
+        val calculated = calculator.calculate(compositionRaw, profile).toEntity(
+            rawPayload = incoming.rawPayload,
+            fingerprint = candidate.fingerprint,
+            huaweiSyncEnabled = huaweiSyncEnabled,
+            accountId = AccountId(candidate.accountId),
+            externalSyncPolicy = ExternalSyncPolicy.valueOf(candidate.externalSyncPolicy),
+            sourcePendingId = candidate.sourcePendingId,
+            deduplicationHash = candidate.deduplicationHash,
+        )
+        val upgraded = calculated.copy(
+            id = candidate.id,
+            huaweiStatus = candidate.huaweiStatus.requeueUnlessTerminal(),
+            healthConnectStatus = candidate.healthConnectStatus.requeueUnlessTerminal(),
+            huaweiError = candidate.huaweiError.preserveForTerminalStatus(candidate.huaweiStatus),
+            healthConnectError = candidate.healthConnectError.preserveForTerminalStatus(
+                candidate.healthConnectStatus,
+            ),
+            huaweiWeightSynced = candidate.huaweiWeightSynced,
+            healthConnectWeightSynced = candidate.healthConnectWeightSynced,
+            createdAtEpochMillis = candidate.createdAtEpochMillis,
+            accountId = candidate.accountId,
+            externalSyncPolicy = candidate.externalSyncPolicy,
+            sourcePendingId = candidate.sourcePendingId,
+            deduplicationHash = candidate.deduplicationHash,
+            huaweiSyncedCalculatedValues = candidate.huaweiSyncedCalculatedValues,
+            healthConnectSyncedCalculatedValues = candidate.healthConnectSyncedCalculatedValues,
+        )
+        check(measurementDao.update(upgraded) == 1) {
+            "Finalized measurement disappeared during enrichment"
+        }
+        return PendingPersistenceResult.UpgradedFinalized(upgraded.toAccountMeasurement())
+    }
 
     override suspend fun finalizePending(
         pendingId: PendingMeasurementId,
