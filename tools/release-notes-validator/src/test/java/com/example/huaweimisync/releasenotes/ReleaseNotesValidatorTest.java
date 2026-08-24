@@ -25,6 +25,18 @@ class ReleaseNotesValidatorTest {
     }
 
     @Test
+    void ignoresOnlyReservedSupportFiles() throws Exception {
+        fragment("README.md", "Documentation\n");
+        fragment("template.yaml.example", "issue: ISSUE_NUMBER\n");
+        fragment("24-change.yaml", visible(24));
+
+        assertEquals(1, validator.validate(repositoryRoot));
+
+        fragment("notes.txt", "Documentation\n");
+        assertInvalid("filename must match");
+    }
+
+    @Test
     void rejectsMissingFragmentDirectory() {
         assertInvalid("required directory");
     }

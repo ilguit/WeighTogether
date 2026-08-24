@@ -28,6 +28,7 @@ public final class ReleaseNotesValidator {
     private static final Pattern CYRILLIC = Pattern.compile(".*\\p{IsCyrillic}.*", Pattern.DOTALL);
     private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
+    private static final Set<String> SUPPORT_FILES = Set.of("README.md", "template.yaml.example");
 
     private final Load yaml = new Load(LoadSettings.builder()
             .setLabel("release-note fragment")
@@ -56,6 +57,9 @@ public final class ReleaseNotesValidator {
             if (!Files.isRegularFile(fragment)) {
                 throw error(fragment, "only regular fragment files are allowed");
             }
+            if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
+                continue;
+            }
             String lowerCaseName = fragment.getFileName().toString().toLowerCase(Locale.ROOT);
             if (!caseInsensitiveNames.add(lowerCaseName)) {
                 throw error(fragment, "filename collides case-insensitively with another fragment");
@@ -63,9 +67,14 @@ public final class ReleaseNotesValidator {
         }
 
         for (Path fragment : fragments) {
+            if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
+                continue;
+            }
             validateFragment(fragment);
         }
-        return fragments.size();
+        return Math.toIntExact(fragments.stream()
+                .filter(fragment -> !SUPPORT_FILES.contains(fragment.getFileName().toString()))
+                .count());
     }
 
     private void validateFragment(Path fragment) throws ValidationException {
