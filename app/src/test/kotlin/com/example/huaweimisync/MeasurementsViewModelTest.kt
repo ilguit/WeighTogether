@@ -11,6 +11,9 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
+import com.example.huaweimisync.measurements.MeasurementEditorOrigin
+import com.example.huaweimisync.measurements.MeasurementsDestination
+import com.example.huaweimisync.measurements.MeasurementsNavigationState
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -19,6 +22,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MeasurementsViewModelTest {
+    @Test
+    fun accountSelectionTransitionPreservesHistoryAndClearsTransientState() {
+        val transition = accountSelectionUiTransition(
+            MeasurementsNavigationState().showHistory(),
+        )
+
+        assertEquals(MeasurementsDestination.HISTORY, transition.navigation.destination)
+        assertEquals(null, transition.editor)
+        assertEquals(null, transition.deleteConfirmation)
+    }
+
+    @Test
+    fun accountSelectionTransitionClosesEditorToHistoryOrigin() {
+        val transition = accountSelectionUiTransition(
+            MeasurementsNavigationState()
+                .showHistory()
+                .showEditor(MeasurementEditorOrigin.HISTORY),
+        )
+
+        assertEquals(MeasurementsDestination.HISTORY, transition.navigation.destination)
+        assertEquals(null, transition.editor)
+        assertEquals(null, transition.deleteConfirmation)
+    }
+
     @Test
     fun protectedLatestDeleteRequestSkipsConfirmation() {
         assertEquals(

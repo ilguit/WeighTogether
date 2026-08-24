@@ -58,6 +58,13 @@ data class MeasurementsNavigationState(
         PendingResolverReturnDestination.PENDING_QUEUE -> showPendingQueue()
         PendingResolverReturnDestination.PRESERVE_CURRENT -> this
     }
+
+    fun afterAccountSelectionChanged(): MeasurementsNavigationState = when (destination) {
+        MeasurementsDestination.EDITOR -> back()
+        MeasurementsDestination.SUMMARY,
+        MeasurementsDestination.PENDING_QUEUE,
+        MeasurementsDestination.HISTORY -> this
+    }
 }
 
 enum class MeasurementEditorGroup(

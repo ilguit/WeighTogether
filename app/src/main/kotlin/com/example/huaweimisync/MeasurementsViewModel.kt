@@ -223,13 +223,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.none { it.id == accountId }) return
         container.selectedAccountId.value = accountId
-        resetAccountScopedUi()
     }
 
     private fun resetAccountScopedUi() {
-        navigation.value = MeasurementsNavigationState()
-        editor.value = null
-        deleteConfirmation.value = null
+        val transition = accountSelectionUiTransition(navigation.value)
+        navigation.value = transition.navigation
+        editor.value = transition.editor
+        deleteConfirmation.value = transition.deleteConfirmation
     }
 
     private fun showSummary() {
@@ -393,6 +393,18 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
     }
 }
+
+internal data class AccountSelectionUiTransition(
+    val navigation: MeasurementsNavigationState,
+    val editor: MeasurementEditorState? = null,
+    val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+)
+
+internal fun accountSelectionUiTransition(
+    navigation: MeasurementsNavigationState,
+): AccountSelectionUiTransition = AccountSelectionUiTransition(
+    navigation = navigation.afterAccountSelectionChanged(),
+)
 
 internal fun unassignedPendingMeasurements(
     values: List<PendingMeasurement>,
