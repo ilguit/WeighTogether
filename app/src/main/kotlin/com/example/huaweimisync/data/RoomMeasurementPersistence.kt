@@ -324,6 +324,18 @@ class RoomMeasurementPersistence(
                     )
                 }
 
+                measurementDao.findExactFinalizedFullReplay(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    rawPayloadHex = raw.rawPayload.toHexString(),
+                    minimumEpochSecond = enrichmentBounds.first,
+                    maximumEpochSecond = enrichmentBounds.last,
+                )?.let { exactReplay ->
+                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
+                        exactReplay.toAccountMeasurement(),
+                    )
+                }
+
                 val finalizedCandidate = measurementDao
                     .findNearestFinalizedEnrichmentPredecessor(
                         deviceAddress = raw.deviceAddress,
