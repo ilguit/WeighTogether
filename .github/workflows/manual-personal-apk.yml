@@ -4,7 +4,11 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+
+concurrency:
+  group: manual-personal-apk-release
+  cancel-in-progress: false
 
 jobs:
   build:
@@ -13,6 +17,33 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Verify release source
+        id: release
+        shell: bash
+        env:
+          EXPECTED_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          actual_sha="$(git rev-parse HEAD)"
+          if [[ "${actual_sha}" != "${EXPECTED_SHA}" ]]; then
+            echo "Checked-out commit ${actual_sha} does not match workflow commit ${EXPECTED_SHA}" >&2
+            exit 1
+          fi
+
+          version_name="$(sed -nE 's/^[[:space:]]*versionName = "([^"]+)"[[:space:]]*$/\1/p' app/build.gradle.kts)"
+          if [[ -z "${version_name}" || "${version_name}" == *$'\n'* ]]; then
+            echo "Expected exactly one base versionName in app/build.gradle.kts" >&2
+            exit 1
+          fi
+
+          previous_release_tag="$(.github/scripts/release-apk-tag.sh preflight "${version_name}" "${actual_sha}")"
+          echo "version_name=${version_name}" >> "${GITHUB_OUTPUT}"
+          echo "commit_sha=${actual_sha}" >> "${GITHUB_OUTPUT}"
+          echo "previous_release_tag=${previous_release_tag}" >> "${GITHUB_OUTPUT}"
 
       - name: Set up JDK 17
         uses: actions/setup-java@v5
@@ -33,12 +64,24 @@ jobs:
         env:
           RUN_NUMBER: ${{ github.run_number }}
           RUN_ATTEMPT: ${{ github.run_attempt }}
+          BASE_VERSION_NAME: ${{ steps.release.outputs.version_name }}
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          PREVIOUS_RELEASE_TAG: ${{ steps.release.outputs.previous_release_tag }}
         run: |
           set -euo pipefail
 
           output_dir="app/build/outputs/apk/personal/debug"
           metadata_file="${output_dir}/output-metadata.json"
-          version_name="$(jq -er '.elements[0].versionName' "${metadata_file}")"
+          variant_version_name="$(jq -er '.elements[0].versionName' "${metadata_file}")"
+          if [[ "${variant_version_name}" != *-personal ]]; then
+            echo "Expected personal variant version ending in -personal, got ${variant_version_name}" >&2
+            exit 1
+          fi
+          version_name="${variant_version_name%-personal}"
+          if [[ "${version_name}" != "${BASE_VERSION_NAME}" ]]; then
+            echo "APK base version ${version_name} does not match preflight version ${BASE_VERSION_NAME}" >&2
+            exit 1
+          fi
 
           shopt -s nullglob
           apk_files=("${output_dir}"/*.apk)
@@ -50,11 +93,23 @@ jobs:
           artifact_dir="build-artifacts"
           artifact_name="HuaweiMiSync-personal-${version_name}-run-${RUN_NUMBER}-attempt-${RUN_ATTEMPT}"
           artifact_file="${artifact_name}.apk"
+          release_metadata_file="${artifact_name}.json"
           mkdir -p "${artifact_dir}"
           cp "${apk_files[0]}" "${artifact_dir}/${artifact_file}"
+          jq --null-input --sort-keys \
+            --arg versionName "${version_name}" \
+            --arg variantVersionName "${variant_version_name}" \
+            --arg commitSha "${COMMIT_SHA}" \
+            --arg previousReleaseTag "${PREVIOUS_RELEASE_TAG}" \
+            '{
+              versionName: $versionName,
+              variantVersionName: $variantVersionName,
+              commitSha: $commitSha,
+              previousReleaseTag: (if $previousReleaseTag == "null" then null else $previousReleaseTag end)
+            }' > "${artifact_dir}/${release_metadata_file}"
 
           echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
-          echo "artifact_path=${artifact_dir}/${artifact_file}" >> "${GITHUB_OUTPUT}"
+          echo "artifact_path=${artifact_dir}" >> "${GITHUB_OUTPUT}"
 
       - name: Upload personal APK
         uses: actions/upload-artifact@v7
@@ -63,3 +118,11 @@ jobs:
           path: ${{ steps.artifact.outputs.artifact_path }}
           if-no-files-found: error
           retention-days: 14
+
+      - name: Publish APK release tag
+        env:
+          VERSION_NAME: ${{ steps.release.outputs.version_name }}
+          COMMIT_SHA: ${{ steps.release.outputs.commit_sha }}
+          GIT_COMMITTER_NAME: github-actions[bot]
+          GIT_COMMITTER_EMAIL: 41898282+github-actions[bot]@users.noreply.github.com
+        run: .github/scripts/release-apk-tag.sh publish "${VERSION_NAME}" "${COMMIT_SHA}"
