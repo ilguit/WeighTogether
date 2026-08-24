@@ -52,6 +52,33 @@ interface PendingMeasurementDao {
         maximumEpochSecond: Long,
     ): PendingMeasurementEntity?
 
+    @Query(
+        """
+        SELECT * FROM pending_measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+            AND finalizeAfterEpochMillis > :nowEpochMillis
+            AND isStable = 1
+            AND (
+                hasImpedance = 0
+                OR impedanceOhm < :minimumImpedanceOhm
+                OR impedanceOhm > :maximumImpedanceOhm
+            )
+        ORDER BY measuredAtEpochSecond DESC, id ASC
+        LIMIT 1
+        """,
+    )
+    suspend fun findNearestActiveIncompletePredecessor(
+        deviceAddress: String,
+        rawWeight: Int,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
+        nowEpochMillis: Long,
+        minimumImpedanceOhm: Int,
+        maximumImpedanceOhm: Int,
+    ): PendingMeasurementEntity?
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(pending: PendingMeasurementEntity): Long
 

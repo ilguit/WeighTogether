@@ -59,6 +59,42 @@ internal fun pendingReplayPlan(
     shouldScheduleFinalization = exactReplay || isBeforeDeadline,
 )
 
+internal data class PendingEnrichmentUpdate(
+    val entity: PendingMeasurementEntity,
+    val shouldScheduleFinalization: Boolean,
+)
+
+internal fun activePendingEnrichment(
+    candidate: PendingMeasurementEntity,
+    incoming: RawScaleMeasurement,
+    receivedAt: Instant,
+): PendingEnrichmentUpdate? {
+    val receivedAtEpochMillis = receivedAt.toEpochMilli()
+    if (receivedAtEpochMillis >= candidate.finalizeAfterEpochMillis) return null
+    if (!MeasurementEnrichmentPolicy.canEnrich(candidate.toDomain().toRawScaleMeasurement(), incoming)) {
+        return null
+    }
+
+    val replayPlan = pendingReplayPlan(
+        exactReplay = candidate.deduplicationHash == incoming.deduplicationHash(),
+        isBeforeDeadline = true,
+    )
+    return PendingEnrichmentUpdate(
+        entity = candidate.copy(
+            impedanceOhm = incoming.impedanceOhm,
+            isStable = incoming.isStable,
+            hasImpedance = incoming.hasImpedance,
+            rawPayload = incoming.rawPayload.copyOf(),
+            finalizeAfterEpochMillis = if (replayPlan.shouldSlideDeadline) {
+                receivedAt.plusSeconds(RoomMeasurementPersistence.DEBOUNCE_SECONDS).toEpochMilli()
+            } else {
+                candidate.finalizeAfterEpochMillis
+            },
+        ),
+        shouldScheduleFinalization = replayPlan.shouldScheduleFinalization,
+    )
+}
+
 class RoomMeasurementPersistence(
     private val database: AppDatabase,
     private val calculator: BodyCompositionCalculator,
@@ -255,6 +291,34 @@ class RoomMeasurementPersistence(
                     )
                 }
                 null -> Unit
+            }
+
+            if (raw.hasFullBodyComposition) {
+                val enrichmentBounds = MeasurementEnrichmentPolicy.candidateEpochSecondBounds(
+                    measuredAtEpochSecond,
+                )
+                val enrichmentCandidate = pendingDao.findNearestActiveIncompletePredecessor(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    minimumEpochSecond = enrichmentBounds.first,
+                    maximumEpochSecond = enrichmentBounds.last,
+                    nowEpochMillis = timestampMillis,
+                    minimumImpedanceOhm = RawScaleMeasurement.MIN_IMPEDANCE_OHM,
+                    maximumImpedanceOhm = RawScaleMeasurement.MAX_IMPEDANCE_OHM,
+                )
+                val enrichment = enrichmentCandidate?.let {
+                    activePendingEnrichment(it, raw, timestamp)
+                }
+                if (enrichment != null) {
+                    check(pendingDao.update(enrichment.entity) == 1) {
+                        "Pending aggregate disappeared during enrichment"
+                    }
+                    return@withTransaction PendingPersistenceResult.AlreadyPending(
+                        pending = enrichment.entity.toDomain(),
+                        wasEnriched = true,
+                        shouldScheduleFinalization = enrichment.shouldScheduleFinalization,
+                    )
+                }
             }
             val entity = PendingMeasurementEntity(
                 id = newId(),
