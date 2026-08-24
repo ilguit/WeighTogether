@@ -42,6 +42,17 @@ class GitRepository(private val root: Path) {
         return tags
     }
 
+    fun annotatedApkTags(): List<ApkTag> = git(
+        "for-each-ref",
+        "--format=%(refname:short)%00%(objecttype)%00%(*objectname)",
+        "refs/tags/apk/",
+    ).lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
+        val fields = line.split('\u0000')
+        if (fields.size != 3 || fields[1] != "tag" || fields[2].isBlank()) return@mapNotNull null
+        val version = APK_TAG.matchEntire(fields[0])?.groupValues?.get(1) ?: return@mapNotNull null
+        ApkTag(fields[0], version, fields[2])
+    }.sortedBy { it.name }.toList()
+
     fun changedFragmentPaths(head: String, exclusiveBase: String?): List<String> {
         val paths = if (exclusiveBase == null) {
             git("ls-tree", "-r", "--name-only", head, "--", NOTES_DIRECTORY)
