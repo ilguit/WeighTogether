@@ -777,6 +777,208 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun fullPacketAtPlus24SecondsUpgradesFinalizedWeightOnlyInPlace() = runBlocking {
+        val accounts = accountRepository()
+        val account = accounts.createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val weightOnly = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            impedanceOhm = 0,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        )
+        val pending = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+        val original = database.multiAccountMeasurementDao().get(
+            finalized.measurement.measurementId,
+        )!!.copy(
+            huaweiStatus = SyncStatus.DISABLED.name,
+            huaweiError = "adapter disabled",
+            healthConnectStatus = SyncStatus.SYNCED.name,
+            healthConnectWeightSynced = true,
+            healthConnectSyncedCalculatedValues = "old-snapshot",
+        )
+        assertEquals(1, database.multiAccountMeasurementDao().update(original))
+
+        val full = weightOnly.copy(
+            measuredAt = weightOnly.measuredAt.plusSeconds(24),
+            impedanceOhm = 500,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(9, 8, 7),
+        )
+        val upgraded = persistence.enqueue(full) as PendingPersistenceResult.UpgradedFinalized
+        val stored = database.multiAccountMeasurementDao().get(original.id)!!
+
+        assertEquals(original.id, upgraded.measurement.measurementId)
+        assertEquals(original.id, stored.id)
+        assertEquals(original.accountId, stored.accountId)
+        assertEquals(original.sourcePendingId, stored.sourcePendingId)
+        assertEquals(original.fingerprint, stored.fingerprint)
+        assertEquals(original.deduplicationHash, stored.deduplicationHash)
+        assertEquals(original.measuredAtEpochSecond, stored.measuredAtEpochSecond)
+        assertEquals(original.createdAtEpochMillis, stored.createdAtEpochMillis)
+        assertEquals(MeasurementType.FULL, stored.measurementType)
+        assertEquals(500, stored.impedanceOhm)
+        assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
+        assertEquals("adapter disabled", stored.huaweiError)
+        assertEquals(SyncStatus.PENDING.name, stored.healthConnectStatus)
+        assertNull(stored.healthConnectError)
+        assertTrue(stored.healthConnectWeightSynced)
+        assertEquals("old-snapshot", stored.healthConnectSyncedCalculatedValues)
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+        assertEquals(
+            1,
+            database.multiAccountMeasurementDao().observeAll(account.id.value).first().size,
+        )
+
+        assertTrue(persistence.enqueue(full) is PendingPersistenceResult.AlreadyFinalized)
+        assertEquals(1, database.multiAccountMeasurementDao().observeAll(account.id.value).first().size)
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun fullPacketAtSameSecondUpgradesFinalizedWeightOnlyInPlace() = runBlocking {
+        assertFinalizedWeightOnlyUpgradeInsideDedupWindow(delaySeconds = 0)
+    }
+
+    @Test
+    fun fullPacketAtPlus9SecondsUpgradesFinalizedWeightOnlyInPlace() = runBlocking {
+        assertFinalizedWeightOnlyUpgradeInsideDedupWindow(delaySeconds = 9)
+    }
+
+    @Test
+    fun nearerFullDoesNotHideEligibleFinalizedWeightOnly() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val nearerFullPending = persistence.enqueue(
+            raw("2026-08-15T10:00:12Z", 72.0).copy(rawPayload = byteArrayOf(7, 8, 9)),
+        ) as PendingPersistenceResult.Inserted
+        val nearerFull = persistence.finalizePending(nearerFullPending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+        val weightOnly = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            impedanceOhm = 0,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        )
+        val weightOnlyPending = persistence.enqueue(weightOnly)
+            as PendingPersistenceResult.Inserted
+        val finalizedWeightOnly = persistence.finalizePending(
+            weightOnlyPending.pending.id,
+            account.id,
+        ) as FinalizePendingResult.Finalized
+
+        val result = persistence.enqueue(
+            raw("2026-08-15T10:00:24Z", 72.0).copy(rawPayload = byteArrayOf(4, 5, 6)),
+        ) as PendingPersistenceResult.UpgradedFinalized
+
+        assertEquals(
+            finalizedWeightOnly.measurement.measurementId,
+            result.measurement.measurementId,
+        )
+        assertEquals(
+            MeasurementType.FULL,
+            database.multiAccountMeasurementDao().get(
+                finalizedWeightOnly.measurement.measurementId,
+            )!!.measurementType,
+        )
+        assertEquals(
+            MeasurementType.FULL,
+            database.multiAccountMeasurementDao().get(
+                nearerFull.measurement.measurementId,
+            )!!.measurementType,
+        )
+        assertEquals(
+            2,
+            database.multiAccountMeasurementDao().observeAll(account.id.value).first().size,
+        )
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun exactFullReplayOutsideDeduplicationWindowRemainsIdempotent() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val full = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            rawPayload = byteArrayOf(7, 8, 9),
+        )
+        val pending = persistence.enqueue(full) as PendingPersistenceResult.Inserted
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+
+        val replay = persistence.enqueue(
+            full.copy(measuredAt = full.measuredAt.plusSeconds(24)),
+        ) as PendingPersistenceResult.AlreadyFinalized
+
+        assertEquals(finalized.measurement.measurementId, replay.measurement.measurementId)
+        assertEquals(
+            1,
+            database.multiAccountMeasurementDao().observeAll(account.id.value).first().size,
+        )
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun incompleteProfileKeepsFinalizedWeightOnlyAndDoesNotCreatePendingDuplicate() = runBlocking {
+        val accounts = accountRepository()
+        val account = accounts.createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val weightOnly = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            impedanceOhm = 0,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        )
+        val pending = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+        val accountEntity = database.accountDao().get(account.id.value)!!
+        assertEquals(1, database.accountDao().update(accountEntity.copy(isProfileComplete = false)))
+
+        val outcome = persistence.enqueue(
+            weightOnly.copy(
+                measuredAt = weightOnly.measuredAt.plusSeconds(24),
+                impedanceOhm = 500,
+                hasImpedance = true,
+                rawPayload = byteArrayOf(9, 8, 7),
+            ),
+        ) as PendingPersistenceResult.AlreadyFinalized
+
+        assertEquals(finalized.measurement.measurementId, outcome.measurement.measurementId)
+        assertEquals(
+            MeasurementType.WEIGHT_ONLY,
+            database.multiAccountMeasurementDao().get(finalized.measurement.measurementId)!!
+                .measurementType,
+        )
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun extendedEnrichmentUsesNearestPredecessorAndDoesNotMergeOutsidePolicy() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        suspend fun finalizeWeightOnly(timestamp: String): String {
+            val pending = persistence.enqueue(
+                raw(timestamp, 72.0).copy(impedanceOhm = 0, hasImpedance = false),
+            ) as PendingPersistenceResult.Inserted
+            return (persistence.finalizePending(pending.pending.id, account.id)
+                as FinalizePendingResult.Finalized).measurement.measurementId
+        }
+        val olderId = finalizeWeightOnly("2026-08-15T10:00:00Z")
+        val nearerId = finalizeWeightOnly("2026-08-15T10:00:12Z")
+
+        val upgraded = persistence.enqueue(
+            raw("2026-08-15T10:00:24Z", 72.0).copy(rawPayload = byteArrayOf(4, 5, 6)),
+        ) as PendingPersistenceResult.UpgradedFinalized
+        assertEquals(nearerId, upgraded.measurement.measurementId)
+        assertEquals(
+            MeasurementType.WEIGHT_ONLY,
+            database.multiAccountMeasurementDao().get(olderId)!!.measurementType,
+        )
+
+        val outside = persistence.enqueue(raw("2026-08-15T10:01:00Z", 72.0))
+        assertTrue(outside is PendingPersistenceResult.Inserted)
+    }
+
+    @Test
     fun sweepReclassifiesPreliminaryButFinalizationReevaluatesAuthoritatively() = runBlocking {
         val accounts = accountRepository()
         val persistence = persistence()
@@ -822,6 +1024,39 @@ class MultiAccountPersistenceTest {
             persistence.finalizePending(pending.pending.id, accountId) is
                 FinalizePendingResult.Finalized,
         )
+    }
+
+    private suspend fun assertFinalizedWeightOnlyUpgradeInsideDedupWindow(delaySeconds: Long) {
+        val account = accountRepository().createAccount(NewAccount("Primary", completeProfile()))
+        val persistence = persistence()
+        val weightOnly = raw("2026-08-15T10:00:00Z", 72.0).copy(
+            impedanceOhm = 0,
+            hasImpedance = false,
+            rawPayload = byteArrayOf(1),
+        )
+        val pending = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+
+        val upgraded = persistence.enqueue(
+            weightOnly.copy(
+                measuredAt = weightOnly.measuredAt.plusSeconds(delaySeconds),
+                impedanceOhm = 500,
+                hasImpedance = true,
+                rawPayload = byteArrayOf(9, 8, 7),
+            ),
+        ) as PendingPersistenceResult.UpgradedFinalized
+        val stored = database.multiAccountMeasurementDao().get(
+            finalized.measurement.measurementId,
+        )!!
+
+        assertEquals(finalized.measurement.measurementId, upgraded.measurement.measurementId)
+        assertEquals(MeasurementType.FULL, stored.measurementType)
+        assertEquals(weightOnly.measuredAt.epochSecond, stored.measuredAtEpochSecond)
+        assertEquals(pending.pending.id.value, stored.sourcePendingId)
+        assertEquals(pending.pending.deduplicationHash, stored.deduplicationHash)
+        assertEquals(1, database.multiAccountMeasurementDao().observeAll(account.id.value).first().size)
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
     }
 
     private fun accountRepository() = RoomAccountRepository(

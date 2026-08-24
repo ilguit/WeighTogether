@@ -228,12 +228,12 @@ sealed interface MeasurementUpsertResult {
     data object Duplicate : MeasurementUpsertResult
 }
 
-private fun String.requeueUnlessTerminal(): String = when (this) {
+internal fun String.requeueUnlessTerminal(): String = when (this) {
     SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
     else -> SyncStatus.PENDING.name
 }
 
-private fun String?.preserveForTerminalStatus(status: String): String? = when (status) {
+internal fun String?.preserveForTerminalStatus(status: String): String? = when (status) {
     SyncStatus.DISABLED.name, SyncStatus.LOCAL_ONLY.name -> this
     else -> null
 }

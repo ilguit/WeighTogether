@@ -54,6 +54,44 @@ interface MultiAccountMeasurementDao {
         maximumEpochSecond: Long,
     ): MeasurementEntity?
 
+    @Query(
+        """
+        SELECT * FROM measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measurementType = 'FULL'
+            AND rawPayloadHex = :rawPayloadHex
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+        ORDER BY measuredAtEpochSecond DESC, createdAtEpochMillis DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun findExactFinalizedFullReplay(
+        deviceAddress: String,
+        rawWeight: Int,
+        rawPayloadHex: String,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
+    ): MeasurementEntity?
+
+    @Query(
+        """
+        SELECT * FROM measurements
+        WHERE deviceAddress = :deviceAddress COLLATE NOCASE
+            AND rawWeight = :rawWeight
+            AND measurementType = 'WEIGHT_ONLY'
+            AND measuredAtEpochSecond BETWEEN :minimumEpochSecond AND :maximumEpochSecond
+        ORDER BY measuredAtEpochSecond DESC, createdAtEpochMillis DESC, id DESC
+        LIMIT 1
+        """,
+    )
+    suspend fun findNearestFinalizedEnrichmentPredecessor(
+        deviceAddress: String,
+        rawWeight: Int,
+        minimumEpochSecond: Long,
+        maximumEpochSecond: Long,
+    ): MeasurementEntity?
+
     @Update
     suspend fun update(measurement: MeasurementEntity): Int
 
