@@ -6,12 +6,18 @@ import org.snakeyaml.engine.v2.api.lowlevel.Parse;
 import org.snakeyaml.engine.v2.events.AliasEvent;
 import org.snakeyaml.engine.v2.exceptions.YamlEngineException;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.ByteBuffer;
+import java.nio.channels.SeekableByteChannel;
+import java.nio.charset.CharacterCodingException;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -26,7 +32,8 @@ import java.util.stream.Stream;
 public final class ReleaseNotesValidator {
     private static final String DIRECTORY_NAME = ".release-notes";
     private static final Pattern FILE_NAME = Pattern.compile("([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\\.yaml");
-    private static final Pattern RUSSIAN_WORD = Pattern.compile("[А-Яа-яЁё]{2,}");
+    private static final Pattern RUSSIAN_WORD = Pattern.compile("(?<!\\p{L})[А-Яа-яЁё]{2,}(?!\\p{L})");
+    static final int MAX_FRAGMENT_BYTES = 64 * 1024;
     private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
     private static final Set<String> SUPPORT_FILES = Set.of("README.md", "template.yaml.example");
@@ -91,7 +98,9 @@ public final class ReleaseNotesValidator {
 
         String input;
         try {
-            input = Files.readString(fragment, StandardCharsets.UTF_8);
+            input = readFragment(fragment);
+        } catch (CharacterCodingException exception) {
+            throw error(fragment, "file must be valid UTF-8", exception);
         } catch (IOException exception) {
             throw error(fragment, "cannot read file: " + exception.getMessage(), exception);
         }
@@ -151,6 +160,31 @@ public final class ReleaseNotesValidator {
     private static boolean containsRussianPhrase(String text) {
         Matcher matcher = RUSSIAN_WORD.matcher(text);
         return matcher.find() && matcher.find();
+    }
+
+    static String readFragment(Path fragment) throws IOException {
+        try (SeekableByteChannel channel = Files.newByteChannel(
+                fragment,
+                Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)
+        )) {
+            ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+            ByteBuffer buffer = ByteBuffer.allocate(8192);
+            int total = 0;
+            while (channel.read(buffer) != -1) {
+                int count = buffer.position();
+                total += count;
+                if (total > MAX_FRAGMENT_BYTES) {
+                    throw new IOException("file exceeds maximum size of " + MAX_FRAGMENT_BYTES + " bytes");
+                }
+                bytes.write(buffer.array(), 0, count);
+                buffer.clear();
+            }
+            return StandardCharsets.UTF_8.newDecoder()
+                    .onMalformedInput(CodingErrorAction.REPORT)
+                    .onUnmappableCharacter(CodingErrorAction.REPORT)
+                    .decode(ByteBuffer.wrap(bytes.toByteArray()))
+                    .toString();
+        }
     }
 
     private Map<String, Object> requireStringKeyedMap(Path fragment, Object document) throws ValidationException {

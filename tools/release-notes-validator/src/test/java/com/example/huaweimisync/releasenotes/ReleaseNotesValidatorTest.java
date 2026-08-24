@@ -7,6 +7,7 @@ import java.io.IOException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -214,6 +215,40 @@ class ReleaseNotesValidatorTest {
         resetFragments();
         fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Исправлена синхронизация Health Connect 2\n");
         assertEquals(1, validator.validate(repositoryRoot));
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: абHealthвг обновление\n");
+        assertInvalid("at least two Russian words");
+    }
+
+    @Test
+    void noFollowReaderRejectsSymbolicLinksAtOpen() throws Exception {
+        Path target = Files.writeString(repositoryRoot.resolve("outside.yaml"), visible(24));
+        Path link = repositoryRoot.resolve("linked.yaml");
+        createSymlinkOrSkip(link, target);
+
+        assertThrows(IOException.class, () -> ReleaseNotesValidator.readFragment(link));
+    }
+
+    @Test
+    void rejectsInvalidUtf8() throws Exception {
+        Path directory = Files.createDirectories(repositoryRoot.resolve(".release-notes"));
+        byte[] prefix = "issue: 24\nuserVisible: false\nreason: ".getBytes(StandardCharsets.UTF_8);
+        byte[] bytes = java.util.Arrays.copyOf(prefix, prefix.length + 1);
+        bytes[bytes.length - 1] = (byte) 0x80;
+        Files.write(directory.resolve("24-change.yaml"), bytes);
+
+        assertInvalid("file must be valid UTF-8");
+    }
+
+    @Test
+    void rejectsOversizedFragment() throws Exception {
+        Path directory = Files.createDirectories(repositoryRoot.resolve(".release-notes"));
+        byte[] bytes = new byte[ReleaseNotesValidator.MAX_FRAGMENT_BYTES + 1];
+        java.util.Arrays.fill(bytes, (byte) 'a');
+        Files.write(directory.resolve("24-change.yaml"), bytes);
+
+        assertInvalid("exceeds maximum size of 65536 bytes");
     }
 
     @Test
