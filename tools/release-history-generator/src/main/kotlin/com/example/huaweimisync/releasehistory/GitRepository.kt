@@ -55,6 +55,15 @@ class GitRepository(private val root: Path) {
 
     fun readFile(revision: String, path: String): String = git("show", "$revision:$path")
 
+    fun trackedFragmentMetadata(revision: String): String = git(
+        "ls-tree",
+        "-r",
+        "--full-tree",
+        revision,
+        "--",
+        NOTES_DIRECTORY,
+    )
+
     private fun git(vararg arguments: String): String {
         val process = ProcessBuilder(listOf("git", "-C", root.toString()) + arguments)
             .redirectErrorStream(false)

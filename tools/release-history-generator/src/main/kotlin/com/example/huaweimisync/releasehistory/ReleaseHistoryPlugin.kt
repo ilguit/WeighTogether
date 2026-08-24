@@ -48,10 +48,13 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                     configured.trackedWorktreeState.set(project.providers.exec {
                         it.commandLine("git", "-C", project.rootDir, "status", "--porcelain", "--untracked-files=no")
                     }.standardOutput.asText)
+                    configured.trackedFragmentMetadata.set(project.providers.exec {
+                        it.commandLine(
+                            "git", "-C", project.rootDir, "ls-tree", "-r", "--full-tree", "HEAD", "--",
+                            ".release-notes",
+                        )
+                    }.standardOutput.asText)
                     configured.baselineFile.set(project.rootProject.layout.projectDirectory.file(".release-history/baseline.yaml"))
-                    configured.fragments.from(project.rootProject.fileTree(".release-notes") {
-                        it.include("*.yaml")
-                    })
                     configured.kotlinOutputDirectory.set(project.layout.buildDirectory.dir("generated/releaseHistory/${variant.name}/kotlin"))
                     configured.resourceOutputDirectory.set(project.layout.buildDirectory.dir("generated/releaseHistory/${variant.name}/res"))
                 }

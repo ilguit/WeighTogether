@@ -188,6 +188,40 @@ class ReleaseHistoryGeneratorTest {
         assertFalse(firstKotlin.contains("\r"))
     }
 
+    @Test
+    fun `tracked fragment input ignores untracked files and changes with committed fragments`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "first", true, "Первое изменение")
+        git.commit("Add first change (#1)")
+        val repository = GitRepository(directory)
+        val firstHead = git.head()
+        val firstInput = repository.trackedFragmentMetadata(firstHead)
+        val firstOutput = ReleaseHistoryGenerator(repository)
+            .generate(firstHead, "0.1.1", ReleaseFlavor.PERSONAL)
+
+        git.fragment(99, "untracked", true, "Не должно попасть в историю")
+
+        assertEquals(firstInput, repository.trackedFragmentMetadata(firstHead))
+        assertEquals(
+            firstOutput,
+            ReleaseHistoryGenerator(repository).generate(firstHead, "0.1.1", ReleaseFlavor.PERSONAL),
+        )
+
+        git.delete(".release-notes/99-untracked.yaml")
+        git.fragment(2, "second", true, "Второе изменение")
+        git.commit("Add second change (#2)")
+        val secondHead = git.head()
+
+        assertTrue(repository.trackedFragmentMetadata(secondHead) != firstInput)
+        assertEquals(
+            listOf(1, 2),
+            ReleaseHistoryGenerator(repository)
+                .generate(secondHead, "0.1.2", ReleaseFlavor.PERSONAL)
+                .releases.single().changes.map { it.issue },
+        )
+    }
+
     private class TestGit(val root: Path) {
         fun init() {
             Files.createDirectories(root)
@@ -206,6 +240,10 @@ class ReleaseHistoryGeneratorTest {
             val target = root.resolve(path)
             Files.createDirectories(target.parent)
             Files.writeString(target, contents)
+        }
+
+        fun delete(path: String) {
+            Files.delete(root.resolve(path))
         }
 
         fun commit(subject: String) {

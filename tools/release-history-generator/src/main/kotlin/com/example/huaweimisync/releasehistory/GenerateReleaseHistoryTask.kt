@@ -3,13 +3,11 @@ package com.example.huaweimisync.releasehistory
 import org.gradle.api.DefaultTask
 import org.gradle.api.GradleException
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFile
-import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -25,14 +23,11 @@ abstract class GenerateReleaseHistoryTask : DefaultTask() {
     @get:Input abstract val gitMetadata: Property<String>
     @get:Input abstract val apkTagMetadata: Property<String>
     @get:Input abstract val trackedWorktreeState: Property<String>
+    @get:Input abstract val trackedFragmentMetadata: Property<String>
 
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
     abstract val baselineFile: RegularFileProperty
-
-    @get:InputFiles
-    @get:PathSensitive(PathSensitivity.RELATIVE)
-    abstract val fragments: ConfigurableFileCollection
 
     @get:OutputDirectory abstract val kotlinOutputDirectory: DirectoryProperty
     @get:OutputDirectory abstract val resourceOutputDirectory: DirectoryProperty
