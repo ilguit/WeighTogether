@@ -74,7 +74,8 @@ class ReleaseHistoryGenerator(
 
     private data class ReleasePoint(val version: String, val commitSha: String)
 
-    private fun ReleaseHistoryBaseline?.orEmpty(): List<GeneratedRelease> = this?.releases.orEmpty()
+    private fun ReleaseHistoryBaseline?.orEmpty(): List<GeneratedRelease> =
+        this?.releases.orEmpty().map { it.release }
 
     private companion object {
         val ISSUE_SUFFIX = Regex("\\(#([1-9][0-9]*)\\)(?=\\s*$)")
