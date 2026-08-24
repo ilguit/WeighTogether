@@ -785,6 +785,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 showMessage("Тестовое измерение ожидает завершения")
             is MeasurementIngestionResult.UpdatedAggregate ->
                 showMessage("Окно тестового измерения продлено")
+            is MeasurementIngestionResult.UpgradedFinalized ->
+                showMessage("Состав тела добавлен к тестовому измерению")
             MeasurementIngestionResult.SuppressedFinal,
             MeasurementIngestionResult.SuppressedTombstone,
             -> showMessage("Такое тестовое измерение уже существует")
@@ -1141,6 +1143,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 is MeasurementIngestionResult.CreatedAggregate,
                 is MeasurementIngestionResult.UpdatedAggregate,
+                is MeasurementIngestionResult.UpgradedFinalized,
                 MeasurementIngestionResult.SuppressedFinal,
                 MeasurementIngestionResult.SuppressedTombstone,
                 MeasurementIngestionResult.Tombstoned,

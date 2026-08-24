@@ -95,6 +95,7 @@ class ProcessMeasurementWorker(
         return when (outcome) {
             is MeasurementIngestionResult.CreatedAggregate,
             is MeasurementIngestionResult.UpdatedAggregate,
+            is MeasurementIngestionResult.UpgradedFinalized,
             MeasurementIngestionResult.SuppressedFinal,
             MeasurementIngestionResult.SuppressedTombstone,
             is MeasurementIngestionResult.Assigned,

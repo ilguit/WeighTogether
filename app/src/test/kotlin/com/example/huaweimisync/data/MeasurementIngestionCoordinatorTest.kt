@@ -93,6 +93,40 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
+    fun finalizedUpgradeSchedulesOnlyEligiblePrimaryAfterPersistenceReturns() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary, secondary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events)
+        val scheduler = UniqueFakeScheduler(events)
+        val eligible = AccountMeasurement(
+            accountId = primary.id,
+            composition = composition(raw(70.0).toPendingMeasurement(
+                PendingMeasurementId("source"),
+                "hash",
+                RAW_TIME,
+            ), "upgraded-primary"),
+            externalSyncPolicy = ExternalSyncPolicy.AUTO,
+            createdAt = RAW_TIME,
+        )
+        persistence.nextEnqueueResult = PendingPersistenceResult.UpgradedFinalized(eligible)
+
+        val result = coordinator(persistence, accounts, scheduler).ingest(raw(70.0))
+
+        assertTrue(result is MeasurementIngestionResult.UpgradedFinalized)
+        assertEquals(setOf("upgraded-primary"), scheduler.enqueued)
+        assertTrue(events.indexOf("enqueue") < events.indexOf("schedule"))
+
+        val local = eligible.copy(
+            accountId = secondary.id,
+            externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL,
+            measurementId = "upgraded-secondary",
+        )
+        persistence.nextEnqueueResult = PendingPersistenceResult.UpgradedFinalized(local)
+        coordinator(persistence, accounts, scheduler).ingest(raw(71.0))
+        assertEquals(setOf("upgraded-primary"), scheduler.enqueued)
+    }
+
+    @Test
     fun earlyClassificationAndSweepUseCoordinatorMatchingEngine() = runBlocking {
         val accounts = FakeAccountRepository(listOf(primary), primary.id)
         val persistence = FakeRoutingPersistence(accounts)
@@ -565,11 +599,16 @@ private class FakeRoutingPersistence(
     var releaseFirstPendingSnapshot: CompletableDeferred<Unit>? = null
     var enqueueMatchingEngine: MatchingEngine? = null
     var reclassificationMatchingEngine: MatchingEngine? = null
+    var nextEnqueueResult: PendingPersistenceResult? = null
     private var pendingSnapshotCallCount = 0
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
         writeOperations += "enqueue"
+        nextEnqueueResult?.let {
+            nextEnqueueResult = null
+            return it
+        }
         val hash = hash(raw)
         if (hash in tombstones) return PendingPersistenceResult.Tombstoned
         finalizedByHash[hash]?.let { return PendingPersistenceResult.AlreadyFinalized(it) }
