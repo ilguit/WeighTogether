@@ -1063,7 +1063,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun completePendingResolution(completion: PendingResolverCompletion) {
         clearResolverSession(completion.pendingId)
-        completeSuccessfulPendingAssignment(completion, eventEmitter)
+        eventEmitter.pendingResolutionCompleted(
+            pendingId = completion.pendingId,
+            returnDestination = completion.returnDestination,
+        )
     }
 
     private fun clearResolverSession(pendingId: PendingMeasurementId? = null) {

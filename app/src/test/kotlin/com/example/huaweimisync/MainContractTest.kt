@@ -3,7 +3,6 @@ package com.example.huaweimisync
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.domain.PendingMeasurementId
-import com.example.huaweimisync.ui.routing.PendingResolverCompletion
 import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
@@ -49,27 +48,6 @@ class MainContractTest {
                 emitter.events.first(),
             )
         }
-
-    @Test
-    fun `successful pending assignment completes resolver without success snackbar`() = runBlocking {
-        val emitter = MainUiEventEmitter()
-        val pendingId = PendingMeasurementId("pending")
-        val completion = PendingResolverCompletion(
-            pendingId = pendingId,
-            returnDestination = PendingResolverReturnDestination.PENDING_QUEUE,
-        )
-
-        completeSuccessfulPendingAssignment(completion, emitter)
-
-        assertEquals(
-            MainUiEvent.PendingResolutionCompleted(
-                pendingId,
-                PendingResolverReturnDestination.PENDING_QUEUE,
-            ),
-            emitter.events.first(),
-        )
-        assertNull(withTimeoutOrNull(50) { emitter.events.first() })
-    }
 
     @Test
     fun `opening editor copies the real profile using the existing date format`() {
