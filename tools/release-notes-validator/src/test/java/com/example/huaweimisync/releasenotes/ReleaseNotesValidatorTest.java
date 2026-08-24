@@ -4,9 +4,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Locale;
 
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -98,7 +101,47 @@ class ReleaseNotesValidatorTest {
     void rejectsNonFileDirectoryEntry() throws Exception {
         Files.createDirectories(repositoryRoot.resolve(".release-notes/24-change.yaml"));
 
-        assertInvalid("only regular fragment files");
+        assertInvalid("only regular files are allowed");
+    }
+
+    @Test
+    void rejectsSymlinkFragment() throws Exception {
+        Path target = Files.writeString(repositoryRoot.resolve("outside.yaml"), visible(24));
+        Path directory = Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        createSymlinkOrSkip(directory.resolve("24-change.yaml"), target);
+
+        assertInvalid("symbolic links are forbidden");
+    }
+
+    @Test
+    void rejectsSymlinkSupportFile() throws Exception {
+        Path target = Files.writeString(repositoryRoot.resolve("outside-readme.md"), "Outside\n");
+        Path directory = Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        createSymlinkOrSkip(directory.resolve("README.md"), target);
+
+        assertInvalid("symbolic links are forbidden");
+    }
+
+    @Test
+    void rejectsSymlinkFragmentDirectory() throws Exception {
+        Path target = Files.createDirectory(repositoryRoot.resolve("outside-notes"));
+        createSymlinkOrSkip(repositoryRoot.resolve(".release-notes"), target);
+
+        assertInvalid("does not exist or is not a directory");
+    }
+
+    @Test
+    void aggregatesSymlinkAndFragmentErrors() throws Exception {
+        Path target = Files.writeString(repositoryRoot.resolve("outside.yaml"), visible(24));
+        Path directory = Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        createSymlinkOrSkip(directory.resolve("24-linked.yaml"), target);
+        Files.writeString(directory.resolve("25-invalid.yaml"), "issue: 25\nuserVisible: false\n");
+
+        ValidationException exception = assertThrows(ValidationException.class, () -> validator.validate(repositoryRoot));
+        assertTrue(exception.getMessage().contains("24-linked.yaml"));
+        assertTrue(exception.getMessage().contains("symbolic links are forbidden"));
+        assertTrue(exception.getMessage().contains("25-invalid.yaml"));
+        assertTrue(exception.getMessage().contains("field 'reason' must be a non-blank string"));
     }
 
     @Test
@@ -148,11 +191,29 @@ class ReleaseNotesValidatorTest {
 
         resetFragments();
         fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Fixed syncing\n");
-        assertInvalid("must contain Russian (Cyrillic) text");
+        assertInvalid("at least two Russian words");
 
         resetFragments();
-        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Исправление\nreason: Внутреннее\n");
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Исправлена синхронизация\nreason: Внутреннее\n");
         assertInvalid("field 'reason' is forbidden");
+    }
+
+    @Test
+    void visibleFragmentRequiresARealRussianPhrase() throws Exception {
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Fixed sync я\n");
+        assertInvalid("at least two Russian words");
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Синхронизация\n");
+        assertInvalid("at least two Russian words");
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Ӂӂ Її\n");
+        assertInvalid("at least two Russian words");
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: Исправлена синхронизация Health Connect 2\n");
+        assertEquals(1, validator.validate(repositoryRoot));
     }
 
     @Test
@@ -171,23 +232,23 @@ class ReleaseNotesValidatorTest {
 
     @Test
     void validatesOptionalFlavors() throws Exception {
-        fragment("24-change.yaml", visible(24).replace("text: Исправление", "text: Исправление\nflavors: []"));
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: []"));
         assertInvalid("field 'flavors' must be a non-empty list");
 
         resetFragments();
-        fragment("24-change.yaml", visible(24).replace("text: Исправление", "text: Исправление\nflavors: personal"));
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: personal"));
         assertInvalid("field 'flavors' must be a non-empty list");
 
         resetFragments();
-        fragment("24-change.yaml", visible(24).replace("text: Исправление", "text: Исправление\nflavors: [personal, personal]"));
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [personal, personal]"));
         assertInvalid("duplicate flavor 'personal'");
 
         resetFragments();
-        fragment("24-change.yaml", visible(24).replace("text: Исправление", "text: Исправление\nflavors: [enterprise]"));
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [enterprise]"));
         assertInvalid("unknown flavor 'enterprise'");
 
         resetFragments();
-        fragment("24-change.yaml", visible(24).replace("text: Исправление", "text: Исправление\nflavors: [1]"));
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [1]"));
         assertInvalid("every 'flavors' item must be a string");
     }
 
@@ -317,7 +378,18 @@ class ReleaseNotesValidatorTest {
         );
     }
 
+    private static void createSymlinkOrSkip(Path link, Path target) throws IOException {
+        try {
+            Files.createSymbolicLink(link, target);
+        } catch (UnsupportedOperationException | FileSystemException exception) {
+            if (!System.getProperty("os.name", "").toLowerCase(Locale.ROOT).contains("win")) {
+                throw exception;
+            }
+            assumeTrue(false, "Symbolic links are unavailable in this Windows environment: " + exception.getMessage());
+        }
+    }
+
     private static String visible(int issue) {
-        return "issue: " + issue + "\nuserVisible: true\ntext: Исправление\n";
+        return "issue: " + issue + "\nuserVisible: true\ntext: Исправлена синхронизация\n";
     }
 }

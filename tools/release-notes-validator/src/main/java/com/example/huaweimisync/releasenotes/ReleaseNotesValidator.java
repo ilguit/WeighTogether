@@ -10,6 +10,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -25,7 +26,7 @@ import java.util.stream.Stream;
 public final class ReleaseNotesValidator {
     private static final String DIRECTORY_NAME = ".release-notes";
     private static final Pattern FILE_NAME = Pattern.compile("([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\\.yaml");
-    private static final Pattern CYRILLIC = Pattern.compile(".*\\p{IsCyrillic}.*", Pattern.DOTALL);
+    private static final Pattern RUSSIAN_WORD = Pattern.compile("[А-Яа-яЁё]{2,}");
     private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
     private static final Set<String> SUPPORT_FILES = Set.of("README.md", "template.yaml.example");
@@ -41,7 +42,7 @@ public final class ReleaseNotesValidator {
 
     public int validate(Path repositoryRoot) throws ValidationException {
         Path directory = repositoryRoot.resolve(DIRECTORY_NAME);
-        if (!Files.isDirectory(directory)) {
+        if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
             throw new ValidationException("required directory '" + directory + "' does not exist or is not a directory");
         }
 
@@ -56,8 +57,8 @@ public final class ReleaseNotesValidator {
         List<String> diagnostics = new ArrayList<>();
         int fragmentCount = 0;
         for (Path fragment : fragments) {
-            if (!Files.isRegularFile(fragment)) {
-                diagnostics.add(error(fragment, "only regular fragment files are allowed").getMessage());
+            if (!Files.isRegularFile(fragment, LinkOption.NOFOLLOW_LINKS)) {
+                diagnostics.add(error(fragment, "only regular files are allowed; symbolic links are forbidden").getMessage());
                 continue;
             }
             if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
@@ -129,8 +130,8 @@ public final class ReleaseNotesValidator {
 
         if (userVisible) {
             String text = requireNonBlankString(fragment, values, "text");
-            if (!CYRILLIC.matcher(text).matches()) {
-                throw error(fragment, "field 'text' must contain Russian (Cyrillic) text");
+            if (!containsRussianPhrase(text)) {
+                throw error(fragment, "field 'text' must contain at least two Russian words with at least two consecutive letters each");
             }
             if (values.containsKey("reason")) {
                 throw error(fragment, "field 'reason' is forbidden when 'userVisible' is true");
@@ -145,6 +146,11 @@ public final class ReleaseNotesValidator {
         if (values.containsKey("flavors")) {
             validateFlavors(fragment, values.get("flavors"));
         }
+    }
+
+    private static boolean containsRussianPhrase(String text) {
+        Matcher matcher = RUSSIAN_WORD.matcher(text);
+        return matcher.find() && matcher.find();
     }
 
     private Map<String, Object> requireStringKeyedMap(Path fragment, Object document) throws ValidationException {
