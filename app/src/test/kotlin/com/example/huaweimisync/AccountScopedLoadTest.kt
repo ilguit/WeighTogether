@@ -74,4 +74,55 @@ class AccountScopedLoadTest {
             states,
         )
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun `selection switch publishes matching loading and data without mixed account frame`() = runBlocking {
+        data class Selection(val id: AccountId, val header: String)
+
+        val oldSelection = Selection(AccountId("old"), "Old account")
+        val newSelection = Selection(AccountId("new"), "New account")
+        val selection = MutableStateFlow(oldSelection)
+        val oldSnapshotPublished = CompletableDeferred<Unit>()
+        val oldCollectionCancelled = CompletableDeferred<Unit>()
+        val states = mutableListOf<AccountSelectionScopedLoad<Selection, List<String>>>()
+
+        val collection = launch {
+            accountSelectionScopedLoad(
+                selections = selection,
+                accountId = Selection::id,
+                emptyValue = emptyList(),
+            ) { accountId, _ ->
+                if (accountId == oldSelection.id) {
+                    flow {
+                        emit(listOf("old-history"))
+                        oldSnapshotPublished.complete(Unit)
+                        try {
+                            awaitCancellation()
+                        } finally {
+                            oldCollectionCancelled.complete(Unit)
+                        }
+                    }
+                } else {
+                    flowOf(listOf("new-history"))
+                }
+            }.take(4).toList(states)
+        }
+
+        oldSnapshotPublished.await()
+        selection.value = newSelection
+        collection.join()
+
+        assertTrue(oldCollectionCancelled.isCompleted)
+        assertEquals(
+            listOf(
+                oldSelection to AccountScopedLoad.Loading,
+                oldSelection to AccountScopedLoad.Loaded(listOf("old-history")),
+                newSelection to AccountScopedLoad.Loading,
+                newSelection to AccountScopedLoad.Loaded(listOf("new-history")),
+            ),
+            states.map { it.selection to it.load },
+        )
+        assertEquals(1, states.count { it.selection == newSelection && it.load is AccountScopedLoad.Loading })
+    }
 }

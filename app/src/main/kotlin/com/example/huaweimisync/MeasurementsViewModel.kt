@@ -49,7 +49,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
@@ -85,11 +84,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             isLoading = true,
         ),
     )
-    private val measurements = accountSelector.flatMapLatest { selector ->
-        accountScopedLoad(
-            accountId = selector.selectedAccountId,
-            emptyValue = AccountMeasurementPresentationSource(),
-            observe = { accountId ->
+    private val measurements = accountSelectionScopedLoad(
+        selections = accountSelector,
+        accountId = AccountSelectorUiState::selectedAccountId,
+        emptyValue = AccountMeasurementPresentationSource(),
+        observe = { accountId, selector ->
                 combine(
                     repository.observeAllEntities(accountId),
                     repository.observePreliminary(accountId),
@@ -100,10 +99,20 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                         account = selector.accounts.firstOrNull { it.id == accountId },
                     )
                 }
-            },
-        )
-    }
-        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(), AccountScopedLoad.Loading)
+        },
+    ).stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(),
+        AccountSelectionScopedLoad(
+            selection = AccountSelectorUiState(
+                accounts = emptyList(),
+                selectedAccountId = null,
+                primaryAccountId = null,
+                isLoading = true,
+            ),
+            load = AccountScopedLoad.Loading,
+        ),
+    )
     private val pending = repository.observeUnassignedPending()
         .withPendingMeasurementReadiness()
         .stateIn(
@@ -140,7 +149,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     private val presentation = measurementsWithChartRefresh.mapLatest { refresh ->
         withContext(Dispatchers.Default) {
-            val source = refresh.measurements.valuesOrEmpty()
+            val source = refresh.measurements.load.valuesOrEmpty()
             val items = buildMeasurementPresentationItems(
                 source = source,
                 protectedLatestId = repository.protectedLatestId(source.finalized),
@@ -150,7 +159,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 },
             )
             MeasurementsPresentation(
-                loadState = refresh.measurements,
+                loadState = refresh.measurements.load,
+                accountSelector = refresh.measurements.selection,
                 items = items,
                 summary = buildMeasurementSummary(items),
                 homeKgChart = buildHomeKgChartUiState(
@@ -175,8 +185,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         navigation,
         editor,
         deleteConfirmation,
-        accountSelector,
-    ) { current, currentNavigation, currentEditor, deletion, selector ->
+    ) { current, currentNavigation, currentEditor, deletion ->
         val deletingId = deletion?.measurementId.takeIf { deletion?.isDeleting == true }
         val items = if (deletingId == null) current.items else current.items.map { item ->
             item.copy(isOperationInProgress = item.id == deletingId)
@@ -191,7 +200,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             editor = currentEditor,
             deleteConfirmation = deletion,
             homeKgChart = current.homeKgChart,
-            accountSelector = selector,
+            accountSelector = current.accountSelector,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), MeasurementsUiState())
 
@@ -270,7 +279,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun openEditor(id: String, origin: MeasurementEditorOrigin) {
-        val value = measurements.value.valuesOrEmpty().finalized.firstOrNull { it.id == id } ?: run {
+        val value = measurements.value.load.valuesOrEmpty().finalized.firstOrNull { it.id == id } ?: run {
             showMessage("Измерение уже удалено")
             return
         }
@@ -334,7 +343,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun requestDelete(id: String) {
-        val values = measurements.value.valuesOrEmpty().finalized
+        val values = measurements.value.load.valuesOrEmpty().finalized
         if (values.none { it.id == id }) {
             showMessage("Измерение уже удалено")
             return
@@ -510,6 +519,7 @@ private fun MeasurementType.toUiType(): MeasurementUiType = when (this) {
 
 private data class MeasurementsPresentation(
     val loadState: AccountScopedLoad<AccountMeasurementPresentationSource>,
+    val accountSelector: AccountSelectorUiState,
     val items: List<MeasurementUiItem>,
     val summary: com.example.huaweimisync.measurements.MeasurementSummaryPresentation?,
     val homeKgChart: com.example.huaweimisync.measurements.HomeKgChartUiState,
