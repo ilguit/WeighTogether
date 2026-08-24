@@ -9,9 +9,10 @@ class AppReleaseHistoryTest {
     fun releasesAreNewestFirstAndMapEveryVersionToItsIssues() {
         val releases = AppReleaseHistory.releases
 
-        assertEquals(listOf("0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1"), releases.map { it.version })
+        assertEquals(listOf("0.1.9", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1"), releases.map { it.version })
         assertEquals(
             mapOf(
+                "0.1.9" to listOf(25),
                 "0.1.5" to listOf(3),
                 "0.1.4" to listOf(16),
                 "0.1.3" to listOf(13),
