@@ -4,6 +4,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
 import java.nio.file.FileSystemException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -219,15 +220,62 @@ class ReleaseNotesValidatorTest {
         resetFragments();
         fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: абHealthвг обновление\n");
         assertInvalid("at least two Russian words");
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: исправле\u0301ние данных\n");
+        assertInvalid("at least two Russian words");
     }
 
     @Test
-    void noFollowReaderRejectsSymbolicLinksAtOpen() throws Exception {
+    void secureReaderRejectsSymbolicLinksAtOpen() throws Exception {
         Path target = Files.writeString(repositoryRoot.resolve("outside.yaml"), visible(24));
-        Path link = repositoryRoot.resolve("linked.yaml");
-        createSymlinkOrSkip(link, target);
+        Path directory = Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        createSymlinkOrSkip(directory.resolve("24-linked.yaml"), target);
 
-        assertThrows(IOException.class, () -> ReleaseNotesValidator.readFragment(link));
+        try (var secureDirectory = openSecureNotesDirectory(repositoryRoot)) {
+            assertThrows(
+                    IOException.class,
+                    () -> ReleaseNotesValidator.readFragment(secureDirectory, Path.of("24-linked.yaml"))
+            );
+        }
+    }
+
+    @Test
+    void remainsAnchoredWhenFragmentDirectoryPathIsReplacedAfterOpen() throws Exception {
+        fragment("24-original.yaml", visible(24));
+        Path directory = repositoryRoot.resolve(".release-notes");
+        Path openedDirectory = repositoryRoot.resolve("opened-release-notes");
+        ReleaseNotesValidator anchoredValidator = new ReleaseNotesValidator(
+                ReleaseNotesValidatorTest::openSecureNotesDirectory,
+                () -> {
+                    try {
+                        Files.move(directory, openedDirectory);
+                        Files.createDirectory(directory);
+                        Files.writeString(directory.resolve("25-replacement.yaml"), "invalid YAML: [");
+                    } catch (IOException exception) {
+                        throw new UncheckedIOException(exception);
+                    }
+                }
+        );
+
+        assertEquals(1, anchoredValidator.validate(repositoryRoot));
+    }
+
+    @Test
+    void reportsUnsupportedSecureDirectoryProviderClearly() throws Exception {
+        Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        ReleaseNotesValidator unsupportedValidator = new ReleaseNotesValidator(
+                root -> {
+                    throw new ValidationException("filesystem provider does not support secure directory validation for '" + root + "'");
+                },
+                () -> { }
+        );
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> unsupportedValidator.validate(repositoryRoot)
+        );
+        assertTrue(exception.getMessage().contains("filesystem provider does not support secure directory validation"));
     }
 
     @Test
@@ -421,6 +469,24 @@ class ReleaseNotesValidatorTest {
                 throw exception;
             }
             assumeTrue(false, "Symbolic links are unavailable in this Windows environment: " + exception.getMessage());
+        }
+    }
+
+    private static java.nio.file.SecureDirectoryStream<Path> openSecureNotesDirectory(Path root)
+            throws IOException, ValidationException {
+        java.nio.file.DirectoryStream<Path> rootStream = Files.newDirectoryStream(root);
+        if (!(rootStream instanceof java.nio.file.SecureDirectoryStream<Path> secureRoot)) {
+            rootStream.close();
+            throw new ValidationException("secure directory streams unavailable");
+        }
+        try (secureRoot) {
+            java.nio.file.DirectoryStream<Path> notes = secureRoot.newDirectoryStream(
+                    Path.of(".release-notes"), java.nio.file.LinkOption.NOFOLLOW_LINKS);
+            if (!(notes instanceof java.nio.file.SecureDirectoryStream<Path> secureNotes)) {
+                notes.close();
+                throw new ValidationException("secure directory streams unavailable");
+            }
+            return secureNotes;
         }
     }
 

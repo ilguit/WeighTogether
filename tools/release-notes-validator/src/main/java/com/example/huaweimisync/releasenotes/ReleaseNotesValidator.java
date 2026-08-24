@@ -14,10 +14,14 @@ import java.nio.channels.SeekableByteChannel;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
+import java.nio.file.SecureDirectoryStream;
 import java.nio.file.StandardOpenOption;
+import java.nio.file.attribute.BasicFileAttributeView;
+import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -27,12 +31,11 @@ import java.util.Map;
 import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-import java.util.stream.Stream;
 
 public final class ReleaseNotesValidator {
     private static final String DIRECTORY_NAME = ".release-notes";
     private static final Pattern FILE_NAME = Pattern.compile("([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\\.yaml");
-    private static final Pattern RUSSIAN_WORD = Pattern.compile("(?<!\\p{L})[А-Яа-яЁё]{2,}(?!\\p{L})");
+    private static final Pattern RUSSIAN_WORD = Pattern.compile("(?<![\\p{L}\\p{M}])[А-Яа-яЁё]{2,}(?![\\p{L}\\p{M}])");
     static final int MAX_FRAGMENT_BYTES = 64 * 1024;
     private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
@@ -46,50 +49,87 @@ public final class ReleaseNotesValidator {
     private final Parse yamlParser = new Parse(LoadSettings.builder()
             .setLabel("release-note fragment")
             .build());
+    private final DirectoryOpener directoryOpener;
+    private final Runnable directoryOpenedHook;
+
+    public ReleaseNotesValidator() {
+        this(ReleaseNotesValidator::openSecureDirectory, () -> { });
+    }
+
+    ReleaseNotesValidator(DirectoryOpener directoryOpener, Runnable directoryOpenedHook) {
+        this.directoryOpener = directoryOpener;
+        this.directoryOpenedHook = directoryOpenedHook;
+    }
 
     public int validate(Path repositoryRoot) throws ValidationException {
         Path directory = repositoryRoot.resolve(DIRECTORY_NAME);
-        if (!Files.isDirectory(directory, LinkOption.NOFOLLOW_LINKS)) {
-            throw new ValidationException("required directory '" + directory + "' does not exist or is not a directory");
-        }
+        try (SecureDirectoryStream<Path> secureDirectory = directoryOpener.open(repositoryRoot)) {
+            directoryOpenedHook.run();
+            List<Path> fragments = new ArrayList<>();
+            secureDirectory.forEach(fragments::add);
+            fragments.sort((left, right) -> left.getFileName().toString().compareTo(right.getFileName().toString()));
 
-        List<Path> fragments;
-        try (Stream<Path> entries = Files.list(directory)) {
-            fragments = entries.sorted().toList();
+            Set<String> caseInsensitiveNames = new HashSet<>();
+            List<String> diagnostics = new ArrayList<>();
+            int fragmentCount = 0;
+            for (Path listedPath : fragments) {
+                Path fileName = listedPath.getFileName();
+                Path displayPath = directory.resolve(fileName);
+                BasicFileAttributeView view = secureDirectory.getFileAttributeView(
+                        fileName, BasicFileAttributeView.class, LinkOption.NOFOLLOW_LINKS);
+                BasicFileAttributes attributes = view.readAttributes();
+                if (!attributes.isRegularFile()) {
+                    diagnostics.add(error(displayPath, "only regular files are allowed; symbolic links are forbidden").getMessage());
+                    continue;
+                }
+                if (SUPPORT_FILES.contains(fileName.toString())) {
+                    continue;
+                }
+                fragmentCount++;
+                String lowerCaseName = fileName.toString().toLowerCase(Locale.ROOT);
+                if (!caseInsensitiveNames.add(lowerCaseName)) {
+                    diagnostics.add(error(displayPath, "filename collides case-insensitively with another fragment").getMessage());
+                    continue;
+                }
+                try {
+                    validateFragment(displayPath, secureDirectory, fileName);
+                } catch (ValidationException exception) {
+                    diagnostics.add(exception.getMessage());
+                }
+            }
+            if (!diagnostics.isEmpty()) {
+                throw new ValidationException(String.join(System.lineSeparator(), diagnostics));
+            }
+            return fragmentCount;
+        } catch (ValidationException exception) {
+            throw exception;
         } catch (IOException exception) {
-            throw new ValidationException("cannot read directory '" + directory + "': " + exception.getMessage(), exception);
+            throw new ValidationException("cannot securely read directory '" + directory + "': " + exception.getMessage(), exception);
         }
-
-        Set<String> caseInsensitiveNames = new HashSet<>();
-        List<String> diagnostics = new ArrayList<>();
-        int fragmentCount = 0;
-        for (Path fragment : fragments) {
-            if (!Files.isRegularFile(fragment, LinkOption.NOFOLLOW_LINKS)) {
-                diagnostics.add(error(fragment, "only regular files are allowed; symbolic links are forbidden").getMessage());
-                continue;
-            }
-            if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
-                continue;
-            }
-            fragmentCount++;
-            String lowerCaseName = fragment.getFileName().toString().toLowerCase(Locale.ROOT);
-            if (!caseInsensitiveNames.add(lowerCaseName)) {
-                diagnostics.add(error(fragment, "filename collides case-insensitively with another fragment").getMessage());
-                continue;
-            }
-            try {
-                validateFragment(fragment);
-            } catch (ValidationException exception) {
-                diagnostics.add(exception.getMessage());
-            }
-        }
-        if (!diagnostics.isEmpty()) {
-            throw new ValidationException(String.join(System.lineSeparator(), diagnostics));
-        }
-        return fragmentCount;
     }
 
-    private void validateFragment(Path fragment) throws ValidationException {
+    private static SecureDirectoryStream<Path> openSecureDirectory(Path repositoryRoot) throws IOException, ValidationException {
+        try (DirectoryStream<Path> rootStream = Files.newDirectoryStream(repositoryRoot)) {
+            if (!(rootStream instanceof SecureDirectoryStream<Path> secureRoot)) {
+                throw new ValidationException("filesystem provider does not support secure directory validation for '" + repositoryRoot + "'");
+            }
+            DirectoryStream<Path> notesStream;
+            try {
+                notesStream = secureRoot.newDirectoryStream(Path.of(DIRECTORY_NAME), LinkOption.NOFOLLOW_LINKS);
+            } catch (IOException exception) {
+                throw new ValidationException("required directory '" + repositoryRoot.resolve(DIRECTORY_NAME)
+                        + "' does not exist or is not a directory; symbolic links are forbidden", exception);
+            }
+            if (!(notesStream instanceof SecureDirectoryStream<Path> secureNotes)) {
+                notesStream.close();
+                throw new ValidationException("filesystem provider does not support secure directory validation for '"
+                        + repositoryRoot.resolve(DIRECTORY_NAME) + "'");
+            }
+            return secureNotes;
+        }
+    }
+
+    private void validateFragment(Path fragment, SecureDirectoryStream<Path> directory, Path relativeFileName) throws ValidationException {
         String fileName = fragment.getFileName().toString();
         Matcher fileNameMatcher = FILE_NAME.matcher(fileName);
         if (!fileNameMatcher.matches()) {
@@ -98,7 +138,7 @@ public final class ReleaseNotesValidator {
 
         String input;
         try {
-            input = readFragment(fragment);
+            input = readFragment(directory, relativeFileName);
         } catch (CharacterCodingException exception) {
             throw error(fragment, "file must be valid UTF-8", exception);
         } catch (IOException exception) {
@@ -162,11 +202,9 @@ public final class ReleaseNotesValidator {
         return matcher.find() && matcher.find();
     }
 
-    static String readFragment(Path fragment) throws IOException {
-        try (SeekableByteChannel channel = Files.newByteChannel(
-                fragment,
-                Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS)
-        )) {
+    static String readFragment(SecureDirectoryStream<Path> directory, Path fileName) throws IOException {
+        try (SeekableByteChannel channel = directory.newByteChannel(
+                fileName, Set.of(StandardOpenOption.READ, LinkOption.NOFOLLOW_LINKS))) {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             ByteBuffer buffer = ByteBuffer.allocate(8192);
             int total = 0;
@@ -185,6 +223,11 @@ public final class ReleaseNotesValidator {
                     .decode(ByteBuffer.wrap(bytes.toByteArray()))
                     .toString();
         }
+    }
+
+    @FunctionalInterface
+    interface DirectoryOpener {
+        SecureDirectoryStream<Path> open(Path repositoryRoot) throws IOException, ValidationException;
     }
 
     private Map<String, Object> requireStringKeyedMap(Path fragment, Object document) throws ValidationException {
