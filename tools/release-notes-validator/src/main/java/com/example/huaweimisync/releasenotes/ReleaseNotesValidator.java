@@ -15,6 +15,7 @@ import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.DirectoryStream;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.Files;
 import java.nio.file.LinkOption;
 import java.nio.file.Path;
@@ -35,7 +36,7 @@ import java.util.regex.Pattern;
 public final class ReleaseNotesValidator {
     private static final String DIRECTORY_NAME = ".release-notes";
     private static final Pattern FILE_NAME = Pattern.compile("([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\\.yaml");
-    private static final Pattern RUSSIAN_WORD = Pattern.compile("(?<![\\p{L}\\p{M}])[А-Яа-яЁё]{2,}(?![\\p{L}\\p{M}])");
+    private static final Pattern UNICODE_TOKEN = Pattern.compile("[\\p{L}\\p{M}]+");
     static final int MAX_FRAGMENT_BYTES = 64 * 1024;
     private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
@@ -51,22 +52,38 @@ public final class ReleaseNotesValidator {
             .build());
     private final DirectoryOpener directoryOpener;
     private final Runnable directoryOpenedHook;
+    private final FragmentLister fragmentLister;
 
     public ReleaseNotesValidator() {
-        this(ReleaseNotesValidator::openSecureDirectory, () -> { });
+        this(ReleaseNotesValidator::openSecureDirectory, () -> { }, ReleaseNotesValidator::listFragments);
     }
 
     ReleaseNotesValidator(DirectoryOpener directoryOpener, Runnable directoryOpenedHook) {
+        this(directoryOpener, directoryOpenedHook, ReleaseNotesValidator::listFragments);
+    }
+
+    ReleaseNotesValidator(
+            DirectoryOpener directoryOpener,
+            Runnable directoryOpenedHook,
+            FragmentLister fragmentLister
+    ) {
         this.directoryOpener = directoryOpener;
         this.directoryOpenedHook = directoryOpenedHook;
+        this.fragmentLister = fragmentLister;
     }
 
     public int validate(Path repositoryRoot) throws ValidationException {
         Path directory = repositoryRoot.resolve(DIRECTORY_NAME);
         try (SecureDirectoryStream<Path> secureDirectory = directoryOpener.open(repositoryRoot)) {
             directoryOpenedHook.run();
-            List<Path> fragments = new ArrayList<>();
-            secureDirectory.forEach(fragments::add);
+            List<Path> fragments;
+            try {
+                fragments = fragmentLister.list(secureDirectory);
+            } catch (DirectoryIteratorException exception) {
+                IOException cause = exception.getCause();
+                throw new ValidationException("cannot enumerate release-note directory '" + directory
+                        + "': " + conciseMessage(cause), cause);
+            }
             fragments.sort((left, right) -> left.getFileName().toString().compareTo(right.getFileName().toString()));
 
             Set<String> caseInsensitiveNames = new HashSet<>();
@@ -180,7 +197,8 @@ public final class ReleaseNotesValidator {
         if (userVisible) {
             String text = requireNonBlankString(fragment, values, "text");
             if (!containsRussianPhrase(text)) {
-                throw error(fragment, "field 'text' must contain at least two Russian words with at least two consecutive letters each");
+                throw error(fragment, "field 'text' must contain at least two Russian words (Unicode tokens) "
+                        + "with at least two base letters each");
             }
             if (values.containsKey("reason")) {
                 throw error(fragment, "field 'reason' is forbidden when 'userVisible' is true");
@@ -198,8 +216,50 @@ public final class ReleaseNotesValidator {
     }
 
     private static boolean containsRussianPhrase(String text) {
-        Matcher matcher = RUSSIAN_WORD.matcher(text);
-        return matcher.find() && matcher.find();
+        Matcher matcher = UNICODE_TOKEN.matcher(text);
+        int qualifyingTokens = 0;
+        while (matcher.find()) {
+            if (isRussianToken(matcher.group()) && ++qualifyingTokens >= 2) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isRussianToken(String token) {
+        int baseLetters = 0;
+        var codePoints = token.codePoints().iterator();
+        while (codePoints.hasNext()) {
+            int codePoint = codePoints.nextInt();
+            if (isMark(codePoint)) {
+                continue;
+            }
+            if (!isRussianLetter(codePoint)) {
+                return false;
+            }
+            baseLetters++;
+        }
+        return baseLetters >= 2;
+    }
+
+    private static boolean isMark(int codePoint) {
+        int type = Character.getType(codePoint);
+        return type == Character.NON_SPACING_MARK
+                || type == Character.COMBINING_SPACING_MARK
+                || type == Character.ENCLOSING_MARK;
+    }
+
+    private static boolean isRussianLetter(int codePoint) {
+        return (codePoint >= 'А' && codePoint <= 'Я')
+                || (codePoint >= 'а' && codePoint <= 'я')
+                || codePoint == 'Ё'
+                || codePoint == 'ё';
+    }
+
+    private static List<Path> listFragments(SecureDirectoryStream<Path> directory) {
+        List<Path> fragments = new ArrayList<>();
+        directory.forEach(fragments::add);
+        return fragments;
     }
 
     static String readFragment(SecureDirectoryStream<Path> directory, Path fileName) throws IOException {
@@ -228,6 +288,11 @@ public final class ReleaseNotesValidator {
     @FunctionalInterface
     interface DirectoryOpener {
         SecureDirectoryStream<Path> open(Path repositoryRoot) throws IOException, ValidationException;
+    }
+
+    @FunctionalInterface
+    interface FragmentLister {
+        List<Path> list(SecureDirectoryStream<Path> directory);
     }
 
     private Map<String, Object> requireStringKeyedMap(Path fragment, Object document) throws ValidationException {

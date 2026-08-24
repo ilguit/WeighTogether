@@ -6,6 +6,7 @@ import org.junit.jupiter.api.io.TempDir;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.FileSystemException;
+import java.nio.file.DirectoryIteratorException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.charset.StandardCharsets;
@@ -223,7 +224,36 @@ class ReleaseNotesValidatorTest {
 
         resetFragments();
         fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: исправле\u0301ние данных\n");
+        assertEquals(1, validator.validate(repositoryRoot));
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: исправле\u0301ние\n");
         assertInvalid("at least two Russian words");
+
+        resetFragments();
+        fragment("24-change.yaml", "issue: 24\nuserVisible: true\ntext: исправлено \uD801\uDC00слово\n");
+        assertInvalid("at least two Russian words");
+    }
+
+    @Test
+    void reportsDirectoryIterationFailureClearly() throws Exception {
+        Files.createDirectory(repositoryRoot.resolve(".release-notes"));
+        IOException iterationFailure = new IOException("simulated directory read failure");
+        ReleaseNotesValidator failingValidator = new ReleaseNotesValidator(
+                ReleaseNotesValidatorTest::openSecureNotesDirectory,
+                () -> { },
+                directory -> {
+                    throw new DirectoryIteratorException(iterationFailure);
+                }
+        );
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> failingValidator.validate(repositoryRoot)
+        );
+        assertTrue(exception.getMessage().contains("cannot enumerate release-note directory"));
+        assertTrue(exception.getMessage().contains("simulated directory read failure"));
+        assertEquals(iterationFailure, exception.getCause());
     }
 
     @Test
