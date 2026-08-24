@@ -53,28 +53,32 @@ public final class ReleaseNotesValidator {
         }
 
         Set<String> caseInsensitiveNames = new HashSet<>();
+        List<String> diagnostics = new ArrayList<>();
+        int fragmentCount = 0;
         for (Path fragment : fragments) {
             if (!Files.isRegularFile(fragment)) {
-                throw error(fragment, "only regular fragment files are allowed");
+                diagnostics.add(error(fragment, "only regular fragment files are allowed").getMessage());
+                continue;
             }
             if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
                 continue;
             }
+            fragmentCount++;
             String lowerCaseName = fragment.getFileName().toString().toLowerCase(Locale.ROOT);
             if (!caseInsensitiveNames.add(lowerCaseName)) {
-                throw error(fragment, "filename collides case-insensitively with another fragment");
-            }
-        }
-
-        for (Path fragment : fragments) {
-            if (SUPPORT_FILES.contains(fragment.getFileName().toString())) {
+                diagnostics.add(error(fragment, "filename collides case-insensitively with another fragment").getMessage());
                 continue;
             }
-            validateFragment(fragment);
+            try {
+                validateFragment(fragment);
+            } catch (ValidationException exception) {
+                diagnostics.add(exception.getMessage());
+            }
         }
-        return Math.toIntExact(fragments.stream()
-                .filter(fragment -> !SUPPORT_FILES.contains(fragment.getFileName().toString()))
-                .count());
+        if (!diagnostics.isEmpty()) {
+            throw new ValidationException(String.join(System.lineSeparator(), diagnostics));
+        }
+        return fragmentCount;
     }
 
     private void validateFragment(Path fragment) throws ValidationException {

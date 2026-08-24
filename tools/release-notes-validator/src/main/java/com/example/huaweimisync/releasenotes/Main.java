@@ -17,7 +17,8 @@ public final class Main {
             int count = new ReleaseNotesValidator().validate(repositoryRoot);
             System.out.printf("Validated %d release-note fragment(s).%n", count);
         } catch (ValidationException exception) {
-            System.err.println("Release-note validation failed: " + exception.getMessage());
+            System.err.println("Release-note validation failed:");
+            System.err.println(exception.getMessage());
             System.exit(1);
         }
     }

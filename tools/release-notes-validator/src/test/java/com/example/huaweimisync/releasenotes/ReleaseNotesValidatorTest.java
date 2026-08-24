@@ -257,6 +257,40 @@ class ReleaseNotesValidatorTest {
         assertInvalid("24-specific-file.yaml");
     }
 
+    @Test
+    void aggregatesErrorsFromDifferentFragments() throws Exception {
+        fragment("24-missing-reason.yaml", "issue: 24\nuserVisible: false\n");
+        fragment("25-missing-text.yaml", "issue: 25\nuserVisible: true\n");
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> validator.validate(repositoryRoot)
+        );
+
+        assertTrue(exception.getMessage().contains("24-missing-reason.yaml"));
+        assertTrue(exception.getMessage().contains("field 'reason' must be a non-blank string"));
+        assertTrue(exception.getMessage().contains("25-missing-text.yaml"));
+        assertTrue(exception.getMessage().contains("field 'text' must be a non-blank string"));
+    }
+
+    @Test
+    void reportsAggregatedErrorsInDeterministicFilenameOrder() throws Exception {
+        fragment("30-third.yaml", "issue: 30\nuserVisible: false\n");
+        fragment("10-first.yaml", "issue: 10\nuserVisible: false\n");
+        fragment("20-second.yaml", "issue: 20\nuserVisible: false\n");
+
+        ValidationException exception = assertThrows(
+                ValidationException.class,
+                () -> validator.validate(repositoryRoot)
+        );
+        String message = exception.getMessage();
+
+        int first = message.indexOf("10-first.yaml");
+        int second = message.indexOf("20-second.yaml");
+        int third = message.indexOf("30-third.yaml");
+        assertTrue(first >= 0 && first < second && second < third, message);
+    }
+
     private Path fragment(String name, String yaml) throws IOException {
         Path directory = repositoryRoot.resolve(".release-notes");
         Files.createDirectories(directory);
