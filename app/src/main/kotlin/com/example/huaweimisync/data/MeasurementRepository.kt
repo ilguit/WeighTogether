@@ -351,6 +351,8 @@ class MeasurementRepository(
                 PendingEnqueueResult.AlreadyPending(result.pending)
             is PendingPersistenceResult.AlreadyFinalized ->
                 PendingEnqueueResult.AlreadyFinalized(result.measurement)
+            is PendingPersistenceResult.UpgradedFinalized ->
+                PendingEnqueueResult.AlreadyFinalized(result.measurement)
             PendingPersistenceResult.Tombstoned -> PendingEnqueueResult.Tombstoned
         }
 

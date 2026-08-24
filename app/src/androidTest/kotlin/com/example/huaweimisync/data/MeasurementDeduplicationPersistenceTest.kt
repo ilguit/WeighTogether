@@ -153,6 +153,44 @@ class MeasurementDeduplicationPersistenceTest {
     }
 
     @Test
+    fun extendedFullPacketEnrichesNearestActiveIncompletePredecessor() = runBlocking {
+        val persistence = persistence()
+        val farther = persistence.enqueue(raw(second = 0, full = false))
+            as PendingPersistenceResult.Inserted
+        val nearer = persistence.enqueue(raw(second = 12, full = false))
+            as PendingPersistenceResult.Inserted
+        now = now.plusSeconds(3)
+
+        val enriched = persistence.enqueue(
+            raw(second = 29, full = true, payload = byteArrayOf(9, 8, 7)),
+        ) as PendingPersistenceResult.AlreadyPending
+
+        assertEquals(nearer.pending.id, enriched.pending.id)
+        assertEquals(nearer.pending.measuredAt, enriched.pending.measuredAt)
+        assertEquals(nearer.pending.provisionalAccountId, enriched.pending.provisionalAccountId)
+        assertTrue(enriched.wasEnriched)
+        assertTrue(enriched.shouldScheduleFinalization)
+        assertArrayEquals(byteArrayOf(9, 8, 7), enriched.pending.rawPayload)
+        assertEquals(now.plusSeconds(10), enriched.pending.finalizeAfter)
+        assertEquals(2, database.pendingMeasurementDao().getAll().size)
+        assertFalse(database.pendingMeasurementDao().get(farther.pending.id.value)!!.hasImpedance)
+    }
+
+    @Test
+    fun extendedPacketDoesNotEnrichDuePending() = runBlocking {
+        val persistence = persistence()
+        val first = persistence.enqueue(raw(second = 0, full = false))
+            as PendingPersistenceResult.Inserted
+        now = first.pending.finalizeAfter
+
+        val result = persistence.enqueue(raw(second = 24, full = true))
+
+        assertTrue(result is PendingPersistenceResult.Inserted)
+        assertEquals(2, database.pendingMeasurementDao().getAll().size)
+        assertFalse(database.pendingMeasurementDao().get(first.pending.id.value)!!.hasImpedance)
+    }
+
+    @Test
     fun fullThenWeightOnlyDoesNotDowngradeButExtendsSlidingDeadline() = runBlocking {
         val persistence = persistence()
         val first = persistence.enqueue(

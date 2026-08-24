@@ -41,6 +41,8 @@ sealed interface PendingPersistenceResult {
         val shouldScheduleFinalization: Boolean = true,
     ) : PendingPersistenceResult
     data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
+    /** A finalized weight-only row was atomically enriched in place. */
+    data class UpgradedFinalized(val measurement: AccountMeasurement) : PendingPersistenceResult
     data object Tombstoned : PendingPersistenceResult
 }
 
@@ -58,6 +60,42 @@ internal fun pendingReplayPlan(
     // An exact replay can be the durable fallback after the original enqueue attempt failed.
     shouldScheduleFinalization = exactReplay || isBeforeDeadline,
 )
+
+internal data class PendingEnrichmentUpdate(
+    val entity: PendingMeasurementEntity,
+    val shouldScheduleFinalization: Boolean,
+)
+
+internal fun activePendingEnrichment(
+    candidate: PendingMeasurementEntity,
+    incoming: RawScaleMeasurement,
+    receivedAt: Instant,
+): PendingEnrichmentUpdate? {
+    val receivedAtEpochMillis = receivedAt.toEpochMilli()
+    if (receivedAtEpochMillis >= candidate.finalizeAfterEpochMillis) return null
+    if (!MeasurementEnrichmentPolicy.canEnrich(candidate.toDomain().toRawScaleMeasurement(), incoming)) {
+        return null
+    }
+
+    val replayPlan = pendingReplayPlan(
+        exactReplay = candidate.deduplicationHash == incoming.deduplicationHash(),
+        isBeforeDeadline = true,
+    )
+    return PendingEnrichmentUpdate(
+        entity = candidate.copy(
+            impedanceOhm = incoming.impedanceOhm,
+            isStable = incoming.isStable,
+            hasImpedance = incoming.hasImpedance,
+            rawPayload = incoming.rawPayload.copyOf(),
+            finalizeAfterEpochMillis = if (replayPlan.shouldSlideDeadline) {
+                receivedAt.plusSeconds(RoomMeasurementPersistence.DEBOUNCE_SECONDS).toEpochMilli()
+            } else {
+                candidate.finalizeAfterEpochMillis
+            },
+        ),
+        shouldScheduleFinalization = replayPlan.shouldScheduleFinalization,
+    )
+}
 
 class RoomMeasurementPersistence(
     private val database: AppDatabase,
@@ -214,10 +252,12 @@ class RoomMeasurementPersistence(
             when (candidate) {
                 is DeduplicationCandidate.Tombstone ->
                     return@withTransaction PendingPersistenceResult.Tombstoned
-                is DeduplicationCandidate.Finalized ->
-                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                        candidate.entity.toAccountMeasurement(),
-                    )
+                is DeduplicationCandidate.Finalized -> {
+                    return@withTransaction upgradeFinalizedMeasurement(candidate.entity, raw)
+                        ?: PendingPersistenceResult.AlreadyFinalized(
+                            candidate.entity.toAccountMeasurement(),
+                        )
+                }
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
                     val enrich = !pending.hasFullBodyComposition() && raw.hasFullBodyComposition
@@ -256,6 +296,59 @@ class RoomMeasurementPersistence(
                 }
                 null -> Unit
             }
+
+            if (raw.hasFullBodyComposition) {
+                val enrichmentBounds = MeasurementEnrichmentPolicy.candidateEpochSecondBounds(
+                    measuredAtEpochSecond,
+                )
+                val enrichmentCandidate = pendingDao.findNearestActiveIncompletePredecessor(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    minimumEpochSecond = enrichmentBounds.first,
+                    maximumEpochSecond = enrichmentBounds.last,
+                    nowEpochMillis = timestampMillis,
+                    minimumImpedanceOhm = RawScaleMeasurement.MIN_IMPEDANCE_OHM,
+                    maximumImpedanceOhm = RawScaleMeasurement.MAX_IMPEDANCE_OHM,
+                )
+                val enrichment = enrichmentCandidate?.let {
+                    activePendingEnrichment(it, raw, timestamp)
+                }
+                if (enrichment != null) {
+                    check(pendingDao.update(enrichment.entity) == 1) {
+                        "Pending aggregate disappeared during enrichment"
+                    }
+                    return@withTransaction PendingPersistenceResult.AlreadyPending(
+                        pending = enrichment.entity.toDomain(),
+                        wasEnriched = true,
+                        shouldScheduleFinalization = enrichment.shouldScheduleFinalization,
+                    )
+                }
+
+                measurementDao.findExactFinalizedFullReplay(
+                    deviceAddress = raw.deviceAddress,
+                    rawWeight = raw.rawWeight,
+                    rawPayloadHex = raw.rawPayload.toHexString(),
+                    minimumEpochSecond = enrichmentBounds.first,
+                    maximumEpochSecond = enrichmentBounds.last,
+                )?.let { exactReplay ->
+                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
+                        exactReplay.toAccountMeasurement(),
+                    )
+                }
+
+                val finalizedCandidate = measurementDao
+                    .findNearestFinalizedEnrichmentPredecessor(
+                        deviceAddress = raw.deviceAddress,
+                        rawWeight = raw.rawWeight,
+                        minimumEpochSecond = enrichmentBounds.first,
+                        maximumEpochSecond = enrichmentBounds.last,
+                    )
+                if (finalizedCandidate != null) {
+                    upgradeFinalizedMeasurement(finalizedCandidate, raw)?.let {
+                        return@withTransaction it
+                    }
+                }
+            }
             val entity = PendingMeasurementEntity(
                 id = newId(),
                 deviceAddress = raw.deviceAddress,
@@ -277,6 +370,56 @@ class RoomMeasurementPersistence(
                 PendingPersistenceResult.Inserted(entity.toDomain())
             }
         }
+
+    private suspend fun upgradeFinalizedMeasurement(
+        candidate: MeasurementEntity,
+        incoming: RawScaleMeasurement,
+    ): PendingPersistenceResult? {
+        if (candidate.measurementType == MeasurementType.FULL &&
+            candidate.rawPayloadHex == incoming.rawPayload.toHexString()
+        ) {
+            return PendingPersistenceResult.AlreadyFinalized(candidate.toAccountMeasurement())
+        }
+        if (!MeasurementEnrichmentPolicy.canEnrich(candidate.toRawScaleMeasurement(), incoming)) {
+            return null
+        }
+
+        val account = accountDao.get(candidate.accountId)
+        val profile = account?.toDomain()?.profile?.toUserProfileOrNull()
+            ?: return PendingPersistenceResult.AlreadyFinalized(candidate.toAccountMeasurement())
+        val compositionRaw = incoming.copy(measuredAt = candidate.measuredAt)
+        val calculated = calculator.calculate(compositionRaw, profile).toEntity(
+            rawPayload = incoming.rawPayload,
+            fingerprint = candidate.fingerprint,
+            huaweiSyncEnabled = huaweiSyncEnabled,
+            accountId = AccountId(candidate.accountId),
+            externalSyncPolicy = ExternalSyncPolicy.valueOf(candidate.externalSyncPolicy),
+            sourcePendingId = candidate.sourcePendingId,
+            deduplicationHash = candidate.deduplicationHash,
+        )
+        val upgraded = calculated.copy(
+            id = candidate.id,
+            huaweiStatus = candidate.huaweiStatus.requeueUnlessTerminal(),
+            healthConnectStatus = candidate.healthConnectStatus.requeueUnlessTerminal(),
+            huaweiError = candidate.huaweiError.preserveForTerminalStatus(candidate.huaweiStatus),
+            healthConnectError = candidate.healthConnectError.preserveForTerminalStatus(
+                candidate.healthConnectStatus,
+            ),
+            huaweiWeightSynced = candidate.huaweiWeightSynced,
+            healthConnectWeightSynced = candidate.healthConnectWeightSynced,
+            createdAtEpochMillis = candidate.createdAtEpochMillis,
+            accountId = candidate.accountId,
+            externalSyncPolicy = candidate.externalSyncPolicy,
+            sourcePendingId = candidate.sourcePendingId,
+            deduplicationHash = candidate.deduplicationHash,
+            huaweiSyncedCalculatedValues = candidate.huaweiSyncedCalculatedValues,
+            healthConnectSyncedCalculatedValues = candidate.healthConnectSyncedCalculatedValues,
+        )
+        check(measurementDao.update(upgraded) == 1) {
+            "Finalized measurement disappeared during enrichment"
+        }
+        return PendingPersistenceResult.UpgradedFinalized(upgraded.toAccountMeasurement())
+    }
 
     override suspend fun finalizePending(
         pendingId: PendingMeasurementId,
@@ -718,6 +861,18 @@ fun RawScaleMeasurement.deduplicationHash(): String {
 
 private fun PendingMeasurementEntity.hasFullBodyComposition(): Boolean =
     toDomain().toRawScaleMeasurement().hasFullBodyComposition
+
+private fun MeasurementEntity.toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMeasurement(
+    deviceAddress = deviceAddress,
+    measuredAt = measuredAt,
+    weightKg = weightKg,
+    impedanceOhm = impedanceOhm ?: 0,
+    isStable = true,
+    hasImpedance = measurementType == MeasurementType.FULL,
+    rawPayload = byteArrayOf(),
+)
+
+private fun ByteArray.toHexString(): String = joinToString("") { "%02x".format(it) }
 
 private fun PendingMeasurement.toEntity(): PendingMeasurementEntity = PendingMeasurementEntity(
     id = id.value,

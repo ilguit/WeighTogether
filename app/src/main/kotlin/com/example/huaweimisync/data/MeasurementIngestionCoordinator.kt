@@ -168,6 +168,8 @@ sealed interface MeasurementIngestionResult {
         val wasEnriched: Boolean,
         val shouldScheduleFinalization: Boolean = true,
     ) : MeasurementIngestionResult
+    /** A previously finalized weight-only row was enriched atomically and retained its identity. */
+    data class UpgradedFinalized(val measurement: AccountMeasurement) : MeasurementIngestionResult
     /** A nearby finalized measurement authoritatively suppressed the packet. */
     data object SuppressedFinal : MeasurementIngestionResult
     /** A nearby active tombstone authoritatively suppressed the packet. */
@@ -230,6 +232,10 @@ class MeasurementIngestionCoordinator(
                 )
             }
             is PendingPersistenceResult.AlreadyFinalized -> MeasurementIngestionResult.SuppressedFinal
+            is PendingPersistenceResult.UpgradedFinalized -> {
+                scheduleIfEligible(enqueued.measurement)
+                MeasurementIngestionResult.UpgradedFinalized(enqueued.measurement)
+            }
             PendingPersistenceResult.Tombstoned -> MeasurementIngestionResult.SuppressedTombstone
         }
     }
