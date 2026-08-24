@@ -147,6 +147,7 @@ grep -qF 'previousReleaseTag:' "$workflow" || fail "artifact metadata lacks prev
 grep -qF 'artifact_path=${artifact_dir}' "$workflow" || fail "artifact does not include APK and metadata directory"
 grep -qF 'GIT_COMMITTER_NAME: github-actions[bot]' "$workflow" || fail "workflow lacks an annotated-tag identity"
 assert_workflow_order "$workflow" \
+    "- name: Verify remote release tag" \
     "- name: Build personal debug APK" \
     "- name: Prepare APK artifact" \
     "- name: Upload personal APK" \
