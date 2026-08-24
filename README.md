@@ -82,3 +82,21 @@ YAML-фрагмент в `.release-notes/`. Полный контракт и п�
 ```bash
 .github/scripts/validate-release-note-fragments.sh
 ```
+
+### Встроенная история версий
+
+История на экране приложения генерируется при сборке из достижимых annotated-тегов
+`apk/<version>`, релизных фрагментов и закрытого исторического baseline в
+`.release-history/baseline.yaml`. Генератор создаёт Kotlin-каталог для интерфейса
+и канонический `res/raw/app_release_history.json`; оба файла относятся к конкретным
+variant и HEAD. Исторические версии 0.1.1–0.1.6 хранятся только в baseline, новые
+выпуски добавляются через теги и фрагменты — расширять baseline нельзя.
+
+Локально результат для personal debug можно проверить командой:
+
+```bash
+./gradlew :app:generatePersonalDebugReleaseHistory
+```
+
+Для воспроизводимой генерации нужен полный first-parent Git history и все теги.
+Генератор также требует чистое состояние отслеживаемых файлов.
