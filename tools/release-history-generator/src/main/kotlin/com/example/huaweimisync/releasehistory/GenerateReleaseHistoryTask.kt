@@ -23,6 +23,8 @@ abstract class GenerateReleaseHistoryTask : DefaultTask() {
     @get:Input abstract val flavor: Property<String>
     @get:Input abstract val generatorSchemaVersion: Property<Int>
     @get:Input abstract val gitMetadata: Property<String>
+    @get:Input abstract val apkTagMetadata: Property<String>
+    @get:Input abstract val trackedWorktreeState: Property<String>
 
     @get:InputFile
     @get:PathSensitive(PathSensitivity.RELATIVE)
@@ -38,7 +40,7 @@ abstract class GenerateReleaseHistoryTask : DefaultTask() {
     @TaskAction
     fun generate() {
         val repositoryRoot = project.rootProject.projectDir.toPath()
-        val dirty = git(repositoryRoot, "status", "--porcelain", "--untracked-files=no").trim()
+        val dirty = trackedWorktreeState.get().trim()
         if (dirty.isNotEmpty()) {
             throw GradleException(
                 "Release history generation requires a clean tracked worktree; commit or stash tracked changes:\n$dirty",
@@ -63,13 +65,5 @@ abstract class GenerateReleaseHistoryTask : DefaultTask() {
         } catch (exception: GenerationException) {
             throw GradleException("Cannot generate ${flavor.get()} release history: ${exception.message}", exception)
         }
-    }
-
-    private fun git(root: java.nio.file.Path, vararg arguments: String): String {
-        val process = ProcessBuilder(listOf("git", "-C", root.toString()) + arguments).start()
-        val output = process.inputStream.bufferedReader().readText()
-        val error = process.errorStream.bufferedReader().readText()
-        if (process.waitFor() != 0) throw GradleException("git ${arguments.joinToString(" ")} failed: ${error.trim()}")
-        return output
     }
 }

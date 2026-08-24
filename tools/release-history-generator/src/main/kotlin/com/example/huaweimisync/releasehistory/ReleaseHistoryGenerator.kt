@@ -13,11 +13,18 @@ class ReleaseHistoryGenerator(
         val head = repository.resolve(headRevision)
         val tags = repository.reachableAnnotatedApkTags(head)
         baseline?.let {
-            if (!repository.isAncestor(it.boundaryCommit, head)) {
-                throw GenerationException("Baseline boundary ${it.boundaryCommit} is not an ancestor of $head")
+            if (!repository.isFirstParentAncestor(it.boundaryCommit, head)) {
+                throw GenerationException("Baseline boundary ${it.boundaryCommit} is not on the first-parent history of $head")
             }
         }
-        val taggedPoints = tags.filter { baseline == null || repository.isAncestor(baseline.boundaryCommit, it.commitSha) }
+        val headTags = tags.filter { it.commitSha == head }
+        if (headTags.any { it.version != currentVersion }) {
+            throw GenerationException(
+                "HEAD $head is tagged as ${headTags.joinToString { it.version }}, not current version $currentVersion",
+            )
+        }
+        val taggedPoints = tags.filter { it.commitSha != head }
+            .filter { baseline == null || repository.isFirstParentAncestor(baseline.boundaryCommit, it.commitSha) }
             .map { ReleasePoint(it.version, it.commitSha) }
         val points = listOf(ReleasePoint(currentVersion, head)) + taggedPoints
         val releases = points.mapIndexed { index, point ->

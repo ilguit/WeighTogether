@@ -39,6 +39,15 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                             "--format=%H%x00%s", "HEAD", "--", ".release-notes", ".release-history",
                         )
                     }.standardOutput.asText)
+                    configured.apkTagMetadata.set(project.providers.exec {
+                        it.commandLine(
+                            "git", "-C", project.rootDir, "for-each-ref",
+                            "--format=%(refname)%00%(objecttype)%00%(*objectname)", "refs/tags/apk/",
+                        )
+                    }.standardOutput.asText)
+                    configured.trackedWorktreeState.set(project.providers.exec {
+                        it.commandLine("git", "-C", project.rootDir, "status", "--porcelain", "--untracked-files=no")
+                    }.standardOutput.asText)
                     configured.baselineFile.set(project.rootProject.layout.projectDirectory.file(".release-history/baseline.yaml"))
                     configured.fragments.from(project.rootProject.fileTree(".release-notes") {
                         it.include("*.yaml")

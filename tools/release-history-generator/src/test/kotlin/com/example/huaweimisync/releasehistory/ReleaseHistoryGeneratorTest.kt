@@ -63,6 +63,48 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `rebuilding exact already tagged head does not duplicate release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(25, "history", true, "История версий")
+        git.commit("Generate history (#25)")
+        git.annotatedTag("apk/0.1.7")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate(git.head(), "0.1.7", ReleaseFlavor.PERSONAL)
+
+        assertEquals(listOf("0.1.7"), history.releases.map { it.version })
+        assertEquals(listOf(25), history.releases.single().changes.map { it.issue })
+    }
+
+    @Test
+    fun `rejects baseline boundary that is only a merged ancestor`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("README.md", "main")
+        git.commit("Main")
+        git.checkout("side")
+        git.file("side.txt", "side")
+        git.commit("Side boundary")
+        val sideBoundary = git.head()
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory)).generate(
+                "HEAD",
+                "0.1.7",
+                ReleaseFlavor.PERSONAL,
+                ReleaseHistoryBaseline(sideBoundary, emptyList()),
+            )
+        }
+        assertTrue(error.message!!.contains("first-parent"))
+    }
+
+    @Test
     fun `ignores lightweight unreachable and merged-side tags`() {
         val git = TestGit(directory)
         git.init()

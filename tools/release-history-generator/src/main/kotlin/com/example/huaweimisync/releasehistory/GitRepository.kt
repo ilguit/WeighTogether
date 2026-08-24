@@ -5,14 +5,10 @@ import java.nio.file.Path
 class GitRepository(private val root: Path) {
     fun resolve(revision: String): String = git("rev-parse", "--verify", "$revision^{commit}").trim()
 
-    fun isAncestor(ancestor: String, descendant: String): Boolean {
-        val process = ProcessBuilder("git", "-C", root.toString(), "merge-base", "--is-ancestor", ancestor, descendant).start()
-        return when (process.waitFor()) {
-            0 -> true
-            1 -> false
-            else -> throw GenerationException("git merge-base --is-ancestor failed")
-        }
-    }
+    fun isFirstParentAncestor(ancestor: String, descendant: String): Boolean =
+        git("rev-list", "--first-parent", descendant)
+            .lineSequence()
+            .any { it == ancestor }
 
     fun firstParentCommits(head: String, exclusiveBase: String? = null): List<GitCommit> {
         val range = exclusiveBase?.let { "$it..$head" } ?: head
