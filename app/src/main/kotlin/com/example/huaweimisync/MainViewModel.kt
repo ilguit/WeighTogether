@@ -564,7 +564,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 when (container.repository.finalizePending(pendingId, accountId)) {
                     is FinalizePendingResult.Finalized -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение назначено аккаунту")
                     }
                     is FinalizePendingResult.AlreadyFinalized -> {
                         completePendingResolution(completion)
