@@ -1,6 +1,7 @@
 package com.example.huaweimisync.backup
 
 import com.example.huaweimisync.data.AppStateEntity
+import com.example.huaweimisync.data.BackupImportCheckpointEntity
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.SyncStatus
@@ -381,6 +382,72 @@ class BackupImportServiceTest {
         val decodedSettings = codec.decodeSettings(codec.encodeSettings(settings))
 
         assertEquals(settings, decodedSettings)
+    }
+
+    @Test
+    fun `checkpoint codec distinguishes bounded and legacy version 7 rows`() {
+        val codec = BackupImportCheckpointCodec()
+        val target = PortableProfileSettings("AA:BB", "Imported", true, emptySet(), setOf("weight"))
+        val previous = PortableProfileSettings("11:22", "Previous", false, null, emptySet())
+        val rollbackJson =
+            """{"accounts":[],"appState":{},"measurements":[],"pendingMeasurements":[],"tombstones":[]}"""
+
+        val bounded = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                operationId = "123e4567-e89b-12d3-a456-426614174000",
+                sweepNeeded = "false",
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+        val legacyTarget = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                operationId = rollbackJson,
+                sweepNeeded = codec.encodeSettings(previous),
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+        val legacyRollback = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                phase = BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED,
+                operationId = rollbackJson,
+                sweepNeeded = codec.encodeSettings(previous),
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+
+        assertEquals(false, bounded?.sweepNeeded)
+        assertEquals(target, bounded?.settings)
+        assertEquals(true, legacyTarget?.sweepNeeded)
+        assertEquals(target, legacyTarget?.settings)
+        assertEquals(false, legacyRollback?.sweepNeeded)
+        assertEquals(previous, legacyRollback?.settings)
+    }
+
+    @Test
+    fun `checkpoint codec rejects malformed rows without strict boolean exceptions`() {
+        val codec = BackupImportCheckpointCodec()
+        val validSettings = codec.encodeSettings(emptySettings)
+
+        listOf(
+            BackupImportCheckpointEntity(
+                operationId = "123e4567-e89b-12d3-a456-426614174000",
+                sweepNeeded = "definitely",
+                targetSettingsJson = validSettings,
+            ),
+            BackupImportCheckpointEntity(
+                operationId = "{not-json",
+                sweepNeeded = "{}",
+                targetSettingsJson = validSettings,
+            ),
+            BackupImportCheckpointEntity(
+                phase = BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED,
+                operationId = "{not-json",
+                sweepNeeded = "{\"reliabilityMode\":\"not-a-boolean\"}",
+                targetSettingsJson = validSettings,
+            ),
+        ).forEach { malformed ->
+            assertEquals(null, codec.decodeRecovery(malformed))
+        }
     }
 
     private class TrackingGateway(

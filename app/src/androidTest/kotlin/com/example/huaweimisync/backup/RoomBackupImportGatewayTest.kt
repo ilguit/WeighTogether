@@ -18,6 +18,7 @@ import com.example.huaweimisync.domain.ExternalSyncPolicy
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -144,6 +145,73 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
+    fun startupRecoveryRollsForwardLegacyV7TargetCheckpointAndSweepsAfterCleanup() = runBlocking {
+        seedLegacyV7Checkpoint(
+            phase = "TARGET_APPLIED",
+            previousSettingsJson = LEGACY_PREVIOUS_SETTINGS_JSON,
+            targetSettingsJson = LEGACY_TARGET_SETTINGS_JSON,
+        )
+        val events = mutableListOf<String>()
+
+        BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
+            completionHooks = listOf(
+                BackupImportCompletionHook {
+                    assertEquals(null, database.backupImportCheckpointDao().get())
+                    events += "sweep"
+                },
+            ),
+        ).recoverPendingImport()
+
+        assertEquals(listOf("settings:AA:BB", "sweep"), events)
+        assertEquals(null, database.backupImportCheckpointDao().get())
+    }
+
+    @Test
+    fun startupRecoveryRestoresLegacyV7RollbackSettingsWithoutSweep() = runBlocking {
+        seedLegacyV7Checkpoint(
+            phase = "ROLLBACK_APPLIED",
+            previousSettingsJson = LEGACY_PREVIOUS_SETTINGS_JSON,
+            targetSettingsJson = LEGACY_TARGET_SETTINGS_JSON,
+        )
+        val applied = mutableListOf<PortableProfileSettings>()
+        var sweeps = 0
+
+        BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter(applied::add),
+            completionHooks = listOf(BackupImportCompletionHook { sweeps += 1 }),
+        ).recoverPendingImport()
+
+        assertEquals(1, applied.size)
+        assertEquals("Old scale", applied.single().scaleName)
+        assertEquals(0, sweeps)
+        assertEquals(null, database.backupImportCheckpointDao().get())
+    }
+
+    @Test
+    fun startupRecoveryPreservesMalformedLegacyV7CheckpointWithoutCrashing() = runBlocking {
+        seedLegacyV7Checkpoint(
+            phase = "TARGET_APPLIED",
+            previousSettingsJson = LEGACY_PREVIOUS_SETTINGS_JSON,
+            targetSettingsJson = "{not-json",
+        )
+        var settingsWrites = 0
+        var sweeps = 0
+
+        BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { settingsWrites += 1 },
+            completionHooks = listOf(BackupImportCompletionHook { sweeps += 1 }),
+        ).recoverPendingImport()
+
+        assertEquals(0, settingsWrites)
+        assertEquals(0, sweeps)
+        assertNotNull(database.backupImportCheckpointDao().get())
+    }
+
+    @Test
     fun checkpointSizeDoesNotGrowWithLargeLocalHistory() = runBlocking {
         val accounts = (1..200).map { account("local-$it") }
         database.accountDao().insertAll(accounts)
@@ -245,6 +313,26 @@ class RoomBackupImportGatewayTest {
         gateway.complete()
     }
 
+    private fun seedLegacyV7Checkpoint(
+        phase: String,
+        previousSettingsJson: String,
+        targetSettingsJson: String,
+    ) {
+        database.openHelper.writableDatabase.execSQL(
+            """
+            INSERT OR REPLACE INTO backup_import_checkpoint (
+                singletonId, phase, rollbackDatabaseJson, previousSettingsJson, targetSettingsJson
+            ) VALUES (1, ?, ?, ?, ?)
+            """.trimIndent(),
+            arrayOf(
+                phase,
+                LEGACY_ROLLBACK_DATABASE_JSON,
+                previousSettingsJson,
+                targetSettingsJson,
+            ),
+        )
+    }
+
     private suspend fun preview(
         mode: BackupImportMode,
         accounts: List<AccountEntity>,
@@ -297,4 +385,13 @@ class RoomBackupImportGatewayTest {
     private fun pending(id: String) = PendingMeasurementEntity(
         id, "AA:BB", 1, 70.0, 0, true, false, byteArrayOf(0), "pending-$id", 1,
     )
+
+    private companion object {
+        const val LEGACY_ROLLBACK_DATABASE_JSON =
+            """{"accounts":[],"appState":{},"measurements":[],"pendingMeasurements":[],"tombstones":[]}"""
+        const val LEGACY_PREVIOUS_SETTINGS_JSON =
+            """{"scaleAddress":"11:22","scaleName":"Old scale","reliabilityMode":false,"selectedChartMetricKeys":["weight"],"homeKgChartSeriesKeys":[]}"""
+        const val LEGACY_TARGET_SETTINGS_JSON =
+            """{"scaleAddress":"AA:BB","scaleName":"Imported scale","reliabilityMode":true,"selectedChartMetricKeys":[],"homeKgChartSeriesKeys":["weight"]}"""
+    }
 }

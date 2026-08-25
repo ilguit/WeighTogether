@@ -20,6 +20,7 @@ data class BackupImportCheckpointEntity(
     companion object {
         const val SINGLETON_ID = 1
         const val PHASE_TARGET_APPLIED = "TARGET_APPLIED"
+        const val PHASE_ROLLBACK_APPLIED = "ROLLBACK_APPLIED"
     }
 }
 

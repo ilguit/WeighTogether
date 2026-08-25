@@ -11,6 +11,8 @@ import com.example.huaweimisync.data.ProfileStore
 import com.example.huaweimisync.data.VersionedPortableProfileSettings
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -129,16 +131,7 @@ class RoomBackupImportGateway internal constructor(
     }
 
     override suspend fun pendingRecovery(): BackupImportRecovery? =
-        database.backupImportCheckpointDao().get()?.let { checkpoint ->
-            check(checkpoint.phase == BackupImportCheckpointEntity.PHASE_TARGET_APPLIED) {
-                "Unknown backup import checkpoint phase: ${checkpoint.phase}"
-            }
-            BackupImportRecovery(
-                operationId = checkpoint.operationId,
-                settings = checkpointCodec.decodeSettings(checkpoint.targetSettingsJson),
-                sweepNeeded = checkpoint.sweepNeeded.toBooleanStrict(),
-            )
-        }
+        database.backupImportCheckpointDao().get()?.let(checkpointCodec::decodeRecovery)
 
     override suspend fun complete() {
         check(database.backupImportCheckpointDao().delete() == 1) {
@@ -152,6 +145,94 @@ internal class BackupImportCheckpointCodec(private val gson: Gson = Gson()) {
 
     fun decodeSettings(value: String): PortableProfileSettings =
         gson.fromJson(value, PortableProfileSettings::class.java)
+
+    /**
+     * Version 7 shipped two checkpoint layouts using the same physical Room columns. The old
+     * layout stored a full rollback JSON document in [BackupImportCheckpointEntity.operationId]
+     * and the previous settings JSON in [BackupImportCheckpointEntity.sweepNeeded]. New rows use
+     * a UUID and a literal boolean in those columns. Keep this decoder while version 7 databases
+     * can contain a checkpoint written by either layout.
+     *
+     * An unrecognizable row is deliberately left in place. Startup treats it as no actionable
+     * recovery instead of crashing or guessing which settings to apply; a later compatible build
+     * can retry it, and a newly staged import can atomically replace it.
+     */
+    fun decodeRecovery(checkpoint: BackupImportCheckpointEntity): BackupImportRecovery? =
+        when (checkpoint.phase) {
+            BackupImportCheckpointEntity.PHASE_TARGET_APPLIED -> {
+                if (checkpoint.operationId.isUuid()) {
+                    val sweepNeeded = checkpoint.sweepNeeded.toCheckpointBoolean()
+                        ?: return null
+                    decodeSettingsSafely(checkpoint.targetSettingsJson)?.let { settings ->
+                        BackupImportRecovery(checkpoint.operationId, settings, sweepNeeded)
+                    }
+                } else if (checkpoint.operationId.isLegacyRollbackJson()) {
+                    decodeSettingsSafely(checkpoint.targetSettingsJson)?.let { settings ->
+                        BackupImportRecovery(LEGACY_OPERATION_ID, settings, true)
+                    }
+                } else {
+                    null
+                }
+            }
+            BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED ->
+                if (checkpoint.operationId.isLegacyRollbackJson()) {
+                    decodeSettingsSafely(checkpoint.sweepNeeded)?.let { settings ->
+                        BackupImportRecovery(LEGACY_OPERATION_ID, settings, false)
+                    }
+                } else {
+                    null
+                }
+            else -> null
+        }
+
+    private fun decodeSettingsSafely(value: String): PortableProfileSettings? = runCatching {
+        val json = JsonParser.parseString(value)
+        if (!json.isJsonObject || !json.asJsonObject.isPortableSettingsJson()) return null
+        gson.fromJson(json, PortableProfileSettings::class.java)
+    }.getOrNull()
+
+    private fun JsonObject.isPortableSettingsJson(): Boolean {
+        val reliability = get("reliabilityMode") ?: return false
+        if (!reliability.isJsonPrimitive || !reliability.asJsonPrimitive.isBoolean) return false
+        return optionalString("scaleAddress") &&
+            optionalString("scaleName") &&
+            optionalStringArray("selectedChartMetricKeys") &&
+            optionalStringArray("homeKgChartSeriesKeys")
+    }
+
+    private fun JsonObject.optionalString(name: String): Boolean =
+        get(name)?.let { it.isJsonNull || it.isJsonPrimitive && it.asJsonPrimitive.isString } ?: true
+
+    private fun JsonObject.optionalStringArray(name: String): Boolean = get(name)?.let { value ->
+        value.isJsonNull || value.isJsonArray && value.asJsonArray.all {
+            it.isJsonPrimitive && it.asJsonPrimitive.isString
+        }
+    } ?: true
+
+    private fun String.isUuid(): Boolean = runCatching {
+        UUID.fromString(this).toString() == lowercase()
+    }.getOrDefault(false)
+
+    private fun String.toCheckpointBoolean(): Boolean? = when (this) {
+        "true" -> true
+        "false" -> false
+        else -> null
+    }
+
+    private fun String.isLegacyRollbackJson(): Boolean = runCatching {
+        val value = JsonParser.parseString(this)
+        value.isJsonObject && value.asJsonObject.let { rollback ->
+            rollback.get("accounts")?.isJsonArray == true &&
+                rollback.get("appState")?.isJsonObject == true &&
+                rollback.get("measurements")?.isJsonArray == true &&
+                rollback.get("pendingMeasurements")?.isJsonArray == true &&
+                rollback.get("tombstones")?.isJsonArray == true
+        }
+    }.getOrDefault(false)
+
+    private companion object {
+        const val LEGACY_OPERATION_ID = "legacy-v7"
+    }
 }
 
 fun interface PortableSettingsWriter {
