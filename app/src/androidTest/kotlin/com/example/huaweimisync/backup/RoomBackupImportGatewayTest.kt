@@ -19,6 +19,7 @@ import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -97,31 +98,34 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
-    fun rollbackRestoresAllChangedTablesAndLeavesRecoverablePreviousSettings() = runBlocking {
+    fun settingsFailureKeepsCommittedDatabaseAndConcurrentWriterForRecovery() = runBlocking {
         database.accountDao().insert(account("old"))
         database.measurementDao().insert(measurement("old-m", "old", SyncStatus.LOCAL_ONLY))
-        database.pendingMeasurementDao().insert(pending("pending"))
-        database.pendingMeasurementDao().upsertTombstone(MeasurementTombstoneEntity("hash", 10_000L))
-        val previous = PortableProfileSettings("OLD", "Old", false, setOf("weight"), null)
-        currentSettings = VersionedPortableProfileSettings(previous, 1L)
-
-        gateway.stage(
-            preview(
-                BackupImportMode.REPLACE,
-                listOf(account("new")),
-                listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
-            ),
+        val target = preview(
+            BackupImportMode.REPLACE,
+            listOf(account("new")),
+            listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
         )
-        gateway.beginRollback()
+        val result = BackupImportApplier(
+            gateway,
+            PortableSettingsWriter {
+                runBlocking {
+                    database.accountDao().insert(account("concurrent"))
+                    database.measurementDao().insert(
+                        measurement("concurrent-m", "concurrent", SyncStatus.LOCAL_ONLY),
+                    )
+                }
+                error("settings commit failed")
+            },
+        ).apply(target)
 
-        assertEquals(listOf("old"), database.accountDao().getAll().map { it.id })
-        assertEquals(listOf("old-m"), database.measurementDao().getAllForBackup().map { it.id })
-        assertEquals(listOf("pending"), database.pendingMeasurementDao().getAll().map { it.id })
-        assertEquals(listOf("hash"), database.pendingMeasurementDao().getAllTombstones().map { it.deduplicationHash })
-        assertEquals(previous, gateway.pendingRecovery()?.settings)
-        assertEquals(false, gateway.pendingRecovery()?.completesSuccessfulImport)
-        gateway.complete()
-        assertEquals(null, gateway.pendingRecovery())
+        assertTrue(result is BackupImportApplyResult.CompletedPendingRecovery)
+        assertEquals(listOf("concurrent", "new"), database.accountDao().getAll().map { it.id })
+        assertEquals(
+            listOf("concurrent-m", "new-m"),
+            database.measurementDao().getAllForBackup().map { it.id },
+        )
+        assertEquals(target.settings, gateway.pendingRecovery()?.settings)
     }
 
     @Test
@@ -135,8 +139,33 @@ class RoomBackupImportGatewayTest {
         gateway.stage(target)
 
         assertEquals(target.settings, gateway.pendingRecovery()?.settings)
-        assertEquals(true, gateway.pendingRecovery()?.completesSuccessfulImport)
+        assertEquals(true, gateway.pendingRecovery()?.sweepNeeded)
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
+    }
+
+    @Test
+    fun checkpointSizeDoesNotGrowWithLargeLocalHistory() = runBlocking {
+        val accounts = (1..200).map { account("local-$it") }
+        database.accountDao().insertAll(accounts)
+        database.measurementDao().insertAll(
+            accounts.flatMap { account ->
+                (1..10).map { index ->
+                    measurement("${account.id}-$index", account.id, SyncStatus.LOCAL_ONLY)
+                }
+            },
+        )
+        val target = preview(
+            BackupImportMode.MERGE,
+            accounts,
+            database.measurementDao().getAllForBackup(),
+        )
+
+        gateway.stage(target)
+
+        val checkpoint = database.backupImportCheckpointDao().get()!!
+        assertEquals(36, checkpoint.operationId.length)
+        assertEquals("true", checkpoint.sweepNeeded)
+        assertTrue(checkpoint.targetSettingsJson.length < 2_048)
     }
 
     @Test

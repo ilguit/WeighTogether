@@ -2,8 +2,6 @@ package com.example.huaweimisync.backup
 
 import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.MeasurementType
-import com.example.huaweimisync.data.MeasurementTombstoneEntity
-import com.example.huaweimisync.data.PendingMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
@@ -180,39 +178,54 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `settings failure compensates database and settings before returning`() = runBlocking {
+    fun `settings failure returns completed pending recovery without rolling database back`() = runBlocking {
         val events = mutableListOf<String>()
         val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
         var firstWrite = true
         var sweepCount = 0
-        assertThrows(IllegalArgumentException::class.java) {
-            runBlocking {
-                BackupImportApplier(
-                    gateway = TrackingGateway(events),
-                    settingsWriter = PortableSettingsWriter {
-                        events += "settings:${it.scaleAddress}"
-                        if (firstWrite) {
-                            firstWrite = false
-                            throw IllegalArgumentException("preferences")
-                        }
-                    },
-                    successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
-                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
-                ).apply(preview)
-            }
-        }
+        val result = BackupImportApplier(
+            gateway = TrackingGateway(events),
+            settingsWriter = PortableSettingsWriter {
+                events += "settings:${it.scaleAddress}"
+                if (firstWrite) {
+                    firstWrite = false
+                    throw IllegalArgumentException("preferences")
+                }
+            },
+            successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+            completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+        ).apply(preview)
+
+        assertEquals(true, result is BackupImportApplyResult.CompletedPendingRecovery)
+        assertEquals(listOf("database", "settings:AA:BB"), events)
+        assertEquals(0, sweepCount)
+    }
+
+    @Test
+    fun `pending settings commit is retried idempotently on recovery`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        var settingsAttempts = 0
+        var sweeps = 0
+        val applier = BackupImportApplier(
+            gateway = TrackingGateway(events),
+            settingsWriter = PortableSettingsWriter {
+                settingsAttempts++
+                events += "settings:$settingsAttempts"
+                if (settingsAttempts == 1) error("preferences")
+            },
+            completionHooks = listOf(BackupImportCompletionHook { sweeps++ }),
+        )
 
         assertEquals(
-            listOf(
-                "database",
-                "settings:AA:BB",
-                "database-rollback",
-                "settings:null",
-                "checkpoint-cleanup",
-            ),
-            events,
+            true,
+            applier.apply(preview) is BackupImportApplyResult.CompletedPendingRecovery,
         )
-        assertEquals(0, sweepCount)
+        applier.recoverPendingImport()
+        applier.recoverPendingImport()
+
+        assertEquals(listOf("database", "settings:1", "settings:2", "checkpoint-cleanup"), events)
+        assertEquals(1, sweeps)
     }
 
     @Test
@@ -246,7 +259,7 @@ class BackupImportServiceTest {
                     gateway = TrackingGateway(
                         events,
                         recoverySettings = emptySettings,
-                        recoveryCompletesSuccessfulImport = successfulImport,
+                        recoverySweepNeeded = successfulImport,
                     ),
                     settingsWriter = PortableSettingsWriter { events += "settings" },
                     operations = operations,
@@ -269,39 +282,12 @@ class BackupImportServiceTest {
         }
 
     @Test
-    fun `checkpoint codec round trips rollback rows and nullable portable settings`() {
+    fun `checkpoint codec round trips nullable portable settings`() {
         val codec = BackupImportCheckpointCodec()
-        val rollback = BackupImportRollbackSnapshot(
-            accounts = emptyList(),
-            appState = AppStateEntity(),
-            measurements = emptyList(),
-            pendingMeasurements = listOf(
-                PendingMeasurementEntity(
-                    id = "pending",
-                    deviceAddress = "AA:BB",
-                    measuredAtEpochSecond = 1,
-                    weightKg = 70.0,
-                    impedanceOhm = 0,
-                    isStable = true,
-                    hasImpedance = false,
-                    rawPayload = byteArrayOf(0, 1, -1),
-                    deduplicationHash = "hash",
-                    enqueuedAtEpochMillis = 2,
-                ),
-            ),
-            tombstones = listOf(MeasurementTombstoneEntity("hash", 3)),
-        )
         val settings = PortableProfileSettings(null, "Scale", true, setOf("weight"), emptySet())
 
-        val decodedRollback = codec.decodeRollback(codec.encodeRollback(rollback))
         val decodedSettings = codec.decodeSettings(codec.encodeSettings(settings))
 
-        assertEquals(rollback.pendingMeasurements.single().id, decodedRollback.pendingMeasurements.single().id)
-        assertEquals(
-            rollback.pendingMeasurements.single().rawPayload.toList(),
-            decodedRollback.pendingMeasurements.single().rawPayload.toList(),
-        )
-        assertEquals(rollback.tombstones, decodedRollback.tombstones)
         assertEquals(settings, decodedSettings)
     }
 
@@ -309,25 +295,16 @@ class BackupImportServiceTest {
         private val events: MutableList<String>,
         private val stageFailure: Throwable? = null,
         private var recoverySettings: PortableProfileSettings? = null,
-        private var recoveryCompletesSuccessfulImport: Boolean = true,
+        private var recoverySweepNeeded: Boolean = true,
     ) : BackupImportGateway {
-        private var previousSettings: PortableProfileSettings? = null
-
-        override suspend fun stage(preview: BackupImportPreview): PortableProfileSettings {
+        override suspend fun stage(preview: BackupImportPreview) {
             stageFailure?.let { throw it }
             events += "database"
-            this.previousSettings = PortableProfileSettings(null, null, false, null, null)
             recoverySettings = preview.settings
-            return checkNotNull(previousSettings)
-        }
-
-        override suspend fun beginRollback() {
-            events += "database-rollback"
-            recoverySettings = previousSettings
         }
 
         override suspend fun pendingRecovery(): BackupImportRecovery? = recoverySettings?.let {
-            BackupImportRecovery(it, recoveryCompletesSuccessfulImport)
+            BackupImportRecovery("operation", it, recoverySweepNeeded)
         }
 
         override suspend fun complete() {

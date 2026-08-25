@@ -403,6 +403,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val pendingBefore = container.measurementPersistence.pendingSnapshot()
                 val result = container.backupImportApplier.apply(preview)
+                if (result is com.example.huaweimisync.backup.BackupImportApplyResult.CompletedPendingRecovery) {
+                    backup.value = BackupUiState()
+                    showMessage("Данные импортированы. Настройки будут восстановлены при следующем запуске")
+                    return@launch
+                }
                 if (preview.mode == BackupImportMode.REPLACE) {
                     val workManager = WorkManager.getInstance(getApplication())
                     pendingBefore.forEach { workManager.cancelUniqueWork("finalize-${it.id.value}") }
