@@ -1,6 +1,7 @@
 package com.example.huaweimisync.worker
 
 import android.content.Context
+import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
@@ -25,8 +26,9 @@ class MeasurementWorkSweepWorker(
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
     override suspend fun doWork(): Result {
-        val container = (applicationContext as MiSyncApplication).container
         return runCatching {
+            // WorkManager may start immediately while Application.onCreate is still finishing.
+            val container = (applicationContext as MiSyncApplication).container
             // Restore any durable commit/enqueue gap. REPLACE also refreshes stale timers.
             container.measurementPersistence.pendingSnapshot()
                 .forEach(container.finalizationScheduler::enqueue)
@@ -39,6 +41,7 @@ class MeasurementWorkSweepWorker(
 }
 
 object MeasurementWorkSweepScheduler {
+    private const val TAG = "MeasurementWorkSweep"
     private const val UNIQUE_WORK_NAME = "measurement-startup-sweep"
 
     fun enqueue(context: Context) {
@@ -47,5 +50,14 @@ object MeasurementWorkSweepScheduler {
             ExistingWorkPolicy.KEEP,
             OneTimeWorkRequestBuilder<MeasurementWorkSweepWorker>().build(),
         )
+    }
+
+    /** Scheduling is a repair hint; durable state remains available for a later retry. */
+    fun enqueueBestEffort(context: Context): Boolean = try {
+        enqueue(context)
+        true
+    } catch (error: Exception) {
+        Log.w(TAG, "Unable to schedule measurement work sweep; startup will retry", error)
+        false
     }
 }

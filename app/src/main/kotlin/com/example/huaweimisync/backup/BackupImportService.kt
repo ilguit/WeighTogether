@@ -209,8 +209,17 @@ class BackupImportApplier(
                 it,
             )
         }
-        successHooks.forEach { it.onImportSucceeded(preview) }
-        completionHooks.forEach { it.onImportCompleted() }
+        // The import is durably committed once the checkpoint is removed. Observability and
+        // follow-up scheduling are best effort from this point and must not turn that committed
+        // outcome into a reported failure.
+        successHooks.forEach { hook ->
+            try {
+                hook.onImportSucceeded(preview)
+            } catch (_: Exception) {
+                // Post-commit observers cannot change the durable import outcome.
+            }
+        }
+        runCompletionHooksBestEffort()
         return BackupImportApplyResult.Completed(preview.counts, preview.mode)
     }
 
@@ -223,7 +232,17 @@ class BackupImportApplier(
             sweepNeeded = recovery.sweepNeeded
         }
         if (sweepNeeded) {
-            completionHooks.forEach { it.onImportCompleted() }
+            runCompletionHooksBestEffort()
+        }
+    }
+
+    private suspend fun runCompletionHooksBestEffort() {
+        completionHooks.forEach { hook ->
+            try {
+                hook.onImportCompleted()
+            } catch (_: Exception) {
+                // Completion hooks only schedule durable repair work. Startup/foreground retries.
+            }
         }
     }
 }

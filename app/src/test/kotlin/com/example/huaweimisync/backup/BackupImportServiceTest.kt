@@ -135,6 +135,50 @@ class BackupImportServiceTest {
         }
 
     @Test
+    fun `post commit hook failures do not change completed result or prevent durable scheduling`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            val result = BackupImportApplier(
+                gateway = TrackingGateway(events),
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                successHooks = listOf(
+                    BackupImportSuccessHook {
+                        events += "failed-success-hook"
+                        error("analytics unavailable")
+                    },
+                    BackupImportSuccessHook { events += "later-success-hook" },
+                ),
+                completionHooks = listOf(
+                    BackupImportCompletionHook {
+                        events += "failed-scheduler"
+                        error("WorkManager unavailable")
+                    },
+                    BackupImportCompletionHook { events += "scheduled" },
+                ),
+            ).apply(preview)
+
+            assertEquals(true, result is BackupImportApplyResult.Completed)
+            assertEquals(
+                listOf(
+                    "database",
+                    "settings",
+                    "checkpoint-cleanup",
+                    "failed-success-hook",
+                    "later-success-hook",
+                    "failed-scheduler",
+                    "scheduled",
+                ),
+                events,
+            )
+        }
+
+    @Test
     fun `database failure does not change settings or invoke post success hooks`() = runBlocking {
         val events = mutableListOf<String>()
         val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
@@ -227,6 +271,54 @@ class BackupImportServiceTest {
         assertEquals(listOf("database", "settings:1", "settings:2", "checkpoint-cleanup"), events)
         assertEquals(1, sweeps)
     }
+
+    @Test
+    fun `pending import schedules only after recovery cleanup and scheduler failure is best effort`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            var settingsAttempts = 0
+            var schedulingAttempts = 0
+            val applier = BackupImportApplier(
+                gateway = TrackingGateway(events),
+                settingsWriter = PortableSettingsWriter {
+                    settingsAttempts++
+                    events += "settings:$settingsAttempts"
+                    if (settingsAttempts == 1) error("preferences unavailable")
+                },
+                completionHooks = listOf(
+                    BackupImportCompletionHook {
+                        schedulingAttempts++
+                        events += "schedule:$schedulingAttempts"
+                        error("WorkManager unavailable")
+                    },
+                ),
+            )
+
+            val applyResult = applier.apply(preview)
+            assertEquals(true, applyResult is BackupImportApplyResult.CompletedPendingRecovery)
+            assertEquals(0, schedulingAttempts)
+
+            applier.recoverPendingImport()
+            applier.recoverPendingImport()
+
+            assertEquals(
+                listOf(
+                    "database",
+                    "settings:1",
+                    "settings:2",
+                    "checkpoint-cleanup",
+                    "schedule:1",
+                ),
+                events,
+            )
+            assertEquals(1, schedulingAttempts)
+        }
 
     @Test
     fun `startup recovery commits journal settings and cleans checkpoint`() = runBlocking {
