@@ -13,6 +13,9 @@ interface MeasurementDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(measurement: MeasurementEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(measurements: List<MeasurementEntity>): List<Long>
+
     @Transaction
     suspend fun upsertScaleMeasurement(measurement: MeasurementEntity): MeasurementUpsertResult {
         if (insert(measurement) != -1L) return MeasurementUpsertResult.Inserted(measurement)
@@ -125,6 +128,9 @@ interface MeasurementDao {
 
     @Query("DELETE FROM measurements WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("DELETE FROM measurements")
+    suspend fun deleteAll(): Int
 
     @Query(
         """

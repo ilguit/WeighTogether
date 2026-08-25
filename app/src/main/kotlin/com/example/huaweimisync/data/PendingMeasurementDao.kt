@@ -95,6 +95,9 @@ interface PendingMeasurementDao {
     @Query("DELETE FROM pending_measurements WHERE id = :id")
     suspend fun delete(id: String): Int
 
+    @Query("DELETE FROM pending_measurements")
+    suspend fun deleteAll(): Int
+
     @Query(
         "SELECT * FROM measurement_tombstones " +
             "WHERE deduplicationHash = :deduplicationHash AND expiresAtEpochMillis > :nowEpochMillis",
@@ -136,4 +139,7 @@ interface PendingMeasurementDao {
 
     @Query("SELECT COUNT(*) FROM measurement_tombstones")
     suspend fun tombstoneCount(): Int
+
+    @Query("DELETE FROM measurement_tombstones")
+    suspend fun deleteAllTombstones(): Int
 }

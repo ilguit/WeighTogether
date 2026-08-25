@@ -11,6 +11,7 @@ import java.io.InputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 
 class BackupImportServiceTest {
     private val service = BackupImportService()
@@ -89,6 +90,57 @@ class BackupImportServiceTest {
         assertEquals("b", preview.result.appState.primaryAccountId)
         assertEquals("b", preview.result.measurements.single().accountId)
         assertEquals("AA:BB", preview.settings.scaleAddress)
+    }
+
+    @Test
+    fun `apply persists database before settings and invokes hooks only after success`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.REPLACE)
+        val result = BackupImportApplier(
+            gateway = BackupImportGateway { events += "database" },
+            settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
+            successHooks = listOf(BackupImportSuccessHook { events += "hook:${it.mode}" }),
+        ).apply(preview)
+
+        assertEquals(listOf("database", "settings:AA:BB", "hook:REPLACE"), events)
+        assertEquals(BackupImportMode.REPLACE, result.mode)
+        assertEquals(preview.counts, result.counts)
+    }
+
+    @Test
+    fun `database failure does not change settings or invoke post success hooks`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val failure = IllegalStateException("transaction rolled back")
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                BackupImportApplier(
+                    gateway = BackupImportGateway { throw failure },
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+                ).apply(preview)
+            }
+        }
+
+        assertEquals(failure, thrown)
+        assertEquals(emptyList<String>(), events)
+    }
+
+    @Test
+    fun `settings failure does not invoke post success hooks`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        assertThrows(IllegalArgumentException::class.java) {
+            runBlocking {
+                BackupImportApplier(
+                    gateway = BackupImportGateway { events += "database" },
+                    settingsWriter = PortableSettingsWriter { throw IllegalArgumentException("preferences") },
+                    successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+                ).apply(preview)
+            }
+        }
+
+        assertEquals(listOf("database"), events)
     }
 
     private fun emptySnapshot() = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList())

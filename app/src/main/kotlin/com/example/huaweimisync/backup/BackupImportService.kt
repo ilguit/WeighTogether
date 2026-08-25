@@ -1,9 +1,13 @@
 package com.example.huaweimisync.backup
 
+import androidx.room.withTransaction
 import com.example.huaweimisync.data.AccountEntity
+import com.example.huaweimisync.data.AppDatabase
 import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
+import com.example.huaweimisync.data.ProfileStore
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -41,6 +45,65 @@ data class BackupImportPreview(
     val result: BackupDatabaseSnapshot,
     val settings: PortableProfileSettings,
 )
+
+fun interface BackupImportGateway {
+    suspend fun apply(preview: BackupImportPreview)
+}
+
+class RoomBackupImportGateway(
+    private val database: AppDatabase,
+) : BackupImportGateway {
+    override suspend fun apply(preview: BackupImportPreview) = database.withTransaction {
+        when (preview.mode) {
+            BackupImportMode.MERGE -> {
+                database.accountDao().insertAll(preview.result.accounts)
+                database.measurementDao().insertAll(preview.result.measurements)
+                database.appStateDao().replace(preview.result.appState)
+            }
+            BackupImportMode.REPLACE -> {
+                database.pendingMeasurementDao().deleteAll()
+                database.pendingMeasurementDao().deleteAllTombstones()
+                database.measurementDao().deleteAll()
+                database.accountDao().deleteAll()
+                database.accountDao().insertAll(preview.result.accounts)
+                database.appStateDao().replace(preview.result.appState)
+                database.measurementDao().insertAll(preview.result.measurements)
+            }
+        }
+    }
+}
+
+fun interface PortableSettingsWriter {
+    fun apply(settings: PortableProfileSettings)
+}
+
+fun interface BackupImportSuccessHook {
+    suspend fun onImportSucceeded(preview: BackupImportPreview)
+}
+
+data class BackupImportApplyResult(
+    val counts: BackupImportCounts,
+    val mode: BackupImportMode,
+)
+
+class BackupImportApplier(
+    private val gateway: BackupImportGateway,
+    private val settingsWriter: PortableSettingsWriter,
+    private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
+    private val successHooks: List<BackupImportSuccessHook> = emptyList(),
+) {
+    suspend fun apply(preview: BackupImportPreview): BackupImportApplyResult {
+        operations.runExclusive {
+            gateway.apply(preview)
+            settingsWriter.apply(preview.settings)
+        }
+        successHooks.forEach { it.onImportSucceeded(preview) }
+        return BackupImportApplyResult(preview.counts, preview.mode)
+    }
+}
+
+fun ProfileStore.asPortableSettingsWriter(): PortableSettingsWriter =
+    PortableSettingsWriter(this::applyPortableSettings)
 
 class BackupImportService(
     private val codec: BackupJsonCodec = BackupJsonCodec(),

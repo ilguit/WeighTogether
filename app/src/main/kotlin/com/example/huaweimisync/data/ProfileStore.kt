@@ -45,6 +45,21 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
 
     fun portableSnapshot(): PortableProfileSettings = settings.value.toPortableSnapshot()
 
+    fun applyPortableSettings(value: PortableProfileSettings) {
+        preferences.edit {
+            if (value.scaleAddress == null) remove(KEY_SCALE_ADDRESS)
+            else putString(KEY_SCALE_ADDRESS, value.scaleAddress.uppercase())
+            if (value.scaleName == null) remove(KEY_SCALE_NAME)
+            else putString(KEY_SCALE_NAME, value.scaleName)
+            putBoolean(KEY_RELIABILITY, value.reliabilityMode)
+            if (value.selectedChartMetricKeys == null) remove(KEY_SELECTED_CHART_METRICS)
+            else putStringSet(KEY_SELECTED_CHART_METRICS, value.selectedChartMetricKeys.toSet())
+            if (value.homeKgChartSeriesKeys == null) remove(KEY_HOME_KG_CHART_SERIES)
+            else putStringSet(KEY_HOME_KG_CHART_SERIES, value.homeKgChartSeriesKeys.toSet())
+        }
+        refresh()
+    }
+
     fun saveScale(address: String, name: String?) {
         preferences.edit {
             putString(KEY_SCALE_ADDRESS, address.uppercase())
