@@ -13,6 +13,7 @@ import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.PendingMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.SyncStatus
+import com.example.huaweimisync.data.VersionedPortableProfileSettings
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import kotlinx.coroutines.runBlocking
 import org.junit.After
@@ -26,6 +27,10 @@ import org.junit.runner.RunWith
 class RoomBackupImportGatewayTest {
     private lateinit var database: AppDatabase
     private lateinit var gateway: RoomBackupImportGateway
+    private var currentSettings = VersionedPortableProfileSettings(
+        PortableProfileSettings(null, null, false, null, null),
+        0L,
+    )
 
     @Before
     fun setUp() {
@@ -33,7 +38,10 @@ class RoomBackupImportGatewayTest {
             ApplicationProvider.getApplicationContext<Context>(),
             AppDatabase::class.java,
         ).build()
-        gateway = RoomBackupImportGateway(database)
+        gateway = RoomBackupImportGateway(
+            database,
+            { currentSettings },
+        )
     }
 
     @After
@@ -80,7 +88,6 @@ class RoomBackupImportGatewayTest {
                         listOf(account("broken")),
                         listOf(measurement("orphan", "missing", SyncStatus.SYNCED)),
                     ),
-                    PortableProfileSettings(null, null, false, null, null),
                 )
             }
         }
@@ -96,6 +103,7 @@ class RoomBackupImportGatewayTest {
         database.pendingMeasurementDao().insert(pending("pending"))
         database.pendingMeasurementDao().upsertTombstone(MeasurementTombstoneEntity("hash", 10_000L))
         val previous = PortableProfileSettings("OLD", "Old", false, setOf("weight"), null)
+        currentSettings = VersionedPortableProfileSettings(previous, 1L)
 
         gateway.stage(
             preview(
@@ -103,7 +111,6 @@ class RoomBackupImportGatewayTest {
                 listOf(account("new")),
                 listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
             ),
-            previous,
         )
         gateway.beginRollback()
 
@@ -124,21 +131,123 @@ class RoomBackupImportGatewayTest {
             listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
         )
 
-        gateway.stage(target, PortableProfileSettings(null, null, false, null, null))
+        gateway.stage(target)
 
         assertEquals(target.settings, gateway.pendingRecoverySettings())
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
     }
 
+    @Test
+    fun stalePreviewRejectsConcurrentAccountMeasurementAppStateAndSettingsForBothModes() =
+        runBlocking {
+            BackupImportMode.entries.forEach { mode ->
+                resetDatabase()
+                assertStale(mode) { database.accountDao().insert(account("concurrent")) }
+                assertEquals(listOf("concurrent"), database.accountDao().getAll().map { it.id })
+
+                resetDatabase()
+                database.accountDao().insert(account("local"))
+                assertStale(mode) {
+                    database.measurementDao().insert(
+                        measurement("concurrent-m", "local", SyncStatus.LOCAL_ONLY),
+                    )
+                }
+                assertEquals(
+                    listOf("concurrent-m"),
+                    database.measurementDao().getAllForBackup().map { it.id },
+                )
+
+                resetDatabase()
+                assertStale(mode) {
+                    database.appStateDao().replace(AppStateEntity(weightDeltaKg = 7.0))
+                }
+                assertEquals(7.0, database.appStateDao().get()?.weightDeltaKg)
+
+                resetDatabase()
+                assertStale(mode) {
+                    currentSettings = VersionedPortableProfileSettings(
+                        emptySettings.copy(scaleName = "Concurrent"),
+                        currentSettings.revision + 1,
+                    )
+                }
+                assertEquals("Concurrent", currentSettings.settings.scaleName)
+            }
+        }
+
+    private suspend fun assertStale(mode: BackupImportMode, mutate: suspend () -> Unit) {
+        val service = BackupImportService()
+        val preview = service.preview(
+            emptyDocument,
+            BackupDatabaseSnapshot(
+                database.accountDao().getAll(),
+                database.appStateDao().get() ?: AppStateEntity(),
+                database.measurementDao().getAllForBackup(),
+            ),
+            currentSettings,
+            mode,
+        )
+        mutate()
+        val validatingGateway = RoomBackupImportGateway(
+            database,
+            { currentSettings },
+            service,
+        )
+
+        val stale = assertThrows(BackupPreviewStale::class.java) {
+            runBlocking { validatingGateway.stage(preview) }
+        }
+
+        assertEquals(mode, stale.refreshedPreview.mode)
+        assertEquals(emptyDocument, stale.refreshedPreview.sourceDocument)
+        assertEquals(null, validatingGateway.pendingRecoverySettings())
+    }
+
+    private suspend fun resetDatabase() {
+        database.measurementDao().deleteAll()
+        database.accountDao().deleteAll()
+        database.appStateDao().replace(AppStateEntity())
+        currentSettings = VersionedPortableProfileSettings(emptySettings, currentSettings.revision + 1)
+    }
+
     private suspend fun apply(preview: BackupImportPreview) {
-        gateway.stage(preview, PortableProfileSettings(null, null, false, null, null))
+        gateway.stage(preview)
         gateway.complete()
     }
 
-    private fun preview(mode: BackupImportMode, accounts: List<AccountEntity>, measurements: List<MeasurementEntity>) =
-        BackupImportPreview(mode, BackupImportCounts(0, 0, 0, 0, 0, 0),
-            BackupDatabaseSnapshot(accounts, AppStateEntity(primaryAccountId = accounts.first().id), measurements),
-            PortableProfileSettings(null, null, false, null, null))
+    private suspend fun preview(
+        mode: BackupImportMode,
+        accounts: List<AccountEntity>,
+        measurements: List<MeasurementEntity>,
+    ): BackupImportPreview {
+        val target = BackupDatabaseSnapshot(
+            accounts,
+            AppStateEntity(primaryAccountId = accounts.first().id),
+            measurements,
+        )
+        val document = BackupExportService(
+            BackupSnapshotSource { target },
+            { emptySettings },
+        ).createDocument()
+        return BackupImportService().preview(
+            document,
+            BackupDatabaseSnapshot(
+                database.accountDao().getAll(),
+                database.appStateDao().get() ?: AppStateEntity(),
+                database.measurementDao().getAllForBackup(),
+            ),
+            currentSettings,
+            mode,
+        )
+    }
+
+    private val emptySettings = PortableProfileSettings(null, null, false, null, null)
+    private val emptyDocument = BackupDocumentV1(
+        exportedAt = "2026-08-25T00:00:00Z",
+        accounts = emptyList(),
+        appState = BackupAppStateV1(null, 0.0, false),
+        measurements = emptyList(),
+        settings = BackupSettingsV1(null, null, false, null, null),
+    )
 
     private fun account(id: String) = AccountEntity(id, id, id, null, null, null, false, 1, 1)
 

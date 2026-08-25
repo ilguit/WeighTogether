@@ -1,7 +1,6 @@
 package com.example.huaweimisync
 
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import org.junit.Rule

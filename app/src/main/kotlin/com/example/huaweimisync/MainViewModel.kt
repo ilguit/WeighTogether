@@ -371,7 +371,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 val preview = container.backupImport.preview(
                     document,
                     container.backupSnapshotSource.readSnapshot(),
-                    container.profileStore.portableSnapshot(),
+                    container.profileStore.versionedPortableSnapshot(),
                     mode,
                 )
                 backup.value = BackupUiState(preview = preview)
@@ -415,6 +415,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
+            } catch (stale: com.example.huaweimisync.backup.BackupPreviewStale) {
+                backup.value = BackupUiState(preview = stale.refreshedPreview)
+                showMessage("Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова")
             } catch (error: Exception) {
                 backup.value = backup.value.copy(inProgress = false)
                 showMessage(error.userFacingMessage("Не удалось импортировать резервную копию"))

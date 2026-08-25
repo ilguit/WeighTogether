@@ -102,7 +102,6 @@ class BackupImportServiceTest {
         val result = BackupImportApplier(
             gateway = gateway,
             settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
-            settingsSnapshot = { emptySettings },
             successHooks = listOf(BackupImportSuccessHook { events += "hook:${it.mode}" }),
         ).apply(preview)
 
@@ -121,7 +120,6 @@ class BackupImportServiceTest {
                 BackupImportApplier(
                     gateway = TrackingGateway(events, stageFailure = failure),
                     settingsWriter = PortableSettingsWriter { events += "settings" },
-                    settingsSnapshot = { emptySettings },
                     successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
                 ).apply(preview)
             }
@@ -147,7 +145,6 @@ class BackupImportServiceTest {
                             throw IllegalArgumentException("preferences")
                         }
                     },
-                    settingsSnapshot = { emptySettings },
                     successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
                 ).apply(preview)
             }
@@ -181,7 +178,6 @@ class BackupImportServiceTest {
         BackupImportApplier(
             gateway = gateway,
             settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
-            settingsSnapshot = { emptySettings },
         ).recoverPendingImport()
 
         assertEquals(listOf("settings:AA:BB", "checkpoint-cleanup"), events)
@@ -231,14 +227,12 @@ class BackupImportServiceTest {
     ) : BackupImportGateway {
         private var previousSettings: PortableProfileSettings? = null
 
-        override suspend fun stage(
-            preview: BackupImportPreview,
-            previousSettings: PortableProfileSettings,
-        ) {
+        override suspend fun stage(preview: BackupImportPreview): PortableProfileSettings {
             stageFailure?.let { throw it }
             events += "database"
-            this.previousSettings = previousSettings
+            this.previousSettings = PortableProfileSettings(null, null, false, null, null)
             recoverySettings = preview.settings
+            return checkNotNull(previousSettings)
         }
 
         override suspend fun beginRollback() {

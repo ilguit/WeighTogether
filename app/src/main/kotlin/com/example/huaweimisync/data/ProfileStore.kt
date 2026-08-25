@@ -2,6 +2,7 @@ package com.example.huaweimisync.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,6 +25,11 @@ data class PortableProfileSettings(
     val homeKgChartSeriesKeys: Set<String>?,
 )
 
+data class VersionedPortableProfileSettings(
+    val settings: PortableProfileSettings,
+    val revision: Long,
+)
+
 fun AppSettings.toPortableSnapshot(): PortableProfileSettings = PortableProfileSettings(
     scaleAddress = scaleAddress,
     scaleName = scaleName,
@@ -38,14 +44,28 @@ interface ExternalSyncPauseSettingsStore {
     fun setExternalSyncPausedUntilEpochMillis(value: Long)
 }
 
-class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
+class ProfileStore(
+    context: Context,
+    private val portableOperations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
+) : ExternalSyncPauseSettingsStore {
     private val preferences = context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
     private val mutableSettings = MutableStateFlow(read())
+    @Volatile
+    private var versionedPortable = VersionedPortableProfileSettings(
+        mutableSettings.value.toPortableSnapshot(),
+        0L,
+    )
     val settings: StateFlow<AppSettings> = mutableSettings.asStateFlow()
 
     fun portableSnapshot(): PortableProfileSettings = settings.value.toPortableSnapshot()
 
+    fun versionedPortableSnapshot(): VersionedPortableProfileSettings = versionedPortable
+
     fun applyPortableSettings(value: PortableProfileSettings) {
+        portableOperations.runExclusiveBlocking { applyPortableSettingsWithinExclusiveOperation(value) }
+    }
+
+    fun applyPortableSettingsWithinExclusiveOperation(value: PortableProfileSettings) {
         val committed = preferences.edit().run {
             if (value.scaleAddress == null) remove(KEY_SCALE_ADDRESS)
             else putString(KEY_SCALE_ADDRESS, value.scaleAddress.uppercase())
@@ -59,38 +79,48 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
             commit()
         }
         check(committed) { "Could not durably commit imported settings" }
-        refresh()
+        refreshPortable()
     }
 
     fun saveScale(address: String, name: String?) {
-        preferences.edit {
-            putString(KEY_SCALE_ADDRESS, address.uppercase())
-            putString(KEY_SCALE_NAME, name ?: "MIBFS")
+        portableOperations.runExclusiveBlocking {
+            preferences.edit {
+                putString(KEY_SCALE_ADDRESS, address.uppercase())
+                putString(KEY_SCALE_NAME, name ?: "MIBFS")
+            }
+            refreshPortable()
         }
-        refresh()
     }
 
     fun clearScale() {
-        preferences.edit {
-            remove(KEY_SCALE_ADDRESS)
-            remove(KEY_SCALE_NAME)
+        portableOperations.runExclusiveBlocking {
+            preferences.edit {
+                remove(KEY_SCALE_ADDRESS)
+                remove(KEY_SCALE_NAME)
+            }
+            refreshPortable()
         }
-        refresh()
     }
 
     fun setReliabilityMode(enabled: Boolean) {
-        preferences.edit { putBoolean(KEY_RELIABILITY, enabled) }
-        refresh()
+        portableOperations.runExclusiveBlocking {
+            preferences.edit { putBoolean(KEY_RELIABILITY, enabled) }
+            refreshPortable()
+        }
     }
 
     fun saveSelectedChartMetricKeys(keys: Set<String>) {
-        preferences.edit { putStringSet(KEY_SELECTED_CHART_METRICS, keys.toSet()) }
-        refresh()
+        portableOperations.runExclusiveBlocking {
+            preferences.edit { putStringSet(KEY_SELECTED_CHART_METRICS, keys.toSet()) }
+            refreshPortable()
+        }
     }
 
     fun saveHomeKgChartSeriesKeys(keys: Set<String>) {
-        preferences.edit { putStringSet(KEY_HOME_KG_CHART_SERIES, keys.toSet()) }
-        refresh()
+        portableOperations.runExclusiveBlocking {
+            preferences.edit { putStringSet(KEY_HOME_KG_CHART_SERIES, keys.toSet()) }
+            refreshPortable()
+        }
     }
 
     override val externalSyncPausedUntilEpochMillis: Long
@@ -109,6 +139,14 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
 
     private fun refresh() {
         mutableSettings.value = read()
+    }
+
+    private fun refreshPortable() {
+        refresh()
+        versionedPortable = VersionedPortableProfileSettings(
+            mutableSettings.value.toPortableSnapshot(),
+            versionedPortable.revision + 1,
+        )
     }
 
     private fun read(): AppSettings {

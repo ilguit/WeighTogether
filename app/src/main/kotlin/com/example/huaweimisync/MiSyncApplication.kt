@@ -46,7 +46,8 @@ class MiSyncApplication : Application() {
 class AppContainer(application: Application) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val database: AppDatabase = AppDatabase.build(application)
-    val profileStore = ProfileStore(application)
+    internal val externalSyncOperations = ExternalSyncOperationSerializer()
+    val profileStore = ProfileStore(application, externalSyncOperations)
     val packetParser = MiScalePacketParser()
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
@@ -57,7 +58,6 @@ class AppContainer(application: Application) {
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
-    internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
         calculator = calculator,
@@ -103,9 +103,12 @@ class AppContainer(application: Application) {
     val backupExport = BackupExportService(backupSnapshotSource, profileStore::portableSnapshot)
     val backupImport = BackupImportService()
     val backupImportApplier = BackupImportApplier(
-        RoomBackupImportGateway(database),
+        RoomBackupImportGateway(
+            database,
+            profileStore::versionedPortableSnapshot,
+            backupImport,
+        ),
         profileStore.asPortableSettingsWriter(),
-        profileStore::portableSnapshot,
         externalSyncOperations,
     )
 

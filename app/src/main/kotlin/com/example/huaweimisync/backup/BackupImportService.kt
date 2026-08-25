@@ -10,6 +10,7 @@ import com.example.huaweimisync.data.MeasurementTombstoneEntity
 import com.example.huaweimisync.data.PendingMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.ProfileStore
+import com.example.huaweimisync.data.VersionedPortableProfileSettings
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
 import java.io.ByteArrayOutputStream
@@ -34,6 +35,9 @@ sealed interface BackupImportConflict {
 class BackupImportConflicts(val conflicts: List<BackupImportConflict>) :
     BackupException("Backup conflicts with local data: ${conflicts.joinToString()}")
 
+class BackupPreviewStale(val refreshedPreview: BackupImportPreview) :
+    BackupException("Backup preview is stale")
+
 data class BackupImportCounts(
     val accountsAdded: Int,
     val accountsSkipped: Int,
@@ -48,10 +52,18 @@ data class BackupImportPreview(
     val counts: BackupImportCounts,
     val result: BackupDatabaseSnapshot,
     val settings: PortableProfileSettings,
+    val sourceDocument: BackupDocumentV1,
+    val baselineToken: BackupImportBaselineToken,
+)
+
+data class BackupImportBaselineToken(
+    val database: BackupDatabaseSnapshot,
+    val settings: PortableProfileSettings,
+    val settingsRevision: Long,
 )
 
 interface BackupImportGateway {
-    suspend fun stage(preview: BackupImportPreview, previousSettings: PortableProfileSettings)
+    suspend fun stage(preview: BackupImportPreview): PortableProfileSettings
 
     suspend fun beginRollback()
 
@@ -62,16 +74,36 @@ interface BackupImportGateway {
 
 class RoomBackupImportGateway internal constructor(
     private val database: AppDatabase,
+    private val settingsSnapshot: () -> VersionedPortableProfileSettings,
+    private val importService: BackupImportService = BackupImportService(),
     private val checkpointCodec: BackupImportCheckpointCodec = BackupImportCheckpointCodec(),
 ) : BackupImportGateway {
-    override suspend fun stage(
-        preview: BackupImportPreview,
-        previousSettings: PortableProfileSettings,
-    ) = database.withTransaction {
-        val rollback = BackupImportRollbackSnapshot(
+    override suspend fun stage(preview: BackupImportPreview): PortableProfileSettings =
+        database.withTransaction {
+        val currentDatabase = BackupDatabaseSnapshot(
             accounts = database.accountDao().getAll(),
             appState = database.appStateDao().get() ?: AppStateEntity(),
             measurements = database.measurementDao().getAllForBackup(),
+        )
+        val currentSettings = settingsSnapshot()
+        val refreshed = importService.preview(
+            preview.sourceDocument,
+            currentDatabase,
+            currentSettings,
+            preview.mode,
+        )
+        if (preview.baselineToken != refreshed.baselineToken ||
+            preview.counts != refreshed.counts ||
+            preview.result != refreshed.result ||
+            preview.settings != refreshed.settings
+        ) {
+            throw BackupPreviewStale(refreshed)
+        }
+        val previousSettings = currentSettings.settings
+        val rollback = BackupImportRollbackSnapshot(
+            accounts = currentDatabase.accounts,
+            appState = currentDatabase.appState,
+            measurements = currentDatabase.measurements,
             pendingMeasurements = database.pendingMeasurementDao().getAll(),
             tombstones = database.pendingMeasurementDao().getAllTombstones(),
         )
@@ -99,7 +131,7 @@ class RoomBackupImportGateway internal constructor(
                 database.measurementDao().insertAll(preview.result.measurements)
             }
         }
-        Unit
+        previousSettings
     }
 
     override suspend fun beginRollback() = database.withTransaction {
@@ -175,14 +207,12 @@ data class BackupImportApplyResult(
 class BackupImportApplier(
     private val gateway: BackupImportGateway,
     private val settingsWriter: PortableSettingsWriter,
-    private val settingsSnapshot: () -> PortableProfileSettings,
     private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     private val successHooks: List<BackupImportSuccessHook> = emptyList(),
 ) {
     suspend fun apply(preview: BackupImportPreview): BackupImportApplyResult {
         operations.runExclusive {
-            val previousSettings = settingsSnapshot()
-            gateway.stage(preview, previousSettings)
+            val previousSettings = gateway.stage(preview)
             try {
                 settingsWriter.apply(preview.settings)
                 gateway.complete()
@@ -211,7 +241,7 @@ class BackupImportApplier(
 }
 
 fun ProfileStore.asPortableSettingsWriter(): PortableSettingsWriter =
-    PortableSettingsWriter(this::applyPortableSettings)
+    PortableSettingsWriter(this::applyPortableSettingsWithinExclusiveOperation)
 
 class BackupImportService(
     private val codec: BackupJsonCodec = BackupJsonCodec(),
@@ -259,18 +289,43 @@ class BackupImportService(
         current: BackupDatabaseSnapshot,
         currentSettings: PortableProfileSettings,
         mode: BackupImportMode,
-    ): BackupImportPreview = when (mode) {
-        BackupImportMode.REPLACE -> replace(document, current)
-        BackupImportMode.MERGE -> merge(document, current, currentSettings)
+    ): BackupImportPreview = preview(
+        document,
+        current,
+        VersionedPortableProfileSettings(currentSettings, 0L),
+        mode,
+    )
+
+    fun preview(
+        document: BackupDocumentV1,
+        current: BackupDatabaseSnapshot,
+        currentSettings: VersionedPortableProfileSettings,
+        mode: BackupImportMode,
+    ): BackupImportPreview {
+        val baseline = BackupImportBaselineToken(
+            current,
+            currentSettings.settings,
+            currentSettings.revision,
+        )
+        return when (mode) {
+            BackupImportMode.REPLACE -> replace(document, current, baseline)
+            BackupImportMode.MERGE -> merge(document, current, currentSettings.settings, baseline)
+        }
     }
 
-    private fun replace(document: BackupDocumentV1, current: BackupDatabaseSnapshot): BackupImportPreview {
+    private fun replace(
+        document: BackupDocumentV1,
+        current: BackupDatabaseSnapshot,
+        baseline: BackupImportBaselineToken,
+    ): BackupImportPreview {
         val result = document.toSnapshot()
         return BackupImportPreview(
             BackupImportMode.REPLACE,
             BackupImportCounts(0, 0, current.accounts.size, 0, 0, current.measurements.size),
             result,
             document.settings.toSettings(),
+            document,
+            baseline,
         )
     }
 
@@ -278,6 +333,7 @@ class BackupImportService(
         document: BackupDocumentV1,
         current: BackupDatabaseSnapshot,
         currentSettings: PortableProfileSettings,
+        baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
         val incoming = document.toSnapshot()
         val conflicts = mutableListOf<BackupImportConflict>()
@@ -332,6 +388,8 @@ class BackupImportService(
                 selectedChartMetricKeys = currentSettings.selectedChartMetricKeys ?: importedSettings.selectedChartMetricKeys,
                 homeKgChartSeriesKeys = currentSettings.homeKgChartSeriesKeys ?: importedSettings.homeKgChartSeriesKeys,
             ),
+            document,
+            baseline,
         )
     }
 }
