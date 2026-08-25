@@ -33,6 +33,23 @@ data class GeneratedRelease(
     val changes: List<ReleaseChange>,
 )
 
+enum class HistoricalBoundaryStatus {
+    CONFIRMED,
+    UNKNOWN,
+}
+
+data class HistoricalBoundaryEvidence(
+    val status: HistoricalBoundaryStatus,
+    val boundaryCommit: String?,
+    val candidateCommit: String?,
+    val source: String,
+)
+
+data class BootstrapRelease(
+    val release: GeneratedRelease,
+    val evidence: HistoricalBoundaryEvidence,
+)
+
 data class GeneratedHistory(
     val releases: List<GeneratedRelease>,
 )

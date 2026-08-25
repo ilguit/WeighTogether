@@ -1,25 +1,55 @@
-schemaVersion: 1
+schemaVersion: 2
 boundaryCommit: 872104303e07ae8c269c01bedef5fcbb0d6a4c38
 releases:
+  - version: 0.1.6
+    evidence:
+      status: unknown
+      candidateCommit: 660709d548deef69504d93d873f987cad512199d
+      source: Last first-parent commit carrying versionName 0.1.6; no release tag or immutable APK metadata exists
+    changes:
+      - issue: 19
+        text: История версий дополнена изменениями версии 0.1.5
+      - issue: 20
+        text: Убрано уведомление об успешном локальном сохранении измерения
   - version: 0.1.5
+    evidence:
+      status: unknown
+      candidateCommit: f36d7f132beb518fdc689690dca14d4b02b8ba58
+      source: Last first-parent commit carrying versionName 0.1.5; no release tag or immutable APK metadata exists
     changes:
       - issue: 3
         text: Новые измерения отображаются сразу во время обработки
   - version: 0.1.4
+    evidence:
+      status: unknown
+      candidateCommit: 2be96b8b94f780f181e6d6085bfcac22f1c36cee
+      source: Last first-parent commit carrying versionName 0.1.4; no release tag or immutable APK metadata exists
     changes:
       - issue: 16
         text: Добавлена встроенная история версий
   - version: 0.1.3
+    evidence:
+      status: unknown
+      candidateCommit: d1eb07d826e0ca4cff186039514c84ab03c6843e
+      source: Last first-parent commit carrying versionName 0.1.3; no release tag or immutable APK metadata exists
     changes:
       - issue: 13
         text: Селектор аккаунтов скрыт на экранах без данных аккаунта
   - version: 0.1.2
+    evidence:
+      status: unknown
+      candidateCommit: b665e736ed6d86dff60ccb1063584624061274e4
+      source: Last first-parent commit carrying versionName 0.1.2; no release tag or immutable APK metadata exists
     changes:
       - issue: 12
         text: Добавлена ручная сборка APK с уникальными именами артефактов
       - issue: 4
         text: Обновлена монохромная иконка уведомлений
   - version: 0.1.1
+    evidence:
+      status: unknown
+      candidateCommit: 6c88c9935ee27c65b83008b001e4128dd0bf7ba5
+      source: Last first-parent commit carrying versionName 0.1.1; no release tag or immutable APK metadata exists
     changes:
       - issue: 6
         text: Сводка измерений стала компактнее

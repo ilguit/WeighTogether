@@ -74,9 +74,10 @@ check_current_remote_tag() {
 }
 
 previous_release_tag() {
-    local object ref name distance output
+    local object ref name position output commit
     local -a reachable=()
     declare -A annotated=()
+    declare -A first_parent_position=()
 
     output="$(git ls-remote --tags origin 'refs/tags/apk/*')" || die "failed to query remote APK tags"
     while read -r object ref; do
@@ -88,20 +89,25 @@ previous_release_tag() {
         fi
     done <<<"$output"
 
+    position=0
+    while read -r commit; do
+        [[ -n "${commit:-}" ]] || continue
+        first_parent_position["$commit"]="$position"
+        ((position += 1))
+    done < <(git rev-list --first-parent "$commit_sha")
+
     for name in "${!annotated[@]}"; do
         [[ "$name" != "$tag_name" ]] || continue
         object="${annotated[$name]}"
         git cat-file -e "${object}^{commit}" 2>/dev/null || continue
-        if git merge-base --is-ancestor "$object" "$commit_sha"; then
-            distance="$(git rev-list --count "${object}..${commit_sha}")"
-            reachable+=("${distance} ${name}")
-        fi
+        [[ -n "${first_parent_position[$object]+x}" ]] || continue
+        reachable+=("${first_parent_position[$object]} ${name}")
     done
 
     if ((${#reachable[@]} == 0)); then
         printf 'null\n'
     else
-        printf '%s\n' "${reachable[@]}" | LC_ALL=C sort -k1,1n -k2,2Vr | sed -n '1p' | cut -d' ' -f2-
+        printf '%s\n' "${reachable[@]}" | LC_ALL=C sort -k1,1n -k2,2 | sed -n '1p' | cut -d' ' -f2-
     fi
 }
 

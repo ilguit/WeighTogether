@@ -5,6 +5,8 @@ import java.nio.file.Path
 class GitRepository(private val root: Path) {
     fun resolve(revision: String): String = git("rev-parse", "--verify", "$revision^{commit}").trim()
 
+    fun isShallow(): Boolean = git("rev-parse", "--is-shallow-repository").trim() == "true"
+
     fun isFirstParentAncestor(ancestor: String, descendant: String): Boolean =
         git("rev-list", "--first-parent", descendant)
             .lineSequence()

@@ -24,7 +24,17 @@ class ReleaseHistoryGeneratorTest {
         git.commit("Generate release history (#25)")
         val baseline = ReleaseHistoryBaseline(
             boundary,
-            listOf(GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение")))),
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение"))),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.UNKNOWN,
+                        boundaryCommit = null,
+                        candidateCommit = boundary,
+                        source = "test candidate",
+                    ),
+                ),
+            ),
         )
 
         val history = ReleaseHistoryGenerator(GitRepository(directory))
@@ -32,6 +42,52 @@ class ReleaseHistoryGeneratorTest {
 
         assertEquals(listOf("0.1.7", "0.1.5"), history.releases.map { it.version })
         assertEquals(listOf(25), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
+    fun `rejects shallow history even when baseline boundary is available and tags are missing`() {
+        val source = TestGit(directory.resolve("source"))
+        source.init()
+        source.file("README.md", "legacy")
+        source.commit("Legacy history")
+        val boundary = source.head()
+        source.annotatedTag("apk/0.1.5")
+        source.fragment(26, "preflight", false, "Проверка выпуска")
+        source.commit("Add release preflight (#26)")
+
+        val shallow = directory.resolve("shallow")
+        runGit(
+            directory,
+            "clone",
+            "--quiet",
+            "--no-tags",
+            "--depth=2",
+            source.root.toUri().toString(),
+            shallow.toString(),
+        )
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(shallow))
+                .preflight("HEAD", "0.1.6", ReleaseFlavor.PERSONAL, baseline)
+        }
+
+        assertTrue(error.message!!.contains("root..${runGit(shallow, "rev-parse", "HEAD").trim()}"))
+        assertTrue(error.message!!.contains("shallow or incomplete"))
+        assertTrue(error.message!!.contains("git fetch --unshallow --tags"))
     }
 
     @Test
@@ -334,5 +390,13 @@ class ReleaseHistoryGeneratorTest {
             check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed: $error" }
             return output
         }
+    }
+
+    private fun runGit(root: Path, vararg arguments: String): String {
+        val process = ProcessBuilder(listOf("git", "-C", root.toString()) + arguments).start()
+        val output = process.inputStream.bufferedReader().readText()
+        val error = process.errorStream.bufferedReader().readText()
+        check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed: $error" }
+        return output
     }
 }

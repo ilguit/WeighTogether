@@ -18,6 +18,13 @@ class ReleaseHistoryGenerator(
         baseline: ReleaseHistoryBaseline? = null,
     ): ReleasePreflight {
         val head = repository.resolve(headRevision)
+        if (repository.isShallow()) {
+            throw GenerationException(
+                "Release range root..$head cannot be verified because the local Git history is shallow or " +
+                    "incomplete; run 'git fetch --unshallow --tags' (or 'git fetch --force --tags origin' " +
+                    "after fetching full history) and retry",
+            )
+        }
         val tags = repository.reachableAnnotatedApkTags(head)
         baseline?.let {
             if (!repository.isFirstParentAncestor(it.boundaryCommit, head)) {
@@ -134,7 +141,8 @@ class ReleaseHistoryGenerator(
         )
     }
 
-    private fun ReleaseHistoryBaseline?.orEmpty(): List<GeneratedRelease> = this?.releases.orEmpty()
+    private fun ReleaseHistoryBaseline?.orEmpty(): List<GeneratedRelease> =
+        this?.releases.orEmpty().map { it.release }
 
     private companion object {
         val ISSUE_SUFFIX = Regex("\\(#([1-9][0-9]*)\\)(?=\\s*$)")

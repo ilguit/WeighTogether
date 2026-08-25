@@ -1,3 +1,3 @@
 issue: 26
 userVisible: false
-reason: Добавлена блокирующая проверка полноты и согласованности release metadata
+reason: Добавлена блокирующая проверка полноты Git-истории и согласованности release metadata
