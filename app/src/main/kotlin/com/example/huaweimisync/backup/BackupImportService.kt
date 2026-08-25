@@ -67,10 +67,15 @@ interface BackupImportGateway {
 
     suspend fun beginRollback()
 
-    suspend fun pendingRecoverySettings(): PortableProfileSettings?
+    suspend fun pendingRecovery(): BackupImportRecovery?
 
     suspend fun complete()
 }
+
+data class BackupImportRecovery(
+    val settings: PortableProfileSettings,
+    val completesSuccessfulImport: Boolean,
+)
 
 class RoomBackupImportGateway internal constructor(
     private val database: AppDatabase,
@@ -153,13 +158,19 @@ class RoomBackupImportGateway internal constructor(
         )
     }
 
-    override suspend fun pendingRecoverySettings(): PortableProfileSettings? =
+    override suspend fun pendingRecovery(): BackupImportRecovery? =
         database.backupImportCheckpointDao().get()?.let { checkpoint ->
             when (checkpoint.phase) {
                 BackupImportCheckpointEntity.PHASE_TARGET_APPLIED ->
-                    checkpointCodec.decodeSettings(checkpoint.targetSettingsJson)
+                    BackupImportRecovery(
+                        settings = checkpointCodec.decodeSettings(checkpoint.targetSettingsJson),
+                        completesSuccessfulImport = true,
+                    )
                 BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED ->
-                    checkpointCodec.decodeSettings(checkpoint.previousSettingsJson)
+                    BackupImportRecovery(
+                        settings = checkpointCodec.decodeSettings(checkpoint.previousSettingsJson),
+                        completesSuccessfulImport = false,
+                    )
                 else -> error("Unknown backup import checkpoint phase: ${checkpoint.phase}")
             }
         }
@@ -199,6 +210,11 @@ fun interface BackupImportSuccessHook {
     suspend fun onImportSucceeded(preview: BackupImportPreview)
 }
 
+/** Runs after the database, portable settings, and recovery checkpoint are fully committed. */
+fun interface BackupImportCompletionHook {
+    suspend fun onImportCompleted()
+}
+
 data class BackupImportApplyResult(
     val counts: BackupImportCounts,
     val mode: BackupImportMode,
@@ -209,6 +225,7 @@ class BackupImportApplier(
     private val settingsWriter: PortableSettingsWriter,
     private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     private val successHooks: List<BackupImportSuccessHook> = emptyList(),
+    private val completionHooks: List<BackupImportCompletionHook> = emptyList(),
 ) {
     suspend fun apply(preview: BackupImportPreview): BackupImportApplyResult {
         operations.runExclusive {
@@ -228,14 +245,20 @@ class BackupImportApplier(
             }
         }
         successHooks.forEach { it.onImportSucceeded(preview) }
+        completionHooks.forEach { it.onImportCompleted() }
         return BackupImportApplyResult(preview.counts, preview.mode)
     }
 
     suspend fun recoverPendingImport() {
+        var completesSuccessfulImport = false
         operations.runExclusive {
-            val recoverySettings = gateway.pendingRecoverySettings() ?: return@runExclusive
-            settingsWriter.apply(recoverySettings)
+            val recovery = gateway.pendingRecovery() ?: return@runExclusive
+            settingsWriter.apply(recovery.settings)
             gateway.complete()
+            completesSuccessfulImport = recovery.completesSuccessfulImport
+        }
+        if (completesSuccessfulImport) {
+            completionHooks.forEach { it.onImportCompleted() }
         }
     }
 }

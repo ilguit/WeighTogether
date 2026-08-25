@@ -665,6 +665,38 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun sweepPreservesTerminalImportedStatusesAndQueuesOnlyRetryableRows() = runBlocking {
+        val dao = FakeMeasurementDao().also {
+            it.values["terminal"] = measurement(
+                id = "terminal",
+                huaweiStatus = SyncStatus.DISABLED,
+                healthConnectStatus = SyncStatus.SYNCED,
+            )
+            it.values["local"] = measurement(
+                id = "local",
+                measuredAt = 2_000L,
+                huaweiStatus = SyncStatus.LOCAL_ONLY,
+                healthConnectStatus = SyncStatus.LOCAL_ONLY,
+            )
+            it.values["retry"] = measurement(
+                id = "retry",
+                measuredAt = 3_000L,
+                huaweiStatus = SyncStatus.SYNCED,
+                healthConnectStatus = SyncStatus.FAILED,
+            )
+        }
+        val scheduler = FakeSyncScheduler()
+
+        assertEquals(1, repository(dao, scheduler).sweepPendingSync())
+
+        assertEquals(listOf("retry"), scheduler.enqueued)
+        assertEquals(SyncStatus.DISABLED.name, dao.values.getValue("terminal").huaweiStatus)
+        assertEquals(SyncStatus.SYNCED.name, dao.values.getValue("terminal").healthConnectStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("local").huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("local").healthConnectStatus)
+    }
+
+    @Test
     fun observeAllIsDescendingAndRangeIsHalfOpenAscending() = runBlocking {
         val dao = FakeMeasurementDao()
         listOf(9_000L, 10_000L, 15_000L, 20_000L, 21_000L).forEach { timestamp ->

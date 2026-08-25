@@ -14,6 +14,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 
 class BackupImportServiceTest {
     private val service = BackupImportService()
@@ -111,22 +112,71 @@ class BackupImportServiceTest {
     }
 
     @Test
+    fun `merge and replace trigger completion sweep after checkpoint cleanup outside import mutex`() =
+        runBlocking {
+            BackupImportMode.entries.forEach { mode ->
+                val events = mutableListOf<String>()
+                val operations = ExternalSyncOperationSerializer()
+                val preview = service.preview(document(), emptySnapshot(), emptySettings, mode)
+                BackupImportApplier(
+                    gateway = TrackingGateway(events),
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    operations = operations,
+                    completionHooks = listOf(
+                        BackupImportCompletionHook {
+                            operations.runExclusive { events += "sweep:$mode" }
+                        },
+                    ),
+                ).apply(preview)
+
+                assertEquals(
+                    listOf("database", "settings", "checkpoint-cleanup", "sweep:$mode"),
+                    events,
+                )
+            }
+        }
+
+    @Test
     fun `database failure does not change settings or invoke post success hooks`() = runBlocking {
         val events = mutableListOf<String>()
         val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
         val failure = IllegalStateException("transaction rolled back")
+        var sweepCount = 0
         val thrown = assertThrows(IllegalStateException::class.java) {
             runBlocking {
                 BackupImportApplier(
                     gateway = TrackingGateway(events, stageFailure = failure),
                     settingsWriter = PortableSettingsWriter { events += "settings" },
                     successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
                 ).apply(preview)
             }
         }
 
         assertEquals(failure, thrown)
         assertEquals(emptyList<String>(), events)
+        assertEquals(0, sweepCount)
+    }
+
+    @Test
+    fun `stale preview does not trigger completion sweep`() = runBlocking {
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        var sweepCount = 0
+
+        assertThrows(BackupPreviewStale::class.java) {
+            runBlocking {
+                BackupImportApplier(
+                    gateway = TrackingGateway(
+                        mutableListOf(),
+                        stageFailure = BackupPreviewStale(preview),
+                    ),
+                    settingsWriter = PortableSettingsWriter {},
+                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+                ).apply(preview)
+            }
+        }
+
+        assertEquals(0, sweepCount)
     }
 
     @Test
@@ -134,6 +184,7 @@ class BackupImportServiceTest {
         val events = mutableListOf<String>()
         val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
         var firstWrite = true
+        var sweepCount = 0
         assertThrows(IllegalArgumentException::class.java) {
             runBlocking {
                 BackupImportApplier(
@@ -146,6 +197,7 @@ class BackupImportServiceTest {
                         }
                     },
                     successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
                 ).apply(preview)
             }
         }
@@ -160,6 +212,7 @@ class BackupImportServiceTest {
             ),
             events,
         )
+        assertEquals(0, sweepCount)
     }
 
     @Test
@@ -182,6 +235,38 @@ class BackupImportServiceTest {
 
         assertEquals(listOf("settings:AA:BB", "checkpoint-cleanup"), events)
     }
+
+    @Test
+    fun `successful startup recovery sweeps only after cleanup while rollback recovery does not`() =
+        runBlocking {
+            listOf(true, false).forEach { successfulImport ->
+                val events = mutableListOf<String>()
+                val operations = ExternalSyncOperationSerializer()
+                BackupImportApplier(
+                    gateway = TrackingGateway(
+                        events,
+                        recoverySettings = emptySettings,
+                        recoveryCompletesSuccessfulImport = successfulImport,
+                    ),
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    operations = operations,
+                    completionHooks = listOf(
+                        BackupImportCompletionHook {
+                            operations.runExclusive { events += "sweep" }
+                        },
+                    ),
+                ).recoverPendingImport()
+
+                assertEquals(
+                    if (successfulImport) {
+                        listOf("settings", "checkpoint-cleanup", "sweep")
+                    } else {
+                        listOf("settings", "checkpoint-cleanup")
+                    },
+                    events,
+                )
+            }
+        }
 
     @Test
     fun `checkpoint codec round trips rollback rows and nullable portable settings`() {
@@ -224,6 +309,7 @@ class BackupImportServiceTest {
         private val events: MutableList<String>,
         private val stageFailure: Throwable? = null,
         private var recoverySettings: PortableProfileSettings? = null,
+        private var recoveryCompletesSuccessfulImport: Boolean = true,
     ) : BackupImportGateway {
         private var previousSettings: PortableProfileSettings? = null
 
@@ -240,7 +326,9 @@ class BackupImportServiceTest {
             recoverySettings = previousSettings
         }
 
-        override suspend fun pendingRecoverySettings(): PortableProfileSettings? = recoverySettings
+        override suspend fun pendingRecovery(): BackupImportRecovery? = recoverySettings?.let {
+            BackupImportRecovery(it, recoveryCompletesSuccessfulImport)
+        }
 
         override suspend fun complete() {
             events += "checkpoint-cleanup"

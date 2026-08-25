@@ -3,6 +3,7 @@ package com.example.huaweimisync
 import android.app.Application
 import com.example.huaweimisync.backup.BackupExportService
 import com.example.huaweimisync.backup.BackupImportApplier
+import com.example.huaweimisync.backup.BackupImportCompletionHook
 import com.example.huaweimisync.backup.BackupImportService
 import com.example.huaweimisync.backup.RoomBackupImportGateway
 import com.example.huaweimisync.backup.RoomBackupSnapshotSource
@@ -21,6 +22,7 @@ import com.example.huaweimisync.sync.HuaweiHealthGateway
 import com.example.huaweimisync.sync.createHuaweiHealthGateway
 import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
+import com.example.huaweimisync.worker.MeasurementWorkSweep
 import com.example.huaweimisync.worker.MeasurementWorkSweepScheduler
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.ScalePacketProcessor
@@ -110,6 +112,9 @@ class AppContainer(application: Application) {
         ),
         profileStore.asPortableSettingsWriter(),
         externalSyncOperations,
+        completionHooks = listOf(
+            BackupImportCompletionHook { MeasurementWorkSweep(repository).run() },
+        ),
     )
 
     init {

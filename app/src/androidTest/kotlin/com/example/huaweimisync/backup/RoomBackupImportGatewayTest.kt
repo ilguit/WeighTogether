@@ -93,7 +93,7 @@ class RoomBackupImportGatewayTest {
         }
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(listOf("new-m"), database.measurementDao().getAllForBackup().map { it.id })
-        assertEquals(null, gateway.pendingRecoverySettings())
+        assertEquals(null, gateway.pendingRecovery())
     }
 
     @Test
@@ -118,9 +118,10 @@ class RoomBackupImportGatewayTest {
         assertEquals(listOf("old-m"), database.measurementDao().getAllForBackup().map { it.id })
         assertEquals(listOf("pending"), database.pendingMeasurementDao().getAll().map { it.id })
         assertEquals(listOf("hash"), database.pendingMeasurementDao().getAllTombstones().map { it.deduplicationHash })
-        assertEquals(previous, gateway.pendingRecoverySettings())
+        assertEquals(previous, gateway.pendingRecovery()?.settings)
+        assertEquals(false, gateway.pendingRecovery()?.completesSuccessfulImport)
         gateway.complete()
-        assertEquals(null, gateway.pendingRecoverySettings())
+        assertEquals(null, gateway.pendingRecovery())
     }
 
     @Test
@@ -133,7 +134,8 @@ class RoomBackupImportGatewayTest {
 
         gateway.stage(target)
 
-        assertEquals(target.settings, gateway.pendingRecoverySettings())
+        assertEquals(target.settings, gateway.pendingRecovery()?.settings)
+        assertEquals(true, gateway.pendingRecovery()?.completesSuccessfulImport)
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
     }
 
@@ -199,7 +201,7 @@ class RoomBackupImportGatewayTest {
 
         assertEquals(mode, stale.refreshedPreview.mode)
         assertEquals(emptyDocument, stale.refreshedPreview.sourceDocument)
-        assertEquals(null, validatingGateway.pendingRecoverySettings())
+        assertEquals(null, validatingGateway.pendingRecovery())
     }
 
     private suspend fun resetDatabase() {
