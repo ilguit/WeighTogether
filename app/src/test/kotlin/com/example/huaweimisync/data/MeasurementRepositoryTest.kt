@@ -786,6 +786,15 @@ private class FakeMeasurementDao(
         return values.size.toLong()
     }
 
+    override suspend fun insertAll(measurements: List<MeasurementEntity>): List<Long> =
+        measurements.map { insert(it) }
+
+    override suspend fun deleteAll(): Int {
+        val count = values.size
+        values.clear()
+        return count
+    }
+
     override suspend fun get(id: String): MeasurementEntity? = values[id]
 
     override suspend fun getByFingerprint(fingerprint: String): MeasurementEntity? =

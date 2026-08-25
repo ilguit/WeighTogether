@@ -1,6 +1,12 @@
 package com.example.huaweimisync
 
 import android.app.Application
+import com.example.huaweimisync.backup.BackupExportService
+import com.example.huaweimisync.backup.BackupImportApplier
+import com.example.huaweimisync.backup.BackupImportService
+import com.example.huaweimisync.backup.RoomBackupImportGateway
+import com.example.huaweimisync.backup.RoomBackupSnapshotSource
+import com.example.huaweimisync.backup.asPortableSettingsWriter
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.data.AppDatabase
@@ -91,6 +97,14 @@ class AppContainer(application: Application) {
         measurements = repository,
         syncScheduler = syncScheduler,
         externalSyncOperations = externalSyncOperations,
+    )
+    val backupSnapshotSource = RoomBackupSnapshotSource(database)
+    val backupExport = BackupExportService(backupSnapshotSource, profileStore::portableSnapshot)
+    val backupImport = BackupImportService()
+    val backupImportApplier = BackupImportApplier(
+        RoomBackupImportGateway(database),
+        profileStore.asPortableSettingsWriter(),
+        externalSyncOperations,
     )
 
     /** One application-wide selection shared by Measurements and Charts. */

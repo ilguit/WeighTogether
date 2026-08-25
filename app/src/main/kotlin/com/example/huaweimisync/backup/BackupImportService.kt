@@ -70,6 +70,7 @@ class RoomBackupImportGateway(
                 database.measurementDao().insertAll(preview.result.measurements)
             }
         }
+        Unit
     }
 }
 
