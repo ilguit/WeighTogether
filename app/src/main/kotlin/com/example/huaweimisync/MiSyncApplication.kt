@@ -1,6 +1,7 @@
 package com.example.huaweimisync
 
 import android.app.Application
+import android.util.Log
 import com.example.huaweimisync.backup.BackupExportService
 import com.example.huaweimisync.backup.BackupImportApplier
 import com.example.huaweimisync.backup.BackupImportCompletionHook
@@ -27,10 +28,11 @@ import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
 
 class MiSyncApplication : Application() {
@@ -119,9 +121,33 @@ class AppContainer(application: Application) {
     )
 
     init {
-        runBlocking(Dispatchers.IO) { backupImportApplier.recoverPendingImport() }
+        runBlocking(Dispatchers.IO) {
+            recoverBackupImportAtStartup(
+                recovery = backupImportApplier::recoverPendingImport,
+                reportFailure = { failure ->
+                    Log.e(
+                        "AppContainer",
+                        "Pending backup import recovery will be retried on next startup",
+                        failure,
+                    )
+                },
+            )
+        }
     }
 
     /** One application-wide selection shared by Measurements and Charts. */
     val selectedAccountId = MutableStateFlow<AccountId?>(null)
+}
+
+internal suspend fun recoverBackupImportAtStartup(
+    recovery: suspend () -> Unit,
+    reportFailure: (Exception) -> Unit,
+) {
+    try {
+        recovery()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        reportFailure(failure)
+    }
 }

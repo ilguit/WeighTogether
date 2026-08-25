@@ -1,5 +1,6 @@
 package com.example.huaweimisync.backup
 
+import com.example.huaweimisync.recoverBackupImportAtStartup
 import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.BackupImportCheckpointEntity
 import com.example.huaweimisync.data.MeasurementType
@@ -9,6 +10,7 @@ import com.example.huaweimisync.domain.ExternalSyncPolicy
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
+import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Test
@@ -340,6 +342,68 @@ class BackupImportServiceTest {
         ).recoverPendingImport()
 
         assertEquals(listOf("settings:AA:BB", "checkpoint-cleanup"), events)
+    }
+
+    @Test
+    fun `startup recovery keeps checkpoint after writer failure and succeeds on retry`() = runBlocking {
+        val events = mutableListOf<String>()
+        val failures = mutableListOf<Exception>()
+        val preview = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        )
+        val gateway = TrackingGateway(events)
+        gateway.stage(preview)
+        var writeAttempts = 0
+        var sweepCount = 0
+        val applier = BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter {
+                writeAttempts++
+                events += "settings:$writeAttempts"
+                if (writeAttempts == 1) error("settings unavailable")
+            },
+            completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+        )
+
+        recoverBackupImportAtStartup(applier::recoverPendingImport, failures::add)
+
+        assertEquals(1, failures.size)
+        assertEquals("settings unavailable", failures.single().message)
+        assertEquals(true, gateway.pendingRecovery() != null)
+        assertEquals(0, sweepCount)
+
+        recoverBackupImportAtStartup(applier::recoverPendingImport, failures::add)
+
+        assertEquals(1, failures.size)
+        assertEquals(null, gateway.pendingRecovery())
+        assertEquals(1, sweepCount)
+        assertEquals(
+            listOf("database", "settings:1", "settings:2", "checkpoint-cleanup"),
+            events,
+        )
+    }
+
+    @Test
+    fun `startup recovery does not swallow cancellation or fatal errors`() {
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                recoverBackupImportAtStartup(
+                    recovery = { throw CancellationException("cancelled") },
+                    reportFailure = {},
+                )
+            }
+        }
+        assertThrows(AssertionError::class.java) {
+            runBlocking {
+                recoverBackupImportAtStartup(
+                    recovery = { throw AssertionError("fatal") },
+                    reportFailure = {},
+                )
+            }
+        }
     }
 
     @Test
