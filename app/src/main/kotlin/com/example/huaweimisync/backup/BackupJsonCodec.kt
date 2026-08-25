@@ -116,6 +116,7 @@ class BackupJsonCodec(
             }
             if (account.profile.complete) {
                 invalidUnless(account.profile.heightCm != null && account.profile.birthDateEpochDay != null && account.profile.sex != null, "$path.profile", "complete profile has missing fields")
+            }
         }
 
         finiteInRange(document.appState.weightDeltaKg, 0.1, 50.0, "$.appState.weightDeltaKg")

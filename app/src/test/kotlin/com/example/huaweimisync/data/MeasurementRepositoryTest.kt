@@ -807,6 +807,13 @@ private class FakeMeasurementDao(
         values.values.sortedByDescending(MeasurementEntity::measuredAtEpochSecond),
     )
 
+    override suspend fun getAllForBackup(): List<MeasurementEntity> = values.values
+        .sortedWith(
+            compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochSecond)
+                .thenBy(MeasurementEntity::createdAtEpochMillis)
+                .thenBy(MeasurementEntity::id),
+        )
+
     override fun observeRange(
         startInclusive: Long,
         endExclusive: Long,

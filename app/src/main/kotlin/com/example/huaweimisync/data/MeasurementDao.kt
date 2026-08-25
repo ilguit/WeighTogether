@@ -75,6 +75,14 @@ interface MeasurementDao {
     @Query(
         """
         SELECT * FROM measurements
+        ORDER BY measuredAtEpochSecond ASC, createdAtEpochMillis ASC, id ASC
+        """,
+    )
+    suspend fun getAllForBackup(): List<MeasurementEntity>
+
+    @Query(
+        """
+        SELECT * FROM measurements
         WHERE measuredAtEpochSecond >= :startInclusive
             AND measuredAtEpochSecond < :endExclusive
         ORDER BY measuredAtEpochSecond ASC

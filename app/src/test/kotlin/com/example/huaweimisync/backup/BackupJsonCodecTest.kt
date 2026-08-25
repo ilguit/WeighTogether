@@ -23,7 +23,11 @@ class BackupJsonCodecTest {
 
     @Test
     fun emptyBackupRoundTrips() {
-        val source = document().copy(accounts = emptyList(), measurements = emptyList())
+        val source = document().copy(
+            accounts = emptyList(),
+            appState = BackupAppStateV1(null, 3.0, false),
+            measurements = emptyList(),
+        )
 
         assertEquals(source, codec.decode(codec.encode(source)))
     }

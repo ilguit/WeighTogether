@@ -15,7 +15,7 @@ class AppReleaseHistoryTest {
         )
         assertEquals(
             mapOf(
-                "0.1.11" to listOf(25, 27),
+                "0.1.11" to listOf(25, 27, 5),
                 "0.1.6" to listOf(19, 20),
                 "0.1.5" to listOf(3),
                 "0.1.4" to listOf(16),

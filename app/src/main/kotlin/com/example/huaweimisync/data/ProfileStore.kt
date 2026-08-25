@@ -15,6 +15,23 @@ data class AppSettings(
     val externalSyncPausedUntilEpochMillis: Long = 0L,
 )
 
+/** Settings that are meaningful when moved to another installation or device. */
+data class PortableProfileSettings(
+    val scaleAddress: String?,
+    val scaleName: String?,
+    val reliabilityMode: Boolean,
+    val selectedChartMetricKeys: Set<String>?,
+    val homeKgChartSeriesKeys: Set<String>?,
+)
+
+fun AppSettings.toPortableSnapshot(): PortableProfileSettings = PortableProfileSettings(
+    scaleAddress = scaleAddress,
+    scaleName = scaleName,
+    reliabilityMode = reliabilityMode,
+    selectedChartMetricKeys = selectedChartMetricKeys?.toSet(),
+    homeKgChartSeriesKeys = homeKgChartSeriesKeys?.toSet(),
+)
+
 interface ExternalSyncPauseSettingsStore {
     val externalSyncPausedUntilEpochMillis: Long
 
@@ -25,6 +42,8 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
     private val preferences = context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
     private val mutableSettings = MutableStateFlow(read())
     val settings: StateFlow<AppSettings> = mutableSettings.asStateFlow()
+
+    fun portableSnapshot(): PortableProfileSettings = settings.value.toPortableSnapshot()
 
     fun saveScale(address: String, name: String?) {
         preferences.edit {
