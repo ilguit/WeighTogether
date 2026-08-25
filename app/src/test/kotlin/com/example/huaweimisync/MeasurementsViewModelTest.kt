@@ -95,7 +95,7 @@ class MeasurementsViewModelTest {
             ),
         )
 
-        val accepted = state.acceptOperation(oldOperation) {
+        val accepted = state.acceptOperation(oldOperation, accountA) {
             it.afterSaveCompletion(MeasurementMutationResult.Success)
         }
 
@@ -116,7 +116,7 @@ class MeasurementsViewModelTest {
             ).normalizedFor(AccountId("account-b")),
         )
 
-        val accepted = state.acceptOperation(oldOperation) {
+        val accepted = state.acceptOperation(oldOperation, AccountId("account-b")) {
             it.copy(
                 deleteConfirmation = confirmation("same-id"),
                 deleteRequestOperation = null,
@@ -142,13 +142,70 @@ class MeasurementsViewModelTest {
             ),
         )
 
-        val accepted = state.acceptOperation(oldOperation) {
+        val accepted = state.acceptOperation(oldOperation, accountA) {
             it.copy(deleteConfirmation = null, deleteOperation = null)
         }
 
         assertFalse(accepted)
         assertEquals(newConfirmation, state.value.deleteConfirmation)
         assertEquals(newOperation, state.value.deleteOperation)
+    }
+
+    @Test
+    fun rawOldOperationIsNormalizedAndRejectedByAuthoritativeAccountWithoutObserverCallback() {
+        val accountA = AccountId("account-a")
+        val accountB = AccountId("account-b")
+        val operation = MeasurementOperationToken(accountA, "same-id", 1L)
+        val editor = editor("same-id").copy(isSaving = true)
+        val state = MutableStateFlow(
+            MeasurementsInteractionState(
+                accountId = accountA,
+                navigation = MeasurementsNavigationState()
+                    .showHistory()
+                    .showEditor(MeasurementEditorOrigin.HISTORY),
+                editor = editor,
+                saveOperation = operation,
+            ),
+        )
+        var effectApplied = false
+
+        val accepted = state.acceptOperation(operation, accountB) {
+            effectApplied = true
+            it.afterSaveCompletion(MeasurementMutationResult.Success)
+        }
+
+        assertFalse(accepted)
+        assertFalse(effectApplied)
+        assertEquals(accountB, state.value.accountId)
+        assertEquals(null, state.value.editor)
+        assertEquals(null, state.value.saveOperation)
+        assertEquals(MeasurementsDestination.HISTORY, state.value.navigation.destination)
+    }
+
+    @Test
+    fun synchronousAccountPublicationInvalidatesOldTokenAcrossReturnToSameAccount() {
+        val accountA = AccountId("account-a")
+        val accountB = AccountId("account-b")
+        val operation = MeasurementOperationToken(accountA, "same-id", 1L)
+        val state = MutableStateFlow(
+            MeasurementsInteractionState(
+                accountId = accountA,
+                editor = editor("same-id").copy(isSaving = true),
+                saveOperation = operation,
+            ),
+        )
+        val selection = MutableStateFlow<AccountId?>(accountA)
+
+        publishAccountSelection(state, selection, accountB)
+        assertEquals(accountB, state.value.accountId)
+        assertEquals(accountB, selection.value)
+        publishAccountSelection(state, selection, accountA)
+
+        assertEquals(accountA, state.value.accountId)
+        assertEquals(accountA, selection.value)
+        assertEquals(null, state.value.editor)
+        assertEquals(null, state.value.saveOperation)
+        assertFalse(state.acceptOperation(operation, accountA) { it })
     }
 
     @Test
