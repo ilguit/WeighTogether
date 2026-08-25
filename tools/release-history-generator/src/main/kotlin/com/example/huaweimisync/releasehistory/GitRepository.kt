@@ -5,6 +5,8 @@ import java.nio.file.Path
 class GitRepository(private val root: Path) {
     fun resolve(revision: String): String = git("rev-parse", "--verify", "$revision^{commit}").trim()
 
+    fun isShallow(): Boolean = git("rev-parse", "--is-shallow-repository").trim() == "true"
+
     fun isFirstParentAncestor(ancestor: String, descendant: String): Boolean =
         git("rev-list", "--first-parent", descendant)
             .lineSequence()
@@ -41,6 +43,17 @@ class GitRepository(private val root: Path) {
         }
         return tags
     }
+
+    fun annotatedApkTags(): List<ApkTag> = git(
+        "for-each-ref",
+        "--format=%(refname:short)%00%(objecttype)%00%(*objectname)",
+        "refs/tags/apk/",
+    ).lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
+        val fields = line.split('\u0000')
+        if (fields.size != 3 || fields[1] != "tag" || fields[2].isBlank()) return@mapNotNull null
+        val version = APK_TAG.matchEntire(fields[0])?.groupValues?.get(1) ?: return@mapNotNull null
+        ApkTag(fields[0], version, fields[2])
+    }.sortedBy { it.name }.toList()
 
     fun changedFragmentPaths(head: String, exclusiveBase: String?): List<String> {
         val paths = if (exclusiveBase == null) {

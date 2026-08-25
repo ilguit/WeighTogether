@@ -60,6 +60,27 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                 }
                 variant.sources.java?.addGeneratedSourceDirectory(task, GenerateReleaseHistoryTask::kotlinOutputDirectory)
                 variant.sources.res?.addGeneratedSourceDirectory(task, GenerateReleaseHistoryTask::resourceOutputDirectory)
+
+                if (variant.name == "personalDebug") {
+                    val preflight = project.tasks.register(
+                        "verifyPersonalDebugReleaseMetadata",
+                        VerifyReleaseMetadataTask::class.java,
+                    )
+                    preflight.configure { configured ->
+                        configured.group = "verification"
+                        configured.description = "Verifies release metadata before producing the personal debug APK"
+                        configured.headSha.set(task.flatMap(GenerateReleaseHistoryTask::headSha))
+                        configured.currentVersion.set(task.flatMap(GenerateReleaseHistoryTask::currentVersion))
+                        configured.flavor.set(task.flatMap(GenerateReleaseHistoryTask::flavor))
+                        configured.trackedWorktreeState.set(task.flatMap(GenerateReleaseHistoryTask::trackedWorktreeState))
+                        configured.baselineFile.set(task.flatMap(GenerateReleaseHistoryTask::baselineFile))
+                    }
+                    project.tasks.matching {
+                        it.name == "packagePersonalDebug" || it.name == "assemblePersonalDebug"
+                    }.configureEach {
+                        it.dependsOn(preflight)
+                    }
+                }
             }
         }
     }

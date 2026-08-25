@@ -88,6 +88,43 @@ git -C "$repo" checkout --quiet main
 third_sha="$(append_commit "$repo" third)"
 assert_eq "$(run_script "$repo" preflight 0.1.3 "$third_sha")" "apk/0.1.2"
 
+# A release tag on a merged side branch must not replace the nearest tag on
+# the first-parent chain.
+merge_repo="$(new_fixture merged-side)"
+merge_base="$(git -C "$merge_repo" rev-parse HEAD)"
+git -C "$merge_repo" tag -a apk/0.5.0 "$merge_base" -m first-parent
+git -C "$merge_repo" push --quiet origin refs/tags/apk/0.5.0
+git -C "$merge_repo" branch side
+append_commit "$merge_repo" main >/dev/null
+git -C "$merge_repo" checkout --quiet side
+printf 'side\n' >"${merge_repo}/side.txt"
+git -C "$merge_repo" add side.txt
+git -C "$merge_repo" commit --quiet -m side
+side_sha="$(git -C "$merge_repo" rev-parse HEAD)"
+git -C "$merge_repo" tag -a apk/9.9.9 "$side_sha" -m side
+git -C "$merge_repo" push --quiet origin refs/tags/apk/9.9.9
+git -C "$merge_repo" checkout --quiet main
+git -C "$merge_repo" merge --quiet --no-ff side -m "Merge side"
+merge_head="$(git -C "$merge_repo" rev-parse HEAD)"
+assert_eq "$(run_script "$merge_repo" preflight 0.5.1 "$merge_head")" "apk/0.5.0"
+
+# With no release tag on the first-parent chain, a merged-side tag does not
+# manufacture a previous release boundary.
+side_only_repo="$(new_fixture side-only)"
+git -C "$side_only_repo" branch side
+append_commit "$side_only_repo" main >/dev/null
+git -C "$side_only_repo" checkout --quiet side
+printf 'side\n' >"${side_only_repo}/side.txt"
+git -C "$side_only_repo" add side.txt
+git -C "$side_only_repo" commit --quiet -m side
+side_only_sha="$(git -C "$side_only_repo" rev-parse HEAD)"
+git -C "$side_only_repo" tag -a apk/7.7.7 "$side_only_sha" -m side
+git -C "$side_only_repo" push --quiet origin refs/tags/apk/7.7.7
+git -C "$side_only_repo" checkout --quiet main
+git -C "$side_only_repo" merge --quiet --no-ff side -m "Merge side"
+side_only_head="$(git -C "$side_only_repo" rev-parse HEAD)"
+assert_eq "$(run_script "$side_only_repo" preflight 0.6.0 "$side_only_head")" "null"
+
 # Reusing a released version for another commit fails clearly.
 if run_script "$repo" preflight 0.1.2 "$third_sha" >"${test_root}/conflict.out" 2>&1; then
     fail "version conflict unexpectedly succeeded"
@@ -147,6 +184,7 @@ grep -qF 'previousReleaseTag:' "$workflow" || fail "artifact metadata lacks prev
 grep -qF 'artifact_path=${artifact_dir}' "$workflow" || fail "artifact does not include APK and metadata directory"
 grep -qF 'GIT_COMMITTER_NAME: github-actions[bot]' "$workflow" || fail "workflow lacks an annotated-tag identity"
 assert_workflow_order "$workflow" \
+    "- name: Verify remote release tag" \
     "- name: Build personal debug APK" \
     "- name: Prepare APK artifact" \
     "- name: Upload personal APK" \

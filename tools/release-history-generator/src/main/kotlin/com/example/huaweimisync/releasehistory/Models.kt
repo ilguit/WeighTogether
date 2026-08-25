@@ -54,6 +54,22 @@ data class GeneratedHistory(
     val releases: List<GeneratedRelease>,
 )
 
+data class ReleaseRange(
+    val headSha: String,
+    val previousTag: ApkTag?,
+    val displayName: String,
+    val issues: List<Int>,
+    val fragments: List<ReleaseNoteFragment>,
+)
+
+data class ReleasePreflight(
+    val headSha: String,
+    val previousTag: ApkTag?,
+    val range: ReleaseRange,
+    val currentVersion: String,
+    val history: GeneratedHistory,
+)
+
 data class ApkTag(
     val name: String,
     val version: String,
