@@ -182,6 +182,100 @@ class BackupImportServiceTest {
         }
 
     @Test
+    fun `cancellation while completing apply is propagated and leaves checkpoint retryable`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            val cancellation = CancellationException("cancel checkpoint cleanup")
+            val gateway = TrackingGateway(
+                events,
+                completeFailure = cancellation,
+                completeFailuresRemaining = 1,
+            )
+            val laterHooks = mutableListOf<String>()
+            val applier = BackupImportApplier(
+                gateway = gateway,
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                successHooks = listOf(BackupImportSuccessHook { laterHooks += "success" }),
+                completionHooks = listOf(BackupImportCompletionHook { laterHooks += "completion" }),
+            )
+
+            val thrown = assertThrows(CancellationException::class.java) {
+                runBlocking { applier.apply(preview) }
+            }
+
+            assertEquals(cancellation, thrown)
+            assertEquals(listOf("database", "settings"), events)
+            assertEquals(emptyList<String>(), laterHooks)
+            assertEquals(true, gateway.pendingRecovery() != null)
+
+            applier.recoverPendingImport()
+
+            assertEquals(null, gateway.pendingRecovery())
+            assertEquals(listOf("completion"), laterHooks)
+        }
+
+    @Test
+    fun `cancellation in success hook is propagated and stops all later hooks`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val cancellation = CancellationException("cancel observer")
+        val gateway = TrackingGateway(events)
+        val applier = BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { events += "settings" },
+            successHooks = listOf(
+                BackupImportSuccessHook { throw cancellation },
+                BackupImportSuccessHook { events += "later-success" },
+            ),
+            completionHooks = listOf(BackupImportCompletionHook { events += "completion" }),
+        )
+
+        val thrown = assertThrows(CancellationException::class.java) {
+            runBlocking { applier.apply(preview) }
+        }
+
+        assertEquals(cancellation, thrown)
+        assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
+    fun `cancellation in completion hook is propagated and stops later completion hooks`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.REPLACE,
+            )
+            val cancellation = CancellationException("cancel scheduling")
+            val gateway = TrackingGateway(events)
+            val applier = BackupImportApplier(
+                gateway = gateway,
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                completionHooks = listOf(
+                    BackupImportCompletionHook { throw cancellation },
+                    BackupImportCompletionHook { events += "later-completion" },
+                ),
+            )
+
+            val thrown = assertThrows(CancellationException::class.java) {
+                runBlocking { applier.apply(preview) }
+            }
+
+            assertEquals(cancellation, thrown)
+            assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
+            assertEquals(null, gateway.pendingRecovery())
+        }
+
+    @Test
     fun `database failure does not change settings or invoke post success hooks`() = runBlocking {
         val events = mutableListOf<String>()
         val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
@@ -407,6 +501,48 @@ class BackupImportServiceTest {
     }
 
     @Test
+    fun `startup and foreground recovery propagate cleanup cancellation and remain retryable`() =
+        runBlocking {
+            listOf(false, true).forEach { useStartupWrapper ->
+                val events = mutableListOf<String>()
+                val cancellation = CancellationException("cancel recovery cleanup")
+                val gateway = TrackingGateway(
+                    events = events,
+                    recoverySettings = emptySettings,
+                    completeFailure = cancellation,
+                    completeFailuresRemaining = 1,
+                )
+                var completionHooks = 0
+                val applier = BackupImportApplier(
+                    gateway = gateway,
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    completionHooks = listOf(BackupImportCompletionHook { completionHooks++ }),
+                )
+
+                val thrown = assertThrows(CancellationException::class.java) {
+                    runBlocking {
+                        if (useStartupWrapper) {
+                            recoverBackupImportAtStartup(applier::recoverPendingImport) {
+                                error("cancellation must not be reported as an ordinary failure")
+                            }
+                        } else {
+                            applier.recoverPendingImport()
+                        }
+                    }
+                }
+
+                assertEquals(cancellation, thrown)
+                assertEquals(true, gateway.pendingRecovery() != null)
+                assertEquals(0, completionHooks)
+
+                applier.recoverPendingImport()
+
+                assertEquals(null, gateway.pendingRecovery())
+                assertEquals(1, completionHooks)
+            }
+        }
+
+    @Test
     fun `successful startup recovery sweeps only after cleanup while rollback recovery does not`() =
         runBlocking {
             listOf(true, false).forEach { successfulImport ->
@@ -519,6 +655,8 @@ class BackupImportServiceTest {
         private val stageFailure: Throwable? = null,
         private var recoverySettings: PortableProfileSettings? = null,
         private var recoverySweepNeeded: Boolean = true,
+        private val completeFailure: Throwable? = null,
+        private var completeFailuresRemaining: Int = 0,
     ) : BackupImportGateway {
         override suspend fun stage(preview: BackupImportPreview) {
             stageFailure?.let { throw it }
@@ -531,6 +669,10 @@ class BackupImportServiceTest {
         }
 
         override suspend fun complete() {
+            if (completeFailuresRemaining > 0) {
+                completeFailuresRemaining--
+                throw requireNotNull(completeFailure)
+            }
             events += "checkpoint-cleanup"
             recoverySettings = null
         }

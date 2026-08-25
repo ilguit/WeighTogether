@@ -20,6 +20,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.CodingErrorAction
 import java.nio.charset.StandardCharsets
 import java.util.UUID
+import kotlinx.coroutines.CancellationException
 
 const val MAX_BACKUP_BYTES: Int = 32 * 1024 * 1024
 
@@ -279,6 +280,8 @@ class BackupImportApplier(
             try {
                 settingsWriter.apply(preview.settings)
                 gateway.complete()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (settingsFailure: Exception) {
                 pendingRecovery = settingsFailure
             }
@@ -296,6 +299,8 @@ class BackupImportApplier(
         successHooks.forEach { hook ->
             try {
                 hook.onImportSucceeded(preview)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 // Post-commit observers cannot change the durable import outcome.
             }
@@ -321,6 +326,8 @@ class BackupImportApplier(
         completionHooks.forEach { hook ->
             try {
                 hook.onImportCompleted()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (_: Exception) {
                 // Completion hooks only schedule durable repair work. Startup/foreground retries.
             }
