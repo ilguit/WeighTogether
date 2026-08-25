@@ -24,6 +24,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.flow.MutableStateFlow
 
 class MeasurementsViewModelTest {
     @Test
@@ -75,6 +76,79 @@ class MeasurementsViewModelTest {
 
         assertEquals(current, rejected)
         assertEquals(null, rejected.deleteConfirmation)
+    }
+
+    @Test
+    fun delayedSaveFromOldAccountCannotCloseReturnedAccountsNewEditorOrEmitEffect() {
+        val accountA = AccountId("account-a")
+        val oldOperation = MeasurementOperationToken(accountA, "same-id", 1L)
+        val newOperation = MeasurementOperationToken(accountA, "same-id", 2L)
+        val newEditor = editor("same-id").copy(isSaving = true)
+        val state = MutableStateFlow(
+            MeasurementsInteractionState(
+                accountId = accountA,
+                navigation = MeasurementsNavigationState()
+                    .showHistory()
+                    .showEditor(MeasurementEditorOrigin.HISTORY),
+                editor = newEditor,
+                saveOperation = newOperation,
+            ),
+        )
+
+        val accepted = state.acceptOperation(oldOperation) {
+            it.afterSaveCompletion(MeasurementMutationResult.Success)
+        }
+
+        assertFalse(accepted)
+        assertEquals(newEditor, state.value.editor)
+        assertEquals(newOperation, state.value.saveOperation)
+        assertEquals(MeasurementsDestination.EDITOR, state.value.navigation.destination)
+    }
+
+    @Test
+    fun delayedDeleteRequestAfterAccountSwitchCannotOpenDialogOrEmitEffect() {
+        val accountA = AccountId("account-a")
+        val oldOperation = MeasurementOperationToken(accountA, "same-id", 1L)
+        val state = MutableStateFlow(
+            MeasurementsInteractionState(
+                accountId = accountA,
+                deleteRequestOperation = oldOperation,
+            ).normalizedFor(AccountId("account-b")),
+        )
+
+        val accepted = state.acceptOperation(oldOperation) {
+            it.copy(
+                deleteConfirmation = confirmation("same-id"),
+                deleteRequestOperation = null,
+            )
+        }
+
+        assertFalse(accepted)
+        assertEquals(AccountId("account-b"), state.value.accountId)
+        assertEquals(null, state.value.deleteConfirmation)
+    }
+
+    @Test
+    fun delayedDeleteAfterReturnCannotClearNewConfirmationForSameMeasurement() {
+        val accountA = AccountId("account-a")
+        val oldOperation = MeasurementOperationToken(accountA, "same-id", 1L)
+        val newOperation = MeasurementOperationToken(accountA, "same-id", 2L)
+        val newConfirmation = confirmation("same-id").copy(isDeleting = true)
+        val state = MutableStateFlow(
+            MeasurementsInteractionState(
+                accountId = accountA,
+                deleteConfirmation = newConfirmation,
+                deleteOperation = newOperation,
+            ),
+        )
+
+        val accepted = state.acceptOperation(oldOperation) {
+            it.copy(deleteConfirmation = null, deleteOperation = null)
+        }
+
+        assertFalse(accepted)
+        assertEquals(newConfirmation, state.value.deleteConfirmation)
+        assertEquals(newOperation, state.value.deleteOperation)
     }
 
     @Test
@@ -299,6 +373,19 @@ class MeasurementsViewModelTest {
         )
     }
 }
+
+private fun editor(id: String) = MeasurementEditorState(
+    measurementId = id,
+    measuredAtEpochSecond = 1L,
+    draft = MeasurementEditorDraft.fromWeight(70.0),
+    type = MeasurementUiType.WEIGHT_ONLY,
+)
+
+private fun confirmation(id: String) = MeasurementDeleteConfirmation(
+    measurementId = id,
+    measuredAtEpochSecond = 1L,
+    weightKg = 70.0,
+)
 
 private fun account(id: String) = Account(
     id = AccountId(id),

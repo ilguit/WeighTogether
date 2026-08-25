@@ -41,6 +41,7 @@ import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -119,6 +120,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             PendingMeasurementReadinessSnapshot(emptyList(), Instant.EPOCH),
         )
     private val interaction = MutableStateFlow(MeasurementsInteractionState())
+    private val nextOperationToken = AtomicLong()
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
 
     val events = eventChannel.receiveAsFlow()
@@ -316,7 +318,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         val owner = currentInteraction()
         val current = owner.editor ?: return
         if (current.measurementId != id || current.isSaving) return
-        interaction.value = owner.copy(editor = current.copy(isSaving = true))
+        val operation = operation(owner.accountId, id)
+        interaction.value = owner.copy(
+            editor = current.copy(isSaving = true),
+            saveOperation = operation,
+        )
         viewModelScope.launch {
             val result = if (current.isWeightOnly) {
                 repository.updateWeightOnly(id, values.weightKg)
@@ -324,26 +330,17 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 values.toDataValues()?.let { repository.update(id, it) }
                     ?: MeasurementMutationResult.Invalid
             }
-            when (result) {
-                MeasurementMutationResult.Success -> {
-                    closeOwnedEditor(owner.accountId, id)
-                    showMessage("Локальное измерение изменено")
+            val message = when (result) {
+                MeasurementMutationResult.Success -> "Локальное измерение изменено"
+                MeasurementMutationResult.NotFound -> "Измерение уже удалено"
+                MeasurementMutationResult.Invalid -> "Проверьте введённые значения"
+                MeasurementMutationResult.ProtectedLatest -> "Не удалось изменить измерение"
+            }
+            if (interaction.acceptOperation(operation) { state ->
+                    state.afterSaveCompletion(result)
                 }
-
-                MeasurementMutationResult.NotFound -> {
-                    closeOwnedEditor(owner.accountId, id)
-                    showMessage("Измерение уже удалено")
-                }
-
-                MeasurementMutationResult.Invalid -> {
-                    updateOwnedEditor(owner.accountId) { it.copy(isSaving = false) }
-                    showMessage("Проверьте введённые значения")
-                }
-
-                MeasurementMutationResult.ProtectedLatest -> {
-                    updateOwnedEditor(owner.accountId) { it.copy(isSaving = false) }
-                    showMessage("Не удалось изменить измерение")
-                }
+            ) {
+                showMessage(message)
             }
         }
     }
@@ -359,6 +356,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             showMessage("Измерение уже удалено")
             return
         }
+        val operation = operation(owner.accountId, id)
+        interaction.value = owner.copy(deleteRequestOperation = operation)
         viewModelScope.launch {
             when (
                 val request = measurementDeleteRequest(
@@ -367,16 +366,15 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                     protectedLatestId = id.takeIf { repository.isProtectedLatest(it) },
                 )
             ) {
-                MeasurementDeleteRequest.NotFound -> showMessage("Измерение уже удалено")
-                MeasurementDeleteRequest.ProtectedLatest -> showProtectedLatestMessage()
-                is MeasurementDeleteRequest.Confirm -> {
-                    interaction.update { current ->
-                        current.withDeleteConfirmation(
-                            ownerAccountId = owner.accountId,
-                            confirmation = request.confirmation,
-                        )
-                    }
-                }
+                MeasurementDeleteRequest.NotFound -> completeDeleteRequest(
+                    operation, null, "Измерение уже удалено",
+                )
+                MeasurementDeleteRequest.ProtectedLatest -> completeDeleteRequest(
+                    operation, null, PROTECTED_LATEST_MESSAGE,
+                )
+                is MeasurementDeleteRequest.Confirm -> completeDeleteRequest(
+                    operation, request.confirmation, null,
+                )
             }
         }
     }
@@ -385,15 +383,18 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         val owner = currentInteraction()
         val confirmation = owner.deleteConfirmation ?: return
         if (confirmation.measurementId != id || confirmation.isDeleting) return
+        val operation = operation(owner.accountId, id)
         interaction.value = owner.copy(
             deleteConfirmation = confirmation.copy(isDeleting = true),
+            deleteOperation = operation,
         )
         viewModelScope.launch {
-            showMessage(measurementDeleteResultMessage(repository.delete(id)))
-            interaction.update { current ->
-                if (current.accountId == owner.accountId) {
-                    current.copy(deleteConfirmation = null)
-                } else current
+            val message = measurementDeleteResultMessage(repository.delete(id))
+            if (interaction.acceptOperation(operation) { current ->
+                    current.copy(deleteConfirmation = null, deleteOperation = null)
+                }
+            ) {
+                showMessage(message)
             }
         }
     }
@@ -418,25 +419,22 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         eventChannel.trySend(MeasurementsUiEvent.ShowSnackbar(message))
     }
 
-    private fun closeOwnedEditor(accountId: AccountId?, measurementId: String) {
-        interaction.update { current ->
-            if (current.accountId == accountId && current.editor?.measurementId == measurementId) {
-                current.copy(
-                    navigation = current.navigation.back(),
-                    editor = null,
-                )
-            } else current
-        }
-    }
+    private fun operation(accountId: AccountId?, measurementId: String) =
+        MeasurementOperationToken(accountId, measurementId, nextOperationToken.incrementAndGet())
 
-    private fun updateOwnedEditor(
-        accountId: AccountId?,
-        transform: (MeasurementEditorState) -> MeasurementEditorState,
+    private fun completeDeleteRequest(
+        operation: MeasurementOperationToken,
+        confirmation: MeasurementDeleteConfirmation?,
+        message: String?,
     ) {
-        interaction.update { current ->
-            if (current.accountId == accountId && current.editor != null) {
-                current.copy(editor = transform(current.editor))
-            } else current
+        if (interaction.acceptOperation(operation) { current ->
+                current.copy(
+                    deleteConfirmation = confirmation,
+                    deleteRequestOperation = null,
+                )
+            } && message != null
+        ) {
+            showMessage(message)
         }
     }
 
@@ -455,6 +453,9 @@ internal data class MeasurementsInteractionState(
     val navigation: MeasurementsNavigationState = MeasurementsNavigationState(),
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+    val saveOperation: MeasurementOperationToken? = null,
+    val deleteRequestOperation: MeasurementOperationToken? = null,
+    val deleteOperation: MeasurementOperationToken? = null,
 ) {
     fun normalizedFor(accountId: AccountId?): MeasurementsInteractionState =
         if (this.accountId == accountId) this else copy(
@@ -462,6 +463,9 @@ internal data class MeasurementsInteractionState(
             navigation = navigation.afterAccountSelectionChanged(),
             editor = null,
             deleteConfirmation = null,
+            saveOperation = null,
+            deleteRequestOperation = null,
+            deleteOperation = null,
         )
 
     fun withDeleteConfirmation(
@@ -471,6 +475,42 @@ internal data class MeasurementsInteractionState(
         copy(deleteConfirmation = confirmation)
     } else {
         this
+    }
+}
+
+internal data class MeasurementOperationToken(
+    val accountId: AccountId?,
+    val measurementId: String,
+    val sequence: Long,
+)
+
+private fun MeasurementsInteractionState.owns(operation: MeasurementOperationToken): Boolean =
+    accountId == operation.accountId && when (operation) {
+        saveOperation -> editor?.measurementId == operation.measurementId
+        deleteRequestOperation -> true
+        deleteOperation -> deleteConfirmation?.measurementId == operation.measurementId
+        else -> false
+    }
+
+internal fun MeasurementsInteractionState.afterSaveCompletion(
+    result: MeasurementMutationResult,
+): MeasurementsInteractionState = when (result) {
+    MeasurementMutationResult.Success,
+    MeasurementMutationResult.NotFound,
+    -> copy(navigation = navigation.back(), editor = null, saveOperation = null)
+    MeasurementMutationResult.Invalid,
+    MeasurementMutationResult.ProtectedLatest,
+    -> copy(editor = editor?.copy(isSaving = false), saveOperation = null)
+}
+
+internal inline fun MutableStateFlow<MeasurementsInteractionState>.acceptOperation(
+    operation: MeasurementOperationToken,
+    transform: (MeasurementsInteractionState) -> MeasurementsInteractionState,
+): Boolean {
+    while (true) {
+        val current = value
+        if (!current.owns(operation)) return false
+        if (compareAndSet(current, transform(current))) return true
     }
 }
 
