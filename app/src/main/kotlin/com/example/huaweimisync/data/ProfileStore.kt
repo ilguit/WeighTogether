@@ -46,7 +46,7 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
     fun portableSnapshot(): PortableProfileSettings = settings.value.toPortableSnapshot()
 
     fun applyPortableSettings(value: PortableProfileSettings) {
-        preferences.edit {
+        val committed = preferences.edit().run {
             if (value.scaleAddress == null) remove(KEY_SCALE_ADDRESS)
             else putString(KEY_SCALE_ADDRESS, value.scaleAddress.uppercase())
             if (value.scaleName == null) remove(KEY_SCALE_NAME)
@@ -56,7 +56,9 @@ class ProfileStore(context: Context) : ExternalSyncPauseSettingsStore {
             else putStringSet(KEY_SELECTED_CHART_METRICS, value.selectedChartMetricKeys.toSet())
             if (value.homeKgChartSeriesKeys == null) remove(KEY_HOME_KG_CHART_SERIES)
             else putStringSet(KEY_HOME_KG_CHART_SERIES, value.homeKgChartSeriesKeys.toSet())
+            commit()
         }
+        check(committed) { "Could not durably commit imported settings" }
         refresh()
     }
 

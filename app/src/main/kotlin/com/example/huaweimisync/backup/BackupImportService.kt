@@ -4,10 +4,14 @@ import androidx.room.withTransaction
 import com.example.huaweimisync.data.AccountEntity
 import com.example.huaweimisync.data.AppDatabase
 import com.example.huaweimisync.data.AppStateEntity
+import com.example.huaweimisync.data.BackupImportCheckpointEntity
 import com.example.huaweimisync.data.MeasurementEntity
+import com.example.huaweimisync.data.MeasurementTombstoneEntity
+import com.example.huaweimisync.data.PendingMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.ProfileStore
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
+import com.google.gson.Gson
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
@@ -46,14 +50,39 @@ data class BackupImportPreview(
     val settings: PortableProfileSettings,
 )
 
-fun interface BackupImportGateway {
-    suspend fun apply(preview: BackupImportPreview)
+interface BackupImportGateway {
+    suspend fun stage(preview: BackupImportPreview, previousSettings: PortableProfileSettings)
+
+    suspend fun beginRollback()
+
+    suspend fun pendingRecoverySettings(): PortableProfileSettings?
+
+    suspend fun complete()
 }
 
-class RoomBackupImportGateway(
+class RoomBackupImportGateway internal constructor(
     private val database: AppDatabase,
+    private val checkpointCodec: BackupImportCheckpointCodec = BackupImportCheckpointCodec(),
 ) : BackupImportGateway {
-    override suspend fun apply(preview: BackupImportPreview) = database.withTransaction {
+    override suspend fun stage(
+        preview: BackupImportPreview,
+        previousSettings: PortableProfileSettings,
+    ) = database.withTransaction {
+        val rollback = BackupImportRollbackSnapshot(
+            accounts = database.accountDao().getAll(),
+            appState = database.appStateDao().get() ?: AppStateEntity(),
+            measurements = database.measurementDao().getAllForBackup(),
+            pendingMeasurements = database.pendingMeasurementDao().getAll(),
+            tombstones = database.pendingMeasurementDao().getAllTombstones(),
+        )
+        database.backupImportCheckpointDao().replace(
+            BackupImportCheckpointEntity(
+                phase = BackupImportCheckpointEntity.PHASE_TARGET_APPLIED,
+                rollbackDatabaseJson = checkpointCodec.encodeRollback(rollback),
+                previousSettingsJson = checkpointCodec.encodeSettings(previousSettings),
+                targetSettingsJson = checkpointCodec.encodeSettings(preview.settings),
+            ),
+        )
         when (preview.mode) {
             BackupImportMode.MERGE -> {
                 database.accountDao().insertAll(preview.result.accounts)
@@ -72,6 +101,62 @@ class RoomBackupImportGateway(
         }
         Unit
     }
+
+    override suspend fun beginRollback() = database.withTransaction {
+        val checkpoint = database.backupImportCheckpointDao().get() ?: return@withTransaction
+        val rollback = checkpointCodec.decodeRollback(checkpoint.rollbackDatabaseJson)
+        database.pendingMeasurementDao().deleteAll()
+        database.pendingMeasurementDao().deleteAllTombstones()
+        database.measurementDao().deleteAll()
+        database.accountDao().deleteAll()
+        database.accountDao().insertAll(rollback.accounts)
+        database.appStateDao().replace(rollback.appState)
+        database.measurementDao().insertAll(rollback.measurements)
+        database.pendingMeasurementDao().insertAll(rollback.pendingMeasurements)
+        database.pendingMeasurementDao().upsertAllTombstones(rollback.tombstones)
+        check(
+            database.backupImportCheckpointDao().setPhase(
+                BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED,
+            ) == 1,
+        )
+    }
+
+    override suspend fun pendingRecoverySettings(): PortableProfileSettings? =
+        database.backupImportCheckpointDao().get()?.let { checkpoint ->
+            when (checkpoint.phase) {
+                BackupImportCheckpointEntity.PHASE_TARGET_APPLIED ->
+                    checkpointCodec.decodeSettings(checkpoint.targetSettingsJson)
+                BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED ->
+                    checkpointCodec.decodeSettings(checkpoint.previousSettingsJson)
+                else -> error("Unknown backup import checkpoint phase: ${checkpoint.phase}")
+            }
+        }
+
+    override suspend fun complete() {
+        check(database.backupImportCheckpointDao().delete() == 1) {
+            "Backup import checkpoint disappeared before cleanup"
+        }
+    }
+}
+
+internal data class BackupImportRollbackSnapshot(
+    val accounts: List<AccountEntity>,
+    val appState: AppStateEntity,
+    val measurements: List<MeasurementEntity>,
+    val pendingMeasurements: List<PendingMeasurementEntity>,
+    val tombstones: List<MeasurementTombstoneEntity>,
+)
+
+internal class BackupImportCheckpointCodec(private val gson: Gson = Gson()) {
+    fun encodeRollback(value: BackupImportRollbackSnapshot): String = gson.toJson(value)
+
+    fun decodeRollback(value: String): BackupImportRollbackSnapshot =
+        gson.fromJson(value, BackupImportRollbackSnapshot::class.java)
+
+    fun encodeSettings(value: PortableProfileSettings): String = gson.toJson(value)
+
+    fun decodeSettings(value: String): PortableProfileSettings =
+        gson.fromJson(value, PortableProfileSettings::class.java)
 }
 
 fun interface PortableSettingsWriter {
@@ -90,16 +175,38 @@ data class BackupImportApplyResult(
 class BackupImportApplier(
     private val gateway: BackupImportGateway,
     private val settingsWriter: PortableSettingsWriter,
+    private val settingsSnapshot: () -> PortableProfileSettings,
     private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     private val successHooks: List<BackupImportSuccessHook> = emptyList(),
 ) {
     suspend fun apply(preview: BackupImportPreview): BackupImportApplyResult {
         operations.runExclusive {
-            gateway.apply(preview)
-            settingsWriter.apply(preview.settings)
+            val previousSettings = settingsSnapshot()
+            gateway.stage(preview, previousSettings)
+            try {
+                settingsWriter.apply(preview.settings)
+                gateway.complete()
+            } catch (settingsFailure: Exception) {
+                try {
+                    gateway.beginRollback()
+                    settingsWriter.apply(previousSettings)
+                    gateway.complete()
+                } catch (rollbackFailure: Exception) {
+                    settingsFailure.addSuppressed(rollbackFailure)
+                }
+                throw settingsFailure
+            }
         }
         successHooks.forEach { it.onImportSucceeded(preview) }
         return BackupImportApplyResult(preview.counts, preview.mode)
+    }
+
+    suspend fun recoverPendingImport() {
+        operations.runExclusive {
+            val recoverySettings = gateway.pendingRecoverySettings() ?: return@runExclusive
+            settingsWriter.apply(recoverySettings)
+            gateway.complete()
+        }
     }
 }
 

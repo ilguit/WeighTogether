@@ -46,7 +46,7 @@ class RoomBackupImportGatewayTest {
         database.accountDao().insert(account)
         database.measurementDao().insert(measurement)
 
-        gateway.apply(preview(BackupImportMode.MERGE, listOf(account, account("b")),
+        apply(preview(BackupImportMode.MERGE, listOf(account, account("b")),
             listOf(measurement, measurement("n", "b", SyncStatus.FAILED))))
 
         assertEquals(listOf("a", "b"), database.accountDao().getAll().map { it.id })
@@ -66,7 +66,7 @@ class RoomBackupImportGatewayTest {
             MeasurementTombstoneEntity("hash", 10_000L),
         )
 
-        gateway.apply(preview(BackupImportMode.REPLACE, listOf(account("new")),
+        apply(preview(BackupImportMode.REPLACE, listOf(account("new")),
             listOf(measurement("new-m", "new", SyncStatus.SYNCED))))
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(0, database.pendingMeasurementDao().getAll().size)
@@ -74,12 +74,65 @@ class RoomBackupImportGatewayTest {
 
         assertThrows(Exception::class.java) {
             runBlocking {
-                gateway.apply(preview(BackupImportMode.REPLACE, listOf(account("broken")),
-                    listOf(measurement("orphan", "missing", SyncStatus.SYNCED))))
+                gateway.stage(
+                    preview(
+                        BackupImportMode.REPLACE,
+                        listOf(account("broken")),
+                        listOf(measurement("orphan", "missing", SyncStatus.SYNCED)),
+                    ),
+                    PortableProfileSettings(null, null, false, null, null),
+                )
             }
         }
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(listOf("new-m"), database.measurementDao().getAllForBackup().map { it.id })
+        assertEquals(null, gateway.pendingRecoverySettings())
+    }
+
+    @Test
+    fun rollbackRestoresAllChangedTablesAndLeavesRecoverablePreviousSettings() = runBlocking {
+        database.accountDao().insert(account("old"))
+        database.measurementDao().insert(measurement("old-m", "old", SyncStatus.LOCAL_ONLY))
+        database.pendingMeasurementDao().insert(pending("pending"))
+        database.pendingMeasurementDao().upsertTombstone(MeasurementTombstoneEntity("hash", 10_000L))
+        val previous = PortableProfileSettings("OLD", "Old", false, setOf("weight"), null)
+
+        gateway.stage(
+            preview(
+                BackupImportMode.REPLACE,
+                listOf(account("new")),
+                listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
+            ),
+            previous,
+        )
+        gateway.beginRollback()
+
+        assertEquals(listOf("old"), database.accountDao().getAll().map { it.id })
+        assertEquals(listOf("old-m"), database.measurementDao().getAllForBackup().map { it.id })
+        assertEquals(listOf("pending"), database.pendingMeasurementDao().getAll().map { it.id })
+        assertEquals(listOf("hash"), database.pendingMeasurementDao().getAllTombstones().map { it.deduplicationHash })
+        assertEquals(previous, gateway.pendingRecoverySettings())
+        gateway.complete()
+        assertEquals(null, gateway.pendingRecoverySettings())
+    }
+
+    @Test
+    fun stagedImportLeavesTargetSettingsForStartupRollForward() = runBlocking {
+        val target = preview(
+            BackupImportMode.MERGE,
+            listOf(account("new")),
+            listOf(measurement("new-m", "new", SyncStatus.SYNCED)),
+        )
+
+        gateway.stage(target, PortableProfileSettings(null, null, false, null, null))
+
+        assertEquals(target.settings, gateway.pendingRecoverySettings())
+        assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
+    }
+
+    private suspend fun apply(preview: BackupImportPreview) {
+        gateway.stage(preview, PortableProfileSettings(null, null, false, null, null))
+        gateway.complete()
     }
 
     private fun preview(mode: BackupImportMode, accounts: List<AccountEntity>, measurements: List<MeasurementEntity>) =

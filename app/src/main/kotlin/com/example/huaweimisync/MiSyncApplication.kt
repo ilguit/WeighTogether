@@ -30,6 +30,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.runBlocking
 
 class MiSyncApplication : Application() {
     lateinit var container: AppContainer
@@ -104,8 +105,13 @@ class AppContainer(application: Application) {
     val backupImportApplier = BackupImportApplier(
         RoomBackupImportGateway(database),
         profileStore.asPortableSettingsWriter(),
+        profileStore::portableSnapshot,
         externalSyncOperations,
     )
+
+    init {
+        runBlocking(Dispatchers.IO) { backupImportApplier.recoverPendingImport() }
+    }
 
     /** One application-wide selection shared by Measurements and Charts. */
     val selectedAccountId = MutableStateFlow<AccountId?>(null)

@@ -486,6 +486,24 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate6To7AddsEmptyBackupImportCheckpointJournal() {
+        helper.createDatabase(MIGRATION_6_7_DB, 6).close()
+
+        val migrated = helper.runMigrationsAndValidate(
+            MIGRATION_6_7_DB,
+            7,
+            true,
+            AppDatabase.MIGRATION_6_7,
+        )
+
+        migrated.query("SELECT COUNT(*) FROM backup_import_checkpoint").use {
+            assertTrue(it.moveToFirst())
+            assertEquals(0, it.getInt(0))
+        }
+        migrated.close()
+    }
+
+    @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
@@ -680,5 +698,6 @@ class AppDatabaseMigrationTest {
         const val MIGRATION_3_4_DB = "measurement-migration-3-4-test"
         const val MIGRATION_4_5_DB = "measurement-migration-4-5-test"
         const val MIGRATION_5_6_DB = "measurement-migration-5-6-test"
+        const val MIGRATION_6_7_DB = "measurement-migration-6-7-test"
     }
 }
