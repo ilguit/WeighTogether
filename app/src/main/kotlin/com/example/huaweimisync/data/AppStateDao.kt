@@ -17,6 +17,9 @@ interface AppStateDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertDefault(state: AppStateEntity = AppStateEntity()): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun replace(state: AppStateEntity)
+
     @Query("UPDATE app_state SET primaryAccountId = :accountId WHERE singletonId = 1")
     suspend fun setPrimary(accountId: String?): Int
 

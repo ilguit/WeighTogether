@@ -27,6 +27,9 @@ interface PendingMeasurementDao {
     @Query("SELECT * FROM pending_measurements ORDER BY enqueuedAtEpochMillis ASC, id ASC")
     suspend fun getAll(): List<PendingMeasurementEntity>
 
+    @Query("SELECT * FROM measurement_tombstones ORDER BY deduplicationHash ASC")
+    suspend fun getAllTombstones(): List<MeasurementTombstoneEntity>
+
     @Query("SELECT * FROM pending_measurements WHERE id = :id")
     suspend fun get(id: String): PendingMeasurementEntity?
 
@@ -82,6 +85,12 @@ interface PendingMeasurementDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(pending: PendingMeasurementEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(pending: List<PendingMeasurementEntity>)
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun upsertAllTombstones(tombstones: List<MeasurementTombstoneEntity>)
+
     @Update
     suspend fun update(pending: PendingMeasurementEntity): Int
 
@@ -94,6 +103,9 @@ interface PendingMeasurementDao {
 
     @Query("DELETE FROM pending_measurements WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("DELETE FROM pending_measurements")
+    suspend fun deleteAll(): Int
 
     @Query(
         "SELECT * FROM measurement_tombstones " +
@@ -136,4 +148,7 @@ interface PendingMeasurementDao {
 
     @Query("SELECT COUNT(*) FROM measurement_tombstones")
     suspend fun tombstoneCount(): Int
+
+    @Query("DELETE FROM measurement_tombstones")
+    suspend fun deleteAllTombstones(): Int
 }

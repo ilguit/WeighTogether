@@ -27,9 +27,15 @@ interface AccountDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(account: AccountEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertAll(accounts: List<AccountEntity>): List<Long>
+
     @Update
     suspend fun update(account: AccountEntity): Int
 
     @Query("DELETE FROM accounts WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("DELETE FROM accounts")
+    suspend fun deleteAll(): Int
 }

@@ -15,13 +15,24 @@ import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import androidx.health.connect.client.PermissionController
 import com.example.huaweimisync.ble.BleSupport
+import com.example.huaweimisync.backup.BackupImportMode
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
+import java.time.LocalDate
 
 class MainActivity : ComponentActivity() {
     private val viewModel: MainViewModel by viewModels()
     private val measurementsViewModel: MeasurementsViewModel by viewModels()
     private val chartsViewModel: ChartsViewModel by viewModels()
     private var healthConnectSystemManagementAvailable by mutableStateOf(false)
+    private var requestedImportMode = BackupImportMode.MERGE
+
+    private val createBackup = registerForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json"),
+        viewModel::exportBackup,
+    )
+    private val openBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
+        viewModel.previewBackup(it, requestedImportMode)
+    }
 
     private val bluetoothPermissions = registerForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
@@ -74,6 +85,11 @@ class MainActivity : ComponentActivity() {
                 openHealthConnectAccessManagement = ::openHealthConnectAccessManagement,
                 openBatterySettings = ::openBatterySettings,
                 openApplicationSettings = ::openApplicationSettings,
+                createBackup = { createBackup.launch(defaultBackupFileName()) },
+                openBackup = { mode ->
+                    requestedImportMode = mode
+                    openBackup.launch(arrayOf("application/json"))
+                },
             )
         }
         handleIntent(intent)
@@ -144,3 +160,6 @@ class MainActivity : ComponentActivity() {
         healthConnectSystemManagementAvailable = healthConnectManagementIntent() != null
     }
 }
+
+internal fun defaultBackupFileName(date: LocalDate = LocalDate.now()): String =
+    "scalesync-backup-$date.json"

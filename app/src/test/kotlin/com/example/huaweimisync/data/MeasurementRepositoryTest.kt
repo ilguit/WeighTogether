@@ -665,6 +665,38 @@ class MeasurementRepositoryTest {
     }
 
     @Test
+    fun sweepPreservesTerminalImportedStatusesAndQueuesOnlyRetryableRows() = runBlocking {
+        val dao = FakeMeasurementDao().also {
+            it.values["terminal"] = measurement(
+                id = "terminal",
+                huaweiStatus = SyncStatus.DISABLED,
+                healthConnectStatus = SyncStatus.SYNCED,
+            )
+            it.values["local"] = measurement(
+                id = "local",
+                measuredAt = 2_000L,
+                huaweiStatus = SyncStatus.LOCAL_ONLY,
+                healthConnectStatus = SyncStatus.LOCAL_ONLY,
+            )
+            it.values["retry"] = measurement(
+                id = "retry",
+                measuredAt = 3_000L,
+                huaweiStatus = SyncStatus.SYNCED,
+                healthConnectStatus = SyncStatus.FAILED,
+            )
+        }
+        val scheduler = FakeSyncScheduler()
+
+        assertEquals(1, repository(dao, scheduler).sweepPendingSync())
+
+        assertEquals(listOf("retry"), scheduler.enqueued)
+        assertEquals(SyncStatus.DISABLED.name, dao.values.getValue("terminal").huaweiStatus)
+        assertEquals(SyncStatus.SYNCED.name, dao.values.getValue("terminal").healthConnectStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("local").huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY.name, dao.values.getValue("local").healthConnectStatus)
+    }
+
+    @Test
     fun observeAllIsDescendingAndRangeIsHalfOpenAscending() = runBlocking {
         val dao = FakeMeasurementDao()
         listOf(9_000L, 10_000L, 15_000L, 20_000L, 21_000L).forEach { timestamp ->
@@ -786,6 +818,15 @@ private class FakeMeasurementDao(
         return values.size.toLong()
     }
 
+    override suspend fun insertAll(measurements: List<MeasurementEntity>): List<Long> =
+        measurements.map { insert(it) }
+
+    override suspend fun deleteAll(): Int {
+        val count = values.size
+        values.clear()
+        return count
+    }
+
     override suspend fun get(id: String): MeasurementEntity? = values[id]
 
     override suspend fun getByFingerprint(fingerprint: String): MeasurementEntity? =
@@ -806,6 +847,13 @@ private class FakeMeasurementDao(
     override fun observeAll(): Flow<List<MeasurementEntity>> = flowOf(
         values.values.sortedByDescending(MeasurementEntity::measuredAtEpochSecond),
     )
+
+    override suspend fun getAllForBackup(): List<MeasurementEntity> = values.values
+        .sortedWith(
+            compareBy<MeasurementEntity>(MeasurementEntity::measuredAtEpochSecond)
+                .thenBy(MeasurementEntity::createdAtEpochMillis)
+                .thenBy(MeasurementEntity::id),
+        )
 
     override fun observeRange(
         startInclusive: Long,

@@ -41,4 +41,27 @@ class ProfileStorePersistenceTest {
         ProfileStore(context).saveHomeKgChartSeriesKeys(selected)
         assertEquals(selected, ProfileStore(context).settings.value.homeKgChartSeriesKeys)
     }
+
+    @Test
+    fun applyingPortableSettingsRefreshesFlowAndPreservesDeviceLocalPause() {
+        val store = ProfileStore(context)
+        store.setExternalSyncPausedUntilEpochMillis(123_456L)
+
+        store.applyPortableSettings(
+            PortableProfileSettings(
+                scaleAddress = "aa:bb",
+                scaleName = "Imported",
+                reliabilityMode = true,
+                selectedChartMetricKeys = emptySet(),
+                homeKgChartSeriesKeys = setOf("weight_kg"),
+            ),
+        )
+
+        assertEquals("AA:BB", store.settings.value.scaleAddress)
+        assertEquals("Imported", store.settings.value.scaleName)
+        assertEquals(true, store.settings.value.reliabilityMode)
+        assertEquals(emptySet<String>(), store.settings.value.selectedChartMetricKeys)
+        assertEquals(setOf("weight_kg"), store.settings.value.homeKgChartSeriesKeys)
+        assertEquals(123_456L, store.settings.value.externalSyncPausedUntilEpochMillis)
+    }
 }

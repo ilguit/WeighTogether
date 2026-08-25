@@ -14,8 +14,8 @@ android {
         applicationId = "com.example.huaweimisync"
         minSdk = 26
         targetSdk = 36
-        versionCode = 12
-        versionName = "0.1.11"
+        versionCode = 18
+        versionName = "0.1.17"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders["HUAWEI_APP_ID"] = providers.gradleProperty("HUAWEI_APP_ID").orElse("0").get()
@@ -95,6 +95,7 @@ dependencies {
     implementation("com.patrykandpatrick.vico:compose-m3:3.2.1")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
+    implementation("com.google.code.gson:gson:2.13.2")
     implementation("androidx.room:room-runtime:2.8.4")
     implementation("androidx.room:room-ktx:2.8.4")
     kapt("androidx.room:room-compiler:2.8.4")

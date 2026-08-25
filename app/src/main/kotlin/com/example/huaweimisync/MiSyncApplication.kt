@@ -1,6 +1,14 @@
 package com.example.huaweimisync
 
 import android.app.Application
+import android.util.Log
+import com.example.huaweimisync.backup.BackupExportService
+import com.example.huaweimisync.backup.BackupImportApplier
+import com.example.huaweimisync.backup.BackupImportCompletionHook
+import com.example.huaweimisync.backup.BackupImportService
+import com.example.huaweimisync.backup.RoomBackupImportGateway
+import com.example.huaweimisync.backup.RoomBackupSnapshotSource
+import com.example.huaweimisync.backup.asPortableSettingsWriter
 import com.example.huaweimisync.core.BodyCompositionCalculator
 import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.data.AppDatabase
@@ -20,10 +28,12 @@ import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
-import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.runBlocking
 
 class MiSyncApplication : Application() {
     lateinit var container: AppContainer
@@ -32,14 +42,15 @@ class MiSyncApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         container = AppContainer(this)
-        MeasurementWorkSweepScheduler.enqueue(this)
+        MeasurementWorkSweepScheduler.enqueueBestEffort(this)
     }
 }
 
 class AppContainer(application: Application) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val database: AppDatabase = AppDatabase.build(application)
-    val profileStore = ProfileStore(application)
+    internal val externalSyncOperations = ExternalSyncOperationSerializer()
+    val profileStore = ProfileStore(application, externalSyncOperations)
     val packetParser = MiScalePacketParser()
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
@@ -50,7 +61,6 @@ class AppContainer(application: Application) {
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
-    internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
         calculator = calculator,
@@ -92,7 +102,52 @@ class AppContainer(application: Application) {
         syncScheduler = syncScheduler,
         externalSyncOperations = externalSyncOperations,
     )
+    val backupSnapshotSource = RoomBackupSnapshotSource(database)
+    val backupExport = BackupExportService(backupSnapshotSource, profileStore::portableSnapshot)
+    val backupImport = BackupImportService()
+    val backupImportApplier = BackupImportApplier(
+        RoomBackupImportGateway(
+            database,
+            profileStore::versionedPortableSnapshot,
+            backupImport,
+        ),
+        profileStore.asPortableSettingsWriter(),
+        externalSyncOperations,
+        completionHooks = listOf(
+            BackupImportCompletionHook {
+                MeasurementWorkSweepScheduler.enqueueBestEffort(application)
+            },
+        ),
+    )
+
+    init {
+        runBlocking(Dispatchers.IO) {
+            recoverBackupImportAtStartup(
+                recovery = backupImportApplier::recoverPendingImport,
+                reportFailure = { failure ->
+                    Log.e(
+                        "AppContainer",
+                        "Pending backup import recovery will be retried on next startup",
+                        failure,
+                    )
+                },
+            )
+        }
+    }
 
     /** One application-wide selection shared by Measurements and Charts. */
     val selectedAccountId = MutableStateFlow<AccountId?>(null)
+}
+
+internal suspend fun recoverBackupImportAtStartup(
+    recovery: suspend () -> Unit,
+    reportFailure: (Exception) -> Unit,
+) {
+    try {
+        recovery()
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (failure: Exception) {
+        reportFailure(failure)
+    }
 }

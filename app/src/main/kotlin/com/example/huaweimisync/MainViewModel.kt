@@ -2,6 +2,10 @@ package com.example.huaweimisync
 
 import android.annotation.SuppressLint
 import android.app.Application
+import android.net.Uri
+import androidx.work.WorkManager
+import com.example.huaweimisync.backup.BackupImportMode
+import com.example.huaweimisync.backup.BackupImportPreview
 import android.bluetooth.le.ScanResult
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -90,6 +94,7 @@ data class MainUiState(
     val resolverQueue: ResolverQueueState = ResolverQueueState(),
     val resolver: MeasurementResolverUiState? = null,
     val unsavedPreview: UnsavedMeasurementPreviewState? = null,
+    val backup: BackupUiState = BackupUiState(),
 ) {
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == accountSettings.primaryAccountId }
@@ -108,6 +113,12 @@ data class MainUiState(
 private data class AccountsSnapshot(
     val accounts: List<Account>,
     val settings: AccountSettings,
+)
+
+data class BackupUiState(
+    val inProgress: Boolean = false,
+    val preview: BackupImportPreview? = null,
+    val replaceConfirmationRequested: Boolean = false,
 )
 
 private data class PendingDecisionSnapshot(
@@ -150,6 +161,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
     private val refreshing = MutableStateFlow(false)
+    private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
         stopScanner = refreshScanner::stop,
@@ -289,7 +301,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         RoutingUiSnapshot(queue, resolver, preview)
     }
 
-    val uiState: StateFlow<MainUiState> = combine(
+    private val contentState = combine(
         coreState,
         accountsSnapshot,
         accountManagement,
@@ -311,6 +323,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             resolver = routing.resolver,
             unsavedPreview = routing.preview,
         )
+    }
+    val uiState: StateFlow<MainUiState> = combine(contentState, backup) { state, backupState ->
+        state.copy(backup = backupState)
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -325,6 +340,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val huaweiAvailableInBuild: Boolean get() = container.huaweiHealth.isAvailableInBuild
     val healthConnectAvailable: Boolean get() = container.healthConnect.isAvailable()
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
+
+    fun exportBackup(uri: Uri?) {
+        if (uri == null || backup.value.inProgress) return
+        viewModelScope.launch(Dispatchers.IO) {
+            backup.value = BackupUiState(inProgress = true)
+            try {
+                getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
+                    container.backupExport.writeTo(it)
+                } ?: error("Не удалось открыть выбранный файл")
+                showMessage("Резервная копия сохранена")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                showMessage(error.userFacingMessage("Не удалось создать резервную копию"))
+            } finally {
+                backup.value = BackupUiState()
+            }
+        }
+    }
+
+    fun previewBackup(uri: Uri?, mode: BackupImportMode) {
+        if (uri == null || backup.value.inProgress) return
+        viewModelScope.launch(Dispatchers.IO) {
+            backup.value = BackupUiState(inProgress = true)
+            try {
+                val document = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
+                    container.backupImport.read(it)
+                } ?: error("Не удалось открыть выбранный файл")
+                val preview = container.backupImport.preview(
+                    document,
+                    container.backupSnapshotSource.readSnapshot(),
+                    container.profileStore.versionedPortableSnapshot(),
+                    mode,
+                )
+                backup.value = BackupUiState(preview = preview)
+            } catch (cancelled: CancellationException) {
+                backup.value = BackupUiState()
+                throw cancelled
+            } catch (error: Exception) {
+                backup.value = BackupUiState()
+                showMessage(error.userFacingMessage("Не удалось прочитать резервную копию"))
+            }
+        }
+    }
+
+    fun dismissBackupPreview() { backup.value = BackupUiState() }
+
+    fun requestBackupImport() {
+        val preview = backup.value.preview ?: return
+        if (preview.mode == BackupImportMode.REPLACE && !backup.value.replaceConfirmationRequested) {
+            backup.value = backup.value.copy(replaceConfirmationRequested = true)
+        } else {
+            applyBackupImport(preview)
+        }
+    }
+
+    private fun applyBackupImport(preview: BackupImportPreview) {
+        if (backup.value.inProgress) return
+        viewModelScope.launch(Dispatchers.IO) {
+            backup.value = backup.value.copy(inProgress = true)
+            try {
+                val pendingBefore = container.measurementPersistence.pendingSnapshot()
+                val result = container.backupImportApplier.apply(preview)
+                if (result is com.example.huaweimisync.backup.BackupImportApplyResult.CompletedPendingRecovery) {
+                    backup.value = BackupUiState()
+                    showMessage("Данные импортированы. Настройки будут восстановлены при следующем запуске")
+                    return@launch
+                }
+                if (preview.mode == BackupImportMode.REPLACE) {
+                    val workManager = WorkManager.getInstance(getApplication())
+                    pendingBefore.forEach { workManager.cancelUniqueWork("finalize-${it.id.value}") }
+                } else {
+                    container.measurementPersistence.pendingSnapshot()
+                        .forEach(container.finalizationScheduler::enqueueIfAbsent)
+                }
+                backup.value = BackupUiState()
+                showMessage("Импорт завершён: аккаунтов ${result.counts.accountsAdded}, измерений ${result.counts.measurementsAdded}")
+            } catch (cancelled: CancellationException) {
+                backup.value = BackupUiState()
+                throw cancelled
+            } catch (stale: com.example.huaweimisync.backup.BackupPreviewStale) {
+                backup.value = BackupUiState(preview = stale.refreshedPreview)
+                showMessage("Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова")
+            } catch (error: Exception) {
+                backup.value = backup.value.copy(inProgress = false)
+                showMessage(error.userFacingMessage("Не удалось импортировать резервную копию"))
+            }
+        }
+    }
 
     init {
         viewModelScope.launch {

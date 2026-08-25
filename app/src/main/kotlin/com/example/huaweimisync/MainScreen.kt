@@ -47,6 +47,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
 import com.example.huaweimisync.changelog.ChangelogScreen
+import com.example.huaweimisync.backup.BackupImportMode
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
@@ -170,6 +171,8 @@ fun HuaweiMiSyncApp(
     openHealthConnectAccessManagement: () -> Unit,
     openBatterySettings: () -> Unit,
     openApplicationSettings: () -> Unit,
+    createBackup: () -> Unit,
+    openBackup: (BackupImportMode) -> Unit,
 ) {
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
@@ -241,6 +244,10 @@ fun HuaweiMiSyncApp(
             onReliabilityMode = viewModel::setReliabilityMode,
             openBatterySettings = openBatterySettings,
             openApplicationSettings = openApplicationSettings,
+            onExportBackup = createBackup,
+            onImportBackup = openBackup,
+            onConfirmBackupImport = viewModel::requestBackupImport,
+            onDismissBackupImport = viewModel::dismissBackupPreview,
             accountManagement = AccountManagementCallbacks(
                 onAction = viewModel::onAccountManagementAction,
                 onCreate = viewModel::createAccount,

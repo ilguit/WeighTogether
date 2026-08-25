@@ -13,8 +13,9 @@ import androidx.room.migration.Migration
         MeasurementEntity::class,
         PendingMeasurementEntity::class,
         MeasurementTombstoneEntity::class,
+        BackupImportCheckpointEntity::class,
     ],
-    version = 6,
+    version = 7,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -27,6 +28,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun multiAccountMeasurementDao(): MultiAccountMeasurementDao
 
     abstract fun pendingMeasurementDao(): PendingMeasurementDao
+
+    abstract fun backupImportCheckpointDao(): BackupImportCheckpointDao
 
     companion object {
         fun migration1To2(
@@ -41,6 +44,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_3_4: Migration = Migration3To4
         val MIGRATION_4_5: Migration = Migration4To5
         val MIGRATION_5_6: Migration = Migration5To6
+        val MIGRATION_6_7: Migration = Migration6To7
 
         fun build(
             context: Context,
@@ -52,6 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_3_4,
                 MIGRATION_4_5,
                 MIGRATION_5_6,
+                MIGRATION_6_7,
             )
             .build()
     }

@@ -23,6 +23,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -50,6 +52,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.backup.BackupImportMode
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementSection
@@ -79,6 +82,10 @@ internal data class SettingsCallbacks(
     val onWeightDeltaStateChanged: (com.example.huaweimisync.ui.accounts.WeightDeltaEditorState) -> Unit = {},
     val onWeightDeltaSave: (Double) -> Unit = {},
     val onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+    val onExportBackup: () -> Unit = {},
+    val onImportBackup: (BackupImportMode) -> Unit = {},
+    val onConfirmBackupImport: () -> Unit = {},
+    val onDismissBackupImport: () -> Unit = {},
 )
 
 internal enum class AdditionalExpansion {
@@ -113,6 +120,11 @@ internal object SettingsScreenTestTags {
     const val ChangelogRow = "settings-changelog-row"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
+    const val BackupExport = "settings-backup-export"
+    const val BackupMerge = "settings-backup-merge"
+    const val BackupReplace = "settings-backup-replace"
+    const val BackupDialog = "settings-backup-dialog"
+    const val BackupConfirm = "settings-backup-confirm"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -240,6 +252,7 @@ internal fun SettingsScreen(
             }
             item { SettingsIntegrationsSection(state, callbacks) }
             item { SettingsScaleSection(state, callbacks.onManualScan) }
+            item { SettingsBackupSection(state.backup, callbacks) }
             item {
                 SettingsAdditionalSection(
                     state = state,
@@ -266,6 +279,70 @@ internal fun SettingsScreen(
                         }
                     }
                 }
+            }
+        }
+    }
+    state.backup.preview?.let { preview ->
+        val counts = preview.counts
+        val replaceWarning = state.backup.replaceConfirmationRequested
+        AlertDialog(
+            modifier = Modifier.testTag(SettingsScreenTestTags.BackupDialog),
+            onDismissRequest = callbacks.onDismissBackupImport,
+            title = { Text(if (replaceWarning) "Подтвердите замену" else "Проверка импорта") },
+            text = {
+                Text(
+                    if (replaceWarning) {
+                        "Все локальные аккаунты, измерения и ожидающие измерения будут заменены. Это действие нельзя отменить."
+                    } else {
+                        "Аккаунты: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
+                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = callbacks.onConfirmBackupImport,
+                    enabled = !state.backup.inProgress,
+                    modifier = Modifier.testTag(SettingsScreenTestTags.BackupConfirm),
+                ) { Text(if (replaceWarning) "Заменить данные" else "Импортировать") }
+            },
+            dismissButton = {
+                TextButton(onClick = callbacks.onDismissBackupImport) { Text("Отмена") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsBackupSection(state: BackupUiState, callbacks: SettingsCallbacks) {
+    SettingsSection(title = "Резервная копия") {
+        HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
+            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+                Text("Сохраните данные в JSON или импортируйте копию с предварительной проверкой.")
+                if (state.inProgress) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Обработка резервной копии…")
+                    }
+                }
+                Button(
+                    onClick = callbacks.onExportBackup,
+                    enabled = !state.inProgress,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupExport),
+                ) { Text("Экспортировать") }
+                OutlinedButton(
+                    onClick = { callbacks.onImportBackup(BackupImportMode.MERGE) },
+                    enabled = !state.inProgress,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupMerge),
+                ) { Text("Импортировать и объединить") }
+                OutlinedButton(
+                    onClick = { callbacks.onImportBackup(BackupImportMode.REPLACE) },
+                    enabled = !state.inProgress,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupReplace),
+                ) { Text("Импортировать с заменой") }
             }
         }
     }
