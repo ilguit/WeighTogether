@@ -21,13 +21,13 @@ class ChangelogScreenTest {
     fun screenShowsReleaseDetailsInNewestFirstOrder() {
         setContent()
 
-        composeRule.onNodeWithText("Версия 0.1.11").assertIsDisplayed()
+        composeRule.onNodeWithText("Версия 0.1.12").assertIsDisplayed()
         composeRule.onNodeWithText("История версий теперь формируется автоматически из релизных заметок")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Задача #25").assertIsDisplayed()
 
         val newestTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.11"))
+            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.12"))
             .fetchSemanticsNode().boundsInRoot.top
         val previousTop = composeRule
             .onNodeWithTag(ChangelogScreenTestTags.release("0.1.6"))
@@ -39,7 +39,7 @@ class ChangelogScreenTest {
     fun listContainsCompleteHistoryIncludingVersion016() {
         setContent()
 
-        val versions = listOf("0.1.11", "0.1.6", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1")
+        val versions = listOf("0.1.12", "0.1.6", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1")
         versions.forEachIndexed { index, version ->
             composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(index)
             composeRule.onNodeWithTag(ChangelogScreenTestTags.release(version)).assertIsDisplayed()
