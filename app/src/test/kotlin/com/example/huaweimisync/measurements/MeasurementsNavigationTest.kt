@@ -70,4 +70,29 @@ class MeasurementsNavigationTest {
 
         assertEquals(history, returned)
     }
+
+    @Test
+    fun accountSelectionChangePreservesNonEditorDestinations() {
+        val destinations = listOf(
+            MeasurementsNavigationState(),
+            MeasurementsNavigationState().showHistory(),
+            MeasurementsNavigationState().showPendingQueue(),
+        )
+
+        destinations.forEach { navigation ->
+            assertEquals(navigation, navigation.afterAccountSelectionChanged())
+        }
+    }
+
+    @Test
+    fun accountSelectionChangeClosesEditorToItsOrigin() {
+        MeasurementEditorOrigin.entries.forEach { origin ->
+            val editor = MeasurementsNavigationState().showEditor(origin)
+
+            assertEquals(
+                origin.destination,
+                editor.afterAccountSelectionChanged().destination,
+            )
+        }
+    }
 }
