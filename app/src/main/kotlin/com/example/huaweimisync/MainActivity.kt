@@ -28,8 +28,9 @@ class MainActivity : ComponentActivity() {
 
     private val createBackup = registerForActivityResult(
         ActivityResultContracts.CreateDocument("application/json"),
-        viewModel::exportBackup,
-    )
+    ) { uri ->
+        viewModel.exportBackup(uri)
+    }
     private val openBackup = registerForActivityResult(ActivityResultContracts.OpenDocument()) {
         viewModel.previewBackup(it, requestedImportMode)
     }
