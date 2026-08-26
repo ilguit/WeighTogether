@@ -1200,7 +1200,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 petMeasurementCoordinator.saved(request.token, measurement)
             } catch (cancelled: CancellationException) {
-                petMeasurementCoordinator.cancel()
+                petMeasurementCoordinator.cancel(request.token)
                 throw cancelled
             } catch (error: Exception) {
                 petMeasurementCoordinator.fail(

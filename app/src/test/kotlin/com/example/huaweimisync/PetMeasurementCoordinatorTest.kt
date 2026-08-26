@@ -6,7 +6,9 @@ import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
 import java.time.Instant
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
@@ -200,7 +202,7 @@ class PetMeasurementCoordinatorTest {
 
         assertEquals(PetMeasurementUiState.Completed(pet, measurement), states.last())
         assertFalse(coordinator.isActive)
-        assertEquals(2, scannerStops)
+        assertEquals(1, scannerStops)
         assertEquals(1, automaticRestores)
         assertEquals(listOf(true, false), sessionActivity)
     }
@@ -253,6 +255,25 @@ class PetMeasurementCoordinatorTest {
         assertTrue(messages.isEmpty())
         assertNull(coordinator.accept(newToken, reading(70.0, second = 1, raw = "new-first")))
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
+    }
+
+    @Test
+    fun `stale save cancellation cannot cancel a later operation`() {
+        val oldToken = start()
+        coordinator.accept(oldToken, reading(70.0, second = 1, raw = "old-first"))
+        requireNotNull(coordinator.accept(oldToken, reading(72.0, second = 2, raw = "old-second")))
+        coordinator.fail(oldToken, "save failed")
+        val newToken = start()
+
+        coordinator.cancel(oldToken)
+
+        assertTrue(coordinator.isActive)
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertNull(coordinator.accept(newToken, reading(71.0, second = 3, raw = "new-first")))
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 71.0), states.last())
+        assertEquals(1, scannerStops)
+        assertEquals(1, automaticRestores)
+        assertEquals(listOf(true, false, true), sessionActivity)
     }
 
     @Test
@@ -318,6 +339,63 @@ class PetMeasurementCoordinatorTest {
 
         assertNull(resolved.await())
         assertFalse(guard.isCurrent(token))
+    }
+
+    @Test
+    fun `concurrent start is rejected while ingestion gate activation is suspended`() = runBlocking {
+        val gateEntered = CompletableDeferred<Unit>()
+        val allowGate = CompletableDeferred<Unit>()
+        val guardedCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = { scannerStops++ },
+            restoreAutomaticScanning = { automaticRestores++ },
+            showMessage = messages::add,
+            acquirePetSessionGate = {
+                gateEntered.complete(Unit)
+                allowGate.await()
+                {}
+            },
+            now = { operationStartedAt },
+        )
+        val first = async(start = CoroutineStart.UNDISPATCHED) {
+            guardedCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+        gateEntered.await()
+
+        assertTrue(guardedCoordinator.isActive)
+        assertNull(guardedCoordinator.start(pet, SELECTED_ADDRESS))
+
+        allowGate.complete(Unit)
+        requireNotNull(first.await())
+        guardedCoordinator.cancel()
+    }
+
+    @Test
+    fun `cancelled gate activation clears startup reservation`() = runBlocking {
+        val gateEntered = CompletableDeferred<Unit>()
+        val neverActivate = CompletableDeferred<Unit>()
+        val guardedCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = { scannerStops++ },
+            restoreAutomaticScanning = { automaticRestores++ },
+            showMessage = messages::add,
+            acquirePetSessionGate = {
+                gateEntered.complete(Unit)
+                neverActivate.await()
+                {}
+            },
+            now = { operationStartedAt },
+        )
+        val startup = async(start = CoroutineStart.UNDISPATCHED) {
+            guardedCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+        gateEntered.await()
+
+        startup.cancelAndJoin()
+
+        assertFalse(guardedCoordinator.isActive)
+        assertEquals(0, scannerStops)
+        assertEquals(0, automaticRestores)
     }
 
     private fun start(): PetMeasurementCoordinator.OperationToken =

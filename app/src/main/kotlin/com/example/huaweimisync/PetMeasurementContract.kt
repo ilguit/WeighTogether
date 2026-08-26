@@ -89,6 +89,7 @@ internal class PetMeasurementCoordinator(
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
+    private var starting = false
     private var operation: Operation? = null
 
     fun showSelection(): Boolean = synchronized(lock) {
@@ -105,10 +106,17 @@ internal class PetMeasurementCoordinator(
 
     suspend fun start(pet: Pet, selectedAddress: String): OperationToken? {
         synchronized(lock) {
-            if (operation != null) return null
+            if (operation != null || starting) return null
+            starting = true
         }
-        val releaseIngestionGate = acquirePetSessionGate()
+        val releaseIngestionGate = try {
+            acquirePetSessionGate()
+        } catch (error: Throwable) {
+            synchronized(lock) { starting = false }
+            throw error
+        }
         val token = synchronized(lock) {
+            starting = false
             if (operation != null) {
                 releaseIngestionGate()
                 return null
@@ -121,9 +129,9 @@ internal class PetMeasurementCoordinator(
                     startedAt = now(),
                     releaseIngestionGate = releaseIngestionGate,
                 )
+                setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
             }
         }
-        setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
         return token
     }
 
@@ -168,6 +176,7 @@ internal class PetMeasurementCoordinator(
                         secondWeightKg = reading.weightKg,
                     ),
                     active.pet,
+                    requireNotNull(active.takeStopScanner()),
                 )
             }
         }
@@ -182,7 +191,7 @@ internal class PetMeasurementCoordinator(
                 null
             }
             is SecondAccepted -> {
-                stopScanner()
+                transition.stopScanner()
                 setState(
                     PetMeasurementUiState.Saving(
                         transition.pet,
@@ -212,6 +221,9 @@ internal class PetMeasurementCoordinator(
         else finish(token, PetMeasurementUiState.Cancelled)
     }
 
+    /** Cancels only the operation that owns [token], ignoring stale coroutine callbacks. */
+    fun cancel(token: OperationToken) = finish(token, PetMeasurementUiState.Cancelled)
+
     fun clear() {
         val token = synchronized(lock) { operation?.token }
         if (token != null) finish(token, PetMeasurementUiState.Idle)
@@ -222,22 +234,25 @@ internal class PetMeasurementCoordinator(
         terminalState: PetMeasurementUiState,
         message: String? = null,
     ) {
-        val cancel = synchronized(lock) {
+        val cleanup = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return
-            val timeoutCancellation = active.cancelTimeout
-            runCatching { stopScanner() }
-            active.releaseIngestionGate()
             operation = null
-            timeoutCancellation
+            Cleanup(
+                stopScanner = active.takeStopScanner(),
+                cancelTimeout = active.cancelTimeout,
+                releaseIngestionGate = active.releaseIngestionGate,
+            )
         }
-        cancel?.invoke()
+        cleanup.stopScanner?.invoke()
+        cleanup.cancelTimeout?.invoke()
+        cleanup.releaseIngestionGate()
         restoreAutomaticScanning()
         setState(terminalState)
         message?.let(showMessage)
     }
 
     val isActive: Boolean
-        get() = synchronized(lock) { operation != null }
+        get() = synchronized(lock) { starting || operation != null }
 
     internal class OperationToken internal constructor(internal val id: Long)
 
@@ -250,7 +265,14 @@ internal class PetMeasurementCoordinator(
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,
+        var scannerStopped: Boolean = false,
     )
+
+    private fun Operation.takeStopScanner(): (() -> Unit)? =
+        if (scannerStopped) null else {
+            scannerStopped = true
+            { runCatching(stopScanner) }
+        }
 
     private data class ReadingIdentity(val measuredAt: Instant, val rawIdentity: String)
     private data class CapturedReading(
@@ -263,5 +285,12 @@ internal class PetMeasurementCoordinator(
     private data class SecondAccepted(
         val request: PetMeasurementSaveRequest,
         val pet: Pet,
+        val stopScanner: () -> Unit,
     ) : Transition
+
+    private data class Cleanup(
+        val stopScanner: (() -> Unit)?,
+        val cancelTimeout: (() -> Unit)?,
+        val releaseIngestionGate: () -> Unit,
+    )
 }
