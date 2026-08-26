@@ -81,6 +81,32 @@ class ChangelogScreenTest {
     }
 
     @Test
+    fun emptyReleaseListShowsNoReleaseCards() {
+        setContent(releases = emptyList())
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).assertIsDisplayed()
+        composeRule.onNodeWithText("Версия", substring = true).assertDoesNotExist()
+    }
+
+    @Test
+    fun singleReleaseStartsExpandedAndCanCollapseAndReExpand() {
+        val release = AppRelease(
+            version = "0.1.6",
+            changes = listOf(ReleaseChange(20, "Исправление")),
+        )
+        setContent(releases = listOf(release))
+
+        val toggle = composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle(release.version))
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertIsDisplayed()
+
+        toggle.performClick()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertDoesNotExist()
+
+        toggle.performClick()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertIsDisplayed()
+    }
+
+    @Test
     fun releaseExpansionSurvivesSavedStateRestoration() {
         val restorationTester = StateRestorationTester(composeRule)
         restorationTester.setContent {
@@ -100,11 +126,11 @@ class ChangelogScreenTest {
         composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
     }
 
-    private fun setContent() {
+    private fun setContent(releases: List<AppRelease> = correctedHistoricalReleases) {
         composeRule.setContent {
             HuaweiMiSyncTheme {
                 ChangelogScreen(
-                    releases = correctedHistoricalReleases,
+                    releases = releases,
                     modifier = Modifier.height(280.dp),
                 )
             }

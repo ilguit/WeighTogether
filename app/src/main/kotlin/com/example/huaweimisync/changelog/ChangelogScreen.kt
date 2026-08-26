@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
@@ -113,7 +114,8 @@ private fun ReleaseCard(
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier
                         .size(24.dp)
-                        .rotate(if (expanded) 180f else 0f),
+                        .rotate(if (expanded) 180f else 0f)
+                        .clearAndSetSemantics { },
                 )
             }
             if (expanded) {
