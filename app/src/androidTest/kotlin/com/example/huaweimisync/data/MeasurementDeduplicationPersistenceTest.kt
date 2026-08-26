@@ -43,6 +43,44 @@ class MeasurementDeduplicationPersistenceTest {
     fun closeDatabase() = database.close()
 
     @Test
+    fun exactStableReplayIsSuppressedWithoutMutatingPendingOrDeadline() = runBlocking {
+        val persistence = persistence()
+        val packet = raw(second = 0)
+        val first = persistence.enqueue(packet) as PendingPersistenceResult.Inserted
+        val before = database.pendingMeasurementDao().get(first.pending.id.value)
+
+        now = now.plusSeconds(5)
+        val restartedPersistence = persistence()
+        assertEquals(PendingPersistenceResult.ExactReplay, restartedPersistence.enqueue(packet))
+
+        assertEquals(before, database.pendingMeasurementDao().get(first.pending.id.value))
+        assertEquals(
+            packet.rawPayload.toList(),
+            database.acceptedStableMeasurementDao().getLatest()!!.rawPayload.toList(),
+        )
+    }
+
+    @Test
+    fun changedPacketReplacesLatestAndWeightOnlyCanBeEnriched() = runBlocking {
+        val persistence = persistence()
+        val weightOnly = raw(second = 0, full = false)
+        val first = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+
+        val full = raw(second = 1, full = true, payload = byteArrayOf(9, 8, 7))
+        val enriched = persistence.enqueue(full) as PendingPersistenceResult.AlreadyPending
+
+        assertEquals(first.pending.id, enriched.pending.id)
+        assertTrue(enriched.wasEnriched)
+        val saved = database.acceptedStableMeasurementDao().getLatest()!!.toRawScaleMeasurement()
+        assertEquals(full.deviceAddress, saved.deviceAddress)
+        assertEquals(full.measuredAt, saved.measuredAt)
+        assertEquals(full.rawWeight, saved.rawWeight)
+        assertEquals(full.impedanceOhm, saved.impedanceOhm)
+        assertEquals(full.rawPayload.toList(), saved.rawPayload.toList())
+        assertEquals(PendingPersistenceResult.ExactReplay, persistence.enqueue(full.copy()))
+    }
+
+    @Test
     fun sameRawWeightAtZeroNineTenAndThirtySecondsUsesStrictWindow() = runBlocking {
         val persistence = persistence()
         val first = persistence.enqueue(raw(second = 0)) as PendingPersistenceResult.Inserted

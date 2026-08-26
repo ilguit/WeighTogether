@@ -19,6 +19,17 @@ data class AcceptedStableMeasurementEntity(
     val hasImpedance: Boolean,
     val rawPayload: ByteArray,
 ) {
+    fun exactlyMatches(raw: RawScaleMeasurement): Boolean =
+        deviceAddress == raw.deviceAddress &&
+            measuredAtEpochSecond == raw.measuredAt.epochSecond &&
+            measuredAtNano == raw.measuredAt.nano &&
+            weightKg == raw.weightKg &&
+            rawWeight == raw.rawWeight &&
+            impedanceOhm == raw.impedanceOhm &&
+            isStable == raw.isStable &&
+            hasImpedance == raw.hasImpedance &&
+            rawPayload.contentEquals(raw.rawPayload)
+
     fun toRawScaleMeasurement(): RawScaleMeasurement = RawScaleMeasurement(
         deviceAddress = deviceAddress,
         measuredAt = Instant.ofEpochSecond(measuredAtEpochSecond, measuredAtNano.toLong()),

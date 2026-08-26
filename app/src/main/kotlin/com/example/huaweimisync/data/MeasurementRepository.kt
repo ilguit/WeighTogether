@@ -346,6 +346,7 @@ class MeasurementRepository(
 
     override suspend fun enqueuePending(raw: RawScaleMeasurement): PendingEnqueueResult =
         when (val result = requireMultiAccountPersistence().enqueue(raw)) {
+            PendingPersistenceResult.ExactReplay -> PendingEnqueueResult.ExactReplay
             is PendingPersistenceResult.Inserted -> PendingEnqueueResult.Enqueued(result.pending)
             is PendingPersistenceResult.AlreadyPending ->
                 PendingEnqueueResult.AlreadyPending(result.pending)

@@ -182,6 +182,7 @@ class ProcessMeasurementWorker(
             is MeasurementIngestionResult.UpgradedFinalized,
             MeasurementIngestionResult.SuppressedFinal,
             MeasurementIngestionResult.SuppressedTombstone,
+            MeasurementIngestionResult.ExactReplay,
             is MeasurementIngestionResult.Assigned,
             is MeasurementIngestionResult.AwaitingDecision,
             MeasurementIngestionResult.IgnoredNotFinal,

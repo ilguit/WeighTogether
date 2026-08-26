@@ -938,6 +938,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 showMessage("Состав тела добавлен к тестовому измерению")
             MeasurementIngestionResult.SuppressedFinal,
             MeasurementIngestionResult.SuppressedTombstone,
+            MeasurementIngestionResult.ExactReplay,
             -> showMessage("Такое тестовое измерение уже существует")
             is MeasurementIngestionResult.Assigned -> {
                 val accountName = container.accounts.getAccount(result.measurement.accountId)
@@ -1475,6 +1476,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 is MeasurementIngestionResult.UpgradedFinalized,
                 MeasurementIngestionResult.SuppressedFinal,
                 MeasurementIngestionResult.SuppressedTombstone,
+                MeasurementIngestionResult.ExactReplay,
                 MeasurementIngestionResult.Tombstoned,
                 MeasurementIngestionResult.IgnoredNotFinal,
                 MeasurementIngestionResult.LegacyDuplicate,

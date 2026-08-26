@@ -160,6 +160,8 @@ object NoOpPendingDecisionNotifier : PendingDecisionNotifier {
 
 sealed interface MeasurementIngestionResult {
     data object IgnoredNotFinal : MeasurementIngestionResult
+    /** The stable packet exactly repeats the durable last-accepted packet. */
+    data object ExactReplay : MeasurementIngestionResult
     /** A new durable debounce aggregate was created; no routing or sync has happened yet. */
     data class CreatedAggregate(val pending: PendingMeasurement) : MeasurementIngestionResult
     /** An existing aggregate was enriched or had its sliding deadline extended. */
@@ -217,6 +219,7 @@ class MeasurementIngestionCoordinator(
         if (!raw.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
 
         return when (val enqueued = persistence.enqueue(raw, matchingEngine)) {
+            PendingPersistenceResult.ExactReplay -> MeasurementIngestionResult.ExactReplay
             is PendingPersistenceResult.Inserted ->
                 MeasurementIngestionResult.CreatedAggregate(enqueued.pending)
             is PendingPersistenceResult.AlreadyPending -> {

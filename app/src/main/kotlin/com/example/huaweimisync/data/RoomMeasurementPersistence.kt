@@ -34,6 +34,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
 sealed interface PendingPersistenceResult {
+    /** The packet is byte-for-byte and field-for-field equal to the last accepted stable packet. */
+    data object ExactReplay : PendingPersistenceResult
     data class Inserted(val pending: PendingMeasurement) : PendingPersistenceResult
     data class AlreadyPending(
         val pending: PendingMeasurement,
@@ -105,6 +107,8 @@ class RoomMeasurementPersistence(
     private val appStateDao: AppStateDao = database.appStateDao(),
     private val measurementDao: MultiAccountMeasurementDao = database.multiAccountMeasurementDao(),
     private val pendingDao: PendingMeasurementDao = database.pendingMeasurementDao(),
+    private val acceptedStableMeasurementDao: AcceptedStableMeasurementDao =
+        database.acceptedStableMeasurementDao(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : MeasurementRoutingPersistence {
@@ -204,13 +208,28 @@ class RoomMeasurementPersistence(
         matchingEngine: MatchingEngine,
     ): PendingPersistenceResult =
         database.withTransaction {
+            if (raw.isStableWeight &&
+                acceptedStableMeasurementDao.getLatest()?.exactlyMatches(raw) == true
+            ) {
+                return@withTransaction PendingPersistenceResult.ExactReplay
+            }
+
+            suspend fun accepted(result: PendingPersistenceResult): PendingPersistenceResult {
+                if (raw.isStableWeight) {
+                    acceptedStableMeasurementDao.replaceLatest(
+                        AcceptedStableMeasurementEntity.latest(raw),
+                    )
+                }
+                return result
+            }
+
             val timestamp = now()
             val timestampMillis = timestamp.toEpochMilli()
             pendingDao.deleteExpiredTombstones(timestampMillis)
             val hash = raw.deduplicationHash()
             // v3 tombstones do not have provenance columns. Preserve their exact-hash behavior.
             if (pendingDao.getActiveTombstone(hash, timestampMillis) != null) {
-                return@withTransaction PendingPersistenceResult.Tombstoned
+                return@withTransaction accepted(PendingPersistenceResult.Tombstoned)
             }
 
             val measuredAtEpochSecond = raw.measuredAt.epochSecond
@@ -251,12 +270,13 @@ class RoomMeasurementPersistence(
 
             when (candidate) {
                 is DeduplicationCandidate.Tombstone ->
-                    return@withTransaction PendingPersistenceResult.Tombstoned
+                    return@withTransaction accepted(PendingPersistenceResult.Tombstoned)
                 is DeduplicationCandidate.Finalized -> {
-                    return@withTransaction upgradeFinalizedMeasurement(candidate.entity, raw)
+                    val result = upgradeFinalizedMeasurement(candidate.entity, raw)
                         ?: PendingPersistenceResult.AlreadyFinalized(
                             candidate.entity.toAccountMeasurement(),
                         )
+                    return@withTransaction accepted(result)
                 }
                 is DeduplicationCandidate.Pending -> {
                     val pending = candidate.entity
@@ -288,10 +308,12 @@ class RoomMeasurementPersistence(
                             "Pending aggregate disappeared during ingestion"
                         }
                     }
-                    return@withTransaction PendingPersistenceResult.AlreadyPending(
-                        pending = current.toDomain(),
-                        wasEnriched = enrich,
-                        shouldScheduleFinalization = shouldScheduleFinalization,
+                    return@withTransaction accepted(
+                        PendingPersistenceResult.AlreadyPending(
+                            pending = current.toDomain(),
+                            wasEnriched = enrich,
+                            shouldScheduleFinalization = shouldScheduleFinalization,
+                        ),
                     )
                 }
                 null -> Unit
@@ -317,10 +339,12 @@ class RoomMeasurementPersistence(
                     check(pendingDao.update(enrichment.entity) == 1) {
                         "Pending aggregate disappeared during enrichment"
                     }
-                    return@withTransaction PendingPersistenceResult.AlreadyPending(
-                        pending = enrichment.entity.toDomain(),
-                        wasEnriched = true,
-                        shouldScheduleFinalization = enrichment.shouldScheduleFinalization,
+                    return@withTransaction accepted(
+                        PendingPersistenceResult.AlreadyPending(
+                            pending = enrichment.entity.toDomain(),
+                            wasEnriched = true,
+                            shouldScheduleFinalization = enrichment.shouldScheduleFinalization,
+                        ),
                     )
                 }
 
@@ -331,8 +355,10 @@ class RoomMeasurementPersistence(
                     minimumEpochSecond = enrichmentBounds.first,
                     maximumEpochSecond = enrichmentBounds.last,
                 )?.let { exactReplay ->
-                    return@withTransaction PendingPersistenceResult.AlreadyFinalized(
-                        exactReplay.toAccountMeasurement(),
+                    return@withTransaction accepted(
+                        PendingPersistenceResult.AlreadyFinalized(
+                            exactReplay.toAccountMeasurement(),
+                        ),
                     )
                 }
 
@@ -345,7 +371,7 @@ class RoomMeasurementPersistence(
                     )
                 if (finalizedCandidate != null) {
                     upgradeFinalizedMeasurement(finalizedCandidate, raw)?.let {
-                        return@withTransaction it
+                        return@withTransaction accepted(it)
                     }
                 }
             }
@@ -363,12 +389,13 @@ class RoomMeasurementPersistence(
                 rawWeight = raw.rawWeight,
                 finalizeAfterEpochMillis = timestamp.plusSeconds(DEBOUNCE_SECONDS).toEpochMilli(),
             ).let { withPreliminaryDecision(it, matchingEngine) }
-            if (pendingDao.insert(entity) == -1L) {
+            val result = if (pendingDao.insert(entity) == -1L) {
                 val concurrent = requireNotNull(pendingDao.getByHash(hash))
                 PendingPersistenceResult.AlreadyPending(concurrent.toDomain())
             } else {
                 PendingPersistenceResult.Inserted(entity.toDomain())
             }
+            accepted(result)
         }
 
     private suspend fun upgradeFinalizedMeasurement(
