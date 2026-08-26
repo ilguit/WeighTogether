@@ -542,7 +542,7 @@ class MeasurementIngestionCoordinator(
         if (settings.primaryAccountId != measurement.accountId) return
         val account = accounts.getAccount(measurement.accountId) ?: return
         if (!account.profile.isComplete) return
-        syncScheduler.enqueue(measurement.measurementId)
+        syncScheduler.enqueueInitial(measurement.measurementId)
     }
 }
 

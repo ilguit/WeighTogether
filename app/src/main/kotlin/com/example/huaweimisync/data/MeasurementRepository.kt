@@ -109,11 +109,11 @@ class MeasurementRepository(
         }
         return when (val result = dao.upsertScaleMeasurement(entity)) {
             is MeasurementUpsertResult.Inserted -> {
-                syncScheduler.enqueue(result.value.id)
+                syncScheduler.enqueueInitial(result.value.id)
                 StoreResult.Inserted(result.value)
             }
             is MeasurementUpsertResult.Upgraded -> {
-                if (result.value.needsSync()) syncScheduler.enqueue(result.value.id)
+                if (result.value.needsSync()) syncScheduler.enqueueInitial(result.value.id)
                 StoreResult.Upgraded(result.value)
             }
             MeasurementUpsertResult.Duplicate -> StoreResult.Duplicate
@@ -247,7 +247,7 @@ class MeasurementRepository(
     suspend fun retry(id: String) {
         val value = dao.get(id) ?: return
         if (isEligibleForSync(value) && value.hasPendingDestination()) {
-            syncScheduler.enqueue(id)
+            syncScheduler.enqueueImmediately(id)
         }
     }
 

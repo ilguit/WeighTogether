@@ -55,9 +55,13 @@ class SyncWorkSchedulerWorkManagerTest {
     fun tearDown() {
         SelfDeferCurrentWorker.release.countDown()
         ReplaceCurrentWorker.release.countDown()
+        ManualRunningWorker.release.countDown()
         workManager.cancelAllWork()
         waitForUniqueWorkToFinish("sync-self-defer")
         waitForUniqueWorkToFinish("sync-external-reschedule")
+        waitForUniqueWorkToFinish("sync-initial-retry")
+        waitForUniqueWorkToFinish("sync-manual-running")
+        waitForUniqueWorkToFinish("sync-kickoff-initial-retry")
         WorkManagerTestInitHelper.closeWorkDatabase()
         WorkManagerImpl.setDelegate(null)
         workerExecutor.shutdownNow()
@@ -68,6 +72,50 @@ class SyncWorkSchedulerWorkManagerTest {
     fun selfDeferAppendsWithoutCancellingCurrentAndExternalRescheduleReplaces() {
         verifySelfDeferAppendsWithoutCancellingCurrent()
         verifyExternalRescheduleReplacesCurrentChain()
+        verifyImmediateRetryCancelsDelayedKickoff()
+        verifyImmediateRetryKeepsRunningActualWork()
+    }
+
+    private fun verifyImmediateRetryCancelsDelayedKickoff() {
+        val measurementId = "initial-retry"
+        val kickoffWorkName = "sync-kickoff-$measurementId"
+        val actualWorkName = "sync-$measurementId"
+        val now = System.currentTimeMillis()
+        val scheduler = SyncWorkScheduler(
+            context = context,
+            pausedUntilProvider = { now + DEFER_MILLIS },
+            nowEpochMillis = { now },
+        )
+
+        scheduler.enqueueInitial(measurementId)
+        val initial = waitForUniqueWorkCount(kickoffWorkName, 1).single()
+        assertEquals(WorkInfo.State.ENQUEUED, initial.state)
+        assertEquals(INITIAL_SYNC_DELAY_MILLIS, initial.initialDelayMillis)
+
+        scheduler.enqueueImmediately(measurementId)
+
+        assertEquals(WorkInfo.State.CANCELLED, waitForState(initial.id, WorkInfo.State.CANCELLED).state)
+        val replacement = waitForUniqueWorkCount(actualWorkName, 1).single()
+        assertEquals(WorkInfo.State.ENQUEUED, waitForState(replacement.id, WorkInfo.State.ENQUEUED).state)
+        assertEquals(DEFER_MILLIS, replacement.initialDelayMillis)
+    }
+
+    private fun verifyImmediateRetryKeepsRunningActualWork() {
+        val measurementId = "manual-running"
+        val uniqueWorkName = "sync-$measurementId"
+        val current = OneTimeWorkRequestBuilder<ManualRunningWorker>().build()
+        workManager.enqueueUniqueWork(uniqueWorkName, ExistingWorkPolicy.KEEP, current)
+        assertTrue(ManualRunningWorker.started.await(10, TimeUnit.SECONDS))
+        assertEquals(WorkInfo.State.RUNNING, waitForState(current.id, WorkInfo.State.RUNNING).state)
+
+        SyncWorkScheduler(context = context).enqueueImmediately(measurementId)
+
+        val chain = waitForUniqueWorkCount(uniqueWorkName, 1)
+        assertEquals(current.id, chain.single().id)
+        assertEquals(WorkInfo.State.RUNNING, workInfo(current.id).state)
+
+        ManualRunningWorker.release.countDown()
+        assertEquals(WorkInfo.State.SUCCEEDED, waitForState(current.id, WorkInfo.State.SUCCEEDED).state)
     }
 
     private fun verifySelfDeferAppendsWithoutCancellingCurrent() {
@@ -190,6 +238,22 @@ class SelfDeferCurrentWorker(
 }
 
 class ReplaceCurrentWorker(
+    appContext: Context,
+    params: WorkerParameters,
+) : CoroutineWorker(appContext, params) {
+    override suspend fun doWork(): Result {
+        started.countDown()
+        release.await()
+        return Result.success()
+    }
+
+    companion object {
+        val started = CountDownLatch(1)
+        val release = CountDownLatch(1)
+    }
+}
+
+class ManualRunningWorker(
     appContext: Context,
     params: WorkerParameters,
 ) : CoroutineWorker(appContext, params) {
