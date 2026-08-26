@@ -186,7 +186,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         showMessage = ::showMessage,
         acquirePetSessionGate = {
             val lease = container.petMeasurementIngestionGate.activate()
-            lease::release
+            PetIngestionSession(lease::registerPetPacket, lease::release)
         },
         monotonicNowNanos = SystemClock::elapsedRealtimeNanos,
     )
@@ -1173,7 +1173,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
         if (!isSelectedScaleAddress(selectedAddress, address)) return
-        container.petMeasurementIngestionGate.registerPetPacket(address, payload)
+        petMeasurementCoordinator.registerPetPacket(token, address, payload)
         val parsed = container.packetParser.parse(payload, address) ?: return
         val wasAwaitingFirst =
             petMeasurement.value is PetMeasurementUiState.AwaitingFirstWeight

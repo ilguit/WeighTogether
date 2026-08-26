@@ -204,8 +204,8 @@ class MeasurementFinalizationOrchestrationTest {
             val second = ScalePacket(byteArrayOf(3, 4), "AA:BB")
 
             val lease = gate.activate()
-            gate.registerPetPacket("AA:BB", first.payload)
-            gate.registerPetPacket("aa:bb", second.payload)
+            lease.registerPetPacket("AA:BB", first.payload)
+            lease.registerPetPacket("aa:bb", second.payload)
             lease.release()
 
             assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(first))
@@ -227,7 +227,7 @@ class MeasurementFinalizationOrchestrationTest {
         val gate = PetMeasurementIngestionGate { now }
         val packet = ScalePacket(byteArrayOf(1), "AA")
         val lease = gate.activate()
-        gate.registerPetPacket(packet.deviceAddress, packet.payload)
+        lease.registerPetPacket(packet.deviceAddress, packet.payload)
         lease.release()
 
         assertEquals(null, gate.processPacketWhenInactive(packet) { "processed" })
@@ -236,11 +236,58 @@ class MeasurementFinalizationOrchestrationTest {
     }
 
     @Test
+    fun latePetPacketRegistrationAfterReleaseIsQuarantined() = kotlinx.coroutines.runBlocking {
+        var now = 10L
+        val gate = PetMeasurementIngestionGate { now }
+        val packet = ScalePacket(byteArrayOf(1, 2), "AA")
+        val lease = gate.activate()
+
+        lease.release()
+        now += 1L
+        lease.registerPetPacket(packet.deviceAddress, packet.payload)
+
+        assertEquals(null, gate.processPacketWhenInactive(packet) { "processed" })
+        assertEquals(
+            "distinct processed",
+            gate.processPacketWhenInactive(ScalePacket(byteArrayOf(3), "AA")) {
+                "distinct processed"
+            },
+        )
+    }
+
+    @Test
+    fun expiredOrStalePetSessionRegistrarCannotQuarantinePackets() =
+        kotlinx.coroutines.runBlocking {
+            var now = 10L
+            val gate = PetMeasurementIngestionGate { now }
+            val expiredPacket = ScalePacket(byteArrayOf(1), "AA")
+            val expiredLease = gate.activate()
+            expiredLease.release()
+            now += PET_PACKET_QUARANTINE_TTL_NANOS
+            expiredLease.registerPetPacket(expiredPacket.deviceAddress, expiredPacket.payload)
+            assertEquals(
+                "expired processed",
+                gate.processPacketWhenInactive(expiredPacket) { "expired processed" },
+            )
+
+            val stalePacket = ScalePacket(byteArrayOf(2), "AA")
+            val staleLease = gate.activate()
+            staleLease.release()
+            val currentLease = gate.activate()
+            staleLease.registerPetPacket(stalePacket.deviceAddress, stalePacket.payload)
+            currentLease.release()
+            assertEquals(
+                "stale processed",
+                gate.processPacketWhenInactive(stalePacket) { "stale processed" },
+            )
+        }
+
+    @Test
     fun petPacketQuarantineDropsOldestIdentityAtCapacity() = kotlinx.coroutines.runBlocking {
         val gate = PetMeasurementIngestionGate { 10L }
         val lease = gate.activate()
         repeat(PET_PACKET_QUARANTINE_MAX_IDENTITIES + 1) { value ->
-            gate.registerPetPacket("AA", byteArrayOf(value.toByte()))
+            lease.registerPetPacket("AA", byteArrayOf(value.toByte()))
         }
         lease.release()
 

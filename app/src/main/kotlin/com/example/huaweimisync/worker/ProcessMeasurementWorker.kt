@@ -50,6 +50,8 @@ class PetMeasurementIngestionGate(
     private val activationMutex = Mutex()
     private var petSessionActive = false
     private var activationOwner: Any? = null
+    private var closingOwner: Any? = null
+    private var closingExpiresAtNanos = 0L
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
     private val activePetPackets = linkedSetOf<PacketIdentity>()
@@ -59,6 +61,8 @@ class PetMeasurementIngestionGate(
         val owner = Any()
         activationMutex.lock(owner)
         val waitForProcessing = synchronized(lock) {
+            closingOwner = null
+            closingExpiresAtNanos = 0L
             petSessionActive = true
             activationOwner = owner
             activePetPackets.clear()
@@ -95,11 +99,6 @@ class PetMeasurementIngestionGate(
         }
     }
 
-    /** Records a packet observed by the selected-scale pet scanner for this active session. */
-    fun registerPetPacket(deviceAddress: String, payload: ByteArray) = synchronized(lock) {
-        if (petSessionActive) activePetPackets += PacketIdentity.of(deviceAddress, payload)
-    }
-
     suspend fun <T : Any> processPacketWhenInactive(
         packet: ScalePacket,
         block: suspend () -> T,
@@ -133,11 +132,11 @@ class PetMeasurementIngestionGate(
                     quarantinedPetPackets[identity] = expiresAt
                 }
                 activePetPackets.clear()
-                while (quarantinedPetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
-                    quarantinedPetPackets.remove(quarantinedPetPackets.keys.first())
-                }
+                trimQuarantine()
                 petSessionActive = false
                 activationOwner = null
+                closingOwner = owner
+                closingExpiresAtNanos = expiresAt
                 processingDrained = null
                 true
             }
@@ -158,6 +157,33 @@ class PetMeasurementIngestionGate(
         val iterator = quarantinedPetPackets.iterator()
         while (iterator.hasNext()) {
             if (iterator.next().value <= now) iterator.remove()
+        }
+        if (closingExpiresAtNanos <= now) {
+            closingOwner = null
+            closingExpiresAtNanos = 0L
+        }
+    }
+
+    private fun registerPetPacket(owner: Any, deviceAddress: String, payload: ByteArray) =
+        synchronized(lock) {
+            val identity = PacketIdentity.of(deviceAddress, payload)
+            when {
+                petSessionActive && activationOwner === owner -> activePetPackets += identity
+                !petSessionActive && closingOwner === owner -> {
+                    val now = monotonicNowNanos()
+                    pruneQuarantine(now)
+                    if (closingOwner === owner) {
+                        quarantinedPetPackets.remove(identity)
+                        quarantinedPetPackets[identity] = closingExpiresAtNanos
+                        trimQuarantine()
+                    }
+                }
+            }
+        }
+
+    private fun trimQuarantine() {
+        while (quarantinedPetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
+            quarantinedPetPackets.remove(quarantinedPetPackets.keys.first())
         }
     }
 
@@ -180,6 +206,10 @@ class PetMeasurementIngestionGate(
 
         fun release() {
             if (released.compareAndSet(false, true)) gate.deactivate(owner)
+        }
+
+        fun registerPetPacket(deviceAddress: String, payload: ByteArray) {
+            gate.registerPetPacket(owner, deviceAddress, payload)
         }
     }
 }
