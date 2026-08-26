@@ -3,6 +3,7 @@ package com.example.huaweimisync
 import android.annotation.SuppressLint
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import androidx.work.WorkManager
 import com.example.huaweimisync.backup.BackupImportMode
 import com.example.huaweimisync.backup.BackupImportPreview
@@ -26,6 +27,9 @@ import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.isAwaitingDecisionAt
@@ -60,6 +64,7 @@ import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -95,6 +100,8 @@ data class MainUiState(
     val resolver: MeasurementResolverUiState? = null,
     val unsavedPreview: UnsavedMeasurementPreviewState? = null,
     val backup: BackupUiState = BackupUiState(),
+    val pets: List<PetWithLatestWeight> = emptyList(),
+    val petMeasurement: PetMeasurementUiState = PetMeasurementUiState.Idle,
 ) {
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == accountSettings.primaryAccountId }
@@ -156,17 +163,32 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
+    private val petScanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
     private val refreshing = MutableStateFlow(false)
+    private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
+    private val petMeasurementStartup = PetMeasurementStartupGuard()
+    private var petMeasurementStartupJob: Job? = null
     private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
         stopScanner = refreshScanner::stop,
         restoreAutomaticScanning = ::restoreAutomaticScanning,
         showMessage = ::showMessage,
+    )
+    private val petMeasurementCoordinator = PetMeasurementCoordinator(
+        setState = { petMeasurement.value = it },
+        stopScanner = petScanner::stop,
+        restoreAutomaticScanning = ::restoreAutomaticScanning,
+        showMessage = ::showMessage,
+        acquirePetSessionGate = {
+            val lease = container.petMeasurementIngestionGate.activate()
+            lease::release
+        },
+        monotonicNowNanos = SystemClock::elapsedRealtimeNanos,
     )
     private val initialHealthConnectAvailability = container.healthConnect.availability()
     private val initialHealthConnectState = if (
@@ -190,6 +212,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope,
         SharingStarted.Eagerly,
         AccountsSnapshot(emptyList(), AccountSettings()),
+    )
+    private val pets = container.pets.observePets().stateIn(
+        viewModelScope,
+        SharingStarted.Eagerly,
+        emptyList(),
     )
     private val pending = container.repository.observeUnassignedPending()
         .withPendingMeasurementReadiness()
@@ -324,8 +351,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             unsavedPreview = routing.preview,
         )
     }
-    val uiState: StateFlow<MainUiState> = combine(contentState, backup) { state, backupState ->
-        state.copy(backup = backupState)
+    val uiState: StateFlow<MainUiState> = combine(
+        contentState,
+        backup,
+        pets,
+        petMeasurement,
+    ) { state, backupState, petValues, petState ->
+        state.copy(
+            backup = backupState,
+            pets = petValues,
+            petMeasurement = petState,
+        )
     }.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5_000),
@@ -522,7 +558,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (pendingSession == null) {
             val created = container.accounts.createAccount(account)
             if (accountsSnapshot.value.settings.primaryAccountId == null) {
-                container.selectedAccountId.value = created.id
+                container.accountSelection.select(created.id)
             }
             finishAccountOperation("Аккаунт «${created.displayName}» создан")
             return@runAccountOperation
@@ -538,7 +574,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) {
             is CreateAccountAndAssignResult.Created -> {
                 pendingForNewAccount.value = null
-                container.selectedAccountId.value = result.account.id
+                container.accountSelection.select(result.account.id)
                 completePendingResolution(completion)
                 finishAccountOperation(
                     "Аккаунт «${result.account.displayName}» создан, измерение назначено",
@@ -565,14 +601,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
         runAccountOperation {
             container.accounts.setPrimaryAccount(accountId, mode)
-            container.selectedAccountId.value = accountId
+            container.accountSelection.select(accountId)
             finishAccountOperation("Основной аккаунт изменён")
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
         container.accounts.deleteAccount(accountId)
-        if (container.selectedAccountId.value == accountId) {
-            container.selectedAccountId.value = null
+        val selection = container.accountSelection.selection.value
+        if (selection.accountId == accountId) {
+            container.accountSelection.selectIfCurrent(selection, null)
         }
         finishAccountOperation("Аккаунт и его локальная история удалены")
     }
@@ -583,7 +620,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             replacementAccountId = request.replacementAccountId,
             historySyncMode = request.historySyncMode,
         )
-        container.selectedAccountId.value = request.replacementAccountId
+        container.accountSelection.select(request.replacementAccountId)
         finishAccountOperation("Основной аккаунт и его локальная история удалены")
     }
 
@@ -791,6 +828,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleManualScan() {
+        if (petMeasurementCoordinator.isActive) {
+            showMessage("Сначала завершите взвешивание питомца")
+            return
+        }
         if (scanning.value) {
             scanner.stop()
             scanning.value = false
@@ -820,6 +861,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
+        if (petMeasurementCoordinator.isActive) {
+            showMessage("Сначала завершите взвешивание питомца")
+            return
+        }
         val refresh = beginScaleRefresh(
             address = container.profileStore.settings.value.scaleAddress,
             coordinator = scaleRefresh,
@@ -985,9 +1030,189 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        invalidatePetMeasurementStartup()
+        petMeasurementCoordinator.clear()
         scaleRefresh.clear()
         scanner.stop()
         super.onCleared()
+    }
+
+    fun openPetMeasurement() {
+        invalidatePetMeasurementStartup()
+        if (scanning.value || refreshing.value || petMeasurementCoordinator.isActive) {
+            showMessage("Дождитесь завершения текущего BLE-сканирования")
+            return
+        }
+        petMeasurementCoordinator.showSelection()
+    }
+
+    fun showCreatePet() {
+        petMeasurementCoordinator.showCreating()
+    }
+
+    fun createPetAndStartMeasurement(displayName: String) = viewModelScope.launch {
+        val name = displayName.trim()
+        val pet = try {
+            container.pets.createPet(NewPet(name))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            petMeasurement.value = PetMeasurementUiState.Error(
+                error.message ?: "Не удалось создать питомца",
+            )
+            return@launch
+        }
+        startPetMeasurement(pet.id)
+    }
+
+    fun startPetMeasurement(petId: PetId) {
+        invalidatePetMeasurementStartup()
+        val startupToken = petMeasurementStartup.begin()
+        petMeasurementStartupJob = viewModelScope.launch {
+            if (scanning.value || petMeasurementCoordinator.isActive) {
+                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                return@launch
+            }
+            if (refreshing.value) scaleRefresh.clear()
+            val address = when (
+                val preflight = scaleRefreshPreflight(
+                    container.profileStore.settings.value.scaleAddress,
+                )
+            ) {
+                is ScaleRefreshPreflightResult.Ready -> preflight.address
+                is ScaleRefreshPreflightResult.Rejected -> {
+                    petMeasurement.value = PetMeasurementUiState.Error(PET_SCALE_REQUIRED_MESSAGE)
+                    showMessage(PET_SCALE_REQUIRED_MESSAGE)
+                    return@launch
+                }
+            }
+            if (!BleSupport.hasScanPermission(getApplication()) ||
+                !BleSupport.hasConnectPermission(getApplication())
+            ) {
+                petMeasurement.value = PetMeasurementUiState.Error(PET_BLUETOOTH_PERMISSION_MESSAGE)
+                showMessage(PET_BLUETOOTH_PERMISSION_MESSAGE)
+                return@launch
+            }
+            val pet = petMeasurementStartup.resolve(startupToken) {
+                container.pets.getPet(petId)
+            } ?: run {
+                if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
+                petMeasurement.value = PetMeasurementUiState.Error("Питомец не найден")
+                return@launch
+            }
+            if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
+            if (scanning.value) {
+                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                return@launch
+            }
+            if (refreshing.value) scaleRefresh.clear()
+            val token = petMeasurementCoordinator.start(pet, address) ?: return@launch
+            if (!petMeasurementStartup.isCurrent(startupToken)) {
+                petMeasurementCoordinator.cancel()
+                return@launch
+            }
+            val started = runCatching {
+                BackgroundScanRegistrar.unregister(getApplication())
+                ReliabilityScanService.setEnabled(getApplication(), false)
+            }.fold(
+                onSuccess = {
+                    if (!petMeasurementStartup.isCurrent(startupToken)) {
+                        return@fold Result.failure(
+                            CancellationException("Pet measurement start invalidated"),
+                        )
+                    }
+                    petScanner.start(
+                        address = address,
+                        onResult = { onPetScanResult(token, address, it) },
+                        onError = { petMeasurementCoordinator.fail(token, it) },
+                    )
+                },
+                onFailure = { Result.failure(it) },
+            )
+            started.onFailure {
+                petMeasurementCoordinator.fail(
+                    token,
+                    it.message ?: "Не удалось запустить сканирование",
+                )
+            }.onSuccess {
+                attachPetMeasurementTimeout(token)
+            }
+        }
+    }
+
+    fun cancelPetMeasurement() {
+        invalidatePetMeasurementStartup()
+        petMeasurementCoordinator.cancel()
+    }
+
+    private fun invalidatePetMeasurementStartup() {
+        petMeasurementStartup.invalidate()
+        petMeasurementStartupJob?.cancel()
+        petMeasurementStartupJob = null
+    }
+
+    private fun attachPetMeasurementTimeout(token: PetMeasurementCoordinator.OperationToken) {
+        val timeoutJob = viewModelScope.launch {
+            delay(PET_MEASUREMENT_TIMEOUT_MILLIS)
+            petMeasurementCoordinator.timeout(token)
+        }
+        petMeasurementCoordinator.attachTimeout(token, timeoutJob::cancel)
+    }
+
+    @SuppressLint("MissingPermission")
+    private fun onPetScanResult(
+        token: PetMeasurementCoordinator.OperationToken,
+        selectedAddress: String,
+        result: ScanResult,
+    ) {
+        if (!BleSupport.hasConnectPermission(getApplication())) {
+            petMeasurementCoordinator.fail(token, PET_BLUETOOTH_PERMISSION_MESSAGE)
+            return
+        }
+        val payload = BleSupport.serviceData(result) ?: return
+        val address = runCatching { result.device.address }.getOrNull() ?: return
+        if (!isSelectedScaleAddress(selectedAddress, address)) return
+        val parsed = container.packetParser.parse(payload, address) ?: return
+        val wasAwaitingFirst =
+            petMeasurement.value is PetMeasurementUiState.AwaitingFirstWeight
+        val request = petMeasurementCoordinator.accept(
+            token,
+            PetScaleReading(
+                address = address,
+                receivedAtNanos = result.timestampNanos,
+                measuredAt = parsed.measuredAt,
+                weightKg = parsed.weightKg,
+                isStableWeight = parsed.isStableWeight,
+                rawIdentity = petReadingRawIdentity(parsed.rawPayload),
+            ),
+        )
+        if (request == null) {
+            if (wasAwaitingFirst &&
+                petMeasurement.value is PetMeasurementUiState.AwaitingSecondWeight
+            ) {
+                attachPetMeasurementTimeout(token)
+            }
+            return
+        }
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val measurement = container.pets.recordCompletedMeasurement(
+                    petId = request.petId,
+                    measuredAt = request.measuredAt,
+                    firstWeightKg = request.firstWeightKg,
+                    secondWeightKg = request.secondWeightKg,
+                )
+                petMeasurementCoordinator.saved(request.token, measurement)
+            } catch (cancelled: CancellationException) {
+                petMeasurementCoordinator.cancel(request.token)
+                throw cancelled
+            } catch (error: Exception) {
+                petMeasurementCoordinator.fail(
+                    request.token,
+                    error.message ?: "Не удалось сохранить вес питомца",
+                )
+            }
+        }
     }
 
     @SuppressLint("MissingPermission")

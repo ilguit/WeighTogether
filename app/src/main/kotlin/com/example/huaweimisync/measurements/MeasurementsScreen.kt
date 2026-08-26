@@ -373,8 +373,9 @@ private fun MeasurementSummaryScreen(
     onSyncRequested: (MeasurementUiItem) -> Unit,
     callbacks: MeasurementsCallbacks,
 ) {
-    Box(Modifier.fillMaxSize()) {
-        when {
+    Column(Modifier.fillMaxSize()) {
+        Box(Modifier.fillMaxWidth().weight(1f)) {
+            when {
             state.isLoading && state.summary == null -> LoadingState("Загрузка последнего измерения")
             state.hasNoLatestMeasurement -> NoLatestMeasurementState()
 
@@ -422,6 +423,21 @@ private fun MeasurementSummaryScreen(
                     item { Spacer(Modifier.height(12.dp)) }
                 }
             }
+            }
+        }
+        Button(
+            onClick = callbacks.onPetMeasurementRequested,
+            modifier = Modifier
+                .widthIn(max = 680.dp)
+                .fillMaxWidth()
+                .align(Alignment.CenterHorizontally)
+                .padding(
+                    horizontal = HuaweiDimensions.ContentPadding,
+                    vertical = HuaweiDimensions.CompactContentPadding,
+                )
+                .testTag("pet-measurement-action"),
+        ) {
+            Text("Взвесить питомца")
         }
     }
 }
