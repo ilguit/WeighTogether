@@ -35,13 +35,17 @@ class SyncWorkSchedulerTest {
         scheduler.enqueueInitial("measurement-initial")
 
         val enqueued = workManager.singleEnqueued()
-        assertEquals("sync-measurement-initial", enqueued.uniqueWorkName)
+        assertEquals("sync-kickoff-measurement-initial", enqueued.uniqueWorkName)
         assertEquals(ExistingWorkPolicy.KEEP, enqueued.policy)
         assertEquals(60_000L, enqueued.work.workSpec.initialDelay)
+        assertEquals(
+            "measurement-initial",
+            enqueued.work.workSpec.input.getString("measurement_id"),
+        )
     }
 
     @Test
-    fun immediateEnqueueReplacesDelayedWorkButStillHonorsGlobalPause() {
+    fun immediateEnqueueCancelsKickoffAndKeepsActualWorkWhileHonoringGlobalPause() {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(
             workManager = workManager,
@@ -53,8 +57,9 @@ class SyncWorkSchedulerTest {
 
         val enqueued = workManager.singleEnqueued()
         assertEquals("sync-measurement-retry", enqueued.uniqueWorkName)
-        assertEquals(ExistingWorkPolicy.REPLACE, enqueued.policy)
+        assertEquals(ExistingWorkPolicy.KEEP, enqueued.policy)
         assertEquals(30_000L, enqueued.work.workSpec.initialDelay)
+        assertEquals(listOf("sync-kickoff-measurement-retry"), workManager.cancelled)
     }
 
     @Test
@@ -106,7 +111,10 @@ class SyncWorkSchedulerTest {
 
         scheduler.cancel("measurement-3")
 
-        assertEquals(listOf("sync-measurement-3"), workManager.cancelled)
+        assertEquals(
+            listOf("sync-kickoff-measurement-3", "sync-measurement-3"),
+            workManager.cancelled,
+        )
     }
 }
 

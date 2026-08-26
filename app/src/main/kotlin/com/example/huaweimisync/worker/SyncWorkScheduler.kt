@@ -63,19 +63,29 @@ class SyncWorkScheduler internal constructor(
 
     override fun enqueueInitial(measurementId: String) {
         val now = nowEpochMillis()
-        enqueueUnique(
-            measurementId,
-            effectiveNotBeforeEpochMillis(now + INITIAL_SYNC_DELAY_MILLIS, pausedUntilProvider()),
+        val work = OneTimeWorkRequestBuilder<MeasurementSyncKickoffWorker>()
+            .setInputData(MeasurementSyncKickoffWorker.inputData(measurementId))
+            .setInitialDelay(
+                initialDelayMillis(
+                    effectiveNotBeforeEpochMillis(now + INITIAL_SYNC_DELAY_MILLIS, pausedUntilProvider()),
+                    now,
+                ),
+                TimeUnit.MILLISECONDS,
+            )
+            .build()
+        workManager.enqueueUniqueWork(
+            kickoffWorkName(measurementId),
             ExistingWorkPolicy.KEEP,
-            now,
+            work,
         )
     }
 
     override fun enqueueImmediately(measurementId: String) {
+        workManager.cancelUniqueWork(kickoffWorkName(measurementId))
         enqueueUnique(
             measurementId,
             pausedUntilProvider(),
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
         )
     }
 
@@ -125,8 +135,11 @@ class SyncWorkScheduler internal constructor(
     }
 
     override fun cancel(measurementId: String) {
+        workManager.cancelUniqueWork(kickoffWorkName(measurementId))
         workManager.cancelUniqueWork("sync-$measurementId")
     }
+
+    private fun kickoffWorkName(measurementId: String): String = "sync-kickoff-$measurementId"
 }
 
 internal const val INITIAL_SYNC_DELAY_MILLIS = 60_000L
