@@ -77,7 +77,11 @@ internal fun PetMeasurementDialog(
                 PetMeasurementUiState.SelectingPet -> PetSelection(pets, callbacks)
                 PetMeasurementUiState.CreatingPet -> PetCreation(pets, callbacks)
                 is PetMeasurementUiState.AwaitingFirstWeight -> Column {
-                    Text("Встаньте на весы без ${state.pet.displayName}. Дождитесь стабильного значения.")
+                    Text(
+                        "Выполните одно взвешивание с ${state.pet.displayName} на руках, " +
+                            "а другое — без питомца. Порядок не важен. Начните с любого " +
+                            "варианта и дождитесь стабильного значения.",
+                    )
                 }
                 is PetMeasurementUiState.AwaitingSecondWeight -> Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -86,7 +90,10 @@ internal fun PetMeasurementDialog(
                         "Первое значение принято: ${formatPetWeight(state.firstWeightKg)} кг",
                         modifier = Modifier.testTag(PetMeasurementTestTags.FirstWeight),
                     )
-                    Text("Возьмите ${state.pet.displayName} на руки и снова встаньте на весы.")
+                    Text(
+                        "Теперь выполните оставшееся взвешивание: с ${state.pet.displayName} " +
+                            "на руках или без питомца. Дождитесь стабильного значения.",
+                    )
                 }
                 is PetMeasurementUiState.Saving -> Row(
                     verticalAlignment = Alignment.CenterVertically,
