@@ -12,6 +12,14 @@ import kotlin.math.max
 interface MeasurementSyncScheduler {
     fun enqueue(measurementId: String)
 
+    fun enqueueInitial(measurementId: String) {
+        enqueue(measurementId)
+    }
+
+    fun enqueueImmediately(measurementId: String) {
+        reschedule(measurementId, 0L)
+    }
+
     fun enqueue(measurementId: String, notBeforeEpochMillis: Long) {
         enqueue(measurementId)
     }
@@ -53,6 +61,24 @@ class SyncWorkScheduler internal constructor(
         enqueueUnique(measurementId, pausedUntilProvider(), ExistingWorkPolicy.KEEP)
     }
 
+    override fun enqueueInitial(measurementId: String) {
+        val now = nowEpochMillis()
+        enqueueUnique(
+            measurementId,
+            effectiveNotBeforeEpochMillis(now + INITIAL_SYNC_DELAY_MILLIS, pausedUntilProvider()),
+            ExistingWorkPolicy.KEEP,
+            now,
+        )
+    }
+
+    override fun enqueueImmediately(measurementId: String) {
+        enqueueUnique(
+            measurementId,
+            pausedUntilProvider(),
+            ExistingWorkPolicy.REPLACE,
+        )
+    }
+
     override fun enqueue(measurementId: String, notBeforeEpochMillis: Long) {
         enqueueUnique(
             measurementId,
@@ -81,11 +107,12 @@ class SyncWorkScheduler internal constructor(
         measurementId: String,
         notBeforeEpochMillis: Long,
         policy: ExistingWorkPolicy,
+        nowEpochMillis: Long = this.nowEpochMillis(),
     ) {
         val work = OneTimeWorkRequestBuilder<MeasurementSyncWorker>()
             .setInputData(MeasurementSyncWorker.inputData(measurementId))
             .setInitialDelay(
-                initialDelayMillis(notBeforeEpochMillis, nowEpochMillis()),
+                initialDelayMillis(notBeforeEpochMillis, nowEpochMillis),
                 TimeUnit.MILLISECONDS,
             )
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.SECONDS)
@@ -101,6 +128,8 @@ class SyncWorkScheduler internal constructor(
         workManager.cancelUniqueWork("sync-$measurementId")
     }
 }
+
+internal const val INITIAL_SYNC_DELAY_MILLIS = 60_000L
 
 internal interface MeasurementSyncWorkManager {
     fun enqueueUniqueWork(

@@ -24,6 +24,40 @@ class SyncWorkSchedulerTest {
     }
 
     @Test
+    fun initialEnqueueKeepsExistingWorkAndWaitsSixtySecondsFromScheduling() {
+        val workManager = RecordingMeasurementSyncWorkManager()
+        val scheduler = SyncWorkScheduler(
+            workManager = workManager,
+            pausedUntilProvider = { 120_000L },
+            nowEpochMillis = { 100_000L },
+        )
+
+        scheduler.enqueueInitial("measurement-initial")
+
+        val enqueued = workManager.singleEnqueued()
+        assertEquals("sync-measurement-initial", enqueued.uniqueWorkName)
+        assertEquals(ExistingWorkPolicy.KEEP, enqueued.policy)
+        assertEquals(60_000L, enqueued.work.workSpec.initialDelay)
+    }
+
+    @Test
+    fun immediateEnqueueReplacesDelayedWorkButStillHonorsGlobalPause() {
+        val workManager = RecordingMeasurementSyncWorkManager()
+        val scheduler = SyncWorkScheduler(
+            workManager = workManager,
+            pausedUntilProvider = { 130_000L },
+            nowEpochMillis = { 100_000L },
+        )
+
+        scheduler.enqueueImmediately("measurement-retry")
+
+        val enqueued = workManager.singleEnqueued()
+        assertEquals("sync-measurement-retry", enqueued.uniqueWorkName)
+        assertEquals(ExistingWorkPolicy.REPLACE, enqueued.policy)
+        assertEquals(30_000L, enqueued.work.workSpec.initialDelay)
+    }
+
+    @Test
     fun selfDeferAppendsSuccessorWithUniqueNameInputAndEffectiveDelay() {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(

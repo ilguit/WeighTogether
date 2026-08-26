@@ -84,6 +84,7 @@ class MeasurementRepositoryTest {
         assertEquals(StoreResult.Duplicate, second)
         assertEquals(1, dao.values.size)
         assertEquals(listOf(dao.values.keys.single()), scheduler.enqueued)
+        assertEquals(scheduler.enqueued, scheduler.initiallyEnqueued)
         assertTrue(scheduler.cancelled.isEmpty())
         assertEquals(SyncStatus.DISABLED.name, dao.values.values.single().huaweiStatus)
     }
@@ -661,6 +662,7 @@ class MeasurementRepositoryTest {
         repository.retryPendingHuawei()
 
         assertEquals(listOf("mixed", "mixed", "opposite"), scheduler.enqueued)
+        assertEquals(listOf("mixed"), scheduler.immediatelyEnqueued)
         assertEquals(listOf("mixed", "opposite"), dao.idsNeedingSync())
     }
 
@@ -775,11 +777,23 @@ private class FakeSyncScheduler(
     private val onReschedule: (String, Long) -> Unit = { _, _ -> },
 ) : MeasurementSyncScheduler {
     val enqueued = mutableListOf<String>()
+    val initiallyEnqueued = mutableListOf<String>()
+    val immediatelyEnqueued = mutableListOf<String>()
     val cancelled = mutableListOf<String>()
     val rescheduled = mutableListOf<Pair<String, Long>>()
 
     override fun enqueue(measurementId: String) {
         enqueued += measurementId
+    }
+
+    override fun enqueueInitial(measurementId: String) {
+        initiallyEnqueued += measurementId
+        enqueue(measurementId)
+    }
+
+    override fun enqueueImmediately(measurementId: String) {
+        immediatelyEnqueued += measurementId
+        enqueue(measurementId)
     }
 
     override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit

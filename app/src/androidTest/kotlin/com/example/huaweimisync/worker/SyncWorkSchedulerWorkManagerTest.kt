@@ -58,6 +58,7 @@ class SyncWorkSchedulerWorkManagerTest {
         workManager.cancelAllWork()
         waitForUniqueWorkToFinish("sync-self-defer")
         waitForUniqueWorkToFinish("sync-external-reschedule")
+        waitForUniqueWorkToFinish("sync-initial-retry")
         WorkManagerTestInitHelper.closeWorkDatabase()
         WorkManagerImpl.setDelegate(null)
         workerExecutor.shutdownNow()
@@ -68,6 +69,31 @@ class SyncWorkSchedulerWorkManagerTest {
     fun selfDeferAppendsWithoutCancellingCurrentAndExternalRescheduleReplaces() {
         verifySelfDeferAppendsWithoutCancellingCurrent()
         verifyExternalRescheduleReplacesCurrentChain()
+        verifyImmediateRetryReplacesDelayedInitialWork()
+    }
+
+    private fun verifyImmediateRetryReplacesDelayedInitialWork() {
+        val measurementId = "initial-retry"
+        val uniqueWorkName = "sync-$measurementId"
+        val now = System.currentTimeMillis()
+        val scheduler = SyncWorkScheduler(
+            context = context,
+            nowEpochMillis = { now },
+        )
+
+        scheduler.enqueueInitial(measurementId)
+        val initial = waitForUniqueWorkCount(uniqueWorkName, 1).single()
+        assertEquals(WorkInfo.State.ENQUEUED, initial.state)
+        assertEquals(INITIAL_SYNC_DELAY_MILLIS, initial.initialDelayMillis)
+
+        scheduler.enqueueImmediately(measurementId)
+
+        assertEquals(WorkInfo.State.CANCELLED, waitForState(initial.id, WorkInfo.State.CANCELLED).state)
+        val chain = waitForUniqueWorkCount(uniqueWorkName, 2)
+        val replacement = chain.single { it.id != initial.id }
+        assertEquals(WorkInfo.State.ENQUEUED, waitForState(replacement.id, WorkInfo.State.ENQUEUED).state)
+        assertEquals(0L, replacement.initialDelayMillis)
+        assertEquals(1, chain.count { !it.state.isFinished })
     }
 
     private fun verifySelfDeferAppendsWithoutCancellingCurrent() {

@@ -114,6 +114,7 @@ class MeasurementIngestionCoordinatorTest {
 
         assertTrue(result is MeasurementIngestionResult.UpgradedFinalized)
         assertEquals(setOf("upgraded-primary"), scheduler.enqueued)
+        assertEquals(setOf("upgraded-primary"), scheduler.initiallyEnqueued)
         assertTrue(events.indexOf("enqueue") < events.indexOf("schedule"))
 
         val local = eligible.copy(
@@ -831,11 +832,17 @@ private class UniqueFakeScheduler(
     private val events: MutableList<String> = mutableListOf(),
 ) : MeasurementSyncScheduler {
     val enqueued = linkedSetOf<String>()
+    val initiallyEnqueued = linkedSetOf<String>()
     val cancelled = linkedSetOf<String>()
 
     override fun enqueue(measurementId: String) {
         events += "schedule"
         enqueued += measurementId
+    }
+
+    override fun enqueueInitial(measurementId: String) {
+        initiallyEnqueued += measurementId
+        enqueue(measurementId)
     }
 
     override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) = Unit
