@@ -66,6 +66,7 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithText("Питомец с таким именем уже есть").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextClearance()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput("Рыжик")
+        composeRule.onNodeWithTag(PetMeasurementTestTags.SpeciesCat).performClick()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.runOnIdle { assertEquals(listOf("Рыжик"), submitted) }
     }
@@ -187,7 +188,13 @@ class PetMeasurementDialogUiTest {
         onCreate: (String) -> Unit = {},
         onStart: (PetId) -> Unit = {},
         onCancel: () -> Unit = {},
-    ) = PetMeasurementCallbacks(onOpen, onShowCreate, onCreate, onStart, onCancel)
+    ) = PetMeasurementCallbacks(
+        onOpen,
+        onShowCreate,
+        { name, _ -> onCreate(name) },
+        onStart,
+        onCancel,
+    )
 
     private fun pet(id: String, name: String): Pet {
         val now = Instant.parse("2026-08-26T00:00:00Z")
