@@ -41,6 +41,7 @@ class MeasurementIngestionWorkOrchestrator(
 /** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
 internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
 internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+private const val XIAOMI_SCALE_PACKET_PAYLOAD_SIZE = 13
 
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
 class PetMeasurementIngestionGate(
@@ -106,11 +107,17 @@ class PetMeasurementIngestionGate(
         val entered = synchronized(lock) {
             val now = monotonicNowNanos()
             pruneQuarantine(now)
-            if (petSessionActive || quarantinedPetPackets.containsKey(PacketIdentity.of(packet))) {
-                false
-            } else {
-                processingCount += 1
-                true
+            val identity = PacketIdentity.of(packet)
+            when {
+                petSessionActive -> {
+                    activePetPackets += identity
+                    false
+                }
+                quarantinedPetPackets.containsKey(identity) -> false
+                else -> {
+                    processingCount += 1
+                    true
+                }
             }
         }
         if (!entered) return null
@@ -193,7 +200,9 @@ class PetMeasurementIngestionGate(
 
             fun of(deviceAddress: String, payload: ByteArray): PacketIdentity = PacketIdentity(
                 address = deviceAddress.trim().uppercase(Locale.ROOT),
-                payload = payload.joinToString("") { "%02x".format(it.toInt() and 0xff) },
+                payload = payload
+                    .takeLast(XIAOMI_SCALE_PACKET_PAYLOAD_SIZE)
+                    .joinToString("") { "%02x".format(it.toInt() and 0xff) },
             )
         }
     }
