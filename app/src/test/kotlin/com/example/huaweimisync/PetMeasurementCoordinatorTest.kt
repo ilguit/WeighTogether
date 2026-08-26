@@ -161,6 +161,7 @@ class PetMeasurementCoordinatorTest {
             monotonicNowNanos = { operationStartedAtNanos },
         )
         val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
+        baselineCoordinator.attachTimeout(token) { timeoutCancellations++ }
 
         assertNull(
             baselineCoordinator.accept(
@@ -176,6 +177,17 @@ class PetMeasurementCoordinatorTest {
 
         assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
         assertEquals(0, scannerStops)
+        assertEquals(0, timeoutCancellations)
+
+        assertNull(
+            baselineCoordinator.accept(
+                token,
+                reading(74.2, second = 21, raw = "new-stable-packet"),
+            ),
+        )
+
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 74.2), states.last())
+        assertEquals(0, timeoutCancellations)
     }
 
     @Test
@@ -324,6 +336,8 @@ class PetMeasurementCoordinatorTest {
         coordinator.attachTimeout(timeoutToken) { timeoutCancellations++ }
         coordinator.timeout(timeoutToken)
         coordinator.timeout(timeoutToken)
+        coordinator.fail(timeoutToken, "late error")
+        coordinator.cancel(timeoutToken)
 
         assertEquals(PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE), states.last())
         assertEquals(listOf(PET_MEASUREMENT_TIMEOUT_MESSAGE), messages)
@@ -333,12 +347,16 @@ class PetMeasurementCoordinatorTest {
 
         val cancelledToken = start()
         coordinator.attachTimeout(cancelledToken) { timeoutCancellations++ }
-        coordinator.cancel()
+        coordinator.cancel(cancelledToken)
+        coordinator.cancel(cancelledToken)
+        coordinator.timeout(cancelledToken)
+        coordinator.fail(cancelledToken, "late error")
 
         assertEquals(PetMeasurementUiState.Cancelled, states.last())
         assertEquals(2, scannerStops)
         assertEquals(2, automaticRestores)
         assertEquals(2, timeoutCancellations)
+        assertEquals(listOf(PET_MEASUREMENT_TIMEOUT_MESSAGE), messages)
     }
 
     @Test
