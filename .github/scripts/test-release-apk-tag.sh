@@ -62,6 +62,14 @@ run_script() {
     (cd "$repo" && "$script" "$@")
 }
 
+# Repeated ordinary builds can read history but never create or publish a tag.
+build_repo="$(new_fixture build-only)"
+build_sha="$(git -C "$build_repo" rev-parse HEAD)"
+assert_eq "$(run_script "$build_repo" previous 0.1.1 "$build_sha")" "null"
+assert_eq "$(run_script "$build_repo" previous 0.1.1 "$build_sha")" "null"
+[[ -z "$(git -C "$build_repo" tag --list 'apk/*')" ]] || fail "build lookup created a local tag"
+[[ -z "$(git -C "$build_repo" ls-remote --tags origin 'refs/tags/apk/*')" ]] || fail "build lookup published a tag"
+
 repo="$(new_fixture basic)"
 sha="$(git -C "$repo" rev-parse HEAD)"
 assert_eq "$(run_script "$repo" preflight 0.1.1 "$sha")" "null"
@@ -70,8 +78,12 @@ assert_eq "$(git -C "$repo" cat-file -t apk/0.1.1)" "tag"
 assert_eq "$(git -C "$repo" rev-parse apk/0.1.1^{commit})" "$sha"
 assert_eq "$(git -C "$repo" ls-remote --tags origin refs/tags/apk/0.1.1^{} | awk '{print $1}')" "$sha"
 
-# A same-version/same-SHA rerun is a no-op and retains the tag object.
+# Build-mode lookup never validates or changes the current-version tag.
 tag_object="$(git -C "$repo" rev-parse apk/0.1.1)"
+assert_eq "$(run_script "$repo" previous 0.1.1 "$sha")" "null"
+assert_eq "$(git -C "$repo" rev-parse apk/0.1.1)" "$tag_object"
+
+# A same-version/same-SHA rerun is a no-op and retains the tag object.
 run_script "$repo" publish 0.1.1 "$sha"
 assert_eq "$(git -C "$repo" rev-parse apk/0.1.1)" "$tag_object"
 
@@ -130,6 +142,7 @@ if run_script "$repo" preflight 0.1.2 "$third_sha" >"${test_root}/conflict.out" 
     fail "version conflict unexpectedly succeeded"
 fi
 grep -q "already released from" "${test_root}/conflict.out" || fail "missing conflict diagnostic"
+assert_eq "$(run_script "$repo" previous 0.1.2 "$third_sha")" "apk/0.1.1"
 
 # A lightweight release tag is invalid, even when it targets the requested SHA.
 lightweight_repo="$(new_fixture lightweight)"
@@ -140,6 +153,7 @@ if run_script "$lightweight_repo" preflight 0.1.9 "$lightweight_sha" >"${test_ro
     fail "lightweight release tag unexpectedly succeeded"
 fi
 grep -q "not an annotated tag" "${test_root}/lightweight.out" || fail "missing lightweight-tag diagnostic"
+assert_eq "$(run_script "$lightweight_repo" previous 0.1.9 "$lightweight_sha")" "null"
 
 # A local annotated tag left by a failure before push can be published by a rerun.
 partial_repo="$(new_fixture partial)"
@@ -175,19 +189,55 @@ git -C "$isolated_repo" tag -a local-only "$isolated_sha" -m local
 run_script "$isolated_repo" publish 0.4.0 "$isolated_sha"
 [[ -z "$(git -C "$isolated_repo" ls-remote --tags origin refs/tags/local-only)" ]] || fail "unrelated tag was pushed"
 
-# Keep the workflow contract testable without executing GitHub Actions.
-workflow="${script_dir}/../workflows/manual-personal-apk.yml"
-grep -qF "contents: write" "$workflow" || fail "workflow lacks tag push permission"
-grep -qF "fetch-depth: 0" "$workflow" || fail "workflow uses shallow checkout"
-grep -qF "cancel-in-progress: false" "$workflow" || fail "workflow cancels an active release"
-grep -qF 'previousReleaseTag:' "$workflow" || fail "artifact metadata lacks previousReleaseTag"
-grep -qF 'artifact_path=${artifact_dir}' "$workflow" || fail "artifact does not include APK and metadata directory"
-grep -qF 'GIT_COMMITTER_NAME: github-actions[bot]' "$workflow" || fail "workflow lacks an annotated-tag identity"
-assert_workflow_order "$workflow" \
-    "- name: Verify remote release tag" \
+# Keep both workflow contracts testable without executing GitHub Actions.
+build_workflow="${script_dir}/../workflows/manual-personal-apk.yml"
+grep -qF "name: Build personal APK" "$build_workflow" || fail "build workflow was renamed ambiguously"
+grep -qF "contents: read" "$build_workflow" || fail "build workflow is not read-only"
+if grep -qF "contents: write" "$build_workflow"; then
+    fail "build workflow can write repository contents"
+fi
+grep -qF 'release-apk-tag.sh previous' "$build_workflow" || fail "build workflow does not use safe previous-tag lookup"
+if grep -qF 'release-apk-tag.sh publish' "$build_workflow"; then
+    fail "build workflow publishes a release tag"
+fi
+grep -qF -- '-PreleaseHistoryMode=build' "$build_workflow" || fail "build workflow does not select build mode"
+grep -qF -- '--arg mode "build"' "$build_workflow" || fail "build metadata lacks build mode"
+grep -qF -- '--argjson versionCode' "$build_workflow" || fail "build metadata lacks numeric versionCode"
+grep -qF -- '--argjson releaseTag null' "$build_workflow" || fail "build metadata does not use a null release tag"
+grep -qF 'baseVersionName:' "$build_workflow" || fail "build metadata lacks baseVersionName"
+grep -qF 'variantVersionName:' "$build_workflow" || fail "build metadata lacks variantVersionName"
+grep -qF 'commitSha:' "$build_workflow" || fail "build metadata lacks commitSha"
+grep -qF 'previousReleaseTag:' "$build_workflow" || fail "build metadata lacks previousReleaseTag"
+grep -qF 'artifact_path=${artifact_dir}' "$build_workflow" || fail "build artifact does not include APK and JSON"
+assert_workflow_order "$build_workflow" \
+    "- name: Read previous release tag" \
     "- name: Build personal debug APK" \
     "- name: Prepare APK artifact" \
-    "- name: Upload personal APK" \
-    "- name: Publish APK release tag"
+    "- name: Upload personal APK"
+
+release_workflow="${script_dir}/../workflows/release-personal-apk.yml"
+grep -qF "name: Release personal APK" "$release_workflow" || fail "release workflow is not explicitly named"
+grep -qF "expected_version_name:" "$release_workflow" || fail "release workflow lacks version confirmation input"
+grep -qF "required: true" "$release_workflow" || fail "release version confirmation is optional"
+grep -qF '"${version_name}" != "${EXPECTED_VERSION_NAME}"' "$release_workflow" || fail "release workflow does not enforce version confirmation"
+grep -qF "contents: write" "$release_workflow" || fail "release workflow lacks tag push permission"
+grep -qF "fetch-depth: 0" "$release_workflow" || fail "release workflow uses shallow checkout"
+grep -qF "cancel-in-progress: false" "$release_workflow" || fail "release workflow cancels an active release"
+grep -qF -- '-PreleaseHistoryMode=release' "$release_workflow" || fail "release workflow does not select release mode"
+grep -qF -- '--arg mode "release"' "$release_workflow" || fail "release metadata lacks release mode"
+grep -qF -- '--argjson versionCode' "$release_workflow" || fail "release metadata lacks numeric versionCode"
+grep -qF -- '--arg releaseTag "${RELEASE_TAG}"' "$release_workflow" || fail "release metadata lacks current release tag"
+grep -qF 'baseVersionName:' "$release_workflow" || fail "release metadata lacks baseVersionName"
+grep -qF 'variantVersionName:' "$release_workflow" || fail "release metadata lacks variantVersionName"
+grep -qF 'commitSha:' "$release_workflow" || fail "release metadata lacks commitSha"
+grep -qF 'previousReleaseTag:' "$release_workflow" || fail "release metadata lacks previousReleaseTag"
+grep -qF 'GIT_COMMITTER_NAME: github-actions[bot]' "$release_workflow" || fail "release workflow lacks an annotated-tag identity"
+assert_workflow_order "$release_workflow" \
+    "- name: Confirm release source and version" \
+    "- name: Preflight release tag" \
+    "- name: Build personal release APK" \
+    "- name: Verify and prepare release artifact" \
+    "- name: Upload personal release APK" \
+    "- name: Publish annotated APK release tag"
 
 echo "All release APK tag tests passed."

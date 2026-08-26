@@ -3,7 +3,7 @@
 set -euo pipefail
 
 usage() {
-    echo "Usage: $0 <preflight|publish> <versionName> <40-character commit SHA>" >&2
+    echo "Usage: $0 <previous|preflight|publish> <versionName> <40-character commit SHA>" >&2
     exit 2
 }
 
@@ -17,7 +17,7 @@ command_name="$1"
 version_name="$2"
 commit_sha="${3,,}"
 
-[[ "$command_name" == "preflight" || "$command_name" == "publish" ]] || usage
+[[ "$command_name" == "previous" || "$command_name" == "preflight" || "$command_name" == "publish" ]] || usage
 [[ "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] ||
     die "invalid base versionName '$version_name'"
 [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || die "commit SHA must contain exactly 40 hexadecimal characters"
@@ -110,6 +110,11 @@ previous_release_tag() {
         printf '%s\n' "${reachable[@]}" | LC_ALL=C sort -k1,1n -k2,2 | sed -n '1p' | cut -d' ' -f2-
     fi
 }
+
+if [[ "$command_name" == "previous" ]]; then
+    previous_release_tag
+    exit 0
+fi
 
 if [[ "$command_name" == "preflight" ]]; then
     if check_current_remote_tag; then
