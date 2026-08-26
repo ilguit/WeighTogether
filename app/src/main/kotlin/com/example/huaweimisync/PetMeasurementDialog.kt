@@ -11,6 +11,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -27,6 +28,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.domain.PET_NAME_LENGTH
 import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.domain.normalizePetName
 import com.example.huaweimisync.measurements.formatMeasurementDateTime
@@ -38,6 +40,8 @@ internal object PetMeasurementTestTags {
     const val CreateAction = "pet-create-action"
     const val NameField = "pet-name-field"
     const val CreateConfirm = "pet-create-confirm"
+    const val SpeciesCat = "pet-species-cat"
+    const val SpeciesDog = "pet-species-dog"
     const val Cancel = "pet-measurement-cancel"
     const val FirstWeight = "pet-first-weight"
     const val Result = "pet-measurement-result"
@@ -49,12 +53,12 @@ internal object PetMeasurementTestTags {
 internal data class PetMeasurementCallbacks(
     val onOpen: () -> Unit,
     val onShowCreate: () -> Unit,
-    val onCreateAndStart: (String) -> Unit,
+    val onCreateAndStart: (String, PetSpecies) -> Unit,
     val onStart: (PetId) -> Unit,
     val onCancel: () -> Unit,
 ) {
     companion object {
-        val None = PetMeasurementCallbacks({}, {}, {}, {}, {})
+        val None = PetMeasurementCallbacks({}, {}, { _, _ -> }, {}, {})
     }
 }
 
@@ -182,6 +186,7 @@ private fun PetCreation(
 ) {
     var name by rememberSaveable { mutableStateOf("") }
     var submitted by rememberSaveable { mutableStateOf(false) }
+    var species by rememberSaveable { mutableStateOf<PetSpecies?>(null) }
     val trimmed = name.trim()
     val error = when {
         !submitted -> null
@@ -189,6 +194,7 @@ private fun PetCreation(
         trimmed.length !in PET_NAME_LENGTH -> "Имя должно содержать не больше 50 символов"
         pets.any { normalizePetName(it.pet.displayName) == normalizePetName(trimmed) } ->
             "Питомец с таким именем уже есть"
+        species == null -> "Выберите вид питомца"
         else -> null
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -201,15 +207,35 @@ private fun PetCreation(
             supportingText = error?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth().testTag(PetMeasurementTestTags.NameField),
         )
+        PetSpeciesSelector(species) { species = it; submitted = false }
+        error?.takeIf { it == "Выберите вид питомца" }?.let {
+            Text(it, color = MaterialTheme.colorScheme.error)
+        }
         Button(
             onClick = {
                 submitted = true
                 if (trimmed.isNotEmpty() && trimmed.length in PET_NAME_LENGTH &&
-                    pets.none { normalizePetName(it.pet.displayName) == normalizePetName(trimmed) }
-                ) callbacks.onCreateAndStart(trimmed)
+                    pets.none { normalizePetName(it.pet.displayName) == normalizePetName(trimmed) } &&
+                    species != null
+                ) callbacks.onCreateAndStart(trimmed, requireNotNull(species))
             },
             modifier = Modifier.fillMaxWidth().testTag(PetMeasurementTestTags.CreateConfirm),
         ) { Text("Создать и взвесить") }
+    }
+}
+
+@Composable
+internal fun PetSpeciesSelector(selected: PetSpecies?, onSelected: (PetSpecies) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(PetSpecies.CAT to "Кошка", PetSpecies.DOG to "Собака").forEach { (value, label) ->
+            OutlinedButton(
+                onClick = { onSelected(value) },
+                modifier = Modifier.testTag(
+                    if (value == PetSpecies.CAT) PetMeasurementTestTags.SpeciesCat
+                    else PetMeasurementTestTags.SpeciesDog,
+                ),
+            ) { Text(if (selected == value) "✓ $label" else label) }
+        }
     }
 }
 

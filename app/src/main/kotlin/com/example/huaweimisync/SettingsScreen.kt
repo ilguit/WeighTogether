@@ -53,6 +53,10 @@ import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import com.example.huaweimisync.backup.BackupImportMode
+import com.example.huaweimisync.domain.Pet
+import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetSpecies
+import com.example.huaweimisync.domain.normalizePetName
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementSection
@@ -82,6 +86,12 @@ internal data class SettingsCallbacks(
     val onWeightDeltaStateChanged: (com.example.huaweimisync.ui.accounts.WeightDeltaEditorState) -> Unit = {},
     val onWeightDeltaSave: (Double) -> Unit = {},
     val onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+    val onCreatePet: () -> Unit = {},
+    val onEditPet: (Pet) -> Unit = {},
+    val onSavePet: (String, PetSpecies) -> Unit = { _, _ -> },
+    val onRequestDeletePet: (PetId) -> Unit = {},
+    val onConfirmDeletePet: () -> Unit = {},
+    val onDismissPetManagement: () -> Unit = {},
     val onExportBackup: () -> Unit = {},
     val onImportBackup: (BackupImportMode) -> Unit = {},
     val onConfirmBackupImport: () -> Unit = {},
@@ -125,6 +135,9 @@ internal object SettingsScreenTestTags {
     const val BackupReplace = "settings-backup-replace"
     const val BackupDialog = "settings-backup-dialog"
     const val BackupConfirm = "settings-backup-confirm"
+    const val PetsSection = "settings-pets-section"
+    const val PetEditor = "settings-pet-editor"
+    const val PetDeleteDialog = "settings-pet-delete-dialog"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -250,6 +263,7 @@ internal fun SettingsScreen(
                         callbacks.onIgnoreUnknownMeasurementsChanged,
                 )
             }
+            item { PetManagementSection(state, callbacks) }
             item { SettingsIntegrationsSection(state, callbacks) }
             item { SettingsScaleSection(state, callbacks.onManualScan) }
             item { SettingsBackupSection(state.backup, callbacks) }
@@ -308,6 +322,118 @@ internal fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = callbacks.onDismissBackupImport) { Text("Отмена") }
+            },
+        )
+    }
+    PetManagementDialogs(state, callbacks)
+}
+
+@Composable
+private fun PetManagementSection(state: MainUiState, callbacks: SettingsCallbacks) {
+    SettingsSection(title = "Питомцы") {
+        HuaweiSurface(
+            modifier = Modifier.testTag(SettingsScreenTestTags.PetsSection),
+            contentPadding = PaddingValues(HuaweiDimensions.ContentPadding),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (state.pets.isEmpty()) Text("Питомцев пока нет")
+                state.pets.forEach { item ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
+                            Text(petSpeciesLabel(item.pet.species), style = MaterialTheme.typography.bodySmall)
+                        }
+                        TextButton(onClick = { callbacks.onEditPet(item.pet) }) { Text("Изменить") }
+                        TextButton(onClick = { callbacks.onRequestDeletePet(item.pet.id) }) { Text("Удалить") }
+                    }
+                }
+                Button(
+                    onClick = callbacks.onCreatePet,
+                    enabled = !state.petManagement.busy,
+                    modifier = Modifier.fillMaxWidth(),
+                ) { Text("Добавить питомца") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PetManagementDialogs(state: MainUiState, callbacks: SettingsCallbacks) {
+    state.petManagement.editor?.let { mode ->
+        val existing = (mode as? PetEditorMode.Edit)?.pet
+        var name by rememberSaveable(existing?.id?.value) { mutableStateOf(existing?.displayName.orEmpty()) }
+        var species by rememberSaveable(existing?.id?.value) {
+            mutableStateOf(existing?.species?.takeUnless { it == PetSpecies.UNSPECIFIED })
+        }
+        var submitted by rememberSaveable(existing?.id?.value) { mutableStateOf(false) }
+        val duplicate = state.pets.any {
+            it.pet.id != existing?.id && normalizePetName(it.pet.displayName) == normalizePetName(name)
+        }
+        val valid = isPetEditorValid(name, species) && !duplicate
+        AlertDialog(
+            modifier = Modifier.testTag(SettingsScreenTestTags.PetEditor),
+            onDismissRequest = { if (!state.petManagement.busy) callbacks.onDismissPetManagement() },
+            title = { Text(if (existing == null) "Новый питомец" else "Изменить питомца") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it; submitted = false },
+                        label = { Text("Имя питомца") },
+                        singleLine = true,
+                        isError = submitted && !valid,
+                    )
+                    PetSpeciesSelector(species) { species = it; submitted = false }
+                    if (submitted && !valid) Text(
+                        when {
+                            name.trim().isEmpty() -> "Введите имя питомца"
+                            duplicate -> "Питомец с таким именем уже есть"
+                            species == null -> "Выберите вид питомца"
+                            else -> "Имя должно содержать не больше 50 символов"
+                        },
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    state.petManagement.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.petManagement.busy,
+                    onClick = {
+                        submitted = true
+                        if (valid) callbacks.onSavePet(name.trim(), requireNotNull(species))
+                    },
+                ) { Text("Сохранить") }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !state.petManagement.busy,
+                    onClick = callbacks.onDismissPetManagement,
+                ) { Text("Отмена") }
+            },
+        )
+    }
+    state.petManagement.deletion?.let { preview ->
+        AlertDialog(
+            modifier = Modifier.testTag(SettingsScreenTestTags.PetDeleteDialog),
+            onDismissRequest = { if (!state.petManagement.busy) callbacks.onDismissPetManagement() },
+            title = { Text("Удалить ${preview.pet.displayName}?") },
+            text = { Text("Будет удалено измерений: ${preview.measurementCount}. Это действие нельзя отменить.") },
+            confirmButton = {
+                TextButton(
+                    enabled = !state.petManagement.busy,
+                    onClick = callbacks.onConfirmDeletePet,
+                ) { Text("Удалить") }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !state.petManagement.busy,
+                    onClick = callbacks.onDismissPetManagement,
+                ) { Text("Отмена") }
             },
         )
     }

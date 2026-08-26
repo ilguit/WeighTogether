@@ -3,6 +3,7 @@ package com.example.huaweimisync
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import java.time.LocalDate
+import com.example.huaweimisync.domain.PetSpecies
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -10,6 +11,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SettingsScreenContractTest {
+    @Test
+    fun `pet editor requires a nonblank name and explicit supported species`() {
+        assertFalse(isPetEditorValid("Барсик", null))
+        assertFalse(isPetEditorValid("Барсик", PetSpecies.UNSPECIFIED))
+        assertFalse(isPetEditorValid("   ", PetSpecies.CAT))
+        assertTrue(isPetEditorValid(" Барсик ", PetSpecies.CAT))
+        assertTrue(isPetEditorValid("Шарик", PetSpecies.DOG))
+    }
+
+    @Test
+    fun `legacy unspecified species has a readable label`() {
+        assertEquals("Кошка", petSpeciesLabel(PetSpecies.CAT))
+        assertEquals("Собака", petSpeciesLabel(PetSpecies.DOG))
+        assertEquals("Вид не указан", petSpeciesLabel(PetSpecies.UNSPECIFIED))
+    }
+
     @Test
     fun `profile summary contains real height date and sex`() {
         assertEquals(
