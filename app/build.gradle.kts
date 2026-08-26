@@ -4,6 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
     id("com.example.huaweimisync.release-history")
+    id("com.example.huaweimisync.room-schema-guard")
 }
 
 android {
@@ -112,69 +113,4 @@ dependencies {
     androidTestImplementation("androidx.work:work-testing:2.10.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.11.4")
-}
-
-val verifyRoomSchemaVersion by tasks.registering {
-    group = "verification"
-    description = "Verifies that AppDatabase and the latest committed Room schema use the same version."
-
-    val databaseSource = layout.projectDirectory.file(
-        "src/main/kotlin/com/example/huaweimisync/data/AppDatabase.kt",
-    )
-    val schemaDirectory = layout.projectDirectory.dir(
-        "schemas/com.example.huaweimisync.data.AppDatabase",
-    )
-
-    inputs.file(databaseSource)
-    inputs.dir(schemaDirectory)
-
-    doLast {
-        val source = databaseSource.asFile.readText()
-        val databaseAnnotation = Regex(
-            pattern = """@Database\s*\((.*?)\)\s*abstract\s+class\s+AppDatabase""",
-            option = RegexOption.DOT_MATCHES_ALL,
-        ).find(source) ?: throw GradleException(
-            "Cannot determine the Room version: AppDatabase @Database annotation was not found.",
-        )
-        val declaredVersion = Regex("""\bversion\s*=\s*(\d+)""")
-            .find(databaseAnnotation.groupValues[1])
-            ?.groupValues
-            ?.get(1)
-            ?.toInt()
-            ?: throw GradleException(
-                "Cannot determine the Room version: @Database must declare a numeric version.",
-            )
-
-        val schemaVersions = schemaDirectory.asFile
-            .listFiles()
-            .orEmpty()
-            .filter { it.isFile && it.extension == "json" }
-            .mapNotNull { it.nameWithoutExtension.toIntOrNull() }
-        val highestSchemaVersion = schemaVersions.maxOrNull()
-            ?: throw GradleException(
-                "Cannot verify the Room version: no numeric schema snapshots were found in " +
-                    "${schemaDirectory.asFile}.",
-            )
-
-        if (declaredVersion < highestSchemaVersion) {
-            throw GradleException(
-                "AppDatabase version $declaredVersion is below the highest committed Room schema " +
-                    "version $highestSchemaVersion. Restore or advance the @Database version.",
-            )
-        }
-        if (declaredVersion != highestSchemaVersion) {
-            throw GradleException(
-                "AppDatabase version $declaredVersion does not match the highest committed Room " +
-                    "schema version $highestSchemaVersion. Commit the matching schema snapshot.",
-            )
-        }
-    }
-}
-
-tasks.named("preBuild").configure {
-    dependsOn(verifyRoomSchemaVersion)
-}
-
-tasks.named("check").configure {
-    dependsOn(verifyRoomSchemaVersion)
 }
