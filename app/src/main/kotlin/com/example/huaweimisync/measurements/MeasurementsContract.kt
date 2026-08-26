@@ -504,6 +504,7 @@ data class MeasurementsCallbacks(
     val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingDeleteRequested: (PendingMeasurementId) -> Unit = {},
     val onHomeKgChartSeriesToggled: (seriesKey: String) -> Unit = {},
+    val onPetMeasurementRequested: () -> Unit = {},
 ) {
     companion object {
         val None = MeasurementsCallbacks(
@@ -524,6 +525,7 @@ data class MeasurementsCallbacks(
             onPendingPreviewRequested = {},
             onPendingDeleteRequested = {},
             onHomeKgChartSeriesToggled = {},
+            onPetMeasurementRequested = {},
         )
     }
 }
