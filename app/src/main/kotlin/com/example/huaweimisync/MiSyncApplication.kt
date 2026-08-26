@@ -16,6 +16,7 @@ import com.example.huaweimisync.data.MeasurementRepository
 import com.example.huaweimisync.data.ProfileStore
 import com.example.huaweimisync.data.RoomAccountRepository
 import com.example.huaweimisync.data.RoomMeasurementPersistence
+import com.example.huaweimisync.data.RoomPetRepository
 import com.example.huaweimisync.data.SyncAwareAccountRepository
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.sync.HealthConnectGateway
@@ -52,6 +53,7 @@ class AppContainer(application: Application) {
     internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val profileStore = ProfileStore(application, externalSyncOperations)
     val packetParser = MiScalePacketParser()
+    val pets = RoomPetRepository(database)
     val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(
