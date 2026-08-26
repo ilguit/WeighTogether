@@ -79,13 +79,20 @@ internal data class PetMeasurementSaveRequest(
     val secondWeightKg: Double,
 )
 
+internal class PetIngestionSession(
+    val registerPetPacket: (String, ByteArray) -> Unit,
+    val release: () -> Unit,
+)
+
 /** Android-free state machine for the two distinct stable readings used by pet weighing. */
 internal class PetMeasurementCoordinator(
     private val setState: (PetMeasurementUiState) -> Unit,
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
-    private val acquirePetSessionGate: suspend () -> (() -> Unit) = { {} },
+    private val acquirePetSessionGate: suspend () -> PetIngestionSession = {
+        PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+    },
     private val monotonicNowNanos: () -> Long,
 ) {
     private val lock = Any()
@@ -110,7 +117,7 @@ internal class PetMeasurementCoordinator(
             if (operation != null || starting) return null
             starting = true
         }
-        val releaseIngestionGate = try {
+        val ingestionSession = try {
             acquirePetSessionGate()
         } catch (error: Throwable) {
             synchronized(lock) { starting = false }
@@ -119,16 +126,16 @@ internal class PetMeasurementCoordinator(
         val token = synchronized(lock) {
             starting = false
             if (operation != null) {
-                releaseIngestionGate()
+                ingestionSession.release()
                 return null
             }
-            OperationToken(++nextOperationId).also {
+            OperationToken(++nextOperationId, ingestionSession).also {
                 operation = Operation(
                     token = it,
                     pet = pet,
                     selectedAddress = selectedAddress,
                     startedAtNanos = monotonicNowNanos(),
-                    releaseIngestionGate = releaseIngestionGate,
+                    ingestionSession = ingestionSession,
                 )
                 setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
             }
@@ -205,6 +212,10 @@ internal class PetMeasurementCoordinator(
         }
     }
 
+    fun registerPetPacket(token: OperationToken, address: String, payload: ByteArray) {
+        token.ingestionSession.registerPetPacket(address, payload)
+    }
+
     fun saved(token: OperationToken, measurement: PetMeasurement) {
         val pet = synchronized(lock) { operation?.takeIf { it.token == token }?.pet } ?: return
         finish(token, PetMeasurementUiState.Completed(pet, measurement))
@@ -241,7 +252,7 @@ internal class PetMeasurementCoordinator(
             Cleanup(
                 stopScanner = active.takeStopScanner(),
                 cancelTimeout = active.cancelTimeout,
-                releaseIngestionGate = active.releaseIngestionGate,
+                releaseIngestionGate = active.ingestionSession.release,
             )
         }
         cleanup.stopScanner?.invoke()
@@ -255,14 +266,17 @@ internal class PetMeasurementCoordinator(
     val isActive: Boolean
         get() = synchronized(lock) { starting || operation != null }
 
-    internal class OperationToken internal constructor(internal val id: Long)
+    internal class OperationToken internal constructor(
+        internal val id: Long,
+        internal val ingestionSession: PetIngestionSession,
+    )
 
     private data class Operation(
         val token: OperationToken,
         val pet: Pet,
         val selectedAddress: String,
         val startedAtNanos: Long,
-        val releaseIngestionGate: () -> Unit,
+        val ingestionSession: PetIngestionSession,
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,

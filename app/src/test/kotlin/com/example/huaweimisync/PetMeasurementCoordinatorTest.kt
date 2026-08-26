@@ -33,7 +33,10 @@ class PetMeasurementCoordinatorTest {
         showMessage = messages::add,
         acquirePetSessionGate = {
             sessionActivity += true
-            ({ sessionActivity += false })
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { sessionActivity += false },
+            )
         },
         monotonicNowNanos = { operationStartedAtNanos },
     )
@@ -216,6 +219,32 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `terminal operation token retains its session registrar for a late callback`() = runBlocking {
+        val registered = mutableListOf<Pair<String, List<Byte>>>()
+        val lateCoordinator = PetMeasurementCoordinator(
+            setState = {},
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                PetIngestionSession(
+                    registerPetPacket = { address, payload ->
+                        registered += address to payload.toList()
+                    },
+                    release = {},
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val token = requireNotNull(lateCoordinator.start(pet, "AA"))
+
+        lateCoordinator.cancel(token)
+        lateCoordinator.registerPetPacket(token, "AA", byteArrayOf(1, 2))
+
+        assertEquals(listOf("AA" to listOf<Byte>(1, 2)), registered)
+    }
+
+    @Test
     fun `timeout error and cancel are terminal and restore once`() {
         val timeoutToken = start()
         coordinator.attachTimeout(timeoutToken) { timeoutCancellations++ }
@@ -361,8 +390,7 @@ class PetMeasurementCoordinatorTest {
             acquirePetSessionGate = {
                 gateEntered.complete(Unit)
                 allowGate.await()
-                val releaseGate: () -> Unit = {}
-                releaseGate
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
             },
             monotonicNowNanos = { operationStartedAtNanos },
         )
@@ -391,8 +419,7 @@ class PetMeasurementCoordinatorTest {
             acquirePetSessionGate = {
                 gateEntered.complete(Unit)
                 neverActivate.await()
-                val releaseGate: () -> Unit = {}
-                releaseGate
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
             },
             monotonicNowNanos = { operationStartedAtNanos },
         )

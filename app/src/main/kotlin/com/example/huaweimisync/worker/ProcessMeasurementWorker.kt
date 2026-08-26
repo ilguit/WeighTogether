@@ -7,6 +7,7 @@ import com.example.huaweimisync.MiSyncApplication
 import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.data.MeasurementIngestionResult
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -37,21 +38,34 @@ class MeasurementIngestionWorkOrchestrator(
     }
 }
 
+/** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
+internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
+internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
-class PetMeasurementIngestionGate {
+class PetMeasurementIngestionGate(
+    private val monotonicNowNanos: () -> Long = System::nanoTime,
+) {
     private val lock = Any()
     private val activationMutex = Mutex()
     private var petSessionActive = false
     private var activationOwner: Any? = null
+    private var closingOwner: Any? = null
+    private var closingExpiresAtNanos = 0L
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
+    private val activePetPackets = linkedSetOf<PacketIdentity>()
+    private val quarantinedPetPackets = linkedMapOf<PacketIdentity, Long>()
 
     suspend fun activate(): Lease {
         val owner = Any()
         activationMutex.lock(owner)
         val waitForProcessing = synchronized(lock) {
+            closingOwner = null
+            closingExpiresAtNanos = 0L
             petSessionActive = true
             activationOwner = owner
+            activePetPackets.clear()
             if (processingCount == 0) null else CompletableDeferred<Unit>().also {
                 processingDrained = it
             }
@@ -85,18 +99,103 @@ class PetMeasurementIngestionGate {
         }
     }
 
+    suspend fun <T : Any> processPacketWhenInactive(
+        packet: ScalePacket,
+        block: suspend () -> T,
+    ): T? {
+        val entered = synchronized(lock) {
+            val now = monotonicNowNanos()
+            pruneQuarantine(now)
+            if (petSessionActive || quarantinedPetPackets.containsKey(PacketIdentity.of(packet))) {
+                false
+            } else {
+                processingCount += 1
+                true
+            }
+        }
+        if (!entered) return null
+        return try {
+            block()
+        } finally {
+            leaveProcessing()
+        }
+    }
+
     private fun deactivate(owner: Any) {
         val shouldUnlock = synchronized(lock) {
             if (activationOwner !== owner) {
                 false
             } else {
+                val expiresAt = monotonicNowNanos() + PET_PACKET_QUARANTINE_TTL_NANOS
+                activePetPackets.forEach { identity ->
+                    quarantinedPetPackets.remove(identity)
+                    quarantinedPetPackets[identity] = expiresAt
+                }
+                activePetPackets.clear()
+                trimQuarantine()
                 petSessionActive = false
                 activationOwner = null
+                closingOwner = owner
+                closingExpiresAtNanos = expiresAt
                 processingDrained = null
                 true
             }
         }
         if (shouldUnlock) activationMutex.unlock(owner)
+    }
+
+    private fun leaveProcessing() {
+        val drained = synchronized(lock) {
+            processingCount -= 1
+            if (processingCount == 0) processingDrained.also { processingDrained = null }
+            else null
+        }
+        drained?.complete(Unit)
+    }
+
+    private fun pruneQuarantine(now: Long) {
+        val iterator = quarantinedPetPackets.iterator()
+        while (iterator.hasNext()) {
+            if (iterator.next().value <= now) iterator.remove()
+        }
+        if (closingExpiresAtNanos <= now) {
+            closingOwner = null
+            closingExpiresAtNanos = 0L
+        }
+    }
+
+    private fun registerPetPacket(owner: Any, deviceAddress: String, payload: ByteArray) =
+        synchronized(lock) {
+            val identity = PacketIdentity.of(deviceAddress, payload)
+            when {
+                petSessionActive && activationOwner === owner -> activePetPackets += identity
+                !petSessionActive && closingOwner === owner -> {
+                    val now = monotonicNowNanos()
+                    pruneQuarantine(now)
+                    if (closingOwner === owner) {
+                        quarantinedPetPackets.remove(identity)
+                        quarantinedPetPackets[identity] = closingExpiresAtNanos
+                        trimQuarantine()
+                    }
+                }
+            }
+        }
+
+    private fun trimQuarantine() {
+        while (quarantinedPetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
+            quarantinedPetPackets.remove(quarantinedPetPackets.keys.first())
+        }
+    }
+
+    private data class PacketIdentity(val address: String, val payload: String) {
+        companion object {
+            fun of(packet: ScalePacket): PacketIdentity = of(packet.deviceAddress, packet.payload)
+
+            fun of(deviceAddress: String, payload: ByteArray): PacketIdentity = PacketIdentity(
+                address = deviceAddress.trim().uppercase(Locale.ROOT),
+                payload = payload.joinToString("") { "%02x".format(it.toInt() and 0xff) },
+            )
+        }
     }
 
     class Lease internal constructor(
@@ -107,6 +206,10 @@ class PetMeasurementIngestionGate {
 
         fun release() {
             if (released.compareAndSet(false, true)) gate.deactivate(owner)
+        }
+
+        fun registerPetPacket(deviceAddress: String, payload: ByteArray) {
+            gate.registerPetPacket(owner, deviceAddress, payload)
         }
     }
 }
@@ -129,11 +232,11 @@ class ScalePacketProcessor(
     )
 
     suspend fun process(packet: ScalePacket): MeasurementIngestionResult {
-        return petMeasurementGate.processWhenInactive {
+        return petMeasurementGate.processPacketWhenInactive(packet) {
             val parsed = parse(packet.payload, packet.deviceAddress)
-                ?: return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+                ?: return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             if (!parsed.isStableWeight) {
-                return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+                return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             }
             ingestion.process(parsed)
         } ?: MeasurementIngestionResult.IgnoredNotFinal
