@@ -46,6 +46,30 @@ internal data class PetScaleReading(
     val rawIdentity: String,
 )
 
+internal fun petReadingRawIdentity(rawPayload: ByteArray): String =
+    rawPayload.joinToString("") { "%02x".format(it.toInt() and 0xff) }
+
+/** Invalidates suspended pet lookups so stale selections cannot start BLE later. */
+internal class PetMeasurementStartupGuard {
+    private val lock = Any()
+    private var generation = 0L
+
+    fun begin(): Token = synchronized(lock) { Token(++generation) }
+
+    fun invalidate() = synchronized(lock) {
+        generation += 1
+    }
+
+    fun isCurrent(token: Token): Boolean = synchronized(lock) { token.generation == generation }
+
+    suspend fun <T> resolve(token: Token, lookup: suspend () -> T): T? {
+        val result = lookup()
+        return result.takeIf { isCurrent(token) }
+    }
+
+    internal class Token internal constructor(internal val generation: Long)
+}
+
 internal data class PetMeasurementSaveRequest(
     val token: PetMeasurementCoordinator.OperationToken,
     val petId: PetId,
@@ -60,6 +84,7 @@ internal class PetMeasurementCoordinator(
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
+    private val acquirePetSessionGate: () -> (() -> Unit) = { {} },
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -81,7 +106,12 @@ internal class PetMeasurementCoordinator(
         val token = synchronized(lock) {
             if (operation != null) return null
             OperationToken(++nextOperationId).also {
-                operation = Operation(it, pet, selectedAddress)
+                operation = Operation(
+                    token = it,
+                    pet = pet,
+                    selectedAddress = selectedAddress,
+                    releaseIngestionGate = acquirePetSessionGate(),
+                )
             }
         }
         setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
@@ -170,8 +200,8 @@ internal class PetMeasurementCoordinator(
     }
 
     fun clear() {
-        val token = synchronized(lock) { operation?.token } ?: return
-        finish(token, PetMeasurementUiState.Idle)
+        val token = synchronized(lock) { operation?.token }
+        if (token != null) finish(token, PetMeasurementUiState.Idle)
     }
 
     private fun finish(
@@ -181,11 +211,13 @@ internal class PetMeasurementCoordinator(
     ) {
         val cancel = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return
+            val timeoutCancellation = active.cancelTimeout
+            runCatching { stopScanner() }
+            active.releaseIngestionGate()
             operation = null
-            active.cancelTimeout
+            timeoutCancellation
         }
         cancel?.invoke()
-        stopScanner()
         restoreAutomaticScanning()
         setState(terminalState)
         message?.let(showMessage)
@@ -200,6 +232,7 @@ internal class PetMeasurementCoordinator(
         val token: OperationToken,
         val pet: Pet,
         val selectedAddress: String,
+        val releaseIngestionGate: () -> Unit,
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,

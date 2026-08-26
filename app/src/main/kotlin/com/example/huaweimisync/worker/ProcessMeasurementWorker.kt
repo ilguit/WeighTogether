@@ -5,8 +5,9 @@ import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.example.huaweimisync.MiSyncApplication
 import com.example.huaweimisync.core.MiScalePacketParser
-import com.example.huaweimisync.data.MeasurementIngestionResult
 import com.example.huaweimisync.core.RawScaleMeasurement
+import com.example.huaweimisync.data.MeasurementIngestionResult
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 
 data class ScalePacket(
@@ -34,24 +35,53 @@ class MeasurementIngestionWorkOrchestrator(
     }
 }
 
+/** Application-scoped switch preventing pet readings from entering the human pipeline. */
+class PetMeasurementIngestionGate {
+    private val active = AtomicBoolean(false)
+
+    fun activate(): Lease {
+        check(active.compareAndSet(false, true)) { "A pet measurement session is already active" }
+        return Lease(this)
+    }
+
+    private fun deactivate() {
+        active.set(false)
+    }
+
+    val isActive: Boolean
+        get() = active.get()
+
+    class Lease internal constructor(private val gate: PetMeasurementIngestionGate) {
+        private val released = AtomicBoolean(false)
+
+        fun release() {
+            if (released.compareAndSet(false, true)) gate.deactivate()
+        }
+    }
+}
+
 /** Shared parse/filter -> durable ingest -> finalization scheduling pipeline. */
 class ScalePacketProcessor(
     private val parse: (ByteArray, String) -> RawScaleMeasurement?,
     private val ingestion: MeasurementIngestionWorkOrchestrator,
+    private val petMeasurementGate: PetMeasurementIngestionGate = PetMeasurementIngestionGate(),
 ) {
     constructor(
         parser: MiScalePacketParser,
         ingest: suspend (RawScaleMeasurement) -> MeasurementIngestionResult,
         finalizationScheduler: PendingFinalizationScheduler,
+        petMeasurementGate: PetMeasurementIngestionGate = PetMeasurementIngestionGate(),
     ) : this(
         parse = { payload, address -> parser.parse(payload, address) },
         ingestion = MeasurementIngestionWorkOrchestrator(ingest, finalizationScheduler),
+        petMeasurementGate = petMeasurementGate,
     )
 
     suspend fun process(packet: ScalePacket): MeasurementIngestionResult {
         val parsed = parse(packet.payload, packet.deviceAddress)
             ?: return MeasurementIngestionResult.IgnoredNotFinal
         if (!parsed.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
+        if (petMeasurementGate.isActive) return MeasurementIngestionResult.IgnoredNotFinal
         return ingestion.process(parsed)
     }
 }

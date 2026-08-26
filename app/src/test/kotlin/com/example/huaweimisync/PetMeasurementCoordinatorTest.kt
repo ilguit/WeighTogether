@@ -1,9 +1,13 @@
 package com.example.huaweimisync
 
+import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
 import java.time.Instant
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.runBlocking
 import kotlin.math.abs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -17,11 +21,16 @@ class PetMeasurementCoordinatorTest {
     private var scannerStops = 0
     private var automaticRestores = 0
     private var timeoutCancellations = 0
+    private val sessionActivity = mutableListOf<Boolean>()
     private val coordinator = PetMeasurementCoordinator(
         setState = states::add,
         stopScanner = { scannerStops++ },
         restoreAutomaticScanning = { automaticRestores++ },
         showMessage = messages::add,
+        acquirePetSessionGate = {
+            sessionActivity += true
+            ({ sessionActivity += false })
+        },
     )
 
     @Test
@@ -111,6 +120,7 @@ class PetMeasurementCoordinatorTest {
         assertFalse(coordinator.isActive)
         assertEquals(2, scannerStops)
         assertEquals(1, automaticRestores)
+        assertEquals(listOf(true, false), sessionActivity)
     }
 
     @Test
@@ -141,6 +151,66 @@ class PetMeasurementCoordinatorTest {
         assertEquals(30_000L, PET_MEASUREMENT_TIMEOUT_MILLIS)
     }
 
+    @Test
+    fun `clear deactivates ingestion gate with and without active operation`() {
+        coordinator.clear()
+        val token = start()
+        coordinator.clear()
+
+        assertEquals(listOf(true, false), sessionActivity)
+        assertFalse(coordinator.isActive)
+        assertNull(coordinator.accept(token, reading(70.0)))
+    }
+
+    @Test
+    fun `canonical parser payload defines duplicate identity regardless of prefix`() {
+        val canonical = validPayload()
+        val parser = MiScalePacketParser(java.time.ZoneOffset.UTC)
+        val first = requireNotNull(parser.parse(byteArrayOf(0x01) + canonical, SELECTED_ADDRESS))
+        val second = requireNotNull(
+            parser.parse(byteArrayOf(0x7f, 0x55) + canonical, SELECTED_ADDRESS),
+        )
+
+        assertEquals(
+            petReadingRawIdentity(first.rawPayload),
+            petReadingRawIdentity(second.rawPayload),
+        )
+        val token = start()
+        val firstReading = reading(70.0, raw = petReadingRawIdentity(first.rawPayload))
+        coordinator.accept(token, firstReading)
+        assertNull(
+            coordinator.accept(
+                token,
+                firstReading.copy(
+                    weightKg = 74.0,
+                    rawIdentity = petReadingRawIdentity(second.rawPayload),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `invalidated suspended lookup cannot complete startup`() = runBlocking {
+        val guard = PetMeasurementStartupGuard()
+        val lookupStarted = CompletableDeferred<Unit>()
+        val releaseLookup = CompletableDeferred<Unit>()
+        val token = guard.begin()
+        val resolved = async {
+            guard.resolve(token) {
+                lookupStarted.complete(Unit)
+                releaseLookup.await()
+                pet
+            }
+        }
+
+        lookupStarted.await()
+        guard.invalidate()
+        releaseLookup.complete(Unit)
+
+        assertNull(resolved.await())
+        assertFalse(guard.isCurrent(token))
+    }
+
     private fun start(): PetMeasurementCoordinator.OperationToken =
         requireNotNull(coordinator.start(pet, SELECTED_ADDRESS))
 
@@ -165,6 +235,11 @@ class PetMeasurementCoordinatorTest {
             displayName = "Барсик",
             createdAt = Instant.EPOCH,
             updatedAt = Instant.EPOCH,
+        )
+
+        private fun validPayload() = byteArrayOf(
+            0x00, 0x20, 0xea.toByte(), 0x07, 0x08, 0x1a, 0x0c, 0x22, 0x38,
+            0xf4.toByte(), 0x01, 0xb0.toByte(), 0x36,
         )
     }
 }

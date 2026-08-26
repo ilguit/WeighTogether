@@ -67,7 +67,9 @@ internal fun PetMeasurementDialog(
     if (state == PetMeasurementUiState.Idle || state == PetMeasurementUiState.Cancelled) return
 
     AlertDialog(
-        onDismissRequest = callbacks.onCancel,
+        onDismissRequest = {
+            if (state !is PetMeasurementUiState.Saving) callbacks.onCancel()
+        },
         modifier = Modifier.testTag(PetMeasurementTestTags.Dialog),
         title = { Text(dialogTitle(state)) },
         text = {

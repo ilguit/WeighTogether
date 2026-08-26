@@ -128,6 +128,32 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertTrue(cancelled >= 2) }
     }
 
+    @Test
+    fun savingIgnoresSystemDismissAndHasNoCancelWhileCancellableStateDismisses() {
+        val pet = pet("cat", "Луна")
+        val state = mutableStateOf<PetMeasurementUiState>(
+            PetMeasurementUiState.Saving(pet, 60.0, 63.75),
+        )
+        var cancelled = 0
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                PetMeasurementDialog(
+                    state.value,
+                    emptyList(),
+                    callbacks(onCancel = { cancelled++ }),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.runOnIdle { assertEquals(0, cancelled) }
+
+        composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
     private fun setDialog(
         state: PetMeasurementUiState,
         pets: List<PetWithLatestWeight>,

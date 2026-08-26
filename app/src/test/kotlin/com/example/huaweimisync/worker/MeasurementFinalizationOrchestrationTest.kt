@@ -143,6 +143,36 @@ class MeasurementFinalizationOrchestrationTest {
     }
 
     @Test
+    fun activePetSessionSuppressesHumanIngestionAndInactiveSessionPasses() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            var ingested = 0
+            val processor = ScalePacketProcessor(
+                parse = { _, _ -> raw() },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingested += 1
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) = Unit
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+            val packet = ScalePacket(byteArrayOf(1), "AA")
+
+            val lease = gate.activate()
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(packet))
+            assertEquals(0, ingested)
+
+            lease.release()
+            assertTrue(processor.process(packet) is MeasurementIngestionResult.CreatedAggregate)
+            assertEquals(1, ingested)
+        }
+
+    @Test
     fun workPlanIsUniqueByPendingIdAndUsesRemainingSlidingDelay() {
         val pending = pending(finalizeAfter = NOW.plusSeconds(10))
 

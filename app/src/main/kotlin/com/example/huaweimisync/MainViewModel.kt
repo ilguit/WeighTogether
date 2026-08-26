@@ -63,6 +63,7 @@ import java.time.Instant
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -168,6 +169,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val scanning = MutableStateFlow(false)
     private val refreshing = MutableStateFlow(false)
     private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
+    private val petMeasurementStartup = PetMeasurementStartupGuard()
+    private var petMeasurementStartupJob: Job? = null
     private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
@@ -180,6 +183,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         stopScanner = petScanner::stop,
         restoreAutomaticScanning = ::restoreAutomaticScanning,
         showMessage = ::showMessage,
+        acquirePetSessionGate = {
+            val lease = container.petMeasurementIngestionGate.activate()
+            lease::release
+        },
     )
     private val initialHealthConnectAvailability = container.healthConnect.availability()
     private val initialHealthConnectState = if (
@@ -1020,6 +1027,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        invalidatePetMeasurementStartup()
         petMeasurementCoordinator.clear()
         scaleRefresh.clear()
         scanner.stop()
@@ -1027,6 +1035,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun openPetMeasurement() {
+        invalidatePetMeasurementStartup()
         if (scanning.value || refreshing.value || petMeasurementCoordinator.isActive) {
             showMessage("Дождитесь завершения текущего BLE-сканирования")
             return
@@ -1053,64 +1062,90 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         startPetMeasurement(pet.id)
     }
 
-    fun startPetMeasurement(petId: PetId) = viewModelScope.launch {
-        if (scanning.value || petMeasurementCoordinator.isActive) {
-            showMessage("Дождитесь завершения текущего BLE-сканирования")
-            return@launch
-        }
-        if (refreshing.value) scaleRefresh.clear()
-        val address = when (
-            val preflight = scaleRefreshPreflight(container.profileStore.settings.value.scaleAddress)
-        ) {
-            is ScaleRefreshPreflightResult.Ready -> preflight.address
-            is ScaleRefreshPreflightResult.Rejected -> {
-                petMeasurement.value = PetMeasurementUiState.Error(PET_SCALE_REQUIRED_MESSAGE)
-                showMessage(PET_SCALE_REQUIRED_MESSAGE)
+    fun startPetMeasurement(petId: PetId) {
+        invalidatePetMeasurementStartup()
+        val startupToken = petMeasurementStartup.begin()
+        petMeasurementStartupJob = viewModelScope.launch {
+            if (scanning.value || petMeasurementCoordinator.isActive) {
+                showMessage("Дождитесь завершения текущего BLE-сканирования")
                 return@launch
             }
-        }
-        if (!BleSupport.hasScanPermission(getApplication()) ||
-            !BleSupport.hasConnectPermission(getApplication())
-        ) {
-            petMeasurement.value = PetMeasurementUiState.Error(PET_BLUETOOTH_PERMISSION_MESSAGE)
-            showMessage(PET_BLUETOOTH_PERMISSION_MESSAGE)
-            return@launch
-        }
-        val pet = container.pets.getPet(petId) ?: run {
-            petMeasurement.value = PetMeasurementUiState.Error("Питомец не найден")
-            return@launch
-        }
-        if (scanning.value) {
-            showMessage("Дождитесь завершения текущего BLE-сканирования")
-            return@launch
-        }
-        if (refreshing.value) scaleRefresh.clear()
-        val token = petMeasurementCoordinator.start(pet, address) ?: return@launch
-        val started = runCatching {
-            BackgroundScanRegistrar.unregister(getApplication())
-            ReliabilityScanService.setEnabled(getApplication(), false)
-        }.fold(
-            onSuccess = {
-                petScanner.start(
-                    address = address,
-                    onResult = { onPetScanResult(token, address, it) },
-                    onError = { petMeasurementCoordinator.fail(token, it) },
+            if (refreshing.value) scaleRefresh.clear()
+            val address = when (
+                val preflight = scaleRefreshPreflight(
+                    container.profileStore.settings.value.scaleAddress,
                 )
-            },
-            onFailure = { Result.failure(it) },
-        )
-        started.onFailure {
-            petMeasurementCoordinator.fail(
-                token,
-                it.message ?: "Не удалось запустить сканирование",
+            ) {
+                is ScaleRefreshPreflightResult.Ready -> preflight.address
+                is ScaleRefreshPreflightResult.Rejected -> {
+                    petMeasurement.value = PetMeasurementUiState.Error(PET_SCALE_REQUIRED_MESSAGE)
+                    showMessage(PET_SCALE_REQUIRED_MESSAGE)
+                    return@launch
+                }
+            }
+            if (!BleSupport.hasScanPermission(getApplication()) ||
+                !BleSupport.hasConnectPermission(getApplication())
+            ) {
+                petMeasurement.value = PetMeasurementUiState.Error(PET_BLUETOOTH_PERMISSION_MESSAGE)
+                showMessage(PET_BLUETOOTH_PERMISSION_MESSAGE)
+                return@launch
+            }
+            val pet = petMeasurementStartup.resolve(startupToken) {
+                container.pets.getPet(petId)
+            } ?: run {
+                if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
+                petMeasurement.value = PetMeasurementUiState.Error("Питомец не найден")
+                return@launch
+            }
+            if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
+            if (scanning.value) {
+                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                return@launch
+            }
+            if (refreshing.value) scaleRefresh.clear()
+            val token = petMeasurementCoordinator.start(pet, address) ?: return@launch
+            if (!petMeasurementStartup.isCurrent(startupToken)) {
+                petMeasurementCoordinator.cancel()
+                return@launch
+            }
+            val started = runCatching {
+                BackgroundScanRegistrar.unregister(getApplication())
+                ReliabilityScanService.setEnabled(getApplication(), false)
+            }.fold(
+                onSuccess = {
+                    if (!petMeasurementStartup.isCurrent(startupToken)) {
+                        return@fold Result.failure(
+                            CancellationException("Pet measurement start invalidated"),
+                        )
+                    }
+                    petScanner.start(
+                        address = address,
+                        onResult = { onPetScanResult(token, address, it) },
+                        onError = { petMeasurementCoordinator.fail(token, it) },
+                    )
+                },
+                onFailure = { Result.failure(it) },
             )
-        }.onSuccess {
-            attachPetMeasurementTimeout(token)
+            started.onFailure {
+                petMeasurementCoordinator.fail(
+                    token,
+                    it.message ?: "Не удалось запустить сканирование",
+                )
+            }.onSuccess {
+                attachPetMeasurementTimeout(token)
+            }
         }
     }
 
     fun cancelPetMeasurement() {
+        invalidatePetMeasurementStartup()
         petMeasurementCoordinator.cancel()
+    }
+
+    private fun invalidatePetMeasurementStartup() {
+        petMeasurementStartup.invalidate()
+        petMeasurementStartupJob?.cancel()
+        petMeasurementStartupJob = null
     }
 
     private fun attachPetMeasurementTimeout(token: PetMeasurementCoordinator.OperationToken) {
@@ -1144,7 +1179,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 measuredAt = parsed.measuredAt,
                 weightKg = parsed.weightKg,
                 isStableWeight = parsed.isStableWeight,
-                rawIdentity = payload.joinToString("") { "%02x".format(it.toInt() and 0xff) },
+                rawIdentity = petReadingRawIdentity(parsed.rawPayload),
             ),
         )
         if (request == null) {

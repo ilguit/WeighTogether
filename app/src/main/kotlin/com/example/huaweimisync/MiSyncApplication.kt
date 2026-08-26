@@ -26,6 +26,7 @@ import com.example.huaweimisync.worker.ExternalSyncPauseCoordinator
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.MeasurementWorkSweepScheduler
 import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
+import com.example.huaweimisync.worker.PetMeasurementIngestionGate
 import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
@@ -61,6 +62,7 @@ class AppContainer(application: Application) {
         pausedUntilProvider = { profileStore.externalSyncPausedUntilEpochMillis },
     )
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
+    val petMeasurementIngestionGate = PetMeasurementIngestionGate()
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
     val measurementPersistence = RoomMeasurementPersistence(
@@ -89,6 +91,7 @@ class AppContainer(application: Application) {
         parser = packetParser,
         ingest = repository::ingest,
         finalizationScheduler = finalizationScheduler,
+        petMeasurementGate = petMeasurementIngestionGate,
     )
     val externalSyncPause = ExternalSyncPauseCoordinator(
         settings = profileStore,
