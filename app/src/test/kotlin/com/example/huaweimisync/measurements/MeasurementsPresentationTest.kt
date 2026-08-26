@@ -209,6 +209,7 @@ class MeasurementsPresentationTest {
         assertEquals(MeasurementSyncPresentationState.SYNCED, personalSynced.state)
         assertFalse(personalSynced.canRetry)
         assertTrue(personalPending.canRetry)
+        assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, local.state)
         assertFalse(local.canRetry)
     }
 
