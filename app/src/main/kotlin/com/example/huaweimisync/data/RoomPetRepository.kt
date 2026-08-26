@@ -6,6 +6,7 @@ import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
 import com.example.huaweimisync.domain.PetRepository
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import java.time.Instant
 import java.util.UUID
@@ -24,6 +25,9 @@ class RoomPetRepository(
     override suspend fun getPet(id: PetId): Pet? = dao.getPet(id.value)?.toDomain()
 
     override suspend fun createPet(pet: NewPet): Pet = database.withTransaction {
+        require(pet.species != PetSpecies.UNSPECIFIED) {
+            "A species is required when creating a pet"
+        }
         dao.getPetByNormalizedName(pet.normalizedName)?.let {
             throw PetNameConflictException(pet.normalizedName)
         }
@@ -32,6 +36,7 @@ class RoomPetRepository(
             id = newId(),
             displayName = pet.displayName,
             normalizedName = pet.normalizedName,
+            species = pet.species,
             createdAtEpochMillis = timestamp.toEpochMilli(),
             updatedAtEpochMillis = timestamp.toEpochMilli(),
         )
@@ -83,6 +88,7 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
         id = id,
         displayName = displayName,
         normalizedName = normalizedName,
+        species = species,
         createdAtEpochMillis = createdAtEpochMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
     ).toDomain()

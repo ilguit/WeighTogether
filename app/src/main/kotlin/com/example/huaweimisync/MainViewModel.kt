@@ -28,6 +28,7 @@ import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.domain.PendingMeasurement
@@ -1054,7 +1055,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun createPetAndStartMeasurement(displayName: String) = viewModelScope.launch {
         val name = displayName.trim()
         val pet = try {
-            container.pets.createPet(NewPet(name))
+            container.pets.createPet(NewPet(name, PetSpecies.UNSPECIFIED))
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {

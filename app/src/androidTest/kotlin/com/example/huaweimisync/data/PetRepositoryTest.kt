@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
 import java.time.Instant
 import kotlinx.coroutines.flow.first
@@ -44,12 +45,12 @@ class PetRepositoryTest {
             newId = { ids.removeFirst() },
         )
 
-        val created = repository.createPet(NewPet("Барсик"))
+        val created = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
 
         assertEquals("pet-a", created.id.value)
         assertEquals("барсик", created.normalizedName)
         assertThrows(PetNameConflictException::class.java) {
-            runBlocking { repository.createPet(NewPet("БАРСИК")) }
+            runBlocking { repository.createPet(NewPet("БАРСИК", PetSpecies.DOG)) }
         }
     }
 
@@ -68,7 +69,7 @@ class PetRepositoryTest {
             now = { times.removeFirst() },
             newId = { ids.removeFirst() },
         )
-        val pet = repository.createPet(NewPet("Луна"))
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
 
         repository.recordCompletedMeasurement(
             petId = pet.id,

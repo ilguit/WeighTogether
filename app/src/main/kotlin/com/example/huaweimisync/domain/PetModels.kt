@@ -13,9 +13,16 @@ value class PetId(val value: String) {
     override fun toString(): String = value
 }
 
+enum class PetSpecies {
+    CAT,
+    DOG,
+    UNSPECIFIED,
+}
+
 data class Pet(
     val id: PetId,
     val displayName: String,
+    val species: PetSpecies = PetSpecies.UNSPECIFIED,
     val normalizedName: String = normalizePetName(displayName),
     val createdAt: Instant,
     val updatedAt: Instant,
@@ -29,9 +36,26 @@ data class Pet(
     }
 }
 
-data class NewPet(val displayName: String) {
+data class NewPet(
+    val displayName: String,
+    val species: PetSpecies,
+) {
     init {
         validatePetName(displayName)
+        require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
+    }
+
+    val normalizedName: String = normalizePetName(displayName)
+}
+
+data class PetUpdate(
+    val id: PetId,
+    val displayName: String,
+    val species: PetSpecies,
+) {
+    init {
+        validatePetName(displayName)
+        require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
     }
 
     val normalizedName: String = normalizePetName(displayName)

@@ -10,6 +10,7 @@ data class PetWithLatestMeasurementRow(
     val id: String,
     val displayName: String,
     val normalizedName: String,
+    val species: com.example.huaweimisync.domain.PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val latestMeasurementId: String?,
@@ -23,7 +24,7 @@ data class PetWithLatestMeasurementRow(
 interface PetDao {
     @Query(
         """
-        SELECT p.id, p.displayName, p.normalizedName, p.createdAtEpochMillis,
+        SELECT p.id, p.displayName, p.normalizedName, p.species, p.createdAtEpochMillis,
             p.updatedAtEpochMillis, m.id AS latestMeasurementId,
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
