@@ -18,7 +18,7 @@ Use JDK 17 and Android SDK Platform 36; set `sdk.dir` in untracked `local.proper
 
 Before opening a PR, run the combined check documented in the README: `./gradlew testPersonalDebugUnitTest lintPersonalDebug assemblePersonalDebug`.
 
-Before building an APK, delete the previous APK artifact for the target variant from `app/build/outputs/apk/<flavor>/<buildType>/`; do not delete unrelated build outputs. Every final APK build must increment the build component of `versionName` using the `0.1.<build>` format (for example, `0.1.4` → `0.1.5`) and also increment Android `versionCode`. Commit both version changes with the final build.
+Before building an APK, delete the previous APK artifact for the target variant from `app/build/outputs/apk/<flavor>/<buildType>/`; do not delete unrelated build outputs. Every ordinary final APK build must increment Android `versionCode` and keep `versionName` unchanged. Change `versionName` only after an explicit owner decision to create a release, using the `0.1.<release>` format. Commit the applicable version changes with the final build; the target-artifact cleanup and commit requirements apply to both ordinary builds and releases.
 
 ## Coding Style & Naming Conventions
 
