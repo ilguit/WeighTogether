@@ -139,6 +139,80 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `pre-session stable replay is ignored despite a new receive timestamp`() = runBlocking {
+        val baseline = PetStableReadingBaseline(
+            address = SELECTED_ADDRESS,
+            weightKg = 70.0,
+            rawIdentity = "durable-packet",
+        )
+        val baselineCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = { scannerStops++ },
+            restoreAutomaticScanning = { automaticRestores++ },
+            showMessage = messages::add,
+            acquirePetSessionGate = { selectedAddress ->
+                assertEquals(SELECTED_ADDRESS, selectedAddress)
+                PetIngestionSession(
+                    registerPetPacket = { _, _ -> },
+                    release = {},
+                    preSessionBaseline = baseline,
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
+
+        assertNull(
+            baselineCoordinator.accept(
+                token,
+                reading(
+                    70.0,
+                    second = 20,
+                    raw = "durable-packet",
+                    measuredAt = operationStartedAt.plusSeconds(20),
+                ),
+            ),
+        )
+
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(0, scannerStops)
+    }
+
+    @Test
+    fun `new stable value after pre-session baseline is accepted without zero transition`() =
+        runBlocking {
+            val baselineCoordinator = PetMeasurementCoordinator(
+                setState = states::add,
+                stopScanner = { scannerStops++ },
+                restoreAutomaticScanning = { automaticRestores++ },
+                showMessage = messages::add,
+                acquirePetSessionGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = {},
+                        preSessionBaseline = PetStableReadingBaseline(
+                            address = SELECTED_ADDRESS,
+                            weightKg = 70.0,
+                            rawIdentity = "durable-packet",
+                        ),
+                    )
+                },
+                monotonicNowNanos = { operationStartedAtNanos },
+            )
+            val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
+
+            assertNull(
+                baselineCoordinator.accept(
+                    token,
+                    reading(74.2, second = 1, raw = "new-stable-packet"),
+                ),
+            )
+
+            assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 74.2), states.last())
+            assertEquals(0, scannerStops)
+        }
+
+    @Test
     fun `non finite and non positive weights do not advance`() {
         val token = start()
 

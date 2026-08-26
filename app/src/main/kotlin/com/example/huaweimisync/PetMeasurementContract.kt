@@ -82,6 +82,13 @@ internal data class PetMeasurementSaveRequest(
 internal class PetIngestionSession(
     val registerPetPacket: (String, ByteArray) -> Unit,
     val release: () -> Unit,
+    val preSessionBaseline: PetStableReadingBaseline? = null,
+)
+
+internal data class PetStableReadingBaseline(
+    val address: String,
+    val weightKg: Double,
+    val rawIdentity: String,
 )
 
 /** Android-free state machine for the two distinct stable readings used by pet weighing. */
@@ -90,7 +97,7 @@ internal class PetMeasurementCoordinator(
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
-    private val acquirePetSessionGate: suspend () -> PetIngestionSession = {
+    private val acquirePetSessionGate: suspend (String) -> PetIngestionSession = {
         PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
     },
     private val monotonicNowNanos: () -> Long,
@@ -118,7 +125,7 @@ internal class PetMeasurementCoordinator(
             starting = true
         }
         val ingestionSession = try {
-            acquirePetSessionGate()
+            acquirePetSessionGate(selectedAddress)
         } catch (error: Throwable) {
             synchronized(lock) { starting = false }
             throw error
@@ -136,6 +143,7 @@ internal class PetMeasurementCoordinator(
                     selectedAddress = selectedAddress,
                     startedAtNanos = monotonicNowNanos(),
                     ingestionSession = ingestionSession,
+                    preSessionBaseline = ingestionSession.preSessionBaseline,
                 )
                 setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
             }
@@ -167,6 +175,7 @@ internal class PetMeasurementCoordinator(
             val identity = ReadingIdentity(reading.measuredAt, reading.rawIdentity)
             val first = active.first
             if (first == null) {
+                if (active.preSessionBaseline?.matches(reading) == true) return null
                 active.first = CapturedReading(identity, reading.measuredAt, reading.weightKg)
                 FirstAccepted(active.pet, reading.weightKg)
             } else {
@@ -277,6 +286,7 @@ internal class PetMeasurementCoordinator(
         val selectedAddress: String,
         val startedAtNanos: Long,
         val ingestionSession: PetIngestionSession,
+        val preSessionBaseline: PetStableReadingBaseline?,
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,
@@ -290,6 +300,11 @@ internal class PetMeasurementCoordinator(
         }
 
     private data class ReadingIdentity(val measuredAt: Instant, val rawIdentity: String)
+
+    private fun PetStableReadingBaseline.matches(reading: PetScaleReading): Boolean =
+        isSelectedScaleAddress(address, reading.address) &&
+            weightKg == reading.weightKg &&
+            rawIdentity == reading.rawIdentity
     private data class CapturedReading(
         val identity: ReadingIdentity,
         val measuredAt: Instant,

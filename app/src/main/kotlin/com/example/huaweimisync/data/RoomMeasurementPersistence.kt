@@ -112,6 +112,9 @@ class RoomMeasurementPersistence(
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : MeasurementRoutingPersistence {
+    override suspend fun latestAcceptedStableMeasurement(): RawScaleMeasurement? =
+        acceptedStableMeasurementDao.getLatest()?.toRawScaleMeasurement()
+
     fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
         measurementDao.observeAll(accountId.value)
 

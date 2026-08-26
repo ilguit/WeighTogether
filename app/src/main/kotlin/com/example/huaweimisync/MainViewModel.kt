@@ -184,9 +184,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         stopScanner = petScanner::stop,
         restoreAutomaticScanning = ::restoreAutomaticScanning,
         showMessage = ::showMessage,
-        acquirePetSessionGate = {
+        acquirePetSessionGate = { selectedAddress ->
+            val baseline = container.repository.latestAcceptedStableMeasurement()
+                ?.takeIf { isSelectedScaleAddress(selectedAddress, it.deviceAddress) }
+                ?.let {
+                    PetStableReadingBaseline(
+                        address = it.deviceAddress,
+                        weightKg = it.weightKg,
+                        rawIdentity = petReadingRawIdentity(it.rawPayload),
+                    )
+                }
             val lease = container.petMeasurementIngestionGate.activate()
-            PetIngestionSession(lease::registerPetPacket, lease::release)
+            PetIngestionSession(lease::registerPetPacket, lease::release, baseline)
         },
         monotonicNowNanos = SystemClock::elapsedRealtimeNanos,
     )
