@@ -10,12 +10,12 @@ class AppReleaseHistoryTest {
         val releases = AppReleaseHistory.releases
 
         assertEquals(
-            listOf("0.1.18", "0.1.6", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1"),
+            listOf("0.1.20", "0.1.6", "0.1.5", "0.1.4", "0.1.3", "0.1.2", "0.1.1"),
             releases.map { it.version },
         )
         assertEquals(
             mapOf(
-                "0.1.18" to listOf(25, 27, 5, 29),
+                "0.1.20" to listOf(25, 27, 5, 29, 28),
                 "0.1.6" to listOf(19, 20),
                 "0.1.5" to listOf(3),
                 "0.1.4" to listOf(16),
