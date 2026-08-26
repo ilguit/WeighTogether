@@ -16,8 +16,9 @@ import androidx.room.migration.Migration
         BackupImportCheckpointEntity::class,
         PetEntity::class,
         PetMeasurementEntity::class,
+        AcceptedStableMeasurementEntity::class,
     ],
-    version = 8,
+    version = 9,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,6 +36,8 @@ abstract class AppDatabase : RoomDatabase() {
 
     abstract fun petDao(): PetDao
 
+    abstract fun acceptedStableMeasurementDao(): AcceptedStableMeasurementDao
+
     companion object {
         fun migration1To2(
             context: Context,
@@ -50,6 +53,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_5_6: Migration = Migration5To6
         val MIGRATION_6_7: Migration = Migration6To7
         val MIGRATION_7_8: Migration = Migration7To8
+        val MIGRATION_8_9: Migration = Migration8To9
 
         fun build(
             context: Context,
@@ -63,6 +67,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_5_6,
                 MIGRATION_6_7,
                 MIGRATION_7_8,
+                MIGRATION_8_9,
             )
             .build()
     }
