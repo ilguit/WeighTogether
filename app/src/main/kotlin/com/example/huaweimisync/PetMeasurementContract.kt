@@ -85,6 +85,7 @@ internal class PetMeasurementCoordinator(
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
     private val acquirePetSessionGate: suspend () -> (() -> Unit) = { {} },
+    private val now: () -> Instant = Instant::now,
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -117,6 +118,7 @@ internal class PetMeasurementCoordinator(
                     token = it,
                     pet = pet,
                     selectedAddress = selectedAddress,
+                    startedAt = now(),
                     releaseIngestionGate = releaseIngestionGate,
                 )
             }
@@ -141,6 +143,9 @@ internal class PetMeasurementCoordinator(
             val active = operation?.takeIf { it.token == token } ?: return null
             if (active.saving) return null
             if (!reading.isStableWeight ||
+                !reading.weightKg.isFinite() ||
+                reading.weightKg <= 0.0 ||
+                reading.measuredAt.isBefore(active.startedAt) ||
                 !isSelectedScaleAddress(active.selectedAddress, reading.address)
             ) return null
             val identity = ReadingIdentity(reading.measuredAt, reading.rawIdentity)
@@ -150,6 +155,7 @@ internal class PetMeasurementCoordinator(
                 FirstAccepted(active.pet, reading.weightKg)
             } else {
                 if (first.identity == identity) return null
+                if (first.weightKg == reading.weightKg) return null
                 active.cancelTimeout?.invoke()
                 active.cancelTimeout = null
                 active.saving = true
@@ -239,6 +245,7 @@ internal class PetMeasurementCoordinator(
         val token: OperationToken,
         val pet: Pet,
         val selectedAddress: String,
+        val startedAt: Instant,
         val releaseIngestionGate: () -> Unit,
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,
