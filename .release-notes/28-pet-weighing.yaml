@@ -1,0 +1,6 @@
+issue: 28
+userVisible: true
+text: Добавлено взвешивание питомцев с сохранением истории результатов
+flavors:
+  - personal
+  - huaweiEnterprise
