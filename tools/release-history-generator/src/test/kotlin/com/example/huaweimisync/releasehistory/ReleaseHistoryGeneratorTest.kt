@@ -66,6 +66,42 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `build mode allows unchanged version after its release tag`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        val taggedRelease = git.head()
+        git.annotatedTag("apk/0.1.1")
+        git.file("README.md", "ordinary build")
+        git.commit("Prepare another build (#2)")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .preflight("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf("0.1.1"), result.history.releases.map { it.version })
+        assertEquals(taggedRelease, result.history.releases.single().commitSha)
+    }
+
+    @Test
+    fun `build mode rejects a version older than the latest release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        git.annotatedTag("apk/0.1.2")
+        git.file("README.md", "ordinary build")
+        git.commit("Prepare another build (#2)")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+
+        assertTrue(error.message!!.contains("older than latest release tag apk/0.1.2"))
+    }
+
+    @Test
     fun `release mode includes and validates an untagged candidate`() {
         val git = TestGit(directory)
         git.init()
@@ -238,7 +274,7 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
-    fun `both modes reject version not newer than previous release with actionable range`() {
+    fun `release mode rejects version not newer than previous release with actionable range`() {
         val git = TestGit(directory)
         git.init()
         git.fragment(1, "first", true, "Первое изменение")
@@ -248,15 +284,13 @@ class ReleaseHistoryGeneratorTest {
         git.fragment(2, "second", false, "Техническое изменение")
         git.commit("Second task (#2)")
 
-        ReleaseHistoryMode.entries.forEach { mode ->
-            val error = assertThrows(GenerationException::class.java) {
-                ReleaseHistoryGenerator(GitRepository(directory))
-                    .preflight("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, mode)
-            }
-
-            assertTrue(error.message!!.contains("$previous..${git.head()}"), mode.id)
-            assertTrue(error.message!!.contains("increment versionName"), mode.id)
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
         }
+
+        assertTrue(error.message!!.contains("$previous..${git.head()}"))
+        assertTrue(error.message!!.contains("increment versionName"))
     }
 
     @Test
@@ -278,7 +312,7 @@ class ReleaseHistoryGeneratorTest {
 
         val error = assertThrows(GenerationException::class.java) {
             ReleaseHistoryGenerator(GitRepository(directory))
-                .preflight(mainHead, "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+                .preflight(mainHead, "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
         }
 
         assertTrue(error.message!!.contains("apk/0.1.2"))

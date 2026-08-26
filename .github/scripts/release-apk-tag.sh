@@ -74,6 +74,7 @@ check_current_remote_tag() {
 }
 
 previous_release_tag() {
+    local excluded_tag="${1:-}"
     local object ref name position output commit
     local -a reachable=()
     declare -A annotated=()
@@ -97,7 +98,7 @@ previous_release_tag() {
     done < <(git rev-list --first-parent "$commit_sha")
 
     for name in "${!annotated[@]}"; do
-        [[ "$name" != "$tag_name" ]] || continue
+        [[ -z "$excluded_tag" || "$name" != "$excluded_tag" ]] || continue
         object="${annotated[$name]}"
         git cat-file -e "${object}^{commit}" 2>/dev/null || continue
         [[ -n "${first_parent_position[$object]+x}" ]] || continue
@@ -120,7 +121,7 @@ if [[ "$command_name" == "preflight" ]]; then
     if check_current_remote_tag; then
         echo "release-apk-tag: $tag_name already points to $commit_sha; preflight is idempotent" >&2
     fi
-    previous_release_tag
+    previous_release_tag "$tag_name"
     exit 0
 fi
 
@@ -129,7 +130,7 @@ if check_current_remote_tag; then
     exit 0
 fi
 
-previous_tag="$(previous_release_tag)"
+previous_tag="$(previous_release_tag "$tag_name")"
 if git show-ref --verify --quiet "refs/tags/${tag_name}"; then
     local_target="$(git rev-parse "${tag_name}^{commit}")"
     [[ "$local_target" == "$commit_sha" ]] ||

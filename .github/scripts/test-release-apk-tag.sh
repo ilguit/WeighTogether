@@ -78,9 +78,10 @@ assert_eq "$(git -C "$repo" cat-file -t apk/0.1.1)" "tag"
 assert_eq "$(git -C "$repo" rev-parse apk/0.1.1^{commit})" "$sha"
 assert_eq "$(git -C "$repo" ls-remote --tags origin refs/tags/apk/0.1.1^{} | awk '{print $1}')" "$sha"
 
-# Build-mode lookup never validates or changes the current-version tag.
+# Build-mode lookup never validates or changes the current-version tag and
+# reports it as the latest reachable release boundary.
 tag_object="$(git -C "$repo" rev-parse apk/0.1.1)"
-assert_eq "$(run_script "$repo" previous 0.1.1 "$sha")" "null"
+assert_eq "$(run_script "$repo" previous 0.1.1 "$sha")" "apk/0.1.1"
 assert_eq "$(git -C "$repo" rev-parse apk/0.1.1)" "$tag_object"
 
 # A same-version/same-SHA rerun is a no-op and retains the tag object.
@@ -142,7 +143,7 @@ if run_script "$repo" preflight 0.1.2 "$third_sha" >"${test_root}/conflict.out" 
     fail "version conflict unexpectedly succeeded"
 fi
 grep -q "already released from" "${test_root}/conflict.out" || fail "missing conflict diagnostic"
-assert_eq "$(run_script "$repo" previous 0.1.2 "$third_sha")" "apk/0.1.1"
+assert_eq "$(run_script "$repo" previous 0.1.2 "$third_sha")" "apk/0.1.2"
 
 # A lightweight release tag is invalid, even when it targets the requested SHA.
 lightweight_repo="$(new_fixture lightweight)"

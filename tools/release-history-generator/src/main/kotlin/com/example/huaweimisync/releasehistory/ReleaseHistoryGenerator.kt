@@ -43,19 +43,33 @@ class ReleaseHistoryGenerator(
             )
         }
         val previousTag = tags.firstOrNull { it.commitSha != head }
-        previousTag?.let {
-            if (compareVersions(currentVersion, it.version) <= 0) {
-                throw GenerationException(
-                    "Release range ${rangeName(it.commitSha, head)}: versionName $currentVersion must be newer " +
-                        "than previous release tag ${it.name}; increment versionName",
-                )
+        when (mode) {
+            ReleaseHistoryMode.BUILD -> tags.firstOrNull()?.let {
+                if (compareVersions(currentVersion, it.version) < 0) {
+                    throw GenerationException(
+                        "Build at $head uses versionName $currentVersion, which is older than latest release tag " +
+                            "${it.name}; restore at least versionName ${it.version}",
+                    )
+                }
             }
-        }
-        repository.annotatedApkTags().firstOrNull { it.version == currentVersion && it.commitSha != head }?.let {
-            throw GenerationException(
-                "Release range ${rangeName(previousTag?.commitSha, head)}: versionName $currentVersion is already " +
-                    "used by ${it.name} at ${it.commitSha}; choose a new versionName",
-            )
+            ReleaseHistoryMode.RELEASE -> {
+                previousTag?.let {
+                    if (compareVersions(currentVersion, it.version) <= 0) {
+                        throw GenerationException(
+                            "Release range ${rangeName(it.commitSha, head)}: versionName $currentVersion must be newer " +
+                                "than previous release tag ${it.name}; increment versionName",
+                        )
+                    }
+                }
+                repository.annotatedApkTags()
+                    .firstOrNull { it.version == currentVersion && it.commitSha != head }
+                    ?.let {
+                        throw GenerationException(
+                            "Release range ${rangeName(previousTag?.commitSha, head)}: versionName $currentVersion is " +
+                                "already used by ${it.name} at ${it.commitSha}; choose a new versionName",
+                        )
+                    }
+            }
         }
         val taggedPoints = tags
             .filter { baseline == null || repository.isFirstParentAncestor(baseline.boundaryCommit, it.commitSha) }
