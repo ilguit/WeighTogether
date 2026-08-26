@@ -1173,6 +1173,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
         if (!isSelectedScaleAddress(selectedAddress, address)) return
+        container.petMeasurementIngestionGate.registerPetPacket(address, payload)
         val parsed = container.packetParser.parse(payload, address) ?: return
         val wasAwaitingFirst =
             petMeasurement.value is PetMeasurementUiState.AwaitingFirstWeight

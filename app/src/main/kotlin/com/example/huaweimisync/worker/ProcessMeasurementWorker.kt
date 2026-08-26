@@ -7,6 +7,7 @@ import com.example.huaweimisync.MiSyncApplication
 import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.data.MeasurementIngestionResult
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -37,14 +38,22 @@ class MeasurementIngestionWorkOrchestrator(
     }
 }
 
+/** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
+internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
+internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
-class PetMeasurementIngestionGate {
+class PetMeasurementIngestionGate(
+    private val monotonicNowNanos: () -> Long = System::nanoTime,
+) {
     private val lock = Any()
     private val activationMutex = Mutex()
     private var petSessionActive = false
     private var activationOwner: Any? = null
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
+    private val activePetPackets = linkedSetOf<PacketIdentity>()
+    private val quarantinedPetPackets = linkedMapOf<PacketIdentity, Long>()
 
     suspend fun activate(): Lease {
         val owner = Any()
@@ -52,6 +61,7 @@ class PetMeasurementIngestionGate {
         val waitForProcessing = synchronized(lock) {
             petSessionActive = true
             activationOwner = owner
+            activePetPackets.clear()
             if (processingCount == 0) null else CompletableDeferred<Unit>().also {
                 processingDrained = it
             }
@@ -85,11 +95,47 @@ class PetMeasurementIngestionGate {
         }
     }
 
+    /** Records a packet observed by the selected-scale pet scanner for this active session. */
+    fun registerPetPacket(deviceAddress: String, payload: ByteArray) = synchronized(lock) {
+        if (petSessionActive) activePetPackets += PacketIdentity.of(deviceAddress, payload)
+    }
+
+    suspend fun <T : Any> processPacketWhenInactive(
+        packet: ScalePacket,
+        block: suspend () -> T,
+    ): T? {
+        val entered = synchronized(lock) {
+            val now = monotonicNowNanos()
+            pruneQuarantine(now)
+            if (petSessionActive || quarantinedPetPackets.containsKey(PacketIdentity.of(packet))) {
+                false
+            } else {
+                processingCount += 1
+                true
+            }
+        }
+        if (!entered) return null
+        return try {
+            block()
+        } finally {
+            leaveProcessing()
+        }
+    }
+
     private fun deactivate(owner: Any) {
         val shouldUnlock = synchronized(lock) {
             if (activationOwner !== owner) {
                 false
             } else {
+                val expiresAt = monotonicNowNanos() + PET_PACKET_QUARANTINE_TTL_NANOS
+                activePetPackets.forEach { identity ->
+                    quarantinedPetPackets.remove(identity)
+                    quarantinedPetPackets[identity] = expiresAt
+                }
+                activePetPackets.clear()
+                while (quarantinedPetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
+                    quarantinedPetPackets.remove(quarantinedPetPackets.keys.first())
+                }
                 petSessionActive = false
                 activationOwner = null
                 processingDrained = null
@@ -97,6 +143,33 @@ class PetMeasurementIngestionGate {
             }
         }
         if (shouldUnlock) activationMutex.unlock(owner)
+    }
+
+    private fun leaveProcessing() {
+        val drained = synchronized(lock) {
+            processingCount -= 1
+            if (processingCount == 0) processingDrained.also { processingDrained = null }
+            else null
+        }
+        drained?.complete(Unit)
+    }
+
+    private fun pruneQuarantine(now: Long) {
+        val iterator = quarantinedPetPackets.iterator()
+        while (iterator.hasNext()) {
+            if (iterator.next().value <= now) iterator.remove()
+        }
+    }
+
+    private data class PacketIdentity(val address: String, val payload: String) {
+        companion object {
+            fun of(packet: ScalePacket): PacketIdentity = of(packet.deviceAddress, packet.payload)
+
+            fun of(deviceAddress: String, payload: ByteArray): PacketIdentity = PacketIdentity(
+                address = deviceAddress.trim().uppercase(Locale.ROOT),
+                payload = payload.joinToString("") { "%02x".format(it.toInt() and 0xff) },
+            )
+        }
     }
 
     class Lease internal constructor(
@@ -129,11 +202,11 @@ class ScalePacketProcessor(
     )
 
     suspend fun process(packet: ScalePacket): MeasurementIngestionResult {
-        return petMeasurementGate.processWhenInactive {
+        return petMeasurementGate.processPacketWhenInactive(packet) {
             val parsed = parse(packet.payload, packet.deviceAddress)
-                ?: return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+                ?: return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             if (!parsed.isStableWeight) {
-                return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+                return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             }
             ingestion.process(parsed)
         } ?: MeasurementIngestionResult.IgnoredNotFinal

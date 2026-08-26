@@ -178,6 +178,87 @@ class MeasurementFinalizationOrchestrationTest {
         }
 
     @Test
+    fun registeredPetPacketsRemainSuppressedAfterReleaseWithoutFinalizationSideEffects() =
+        kotlinx.coroutines.runBlocking {
+            var now = 1_000L
+            val gate = PetMeasurementIngestionGate { now }
+            var ingested = 0
+            var finalized = 0
+            val processor = ScalePacketProcessor(
+                parse = { _, _ -> raw() },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingested += 1
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+            val first = ScalePacket(byteArrayOf(1, 2), "aa:bb")
+            val second = ScalePacket(byteArrayOf(3, 4), "AA:BB")
+
+            val lease = gate.activate()
+            gate.registerPetPacket("AA:BB", first.payload)
+            gate.registerPetPacket("aa:bb", second.payload)
+            lease.release()
+
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(first))
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(second))
+            assertEquals(0, ingested)
+            assertEquals(0, finalized)
+
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(5), "AA:BB")) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
+            assertEquals(1, ingested)
+            assertEquals(1, finalized)
+        }
+
+    @Test
+    fun petPacketQuarantineExpires() = kotlinx.coroutines.runBlocking {
+        var now = 10L
+        val gate = PetMeasurementIngestionGate { now }
+        val packet = ScalePacket(byteArrayOf(1), "AA")
+        val lease = gate.activate()
+        gate.registerPetPacket(packet.deviceAddress, packet.payload)
+        lease.release()
+
+        assertEquals(null, gate.processPacketWhenInactive(packet) { "processed" })
+        now += PET_PACKET_QUARANTINE_TTL_NANOS
+        assertEquals("processed", gate.processPacketWhenInactive(packet) { "processed" })
+    }
+
+    @Test
+    fun petPacketQuarantineDropsOldestIdentityAtCapacity() = kotlinx.coroutines.runBlocking {
+        val gate = PetMeasurementIngestionGate { 10L }
+        val lease = gate.activate()
+        repeat(PET_PACKET_QUARANTINE_MAX_IDENTITIES + 1) { value ->
+            gate.registerPetPacket("AA", byteArrayOf(value.toByte()))
+        }
+        lease.release()
+
+        assertEquals(
+            "oldest passed",
+            gate.processPacketWhenInactive(ScalePacket(byteArrayOf(0), "AA")) {
+                "oldest passed"
+            },
+        )
+        assertEquals(
+            null,
+            gate.processPacketWhenInactive(
+                ScalePacket(byteArrayOf(PET_PACKET_QUARANTINE_MAX_IDENTITIES.toByte()), "AA"),
+            ) { "processed" },
+        )
+    }
+
+    @Test
     fun petSessionWaitsForInFlightIngestionAndThenExcludesPacketProcessing() =
         kotlinx.coroutines.runBlocking {
             val gate = PetMeasurementIngestionGate()
