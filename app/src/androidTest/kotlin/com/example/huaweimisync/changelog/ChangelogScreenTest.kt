@@ -2,13 +2,17 @@ package com.example.huaweimisync.changelog
 
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollToIndex
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -49,7 +53,51 @@ class ChangelogScreenTest {
         composeRule.onNodeWithText("Задача #20").assertIsDisplayed()
 
         composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(4)
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.1")).performClick()
         composeRule.onNodeWithText("Задача #11").assertIsDisplayed()
+    }
+
+    @Test
+    fun newestReleaseStartsExpandedAndPreviousReleasesToggleIndependently() {
+        setContent()
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertIsDisplayed()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertDoesNotExist()
+        val previousToggle = composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.4"))
+        assertEquals(
+            "Свёрнуто",
+            previousToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription],
+        )
+        previousToggle.performClick()
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.6")).performClick()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertDoesNotExist()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
+        assertEquals(
+            "Развёрнуто",
+            previousToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription],
+        )
+    }
+
+    @Test
+    fun releaseExpansionSurvivesSavedStateRestoration() {
+        val restorationTester = StateRestorationTester(composeRule)
+        restorationTester.setContent {
+            HuaweiMiSyncTheme {
+                ChangelogScreen(
+                    releases = correctedHistoricalReleases,
+                    modifier = Modifier.height(280.dp),
+                )
+            }
+        }
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.6")).performClick()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.4")).performClick()
+
+        restorationTester.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertDoesNotExist()
+        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
     }
 
     private fun setContent() {
