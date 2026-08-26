@@ -215,7 +215,7 @@ class RoomMeasurementPersistence(
             }
 
             suspend fun accepted(result: PendingPersistenceResult): PendingPersistenceResult {
-                if (raw.isStableWeight) {
+                if (raw.isStableWeight && result.updatesAcceptedStableBaseline()) {
                     acceptedStableMeasurementDao.replaceLatest(
                         AcceptedStableMeasurementEntity.latest(raw),
                     )
@@ -397,6 +397,17 @@ class RoomMeasurementPersistence(
             }
             accepted(result)
         }
+
+    private fun PendingPersistenceResult.updatesAcceptedStableBaseline(): Boolean = when (this) {
+        is PendingPersistenceResult.Inserted,
+        is PendingPersistenceResult.AlreadyPending,
+        is PendingPersistenceResult.UpgradedFinalized,
+        -> true
+        PendingPersistenceResult.ExactReplay,
+        is PendingPersistenceResult.AlreadyFinalized,
+        PendingPersistenceResult.Tombstoned,
+        -> false
+    }
 
     private suspend fun upgradeFinalizedMeasurement(
         candidate: MeasurementEntity,

@@ -4,6 +4,8 @@ import com.example.huaweimisync.core.RawScaleMeasurement
 import java.time.Instant
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AcceptedStableMeasurementEntityTest {
@@ -29,5 +31,23 @@ class AcceptedStableMeasurementEntityTest {
         assertEquals(raw.copy(rawPayload = byteArrayOf(0x01, 0x80.toByte(), 0xff.toByte())), restored)
         assertEquals(987_654_321, restored.measuredAt.nano)
         assertArrayEquals(byteArrayOf(0x01, 0x80.toByte(), 0xff.toByte()), restored.rawPayload)
+    }
+
+    @Test
+    fun exactMatchIgnoresSyntheticFallbackTimeButDetectsPacketContentChanges() {
+        val raw = RawScaleMeasurement(
+            deviceAddress = "AA:BB:CC:DD:EE:FF",
+            measuredAt = Instant.parse("2026-08-20T12:00:00Z"),
+            weightKg = 70.0,
+            rawWeight = 14_000,
+            impedanceOhm = 500,
+            isStable = true,
+            hasImpedance = true,
+            rawPayload = byteArrayOf(1, 2, 3),
+        )
+        val entity = AcceptedStableMeasurementEntity.latest(raw)
+
+        assertTrue(entity.exactlyMatches(raw.copy(measuredAt = raw.measuredAt.plusSeconds(5))))
+        assertFalse(entity.exactlyMatches(raw.copy(rawPayload = byteArrayOf(1, 2, 4))))
     }
 }

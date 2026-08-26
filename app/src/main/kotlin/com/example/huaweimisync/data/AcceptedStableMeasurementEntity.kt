@@ -21,8 +21,6 @@ data class AcceptedStableMeasurementEntity(
 ) {
     fun exactlyMatches(raw: RawScaleMeasurement): Boolean =
         deviceAddress == raw.deviceAddress &&
-            measuredAtEpochSecond == raw.measuredAt.epochSecond &&
-            measuredAtNano == raw.measuredAt.nano &&
             weightKg == raw.weightKg &&
             rawWeight == raw.rawWeight &&
             impedanceOhm == raw.impedanceOhm &&
