@@ -43,12 +43,23 @@ class ReleaseHistoryGenerator(
             )
         }
         val previousTag = tags.firstOrNull { it.commitSha != head }
+        val baselinePreviousRelease = baseline?.releases?.firstOrNull()?.release
         when (mode) {
-            ReleaseHistoryMode.BUILD -> tags.firstOrNull()?.let {
-                if (compareVersions(currentVersion, it.version) < 0) {
+            ReleaseHistoryMode.BUILD -> {
+                val latestTag = tags.firstOrNull()
+                if (latestTag != null && compareVersions(currentVersion, latestTag.version) < 0) {
                     throw GenerationException(
                         "Build at $head uses versionName $currentVersion, which is older than latest release tag " +
-                            "${it.name}; restore at least versionName ${it.version}",
+                            "${latestTag.name}; restore at least versionName ${latestTag.version}",
+                    )
+                }
+                if (tags.isEmpty() && baselinePreviousRelease != null &&
+                    compareVersions(currentVersion, baselinePreviousRelease.version) < 0
+                ) {
+                    throw GenerationException(
+                        "Build at $head uses versionName $currentVersion, which is older than newest baseline " +
+                            "release ${baselinePreviousRelease.version}; restore at least versionName " +
+                            baselinePreviousRelease.version,
                     )
                 }
             }
@@ -60,6 +71,15 @@ class ReleaseHistoryGenerator(
                                 "than previous release tag ${it.name}; increment versionName",
                         )
                     }
+                }
+                if (tags.isEmpty() && baselinePreviousRelease != null &&
+                    compareVersions(currentVersion, baselinePreviousRelease.version) <= 0
+                ) {
+                    throw GenerationException(
+                        "Release range ${rangeName(baseline.boundaryCommit, head)}: versionName $currentVersion " +
+                            "must be newer than newest baseline release ${baselinePreviousRelease.version}; " +
+                            "increment versionName",
+                    )
                 }
                 repository.annotatedApkTags()
                     .firstOrNull { it.version == currentVersion && it.commitSha != head }
@@ -88,7 +108,11 @@ class ReleaseHistoryGenerator(
         val releases = ranges.mapIndexed { index, range ->
             generateRelease(points[index], range, flavor)
         }
-        val history = GeneratedHistory(releases + baseline.orEmpty())
+        val oldestGeneratedVersion = points.lastOrNull()?.version
+        val baselineHistory = baseline.orEmpty().filter {
+            oldestGeneratedVersion == null || compareVersions(it.version, oldestGeneratedVersion) < 0
+        }
+        val history = GeneratedHistory(releases + baselineHistory)
         if (mode == ReleaseHistoryMode.RELEASE && history.releases.firstOrNull()?.version != currentVersion) {
             throw GenerationException(
                 "Release range ${ranges.firstOrNull()?.displayName ?: rangeName(previousTag?.commitSha, head)}: " +

@@ -160,6 +160,93 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `build without release tags rejects version older than newest baseline release`() {
+        val (git, baseline) = repositoryWithBaseline()
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.4", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+        }
+
+        assertTrue(error.message!!.contains("older than newest baseline release 0.1.5"))
+        assertTrue(error.message!!.contains("restore at least versionName 0.1.5"))
+        assertEquals(git.head(), runGit(directory, "rev-parse", "HEAD").trim())
+    }
+
+    @Test
+    fun `build without release tags allows version equal to newest baseline release`() {
+        val (_, baseline) = repositoryWithBaseline()
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.5", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+
+        assertEquals(listOf("0.1.5"), history.releases.map { it.version })
+    }
+
+    @Test
+    fun `release without tags rejects versions equal to or older than newest baseline release`() {
+        val (git, baseline) = repositoryWithBaseline(withCandidateFragment = true)
+
+        listOf("0.1.5", "0.1.4").forEach { version ->
+            val error = assertThrows(GenerationException::class.java) {
+                ReleaseHistoryGenerator(GitRepository(directory))
+                    .preflight("HEAD", version, ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+            }
+
+            assertTrue(error.message!!.contains("${baseline.boundaryCommit}..${git.head()}"), version)
+            assertTrue(error.message!!.contains("must be newer than newest baseline release 0.1.5"), version)
+            assertTrue(error.message!!.contains("increment versionName"), version)
+        }
+    }
+
+    @Test
+    fun `release without tags adds a newer version before unique baseline history`() {
+        val (git, baseline) = repositoryWithBaseline(withCandidateFragment = true)
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.6", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+
+        assertEquals(listOf("0.1.6", "0.1.5"), history.releases.map { it.version })
+        assertEquals(history.releases.map { it.version }.distinct(), history.releases.map { it.version })
+        assertEquals(git.head(), history.releases.first().commitSha)
+        assertEquals(listOf(30), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
+    fun `reachable tag takes precedence over baseline without duplicate or out of order history`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        git.fragment(29, "tagged", true, "Тегированный выпуск")
+        git.commit("Add tagged release (#29)")
+        git.annotatedTag("apk/0.1.4")
+        git.fragment(30, "candidate", true, "Новый выпуск")
+        git.commit("Add release candidate (#30)")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.5", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+
+        assertEquals(listOf("0.1.5", "0.1.4"), history.releases.map { it.version })
+        assertEquals(listOf(30, 29), history.releases.flatMap { release -> release.changes.map { it.issue } })
+    }
+
+    @Test
     fun `rejects shallow history even when baseline boundary is available and tags are missing`() {
         val source = TestGit(directory.resolve("source"))
         source.init()
@@ -513,6 +600,32 @@ class ReleaseHistoryGeneratorTest {
             check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed: $error" }
             return output
         }
+    }
+
+    private fun repositoryWithBaseline(withCandidateFragment: Boolean = false): Pair<TestGit, ReleaseHistoryBaseline> {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        if (withCandidateFragment) git.fragment(30, "baseline-fallback", true, "Новый выпуск")
+        else git.file("README.md", "ordinary build")
+        git.commit(if (withCandidateFragment) "Add release fallback (#30)" else "Prepare ordinary build")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+        return git to baseline
     }
 
     private fun runGit(root: Path, vararg arguments: String): String {
