@@ -39,6 +39,7 @@ sealed interface PetMeasurementUiState {
 
 internal data class PetScaleReading(
     val address: String,
+    val receivedAtNanos: Long,
     val measuredAt: Instant,
     val weightKg: Double,
     val isStableWeight: Boolean,
@@ -85,7 +86,7 @@ internal class PetMeasurementCoordinator(
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
     private val acquirePetSessionGate: suspend () -> (() -> Unit) = { {} },
-    private val now: () -> Instant = Instant::now,
+    private val monotonicNowNanos: () -> Long,
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -126,7 +127,7 @@ internal class PetMeasurementCoordinator(
                     token = it,
                     pet = pet,
                     selectedAddress = selectedAddress,
-                    startedAt = now(),
+                    startedAtNanos = monotonicNowNanos(),
                     releaseIngestionGate = releaseIngestionGate,
                 )
                 setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
@@ -153,7 +154,7 @@ internal class PetMeasurementCoordinator(
             if (!reading.isStableWeight ||
                 !reading.weightKg.isFinite() ||
                 reading.weightKg <= 0.0 ||
-                reading.measuredAt.isBefore(active.startedAt) ||
+                reading.receivedAtNanos < active.startedAtNanos ||
                 !isSelectedScaleAddress(active.selectedAddress, reading.address)
             ) return null
             val identity = ReadingIdentity(reading.measuredAt, reading.rawIdentity)
@@ -260,7 +261,7 @@ internal class PetMeasurementCoordinator(
         val token: OperationToken,
         val pet: Pet,
         val selectedAddress: String,
-        val startedAt: Instant,
+        val startedAtNanos: Long,
         val releaseIngestionGate: () -> Unit,
         var first: CapturedReading? = null,
         var cancelTimeout: (() -> Unit)? = null,

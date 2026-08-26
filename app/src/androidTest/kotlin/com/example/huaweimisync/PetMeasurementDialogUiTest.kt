@@ -145,7 +145,7 @@ class PetMeasurementDialogUiTest {
     }
 
     @Test
-    fun savingAndCaptureStatesCanBeCancelledOrDismissed() {
+    fun savingIgnoresSystemDismissAndHasNoCancelWhileCaptureCanBeDismissed() {
         val pet = pet("cat", "Луна")
         val state = mutableStateOf<PetMeasurementUiState>(
             PetMeasurementUiState.Saving(pet, 60.0, 63.75),
@@ -161,16 +161,14 @@ class PetMeasurementDialogUiTest {
             }
         }
 
-        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertIsDisplayed()
-        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).performClick()
-        composeRule.runOnIdle { assertEquals(1, cancelled) }
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
 
         composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeRule.runOnIdle { assertEquals(2, cancelled) }
+        composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
         composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeRule.runOnIdle { assertEquals(3, cancelled) }
+        composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
     private fun setDialog(

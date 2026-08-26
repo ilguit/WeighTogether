@@ -19,6 +19,7 @@ import org.junit.Test
 
 class PetMeasurementCoordinatorTest {
     private val operationStartedAt = Instant.parse("2026-08-26T10:00:00Z")
+    private val operationStartedAtNanos = 10_000L
     private val states = mutableListOf<PetMeasurementUiState>()
     private val messages = mutableListOf<String>()
     private var scannerStops = 0
@@ -34,7 +35,7 @@ class PetMeasurementCoordinatorTest {
             sessionActivity += true
             ({ sessionActivity += false })
         },
-        now = { operationStartedAt },
+        monotonicNowNanos = { operationStartedAtNanos },
     )
 
     @Test
@@ -104,13 +105,13 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
-    fun `reading before operation start does not advance`() {
+    fun `reading received before operation start does not advance`() {
         val token = start()
 
         assertNull(
             coordinator.accept(
                 token,
-                reading(70.0, measuredAt = operationStartedAt.minusMillis(1)),
+                reading(70.0, receivedAtNanos = operationStartedAtNanos - 1),
             ),
         )
 
@@ -119,10 +120,17 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
-    fun `reading at operation start is accepted`() {
+    fun `reading received at operation start is accepted despite scale RTC skew`() {
         val token = start()
 
-        coordinator.accept(token, reading(70.0, measuredAt = operationStartedAt))
+        coordinator.accept(
+            token,
+            reading(
+                70.0,
+                receivedAtNanos = operationStartedAtNanos,
+                measuredAt = operationStartedAt.minusSeconds(3_600),
+            ),
+        )
 
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
     }
@@ -172,7 +180,7 @@ class PetMeasurementCoordinatorTest {
                 reading(
                     75.0,
                     raw = "stale",
-                    measuredAt = operationStartedAt.minusSeconds(1),
+                    receivedAtNanos = operationStartedAtNanos - 1,
                 ),
             ),
         )
@@ -356,7 +364,7 @@ class PetMeasurementCoordinatorTest {
                 val releaseGate: () -> Unit = {}
                 releaseGate
             },
-            now = { operationStartedAt },
+            monotonicNowNanos = { operationStartedAtNanos },
         )
         val first = async(start = CoroutineStart.UNDISPATCHED) {
             guardedCoordinator.start(pet, SELECTED_ADDRESS)
@@ -386,7 +394,7 @@ class PetMeasurementCoordinatorTest {
                 val releaseGate: () -> Unit = {}
                 releaseGate
             },
-            now = { operationStartedAt },
+            monotonicNowNanos = { operationStartedAtNanos },
         )
         val startup = async(start = CoroutineStart.UNDISPATCHED) {
             guardedCoordinator.start(pet, SELECTED_ADDRESS)
@@ -409,9 +417,11 @@ class PetMeasurementCoordinatorTest {
         raw: String = "raw-$second",
         stable: Boolean = true,
         address: String = SELECTED_ADDRESS.lowercase(),
+        receivedAtNanos: Long = operationStartedAtNanos + second,
         measuredAt: Instant = operationStartedAt.plusSeconds(second),
     ) = PetScaleReading(
         address = address,
+        receivedAtNanos = receivedAtNanos,
         measuredAt = measuredAt,
         weightKg = weightKg,
         isStableWeight = stable,

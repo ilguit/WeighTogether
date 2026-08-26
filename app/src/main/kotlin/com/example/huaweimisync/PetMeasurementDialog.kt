@@ -67,7 +67,9 @@ internal fun PetMeasurementDialog(
     if (state == PetMeasurementUiState.Idle || state == PetMeasurementUiState.Cancelled) return
 
     AlertDialog(
-        onDismissRequest = callbacks.onCancel,
+        onDismissRequest = {
+            if (state !is PetMeasurementUiState.Saving) callbacks.onCancel()
+        },
         modifier = Modifier.testTag(PetMeasurementTestTags.Dialog),
         title = { Text(dialogTitle(state)) },
         text = {
@@ -135,10 +137,12 @@ internal fun PetMeasurementDialog(
             }
         },
         dismissButton = {
-            TextButton(
-                onClick = callbacks.onCancel,
-                modifier = Modifier.testTag(PetMeasurementTestTags.Cancel),
-            ) { Text(if (state is PetMeasurementUiState.Error) "Закрыть" else "Отмена") }
+            if (state !is PetMeasurementUiState.Saving) {
+                TextButton(
+                    onClick = callbacks.onCancel,
+                    modifier = Modifier.testTag(PetMeasurementTestTags.Cancel),
+                ) { Text(if (state is PetMeasurementUiState.Error) "Закрыть" else "Отмена") }
+            }
         },
     )
 }

@@ -3,6 +3,7 @@ package com.example.huaweimisync
 import android.annotation.SuppressLint
 import android.app.Application
 import android.net.Uri
+import android.os.SystemClock
 import androidx.work.WorkManager
 import com.example.huaweimisync.backup.BackupImportMode
 import com.example.huaweimisync.backup.BackupImportPreview
@@ -187,6 +188,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             val lease = container.petMeasurementIngestionGate.activate()
             lease::release
         },
+        monotonicNowNanos = SystemClock::elapsedRealtimeNanos,
     )
     private val initialHealthConnectAvailability = container.healthConnect.availability()
     private val initialHealthConnectState = if (
@@ -1176,6 +1178,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             token,
             PetScaleReading(
                 address = address,
+                receivedAtNanos = result.timestampNanos,
                 measuredAt = parsed.measuredAt,
                 weightKg = parsed.weightKg,
                 isStableWeight = parsed.isStableWeight,
