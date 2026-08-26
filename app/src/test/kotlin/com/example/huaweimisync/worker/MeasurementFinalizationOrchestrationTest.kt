@@ -8,7 +8,9 @@ import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Instant
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancelAndJoin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -215,6 +217,75 @@ class MeasurementFinalizationOrchestrationTest {
                 processor.process(ScalePacket(byteArrayOf(3), "AA")) is
                     MeasurementIngestionResult.CreatedAggregate,
             )
+        }
+
+    @Test
+    fun concurrentPetSessionActivationWaitsForFirstLeaseAndThenSucceeds() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val processingStarted = CompletableDeferred<Unit>()
+            val finishProcessing = CompletableDeferred<Unit>()
+            val processing = async {
+                gate.processWhenInactive {
+                    processingStarted.complete(Unit)
+                    finishProcessing.await()
+                }
+            }
+            processingStarted.await()
+
+            val firstActivation = async(start = CoroutineStart.UNDISPATCHED) { gate.activate() }
+            val secondActivation = async(start = CoroutineStart.UNDISPATCHED) { gate.activate() }
+            assertFalse(firstActivation.isCompleted)
+            assertFalse(secondActivation.isCompleted)
+
+            finishProcessing.complete(Unit)
+            processing.await()
+            val firstLease = firstActivation.await()
+            assertFalse(secondActivation.isCompleted)
+
+            firstLease.release()
+            secondActivation.await().release()
+        }
+
+    @Test
+    fun cancelledPetSessionActivationFreesOwnershipForNextActivation() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val processingStarted = CompletableDeferred<Unit>()
+            val finishProcessing = CompletableDeferred<Unit>()
+            val processing = async {
+                gate.processWhenInactive {
+                    processingStarted.complete(Unit)
+                    finishProcessing.await()
+                }
+            }
+            processingStarted.await()
+
+            val cancelledActivation = async(start = CoroutineStart.UNDISPATCHED) { gate.activate() }
+            assertFalse(cancelledActivation.isCompleted)
+            cancelledActivation.cancelAndJoin()
+
+            val nextActivation = async(start = CoroutineStart.UNDISPATCHED) { gate.activate() }
+            assertFalse(nextActivation.isCompleted)
+            finishProcessing.complete(Unit)
+            processing.await()
+            nextActivation.await().release()
+        }
+
+    @Test
+    fun staleAndDoubleLeaseReleaseDoesNotDeactivateNewPetSession() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val firstLease = gate.activate()
+            firstLease.release()
+            firstLease.release()
+
+            val secondLease = gate.activate()
+            firstLease.release()
+            assertEquals(null, gate.processWhenInactive { "processed" })
+
+            secondLease.release()
+            assertEquals("processed", gate.processWhenInactive { "processed" })
         }
 
     @Test

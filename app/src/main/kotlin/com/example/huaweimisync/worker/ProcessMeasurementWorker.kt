@@ -10,6 +10,7 @@ import com.example.huaweimisync.data.MeasurementIngestionResult
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.sync.Mutex
 
 data class ScalePacket(
     val payload: ByteArray,
@@ -39,14 +40,18 @@ class MeasurementIngestionWorkOrchestrator(
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
 class PetMeasurementIngestionGate {
     private val lock = Any()
+    private val activationMutex = Mutex()
     private var petSessionActive = false
+    private var activationOwner: Any? = null
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
 
     suspend fun activate(): Lease {
+        val owner = Any()
+        activationMutex.lock(owner)
         val waitForProcessing = synchronized(lock) {
-            check(!petSessionActive) { "A pet measurement session is already active" }
             petSessionActive = true
+            activationOwner = owner
             if (processingCount == 0) null else CompletableDeferred<Unit>().also {
                 processingDrained = it
             }
@@ -54,10 +59,10 @@ class PetMeasurementIngestionGate {
         try {
             waitForProcessing?.await()
         } catch (cancelled: CancellationException) {
-            deactivate()
+            deactivate(owner)
             throw cancelled
         }
-        return Lease(this)
+        return Lease(this, owner)
     }
 
     suspend fun <T : Any> processWhenInactive(block: suspend () -> T): T? {
@@ -80,16 +85,28 @@ class PetMeasurementIngestionGate {
         }
     }
 
-    private fun deactivate() = synchronized(lock) {
-        petSessionActive = false
-        processingDrained = null
+    private fun deactivate(owner: Any) {
+        val shouldUnlock = synchronized(lock) {
+            if (activationOwner !== owner) {
+                false
+            } else {
+                petSessionActive = false
+                activationOwner = null
+                processingDrained = null
+                true
+            }
+        }
+        if (shouldUnlock) activationMutex.unlock(owner)
     }
 
-    class Lease internal constructor(private val gate: PetMeasurementIngestionGate) {
+    class Lease internal constructor(
+        private val gate: PetMeasurementIngestionGate,
+        private val owner: Any,
+    ) {
         private val released = AtomicBoolean(false)
 
         fun release() {
-            if (released.compareAndSet(false, true)) gate.deactivate()
+            if (released.compareAndSet(false, true)) gate.deactivate(owner)
         }
     }
 }
