@@ -1231,7 +1231,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scanning.value = false
         ScanWorkScheduler.processDirect(getApplication(), result)
         restoreAutomaticScanning()
-        showMessage("Весы выбраны: ${name ?: address}. Измерение принято")
     }
 
     @SuppressLint("MissingPermission")
