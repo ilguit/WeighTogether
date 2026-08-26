@@ -17,7 +17,6 @@ import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -82,13 +81,19 @@ class PetMeasurementDialogUiTest {
         }
 
         composeRule.onNodeWithText("Первое взвешивание").assertIsDisplayed()
-        composeRule.onNodeWithText("Встаньте на весы без Бим. Дождитесь стабильного значения.")
+        composeRule.onNodeWithText("Порядок не важен", substring = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Начните с любого варианта", substring = true)
             .assertIsDisplayed()
         composeRule.runOnIdle {
             state.value = PetMeasurementUiState.AwaitingSecondWeight(pet, 72.5)
         }
         composeRule.onNodeWithTag(PetMeasurementTestTags.FirstWeight).assertIsDisplayed()
         composeRule.onNodeWithText("Первое значение принято:", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("оставшееся взвешивание", substring = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("с Бим на руках или без питомца", substring = true)
+            .assertIsDisplayed()
         composeRule.runOnIdle {
             state.value = PetMeasurementUiState.Saving(pet, 72.5, 77.2)
         }
@@ -107,7 +112,10 @@ class PetMeasurementDialogUiTest {
         var cancelled = 0
         var reopened = 0
         val callbacks = callbacks(
-            onOpen = { reopened++ },
+            onOpen = {
+                reopened++
+                state.value = PetMeasurementUiState.SelectingPet
+            },
             onCancel = { cancelled++ },
         )
         composeRule.setContent {
@@ -117,19 +125,27 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithText("Вес Луна:", substring = true).assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.Done).performClick()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
-        composeRule.runOnIdle { state.value = PetMeasurementUiState.Error("Весы недоступны") }
-        composeRule.onNodeWithText("Весы недоступны").assertIsDisplayed()
+        composeRule.runOnIdle {
+            state.value = PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE)
+        }
+        composeRule.onNodeWithText(PET_MEASUREMENT_TIMEOUT_MESSAGE).assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.BackToSelection).performClick()
         composeRule.runOnIdle { assertEquals(1, reopened) }
+        composeRule.onNodeWithText("Выберите питомца").assertIsDisplayed()
+
+        composeRule.runOnIdle { state.value = PetMeasurementUiState.Error("Весы недоступны") }
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).performClick()
+        composeRule.runOnIdle { assertEquals(2, cancelled) }
+
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
         composeRule.runOnIdle {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
-        composeRule.runOnIdle { assertTrue(cancelled >= 2) }
+        composeRule.runOnIdle { assertEquals(3, cancelled) }
     }
 
     @Test
-    fun savingIgnoresSystemDismissAndHasNoCancelWhileCancellableStateDismisses() {
+    fun savingAndCaptureStatesCanBeCancelledOrDismissed() {
         val pet = pet("cat", "Луна")
         val state = mutableStateOf<PetMeasurementUiState>(
             PetMeasurementUiState.Saving(pet, 60.0, 63.75),
@@ -145,13 +161,16 @@ class PetMeasurementDialogUiTest {
             }
         }
 
-        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).performClick()
+        composeRule.runOnIdle { assertEquals(1, cancelled) }
+
         composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeRule.runOnIdle { assertEquals(0, cancelled) }
+        composeRule.runOnIdle { assertEquals(2, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
         composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeRule.runOnIdle { assertEquals(1, cancelled) }
+        composeRule.runOnIdle { assertEquals(3, cancelled) }
     }
 
     private fun setDialog(
