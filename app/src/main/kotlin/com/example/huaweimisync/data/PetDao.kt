@@ -48,8 +48,29 @@ interface PetDao {
     @Query("SELECT * FROM pets WHERE normalizedName = :normalizedName")
     suspend fun getPetByNormalizedName(normalizedName: String): PetEntity?
 
+    @Query("SELECT COUNT(*) FROM pet_measurements WHERE petId = :petId")
+    suspend fun countMeasurements(petId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPet(pet: PetEntity): Long
+
+    @Query(
+        """
+        UPDATE pets SET displayName = :displayName, normalizedName = :normalizedName,
+            species = :species, updatedAtEpochMillis = :updatedAtEpochMillis
+        WHERE id = :id
+        """,
+    )
+    suspend fun updatePet(
+        id: String,
+        displayName: String,
+        normalizedName: String,
+        species: com.example.huaweimisync.domain.PetSpecies,
+        updatedAtEpochMillis: Long,
+    ): Int
+
+    @Query("DELETE FROM pets WHERE id = :id")
+    suspend fun deletePet(id: String): Int
 
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMeasurement(measurement: PetMeasurementEntity)

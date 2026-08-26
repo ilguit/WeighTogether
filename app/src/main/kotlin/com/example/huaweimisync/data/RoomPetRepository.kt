@@ -3,10 +3,13 @@ package com.example.huaweimisync.data
 import androidx.room.withTransaction
 import com.example.huaweimisync.domain.NewPet
 import com.example.huaweimisync.domain.Pet
+import com.example.huaweimisync.domain.PetDeletionPreview
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
 import com.example.huaweimisync.domain.PetRepository
 import com.example.huaweimisync.domain.PetSpecies
+import com.example.huaweimisync.domain.PetUpdate
+import com.example.huaweimisync.domain.PetWithMeasurementCount
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import java.time.Instant
 import java.util.UUID
@@ -23,6 +26,12 @@ class RoomPetRepository(
         dao.observePetsWithLatestMeasurement().map { rows -> rows.map { it.toDomain() } }
 
     override suspend fun getPet(id: PetId): Pet? = dao.getPet(id.value)?.toDomain()
+
+    override suspend fun getPetWithMeasurementCount(id: PetId): PetWithMeasurementCount? =
+        database.withTransaction {
+            val pet = dao.getPet(id.value) ?: return@withTransaction null
+            PetWithMeasurementCount(pet.toDomain(), dao.countMeasurements(id.value))
+        }
 
     override suspend fun createPet(pet: NewPet): Pet = database.withTransaction {
         require(pet.species != PetSpecies.UNSPECIFIED) {
@@ -44,6 +53,43 @@ class RoomPetRepository(
             throw PetNameConflictException(pet.normalizedName)
         }
         entity.toDomain()
+    }
+
+    override suspend fun updatePet(pet: PetUpdate): Pet = database.withTransaction {
+        val existing = dao.getPet(pet.id.value) ?: throw PetNotFoundException(pet.id)
+        val conflicting = dao.getPetByNormalizedName(pet.normalizedName)
+        if (conflicting != null && conflicting.id != existing.id) {
+            throw PetNameConflictException(pet.normalizedName)
+        }
+        val updatedAt = now().toEpochMilli()
+        check(
+            dao.updatePet(
+                id = existing.id,
+                displayName = pet.displayName,
+                normalizedName = pet.normalizedName,
+                species = pet.species,
+                updatedAtEpochMillis = updatedAt,
+            ) == 1,
+        ) { "Pet ${existing.id} disappeared while updating" }
+        existing.copy(
+            displayName = pet.displayName,
+            normalizedName = pet.normalizedName,
+            species = pet.species,
+            updatedAtEpochMillis = updatedAt,
+        ).toDomain()
+    }
+
+    override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview =
+        database.withTransaction {
+            val pet = dao.getPet(id.value) ?: throw PetNotFoundException(id)
+            PetDeletionPreview(pet.toDomain(), dao.countMeasurements(id.value))
+        }
+
+    override suspend fun deletePet(id: PetId): PetDeletionPreview = database.withTransaction {
+        val pet = dao.getPet(id.value) ?: throw PetNotFoundException(id)
+        val deleted = PetDeletionPreview(pet.toDomain(), dao.countMeasurements(id.value))
+        check(dao.deletePet(id.value) == 1) { "Pet ${id.value} disappeared while deleting" }
+        deleted
     }
 
     override suspend fun recordCompletedMeasurement(

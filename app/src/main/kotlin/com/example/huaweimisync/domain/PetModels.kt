@@ -94,6 +94,24 @@ data class PetWithLatestWeight(
         get() = latestMeasurement?.measuredAt
 }
 
+data class PetWithMeasurementCount(
+    val pet: Pet,
+    val measurementCount: Int,
+) {
+    init {
+        require(measurementCount >= 0) { "Measurement count must not be negative" }
+    }
+}
+
+data class PetDeletionPreview(
+    val pet: Pet,
+    val measurementCount: Int,
+) {
+    init {
+        require(measurementCount >= 0) { "Measurement count must not be negative" }
+    }
+}
+
 fun normalizePetName(displayName: String): String =
     displayName.trim().lowercase(Locale.ROOT)
 

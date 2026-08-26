@@ -8,7 +8,15 @@ interface PetRepository {
 
     suspend fun getPet(id: PetId): Pet?
 
+    suspend fun getPetWithMeasurementCount(id: PetId): PetWithMeasurementCount?
+
     suspend fun createPet(pet: NewPet): Pet
+
+    suspend fun updatePet(pet: PetUpdate): Pet
+
+    suspend fun previewPetDeletion(id: PetId): PetDeletionPreview
+
+    suspend fun deletePet(id: PetId): PetDeletionPreview
 
     /** Atomically persists both stable scale readings and marks the pet as updated. */
     suspend fun recordCompletedMeasurement(
