@@ -229,7 +229,6 @@ data class MeasurementUiItem(
     val type: MeasurementUiType = MeasurementUiType.FULL,
     val isManuallyEdited: Boolean = false,
     val hasProfileSyncMismatch: Boolean = false,
-    val isDeleteProtected: Boolean = false,
     val isOperationInProgress: Boolean = false,
     /** Stable across pending replacement by a finalized Room row. */
     val presentationKey: String = id,
@@ -277,7 +276,7 @@ data class MeasurementUiItem(
         get() = hasFinalActions && !isOperationInProgress
 
     val canDelete: Boolean
-        get() = hasFinalActions && !isDeleteProtected && !isOperationInProgress
+        get() = hasFinalActions && !isOperationInProgress
 
     val canSync: Boolean
         get() = hasFinalActions && !isOperationInProgress

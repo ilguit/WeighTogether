@@ -13,7 +13,7 @@ class MiScalePacketParserTest {
     private val parser = MiScalePacketParser(ZoneId.of("UTC"))
 
     @Test
-    fun parsesStableMeasurementWithImpedance() {
+    fun parsesStableMeasurementWithImpedanceAndUsesValidScaleTimestamp() {
         val parsed = parser.parse(validPayload(), "aa:bb:cc:dd:ee:ff")
 
         assertNotNull(parsed)

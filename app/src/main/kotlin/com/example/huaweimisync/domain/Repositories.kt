@@ -55,6 +55,7 @@ data class AccountMeasurement(
 )
 
 sealed interface PendingEnqueueResult {
+    data object ExactReplay : PendingEnqueueResult
     data class Enqueued(val pending: PendingMeasurement) : PendingEnqueueResult
     data class AlreadyPending(val pending: PendingMeasurement) : PendingEnqueueResult
     data class AlreadyFinalized(val measurement: AccountMeasurement) : PendingEnqueueResult

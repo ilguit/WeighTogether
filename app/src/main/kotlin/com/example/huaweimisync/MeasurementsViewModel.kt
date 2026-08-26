@@ -141,7 +141,6 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             val source = refresh.measurements.load.valuesOrEmpty()
             val items = buildMeasurementPresentationItems(
                 source = source,
-                protectedLatestId = repository.protectedLatestId(source.finalized),
                 now = Instant.now(),
                 preliminaryComposition = { preliminary, account ->
                     repository.preliminaryComposition(preliminary, account.profile)
@@ -337,7 +336,6 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 MeasurementMutationResult.Success -> "Локальное измерение изменено"
                 MeasurementMutationResult.NotFound -> "Измерение уже удалено"
                 MeasurementMutationResult.Invalid -> "Проверьте введённые значения"
-                MeasurementMutationResult.ProtectedLatest -> "Не удалось изменить измерение"
             }
             if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { state ->
                     state.afterSaveCompletion(result)
@@ -366,14 +364,10 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 val request = measurementDeleteRequest(
                     id = id,
                     measurements = values,
-                    protectedLatestId = id.takeIf { repository.isProtectedLatest(it) },
                 )
             ) {
                 MeasurementDeleteRequest.NotFound -> completeDeleteRequest(
                     operation, null, "Измерение уже удалено",
-                )
-                MeasurementDeleteRequest.ProtectedLatest -> completeDeleteRequest(
-                    operation, null, PROTECTED_LATEST_MESSAGE,
                 )
                 is MeasurementDeleteRequest.Confirm -> completeDeleteRequest(
                     operation, request.confirmation, null,
@@ -445,14 +439,6 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
-    private fun showProtectedLatestMessage() {
-        showMessage(PROTECTED_LATEST_MESSAGE)
-    }
-
-    companion object {
-        const val PROTECTED_LATEST_MESSAGE =
-            "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
-    }
 }
 
 internal data class MeasurementsInteractionState(
@@ -509,7 +495,6 @@ internal fun MeasurementsInteractionState.afterSaveCompletion(
     MeasurementMutationResult.NotFound,
     -> copy(navigation = navigation.back(), editor = null, saveOperation = null)
     MeasurementMutationResult.Invalid,
-    MeasurementMutationResult.ProtectedLatest,
     -> copy(editor = editor?.copy(isSaving = false), saveOperation = null)
 }
 
@@ -535,7 +520,6 @@ internal fun unassignedPendingMeasurements(
 
 internal sealed interface MeasurementDeleteRequest {
     data object NotFound : MeasurementDeleteRequest
-    data object ProtectedLatest : MeasurementDeleteRequest
     data class Confirm(
         val confirmation: MeasurementDeleteConfirmation,
     ) : MeasurementDeleteRequest
@@ -544,10 +528,8 @@ internal sealed interface MeasurementDeleteRequest {
 internal fun measurementDeleteRequest(
     id: String,
     measurements: List<MeasurementEntity>,
-    protectedLatestId: String?,
 ): MeasurementDeleteRequest {
     val value = measurements.firstOrNull { it.id == id } ?: return MeasurementDeleteRequest.NotFound
-    if (value.id == protectedLatestId) return MeasurementDeleteRequest.ProtectedLatest
     return MeasurementDeleteRequest.Confirm(
         MeasurementDeleteConfirmation(
             measurementId = value.id,
@@ -561,11 +543,9 @@ internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): 
     MeasurementMutationResult.Success -> "Локальное измерение удалено"
     MeasurementMutationResult.NotFound -> "Измерение уже удалено"
     MeasurementMutationResult.Invalid -> "Не удалось удалить измерение"
-    MeasurementMutationResult.ProtectedLatest -> MeasurementsViewModel.PROTECTED_LATEST_MESSAGE
 }
 
 internal fun MeasurementEntity.toMeasurementUiItem(
-    isDeleteProtected: Boolean,
     isOperationInProgress: Boolean,
 ): MeasurementUiItem =
     MeasurementUiItem(
@@ -584,7 +564,6 @@ internal fun MeasurementEntity.toMeasurementUiItem(
         ),
         isManuallyEdited = isManuallyEdited,
         hasProfileSyncMismatch = hasProfileSyncMismatch,
-        isDeleteProtected = isDeleteProtected,
         isOperationInProgress = isOperationInProgress,
     )
 
@@ -648,7 +627,6 @@ internal data class AccountMeasurementPresentationSource(
 
 internal fun buildMeasurementPresentationItems(
     source: AccountMeasurementPresentationSource,
-    protectedLatestId: String?,
     now: Instant,
     preliminaryComposition: (PendingMeasurement, Account) ->
         com.example.huaweimisync.core.BodyComposition?,
@@ -656,7 +634,6 @@ internal fun buildMeasurementPresentationItems(
     val finalizedPendingIds = source.finalized.mapNotNull(MeasurementEntity::sourcePendingId).toSet()
     val finalizedItems = source.finalized.map { value ->
         value.toMeasurementUiItem(
-            isDeleteProtected = value.id == protectedLatestId,
             isOperationInProgress = false,
         )
     }

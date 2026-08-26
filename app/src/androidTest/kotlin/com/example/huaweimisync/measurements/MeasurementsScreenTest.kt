@@ -569,50 +569,6 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun protectedSummaryDeleteShowsRequiredSnackbarWithoutDialog() {
-        var requestedId: String? = null
-        val messages = Channel<String>(Channel.BUFFERED)
-        val state = sampleState(isLatestDeleteProtected = true)
-        val callbacks = callbacks(
-            onDeleteRequested = {
-                requestedId = it
-                messages.trySend(MeasurementsViewModel.PROTECTED_LATEST_MESSAGE)
-            },
-        )
-        setContentWithSnackbar(state, callbacks, messages)
-
-        composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
-        composeRule.onNodeWithTag("summary-delete-measurement").performClick()
-
-        composeRule.runOnIdle { assertEquals("latest", requestedId) }
-        composeRule.onNodeWithTag("delete-measurement-dialog").assertDoesNotExist()
-        composeRule.onNodeWithText(PROTECTED_LATEST_MESSAGE).assertIsDisplayed()
-    }
-
-    @Test
-    fun protectedHistoryDeleteShowsRequiredSnackbarWithoutDialog() {
-        var requestedId: String? = null
-        val messages = Channel<String>(Channel.BUFFERED)
-        val state = sampleState(isLatestDeleteProtected = true).copy(
-            destination = MeasurementsDestination.HISTORY,
-        )
-        val callbacks = callbacks(
-            onDeleteRequested = {
-                requestedId = it
-                messages.trySend(MeasurementsViewModel.PROTECTED_LATEST_MESSAGE)
-            },
-        )
-        setContentWithSnackbar(state, callbacks, messages)
-
-        composeRule.onNodeWithTag("history-toggle-latest").performClick()
-        composeRule.onNodeWithTag("history-delete-latest").performClick()
-
-        composeRule.runOnIdle { assertEquals("latest", requestedId) }
-        composeRule.onNodeWithTag("delete-measurement-dialog").assertDoesNotExist()
-        composeRule.onNodeWithText(PROTECTED_LATEST_MESSAGE).assertIsDisplayed()
-    }
-
-    @Test
     fun syncStatusOpensTypedDirectionsAndRetry() {
         var retriedId: String? = null
         val state = sampleState(sync = retryableSync())
@@ -722,14 +678,12 @@ class MeasurementsScreenTest {
 
     private fun sampleState(
         sync: MeasurementSyncPresentation = syncedSync(),
-        isLatestDeleteProtected: Boolean = false,
     ): MeasurementsUiState {
         val latest = sampleItem(
             id = "latest",
             instant = "2026-08-15T12:42:00Z",
             weight = 72.4,
             sync = sync,
-            isDeleteProtected = isLatestDeleteProtected,
         )
         val previous = sampleItem("previous", "2026-08-13T11:58:00Z", 72.8, syncedSync())
         val measurements = listOf(latest, previous)
@@ -749,7 +703,6 @@ class MeasurementsScreenTest {
         values: MeasurementUiValues = sampleValues(weight),
         isManuallyEdited: Boolean = false,
         hasProfileSyncMismatch: Boolean = false,
-        isDeleteProtected: Boolean = false,
     ): MeasurementUiItem {
         val measuredAt = Instant.parse(instant)
         return MeasurementUiItem(
@@ -760,7 +713,6 @@ class MeasurementsScreenTest {
             type = type,
             isManuallyEdited = isManuallyEdited,
             hasProfileSyncMismatch = hasProfileSyncMismatch,
-            isDeleteProtected = isDeleteProtected,
         )
     }
 
@@ -906,8 +858,4 @@ class MeasurementsScreenTest {
         canRetry = false,
     )
 
-    private companion object {
-        const val PROTECTED_LATEST_MESSAGE =
-            "Последнее измерение хранится в памяти весов и будет добавлено снова, поэтому удалить его нельзя"
-    }
 }

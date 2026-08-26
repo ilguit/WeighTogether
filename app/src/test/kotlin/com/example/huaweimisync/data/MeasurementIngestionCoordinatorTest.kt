@@ -51,6 +51,24 @@ class MeasurementIngestionCoordinatorTest {
     private val secondary = testAccount("secondary", "Bob")
 
     @Test
+    fun exactReplayPropagatesWithoutRoutingSyncOrNotification() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events).apply {
+            nextEnqueueResult = PendingPersistenceResult.ExactReplay
+        }
+        val scheduler = UniqueFakeScheduler(events)
+        val notifier = RecordingNotifier()
+
+        val result = coordinator(persistence, accounts, scheduler, notifier).ingest(raw(70.0))
+
+        assertEquals(MeasurementIngestionResult.ExactReplay, result)
+        assertEquals(listOf("enqueue"), events)
+        assertTrue(scheduler.enqueued.isEmpty())
+        assertTrue(notifier.counts.isEmpty())
+    }
+
+    @Test
     fun nonFinalPacketNeverCrossesTheDurableBoundary() = runBlocking {
         val events = mutableListOf<String>()
         val accounts = FakeAccountRepository(listOf(primary), primary.id, events)

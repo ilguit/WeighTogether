@@ -64,7 +64,6 @@ class MeasurementDeduplicationEndToEndTest {
         val repository = MeasurementRepository(
             dao = database.measurementDao(),
             profileProvider = { null },
-            scaleAddressProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = sync,
             huaweiSyncEnabled = true,
@@ -153,6 +152,62 @@ class MeasurementDeduplicationEndToEndTest {
     }
 
     @Test
+    fun deletingFinalRecordKeepsExactReplayBaselineAndAcceptsChangedPacket() = runBlocking {
+        val accounts = RoomAccountRepository(database, now = { now })
+        val account = accounts.createAccount(
+            NewAccount(
+                displayName = "Alice",
+                profile = AccountProfile.Complete(
+                    heightCm = 175.0,
+                    birthDate = LocalDate.of(1990, 1, 1),
+                    sex = Sex.FEMALE,
+                ),
+            ),
+        )
+        val calculator = BodyCompositionCalculator(ZoneId.of("UTC"))
+        val repository = MeasurementRepository(
+            dao = database.measurementDao(),
+            profileProvider = { null },
+            calculator = calculator,
+            syncScheduler = RecordingSyncScheduler(),
+            huaweiSyncEnabled = true,
+            multiAccountPersistence = RoomMeasurementPersistence(
+                database = database,
+                calculator = calculator,
+                huaweiSyncEnabled = true,
+                now = { now },
+            ),
+            accountRepository = accounts,
+        )
+
+        val created = repository.ingestTestMeasurement(70.0, 500, MEASURED_AT)
+            as MeasurementIngestionResult.CreatedAggregate
+        now = created.pending.finalizeAfter
+        val assigned = (
+            repository.finalizeDue(created.pending.id, now) as AggregateFinalizationResult.Completed
+        ).outcome as MeasurementIngestionResult.Assigned
+        val baselineBeforeDelete = requireNotNull(database.acceptedStableMeasurementDao().getLatest())
+
+        assertEquals(
+            MeasurementMutationResult.Success,
+            repository.delete(assigned.measurement.measurementId),
+        )
+        assertTrue(repository.observeAllEntities(account.id).first().isEmpty())
+        assertTrue(
+            requireNotNull(database.acceptedStableMeasurementDao().getLatest())
+                .exactlyMatches(baselineBeforeDelete.toRawScaleMeasurement()),
+        )
+
+        val replay = repository.ingestTestMeasurement(70.0, 500, MEASURED_AT)
+        assertEquals(MeasurementIngestionResult.ExactReplay, replay)
+        assertTrue(repository.observePending().first().isEmpty())
+
+        val changed = repository.ingestTestMeasurement(70.1, 500, MEASURED_AT)
+        assertTrue(changed is MeasurementIngestionResult.CreatedAggregate)
+        assertEquals(1, repository.observePending().first().size)
+    }
+
+    @Test
     fun lateDuplicateEnrichesAwaitingDecisionWithoutReturningItToAggregation() = runBlocking {
         val finalization = RecordingFinalizationScheduler()
         val notifications = RecordingPendingNotifier()
@@ -161,7 +216,6 @@ class MeasurementDeduplicationEndToEndTest {
         val repository = MeasurementRepository(
             dao = database.measurementDao(),
             profileProvider = { null },
-            scaleAddressProvider = { null },
             calculator = calculator,
             syncScheduler = RecordingSyncScheduler(),
             huaweiSyncEnabled = true,
@@ -224,7 +278,6 @@ class MeasurementDeduplicationEndToEndTest {
         val repository = MeasurementRepository(
             dao = database.measurementDao(),
             profileProvider = { null },
-            scaleAddressProvider = { null },
             calculator = calculator,
             syncScheduler = sync,
             huaweiSyncEnabled = true,
