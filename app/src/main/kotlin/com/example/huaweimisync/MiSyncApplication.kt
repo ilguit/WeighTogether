@@ -76,7 +76,6 @@ class AppContainer(application: Application) {
         // The legacy provider is never reached in live DI because all writes use the configured
         // durable multi-account coordinator below.
         { null },
-        { profileStore.settings.value.scaleAddress },
         calculator,
         syncScheduler,
         huaweiHealth.isAvailableInBuild,

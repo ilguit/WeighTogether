@@ -95,7 +95,6 @@ class MeasurementRepositoryTest {
         val repository = MeasurementRepository(
             dao = dao,
             profileProvider = { null },
-            scaleAddressProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = scheduler,
             huaweiSyncEnabled = false,
@@ -205,7 +204,6 @@ class MeasurementRepositoryTest {
         val repository = MeasurementRepository(
             dao = dao,
             profileProvider = { null },
-            scaleAddressProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = scheduler,
             huaweiSyncEnabled = false,
@@ -501,7 +499,7 @@ class MeasurementRepositoryTest {
     }
 
     @Test
-    fun latestMeasurementFromCurrentlyLinkedScaleIsProtectedWithoutMutationOrCancellation() =
+    fun latestMeasurementFromCurrentlyLinkedScaleDeletesNormally() =
         runBlocking {
             val events = mutableListOf<String>()
             val dao = FakeMeasurementDao(events)
@@ -523,17 +521,13 @@ class MeasurementRepositoryTest {
             val repository = repository(
                 dao = dao,
                 scheduler = scheduler,
-                scaleAddress = "aa:bb:cc:dd:ee:ff",
             )
 
-            assertEquals(
-                MeasurementMutationResult.ProtectedLatest,
-                repository.delete(protected.id),
-            )
+            assertEquals(MeasurementMutationResult.Success, repository.delete(protected.id))
 
-            assertEquals(protected, dao.values.getValue(protected.id))
-            assertTrue(events.isEmpty())
-            assertTrue(scheduler.cancelled.isEmpty())
+            assertTrue(protected.id !in dao.values)
+            assertEquals(listOf("mark-local-only:protected", "delete:protected"), events)
+            assertEquals(listOf(protected.id), scheduler.cancelled)
             assertTrue(scheduler.enqueued.isEmpty())
         }
 
@@ -543,7 +537,7 @@ class MeasurementRepositoryTest {
         dao.values["previous"] = measurement(id = "previous", measuredAt = 1_000L)
         dao.values["latest"] = measurement(id = "latest", measuredAt = 2_000L)
         val scheduler = FakeSyncScheduler()
-        val repository = repository(dao, scheduler, scaleAddress = "AA:BB:CC:DD:EE:FF")
+        val repository = repository(dao, scheduler)
 
         assertEquals(MeasurementMutationResult.Success, repository.delete("previous"))
 
@@ -566,7 +560,6 @@ class MeasurementRepositoryTest {
             val repository = repository(
                 dao = dao,
                 scheduler = scheduler,
-                scaleAddress = "AA:BB:CC:DD:EE:FF",
             )
 
             assertEquals(
@@ -579,25 +572,17 @@ class MeasurementRepositoryTest {
     }
 
     @Test
-    fun protectedMeasurementBecomesDeletableAfterNewerScaleMeasurementAppears() = runBlocking {
+    fun soleScaleMeasurementDeletesNormally() = runBlocking {
         val dao = FakeMeasurementDao()
         dao.values["previous"] = measurement(id = "previous", measuredAt = 1_000L)
         val scheduler = FakeSyncScheduler()
         val repository = repository(
             dao = dao,
             scheduler = scheduler,
-            scaleAddress = "AA:BB:CC:DD:EE:FF",
         )
-
-        assertEquals(
-            MeasurementMutationResult.ProtectedLatest,
-            repository.delete("previous"),
-        )
-        dao.values["newer"] = measurement(id = "newer", measuredAt = 2_000L)
 
         assertEquals(MeasurementMutationResult.Success, repository.delete("previous"))
         assertEquals(listOf("previous"), scheduler.cancelled)
-        assertEquals("newer", repository.protectedLatestId(dao.values.values.toList()))
     }
 
     @Test
@@ -757,12 +742,10 @@ class MeasurementRepositoryTest {
         dao: MeasurementDao,
         scheduler: MeasurementSyncScheduler,
         huaweiSyncEnabled: Boolean = false,
-        scaleAddress: String? = null,
         operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     ) = MeasurementRepository(
         dao = dao,
         profileProvider = { profile },
-        scaleAddressProvider = { scaleAddress },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         huaweiSyncEnabled = huaweiSyncEnabled,
