@@ -14,6 +14,7 @@ abstract class VerifyReleaseMetadataTask : DefaultTask() {
     @get:Input abstract val headSha: Property<String>
     @get:Input abstract val currentVersion: Property<String>
     @get:Input abstract val flavor: Property<String>
+    @get:Input abstract val mode: Property<ReleaseHistoryMode>
     @get:Input abstract val trackedWorktreeState: Property<String>
 
     @get:InputFile
@@ -34,6 +35,7 @@ abstract class VerifyReleaseMetadataTask : DefaultTask() {
                 headSha.get(),
                 currentVersion.get(),
                 ReleaseFlavor.fromId(flavor.get()),
+                mode.get(),
                 BaselineParser.parse(baselineFile.get().asFile.readText()),
             )
         } catch (exception: GenerationException) {

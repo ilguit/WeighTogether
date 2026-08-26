@@ -8,16 +8,19 @@ class ReleaseHistoryGenerator(
         headRevision: String,
         currentVersion: String,
         flavor: ReleaseFlavor,
+        mode: ReleaseHistoryMode,
         baseline: ReleaseHistoryBaseline? = null,
-    ): GeneratedHistory = preflight(headRevision, currentVersion, flavor, baseline).history
+    ): GeneratedHistory = preflight(headRevision, currentVersion, flavor, mode, baseline).history
 
     fun preflight(
         headRevision: String,
         currentVersion: String,
         flavor: ReleaseFlavor,
+        mode: ReleaseHistoryMode,
         baseline: ReleaseHistoryBaseline? = null,
     ): ReleasePreflight {
         val head = repository.resolve(headRevision)
+        parseVersion(currentVersion)
         if (repository.isShallow()) {
             throw GenerationException(
                 "Release range root..$head cannot be verified because the local Git history is shallow or " +
@@ -54,10 +57,16 @@ class ReleaseHistoryGenerator(
                     "used by ${it.name} at ${it.commitSha}; choose a new versionName",
             )
         }
-        val taggedPoints = tags.filter { it.commitSha != head }
+        val taggedPoints = tags
             .filter { baseline == null || repository.isFirstParentAncestor(baseline.boundaryCommit, it.commitSha) }
             .map { ReleasePoint(it.version, it.commitSha) }
-        val points = listOf(ReleasePoint(currentVersion, head)) + taggedPoints
+        val points = when (mode) {
+            ReleaseHistoryMode.BUILD -> taggedPoints
+            ReleaseHistoryMode.RELEASE -> {
+                if (headTags.isEmpty()) listOf(ReleasePoint(currentVersion, head)) + taggedPoints
+                else taggedPoints
+            }
+        }
         val ranges = points.mapIndexed { index, point ->
             val base = points.getOrNull(index + 1)?.commitSha ?: baseline?.boundaryCommit
             inspectRange(point, base, tags.firstOrNull { it.commitSha == base })
@@ -66,13 +75,14 @@ class ReleaseHistoryGenerator(
             generateRelease(points[index], range, flavor)
         }
         val history = GeneratedHistory(releases + baseline.orEmpty())
-        if (history.releases.firstOrNull()?.version != currentVersion) {
+        if (mode == ReleaseHistoryMode.RELEASE && history.releases.firstOrNull()?.version != currentVersion) {
             throw GenerationException(
-                "Release range ${ranges.first().displayName}: versionName $currentVersion does not match " +
+                "Release range ${ranges.firstOrNull()?.displayName ?: rangeName(previousTag?.commitSha, head)}: " +
+                    "versionName $currentVersion does not match " +
                     "the newest generated history entry; regenerate release history",
             )
         }
-        return ReleasePreflight(head, previousTag, ranges.first(), currentVersion, history)
+        return ReleasePreflight(head, previousTag, ranges.firstOrNull(), currentVersion, history)
     }
 
     private fun inspectRange(point: ReleasePoint, exclusiveBase: String?, previousTag: ApkTag?): ReleaseRange {

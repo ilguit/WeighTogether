@@ -11,6 +11,19 @@ enum class ReleaseFlavor(val id: String) {
     }
 }
 
+enum class ReleaseHistoryMode(val id: String) {
+    BUILD("build"),
+    RELEASE("release"),
+    ;
+
+    companion object {
+        fun fromId(id: String): ReleaseHistoryMode = entries.singleOrNull { it.id == id }
+            ?: throw GenerationException(
+                "Unknown release history mode '$id'; expected one of: ${entries.joinToString { it.id }}",
+            )
+    }
+}
+
 data class ReleaseNoteFragment(
     val path: String,
     val issue: Int,
@@ -65,7 +78,7 @@ data class ReleaseRange(
 data class ReleasePreflight(
     val headSha: String,
     val previousTag: ApkTag?,
-    val range: ReleaseRange,
+    val range: ReleaseRange?,
     val currentVersion: String,
     val history: GeneratedHistory,
 )

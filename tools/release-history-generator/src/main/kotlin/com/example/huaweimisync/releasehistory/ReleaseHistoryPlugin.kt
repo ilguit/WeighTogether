@@ -8,6 +8,9 @@ import org.gradle.api.Project
 class ReleaseHistoryPlugin : Plugin<Project> {
     override fun apply(project: Project) {
         project.pluginManager.withPlugin("com.android.application") {
+            val releaseHistoryMode = project.providers.gradleProperty("releaseHistoryMode")
+                .map(ReleaseHistoryMode::fromId)
+                .orElse(ReleaseHistoryMode.BUILD)
             @Suppress("UNCHECKED_CAST")
             val components = project.extensions.getByType(AndroidComponentsExtension::class.java)
             components.onVariants { variant ->
@@ -32,7 +35,8 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                         ?: throw IllegalStateException("Release history requires one output for ${variant.name}")
                     configured.currentVersion.set(versionName.map { it.substringBefore('-') })
                     configured.flavor.set(flavor)
-                    configured.generatorSchemaVersion.set(1)
+                    configured.mode.set(releaseHistoryMode)
+                    configured.generatorSchemaVersion.set(2)
                     configured.gitMetadata.set(project.providers.exec {
                         it.commandLine(
                             "git", "-C", project.rootDir, "log", "--first-parent",
@@ -72,6 +76,7 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                         configured.headSha.set(task.flatMap(GenerateReleaseHistoryTask::headSha))
                         configured.currentVersion.set(task.flatMap(GenerateReleaseHistoryTask::currentVersion))
                         configured.flavor.set(task.flatMap(GenerateReleaseHistoryTask::flavor))
+                        configured.mode.set(task.flatMap(GenerateReleaseHistoryTask::mode))
                         configured.trackedWorktreeState.set(task.flatMap(GenerateReleaseHistoryTask::trackedWorktreeState))
                         configured.baselineFile.set(task.flatMap(GenerateReleaseHistoryTask::baselineFile))
                     }
