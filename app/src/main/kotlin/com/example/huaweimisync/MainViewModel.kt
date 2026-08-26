@@ -418,7 +418,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (pendingSession == null) {
             val created = container.accounts.createAccount(account)
             if (accountsSnapshot.value.settings.primaryAccountId == null) {
-                container.selectedAccountId.value = created.id
+                container.accountSelection.select(created.id)
             }
             finishAccountOperation("Аккаунт «${created.displayName}» создан")
             return@runAccountOperation
@@ -434,7 +434,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ) {
             is CreateAccountAndAssignResult.Created -> {
                 pendingForNewAccount.value = null
-                container.selectedAccountId.value = result.account.id
+                container.accountSelection.select(result.account.id)
                 completePendingResolution(completion)
                 finishAccountOperation(
                     "Аккаунт «${result.account.displayName}» создан, измерение назначено",
@@ -461,14 +461,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
         runAccountOperation {
             container.accounts.setPrimaryAccount(accountId, mode)
-            container.selectedAccountId.value = accountId
+            container.accountSelection.select(accountId)
             finishAccountOperation("Основной аккаунт изменён")
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
         container.accounts.deleteAccount(accountId)
-        if (container.selectedAccountId.value == accountId) {
-            container.selectedAccountId.value = null
+        val selection = container.accountSelection.selection.value
+        if (selection.accountId == accountId) {
+            container.accountSelection.selectIfCurrent(selection, null)
         }
         finishAccountOperation("Аккаунт и его локальная история удалены")
     }
@@ -479,7 +480,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             replacementAccountId = request.replacementAccountId,
             historySyncMode = request.historySyncMode,
         )
-        container.selectedAccountId.value = request.replacementAccountId
+        container.accountSelection.select(request.replacementAccountId)
         finishAccountOperation("Основной аккаунт и его локальная история удалены")
     }
 

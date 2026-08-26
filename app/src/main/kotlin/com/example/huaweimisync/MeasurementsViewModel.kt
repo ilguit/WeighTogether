@@ -41,7 +41,6 @@ import com.example.huaweimisync.ui.routing.PendingResolverReturnDestination
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
-import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -64,19 +63,22 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val profileStore = container.profileStore
     private val homeChartZoneId = ZoneId.systemDefault()
     private val interaction = MutableStateFlow(MeasurementsInteractionState())
-    private val nextOperationToken = AtomicLong()
+    private var nextOperationSequence = 0L
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
     private val accountSelector = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
-        container.selectedAccountId,
-    ) { accounts, settings, selectedAccountId ->
-        reconcileAccountSelection(accounts, selectedAccountId, settings.primaryAccountId)
-    }.onEach { selector ->
-        interaction.update { it.normalizedFor(selector.selectedAccountId) }
-        if (container.selectedAccountId.value != selector.selectedAccountId) {
-            container.selectedAccountId.value = selector.selectedAccountId
-        }
+        container.accountSelection.selection,
+    ) { accounts, settings, selection ->
+        selection to reconcileAccountSelection(accounts, selection.accountId, settings.primaryAccountId)
+    }.onEach { (sourceSelection, selector) ->
+        val authoritative = container.accountSelection.selectIfCurrent(
+            sourceSelection,
+            selector.selectedAccountId,
+        )
+        interaction.update { it.normalizedFor(authoritative) }
+    }.map { (_, selector) ->
+        selector
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -172,7 +174,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         interaction,
     ) { current, rawInteraction ->
         val currentInteraction = rawInteraction.normalizedFor(
-            current.accountSelector.selectedAccountId,
+            container.accountSelection.selection.value,
         )
         val deletion = currentInteraction.deleteConfirmation
         val deletingId = deletion?.measurementId.takeIf { deletion?.isDeleting == true }
@@ -220,12 +222,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.none { it.id == accountId }) return
-        publishAccountSelection(interaction, container.selectedAccountId, accountId)
+        val selection = container.accountSelection.select(accountId)
+        interaction.update { it.normalizedFor(selection) }
     }
 
     private fun currentInteraction(): MeasurementsInteractionState {
-        val accountId = measurements.value.selection.selectedAccountId
-        interaction.update { it.normalizedFor(accountId) }
+        val selection = container.accountSelection.selection.value
+        interaction.update { it.normalizedFor(selection) }
         return interaction.value
     }
 
@@ -318,7 +321,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         val owner = currentInteraction()
         val current = owner.editor ?: return
         if (current.measurementId != id || current.isSaving) return
-        val operation = operation(owner.accountId, id)
+        val operation = operation(owner.selection, id)
         interaction.value = owner.copy(
             editor = current.copy(isSaving = true),
             saveOperation = operation,
@@ -336,7 +339,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 MeasurementMutationResult.Invalid -> "Проверьте введённые значения"
                 MeasurementMutationResult.ProtectedLatest -> "Не удалось изменить измерение"
             }
-            if (interaction.acceptOperation(operation, container.selectedAccountId.value) { state ->
+            if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { state ->
                     state.afterSaveCompletion(result)
                 }
             ) {
@@ -356,7 +359,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             showMessage("Измерение уже удалено")
             return
         }
-        val operation = operation(owner.accountId, id)
+        val operation = operation(owner.selection, id)
         interaction.value = owner.copy(deleteRequestOperation = operation)
         viewModelScope.launch {
             when (
@@ -383,14 +386,14 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         val owner = currentInteraction()
         val confirmation = owner.deleteConfirmation ?: return
         if (confirmation.measurementId != id || confirmation.isDeleting) return
-        val operation = operation(owner.accountId, id)
+        val operation = operation(owner.selection, id)
         interaction.value = owner.copy(
             deleteConfirmation = confirmation.copy(isDeleting = true),
             deleteOperation = operation,
         )
         viewModelScope.launch {
             val message = measurementDeleteResultMessage(repository.delete(id))
-            if (interaction.acceptOperation(operation, container.selectedAccountId.value) { current ->
+            if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { current ->
                     current.copy(deleteConfirmation = null, deleteOperation = null)
                 }
             ) {
@@ -419,15 +422,19 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         eventChannel.trySend(MeasurementsUiEvent.ShowSnackbar(message))
     }
 
-    private fun operation(accountId: AccountId?, measurementId: String) =
-        MeasurementOperationToken(accountId, measurementId, nextOperationToken.incrementAndGet())
+    private fun operation(selection: AccountSelection, measurementId: String) =
+        MeasurementOperationToken(
+            selection = selection,
+            measurementId = measurementId,
+            sequence = ++nextOperationSequence,
+        )
 
     private fun completeDeleteRequest(
         operation: MeasurementOperationToken,
         confirmation: MeasurementDeleteConfirmation?,
         message: String?,
     ) {
-        if (interaction.acceptOperation(operation, container.selectedAccountId.value) { current ->
+        if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { current ->
                 current.copy(
                     deleteConfirmation = confirmation,
                     deleteRequestOperation = null,
@@ -449,7 +456,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 }
 
 internal data class MeasurementsInteractionState(
-    val accountId: AccountId? = null,
+    val selection: AccountSelection = AccountSelection(),
     val navigation: MeasurementsNavigationState = MeasurementsNavigationState(),
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
@@ -457,9 +464,12 @@ internal data class MeasurementsInteractionState(
     val deleteRequestOperation: MeasurementOperationToken? = null,
     val deleteOperation: MeasurementOperationToken? = null,
 ) {
-    fun normalizedFor(accountId: AccountId?): MeasurementsInteractionState =
-        if (this.accountId == accountId) this else copy(
-            accountId = accountId,
+    val accountId: AccountId?
+        get() = selection.accountId
+
+    fun normalizedFor(selection: AccountSelection): MeasurementsInteractionState =
+        if (this.selection == selection) this else copy(
+            selection = selection,
             navigation = navigation.afterAccountSelectionChanged(),
             editor = null,
             deleteConfirmation = null,
@@ -469,9 +479,9 @@ internal data class MeasurementsInteractionState(
         )
 
     fun withDeleteConfirmation(
-        ownerAccountId: AccountId?,
+        ownerSelection: AccountSelection,
         confirmation: MeasurementDeleteConfirmation,
-    ): MeasurementsInteractionState = if (accountId == ownerAccountId) {
+    ): MeasurementsInteractionState = if (selection == ownerSelection) {
         copy(deleteConfirmation = confirmation)
     } else {
         this
@@ -479,13 +489,13 @@ internal data class MeasurementsInteractionState(
 }
 
 internal data class MeasurementOperationToken(
-    val accountId: AccountId?,
+    val selection: AccountSelection,
     val measurementId: String,
     val sequence: Long,
 )
 
 private fun MeasurementsInteractionState.owns(operation: MeasurementOperationToken): Boolean =
-    accountId == operation.accountId && when (operation) {
+    selection == operation.selection && when (operation) {
         saveOperation -> editor?.measurementId == operation.measurementId
         deleteRequestOperation -> true
         deleteOperation -> deleteConfirmation?.measurementId == operation.measurementId
@@ -505,27 +515,18 @@ internal fun MeasurementsInteractionState.afterSaveCompletion(
 
 internal inline fun MutableStateFlow<MeasurementsInteractionState>.acceptOperation(
     operation: MeasurementOperationToken,
-    authoritativeAccountId: AccountId?,
+    authoritativeSelection: AccountSelection,
     transform: (MeasurementsInteractionState) -> MeasurementsInteractionState,
 ): Boolean {
     while (true) {
         val current = value
-        val normalized = current.normalizedFor(authoritativeAccountId)
+        val normalized = current.normalizedFor(authoritativeSelection)
         if (!normalized.owns(operation)) {
             if (normalized === current || compareAndSet(current, normalized)) return false
         } else if (compareAndSet(current, transform(normalized))) {
             return true
         }
     }
-}
-
-internal fun publishAccountSelection(
-    interaction: MutableStateFlow<MeasurementsInteractionState>,
-    selectedAccountId: MutableStateFlow<AccountId?>,
-    accountId: AccountId,
-) {
-    interaction.update { it.normalizedFor(accountId) }
-    selectedAccountId.value = accountId
 }
 
 internal fun unassignedPendingMeasurements(

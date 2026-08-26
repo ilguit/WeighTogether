@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.stateIn
@@ -127,13 +128,13 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     private val accountSelector = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
-        container.selectedAccountId,
-    ) { accounts, settings, selectedAccountId ->
-        reconcileAccountSelection(accounts, selectedAccountId, settings.primaryAccountId)
-    }.onEach { selector ->
-        if (container.selectedAccountId.value != selector.selectedAccountId) {
-            container.selectedAccountId.value = selector.selectedAccountId
-        }
+        container.accountSelection.selection,
+    ) { accounts, settings, selection ->
+        selection to reconcileAccountSelection(accounts, selection.accountId, settings.primaryAccountId)
+    }.onEach { (sourceSelection, selector) ->
+        container.accountSelection.selectIfCurrent(sourceSelection, selector.selectedAccountId)
+    }.map { (_, selector) ->
+        selector
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
@@ -215,7 +216,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
 
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.any { it.id == accountId }) {
-            container.selectedAccountId.value = accountId
+            container.accountSelection.select(accountId)
         }
     }
 

@@ -9,7 +9,6 @@ import com.example.huaweimisync.data.ProfileStore
 import com.example.huaweimisync.data.RoomAccountRepository
 import com.example.huaweimisync.data.RoomMeasurementPersistence
 import com.example.huaweimisync.data.SyncAwareAccountRepository
-import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.sync.HealthConnectGateway
 import com.example.huaweimisync.sync.HuaweiHealthGateway
 import com.example.huaweimisync.sync.createHuaweiHealthGateway
@@ -20,7 +19,6 @@ import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -93,6 +91,6 @@ class AppContainer(application: Application) {
         externalSyncOperations = externalSyncOperations,
     )
 
-    /** One application-wide selection shared by Measurements and Charts. */
-    val selectedAccountId = MutableStateFlow<AccountId?>(null)
+    /** One application-wide, generation-tracked selection shared by every writer. */
+    internal val accountSelection = AccountSelectionCoordinator()
 }
