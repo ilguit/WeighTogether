@@ -11,10 +11,13 @@ import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementTombstoneEntity
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.PendingMeasurementEntity
+import com.example.huaweimisync.data.PetEntity
+import com.example.huaweimisync.data.PetMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.data.VersionedPortableProfileSettings
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PetSpecies
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -95,6 +98,41 @@ class RoomBackupImportGatewayTest {
         }
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(listOf("new-m"), database.measurementDao().getAllForBackup().map { it.id })
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
+    fun petGraphRoundTripsThroughMergeAndReplaceRollsBackWithoutOrphans() = runBlocking {
+        val initial = preview(
+            BackupImportMode.MERGE,
+            listOf(account("owner")),
+            emptyList(),
+            listOf(pet("cat")),
+            listOf(petMeasurement("pet-m", "cat")),
+        )
+        apply(initial)
+        assertEquals(listOf("cat"), database.petDao().getAllPetsForBackup().map { it.id })
+        assertEquals(listOf("pet-m"), database.petDao().getAllMeasurementsForBackup().map { it.id })
+
+        val brokenDocument = initial.sourceDocument.copy(
+            pets = listOf(BackupPetV2("new", "new", "new", PetSpecies.CAT, 1, 2)),
+            petMeasurements = listOf(BackupPetMeasurementV2("orphan", "missing", 3, 70.0, 74.0, 4.0)),
+        )
+        val broken = BackupImportService().preview(
+            brokenDocument,
+            BackupDatabaseSnapshot(
+                database.accountDao().getAll(),
+                database.appStateDao().get() ?: AppStateEntity(),
+                database.measurementDao().getAllForBackup(),
+                database.petDao().getAllPetsForBackup(),
+                database.petDao().getAllMeasurementsForBackup(),
+            ),
+            currentSettings,
+            BackupImportMode.REPLACE,
+        )
+        assertThrows(Exception::class.java) { runBlocking { gateway.stage(broken) } }
+        assertEquals(listOf("cat"), database.petDao().getAllPetsForBackup().map { it.id })
+        assertEquals(listOf("pet-m"), database.petDao().getAllMeasurementsForBackup().map { it.id })
         assertEquals(null, gateway.pendingRecovery())
     }
 
@@ -337,11 +375,15 @@ class RoomBackupImportGatewayTest {
         mode: BackupImportMode,
         accounts: List<AccountEntity>,
         measurements: List<MeasurementEntity>,
+        pets: List<PetEntity> = emptyList(),
+        petMeasurements: List<PetMeasurementEntity> = emptyList(),
     ): BackupImportPreview {
         val target = BackupDatabaseSnapshot(
             accounts,
             AppStateEntity(primaryAccountId = accounts.first().id),
             measurements,
+            pets,
+            petMeasurements,
         )
         val document = BackupExportService(
             BackupSnapshotSource { target },
@@ -353,6 +395,8 @@ class RoomBackupImportGatewayTest {
                 database.accountDao().getAll(),
                 database.appStateDao().get() ?: AppStateEntity(),
                 database.measurementDao().getAllForBackup(),
+                database.petDao().getAllPetsForBackup(),
+                database.petDao().getAllMeasurementsForBackup(),
             ),
             currentSettings,
             mode,
@@ -369,6 +413,11 @@ class RoomBackupImportGatewayTest {
     )
 
     private fun account(id: String) = AccountEntity(id, id, id, null, null, null, false, 1, 1)
+
+    private fun pet(id: String) = PetEntity(id, id, id, PetSpecies.CAT, 1, 2)
+
+    private fun petMeasurement(id: String, petId: String) =
+        PetMeasurementEntity(id, petId, 3, 70.0, 74.0, 4.0)
 
     private fun measurement(id: String, accountId: String, status: SyncStatus) = MeasurementEntity(
         id = id, fingerprint = "fingerprint-$id", measurementType = MeasurementType.WEIGHT_ONLY,

@@ -309,7 +309,9 @@ internal fun SettingsScreen(
                         "Все локальные аккаунты, измерения и ожидающие измерения будут заменены. Это действие нельзя отменить."
                     } else {
                         "Аккаунты: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
-                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}."
+                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
+                            "Питомцы: +${counts.petsAdded}, пропущено ${counts.petsSkipped}, заменено ${counts.petsReplaced}. " +
+                            "Измерения питомцев: +${counts.petMeasurementsAdded}, пропущено ${counts.petMeasurementsSkipped}, заменено ${counts.petMeasurementsReplaced}."
                     },
                 )
             },

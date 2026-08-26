@@ -6,6 +6,8 @@ import com.example.huaweimisync.data.AppDatabase
 import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.BackupImportCheckpointEntity
 import com.example.huaweimisync.data.MeasurementEntity
+import com.example.huaweimisync.data.PetEntity
+import com.example.huaweimisync.data.PetMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.ProfileStore
 import com.example.huaweimisync.data.VersionedPortableProfileSettings
@@ -32,6 +34,9 @@ sealed interface BackupImportConflict {
     data class MeasurementId(val id: String) : BackupImportConflict
     data class MeasurementFingerprint(val fingerprint: String) : BackupImportConflict
     data class MeasurementDeduplicationHash(val hash: String) : BackupImportConflict
+    data class PetId(val id: String) : BackupImportConflict
+    data class PetName(val normalizedName: String) : BackupImportConflict
+    data class PetMeasurementId(val id: String) : BackupImportConflict
 }
 
 class BackupImportConflicts(val conflicts: List<BackupImportConflict>) :
@@ -47,6 +52,12 @@ data class BackupImportCounts(
     val measurementsAdded: Int,
     val measurementsSkipped: Int,
     val measurementsReplaced: Int,
+    val petsAdded: Int = 0,
+    val petsSkipped: Int = 0,
+    val petsReplaced: Int = 0,
+    val petMeasurementsAdded: Int = 0,
+    val petMeasurementsSkipped: Int = 0,
+    val petMeasurementsReplaced: Int = 0,
 )
 
 data class BackupImportPreview(
@@ -90,6 +101,8 @@ class RoomBackupImportGateway internal constructor(
             accounts = database.accountDao().getAll(),
             appState = database.appStateDao().get() ?: AppStateEntity(),
             measurements = database.measurementDao().getAllForBackup(),
+            pets = database.petDao().getAllPetsForBackup(),
+            petMeasurements = database.petDao().getAllMeasurementsForBackup(),
         )
         val currentSettings = settingsSnapshot()
         val refreshed = importService.preview(
@@ -116,16 +129,22 @@ class RoomBackupImportGateway internal constructor(
             BackupImportMode.MERGE -> {
                 database.accountDao().insertAll(preview.result.accounts)
                 database.measurementDao().insertAll(preview.result.measurements)
+                database.petDao().insertPets(preview.result.pets)
+                database.petDao().insertMeasurements(preview.result.petMeasurements)
                 database.appStateDao().replace(preview.result.appState)
             }
             BackupImportMode.REPLACE -> {
                 database.pendingMeasurementDao().deleteAll()
                 database.pendingMeasurementDao().deleteAllTombstones()
                 database.measurementDao().deleteAll()
+                database.petDao().deleteAllMeasurements()
+                database.petDao().deleteAllPets()
                 database.accountDao().deleteAll()
                 database.accountDao().insertAll(preview.result.accounts)
                 database.appStateDao().replace(preview.result.appState)
                 database.measurementDao().insertAll(preview.result.measurements)
+                database.petDao().insertPets(preview.result.pets)
+                database.petDao().insertMeasurements(preview.result.petMeasurements)
             }
         }
         Unit
@@ -423,6 +442,12 @@ class BackupImportService(
                 measurementsAdded = result.measurements.size,
                 measurementsSkipped = 0,
                 measurementsReplaced = current.measurements.size,
+                petsAdded = result.pets.size,
+                petsSkipped = 0,
+                petsReplaced = current.pets.size,
+                petMeasurementsAdded = result.petMeasurements.size,
+                petMeasurementsSkipped = 0,
+                petMeasurementsReplaced = current.petMeasurements.size,
             ),
             result,
             document.settings.toSettings(),
@@ -467,6 +492,27 @@ class BackupImportService(
                 false
             }
         }
+        val existingPetsById = current.pets.associateBy { it.id }
+        val existingPetsByName = current.pets.associateBy { it.normalizedName }
+        val petsToAdd = incoming.pets.filter { pet ->
+            val byPetId = existingPetsById[pet.id]
+            if (byPetId != null) {
+                if (byPetId != pet) conflicts += BackupImportConflict.PetId(pet.id)
+                false
+            } else {
+                val byName = existingPetsByName[pet.normalizedName]
+                if (byName != null) conflicts += BackupImportConflict.PetName(pet.normalizedName)
+                byName == null
+            }
+        }
+        val existingPetMeasurementsById = current.petMeasurements.associateBy { it.id }
+        val petMeasurementsToAdd = incoming.petMeasurements.filter { measurement ->
+            val existing = existingPetMeasurementsById[measurement.id]
+            if (existing == null) true else {
+                if (existing != measurement) conflicts += BackupImportConflict.PetMeasurementId(measurement.id)
+                false
+            }
+        }
         if (conflicts.isNotEmpty()) throw BackupImportConflicts(conflicts.distinct())
         val result = BackupDatabaseSnapshot(
             accounts = current.accounts + accountsToAdd,
@@ -474,6 +520,8 @@ class BackupImportService(
                 primaryAccountId = current.appState.primaryAccountId ?: incoming.appState.primaryAccountId,
             ),
             measurements = current.measurements + measurementsToAdd,
+            pets = current.pets + petsToAdd,
+            petMeasurements = current.petMeasurements + petMeasurementsToAdd,
         )
         val importedSettings = document.settings.toSettings()
         return BackupImportPreview(
@@ -481,6 +529,10 @@ class BackupImportService(
             BackupImportCounts(
                 accountsToAdd.size, incoming.accounts.size - accountsToAdd.size, 0,
                 measurementsToAdd.size, incoming.measurements.size - measurementsToAdd.size, 0,
+                petsToAdd.size, incoming.pets.size - petsToAdd.size, 0,
+                petMeasurementsToAdd.size,
+                incoming.petMeasurements.size - petMeasurementsToAdd.size,
+                0,
             ),
             result,
             PortableProfileSettings(
@@ -505,6 +557,10 @@ private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
     appState = AppStateEntity(primaryAccountId = appState.primaryAccountId,
         weightDeltaKg = appState.weightDeltaKg, ignoreUnknownMeasurements = appState.ignoreUnknownMeasurements),
     measurements = measurements.map { it.toEntity() },
+    pets = pets.map { PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis) },
+    petMeasurements = petMeasurements.map {
+        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
+    },
 )
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(

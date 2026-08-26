@@ -38,9 +38,16 @@ class BackupJsonCodec(
         val version = versionElement?.takeIf {
             it.isJsonPrimitive && it.asJsonPrimitive.isNumber
         }?.let { runCatching { it.asInt }.getOrNull() }
-        if (version != BACKUP_SCHEMA_VERSION) throw BackupException.UnsupportedVersion(version)
+        if (version !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
+            throw BackupException.UnsupportedVersion(version)
+        }
+        val supportedVersion = requireNotNull(version)
 
-        checkShape(root)
+        checkShape(root, supportedVersion)
+        if (supportedVersion == BACKUP_SCHEMA_VERSION_V1) {
+            root.add("pets", com.google.gson.JsonArray())
+            root.add("petMeasurements", com.google.gson.JsonArray())
+        }
         val document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
         } catch (error: JsonParseException) {
@@ -50,8 +57,8 @@ class BackupJsonCodec(
         return document
     }
 
-    private fun checkShape(root: JsonObject) {
-        root.requireKeys("$", ROOT_KEYS)
+    private fun checkShape(root: JsonObject, version: Int) {
+        root.requireKeys("$", if (version == BACKUP_SCHEMA_VERSION_V1) ROOT_KEYS_V1 else ROOT_KEYS_V2)
         root.requireStrings("$", setOf("format", "exportedAt"))
         root.requireNumbers("$", setOf("schemaVersion"))
         root.array("accounts").forEachIndexed { index, element ->
@@ -89,11 +96,29 @@ class BackupJsonCodec(
             requireBooleans("$.settings", setOf("reliabilityMode"))
             requireNullableStringArrays("$.settings", setOf("selectedChartMetricKeys", "homeKgChartSeriesKeys"))
         }
+        if (version == BACKUP_SCHEMA_VERSION) {
+            root.array("pets").forEachIndexed { index, element ->
+                val path = "$.pets[$index]"
+                element.requiredObject(path).apply {
+                    requireKeys(path, PET_KEYS)
+                    requireStrings(path, setOf("id", "displayName", "normalizedName", "species"))
+                    requireNumbers(path, setOf("createdAtEpochMillis", "updatedAtEpochMillis"))
+                }
+            }
+            root.array("petMeasurements").forEachIndexed { index, element ->
+                val path = "$.petMeasurements[$index]"
+                element.requiredObject(path).apply {
+                    requireKeys(path, PET_MEASUREMENT_KEYS)
+                    requireStrings(path, setOf("id", "petId"))
+                    requireNumbers(path, setOf("measuredAtEpochSecond", "firstWeightKg", "secondWeightKg", "petWeightKg"))
+                }
+            }
+        }
     }
 
     private fun validate(document: BackupDocumentV1) {
         invalidUnless(document.format == BACKUP_FORMAT_ID, "$.format", "unexpected format")
-        if (document.schemaVersion != BACKUP_SCHEMA_VERSION) {
+        if (document.schemaVersion !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
             throw BackupException.UnsupportedVersion(document.schemaVersion)
         }
         invalidUnless(runCatching { Instant.parse(document.exportedAt) }.isSuccess, "$.exportedAt", "expected ISO-8601 instant")
@@ -102,6 +127,12 @@ class BackupJsonCodec(
         }
         if (document.measurements.size > MAX_BACKUP_MEASUREMENTS) {
             throw BackupException.Limits("$.measurements", MAX_BACKUP_MEASUREMENTS)
+        }
+        if (document.pets.size > MAX_BACKUP_PETS) {
+            throw BackupException.Limits("$.pets", MAX_BACKUP_PETS)
+        }
+        if (document.petMeasurements.size > MAX_BACKUP_PET_MEASUREMENTS) {
+            throw BackupException.Limits("$.petMeasurements", MAX_BACKUP_PET_MEASUREMENTS)
         }
 
         unique(document.accounts.map { it.id }, "account id")
@@ -161,6 +192,33 @@ class BackupJsonCodec(
             if (measurement.measurementType == MeasurementType.FULL) {
                 invalidUnless(measurement.impedanceOhm != null && measurement.algorithmVersion != null && calculated.all { it != null } && measurement.metabolicAge != null, path, "full measurement has missing calculated fields")
             }
+        }
+        if (document.schemaVersion == BACKUP_SCHEMA_VERSION_V1 &&
+            (document.pets.isNotEmpty() || document.petMeasurements.isNotEmpty())
+        ) {
+            throw BackupException.Invalid("$", "schema v1 cannot contain pet data")
+        }
+        unique(document.pets.map { it.id }, "pet id")
+        unique(document.pets.map { it.normalizedName }, "pet normalized name")
+        document.pets.forEachIndexed { index, pet ->
+            val path = "$.pets[$index]"
+            invalidUnless(pet.id.isNotBlank(), "$path.id", "must not be blank")
+            invalidUnless(pet.displayName.isNotBlank(), "$path.displayName", "must not be blank")
+            invalidUnless(pet.normalizedName.isNotBlank(), "$path.normalizedName", "must not be blank")
+            invalidUnless(pet.species != null && pet.species.name != "UNSPECIFIED", "$path.species", "expected CAT or DOG")
+            invalidUnless(pet.updatedAtEpochMillis >= pet.createdAtEpochMillis, "$path.updatedAtEpochMillis", "precedes creation")
+        }
+        val petIds = document.pets.mapTo(hashSetOf()) { it.id }
+        unique(document.petMeasurements.map { it.id }, "pet measurement id")
+        document.petMeasurements.forEachIndexed { index, measurement ->
+            val path = "$.petMeasurements[$index]"
+            if (measurement.petId !in petIds) throw BackupException.MissingPet(measurement.petId)
+            invalidUnless(measurement.id.isNotBlank(), "$path.id", "must not be blank")
+            invalidUnless(measurement.petId.isNotBlank(), "$path.petId", "must not be blank")
+            val values = listOf(measurement.firstWeightKg, measurement.secondWeightKg, measurement.petWeightKg)
+            invalidUnless(values.all { it.isFinite() && it >= 0.0 }, path, "weights must be non-negative and finite")
+            invalidUnless(kotlin.math.abs(measurement.secondWeightKg - measurement.firstWeightKg - measurement.petWeightKg) < 0.000_001,
+                "$path.petWeightKg", "does not match source readings")
         }
     }
 
@@ -238,7 +296,10 @@ class BackupJsonCodec(
     }
 
     private companion object {
-        val ROOT_KEYS = setOf("format", "schemaVersion", "exportedAt", "accounts", "appState", "measurements", "settings")
+        val ROOT_KEYS_V1 = setOf("format", "schemaVersion", "exportedAt", "accounts", "appState", "measurements", "settings")
+        val ROOT_KEYS_V2 = ROOT_KEYS_V1 + setOf("pets", "petMeasurements")
+        val PET_KEYS = setOf("id", "displayName", "normalizedName", "species", "createdAtEpochMillis", "updatedAtEpochMillis")
+        val PET_MEASUREMENT_KEYS = setOf("id", "petId", "measuredAtEpochSecond", "firstWeightKg", "secondWeightKg", "petWeightKg")
         val ACCOUNT_KEYS = setOf("id", "displayName", "normalizedName", "profile", "createdAtEpochMillis", "updatedAtEpochMillis")
         val PROFILE_KEYS = setOf("heightCm", "birthDateEpochDay", "sex", "complete")
         val APP_STATE_KEYS = setOf("primaryAccountId", "weightDeltaKg", "ignoreUnknownMeasurements")

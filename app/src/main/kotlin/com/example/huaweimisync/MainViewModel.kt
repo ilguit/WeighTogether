@@ -459,7 +459,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         .forEach(container.finalizationScheduler::enqueueIfAbsent)
                 }
                 backup.value = BackupUiState()
-                showMessage("Импорт завершён: аккаунтов ${result.counts.accountsAdded}, измерений ${result.counts.measurementsAdded}")
+                showMessage(
+                    "Импорт завершён: аккаунтов ${result.counts.accountsAdded}, " +
+                        "измерений ${result.counts.measurementsAdded}, питомцев ${result.counts.petsAdded}, " +
+                        "измерений питомцев ${result.counts.petMeasurementsAdded}",
+                )
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
