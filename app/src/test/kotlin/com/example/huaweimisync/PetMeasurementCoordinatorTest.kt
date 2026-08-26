@@ -353,7 +353,8 @@ class PetMeasurementCoordinatorTest {
             acquirePetSessionGate = {
                 gateEntered.complete(Unit)
                 allowGate.await()
-                {}
+                val releaseGate: () -> Unit = {}
+                releaseGate
             },
             now = { operationStartedAt },
         )
@@ -382,7 +383,8 @@ class PetMeasurementCoordinatorTest {
             acquirePetSessionGate = {
                 gateEntered.complete(Unit)
                 neverActivate.await()
-                {}
+                val releaseGate: () -> Unit = {}
+                releaseGate
             },
             now = { operationStartedAt },
         )
