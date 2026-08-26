@@ -14,7 +14,7 @@ android {
         applicationId = "com.example.huaweimisync"
         minSdk = 26
         targetSdk = 36
-        versionCode = 26
+        versionCode = 27
         versionName = "0.1.21"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
