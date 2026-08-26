@@ -3,6 +3,7 @@ package com.example.huaweimisync.data
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import com.example.huaweimisync.core.BodyCompositionCalculator
+import com.example.huaweimisync.core.MiScalePacketParser
 import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.AccountProfile
@@ -41,6 +42,84 @@ class MeasurementDeduplicationPersistenceTest {
 
     @After
     fun closeDatabase() = database.close()
+
+    @Test
+    fun exactStableReplayIsSuppressedWithoutMutatingPendingOrDeadline() = runBlocking {
+        val persistence = persistence()
+        val packet = raw(second = 0)
+        val first = persistence.enqueue(packet) as PendingPersistenceResult.Inserted
+        val before = database.pendingMeasurementDao().get(first.pending.id.value)
+
+        now = now.plusSeconds(5)
+        val restartedPersistence = persistence()
+        assertEquals(PendingPersistenceResult.ExactReplay, restartedPersistence.enqueue(packet))
+
+        assertEquals(before, database.pendingMeasurementDao().get(first.pending.id.value))
+        assertEquals(
+            packet.rawPayload.toList(),
+            database.acceptedStableMeasurementDao().getLatest()!!.rawPayload.toList(),
+        )
+    }
+
+    @Test
+    fun invalidTimePacketReplayUsesNormalizedPacketContentInsteadOfReceivedAt() = runBlocking {
+        val persistence = persistence()
+        val parser = MiScalePacketParser(ZoneId.of("UTC"))
+        val payload = invalidTimePayload(rawWeight = 14_000)
+        val first = requireNotNull(
+            parser.parse(payload, "aa:bb:cc:dd:ee:ff", Instant.parse("2026-08-20T12:00:00Z")),
+        )
+        assertTrue(persistence.enqueue(first) is PendingPersistenceResult.Inserted)
+
+        val replay = requireNotNull(
+            parser.parse(payload.copyOf(), "AA:BB:CC:DD:EE:FF", Instant.parse("2026-08-20T12:00:05Z")),
+        )
+        assertEquals(PendingPersistenceResult.ExactReplay, persistence.enqueue(replay))
+
+        val changedPayload = invalidTimePayload(rawWeight = 14_001)
+        val changed = requireNotNull(
+            parser.parse(changedPayload, "AA:BB:CC:DD:EE:FF", Instant.parse("2026-08-20T12:00:05Z")),
+        )
+        assertTrue(persistence.enqueue(changed) is PendingPersistenceResult.Inserted)
+    }
+
+    @Test
+    fun suppressedFinalizedPacketDoesNotReplaceAcceptedReplayBaseline() = runBlocking {
+        val persistence = persistence()
+        val accounts = RoomAccountRepository(database, now = { now }, newId = ::newId)
+        val account = accounts.createAccount(NewAccount("Alice", completeProfile()))
+        val accepted = raw(second = 0, payload = byteArrayOf(1, 2, 3))
+        val pending = persistence.enqueue(accepted) as PendingPersistenceResult.Inserted
+        val finalized = persistence.finalizePending(pending.pending.id, account.id)
+            as FinalizePendingResult.Finalized
+
+        val suppressed = raw(second = 5, payload = byteArrayOf(9, 8, 7))
+        assertTrue(persistence.enqueue(suppressed) is PendingPersistenceResult.AlreadyFinalized)
+        assertEquals(1, database.measurementDao().delete(finalized.measurement.measurementId))
+
+        assertEquals(PendingPersistenceResult.ExactReplay, persistence.enqueue(accepted))
+        assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
+    }
+
+    @Test
+    fun changedPacketReplacesLatestAndWeightOnlyCanBeEnriched() = runBlocking {
+        val persistence = persistence()
+        val weightOnly = raw(second = 0, full = false)
+        val first = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
+
+        val full = raw(second = 1, full = true, payload = byteArrayOf(9, 8, 7))
+        val enriched = persistence.enqueue(full) as PendingPersistenceResult.AlreadyPending
+
+        assertEquals(first.pending.id, enriched.pending.id)
+        assertTrue(enriched.wasEnriched)
+        val saved = database.acceptedStableMeasurementDao().getLatest()!!.toRawScaleMeasurement()
+        assertEquals(full.deviceAddress, saved.deviceAddress)
+        assertEquals(full.measuredAt, saved.measuredAt)
+        assertEquals(full.rawWeight, saved.rawWeight)
+        assertEquals(full.impedanceOhm, saved.impedanceOhm)
+        assertEquals(full.rawPayload.toList(), saved.rawPayload.toList())
+        assertEquals(PendingPersistenceResult.ExactReplay, persistence.enqueue(full.copy()))
+    }
 
     @Test
     fun sameRawWeightAtZeroNineTenAndThirtySecondsUsesStrictWindow() = runBlocking {
@@ -328,5 +407,18 @@ class MeasurementDeduplicationPersistenceTest {
         hasImpedance = full,
         rawPayload = payload,
         rawWeight = rawWeight,
+    )
+
+    private fun invalidTimePayload(rawWeight: Int): ByteArray = byteArrayOf(
+        0x00,
+        0x22,
+        0x00, 0x00,
+        0x08,
+        0x14,
+        0x0a,
+        0x00,
+        0x00,
+        0xf4.toByte(), 0x01,
+        rawWeight.toByte(), (rawWeight ushr 8).toByte(),
     )
 }

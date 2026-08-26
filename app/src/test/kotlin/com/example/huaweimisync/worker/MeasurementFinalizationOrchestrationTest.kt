@@ -307,6 +307,26 @@ class MeasurementFinalizationOrchestrationTest {
     }
 
     @Test
+    fun exactReplayDoesNotScheduleFinalization() = kotlinx.coroutines.runBlocking {
+        val ensured = mutableListOf<PendingMeasurement>()
+        val scheduler = object : PendingFinalizationScheduler {
+            override fun enqueue(pending: PendingMeasurement) = Unit
+            override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                ensured += pending
+            }
+        }
+
+        assertEquals(
+            MeasurementIngestionResult.ExactReplay,
+            MeasurementIngestionWorkOrchestrator(
+                ingest = { MeasurementIngestionResult.ExactReplay },
+                finalizationScheduler = scheduler,
+            ).process(raw()),
+        )
+        assertTrue(ensured.isEmpty())
+    }
+
+    @Test
     fun expiredDeadlineGetsZeroDelay() {
         assertEquals(
             0L,
@@ -338,6 +358,7 @@ class MeasurementFinalizationOrchestrationTest {
                 ),
                 MeasurementIngestionResult.SuppressedFinal,
                 MeasurementIngestionResult.SuppressedTombstone,
+                MeasurementIngestionResult.ExactReplay,
             )
 
             outcomes.forEach { outcome ->

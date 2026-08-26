@@ -217,13 +217,19 @@ class MeasurementsViewModelTest {
     }
 
     @Test
-    fun protectedLatestDeleteRequestSkipsConfirmation() {
+    fun latestDeleteRequestPreservesConfirmationData() {
+        val value = measurement(id = "latest")
         assertEquals(
-            MeasurementDeleteRequest.ProtectedLatest,
+            MeasurementDeleteRequest.Confirm(
+                confirmation = com.example.huaweimisync.measurements.MeasurementDeleteConfirmation(
+                    measurementId = value.id,
+                    measuredAtEpochSecond = value.measuredAtEpochSecond,
+                    weightKg = value.weightKg,
+                ),
+            ),
             measurementDeleteRequest(
                 id = "latest",
-                measurements = listOf(measurement(id = "latest")),
-                protectedLatestId = "latest",
+                measurements = listOf(value),
             ),
         )
     }
@@ -243,7 +249,6 @@ class MeasurementsViewModelTest {
             measurementDeleteRequest(
                 id = value.id,
                 measurements = listOf(value),
-                protectedLatestId = "newer",
             ),
         )
     }
@@ -255,17 +260,12 @@ class MeasurementsViewModelTest {
             measurementDeleteRequest(
                 id = "missing",
                 measurements = listOf(measurement(id = "existing")),
-                protectedLatestId = "existing",
             ),
         )
     }
 
     @Test
-    fun protectedRepositoryResultUsesRequiredSnackbarMessage() {
-        assertEquals(
-            MeasurementsViewModel.PROTECTED_LATEST_MESSAGE,
-            measurementDeleteResultMessage(MeasurementMutationResult.ProtectedLatest),
-        )
+    fun successfulDeleteUsesRequiredSnackbarMessage() {
         assertEquals(
             "Локальное измерение удалено",
             measurementDeleteResultMessage(MeasurementMutationResult.Success),
@@ -278,13 +278,13 @@ class MeasurementsViewModelTest {
             externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL.name,
             huaweiStatus = "LOCAL_ONLY",
             healthConnectStatus = "LOCAL_ONLY",
-        ).toMeasurementUiItem(false, false)
+        ).toMeasurementUiItem(false)
 
         val userLocal = measurement(id = "user-local").copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             huaweiStatus = "SYNCED",
             healthConnectStatus = "SYNCED",
-        ).toMeasurementUiItem(false, false)
+        ).toMeasurementUiItem(false)
 
         assertFalse(accountLocal.isManuallyEdited)
         assertTrue(accountLocal.isLocalOnly)
@@ -303,7 +303,7 @@ class MeasurementsViewModelTest {
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             huaweiSyncedCalculatedValues = syncedSnapshot,
             bmi = original.bmi!! + 1.0,
-        ).toMeasurementUiItem(false, false)
+        ).toMeasurementUiItem(false)
 
         assertTrue(item.isManuallyEdited)
         assertTrue(item.hasProfileSyncMismatch)
@@ -317,7 +317,7 @@ class MeasurementsViewModelTest {
     fun finalizedProjectionKeepsPendingPresentationKeyAndUsesRowIdForMutations() {
         val item = measurement(id = "measurement-row").copy(
             sourcePendingId = "pending-stable",
-        ).toMeasurementUiItem(false, false)
+        ).toMeasurementUiItem(false)
 
         assertEquals("pending-stable", item.presentationKey)
         assertEquals(PendingMeasurementId("pending-stable"), item.sourcePendingId)
@@ -339,7 +339,6 @@ class MeasurementsViewModelTest {
                 preliminary = listOf(pending),
                 account = account,
             ),
-            protectedLatestId = null,
             now = pending.enqueuedAt,
             preliminaryComposition = { value, _ -> composition(value) },
         ).single()
@@ -364,7 +363,6 @@ class MeasurementsViewModelTest {
 
         fun project(value: PendingMeasurement) = buildMeasurementPresentationItems(
             source = AccountMeasurementPresentationSource(listOf(), listOf(value), account),
-            protectedLatestId = null,
             now = value.enqueuedAt,
             preliminaryComposition = { pending, _ ->
                 pending.takeIf { it.hasImpedance }?.let(::composition)
@@ -394,7 +392,6 @@ class MeasurementsViewModelTest {
                 preliminary = listOf(pending),
                 account = account("account-a"),
             ),
-            protectedLatestId = null,
             now = pending.finalizeAfter,
             preliminaryComposition = { value, _ -> composition(value) },
         )
@@ -412,12 +409,10 @@ class MeasurementsViewModelTest {
                 preliminary = listOf(pending),
                 account = account("account-a"),
             ),
-            null,
             pending.enqueuedAt,
         ) { value, _ -> composition(value) }
         val second = buildMeasurementPresentationItems(
             AccountMeasurementPresentationSource(account = account("account-b")),
-            null,
             pending.enqueuedAt,
         ) { value, _ -> composition(value) }
 

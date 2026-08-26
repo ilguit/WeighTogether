@@ -1079,7 +1079,6 @@ class MultiAccountPersistenceTest {
     private fun repository(notifier: PendingDecisionNotifier) = MeasurementRepository(
         dao = database.measurementDao(),
         profileProvider = { null },
-        scaleAddressProvider = { null },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = NoOpSyncScheduler,
         huaweiSyncEnabled = false,

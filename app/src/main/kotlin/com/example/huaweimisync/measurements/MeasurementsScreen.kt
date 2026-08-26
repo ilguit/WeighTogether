@@ -500,8 +500,7 @@ private fun MeasurementSummaryCard(
                         icon = HuaweiIcons.More,
                         contentDescription = "Действия с последним измерением",
                         onClick = { menuExpanded = true },
-                        enabled = summary.latest.canEdit || summary.latest.canDelete ||
-                            summary.latest.isDeleteProtected,
+                        enabled = summary.latest.canEdit || summary.latest.canDelete,
                         modifier = Modifier.testTag("summary-more-actions"),
                     )
                     DropdownMenu(
@@ -533,7 +532,7 @@ private fun MeasurementSummaryCard(
                                 menuExpanded = false
                                 onDeleteRequested()
                             },
-                            enabled = summary.latest.canDelete || summary.latest.isDeleteProtected,
+                            enabled = summary.latest.canDelete,
                         )
                     }
                 }
@@ -851,7 +850,7 @@ private fun MeasurementHistoryCard(
                         }
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
-                            enabled = item.canDelete || item.isDeleteProtected,
+                            enabled = item.canDelete,
                             modifier = Modifier
                                 .heightIn(min = HuaweiDimensions.TouchTarget)
                                 .testTag("history-delete-${item.id}"),
