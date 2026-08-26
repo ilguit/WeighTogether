@@ -220,6 +220,13 @@ fun HuaweiMiSyncApp(
         currentDestination = currentDestination,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
+        petMeasurementCallbacks = PetMeasurementCallbacks(
+            onOpen = viewModel::openPetMeasurement,
+            onShowCreate = viewModel::showCreatePet,
+            onCreateAndStart = viewModel::createPetAndStartMeasurement,
+            onStart = viewModel::startPetMeasurement,
+            onCancel = viewModel::cancelPetMeasurement,
+        ),
         snackbarHostState = snackbarHostState,
         onSectionSelected = {
             currentSection = it
@@ -284,6 +291,7 @@ fun HuaweiMiSyncApp(
                     onPendingAssignRequested = viewModel::openResolverFromQueue,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
                     onPendingDeleteRequested = viewModel::deletePendingFromQueue,
+                    onPetMeasurementRequested = viewModel::openPetMeasurement,
                 ),
                 modifier = Modifier
                     .fillMaxSize()
@@ -313,6 +321,7 @@ internal fun HuaweiMiSyncScaffold(
     currentDestination: AppDestination = AppDestination.ROOT,
     measurementsDestination: MeasurementsDestination,
     measurementsCallbacks: MeasurementsCallbacks,
+    petMeasurementCallbacks: PetMeasurementCallbacks = PetMeasurementCallbacks.None,
     snackbarHostState: SnackbarHostState,
     onSectionSelected: (AppSection) -> Unit,
     onDestinationChanged: (AppDestination) -> Unit = {},
@@ -485,6 +494,11 @@ internal fun HuaweiMiSyncScaffold(
                     callbacks = unsavedPreviewCallbacks,
                 )
             }
+            PetMeasurementDialog(
+                state = state.petMeasurement,
+                pets = state.pets,
+                callbacks = petMeasurementCallbacks,
+            )
             HuaweiSystemBarBackgrounds()
         }
     }

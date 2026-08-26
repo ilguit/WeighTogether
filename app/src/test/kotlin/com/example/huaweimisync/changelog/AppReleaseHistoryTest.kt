@@ -28,6 +28,10 @@ class AppReleaseHistoryTest {
                 release.version to release.changes.map(ReleaseChange::issueNumber)
             },
         )
+        assertEquals(
+            listOf(28),
+            releases.single { it.version == "0.1.21" }.changes.map(ReleaseChange::issueNumber),
+        )
         assertTrue(releases.flatMap(AppRelease::changes).all { it.description.isNotBlank() })
 
         val allChanges = releases.flatMap(AppRelease::changes)

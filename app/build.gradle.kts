@@ -15,7 +15,7 @@ android {
         minSdk = 26
         targetSdk = 36
         versionCode = 23
-        versionName = "0.1.19"
+        versionName = "0.1.21"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders["HUAWEI_APP_ID"] = providers.gradleProperty("HUAWEI_APP_ID").orElse("0").get()
