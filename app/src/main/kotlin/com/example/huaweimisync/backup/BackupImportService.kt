@@ -414,9 +414,20 @@ class BackupImportService(
         baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
         val result = document.toSnapshot()
+        val currentAccountIds = current.accounts.mapTo(hashSetOf()) { it.id }
+        val currentMeasurementIds = current.measurements.mapTo(hashSetOf()) { it.id }
+        val accountsReplaced = result.accounts.count { it.id in currentAccountIds }
+        val measurementsReplaced = result.measurements.count { it.id in currentMeasurementIds }
         return BackupImportPreview(
             BackupImportMode.REPLACE,
-            BackupImportCounts(0, 0, current.accounts.size, 0, 0, current.measurements.size),
+            BackupImportCounts(
+                accountsAdded = result.accounts.size - accountsReplaced,
+                accountsSkipped = 0,
+                accountsReplaced = accountsReplaced,
+                measurementsAdded = result.measurements.size - measurementsReplaced,
+                measurementsSkipped = 0,
+                measurementsReplaced = measurementsReplaced,
+            ),
             result,
             document.settings.toSettings(),
             document,
