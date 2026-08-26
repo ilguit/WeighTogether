@@ -416,7 +416,14 @@ class BackupImportService(
         val result = document.toSnapshot()
         return BackupImportPreview(
             BackupImportMode.REPLACE,
-            BackupImportCounts(0, 0, current.accounts.size, 0, 0, current.measurements.size),
+            BackupImportCounts(
+                accountsAdded = result.accounts.size,
+                accountsSkipped = 0,
+                accountsReplaced = current.accounts.size,
+                measurementsAdded = result.measurements.size,
+                measurementsSkipped = 0,
+                measurementsReplaced = current.measurements.size,
+            ),
             result,
             document.settings.toSettings(),
             document,

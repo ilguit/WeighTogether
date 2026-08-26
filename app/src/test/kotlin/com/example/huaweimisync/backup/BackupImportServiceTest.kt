@@ -81,7 +81,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `replace reports replaced local rows and uses imported links and settings`() {
+    fun `replace reports disjoint imported rows as added and uses imported links and settings`() {
         val base = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE).result
         val replacement = document().copy(
             accounts = listOf(document().accounts.single().copy(id = "b", normalizedName = "b")),
@@ -89,11 +89,56 @@ class BackupImportServiceTest {
             measurements = listOf(document().measurements.single().copy(id = "n", fingerprint = "nf", deduplicationHash = "nd", accountId = "b")),
         )
         val preview = service.preview(replacement, base, emptySettings, BackupImportMode.REPLACE)
-        assertEquals(1, preview.counts.accountsReplaced)
-        assertEquals(1, preview.counts.measurementsReplaced)
+        assertEquals(BackupImportCounts(1, 0, 1, 1, 0, 1), preview.counts)
         assertEquals("b", preview.result.appState.primaryAccountId)
         assertEquals("b", preview.result.measurements.single().accountId)
         assertEquals("AA:BB", preview.settings.scaleAddress)
+    }
+
+    @Test
+    fun `replace reports all incoming rows as added and all local rows as replaced`() {
+        val original = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+        val extra = document().copy(
+            accounts = document().accounts + document().accounts.single().copy(
+                id = "b",
+                displayName = "Second",
+                normalizedName = "second",
+            ),
+            measurements = document().measurements + document().measurements.single().copy(
+                id = "n",
+                fingerprint = "nf",
+                deduplicationHash = "nd",
+                accountId = "b",
+            ),
+        )
+
+        val preview = service.preview(extra, original, emptySettings, BackupImportMode.REPLACE)
+
+        assertEquals(BackupImportCounts(2, 0, 1, 2, 0, 1), preview.counts)
+    }
+
+    @Test
+    fun `replace with empty backup reports all deleted local rows as replaced`() {
+        val original = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+        val empty = document().copy(
+            accounts = emptyList(),
+            appState = BackupAppStateV1(null, 3.0, false),
+            measurements = emptyList(),
+        )
+
+        val preview = service.preview(empty, original, emptySettings, BackupImportMode.REPLACE)
+
+        assertEquals(BackupImportCounts(0, 0, 1, 0, 0, 1), preview.counts)
     }
 
     @Test
