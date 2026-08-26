@@ -2,153 +2,122 @@ package com.example.huaweimisync.changelog
 
 import androidx.compose.foundation.layout.height
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performScrollToIndex
-import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 
 class ChangelogScreenTest {
-    @get:Rule
-    val composeRule = createComposeRule()
+    @get:Rule val composeRule = createComposeRule()
 
     @Test
-    fun screenShowsReleaseDetailsInNewestFirstOrder() {
+    fun newestReleaseIsAlwaysExpandedAndNotToggleable() {
         setContent()
-
-        composeRule.onNodeWithText("Версия 0.1.6").assertIsDisplayed()
-        composeRule.onNodeWithText("Убрано уведомление об успешном локальном сохранении измерения")
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Задача #20").assertIsDisplayed()
-
-        val newestTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.6"))
-            .fetchSemanticsNode().boundsInRoot.top
-        val previousTop = composeRule
-            .onNodeWithTag(ChangelogScreenTestTags.release("0.1.4"))
-            .fetchSemanticsNode().boundsInRoot.top
-        assertTrue(newestTop < previousTop)
+        composeRule.onNodeWithTag(tags.releaseChanges("0.1.6")).assertIsDisplayed()
+        val newest = composeRule.onNodeWithTag(tags.release("0.1.6")).fetchSemanticsNode().config
+        assertFalse(newest.contains(SemanticsActions.OnClick))
+        assertFalse(newest.contains(SemanticsProperties.StateDescription))
     }
 
     @Test
-    fun listContainsCorrectedHistoricalReleases() {
+    fun previousReleasesShareOneInitiallyCollapsedBlock() {
         setContent()
+        composeRule.onNodeWithText("Предыдущие версии").assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertDoesNotExist()
+        releases.drop(1).forEach { composeRule.onNodeWithTag(tags.release(it.version)).assertDoesNotExist() }
 
-        val versions = listOf("0.1.6", "0.1.4", "0.1.3", "0.1.2", "0.1.1")
-        versions.forEachIndexed { index, version ->
-            composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(index)
-            composeRule.onNodeWithTag(ChangelogScreenTestTags.release(version)).assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+        composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertIsDisplayed()
+        releases.drop(1).forEach {
+            composeRule.onNodeWithTag(tags.release(it.version)).assertExists()
+            composeRule.onNodeWithTag(tags.releaseChanges(it.version)).assertExists()
         }
-
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(0)
-        composeRule.onNodeWithText("Задача #20").assertIsDisplayed()
-
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).performScrollToIndex(4)
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.1")).performClick()
-        composeRule.onNodeWithText("Задача #11").assertIsDisplayed()
     }
 
     @Test
-    fun newestReleaseStartsExpandedAndPreviousReleasesToggleIndependently() {
+    fun previousBlockPreservesReleaseAndChangeOrder() {
         setContent()
-
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertIsDisplayed()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertDoesNotExist()
-        val previousToggle = composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.4"))
-        assertEquals(
-            "Свёрнуто",
-            previousToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription],
-        )
-        previousToggle.performClick()
-
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.6")).performClick()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertDoesNotExist()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
-        assertEquals(
-            "Развёрнуто",
-            previousToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription],
-        )
+        composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+        val tops = releases.drop(1).map {
+            composeRule.onNodeWithTag(tags.release(it.version)).fetchSemanticsNode().boundsInRoot.top
+        }
+        assertEquals(tops.sorted(), tops)
+        val changeTops = listOf(6, 8, 11).map {
+            composeRule.onNodeWithText("Задача #$it").fetchSemanticsNode().boundsInRoot.top
+        }
+        assertTrue(changeTops.zipWithNext().all { (first, second) -> first < second })
     }
 
     @Test
-    fun emptyReleaseListShowsNoReleaseCards() {
-        setContent(releases = emptyList())
+    fun previousToggleExposesButtonStateAndNamedAction() {
+        setContent()
+        val toggle = composeRule.onNodeWithTag(tags.PreviousReleasesToggle)
+        toggle.assertHasClickAction()
+        var semantics = toggle.fetchSemanticsNode().config
+        assertEquals(Role.Button, semantics[SemanticsProperties.Role])
+        assertEquals("Свёрнуто", semantics[SemanticsProperties.StateDescription])
+        assertEquals("Развернуть предыдущие версии", semantics[SemanticsActions.OnClick].label)
+        toggle.performClick()
+        semantics = toggle.fetchSemanticsNode().config
+        assertEquals("Развёрнуто", semantics[SemanticsProperties.StateDescription])
+        assertEquals("Свернуть предыдущие версии", semantics[SemanticsActions.OnClick].label)
+    }
 
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.List).assertIsDisplayed()
+    @Test
+    fun sharedExpansionSurvivesSavedStateRestoration() {
+        val tester = StateRestorationTester(composeRule)
+        tester.setContent { Content(releases) }
+        composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+        tester.emulateSavedInstanceStateRestore()
+        composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.releaseChanges("0.1.1")).assertExists()
+    }
+
+    @Test
+    fun emptyListShowsNoReleaseOrPreviousBlock() {
+        setContent(emptyList())
+        composeRule.onNodeWithTag(tags.List).assertIsDisplayed()
         composeRule.onNodeWithText("Версия", substring = true).assertDoesNotExist()
+        composeRule.onNodeWithTag(tags.PreviousReleases).assertDoesNotExist()
     }
 
     @Test
-    fun singleReleaseStartsExpandedAndCanCollapseAndReExpand() {
-        val release = AppRelease(
-            version = "0.1.6",
-            changes = listOf(ReleaseChange(20, "Исправление")),
-        )
-        setContent(releases = listOf(release))
-
-        val toggle = composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle(release.version))
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertIsDisplayed()
-
-        toggle.performClick()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertDoesNotExist()
-
-        toggle.performClick()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges(release.version)).assertIsDisplayed()
+    fun singleReleaseIsExpandedWithoutPreviousBlock() {
+        setContent(releases.take(1))
+        composeRule.onNodeWithTag(tags.releaseChanges("0.1.6")).assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.PreviousReleases).assertDoesNotExist()
     }
 
-    @Test
-    fun releaseExpansionSurvivesSavedStateRestoration() {
-        val restorationTester = StateRestorationTester(composeRule)
-        restorationTester.setContent {
-            HuaweiMiSyncTheme {
-                ChangelogScreen(
-                    releases = correctedHistoricalReleases,
-                    modifier = Modifier.height(280.dp),
-                )
-            }
-        }
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.6")).performClick()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseToggle("0.1.4")).performClick()
+    private fun setContent(items: List<AppRelease> = releases) = composeRule.setContent { Content(items) }
 
-        restorationTester.emulateSavedInstanceStateRestore()
-
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.6")).assertDoesNotExist()
-        composeRule.onNodeWithTag(ChangelogScreenTestTags.releaseChanges("0.1.4")).assertIsDisplayed()
+    @androidx.compose.runtime.Composable
+    private fun Content(items: List<AppRelease>) {
+        HuaweiMiSyncTheme { ChangelogScreen(items.let { Modifier.height(900.dp) }, items) }
     }
 
-    private fun setContent(releases: List<AppRelease> = correctedHistoricalReleases) {
-        composeRule.setContent {
-            HuaweiMiSyncTheme {
-                ChangelogScreen(
-                    releases = releases,
-                    modifier = Modifier.height(280.dp),
-                )
-            }
-        }
-    }
-
-    private val correctedHistoricalReleases = listOf(
-        AppRelease("0.1.6", listOf(ReleaseChange(20, "Убрано уведомление об успешном локальном сохранении измерения"))),
-        AppRelease("0.1.4", listOf(ReleaseChange(16, "Добавлена встроенная история версий"))),
-        AppRelease("0.1.3", listOf(ReleaseChange(13, "Селектор аккаунтов скрыт на экранах без данных аккаунта"))),
-        AppRelease("0.1.2", listOf(ReleaseChange(4, "Обновлена монохромная иконка уведомлений"))),
-        AppRelease(
-            "0.1.1",
-            listOf(
-                ReleaseChange(6, "Сводка измерений стала компактнее"),
-                ReleaseChange(8, "Переход к истории измерений перенесён в заголовок"),
-                ReleaseChange(11, "Очередь необработанных измерений перенесена в заголовок"),
-            ),
-        ),
+    private val tags = ChangelogScreenTestTags
+    private val releases = listOf(
+        AppRelease("0.1.6", listOf(ReleaseChange(20, "Новое"))),
+        AppRelease("0.1.4", listOf(ReleaseChange(16, "Первое"))),
+        AppRelease("0.1.3", listOf(ReleaseChange(13, "Второе"))),
+        AppRelease("0.1.2", listOf(ReleaseChange(4, "Третье"))),
+        AppRelease("0.1.1", listOf(
+            ReleaseChange(6, "Четвёртое"),
+            ReleaseChange(8, "Пятое"),
+            ReleaseChange(11, "Шестое"),
+        )),
     )
 }

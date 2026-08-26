@@ -1,44 +1,27 @@
 package com.example.huaweimisync.changelog
 
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.clearAndSetSemantics
-import androidx.compose.ui.semantics.heading
-import androidx.compose.ui.semantics.onClick
-import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.semantics.toggleableState
-import androidx.compose.ui.state.ToggleableState
-import androidx.compose.foundation.selection.toggleable
+import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 
 internal object ChangelogScreenTestTags {
     const val List = "changelog-list"
+    const val PreviousReleases = "changelog-previous-releases"
+    const val PreviousReleasesToggle = "changelog-previous-releases-toggle"
+    const val PreviousReleasesContent = "changelog-previous-releases-content"
     fun release(version: String) = "changelog-release-$version"
-    fun releaseToggle(version: String) = "changelog-release-toggle-$version"
     fun releaseChanges(version: String) = "changelog-release-changes-$version"
 }
 
@@ -48,10 +31,9 @@ fun ChangelogScreen(
     releases: List<AppRelease> = AppReleaseHistory.releases,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
+    var previousExpanded by rememberSaveable { mutableStateOf(false) }
     LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .testTag(ChangelogScreenTestTags.List),
+        modifier = modifier.fillMaxSize().testTag(ChangelogScreenTestTags.List),
         contentPadding = PaddingValues(
             start = HuaweiDimensions.ContentPadding,
             top = HuaweiDimensions.CompactItemSpacing + contentPadding.calculateTopPadding(),
@@ -61,88 +43,116 @@ fun ChangelogScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
-        itemsIndexed(releases, key = { _, release -> release.version }) { index, release ->
-            ReleaseCard(
-                release = release,
-                initiallyExpanded = index == 0,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .widthIn(max = 720.dp)
-                    .testTag(ChangelogScreenTestTags.release(release.version)),
-            )
+        releases.firstOrNull()?.let { release ->
+            item(key = release.version) {
+                ReleaseCard(release, cardModifier(release.version))
+            }
+        }
+        val previous = releases.drop(1)
+        if (previous.isNotEmpty()) {
+            item(key = "previous-releases") {
+                PreviousReleasesCard(
+                    releases = previous,
+                    expanded = previousExpanded,
+                    onExpandedChange = { previousExpanded = it },
+                    modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
+                        .testTag(ChangelogScreenTestTags.PreviousReleases),
+                )
+            }
+        }
+    }
+}
+
+private fun cardModifier(version: String) = Modifier.fillMaxWidth().widthIn(max = 720.dp)
+    .testTag(ChangelogScreenTestTags.release(version))
+
+@Composable
+private fun ReleaseCard(release: AppRelease, modifier: Modifier = Modifier) {
+    HuaweiSurface(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            ReleaseHeading(release.version)
+            ReleaseChanges(release)
         }
     }
 }
 
 @Composable
-private fun ReleaseCard(
-    release: AppRelease,
-    initiallyExpanded: Boolean,
+private fun PreviousReleasesCard(
+    releases: List<AppRelease>,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var expanded by rememberSaveable(release.version) { mutableStateOf(initiallyExpanded) }
     HuaweiSurface(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .toggleable(
-                        value = expanded,
+                modifier = Modifier.fillMaxWidth()
+                    .clickable(
                         role = Role.Button,
-                        onValueChange = { expanded = it },
-                    )
+                        onClickLabel = if (expanded) "Свернуть предыдущие версии" else "Развернуть предыдущие версии",
+                    ) { onExpandedChange(!expanded) }
                     .semantics {
                         heading()
                         stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
-                        toggleableState = ToggleableState(expanded)
-                        onClick(
-                            label = if (expanded) "Свернуть версию" else "Развернуть версию",
-                            action = null,
-                        )
                     }
-                    .testTag(ChangelogScreenTestTags.releaseToggle(release.version)),
+                    .testTag(ChangelogScreenTestTags.PreviousReleasesToggle),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                Text("Предыдущие версии", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Версия ${release.version}",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    text = "⌄",
+                    "⌄",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier
-                        .size(24.dp)
-                        .rotate(if (expanded) 180f else 0f)
+                    modifier = Modifier.size(24.dp).rotate(if (expanded) 180f else 0f)
                         .clearAndSetSemantics { },
                 )
             }
             if (expanded) {
                 Column(
-                    modifier = Modifier.testTag(ChangelogScreenTestTags.releaseChanges(release.version)),
-                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                    modifier = Modifier.testTag(ChangelogScreenTestTags.PreviousReleasesContent),
+                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
                 ) {
-                    release.changes.forEach { change ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                            Text(
-                                text = "•",
-                                color = MaterialTheme.colorScheme.primary,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Column(modifier = Modifier.weight(1f)) {
-                                Text(
-                                    text = change.description,
-                                    style = MaterialTheme.typography.bodyMedium,
-                                )
-                                Text(
-                                    text = "Задача #${change.issueNumber}",
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    style = MaterialTheme.typography.bodySmall,
-                                )
-                            }
+                    releases.forEach { release ->
+                        Column(
+                            modifier = Modifier.testTag(ChangelogScreenTestTags.release(release.version)),
+                            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                        ) {
+                            ReleaseHeading(release.version)
+                            ReleaseChanges(release)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ReleaseHeading(version: String) {
+    Text(
+        "Версия $version",
+        style = MaterialTheme.typography.titleMedium,
+        modifier = Modifier.semantics { heading() },
+    )
+}
+
+@Composable
+private fun ReleaseChanges(release: AppRelease) {
+    Column(
+        modifier = Modifier.testTag(ChangelogScreenTestTags.releaseChanges(release.version)),
+        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+    ) {
+        release.changes.forEach { change ->
+            Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+                Text("•", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(change.description, style = MaterialTheme.typography.bodyMedium)
+                    Text(
+                        "Задача #${change.issueNumber}",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
             }
         }
