@@ -89,14 +89,14 @@ class BackupImportServiceTest {
             measurements = listOf(document().measurements.single().copy(id = "n", fingerprint = "nf", deduplicationHash = "nd", accountId = "b")),
         )
         val preview = service.preview(replacement, base, emptySettings, BackupImportMode.REPLACE)
-        assertEquals(BackupImportCounts(1, 0, 0, 1, 0, 0), preview.counts)
+        assertEquals(BackupImportCounts(1, 0, 1, 1, 0, 1), preview.counts)
         assertEquals("b", preview.result.appState.primaryAccountId)
         assertEquals("b", preview.result.measurements.single().accountId)
         assertEquals("AA:BB", preview.settings.scaleAddress)
     }
 
     @Test
-    fun `replace counts only incoming rows with matching stable ids as replaced`() {
+    fun `replace reports all incoming rows as added and all local rows as replaced`() {
         val original = service.preview(
             document(),
             emptySnapshot(),
@@ -119,11 +119,11 @@ class BackupImportServiceTest {
 
         val preview = service.preview(extra, original, emptySettings, BackupImportMode.REPLACE)
 
-        assertEquals(BackupImportCounts(1, 0, 1, 1, 0, 1), preview.counts)
+        assertEquals(BackupImportCounts(2, 0, 1, 2, 0, 1), preview.counts)
     }
 
     @Test
-    fun `replace with empty backup does not report deleted local rows as replaced`() {
+    fun `replace with empty backup reports all deleted local rows as replaced`() {
         val original = service.preview(
             document(),
             emptySnapshot(),
@@ -138,7 +138,7 @@ class BackupImportServiceTest {
 
         val preview = service.preview(empty, original, emptySettings, BackupImportMode.REPLACE)
 
-        assertEquals(BackupImportCounts(0, 0, 0, 0, 0, 0), preview.counts)
+        assertEquals(BackupImportCounts(0, 0, 1, 0, 0, 1), preview.counts)
     }
 
     @Test
