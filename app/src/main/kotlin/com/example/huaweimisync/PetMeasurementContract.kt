@@ -84,7 +84,7 @@ internal class PetMeasurementCoordinator(
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
     private val showMessage: (String) -> Unit,
-    private val acquirePetSessionGate: () -> (() -> Unit) = { {} },
+    private val acquirePetSessionGate: suspend () -> (() -> Unit) = { {} },
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -102,15 +102,22 @@ internal class PetMeasurementCoordinator(
         true
     }
 
-    fun start(pet: Pet, selectedAddress: String): OperationToken? {
-        val token = synchronized(lock) {
+    suspend fun start(pet: Pet, selectedAddress: String): OperationToken? {
+        synchronized(lock) {
             if (operation != null) return null
+        }
+        val releaseIngestionGate = acquirePetSessionGate()
+        val token = synchronized(lock) {
+            if (operation != null) {
+                releaseIngestionGate()
+                return null
+            }
             OperationToken(++nextOperationId).also {
                 operation = Operation(
                     token = it,
                     pet = pet,
                     selectedAddress = selectedAddress,
-                    releaseIngestionGate = acquirePetSessionGate(),
+                    releaseIngestionGate = releaseIngestionGate,
                 )
             }
         }

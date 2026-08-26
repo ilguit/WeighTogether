@@ -7,7 +7,10 @@ import com.example.huaweimisync.data.pendingReplayPlan
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import java.time.Instant
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -170,6 +173,48 @@ class MeasurementFinalizationOrchestrationTest {
             lease.release()
             assertTrue(processor.process(packet) is MeasurementIngestionResult.CreatedAggregate)
             assertEquals(1, ingested)
+        }
+
+    @Test
+    fun petSessionWaitsForInFlightIngestionAndThenExcludesPacketProcessing() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val ingestionStarted = CompletableDeferred<Unit>()
+            val finishIngestion = CompletableDeferred<Unit>()
+            val processor = ScalePacketProcessor(
+                parse = { _, _ -> raw() },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingestionStarted.complete(Unit)
+                        finishIngestion.await()
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) = Unit
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+
+            val processing = async { processor.process(ScalePacket(byteArrayOf(1), "AA")) }
+            ingestionStarted.await()
+            val lease = async { gate.activate() }
+            assertFalse(lease.isCompleted)
+
+            finishIngestion.complete(Unit)
+            assertTrue(processing.await() is MeasurementIngestionResult.CreatedAggregate)
+            val activeLease = lease.await()
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(2), "AA")),
+            )
+
+            activeLease.release()
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(3), "AA")) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
         }
 
     @Test

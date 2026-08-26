@@ -9,6 +9,7 @@ import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.data.MeasurementIngestionResult
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 
 data class ScalePacket(
     val payload: ByteArray,
@@ -37,19 +38,52 @@ class MeasurementIngestionWorkOrchestrator(
 
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
 class PetMeasurementIngestionGate {
-    private val active = AtomicBoolean(false)
+    private val lock = Any()
+    private var petSessionActive = false
+    private var processingCount = 0
+    private var processingDrained: CompletableDeferred<Unit>? = null
 
-    fun activate(): Lease {
-        check(active.compareAndSet(false, true)) { "A pet measurement session is already active" }
+    suspend fun activate(): Lease {
+        val waitForProcessing = synchronized(lock) {
+            check(!petSessionActive) { "A pet measurement session is already active" }
+            petSessionActive = true
+            if (processingCount == 0) null else CompletableDeferred<Unit>().also {
+                processingDrained = it
+            }
+        }
+        try {
+            waitForProcessing?.await()
+        } catch (cancelled: CancellationException) {
+            deactivate()
+            throw cancelled
+        }
         return Lease(this)
     }
 
-    private fun deactivate() {
-        active.set(false)
+    suspend fun <T : Any> processWhenInactive(block: suspend () -> T): T? {
+        val entered = synchronized(lock) {
+            if (petSessionActive) false else {
+                processingCount += 1
+                true
+            }
+        }
+        if (!entered) return null
+        return try {
+            block()
+        } finally {
+            val drained = synchronized(lock) {
+                processingCount -= 1
+                if (processingCount == 0) processingDrained.also { processingDrained = null }
+                else null
+            }
+            drained?.complete(Unit)
+        }
     }
 
-    val isActive: Boolean
-        get() = active.get()
+    private fun deactivate() = synchronized(lock) {
+        petSessionActive = false
+        processingDrained = null
+    }
 
     class Lease internal constructor(private val gate: PetMeasurementIngestionGate) {
         private val released = AtomicBoolean(false)
@@ -78,11 +112,14 @@ class ScalePacketProcessor(
     )
 
     suspend fun process(packet: ScalePacket): MeasurementIngestionResult {
-        val parsed = parse(packet.payload, packet.deviceAddress)
-            ?: return MeasurementIngestionResult.IgnoredNotFinal
-        if (!parsed.isStableWeight) return MeasurementIngestionResult.IgnoredNotFinal
-        if (petMeasurementGate.isActive) return MeasurementIngestionResult.IgnoredNotFinal
-        return ingestion.process(parsed)
+        return petMeasurementGate.processWhenInactive {
+            val parsed = parse(packet.payload, packet.deviceAddress)
+                ?: return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+            if (!parsed.isStableWeight) {
+                return@processWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+            }
+            ingestion.process(parsed)
+        } ?: MeasurementIngestionResult.IgnoredNotFinal
     }
 }
 

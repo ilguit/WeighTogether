@@ -212,7 +212,7 @@ class PetMeasurementCoordinatorTest {
     }
 
     private fun start(): PetMeasurementCoordinator.OperationToken =
-        requireNotNull(coordinator.start(pet, SELECTED_ADDRESS))
+        runBlocking { requireNotNull(coordinator.start(pet, SELECTED_ADDRESS)) }
 
     private fun reading(
         weightKg: Double,
