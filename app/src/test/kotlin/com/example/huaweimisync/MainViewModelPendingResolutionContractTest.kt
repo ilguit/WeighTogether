@@ -9,6 +9,24 @@ class MainViewModelPendingResolutionContractTest {
     private val source by lazy {
         File("src/main/kotlin/com/example/huaweimisync/MainViewModel.kt").readText()
     }
+    private val measurementsScreenSource by lazy {
+        File("src/main/kotlin/com/example/huaweimisync/measurements/MeasurementsScreen.kt")
+            .readText()
+    }
+
+    @Test
+    fun `successful foreground scan processes reading without success snackbar`() {
+        val onScanResult = source.substringBetween(
+            "    private fun onScanResult(result: ScanResult) {",
+            "    @SuppressLint(\"MissingPermission\")\n    private fun onRefreshScanResult(",
+        )
+
+        assertTrue(onScanResult.contains("container.profileStore.saveScale(address, name)"))
+        assertTrue(onScanResult.contains("ScanWorkScheduler.processDirect(getApplication(), result)"))
+        assertTrue(onScanResult.contains("restoreAutomaticScanning()"))
+        assertFalse(onScanResult.contains("showMessage("))
+        assertFalse(onScanResult.contains("Измерение принято"))
+    }
 
     @Test
     fun `successful pending assignment completes navigation without success snackbar`() {
@@ -41,6 +59,15 @@ class MainViewModelPendingResolutionContractTest {
         assertTrue(
             choosePendingAccount.contains(
                 "showMessage(error.userFacingMessage(\"Не удалось назначить измерение\"))",
+            ),
+        )
+    }
+
+    @Test
+    fun `local-only measurement keeps local record presentation`() {
+        assertTrue(
+            measurementsScreenSource.contains(
+                "text = if (item.isLocalOnly) \"Локальная запись\" else \"Синхронизация\"",
             ),
         )
     }
