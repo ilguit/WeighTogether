@@ -403,13 +403,18 @@ class MeasurementFinalizationOrchestrationTest {
             val ingested = mutableListOf<RawScaleMeasurement>()
             val first = raw(measuredAt = NOW, rawWeight = 14_000)
             val second = raw(measuredAt = NOW.plusSeconds(5), rawWeight = 15_000)
-            val distinct = raw(measuredAt = NOW.plusSeconds(6), rawWeight = 15_002)
+            val distinctTime = first.copy(measuredAt = NOW.plusSeconds(1))
+            val distinctWeight = first.copy(rawWeight = 14_001)
+            val distinctAddress = first.copy(deviceAddress = "AA:BB:CC:DD:EE:00")
+            var finalized = 0
             val processor = ScalePacketProcessor(
                 parse = { payload, _ ->
                     when (payload.first().toInt()) {
                         1, 2 -> first.copy(rawPayload = payload)
                         3, 4 -> second.copy(rawPayload = payload)
-                        else -> distinct.copy(rawPayload = payload)
+                        5 -> distinctTime.copy(rawPayload = payload)
+                        6 -> distinctWeight.copy(rawPayload = payload)
+                        else -> distinctAddress.copy(rawPayload = payload)
                     }
                 },
                 ingestion = MeasurementIngestionWorkOrchestrator(
@@ -419,7 +424,9 @@ class MeasurementFinalizationOrchestrationTest {
                     },
                     finalizationScheduler = object : PendingFinalizationScheduler {
                         override fun enqueue(pending: PendingMeasurement) = Unit
-                        override fun enqueueIfAbsent(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
                     },
                 ),
                 petMeasurementGate = gate,
@@ -448,10 +455,26 @@ class MeasurementFinalizationOrchestrationTest {
                 processor.process(ScalePacket(byteArrayOf(4), second.deviceAddress)),
             )
             assertTrue(
-                processor.process(ScalePacket(byteArrayOf(5), distinct.deviceAddress)) is
+                processor.process(ScalePacket(byteArrayOf(5), distinctTime.deviceAddress)) is
                     MeasurementIngestionResult.CreatedAggregate,
             )
-            assertEquals(listOf(distinct.copy(rawPayload = byteArrayOf(5))), ingested)
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(6), distinctWeight.deviceAddress)) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(7), distinctAddress.deviceAddress)) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
+            assertEquals(
+                listOf(
+                    distinctTime.copy(rawPayload = byteArrayOf(5)),
+                    distinctWeight.copy(rawPayload = byteArrayOf(6)),
+                    distinctAddress.copy(rawPayload = byteArrayOf(7)),
+                ),
+                ingested,
+            )
+            assertEquals(3, finalized)
         }
 
     @Test
