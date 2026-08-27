@@ -266,6 +266,12 @@ fun HuaweiMiSyncApp(
             onWeightDeltaStateChanged = viewModel::updateWeightDeltaEditor,
             onWeightDeltaSave = viewModel::saveWeightDelta,
             onIgnoreUnknownMeasurementsChanged = viewModel::setIgnoreUnknownMeasurements,
+            onCreatePet = viewModel::showCreatePetManagement,
+            onEditPet = viewModel::showEditPetManagement,
+            onSavePet = viewModel::savePetManagement,
+            onRequestDeletePet = viewModel::requestDeletePet,
+            onConfirmDeletePet = viewModel::confirmDeletePet,
+            onDismissPetManagement = viewModel::dismissPetManagement,
         ),
         resolverCallbacks = MeasurementResolverCallbacks(
             onAccountSelected = viewModel::choosePendingAccount,

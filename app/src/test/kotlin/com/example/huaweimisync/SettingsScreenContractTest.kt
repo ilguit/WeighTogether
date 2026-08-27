@@ -3,13 +3,46 @@ package com.example.huaweimisync
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
 import java.time.LocalDate
+import com.example.huaweimisync.domain.PetSpecies
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.util.Locale
 
 class SettingsScreenContractTest {
+    @Test
+    fun `pet editor requires a nonblank name and explicit supported species`() {
+        assertFalse(isPetEditorValid("Барсик", null))
+        assertFalse(isPetEditorValid("Барсик", PetSpecies.UNSPECIFIED))
+        assertFalse(isPetEditorValid("   ", PetSpecies.CAT))
+        assertTrue(isPetEditorValid(" Барсик ", PetSpecies.CAT))
+        assertTrue(isPetEditorValid("Шарик", PetSpecies.DOG))
+    }
+
+    @Test
+    fun `legacy unspecified species has a readable label`() {
+        assertEquals("Кошка", petSpeciesLabel(PetSpecies.CAT))
+        assertEquals("Собака", petSpeciesLabel(PetSpecies.DOG))
+        assertEquals("Вид не указан", petSpeciesLabel(PetSpecies.UNSPECIFIED))
+    }
+
+    @Test
+    fun `latest pet weight uses locale and no-history state is explicit`() {
+        assertEquals("Последний вес: 4,25 кг", formatLatestPetWeight(4.25, Locale.forLanguageTag("ru-RU")))
+        assertEquals("Измерений пока нет", formatLatestPetWeight(null, Locale.forLanguageTag("ru-RU")))
+    }
+
+    @Test
+    fun `replace warning names every human and pet data group`() {
+        assertTrue(BACKUP_REPLACE_WARNING.contains("аккаунты"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("измерения людей"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("ожидающие измерения"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("питомцы"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("измерения питомцев"))
+    }
+
     @Test
     fun `profile summary contains real height date and sex`() {
         assertEquals(

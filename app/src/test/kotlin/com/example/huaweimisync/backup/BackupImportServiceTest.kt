@@ -5,8 +5,11 @@ import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.BackupImportCheckpointEntity
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.PortableProfileSettings
+import com.example.huaweimisync.data.PetEntity
+import com.example.huaweimisync.data.PetMeasurementEntity
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PetSpecies
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -78,6 +81,59 @@ class BackupImportServiceTest {
             assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementFingerprint("f")))
             assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementDeduplicationHash("d")))
         }
+    }
+
+    @Test
+    fun `pet merge skips identical rows and rejects id and normalized name conflicts`() {
+        val petDocument = document().copy(
+            pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 3, 70.0, 74.0, 4.0)),
+        )
+        val imported = service.preview(petDocument, emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val repeated = service.preview(petDocument, imported.result, emptySettings, BackupImportMode.MERGE)
+        assertEquals(1, repeated.counts.petsSkipped)
+        assertEquals(1, repeated.counts.petMeasurementsSkipped)
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                petDocument.copy(pets = listOf(petDocument.pets.single().copy(species = PetSpecies.DOG))),
+                imported.result,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p"))) }
+
+        val renamed = petDocument.copy(
+            pets = listOf(petDocument.pets.single().copy(id = "other")),
+            petMeasurements = listOf(petDocument.petMeasurements.single().copy(id = "other-pm", petId = "other")),
+        )
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(renamed, imported.result, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetName("cat"))) }
+    }
+
+    @Test
+    fun `pet measurement id conflict is rejected and replace removes old pet graph`() {
+        val current = BackupDatabaseSnapshot(
+            emptyList(),
+            AppStateEntity(),
+            emptyList(),
+            listOf(PetEntity("old", "Old", "old", PetSpecies.DOG, 1, 2)),
+            listOf(PetMeasurementEntity("pm", "old", 3, 80.0, 85.0, 5.0)),
+        )
+        val incoming = document().copy(
+            pets = listOf(BackupPetV2("new", "New", "new", PetSpecies.CAT, 4, 5)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "new", 6, 70.0, 74.0, 4.0)),
+        )
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetMeasurementId("pm"))) }
+
+        val replacement = service.preview(incoming, current, emptySettings, BackupImportMode.REPLACE)
+        assertEquals(listOf("new"), replacement.result.pets.map { it.id })
+        assertEquals("new", replacement.result.petMeasurements.single().petId)
+        assertEquals(1, replacement.counts.petsReplaced)
+        assertEquals(1, replacement.counts.petMeasurementsReplaced)
     }
 
     @Test

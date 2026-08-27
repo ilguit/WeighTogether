@@ -28,7 +28,9 @@ import com.example.huaweimisync.domain.DiscardPendingResult
 import com.example.huaweimisync.domain.FinalizePendingResult
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetUpdate
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
@@ -102,6 +104,7 @@ data class MainUiState(
     val backup: BackupUiState = BackupUiState(),
     val pets: List<PetWithLatestWeight> = emptyList(),
     val petMeasurement: PetMeasurementUiState = PetMeasurementUiState.Idle,
+    val petManagement: PetManagementUiState = PetManagementUiState(),
 ) {
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == accountSettings.primaryAccountId }
@@ -170,8 +173,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val scanning = MutableStateFlow(false)
     private val refreshing = MutableStateFlow(false)
     private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
+    private val petManagement = MutableStateFlow(PetManagementUiState())
     private val petMeasurementStartup = PetMeasurementStartupGuard()
     private var petMeasurementStartupJob: Job? = null
+    private var petCreationInProgress = false
     private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
@@ -374,11 +379,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         backup,
         pets,
         petMeasurement,
-    ) { state, backupState, petValues, petState ->
+        petManagement,
+    ) { state, backupState, petValues, petState, petManagementState ->
         state.copy(
             backup = backupState,
             pets = petValues,
             petMeasurement = petState,
+            petManagement = petManagementState,
         )
     }.stateIn(
         viewModelScope,
@@ -470,7 +477,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         .forEach(container.finalizationScheduler::enqueueIfAbsent)
                 }
                 backup.value = BackupUiState()
-                showMessage("Импорт завершён: аккаунтов ${result.counts.accountsAdded}, измерений ${result.counts.measurementsAdded}")
+                showMessage(
+                    "Импорт завершён: аккаунтов ${result.counts.accountsAdded}, " +
+                        "измерений ${result.counts.measurementsAdded}, питомцев ${result.counts.petsAdded}, " +
+                        "измерений питомцев ${result.counts.petMeasurementsAdded}",
+                )
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
@@ -1069,19 +1080,96 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         petMeasurementCoordinator.showCreating()
     }
 
-    fun createPetAndStartMeasurement(displayName: String) = viewModelScope.launch {
-        val name = displayName.trim()
-        val pet = try {
-            container.pets.createPet(NewPet(name))
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Exception) {
-            petMeasurement.value = PetMeasurementUiState.Error(
-                error.message ?: "Не удалось создать питомца",
-            )
-            return@launch
+    fun createPetAndStartMeasurement(displayName: String, species: PetSpecies) {
+        if (petCreationInProgress || petMeasurementCoordinator.isActive) return
+        petCreationInProgress = true
+        viewModelScope.launch {
+            val name = displayName.trim()
+            val pet = try {
+                container.pets.createPet(NewPet(name, species))
+            } catch (cancelled: CancellationException) {
+                petCreationInProgress = false
+                throw cancelled
+            } catch (error: Exception) {
+                petCreationInProgress = false
+                petMeasurement.value = PetMeasurementUiState.Error(
+                    error.message ?: "Не удалось создать питомца",
+                )
+                return@launch
+            }
+            petCreationInProgress = false
+            startPetMeasurement(pet.id)
         }
-        startPetMeasurement(pet.id)
+    }
+
+    fun showCreatePetManagement() {
+        if (petManagement.value.busy) return
+        petManagement.value = PetManagementUiState(editor = PetEditorMode.Create)
+    }
+
+    fun showEditPetManagement(pet: com.example.huaweimisync.domain.Pet) {
+        if (petManagement.value.busy) return
+        petManagement.value = PetManagementUiState(editor = PetEditorMode.Edit(pet))
+    }
+
+    fun savePetManagement(displayName: String, species: PetSpecies) {
+        val snapshot = petManagement.value
+        if (snapshot.busy || snapshot.editor == null) return
+        petManagement.value = snapshot.copy(busy = true, error = null)
+        viewModelScope.launch {
+            runCatching {
+                when (val editor = requireNotNull(snapshot.editor)) {
+                    PetEditorMode.Create -> container.pets.createPet(NewPet(displayName.trim(), species))
+                    is PetEditorMode.Edit -> container.pets.updatePet(
+                        PetUpdate(editor.pet.id, displayName.trim(), species),
+                    )
+                }
+            }.onSuccess {
+                petManagement.value = PetManagementUiState()
+            }.onFailure { error ->
+                if (error is CancellationException) throw error
+                petManagement.value = snapshot.copy(
+                    busy = false,
+                    error = error.message ?: "Не удалось сохранить питомца",
+                )
+            }
+        }
+    }
+
+    fun requestDeletePet(petId: PetId) {
+        if (petManagement.value.busy) return
+        petManagement.value = PetManagementUiState(busy = true)
+        viewModelScope.launch {
+            runCatching { container.pets.previewPetDeletion(petId) }
+                .onSuccess { petManagement.value = PetManagementUiState(deletion = it) }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    petManagement.value = PetManagementUiState(error = error.message)
+                    showMessage("Не удалось подготовить удаление питомца")
+                }
+        }
+    }
+
+    fun confirmDeletePet() {
+        val snapshot = petManagement.value
+        val preview = snapshot.deletion ?: return
+        if (snapshot.busy) return
+        petManagement.value = snapshot.copy(busy = true, error = null)
+        viewModelScope.launch {
+            runCatching { container.pets.deletePet(preview.pet.id) }
+                .onSuccess { petManagement.value = PetManagementUiState() }
+                .onFailure { error ->
+                    if (error is CancellationException) throw error
+                    petManagement.value = snapshot.copy(
+                        busy = false,
+                        error = error.message ?: "Не удалось удалить питомца",
+                    )
+                }
+        }
+    }
+
+    fun dismissPetManagement() {
+        if (!petManagement.value.busy) petManagement.value = PetManagementUiState()
     }
 
     fun startPetMeasurement(petId: PetId) {

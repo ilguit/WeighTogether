@@ -4,11 +4,15 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PetSpecies
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 1
+const val BACKUP_SCHEMA_VERSION: Int = 2
+const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
+const val MAX_BACKUP_PETS: Int = 1_000
+const val MAX_BACKUP_PET_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_SERIES_KEYS: Int = 100
 
 data class BackupDocumentV1(
@@ -19,6 +23,26 @@ data class BackupDocumentV1(
     val appState: BackupAppStateV1,
     val measurements: List<BackupMeasurementV1>,
     val settings: BackupSettingsV1,
+    val pets: List<BackupPetV2> = emptyList(),
+    val petMeasurements: List<BackupPetMeasurementV2> = emptyList(),
+)
+
+data class BackupPetV2(
+    val id: String,
+    val displayName: String,
+    val normalizedName: String,
+    val species: PetSpecies,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long,
+)
+
+data class BackupPetMeasurementV2(
+    val id: String,
+    val petId: String,
+    val measuredAtEpochSecond: Long,
+    val firstWeightKg: Double,
+    val secondWeightKg: Double,
+    val petWeightKg: Double,
 )
 
 data class BackupAccountV1(
@@ -102,6 +126,9 @@ sealed class BackupException(message: String, cause: Throwable? = null) : Except
 
     class MissingAccount(val accountId: String) :
         BackupException("Measurement references missing account: $accountId")
+
+    class MissingPet(val petId: String) :
+        BackupException("Pet measurement references missing pet: $petId")
 
     class Conflict(detail: String) : BackupException(detail)
     class Limits(val path: String, val limit: Int) : BackupException("$path exceeds limit $limit")

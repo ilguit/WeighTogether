@@ -20,6 +20,11 @@ import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountSettings
+import com.example.huaweimisync.domain.Pet
+import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetMeasurement
+import com.example.huaweimisync.domain.PetSpecies
+import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import java.time.LocalDate
@@ -89,6 +94,22 @@ class SettingsShellUiTest {
             .performClick()
 
         composeRule.runOnIdle { assertEquals(true, enabled) }
+    }
+
+    @Test
+    fun petsSectionShowsLocalizedLatestWeightAndExplicitNoHistoryState() {
+        val measuredAt = Instant.parse("2026-08-26T10:00:00Z")
+        val cat = pet("cat", "Мурка", PetSpecies.CAT)
+        val dog = pet("dog", "Шарик", PetSpecies.DOG)
+        setSettingsShell(
+            pets = listOf(
+                PetWithLatestWeight(cat, PetMeasurement("m1", cat.id, measuredAt, 70.0, 74.25)),
+                PetWithLatestWeight(dog, null),
+            ),
+        )
+
+        composeRule.onNodeWithText("Последний вес: 4,25 кг").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Измерений пока нет").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -346,6 +367,7 @@ class SettingsShellUiTest {
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+        pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
             val management = remember {
@@ -367,6 +389,7 @@ class SettingsShellUiTest {
                     accounts = listOfNotNull(account),
                     accountSettings = AccountSettings(primaryAccountId = account?.id),
                     accountManagement = management.value,
+                    pets = pets,
                 ),
                 currentSection = AppSection.SETTINGS,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
@@ -425,6 +448,14 @@ class SettingsShellUiTest {
         ),
         createdAt = Instant.parse("2026-08-15T00:00:00Z"),
         updatedAt = Instant.parse("2026-08-15T00:00:00Z"),
+    )
+
+    private fun pet(id: String, name: String, species: PetSpecies): Pet = Pet(
+        id = PetId(id),
+        displayName = name,
+        species = species,
+        createdAt = Instant.parse("2026-08-25T00:00:00Z"),
+        updatedAt = Instant.parse("2026-08-25T00:00:00Z"),
     )
 
     private fun availableHealthConnectWithMissingPermissions(): HealthConnectPermissionsUiState =

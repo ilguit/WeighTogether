@@ -8,8 +8,25 @@ import org.junit.Test
 class PetModelsTest {
     @Test
     fun nameNormalizationIsLocaleIndependentAndRejectsUntrimmedInput() {
-        assertEquals("барсик", NewPet("Барсик").normalizedName)
-        assertThrows(IllegalArgumentException::class.java) { NewPet(" Барсик ") }
+        assertEquals("барсик", NewPet("Барсик", PetSpecies.CAT).normalizedName)
+        assertThrows(IllegalArgumentException::class.java) {
+            NewPet(" Барсик ", PetSpecies.CAT)
+        }
+    }
+
+    @Test
+    fun newAndUpdatedPetsRequireExplicitSupportedSpecies() {
+        val id = PetId("pet")
+        val update = PetUpdate(id, "Барсик", PetSpecies.DOG)
+
+        assertEquals(PetSpecies.DOG, update.species)
+        assertEquals("барсик", update.normalizedName)
+        assertThrows(IllegalArgumentException::class.java) {
+            NewPet("Барсик", PetSpecies.UNSPECIFIED)
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            PetUpdate(id, "Барсик", PetSpecies.UNSPECIFIED)
+        }
     }
 
     @Test

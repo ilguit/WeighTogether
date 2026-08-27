@@ -5,7 +5,9 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetUpdate
 import java.time.Instant
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -44,12 +46,12 @@ class PetRepositoryTest {
             newId = { ids.removeFirst() },
         )
 
-        val created = repository.createPet(NewPet("Барсик"))
+        val created = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
 
         assertEquals("pet-a", created.id.value)
         assertEquals("барсик", created.normalizedName)
         assertThrows(PetNameConflictException::class.java) {
-            runBlocking { repository.createPet(NewPet("БАРСИК")) }
+            runBlocking { repository.createPet(NewPet("БАРСИК", PetSpecies.DOG)) }
         }
     }
 
@@ -68,7 +70,7 @@ class PetRepositoryTest {
             now = { times.removeFirst() },
             newId = { ids.removeFirst() },
         )
-        val pet = repository.createPet(NewPet("Луна"))
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
 
         repository.recordCompletedMeasurement(
             petId = pet.id,
@@ -112,5 +114,65 @@ class PetRepositoryTest {
             }
         }
         assertNull(database.petDao().getMeasurement("measurement"))
+    }
+
+    @Test
+    fun detailsUpdateAndUnchangedNamePreserveCreationTime() = runBlocking {
+        val times = ArrayDeque(listOf(Instant.ofEpochMilli(100), Instant.ofEpochMilli(200)))
+        val repository = RoomPetRepository(database, now = { times.removeFirst() }, newId = { "pet" })
+        val created = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
+
+        val updated = repository.updatePet(PetUpdate(created.id, "Барсик", PetSpecies.DOG))
+
+        assertEquals(PetSpecies.DOG, updated.species)
+        assertEquals(created.createdAt, updated.createdAt)
+        assertEquals(Instant.ofEpochMilli(200), updated.updatedAt)
+        val details = repository.getPetWithMeasurementCount(created.id)!!
+        assertEquals(updated, details.pet)
+        assertEquals(0, details.measurementCount)
+    }
+
+    @Test
+    fun updateRejectsMissingPetAndNameOwnedByAnotherPet() = runBlocking {
+        val ids = ArrayDeque(listOf("first", "second"))
+        val times = ArrayDeque(
+            listOf(Instant.ofEpochMilli(100), Instant.ofEpochMilli(200), Instant.ofEpochMilli(300)),
+        )
+        val repository = RoomPetRepository(database, now = { times.removeFirst() }, newId = { ids.removeFirst() })
+        val first = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
+        val second = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+
+        assertThrows(PetNameConflictException::class.java) {
+            runBlocking { repository.updatePet(PetUpdate(second.id, "БАРСИК", PetSpecies.DOG)) }
+        }
+        assertEquals("Луна", repository.getPet(second.id)!!.displayName)
+        assertThrows(PetNotFoundException::class.java) {
+            runBlocking { repository.updatePet(PetUpdate(PetId("missing"), "Рекс", PetSpecies.DOG)) }
+        }
+        assertEquals("Барсик", repository.getPet(first.id)!!.displayName)
+    }
+
+    @Test
+    fun deleteReturnsPreviewCascadesPetHistoryAndLeavesOtherDataAlone() = runBlocking {
+        val ids = ArrayDeque(listOf("pet", "measurement"))
+        val repository = RoomPetRepository(database, now = { Instant.ofEpochMilli(100) }, newId = { ids.removeFirst() })
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        repository.recordCompletedMeasurement(pet.id, Instant.EPOCH, 70.0, 73.0)
+        database.accountDao().insert(
+            AccountEntity("human", "Человек", "человек", null, null, null, false, 1, 1),
+        )
+
+        val preview = repository.previewPetDeletion(pet.id)
+        val deleted = repository.deletePet(pet.id)
+
+        assertEquals(pet.id, preview.pet.id)
+        assertEquals(1, preview.measurementCount)
+        assertEquals(preview, deleted)
+        assertNull(repository.getPet(pet.id))
+        assertNull(database.petDao().getMeasurement("measurement"))
+        assertNotNull(database.accountDao().get("human"))
+        assertThrows(PetNotFoundException::class.java) {
+            runBlocking { repository.deletePet(pet.id) }
+        }
     }
 }

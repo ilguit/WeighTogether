@@ -5,6 +5,7 @@ import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetSpecies
 import java.time.Instant
 
 @Entity(
@@ -15,6 +16,7 @@ data class PetEntity(
     @PrimaryKey val id: String,
     val displayName: String,
     val normalizedName: String,
+    val species: PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
 ) {
@@ -22,6 +24,7 @@ data class PetEntity(
         id = PetId(id),
         displayName = displayName,
         normalizedName = normalizedName,
+        species = species,
         createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
         updatedAt = Instant.ofEpochMilli(updatedAtEpochMillis),
     )

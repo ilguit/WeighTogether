@@ -10,6 +10,7 @@ data class PetWithLatestMeasurementRow(
     val id: String,
     val displayName: String,
     val normalizedName: String,
+    val species: com.example.huaweimisync.domain.PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
     val latestMeasurementId: String?,
@@ -21,9 +22,15 @@ data class PetWithLatestMeasurementRow(
 
 @Dao
 interface PetDao {
+    @Query("SELECT * FROM pets ORDER BY createdAtEpochMillis ASC, id ASC")
+    suspend fun getAllPetsForBackup(): List<PetEntity>
+
+    @Query("SELECT * FROM pet_measurements ORDER BY measuredAtEpochSecond ASC, id ASC")
+    suspend fun getAllMeasurementsForBackup(): List<PetMeasurementEntity>
+
     @Query(
         """
-        SELECT p.id, p.displayName, p.normalizedName, p.createdAtEpochMillis,
+        SELECT p.id, p.displayName, p.normalizedName, p.species, p.createdAtEpochMillis,
             p.updatedAtEpochMillis, m.id AS latestMeasurementId,
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
@@ -47,11 +54,44 @@ interface PetDao {
     @Query("SELECT * FROM pets WHERE normalizedName = :normalizedName")
     suspend fun getPetByNormalizedName(normalizedName: String): PetEntity?
 
+    @Query("SELECT COUNT(*) FROM pet_measurements WHERE petId = :petId")
+    suspend fun countMeasurements(petId: String): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPet(pet: PetEntity): Long
 
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertPets(pets: List<PetEntity>)
+
+    @Query(
+        """
+        UPDATE pets SET displayName = :displayName, normalizedName = :normalizedName,
+            species = :species, updatedAtEpochMillis = :updatedAtEpochMillis
+        WHERE id = :id
+        """,
+    )
+    suspend fun updatePet(
+        id: String,
+        displayName: String,
+        normalizedName: String,
+        species: com.example.huaweimisync.domain.PetSpecies,
+        updatedAtEpochMillis: Long,
+    ): Int
+
+    @Query("DELETE FROM pets WHERE id = :id")
+    suspend fun deletePet(id: String): Int
+
+    @Query("DELETE FROM pet_measurements")
+    suspend fun deleteAllMeasurements()
+
+    @Query("DELETE FROM pets")
+    suspend fun deleteAllPets()
+
     @Insert(onConflict = OnConflictStrategy.ABORT)
     suspend fun insertMeasurement(measurement: PetMeasurementEntity)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun insertMeasurements(measurements: List<PetMeasurementEntity>)
 
     @Query("UPDATE pets SET updatedAtEpochMillis = :updatedAtEpochMillis WHERE id = :petId")
     suspend fun updatePetTimestamp(petId: String, updatedAtEpochMillis: Long): Int

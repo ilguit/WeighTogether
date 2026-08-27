@@ -1,0 +1,6 @@
+issue: 37
+userVisible: true
+text: Добавлено управление профилями кошек и собак с сохранением данных в резервных копиях
+flavors:
+  - personal
+  - huaweiEnterprise

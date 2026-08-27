@@ -3,6 +3,7 @@ package com.example.huaweimisync.backup
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PetSpecies
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -34,7 +35,7 @@ class BackupJsonCodecTest {
 
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":1", "\"schemaVersion\":2").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":3").replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -83,6 +84,63 @@ class BackupJsonCodecTest {
         }
         assertThrows(BackupException.Limits::class.java) {
             codec.encode(document().copy(settings = BackupSettingsV1(null, null, false, List(MAX_BACKUP_SERIES_KEYS + 1) { "k$it" }, null)))
+        }
+    }
+
+    @Test
+    fun v2RoundTripPreservesPetsAndV1DecodesWithEmptyPetCollections() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Мурка", "мурка", PetSpecies.CAT, 10, 11)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 70.0, 74.5, 4.5)),
+        )
+
+        assertEquals(source, codec.decode(codec.encode(source)))
+
+        val v1Json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":1")
+            .replace(",\"pets\":[],\"petMeasurements\":[]", "")
+        val legacy = codec.decode(v1Json)
+        assertEquals(1, legacy.schemaVersion)
+        assertTrue(legacy.pets.isEmpty())
+        assertTrue(legacy.petMeasurements.isEmpty())
+    }
+
+    @Test
+    fun v2RoundTripPreservesLegacyUnspecifiedPetSpecies() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Legacy pet", "legacy pet", PetSpecies.UNSPECIFIED, 10, 11)),
+        )
+
+        val decoded = codec.decode(codec.encode(source))
+
+        assertEquals(PetSpecies.UNSPECIFIED, decoded.pets.single().species)
+        assertEquals(source, decoded)
+    }
+
+    @Test
+    fun v2RoundTripAcceptsPetMeasurementWithReverseReadingOrder() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 10, 11)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 74.5, 70.0, 4.5)),
+        )
+
+        val decoded = codec.decode(codec.encode(source))
+
+        assertEquals(source, decoded)
+        assertEquals(4.5, decoded.petMeasurements.single().petWeightKg, 0.0)
+    }
+
+    @Test
+    fun invalidPetSpeciesAndMissingPetAreRejected() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 3, 70.0, 74.0, 4.0)),
+        )
+        val encoded = codec.encode(source)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace("\"species\":\"CAT\"", "\"species\":\"DRAGON\""))
+        }
+        assertThrows(BackupException.MissingPet::class.java) {
+            codec.decode(encoded.replace("\"petId\":\"p\"", "\"petId\":\"missing\""))
         }
     }
 

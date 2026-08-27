@@ -7,9 +7,12 @@ import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.MeasurementEntity
 import com.example.huaweimisync.data.MeasurementType
 import com.example.huaweimisync.data.PortableProfileSettings
+import com.example.huaweimisync.data.PetEntity
+import com.example.huaweimisync.data.PetMeasurementEntity
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.data.toPortableSnapshot
 import com.example.huaweimisync.domain.ExternalSyncPolicy
+import com.example.huaweimisync.domain.PetSpecies
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
@@ -30,6 +33,8 @@ class BackupExportServiceTest {
             accounts = listOf(account()),
             appState = AppStateEntity(primaryAccountId = "account", weightDeltaKg = 2.5, ignoreUnknownMeasurements = true),
             measurements = listOf(measurement()),
+            pets = listOf(PetEntity("pet", "Cat", "cat", PetSpecies.CAT, 5, 6)),
+            petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 70.0, 74.0, 4.0)),
         )
         val service = service(source)
 
@@ -42,6 +47,8 @@ class BackupExportServiceTest {
         assertEquals(Sex.MALE, document.accounts.single().profile.sex)
         assertEquals(SyncStatus.SYNCED, document.measurements.single().huaweiStatus)
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
+        assertEquals(PetSpecies.CAT, document.pets.single().species)
+        assertEquals(4.0, document.petMeasurements.single().petWeightKg, 0.0)
         assertEquals(listOf("bmi", "weight"), document.settings.selectedChartMetricKeys)
         assertEquals(listOf("fat", "weight"), document.settings.homeKgChartSeriesKeys)
     }
@@ -62,6 +69,25 @@ class BackupExportServiceTest {
 
         assertEquals(setOf("weight"), snapshot.selectedChartMetricKeys)
         assertFalse(snapshot::class.java.declaredFields.any { it.name.contains("paused", ignoreCase = true) })
+    }
+
+    @Test
+    fun `export round trip preserves migrated pet species and reverse reading order`() = runBlocking {
+        val source = BackupDatabaseSnapshot(
+            accounts = listOf(account()),
+            appState = AppStateEntity(primaryAccountId = "account"),
+            measurements = listOf(measurement()),
+            pets = listOf(PetEntity("pet", "Legacy pet", "legacy pet", PetSpecies.UNSPECIFIED, 5, 6)),
+            petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 74.0, 70.0, 4.0)),
+        )
+
+        val output = ByteArrayOutputStream()
+        val exported = service(source).writeTo(output)
+        val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
+
+        assertEquals(exported, decoded)
+        assertEquals(PetSpecies.UNSPECIFIED, decoded.pets.single().species)
+        assertEquals(4.0, decoded.petMeasurements.single().petWeightKg, 0.0)
     }
 
     @Test

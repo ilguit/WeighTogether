@@ -6,6 +6,8 @@ import com.example.huaweimisync.data.AccountEntity
 import com.example.huaweimisync.data.AppDatabase
 import com.example.huaweimisync.data.AppStateEntity
 import com.example.huaweimisync.data.MeasurementEntity
+import com.example.huaweimisync.data.PetEntity
+import com.example.huaweimisync.data.PetMeasurementEntity
 import com.example.huaweimisync.data.PortableProfileSettings
 import com.example.huaweimisync.data.SyncStatus
 import com.example.huaweimisync.domain.ExternalSyncPolicy
@@ -18,6 +20,8 @@ data class BackupDatabaseSnapshot(
     val accounts: List<AccountEntity>,
     val appState: AppStateEntity,
     val measurements: List<MeasurementEntity>,
+    val pets: List<PetEntity> = emptyList(),
+    val petMeasurements: List<PetMeasurementEntity> = emptyList(),
 )
 
 fun interface BackupSnapshotSource {
@@ -32,6 +36,8 @@ class RoomBackupSnapshotSource(
             accounts = database.accountDao().getAll(),
             appState = database.appStateDao().get() ?: AppStateEntity(),
             measurements = database.measurementDao().getAllForBackup(),
+            pets = database.petDao().getAllPetsForBackup(),
+            petMeasurements = database.petDao().getAllMeasurementsForBackup(),
         )
     }
 }
@@ -51,6 +57,8 @@ class BackupExportService(
             appState = database.appState.toBackup(),
             measurements = database.measurements.map(MeasurementEntity::toBackup),
             settings = settings.toBackup(),
+            pets = database.pets.map(PetEntity::toBackup),
+            petMeasurements = database.petMeasurements.map(PetMeasurementEntity::toBackup),
         )
     }
 
@@ -66,6 +74,14 @@ class BackupExportService(
         return document
     }
 }
+
+private fun PetEntity.toBackup() = BackupPetV2(
+    id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis,
+)
+
+private fun PetMeasurementEntity.toBackup() = BackupPetMeasurementV2(
+    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg,
+)
 
 private fun AccountEntity.toBackup() = BackupAccountV1(
     id = id,
