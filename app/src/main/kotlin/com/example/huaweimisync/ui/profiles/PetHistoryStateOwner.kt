@@ -49,7 +49,14 @@ class PetHistoryStateOwner(
 
     val uiState: StateFlow<PetHistoryUiState> = selection
         .flatMapLatest(::observeSelection)
-        .stateIn(scope, SharingStarted.Eagerly, initialState)
+        .stateIn(
+            scope,
+            SharingStarted.WhileSubscribed(
+                stopTimeoutMillis = 0,
+                replayExpirationMillis = 0,
+            ),
+            initialState,
+        )
 
     val callbacks = PetHistoryCallbacks(
         selectRangePreset = ::selectRangePreset,

@@ -22,10 +22,15 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
@@ -108,6 +113,7 @@ class PetHistoryStateOwnerTest {
     fun `owner reports not found and repository errors`() = runBlocking {
         val scope = testScope()
         val missing = PetHistoryStateOwner(luna.id, FakeRepository(), scope, clock, zone, Locale.US)
+        scope.launch { missing.uiState.collect() }
         yield()
         assertTrue(missing.uiState.value.isNotFound)
         assertFalse(missing.uiState.value.isLoading)
@@ -120,6 +126,7 @@ class PetHistoryStateOwnerTest {
             zone,
             Locale.US,
         )
+        scope.launch { failing.uiState.collect() }
         yield()
         assertEquals("database unavailable", failing.uiState.value.errorMessage)
         assertFalse(failing.uiState.value.isLoading)
@@ -139,6 +146,7 @@ class PetHistoryStateOwnerTest {
             zone,
             Locale.US,
         )
+        scope.launch { owner.uiState.collect() }
         yield()
         assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)
 
@@ -175,6 +183,7 @@ class PetHistoryStateOwnerTest {
         )
         val scope = testScope()
         val owner = PetHistoryStateOwner(oldId, repository, scope, clock, zone, Locale.US)
+        scope.launch { owner.uiState.collect() }
         oldStarted.await()
 
         owner.selectPet(newPet.id)
@@ -199,6 +208,7 @@ class PetHistoryStateOwnerTest {
             zone,
             Locale.US,
         )
+        scope.launch { owner.uiState.collect() }
 
         owner.selectRangePreset(ChartRangePreset.LAST_7_DAYS)
         yield()
@@ -210,6 +220,54 @@ class PetHistoryStateOwnerTest {
         assertEquals(ChartRangePreset.CUSTOM, owner.uiState.value.rangePreset)
         assertEquals(LocalDate.of(2026, 1, 2), owner.uiState.value.startDate)
         assertEquals(LocalDate.of(2026, 2, 3), owner.uiState.value.endDateInclusive)
+        scope.cancel()
+    }
+
+    @Test
+    fun `repository collection follows active ui collectors without accumulating`() = runBlocking {
+        var starts = 0
+        var cancellations = 0
+        var activeCollections = 0
+        var maxActiveCollections = 0
+        val instrumentedHistory = flow<List<PetMeasurement>> {
+            starts += 1
+            activeCollections += 1
+            maxActiveCollections = maxOf(maxActiveCollections, activeCollections)
+            try {
+                emit(emptyList())
+                awaitCancellation()
+            } finally {
+                activeCollections -= 1
+                cancellations += 1
+            }
+        }
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to instrumentedHistory)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+
+        repeat(3) { index ->
+            assertEquals(PetHistoryUiState.initial(luna.id, clock), owner.uiState.value)
+            val collector = launch { owner.uiState.collect() }
+            yield()
+
+            assertEquals(index + 1, starts)
+            assertEquals(1, activeCollections)
+            assertFalse(owner.uiState.value.isLoading)
+
+            collector.cancelAndJoin()
+            yield()
+
+            assertEquals(index + 1, cancellations)
+            assertEquals(0, activeCollections)
+        }
+
+        assertEquals(1, maxActiveCollections)
         scope.cancel()
     }
 
