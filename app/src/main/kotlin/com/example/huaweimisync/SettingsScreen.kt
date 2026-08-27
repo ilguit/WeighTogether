@@ -268,6 +268,12 @@ internal fun SettingsScreen(
                 AccountManagementSection(
                     state = state.accountManagement,
                     callbacks = callbacks.accountManagement,
+                    pets = state.pets,
+                    onAddPet = callbacks.onCreatePet,
+                    onEditPet = { callbacks.onEditPet(it.pet) },
+                    onDeletePet = callbacks.onRequestDeletePet,
+                    petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
+                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
                 )
             }
             item {
@@ -280,7 +286,6 @@ internal fun SettingsScreen(
                         callbacks.onIgnoreUnknownMeasurementsChanged,
                 )
             }
-            item { PetManagementSection(state, callbacks) }
             item { SettingsIntegrationsSection(state, callbacks) }
             item { SettingsScaleSection(state, callbacks.onManualScan) }
             item { SettingsBackupSection(state.backup, callbacks) }
@@ -345,43 +350,6 @@ internal fun SettingsScreen(
         )
     }
     PetManagementDialogs(state, callbacks)
-}
-
-@Composable
-private fun PetManagementSection(state: MainUiState, callbacks: SettingsCallbacks) {
-    SettingsSection(title = "Питомцы") {
-        HuaweiSurface(
-            modifier = Modifier.testTag(SettingsScreenTestTags.PetsSection),
-            contentPadding = PaddingValues(HuaweiDimensions.ContentPadding),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (state.pets.isEmpty()) Text("Питомцев пока нет")
-                state.pets.forEach { item ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Column(Modifier.weight(1f)) {
-                            Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
-                            Text(petSpeciesLabel(item.pet.species), style = MaterialTheme.typography.bodySmall)
-                            Text(
-                                formatLatestPetWeight(item.latestPetWeightKg),
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                        TextButton(onClick = { callbacks.onEditPet(item.pet) }) { Text("Изменить") }
-                        TextButton(onClick = { callbacks.onRequestDeletePet(item.pet.id) }) { Text("Удалить") }
-                    }
-                }
-                Button(
-                    onClick = callbacks.onCreatePet,
-                    enabled = !state.petManagement.busy,
-                    modifier = Modifier.fillMaxWidth(),
-                ) { Text("Добавить питомца") }
-            }
-        }
-    }
 }
 
 @Composable

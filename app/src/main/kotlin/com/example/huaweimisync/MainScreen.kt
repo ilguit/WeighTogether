@@ -2,6 +2,7 @@ package com.example.huaweimisync
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
@@ -66,6 +67,15 @@ import com.example.huaweimisync.ui.components.HuaweiSystemBarBackgrounds
 import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
+import com.example.huaweimisync.ui.profiles.PetProfileScreen
+import com.example.huaweimisync.ui.profiles.ProfileDestination
+import com.example.huaweimisync.ui.profiles.ProfileKey
+import com.example.huaweimisync.ui.profiles.ProfileNavigationState
+import com.example.huaweimisync.ui.profiles.ProfileSelectionUiState
+import com.example.huaweimisync.ui.profiles.ProfileSelector
+import com.example.huaweimisync.ui.profiles.buildProfilePresentations
+import com.example.huaweimisync.ui.profiles.reconcileProfileNavigation
+import com.example.huaweimisync.ui.profiles.reconcileProfileSelection
 import kotlinx.coroutines.flow.Flow
 
 internal enum class AppSection(
@@ -176,6 +186,9 @@ fun HuaweiMiSyncApp(
 ) {
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
+    var profileNavigation by rememberSaveable(stateSaver = ProfileNavigationState.Saver) {
+        mutableStateOf(ProfileNavigationState())
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
@@ -190,6 +203,27 @@ fun HuaweiMiSyncApp(
         chartsViewModel.initialUiState
     }
     val snackbarHostState = remember { SnackbarHostState() }
+    val profiles = buildProfilePresentations(state.accounts, state.pets)
+    val requestedProfileKey = profileNavigation.selectedKey ?: measurementsState.accountSelector
+        .selectedAccountId?.let(ProfileKey::Human)
+    val profileSelection = if (state.profilesLoaded) {
+        reconcileProfileSelection(
+            profiles = profiles,
+            requestedKey = requestedProfileKey,
+            primaryAccountId = state.accountSettings.primaryAccountId,
+        )
+    } else {
+        null
+    }
+    LaunchedEffect(profileSelection?.selectedKey, profileSelection?.fallback) {
+        profileSelection?.let {
+            profileNavigation = reconcileProfileNavigation(
+                state = profileNavigation,
+                selection = it,
+                profilesLoaded = state.profilesLoaded,
+            )
+        }
+    }
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
             when (event) {
@@ -218,6 +252,8 @@ fun HuaweiMiSyncApp(
         ),
         currentSection = currentSection,
         currentDestination = currentDestination,
+        profileSelection = profileSelection,
+        profileDestination = profileNavigation.destination,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
         petMeasurementCallbacks = PetMeasurementCallbacks(
@@ -233,6 +269,11 @@ fun HuaweiMiSyncApp(
             currentDestination = AppDestination.ROOT
         },
         onDestinationChanged = { currentDestination = it },
+        onProfileSelected = { key ->
+            profileNavigation = profileNavigation.select(key)
+            if (key is ProfileKey.Human) measurementsViewModel.callbacks.onAccountSelected(key.accountId)
+        },
+        onPetBack = { profileNavigation = profileNavigation.back() },
         onRefreshFromScale = viewModel::refreshFromScale,
         onToggleExternalSyncPause = viewModel::toggleExternalSyncPause,
         onCloseProfile = {},
@@ -299,6 +340,7 @@ fun HuaweiMiSyncApp(
                     onPendingDeleteRequested = viewModel::deletePendingFromQueue,
                     onPetMeasurementRequested = viewModel::openPetMeasurement,
                 ),
+                showAccountSelector = false,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
@@ -309,6 +351,7 @@ fun HuaweiMiSyncApp(
             ChartsScreen(
                 state = chartsState,
                 callbacks = chartsViewModel.callbacks,
+                showAccountSelector = false,
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         },
@@ -325,12 +368,16 @@ internal fun HuaweiMiSyncScaffold(
     state: MainUiState,
     currentSection: AppSection,
     currentDestination: AppDestination = AppDestination.ROOT,
+    profileSelection: ProfileSelectionUiState? = null,
+    profileDestination: ProfileDestination = ProfileDestination.HumanShell,
     measurementsDestination: MeasurementsDestination,
     measurementsCallbacks: MeasurementsCallbacks,
     petMeasurementCallbacks: PetMeasurementCallbacks = PetMeasurementCallbacks.None,
     snackbarHostState: SnackbarHostState,
     onSectionSelected: (AppSection) -> Unit,
     onDestinationChanged: (AppDestination) -> Unit = {},
+    onProfileSelected: (ProfileKey) -> Unit = {},
+    onPetBack: () -> Unit = {},
     onCloseProfile: () -> Unit,
     onSaveProfile: () -> Unit,
     onProfileHeightChanged: (String) -> Unit,
@@ -345,6 +392,10 @@ internal fun HuaweiMiSyncScaffold(
     measurementsContent: @Composable (PaddingValues) -> Unit,
     chartsContent: @Composable (PaddingValues) -> Unit,
 ) {
+    val petDestination = profileDestination as? ProfileDestination.PetShell
+    val petProfile = petDestination?.let { destination ->
+        state.pets.firstOrNull { it.pet.id == destination.petId }
+    }
     val profileEditorOpen = state.profileEditor.isOpen
     val changelogOpen = !profileEditorOpen && currentDestination == AppDestination.CHANGELOG
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
@@ -353,7 +404,7 @@ internal fun HuaweiMiSyncScaffold(
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
         else -> true
     }
-    val showBottomNavigation = !profileEditorOpen && !changelogOpen && when (currentSection) {
+    val showBottomNavigation = petDestination == null && !profileEditorOpen && !changelogOpen && when (currentSection) {
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
@@ -371,6 +422,7 @@ internal fun HuaweiMiSyncScaffold(
         enabled = changelogOpen,
         onBack = { onDestinationChanged(AppDestination.ROOT) },
     )
+    BackHandler(enabled = petDestination != null, onBack = onPetBack)
     BackHandler(
         enabled = !profileEditorOpen &&
             currentSection == AppSection.MEASUREMENTS &&
@@ -391,20 +443,22 @@ internal fun HuaweiMiSyncScaffold(
                             title = when {
                                 profileEditorOpen -> "Профиль"
                                 changelogOpen -> "История изменений"
+                                petProfile != null -> petProfile.pet.displayName
                                 else -> currentSection.title
                             },
-                            showBack = profileEditorOpen || changelogOpen,
-                            onBack = if (changelogOpen) {
+                            showBack = profileEditorOpen || changelogOpen || petProfile != null,
+                            onBack = if (petProfile != null) {
+                                onPetBack
+                            } else if (changelogOpen) {
                                 { onDestinationChanged(AppDestination.ROOT) }
                             } else {
                                 onCloseProfile
                             },
-                            backContentDescription = if (changelogOpen) {
-                                "Вернуться к настройкам"
-                            } else {
-                                "Закрыть редактор профиля"
-                            },
-                            showMeasurementActions = !profileEditorOpen &&
+                            backContentDescription = mainBackContentDescription(
+                                changelogOpen = changelogOpen,
+                                petProfileOpen = petProfile != null,
+                            ),
+                            showMeasurementActions = petProfile == null && !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
                             pendingCount = state.resolverQueue.pendingCount,
@@ -435,6 +489,11 @@ internal fun HuaweiMiSyncScaffold(
                 },
             ) { padding ->
                 when {
+                    petProfile != null -> PetProfileScreen(
+                        profile = petProfile,
+                        contentPadding = padding,
+                    )
+
                     profileEditorOpen -> ProfileEditorScreen(
                         state = state.profileEditor,
                         onHeightChanged = onProfileHeightChanged,
@@ -445,11 +504,23 @@ internal fun HuaweiMiSyncScaffold(
 
                     changelogOpen -> ChangelogScreen(contentPadding = padding)
 
-                    currentSection == AppSection.SETTINGS -> SettingsScreen(
+                    currentSection == AppSection.SETTINGS -> Column {
+                        profileSelection?.let { selection ->
+                            ProfileSelector(
+                                state = selection,
+                                onProfileSelected = onProfileSelected,
+                                modifier = Modifier.padding(
+                                    horizontal = HuaweiDimensions.ContentPadding,
+                                    vertical = HuaweiDimensions.CompactContentPadding,
+                                ),
+                            )
+                        }
+                        SettingsScreen(
                         state = state,
                         callbacks = settingsCallbacks,
                         contentPadding = padding,
-                    )
+                        )
+                    }
 
                     currentSection == AppSection.MEASUREMENTS &&
                         measurementsDestination == MeasurementsDestination.SUMMARY -> {
@@ -472,13 +543,37 @@ internal fun HuaweiMiSyncScaffold(
                                 )
                             },
                         ) {
-                            measurementsContent(padding)
+                            Column {
+                                profileSelection?.let { selection ->
+                                    ProfileSelector(
+                                        state = selection,
+                                        onProfileSelected = onProfileSelected,
+                                        modifier = Modifier.padding(
+                                            horizontal = HuaweiDimensions.ContentPadding,
+                                            vertical = HuaweiDimensions.CompactContentPadding,
+                                        ),
+                                    )
+                                }
+                                Box(Modifier.weight(1f)) { measurementsContent(padding) }
+                            }
                         }
                     }
 
                     currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding)
 
-                    else -> chartsContent(padding)
+                    else -> Column {
+                        profileSelection?.let { selection ->
+                            ProfileSelector(
+                                state = selection,
+                                onProfileSelected = onProfileSelected,
+                                modifier = Modifier.padding(
+                                    horizontal = HuaweiDimensions.ContentPadding,
+                                    vertical = HuaweiDimensions.CompactContentPadding,
+                                ),
+                            )
+                        }
+                        Box(Modifier.weight(1f)) { chartsContent(padding) }
+                    }
                 }
             }
             PendingResolverForegroundFallback(
@@ -508,6 +603,15 @@ internal fun HuaweiMiSyncScaffold(
             HuaweiSystemBarBackgrounds()
         }
     }
+}
+
+internal fun mainBackContentDescription(
+    changelogOpen: Boolean,
+    petProfileOpen: Boolean,
+): String = when {
+    changelogOpen -> "Вернуться к настройкам"
+    petProfileOpen -> "Вернуться к профилям"
+    else -> "Закрыть редактор профиля"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
