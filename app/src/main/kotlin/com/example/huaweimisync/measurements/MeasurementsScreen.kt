@@ -429,20 +429,6 @@ private fun MeasurementSummaryScreen(
             }
             }
         }
-        Button(
-            onClick = callbacks.onPetMeasurementRequested,
-            modifier = Modifier
-                .widthIn(max = 680.dp)
-                .fillMaxWidth()
-                .align(Alignment.CenterHorizontally)
-                .padding(
-                    horizontal = HuaweiDimensions.ContentPadding,
-                    vertical = HuaweiDimensions.CompactContentPadding,
-                )
-                .testTag("pet-measurement-action"),
-        ) {
-            Text("Взвесить питомца")
-        }
     }
 }
 

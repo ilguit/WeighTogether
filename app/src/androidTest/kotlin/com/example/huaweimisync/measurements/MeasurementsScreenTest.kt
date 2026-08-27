@@ -247,7 +247,7 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("measurements-history-cta").assertDoesNotExist()
         composeRule.onNodeWithText("История измерений").assertDoesNotExist()
         composeRule.onNodeWithText("Открыть историю").assertDoesNotExist()
-        composeRule.onNodeWithTag("pet-measurement-action").assertIsDisplayed()
+        composeRule.onNodeWithTag("pet-measurement-action").assertDoesNotExist()
     }
 
     @Test
