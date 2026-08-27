@@ -111,6 +111,36 @@ class ProfilePresentationContractsTest {
         assertEquals(ProfileSelectionFallback.NO_PROFILES, state.fallback)
     }
 
+    @Test
+    fun profileSourcesCoverMixedHumanOnlyPetOnlyAndEmptyStates() {
+        val human = account("human", "Анна")
+        val pet = pet("pet", "Барсик")
+
+        assertEquals(2, buildProfilePresentations(listOf(human), listOf(pet)).size)
+        assertTrue(buildProfilePresentations(listOf(human), emptyList()).single() is ProfilePresentation.Human)
+        assertTrue(buildProfilePresentations(emptyList(), listOf(pet)).single() is ProfilePresentation.Pet)
+        assertTrue(buildProfilePresentations(emptyList(), emptyList()).isEmpty())
+    }
+
+    @Test
+    fun onlyNonPrimaryHumansCanBecomePrimaryAndPetsNeverCan() {
+        val human = ProfilePresentation.Human(account("human", "Анна"))
+        val pet = ProfilePresentation.Pet(pet("pet", "Барсик"))
+
+        assertEquals(
+            ProfileManagementCapabilities(true, true, true),
+            human.managementCapabilities(isPrimaryHuman = false),
+        )
+        assertEquals(
+            ProfileManagementCapabilities(true, true, false),
+            human.managementCapabilities(isPrimaryHuman = true),
+        )
+        assertEquals(
+            ProfileManagementCapabilities(true, true, false),
+            pet.managementCapabilities(isPrimaryHuman = false),
+        )
+    }
+
     private fun account(id: String, name: String): Account = Account(
         id = AccountId(id),
         displayName = name,

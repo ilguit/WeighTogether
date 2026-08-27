@@ -36,6 +36,27 @@ sealed interface ProfilePresentation {
     }
 }
 
+@Immutable
+data class ProfileManagementCapabilities(
+    val canEdit: Boolean,
+    val canDelete: Boolean,
+    val canMakePrimary: Boolean,
+)
+
+fun ProfilePresentation.managementCapabilities(isPrimaryHuman: Boolean): ProfileManagementCapabilities =
+    when (this) {
+        is ProfilePresentation.Human -> ProfileManagementCapabilities(
+            canEdit = true,
+            canDelete = true,
+            canMakePrimary = !isPrimaryHuman,
+        )
+        is ProfilePresentation.Pet -> ProfileManagementCapabilities(
+            canEdit = true,
+            canDelete = true,
+            canMakePrimary = false,
+        )
+    }
+
 enum class ProfileSelectionFallback {
     NONE,
     SELECTED_PROFILE_UNAVAILABLE,

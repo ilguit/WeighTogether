@@ -40,6 +40,8 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.ui.components.BirthDateField
 import com.example.huaweimisync.ui.components.BirthDateSelectionPolicy
 import com.example.huaweimisync.ui.components.HuaweiIconButton
@@ -54,6 +56,8 @@ import java.time.format.DateTimeFormatter
 object AccountManagementTestTags {
     const val List = "account-management-list"
     const val Add = "account-management-add"
+    const val AddPet = "profile-management-add-pet"
+    const val Empty = "profile-management-empty"
     const val Editor = "account-editor"
     const val EditorBirthDate = "account-editor-birth-date"
     const val EditorSave = "account-editor-save"
@@ -63,6 +67,13 @@ object AccountManagementTestTags {
     fun row(accountId: AccountId): String = "account-row-${accountId.value}"
     fun primaryBadge(accountId: AccountId): String = "account-primary-badge-${accountId.value}"
     fun replacement(accountId: AccountId): String = "account-replacement-${accountId.value}"
+    fun petRow(petId: PetId): String = "profile-management-pet-${petId.value}"
+    fun petEdit(petId: PetId): String = "profile-management-pet-edit-${petId.value}"
+    fun petDelete(petId: PetId): String = "profile-management-pet-delete-${petId.value}"
+    fun humanEdit(accountId: AccountId): String = "profile-management-human-edit-${accountId.value}"
+    fun humanDelete(accountId: AccountId): String = "profile-management-human-delete-${accountId.value}"
+    fun humanMakePrimary(accountId: AccountId): String =
+        "profile-management-human-primary-${accountId.value}"
 }
 
 data class AccountManagementCallbacks(
@@ -89,6 +100,12 @@ data class AccountManagementCallbacks(
 fun AccountManagementSection(
     state: AccountManagementUiState,
     callbacks: AccountManagementCallbacks,
+    pets: List<PetWithLatestWeight> = emptyList(),
+    onAddPet: () -> Unit = {},
+    onEditPet: (PetWithLatestWeight) -> Unit = {},
+    onDeletePet: (PetId) -> Unit = {},
+    petSpeciesLabel: (PetWithLatestWeight) -> String = { "Питомец" },
+    petWeightLabel: (PetWithLatestWeight) -> String = { "" },
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -96,26 +113,33 @@ fun AccountManagementSection(
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Аккаунты", Modifier.weight(1f))
+            HuaweiSectionTitle("Аккаунты и питомцы", Modifier.weight(1f))
             TextButton(
                 onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
                 enabled = !state.operationInProgress,
                 modifier = Modifier.testTag(AccountManagementTestTags.Add),
-            ) { Text("Добавить") }
+            ) { Text("Добавить человека") }
         }
+        TextButton(
+            onClick = onAddPet,
+            enabled = !state.operationInProgress,
+            modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
+        ) { Text("Добавить питомца") }
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
             contentPadding = PaddingValues(0.dp),
         ) {
-            if (state.accounts.isEmpty()) {
+            if (state.accounts.isEmpty() && pets.isEmpty()) {
                 Text(
-                    text = "Аккаунтов пока нет. Добавьте профиль для расчёта состава тела.",
+                    text = "Аккаунтов и питомцев пока нет.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
+                    modifier = Modifier
+                        .padding(HuaweiDimensions.ContentPadding)
+                        .testTag(AccountManagementTestTags.Empty),
                 )
             } else {
                 Column {
-                    state.accounts.forEachIndexed { index, account ->
+                    state.accounts.forEach { account ->
                         AccountRow(
                             account = account,
                             isPrimary = account.id == state.primaryAccountId,
@@ -132,7 +156,18 @@ fun AccountManagementSection(
                                 callbacks.onAction(AccountManagementAction.DeleteRequested(account.id))
                             },
                         )
-                        if (index != state.accounts.lastIndex) HorizontalDivider()
+                        if (account != state.accounts.last() || pets.isNotEmpty()) HorizontalDivider()
+                    }
+                    pets.forEachIndexed { index, pet ->
+                        PetProfileRow(
+                            pet = pet,
+                            enabled = !state.operationInProgress,
+                            speciesLabel = petSpeciesLabel(pet),
+                            weightLabel = petWeightLabel(pet),
+                            onEdit = { onEditPet(pet) },
+                            onDelete = { onDeletePet(pet.pet.id) },
+                        )
+                        if (index != pets.lastIndex) HorizontalDivider()
                     }
                 }
             }
@@ -213,12 +248,21 @@ private fun AccountRow(
                 if (isPrimary) PrimaryBadge(account.id)
             }
             Text(
+                text = "Человек",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Text(
                 text = formatAccountProfile(account.profile),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
             if (!isPrimary) {
-                TextButton(onClick = onMakePrimary, enabled = enabled) {
+                TextButton(
+                    onClick = onMakePrimary,
+                    enabled = enabled,
+                    modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
+                ) {
                     Text("Сделать основным")
                 }
             }
@@ -228,12 +272,52 @@ private fun AccountRow(
             contentDescription = "Изменить аккаунт ${account.displayName}",
             onClick = onEdit,
             enabled = enabled,
+            modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
         )
         HuaweiIconButton(
             icon = HuaweiIcons.Delete,
             contentDescription = "Удалить аккаунт ${account.displayName}",
             onClick = onDelete,
             enabled = enabled,
+            modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
+        )
+    }
+}
+
+@Composable
+private fun PetProfileRow(
+    pet: PetWithLatestWeight,
+    enabled: Boolean,
+    speciesLabel: String,
+    weightLabel: String,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(AccountManagementTestTags.petRow(pet.pet.id))
+            .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
+            Text("Питомец · $speciesLabel", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+            if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+        }
+        HuaweiIconButton(
+            icon = HuaweiIcons.Edit,
+            contentDescription = "Изменить питомца ${pet.pet.displayName}",
+            onClick = onEdit,
+            enabled = enabled,
+            modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
+        )
+        HuaweiIconButton(
+            icon = HuaweiIcons.Delete,
+            contentDescription = "Удалить питомца ${pet.pet.displayName}",
+            onClick = onDelete,
+            enabled = enabled,
+            modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
         )
     }
 }
