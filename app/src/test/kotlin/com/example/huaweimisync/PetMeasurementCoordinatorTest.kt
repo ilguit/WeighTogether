@@ -75,6 +75,39 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `only coordinator accepted stable readings are protected`() = runBlocking {
+        val protected = mutableListOf<Pair<String, String>>()
+        val guardedCoordinator = PetMeasurementCoordinator(
+            setState = {},
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                PetIngestionSession(
+                    registerPetPacket = { _, _ -> },
+                    release = {},
+                    protectPetPacket = { address, raw -> protected += address to raw },
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val token = requireNotNull(guardedCoordinator.start(pet, SELECTED_ADDRESS))
+
+        guardedCoordinator.accept(token, reading(69.0, stable = false, raw = "unstable"))
+        guardedCoordinator.accept(token, reading(70.0, raw = "first"))
+        guardedCoordinator.accept(token, reading(70.0, second = 2, raw = "same-weight"))
+        guardedCoordinator.accept(token, reading(74.0, second = 3, raw = "second"))
+
+        assertEquals(
+            listOf(
+                SELECTED_ADDRESS.lowercase() to "first",
+                SELECTED_ADDRESS.lowercase() to "second",
+            ),
+            protected,
+        )
+    }
+
+    @Test
     fun `lower second weight is equally valid and delta stays absolute`() {
         val token = start()
         coordinator.accept(token, reading(74.2, second = 1, raw = "person-with-pet"))
@@ -137,6 +170,92 @@ class PetMeasurementCoordinatorTest {
 
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
     }
+
+    @Test
+    fun `pre-session stable replay is ignored despite a new receive timestamp`() = runBlocking {
+        val baseline = PetStableReadingBaseline(
+            address = SELECTED_ADDRESS,
+            weightKg = 70.0,
+            rawIdentity = "durable-packet",
+        )
+        val baselineCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = { scannerStops++ },
+            restoreAutomaticScanning = { automaticRestores++ },
+            showMessage = messages::add,
+            acquirePetSessionGate = { selectedAddress ->
+                assertEquals(SELECTED_ADDRESS, selectedAddress)
+                PetIngestionSession(
+                    registerPetPacket = { _, _ -> },
+                    release = {},
+                    preSessionBaseline = baseline,
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
+        baselineCoordinator.attachTimeout(token) { timeoutCancellations++ }
+
+        assertNull(
+            baselineCoordinator.accept(
+                token,
+                reading(
+                    70.0,
+                    second = 20,
+                    raw = "durable-packet",
+                    measuredAt = operationStartedAt.plusSeconds(20),
+                ),
+            ),
+        )
+
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(0, scannerStops)
+        assertEquals(0, timeoutCancellations)
+
+        assertNull(
+            baselineCoordinator.accept(
+                token,
+                reading(74.2, second = 21, raw = "new-stable-packet"),
+            ),
+        )
+
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 74.2), states.last())
+        assertEquals(0, timeoutCancellations)
+    }
+
+    @Test
+    fun `new stable value after pre-session baseline is accepted without zero transition`() =
+        runBlocking {
+            val baselineCoordinator = PetMeasurementCoordinator(
+                setState = states::add,
+                stopScanner = { scannerStops++ },
+                restoreAutomaticScanning = { automaticRestores++ },
+                showMessage = messages::add,
+                acquirePetSessionGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = {},
+                        preSessionBaseline = PetStableReadingBaseline(
+                            address = SELECTED_ADDRESS,
+                            weightKg = 70.0,
+                            rawIdentity = "durable-packet",
+                        ),
+                    )
+                },
+                monotonicNowNanos = { operationStartedAtNanos },
+            )
+            val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
+
+            assertNull(
+                baselineCoordinator.accept(
+                    token,
+                    reading(74.2, second = 1, raw = "new-stable-packet"),
+                ),
+            )
+
+            assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 74.2), states.last())
+            assertEquals(0, scannerStops)
+        }
 
     @Test
     fun `non finite and non positive weights do not advance`() {
@@ -250,6 +369,8 @@ class PetMeasurementCoordinatorTest {
         coordinator.attachTimeout(timeoutToken) { timeoutCancellations++ }
         coordinator.timeout(timeoutToken)
         coordinator.timeout(timeoutToken)
+        coordinator.fail(timeoutToken, "late error")
+        coordinator.cancel(timeoutToken)
 
         assertEquals(PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE), states.last())
         assertEquals(listOf(PET_MEASUREMENT_TIMEOUT_MESSAGE), messages)
@@ -259,12 +380,16 @@ class PetMeasurementCoordinatorTest {
 
         val cancelledToken = start()
         coordinator.attachTimeout(cancelledToken) { timeoutCancellations++ }
-        coordinator.cancel()
+        coordinator.cancel(cancelledToken)
+        coordinator.cancel(cancelledToken)
+        coordinator.timeout(cancelledToken)
+        coordinator.fail(cancelledToken, "late error")
 
         assertEquals(PetMeasurementUiState.Cancelled, states.last())
         assertEquals(2, scannerStops)
         assertEquals(2, automaticRestores)
         assertEquals(2, timeoutCancellations)
+        assertEquals(listOf(PET_MEASUREMENT_TIMEOUT_MESSAGE), messages)
     }
 
     @Test
@@ -433,6 +558,73 @@ class PetMeasurementCoordinatorTest {
         assertFalse(guardedCoordinator.isActive)
         assertEquals(0, scannerStops)
         assertEquals(0, automaticRestores)
+    }
+
+    @Test
+    fun `startup activates and drains gate before baseline lookup`() = runBlocking {
+        val order = mutableListOf<String>()
+        val session = acquirePetIngestionSession(
+            selectedAddress = SELECTED_ADDRESS,
+            activateGate = {
+                order += "gate-drained"
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+            },
+            lookupBaseline = {
+                order += "baseline"
+                null
+            },
+        )
+
+        assertEquals(listOf("gate-drained", "baseline"), order)
+        session.release()
+    }
+
+    @Test
+    fun `baseline lookup failure releases activated gate`() = runBlocking {
+        var releases = 0
+
+        val failure = runCatching {
+            acquirePetIngestionSession(
+                selectedAddress = SELECTED_ADDRESS,
+                activateGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = { releases++ },
+                    )
+                },
+                lookupBaseline = { error("lookup failed") },
+            )
+        }.exceptionOrNull()
+
+        assertEquals("lookup failed", failure?.message)
+        assertEquals(1, releases)
+    }
+
+    @Test
+    fun `cancellation during baseline lookup releases activated gate`() = runBlocking {
+        val lookupStarted = CompletableDeferred<Unit>()
+        val neverComplete = CompletableDeferred<PetStableReadingBaseline?>()
+        var releases = 0
+        val startup = async(start = CoroutineStart.UNDISPATCHED) {
+            acquirePetIngestionSession(
+                selectedAddress = SELECTED_ADDRESS,
+                activateGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = { releases++ },
+                    )
+                },
+                lookupBaseline = {
+                    lookupStarted.complete(Unit)
+                    neverComplete.await()
+                },
+            )
+        }
+        lookupStarted.await()
+
+        startup.cancelAndJoin()
+
+        assertEquals(1, releases)
     }
 
     private fun start(): PetMeasurementCoordinator.OperationToken =

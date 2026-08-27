@@ -15,10 +15,18 @@ interface AcceptedStableMeasurementDao {
     suspend fun getLatest(): AcceptedStableMeasurementEntity? =
         get(AcceptedStableMeasurementEntity.LATEST_ID)
 
+    suspend fun getForDevice(deviceAddress: String): AcceptedStableMeasurementEntity? =
+        get(AcceptedStableMeasurementEntity.deviceId(deviceAddress))
+
     suspend fun replaceLatest(entity: AcceptedStableMeasurementEntity) {
         require(entity.id == AcceptedStableMeasurementEntity.LATEST_ID) {
             "Latest accepted stable measurement must use the reserved latest id"
         }
         upsert(entity)
+    }
+
+    suspend fun replaceLatestAndDevice(entity: AcceptedStableMeasurementEntity) {
+        replaceLatest(entity)
+        upsert(entity.copy(id = AcceptedStableMeasurementEntity.deviceId(entity.deviceAddress)))
     }
 }

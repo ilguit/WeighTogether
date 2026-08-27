@@ -148,10 +148,11 @@ class MeasurementFinalizationOrchestrationTest {
     }
 
     @Test
-    fun activePetSessionSuppressesHumanIngestionAndInactiveSessionPasses() =
+    fun activePetSessionAutomaticallyQuarantinesHumanPipelinePacketReplay() =
         kotlinx.coroutines.runBlocking {
             val gate = PetMeasurementIngestionGate()
             var ingested = 0
+            var finalized = 0
             val processor = ScalePacketProcessor(
                 parse = { _, _ -> raw() },
                 ingestion = MeasurementIngestionWorkOrchestrator(
@@ -161,7 +162,9 @@ class MeasurementFinalizationOrchestrationTest {
                     },
                     finalizationScheduler = object : PendingFinalizationScheduler {
                         override fun enqueue(pending: PendingMeasurement) = Unit
-                        override fun enqueueIfAbsent(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
                     },
                 ),
                 petMeasurementGate = gate,
@@ -173,8 +176,56 @@ class MeasurementFinalizationOrchestrationTest {
             assertEquals(0, ingested)
 
             lease.release()
-            assertTrue(processor.process(packet) is MeasurementIngestionResult.CreatedAggregate)
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(packet))
+            assertEquals(0, ingested)
+            assertEquals(0, finalized)
+
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(2), "AA")) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
             assertEquals(1, ingested)
+            assertEquals(1, finalized)
+        }
+
+    @Test
+    fun automaticPetQuarantineUsesParserNormalizedPayloadWithoutExternalSideEffects() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            var parsed = 0
+            var ingested = 0
+            var finalized = 0
+            val processor = ScalePacketProcessor(
+                parse = { _, _ ->
+                    parsed += 1
+                    raw()
+                },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingested += 1
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+            val logicalPayload = ByteArray(13) { it.toByte() }
+            val activePacket = ScalePacket(byteArrayOf(99) + logicalPayload, " aa:bb ")
+            val replay = ScalePacket(byteArrayOf(42, 43) + logicalPayload, "AA:BB")
+
+            val lease = gate.activate()
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(activePacket))
+            lease.release()
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(replay))
+
+            assertEquals(0, parsed)
+            assertEquals(0, ingested)
+            assertEquals(0, finalized)
         }
 
     @Test
@@ -303,6 +354,59 @@ class MeasurementFinalizationOrchestrationTest {
                 ScalePacket(byteArrayOf(PET_PACKET_QUARANTINE_MAX_IDENTITIES.toByte()), "AA"),
             ) { "processed" },
         )
+    }
+
+    @Test
+    fun acceptedStablePacketsSurviveActiveSessionNoiseOverflowWithoutSideEffects() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate { 10L }
+            var ingested = 0
+            var finalized = 0
+            val processor = ScalePacketProcessor(
+                parse = { _, _ -> raw() },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingested += 1
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+            val first = ScalePacket(ByteArray(13) { (it + 40).toByte() }, "AA")
+            val second = ScalePacket(ByteArray(13) { (it + 80).toByte() }, "AA")
+            val lease = gate.activate()
+            lease.registerPetPacket(first.deviceAddress, first.payload)
+            lease.protectPetPacket(first.deviceAddress, first.payload.toHexIdentity())
+            lease.registerPetPacket(second.deviceAddress, second.payload)
+            lease.protectPetPacket(second.deviceAddress, second.payload.toHexIdentity())
+            repeat(PET_PACKET_QUARANTINE_MAX_IDENTITIES + 8) { value ->
+                lease.registerPetPacket("AA", ByteArray(13) { (value + it).toByte() })
+            }
+            lease.release()
+
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(first))
+            assertEquals(MeasurementIngestionResult.IgnoredNotFinal, processor.process(second))
+            assertEquals(0, ingested)
+            assertEquals(0, finalized)
+        }
+
+    @Test
+    fun staleSessionCannotProtectPacketInCurrentSession() = kotlinx.coroutines.runBlocking {
+        val gate = PetMeasurementIngestionGate { 10L }
+        val stale = gate.activate()
+        stale.release()
+        val current = gate.activate()
+        val packet = ScalePacket(ByteArray(13) { it.toByte() }, "AA")
+        stale.protectPetPacket(packet.deviceAddress, packet.payload.toHexIdentity())
+        current.release()
+
+        assertEquals("processed", gate.processPacketWhenInactive(packet) { "processed" })
     }
 
     @Test
@@ -522,5 +626,8 @@ private fun raw() = RawScaleMeasurement(
     hasImpedance = true,
     rawPayload = byteArrayOf(1, 2, 3),
 )
+
+private fun ByteArray.toHexIdentity(): String =
+    joinToString("") { "%02x".format(it.toInt() and 0xff) }
 
 private val NOW = Instant.parse("2026-08-20T10:00:00Z")
