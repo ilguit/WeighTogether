@@ -34,6 +34,14 @@ class MeasurementSyncWorker(
                 pausedUntilProvider = {
                     container.profileStore.externalSyncPausedUntilEpochMillis
                 },
+                isHuaweiEnabled = {
+                    container.profileStore.isExternalSyncEnabled(ExternalSyncDestination.HUAWEI)
+                },
+                isHealthConnectEnabled = {
+                    container.profileStore.isExternalSyncEnabled(
+                        ExternalSyncDestination.HEALTH_CONNECT,
+                    )
+                },
             ).sync(id)
 
             when (outcome) {

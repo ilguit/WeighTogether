@@ -17,6 +17,7 @@ import com.example.huaweimisync.ble.ReliabilityScanService
 import com.example.huaweimisync.ble.ScanWorkScheduler
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.data.AccountNameConflictException
+import com.example.huaweimisync.data.ExternalSyncDestination
 import com.example.huaweimisync.data.MeasurementIngestionResult
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -965,6 +966,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun authorizeHuawei() = viewModelScope.launch {
         val attempt = huaweiAuthorization.authorize { huawei.value = it }
+        if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
+            container.profileStore.setExternalSyncEnabled(
+                ExternalSyncDestination.HUAWEI,
+                true,
+            )
+        }
         showMessage(huaweiAuthorizationMessage(attempt))
     }
 
@@ -1422,6 +1429,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
         healthConnect.value = snapshot
         if (snapshot.isConnected) {
+            container.profileStore.setExternalSyncEnabled(
+                ExternalSyncDestination.HEALTH_CONNECT,
+                true,
+            )
             container.repository.retryPendingHealthConnect()
             if (notifyResult) {
                 showMessage("Health Connect: разрешения выданы, очередь перезапущена")

@@ -27,6 +27,8 @@ internal class MeasurementSyncProcessor(
     private val applyHealthConnectResult:
         suspend (String, MeasurementSyncPayload, SyncResult) -> Unit,
     private val pausedUntilProvider: () -> Long = { 0L },
+    private val isHuaweiEnabled: () -> Boolean = { true },
+    private val isHealthConnectEnabled: () -> Boolean = { true },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) {
     suspend fun sync(measurementId: String): MeasurementSyncOutcome {
@@ -50,6 +52,7 @@ internal class MeasurementSyncProcessor(
         if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return DestinationResult.Skipped
         if (!isEligible(value)) return DestinationResult.Skipped
         if (value.huaweiStatus in HUAWEI_TERMINAL_STATUSES) return DestinationResult.Skipped
+        if (!isHuaweiEnabled()) return DestinationResult.Skipped
 
         val payload = MeasurementSyncPayload(
             measurement = value,
@@ -68,6 +71,7 @@ internal class MeasurementSyncProcessor(
         if (value.healthConnectStatus in HEALTH_CONNECT_TERMINAL_STATUSES) {
             return DestinationResult.Skipped
         }
+        if (!isHealthConnectEnabled()) return DestinationResult.Skipped
 
         val payload = MeasurementSyncPayload(
             measurement = value,

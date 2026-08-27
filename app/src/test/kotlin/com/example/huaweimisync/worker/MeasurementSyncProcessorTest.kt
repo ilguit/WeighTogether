@@ -47,6 +47,37 @@ class MeasurementSyncProcessorTest {
     }
 
     @Test
+    fun disabledHuaweiDestinationSkipsGatewayAndLeavesHealthConnectIndependent() = runBlocking {
+        val store = FakeSyncStore(measurement()).also { it.huaweiEnabled = false }
+
+        assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
+
+        assertEquals(listOf("health-connect"), store.externalWrites)
+        assertEquals(listOf("health-connect"), store.statusUpdates.map { it.first })
+    }
+
+    @Test
+    fun disabledHealthConnectDestinationSkipsGatewayAndLeavesHuaweiIndependent() = runBlocking {
+        val store = FakeSyncStore(measurement()).also { it.healthConnectEnabled = false }
+
+        assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
+
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(listOf("huawei"), store.statusUpdates.map { it.first })
+    }
+
+    @Test
+    fun destinationOptOutIsReloadedImmediatelyBeforeSecondGateway() = runBlocking {
+        val store = FakeSyncStore(measurement())
+        store.afterHuaweiWrite = { store.healthConnectEnabled = false }
+
+        assertEquals(MeasurementSyncOutcome.Complete, store.processor().sync(ID))
+
+        assertEquals(listOf("huawei"), store.externalWrites)
+        assertEquals(listOf("huawei"), store.statusUpdates.map { it.first })
+    }
+
+    @Test
     fun reloadsMeasurementBeforeSecondExternalWrite() = runBlocking {
         val store = FakeSyncStore(measurement())
         store.huaweiResult = SyncResult.Success
@@ -388,6 +419,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
     var eligibilityChecks: Int = 0
     var pausedUntilEpochMillis: Long = 0L
     var nowEpochMillis: Long = 0L
+    var huaweiEnabled: Boolean = true
+    var healthConnectEnabled: Boolean = true
     val externalWrites = mutableListOf<String>()
     val payloads = mutableListOf<Pair<String, MeasurementSyncPayload>>()
     val statusUpdates = mutableListOf<Pair<String, SyncResult>>()
@@ -444,6 +477,8 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
             }
         },
         pausedUntilProvider = { pausedUntilEpochMillis },
+        isHuaweiEnabled = { huaweiEnabled },
+        isHealthConnectEnabled = { healthConnectEnabled },
         nowEpochMillis = { nowEpochMillis },
     )
 }

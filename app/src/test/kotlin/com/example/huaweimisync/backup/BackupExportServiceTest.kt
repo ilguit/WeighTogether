@@ -54,7 +54,7 @@ class BackupExportServiceTest {
     }
 
     @Test
-    fun `portable settings snapshot excludes transient sync pause and copies sets`() {
+    fun `portable settings snapshot excludes device local sync controls and copies sets`() {
         val keys = linkedSetOf("weight")
         val settings = AppSettings(
             scaleAddress = "AA:BB",
@@ -62,6 +62,8 @@ class BackupExportServiceTest {
             reliabilityMode = true,
             selectedChartMetricKeys = keys,
             externalSyncPausedUntilEpochMillis = Long.MAX_VALUE,
+            healthConnectSyncEnabled = false,
+            huaweiSyncEnabled = false,
         )
 
         val snapshot = settings.toPortableSnapshot()
@@ -69,6 +71,7 @@ class BackupExportServiceTest {
 
         assertEquals(setOf("weight"), snapshot.selectedChartMetricKeys)
         assertFalse(snapshot::class.java.declaredFields.any { it.name.contains("paused", ignoreCase = true) })
+        assertFalse(snapshot::class.java.declaredFields.any { it.name.contains("enabled", ignoreCase = true) })
     }
 
     @Test
