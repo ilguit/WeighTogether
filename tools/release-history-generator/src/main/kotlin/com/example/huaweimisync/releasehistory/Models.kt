@@ -65,6 +65,7 @@ data class BootstrapRelease(
 
 data class GeneratedHistory(
     val releases: List<GeneratedRelease>,
+    val latestChanges: List<ReleaseChange> = emptyList(),
 )
 
 data class ReleaseRange(

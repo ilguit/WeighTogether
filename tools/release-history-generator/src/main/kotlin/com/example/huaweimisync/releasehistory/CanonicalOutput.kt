@@ -2,7 +2,14 @@ package com.example.huaweimisync.releasehistory
 
 object CanonicalOutput {
     fun json(history: GeneratedHistory): String = buildString {
-        append("{\n  \"releases\": [")
+        append("{\n  \"latestChanges\": [")
+        history.latestChanges.forEachIndexed { changeIndex, change ->
+            if (changeIndex > 0) append(',')
+            append("\n    { \"issue\": ").append(change.issue)
+                .append(", \"text\": ").append(jsonString(change.text)).append(" }")
+        }
+        if (history.latestChanges.isNotEmpty()) append('\n').append("  ")
+        append("],\n  \"releases\": [")
         history.releases.forEachIndexed { releaseIndex, release ->
             if (releaseIndex > 0) append(',')
             append("\n    {\n")
@@ -24,6 +31,14 @@ object CanonicalOutput {
     fun kotlinSource(history: GeneratedHistory, packageName: String): String = buildString {
         append("package ").append(packageName).append("\n\n")
         append("object AppReleaseHistory {\n")
+        append("    val latestChanges: List<ReleaseChange> = listOf(")
+        history.latestChanges.forEachIndexed { changeIndex, change ->
+            if (changeIndex > 0) append(',')
+            append("\n        ReleaseChange(issueNumber = ").append(change.issue)
+                .append(", description = ").append(kotlinString(change.text)).append(')')
+        }
+        if (history.latestChanges.isNotEmpty()) append('\n').append("    ")
+        append(")\n\n")
         append("    val releases: List<AppRelease> = listOf(")
         history.releases.forEachIndexed { releaseIndex, release ->
             if (releaseIndex > 0) append(',')

@@ -112,7 +112,22 @@ class ReleaseHistoryGenerator(
         val baselineHistory = baseline.orEmpty().filter {
             oldestGeneratedVersion == null || compareVersions(it.version, oldestGeneratedVersion) < 0
         }
-        val history = GeneratedHistory(releases + baselineHistory)
+        val latestChanges = if (mode == ReleaseHistoryMode.BUILD) {
+            val latestBoundary = tags.firstOrNull()?.commitSha ?: baseline?.boundaryCommit
+            if (latestBoundary == head) {
+                emptyList()
+            } else {
+                val latestRange = inspectRange(
+                    ReleasePoint(currentVersion, head),
+                    latestBoundary,
+                    tags.firstOrNull { it.commitSha == latestBoundary },
+                )
+                generateChanges(latestRange, flavor)
+            }
+        } else {
+            emptyList()
+        }
+        val history = GeneratedHistory(releases + baselineHistory, latestChanges)
         if (mode == ReleaseHistoryMode.RELEASE && history.releases.firstOrNull()?.version != currentVersion) {
             throw GenerationException(
                 "Release range ${ranges.firstOrNull()?.displayName ?: rangeName(previousTag?.commitSha, head)}: " +
@@ -124,7 +139,9 @@ class ReleaseHistoryGenerator(
     }
 
     private fun inspectRange(point: ReleasePoint, exclusiveBase: String?, previousTag: ApkTag?): ReleaseRange {
-        val issues = extractIssues(repository.firstParentCommits(point.commitSha, exclusiveBase).map { it.subject })
+        val issues = extractIssues(
+            repository.firstParentCommits(point.commitSha, exclusiveBase).asReversed().map { it.subject },
+        )
         val fragments = repository.changedFragmentPaths(point.commitSha, exclusiveBase)
             .map { fragmentParser.parse(it, repository.readFile(point.commitSha, it)) }
         val fragmentsByIssue = fragments.groupBy { it.issue }
@@ -149,13 +166,16 @@ class ReleaseHistoryGenerator(
     }
 
     private fun generateRelease(point: ReleasePoint, range: ReleaseRange, flavor: ReleaseFlavor): GeneratedRelease {
+        return GeneratedRelease(point.version, point.commitSha, generateChanges(range, flavor))
+    }
+
+    private fun generateChanges(range: ReleaseRange, flavor: ReleaseFlavor): List<ReleaseChange> {
         val fragmentsByIssue = range.fragments.associateBy { it.issue }
-        val changes = range.issues.mapNotNull { issue ->
+        return range.issues.mapNotNull { issue ->
             val fragment = fragmentsByIssue.getValue(issue)
             if (!fragment.userVisible || !fragment.appliesTo(flavor)) null
             else ReleaseChange(issue, requireNotNull(fragment.text))
         }
-        return GeneratedRelease(point.version, point.commitSha, changes)
     }
 
     internal fun extractIssues(subjects: List<String>): List<Int> {
