@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.example.huaweimisync.domain.NewPet
+import com.example.huaweimisync.domain.PetMeasurementNotFoundException
 import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetUpdate
@@ -164,6 +165,87 @@ class PetRepositoryTest {
     }
 
     @Test
+    fun deleteMeasurementRemovesOnlyScopedPetRowAndLeavesHumanMeasurement() = runBlocking {
+        val ids = ArrayDeque(listOf("first-pet", "second-pet", "first-measurement", "second-measurement"))
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { ids.removeFirst() },
+        )
+        val firstPet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        val secondPet = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
+        val firstMeasurement = repository.recordCompletedMeasurement(
+            firstPet.id,
+            Instant.ofEpochSecond(10),
+            70.0,
+            73.0,
+        )
+        val secondMeasurement = repository.recordCompletedMeasurement(
+            secondPet.id,
+            Instant.ofEpochSecond(20),
+            70.0,
+            74.0,
+        )
+        database.accountDao().insert(
+            AccountEntity("human", "Человек", "человек", null, null, null, false, 1, 1),
+        )
+        database.measurementDao().insert(humanMeasurement("human-measurement"))
+
+        repository.deleteMeasurement(firstPet.id, firstMeasurement.id)
+
+        assertEquals(emptyList<Any>(), repository.observeMeasurements(firstPet.id).first())
+        assertNull(repository.observePets().first().first { it.pet.id == firstPet.id }.latestMeasurement)
+        assertEquals(
+            listOf(secondMeasurement),
+            repository.observeMeasurements(secondPet.id).first(),
+        )
+        assertNotNull(database.measurementDao().get("human-measurement"))
+    }
+
+    @Test
+    fun deleteMeasurementRejectsMeasurementOwnedByAnotherPet() = runBlocking {
+        val ids = ArrayDeque(listOf("first-pet", "second-pet", "measurement"))
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { ids.removeFirst() },
+        )
+        val firstPet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        val secondPet = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
+        val measurement = repository.recordCompletedMeasurement(
+            firstPet.id,
+            Instant.EPOCH,
+            70.0,
+            73.0,
+        )
+
+        val error = assertThrows(PetMeasurementNotFoundException::class.java) {
+            runBlocking { repository.deleteMeasurement(secondPet.id, measurement.id) }
+        }
+
+        assertEquals(secondPet.id, error.petId)
+        assertEquals(measurement.id, error.measurementId)
+        assertEquals(listOf(measurement), repository.observeMeasurements(firstPet.id).first())
+    }
+
+    @Test
+    fun deleteMeasurementRejectsMissingMeasurement() = runBlocking {
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { "pet" },
+        )
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+
+        val error = assertThrows(PetMeasurementNotFoundException::class.java) {
+            runBlocking { repository.deleteMeasurement(pet.id, "missing-measurement") }
+        }
+
+        assertEquals(pet.id, error.petId)
+        assertEquals("missing-measurement", error.measurementId)
+    }
+
+    @Test
     fun missingPetDoesNotCreateMeasurement() = runBlocking {
         val repository = RoomPetRepository(
             database = database,
@@ -243,3 +325,29 @@ class PetRepositoryTest {
         }
     }
 }
+
+private fun humanMeasurement(id: String) = MeasurementEntity(
+    id = id,
+    measurementType = MeasurementType.WEIGHT_ONLY,
+    deviceAddress = "AA:BB:CC:DD:EE:FF",
+    measuredAtEpochSecond = 1,
+    rawPayloadHex = "010203",
+    weightKg = 70.0,
+    impedanceOhm = null,
+    bmi = null,
+    bodyFatPercent = null,
+    bodyFatMassKg = null,
+    waterPercent = null,
+    waterMassKg = null,
+    muscleMassKg = null,
+    skeletalMuscleMassKg = null,
+    boneMassKg = null,
+    proteinPercent = null,
+    proteinMassKg = null,
+    visceralFatLevel = null,
+    basalMetabolicRateKcal = null,
+    metabolicAge = null,
+    leanBodyMassKg = null,
+    algorithmVersion = null,
+    accountId = "human",
+)

@@ -305,6 +305,7 @@ private class FakeRepository(
     override suspend fun updatePet(pet: PetUpdate): Pet = error("unused")
     override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview = error("unused")
     override suspend fun deletePet(id: PetId): PetDeletionPreview = error("unused")
+    override suspend fun deleteMeasurement(petId: PetId, measurementId: String) = error("unused")
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,

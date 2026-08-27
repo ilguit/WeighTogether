@@ -1,0 +1,5 @@
+issue: 50
+userVisible: true
+text: Добавлено удаление ошибочных замеров питомца с подтверждением
+flavors:
+  - personal
