@@ -64,9 +64,16 @@ data class ChartPoint(
     val measuredAt: Instant
         get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
-    /** Vico uses millisecond x coordinates; derive them only at this presentation boundary. */
-    val xEpochMillis: Long
-        get() = Math.multiplyExact(measuredAtEpochSecond, 1_000L)
+    /** Vico uses millisecond x coordinates; invalid presentation values are rejected safely. */
+    val xEpochMillis: Long?
+        get() = measuredAtEpochSecond
+            .takeIf { it in MIN_EPOCH_SECOND_FOR_MILLIS..MAX_EPOCH_SECOND_FOR_MILLIS }
+            ?.times(1_000L)
+
+    private companion object {
+        const val MIN_EPOCH_SECOND_FOR_MILLIS = Long.MIN_VALUE / 1_000L
+        const val MAX_EPOCH_SECOND_FOR_MILLIS = Long.MAX_VALUE / 1_000L
+    }
 }
 
 @Immutable
@@ -76,8 +83,14 @@ data class ChartSeries(
 )
 
 /** Vico needs an actual x interval to derive a finite horizontal step safely. */
-fun isChartRenderable(points: List<ChartPoint>): Boolean =
-    points.asSequence().map(ChartPoint::xEpochMillis).distinct().take(2).count() == 2
+fun isChartRenderable(points: List<ChartPoint>): Boolean {
+    val distinctTimestamps = HashSet<Long>(2)
+    points.forEach { point ->
+        val xEpochMillis = point.xEpochMillis ?: return false
+        distinctTimestamps += xEpochMillis
+    }
+    return distinctTimestamps.size >= 2
+}
 
 data class ChartValueSummary(
     val current: ChartPoint?,

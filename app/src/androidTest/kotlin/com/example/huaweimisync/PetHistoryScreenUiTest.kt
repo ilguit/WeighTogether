@@ -60,32 +60,33 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("two")).assertIsDisplayed()
     }
 
-    @Test fun oneMeasurementInThirtyDayProfileReachesIdleWithoutChartHost() {
-        val measurement = row("one")
-        setScreen(
-            state(PetHistoryContent.Single(measurement)).copy(
+    @Test fun chartAppearsWhenSingletonHistoryReceivesSecondDistinctMeasurement() {
+        val first = row("one")
+        val second = row("two")
+        var screenState by mutableStateOf(
+            state(PetHistoryContent.Single(first)).copy(
                 series = ChartSeries(PetWeightChartMetric, listOf(ChartPoint(1_000L, 4.2))),
             ),
         )
+        composeRule.setContent {
+            PetProfileScreen(screenState, callbacks(), PaddingValues()) {}
+        }
 
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
         composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertIsDisplayed()
         composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertDoesNotExist()
-    }
 
-    @Test fun twoMeasurementsAtDistinctTimesShowChart() {
-        val first = row("one")
-        val second = row("two")
-        setScreen(
-            state(PetHistoryContent.Multiple(listOf(first, second))).copy(
+        composeRule.runOnIdle {
+            screenState = state(PetHistoryContent.Multiple(listOf(first, second))).copy(
                 series = ChartSeries(
                     PetWeightChartMetric,
                     listOf(ChartPoint(1_000L, 4.2), ChartPoint(2_000L, 4.3)),
                 ),
-            ),
-        )
+            )
+        }
 
+        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertDoesNotExist()
         composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
     }
 

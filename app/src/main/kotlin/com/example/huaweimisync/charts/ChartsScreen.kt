@@ -645,6 +645,9 @@ internal fun MetricLineChart(
     modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
+    val chartPoints = remember(points) {
+        points.mapNotNull { point -> point.xEpochMillis?.let { x -> x to point } }
+    }
     val modelProducer = remember { CartesianChartModelProducer() }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
@@ -677,9 +680,9 @@ internal fun MetricLineChart(
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
-            points.firstOrNull { point ->
-                point.xEpochMillis == target.x.toLong() && point.value == value
-            }?.let { point ->
+            chartPoints.firstOrNull { (x, point) ->
+                x == target.x.toLong() && point.value == value
+            }?.let { (_, point) ->
                 formatChartMarkerText(point = point, metric = metric, zoneId = zoneId)
             } ?: formatChartMarkerText(
                 measuredAtEpochSecond = Math.floorDiv(target.x.toLong(), 1_000L),
@@ -700,8 +703,8 @@ internal fun MetricLineChart(
         modelProducer.runTransaction {
             lineModel {
                 series(
-                    x = points.map(ChartPoint::xEpochMillis),
-                    y = points.map(ChartPoint::value),
+                    x = chartPoints.map { it.first },
+                    y = chartPoints.map { it.second.value },
                 )
             }
         }
