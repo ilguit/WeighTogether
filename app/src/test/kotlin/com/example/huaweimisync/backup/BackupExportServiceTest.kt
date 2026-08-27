@@ -72,6 +72,25 @@ class BackupExportServiceTest {
     }
 
     @Test
+    fun `export round trip preserves migrated pet species and reverse reading order`() = runBlocking {
+        val source = BackupDatabaseSnapshot(
+            accounts = listOf(account()),
+            appState = AppStateEntity(primaryAccountId = "account"),
+            measurements = listOf(measurement()),
+            pets = listOf(PetEntity("pet", "Legacy pet", "legacy pet", PetSpecies.UNSPECIFIED, 5, 6)),
+            petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 74.0, 70.0, 4.0)),
+        )
+
+        val output = ByteArrayOutputStream()
+        val exported = service(source).writeTo(output)
+        val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
+
+        assertEquals(exported, decoded)
+        assertEquals(PetSpecies.UNSPECIFIED, decoded.pets.single().species)
+        assertEquals(4.0, decoded.petMeasurements.single().petWeightKg, 0.0)
+    }
+
+    @Test
     fun `stream failures are typed and stream remains caller owned`() = runBlocking {
         val failing = object : OutputStream() {
             override fun write(b: Int) = throw IOException("disk full")

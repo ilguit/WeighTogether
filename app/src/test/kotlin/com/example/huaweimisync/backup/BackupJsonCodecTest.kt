@@ -105,6 +105,31 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun v2RoundTripPreservesLegacyUnspecifiedPetSpecies() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Legacy pet", "legacy pet", PetSpecies.UNSPECIFIED, 10, 11)),
+        )
+
+        val decoded = codec.decode(codec.encode(source))
+
+        assertEquals(PetSpecies.UNSPECIFIED, decoded.pets.single().species)
+        assertEquals(source, decoded)
+    }
+
+    @Test
+    fun v2RoundTripAcceptsPetMeasurementWithReverseReadingOrder() {
+        val source = document().copy(
+            pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 10, 11)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 74.5, 70.0, 4.5)),
+        )
+
+        val decoded = codec.decode(codec.encode(source))
+
+        assertEquals(source, decoded)
+        assertEquals(4.5, decoded.petMeasurements.single().petWeightKg, 0.0)
+    }
+
+    @Test
     fun invalidPetSpeciesAndMissingPetAreRejected() {
         val source = document().copy(
             pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)),

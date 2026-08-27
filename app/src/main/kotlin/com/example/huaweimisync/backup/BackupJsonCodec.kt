@@ -205,7 +205,7 @@ class BackupJsonCodec(
             invalidUnless(pet.id.isNotBlank(), "$path.id", "must not be blank")
             invalidUnless(pet.displayName.isNotBlank(), "$path.displayName", "must not be blank")
             invalidUnless(pet.normalizedName.isNotBlank(), "$path.normalizedName", "must not be blank")
-            invalidUnless(pet.species != null && pet.species.name != "UNSPECIFIED", "$path.species", "expected CAT or DOG")
+            invalidUnless(pet.species != null, "$path.species", "unknown enum value")
             invalidUnless(pet.updatedAtEpochMillis >= pet.createdAtEpochMillis, "$path.updatedAtEpochMillis", "precedes creation")
         }
         val petIds = document.pets.mapTo(hashSetOf()) { it.id }
@@ -217,7 +217,7 @@ class BackupJsonCodec(
             invalidUnless(measurement.petId.isNotBlank(), "$path.petId", "must not be blank")
             val values = listOf(measurement.firstWeightKg, measurement.secondWeightKg, measurement.petWeightKg)
             invalidUnless(values.all { it.isFinite() && it >= 0.0 }, path, "weights must be non-negative and finite")
-            invalidUnless(kotlin.math.abs(measurement.secondWeightKg - measurement.firstWeightKg - measurement.petWeightKg) < 0.000_001,
+            invalidUnless(kotlin.math.abs(kotlin.math.abs(measurement.secondWeightKg - measurement.firstWeightKg) - measurement.petWeightKg) < 0.000_001,
                 "$path.petWeightKg", "does not match source readings")
         }
     }
