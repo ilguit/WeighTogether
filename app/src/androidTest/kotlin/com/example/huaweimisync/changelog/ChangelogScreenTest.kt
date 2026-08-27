@@ -33,6 +33,33 @@ class ChangelogScreenTest {
     }
 
     @Test
+    fun latestChangesAppearInASeparateTopCard() {
+        setContent(latestChanges = latestChanges)
+
+        composeRule.onNodeWithTag(tags.LatestChanges).assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.LatestChangesHeading).assertIsDisplayed()
+        composeRule.onNodeWithTag(tags.LatestChangesContent).assertIsDisplayed()
+        assertTrue(
+            composeRule.onNodeWithTag(tags.LatestChanges).fetchSemanticsNode().boundsInRoot.top <
+                composeRule.onNodeWithTag(tags.release("0.1.6")).fetchSemanticsNode().boundsInRoot.top,
+        )
+        latestChanges.forEach {
+            composeRule.onNodeWithText("Задача #${it.issueNumber}").assertIsDisplayed()
+        }
+        assertTrue(
+            composeRule.onNodeWithTag(tags.LatestChangesHeading).fetchSemanticsNode().config
+                .contains(SemanticsProperties.Heading),
+        )
+    }
+
+    @Test
+    fun latestChangesCardIsAbsentWhenThereAreNoLatestChanges() {
+        setContent(latestChanges = emptyList())
+        composeRule.onNodeWithTag(tags.LatestChanges).assertDoesNotExist()
+        composeRule.onNodeWithText("Последние изменения").assertDoesNotExist()
+    }
+
+    @Test
     fun previousReleasesShareOneInitiallyCollapsedBlock() {
         setContent()
         composeRule.onNodeWithText("Предыдущие версии").assertIsDisplayed()
@@ -101,14 +128,27 @@ class ChangelogScreenTest {
         composeRule.onNodeWithTag(tags.PreviousReleases).assertDoesNotExist()
     }
 
-    private fun setContent(items: List<AppRelease> = releases) = composeRule.setContent { Content(items) }
+    private fun setContent(
+        items: List<AppRelease> = releases,
+        latestChanges: List<ReleaseChange> = emptyList(),
+    ) = composeRule.setContent { Content(items, latestChanges) }
 
     @androidx.compose.runtime.Composable
-    private fun Content(items: List<AppRelease>) {
-        HuaweiMiSyncTheme { ChangelogScreen(items.let { Modifier.height(900.dp) }, items) }
+    private fun Content(items: List<AppRelease>, latestChanges: List<ReleaseChange> = emptyList()) {
+        HuaweiMiSyncTheme {
+            ChangelogScreen(
+                modifier = Modifier.height(900.dp),
+                releases = items,
+                latestChanges = latestChanges,
+            )
+        }
     }
 
     private val tags = ChangelogScreenTestTags
+    private val latestChanges = listOf(
+        ReleaseChange(45, "Последнее улучшение"),
+        ReleaseChange(44, "Ещё одно улучшение"),
+    )
     private val releases = listOf(
         AppRelease("0.1.6", listOf(ReleaseChange(20, "Новое"))),
         AppRelease("0.1.4", listOf(ReleaseChange(16, "Первое"))),
