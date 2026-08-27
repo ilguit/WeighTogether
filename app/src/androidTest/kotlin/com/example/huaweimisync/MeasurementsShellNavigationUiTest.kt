@@ -171,6 +171,9 @@ class MeasurementsShellNavigationUiTest {
         val topBarBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBar)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
+        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
         val actionBounds = listOf(
             MainScreenTestTags.PendingQueueAction,
             MainScreenTestTags.HistoryAction,
@@ -182,6 +185,14 @@ class MeasurementsShellNavigationUiTest {
                 .assertIsEnabled()
                 .getUnclippedBoundsInRoot()
         }
+
+        assertTrue("Top bar title must have a non-empty width", titleBounds.right > titleBounds.left)
+        assertTrue("Top bar title must have a non-empty height", titleBounds.bottom > titleBounds.top)
+        assertTrue("Top bar title must stay within the left edge", titleBounds.left >= topBarBounds.left)
+        assertTrue("Top bar title must stay within the right edge", titleBounds.right <= topBarBounds.right)
+        assertTrue("Top bar title must stay within the top edge", titleBounds.top >= topBarBounds.top)
+        assertTrue("Top bar title must stay within the bottom edge", titleBounds.bottom <= topBarBounds.bottom)
+        assertTrue("Top bar title must not overlap the first action", titleBounds.right <= actionBounds.first().left)
 
         actionBounds.forEach { bounds ->
             assertTrue("Action touch target must be at least 48 dp wide", bounds.right - bounds.left >= 48.dp)

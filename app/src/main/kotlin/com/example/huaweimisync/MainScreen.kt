@@ -123,6 +123,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
+    const val TopBarTitle = "main-top-bar-title"
     const val PendingQueueAction = "measurements-pending-queue-action"
     const val PendingQueueBadge = "measurements-pending-queue-badge"
     const val HistoryAction = "measurements-history-action"
@@ -669,6 +670,7 @@ private fun HuaweiTopBar(
         title = {
             Text(
                 text = title,
+                modifier = Modifier.testTag(MainScreenTestTags.TopBarTitle),
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
