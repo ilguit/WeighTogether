@@ -18,6 +18,9 @@ import com.example.huaweimisync.ui.theme.HuaweiDimensions
 
 internal object ChangelogScreenTestTags {
     const val List = "changelog-list"
+    const val LatestChanges = "changelog-latest-changes"
+    const val LatestChangesHeading = "changelog-latest-changes-heading"
+    const val LatestChangesContent = "changelog-latest-changes-content"
     const val PreviousReleases = "changelog-previous-releases"
     const val PreviousReleasesToggle = "changelog-previous-releases-toggle"
     const val PreviousReleasesContent = "changelog-previous-releases-content"
@@ -29,6 +32,7 @@ internal object ChangelogScreenTestTags {
 fun ChangelogScreen(
     modifier: Modifier = Modifier,
     releases: List<AppRelease> = AppReleaseHistory.releases,
+    latestChanges: List<ReleaseChange> = AppReleaseHistory.latestChanges,
     contentPadding: PaddingValues = PaddingValues(0.dp),
 ) {
     var previousExpanded by rememberSaveable { mutableStateOf(false) }
@@ -43,6 +47,15 @@ fun ChangelogScreen(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
+        if (latestChanges.isNotEmpty()) {
+            item(key = "latest-changes") {
+                LatestChangesCard(
+                    changes = latestChanges,
+                    modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
+                        .testTag(ChangelogScreenTestTags.LatestChanges),
+                )
+            }
+        }
         releases.firstOrNull()?.let { release ->
             item(key = release.version) {
                 ReleaseCard(release, cardModifier(release.version))
@@ -59,6 +72,24 @@ fun ChangelogScreen(
                         .testTag(ChangelogScreenTestTags.PreviousReleases),
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun LatestChangesCard(changes: List<ReleaseChange>, modifier: Modifier = Modifier) {
+    HuaweiSurface(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Text(
+                "Последние изменения",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.semantics { heading() }
+                    .testTag(ChangelogScreenTestTags.LatestChangesHeading),
+            )
+            ReleaseChanges(
+                changes = changes,
+                modifier = Modifier.testTag(ChangelogScreenTestTags.LatestChangesContent),
+            )
         }
     }
 }
@@ -139,11 +170,19 @@ private fun ReleaseHeading(version: String) {
 
 @Composable
 private fun ReleaseChanges(release: AppRelease) {
-    Column(
+    ReleaseChanges(
+        changes = release.changes,
         modifier = Modifier.testTag(ChangelogScreenTestTags.releaseChanges(release.version)),
+    )
+}
+
+@Composable
+private fun ReleaseChanges(changes: List<ReleaseChange>, modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        release.changes.forEach { change ->
+        changes.forEach { change ->
             Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text("•", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
                 Column(modifier = Modifier.weight(1f)) {
