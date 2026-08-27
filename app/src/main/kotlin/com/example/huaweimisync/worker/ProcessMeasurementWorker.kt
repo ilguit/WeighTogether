@@ -41,6 +41,7 @@ class MeasurementIngestionWorkOrchestrator(
 /** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
 internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
 internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+private const val XIAOMI_SCALE_PACKET_PAYLOAD_SIZE = 13
 
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
 class PetMeasurementIngestionGate(
@@ -55,7 +56,8 @@ class PetMeasurementIngestionGate(
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
     private val activePetPackets = linkedSetOf<PacketIdentity>()
-    private val quarantinedPetPackets = linkedMapOf<PacketIdentity, Long>()
+    private val protectedPetPackets = linkedSetOf<PacketIdentity>()
+    private val quarantinedPetPackets = linkedMapOf<PacketIdentity, QuarantineEntry>()
 
     suspend fun activate(): Lease {
         val owner = Any()
@@ -66,6 +68,7 @@ class PetMeasurementIngestionGate(
             petSessionActive = true
             activationOwner = owner
             activePetPackets.clear()
+            protectedPetPackets.clear()
             if (processingCount == 0) null else CompletableDeferred<Unit>().also {
                 processingDrained = it
             }
@@ -106,11 +109,17 @@ class PetMeasurementIngestionGate(
         val entered = synchronized(lock) {
             val now = monotonicNowNanos()
             pruneQuarantine(now)
-            if (petSessionActive || quarantinedPetPackets.containsKey(PacketIdentity.of(packet))) {
-                false
-            } else {
-                processingCount += 1
-                true
+            val identity = PacketIdentity.of(packet)
+            when {
+                petSessionActive -> {
+                    activePetPackets += identity
+                    false
+                }
+                quarantinedPetPackets.containsKey(identity) -> false
+                else -> {
+                    processingCount += 1
+                    true
+                }
             }
         }
         if (!entered) return null
@@ -128,10 +137,13 @@ class PetMeasurementIngestionGate(
             } else {
                 val expiresAt = monotonicNowNanos() + PET_PACKET_QUARANTINE_TTL_NANOS
                 activePetPackets.forEach { identity ->
-                    quarantinedPetPackets.remove(identity)
-                    quarantinedPetPackets[identity] = expiresAt
+                    putQuarantined(identity, expiresAt, protected = false)
+                }
+                protectedPetPackets.forEach { identity ->
+                    putQuarantined(identity, expiresAt, protected = true)
                 }
                 activePetPackets.clear()
+                protectedPetPackets.clear()
                 trimQuarantine()
                 petSessionActive = false
                 activationOwner = null
@@ -156,7 +168,7 @@ class PetMeasurementIngestionGate(
     private fun pruneQuarantine(now: Long) {
         val iterator = quarantinedPetPackets.iterator()
         while (iterator.hasNext()) {
-            if (iterator.next().value <= now) iterator.remove()
+            if (iterator.next().value.expiresAtNanos <= now) iterator.remove()
         }
         if (closingExpiresAtNanos <= now) {
             closingOwner = null
@@ -168,24 +180,49 @@ class PetMeasurementIngestionGate(
         synchronized(lock) {
             val identity = PacketIdentity.of(deviceAddress, payload)
             when {
-                petSessionActive && activationOwner === owner -> activePetPackets += identity
+                petSessionActive && activationOwner === owner -> {
+                    activePetPackets += identity
+                    while (activePetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
+                        activePetPackets.remove(activePetPackets.first())
+                    }
+                }
                 !petSessionActive && closingOwner === owner -> {
                     val now = monotonicNowNanos()
                     pruneQuarantine(now)
                     if (closingOwner === owner) {
-                        quarantinedPetPackets.remove(identity)
-                        quarantinedPetPackets[identity] = closingExpiresAtNanos
+                        putQuarantined(identity, closingExpiresAtNanos, protected = false)
                         trimQuarantine()
                     }
                 }
             }
         }
 
+    private fun protectPetPacket(owner: Any, deviceAddress: String, rawIdentity: String) =
+        synchronized(lock) {
+            if (petSessionActive && activationOwner === owner) {
+                val identity = PacketIdentity.ofRawIdentity(deviceAddress, rawIdentity)
+                activePetPackets.remove(identity)
+                protectedPetPackets += identity
+            }
+        }
+
+    private fun putQuarantined(identity: PacketIdentity, expiresAtNanos: Long, protected: Boolean) {
+        val previous = quarantinedPetPackets.remove(identity)
+        quarantinedPetPackets[identity] = QuarantineEntry(
+            expiresAtNanos = expiresAtNanos,
+            protected = protected || previous?.protected == true,
+        )
+    }
+
     private fun trimQuarantine() {
         while (quarantinedPetPackets.size > PET_PACKET_QUARANTINE_MAX_IDENTITIES) {
-            quarantinedPetPackets.remove(quarantinedPetPackets.keys.first())
+            val removable = quarantinedPetPackets.entries.firstOrNull { !it.value.protected }
+                ?: quarantinedPetPackets.entries.first()
+            quarantinedPetPackets.remove(removable.key)
         }
     }
+
+    private data class QuarantineEntry(val expiresAtNanos: Long, val protected: Boolean)
 
     private data class PacketIdentity(val address: String, val payload: String) {
         companion object {
@@ -193,8 +230,17 @@ class PetMeasurementIngestionGate(
 
             fun of(deviceAddress: String, payload: ByteArray): PacketIdentity = PacketIdentity(
                 address = deviceAddress.trim().uppercase(Locale.ROOT),
-                payload = payload.joinToString("") { "%02x".format(it.toInt() and 0xff) },
+                payload = payload
+                    .takeLast(XIAOMI_SCALE_PACKET_PAYLOAD_SIZE)
+                    .joinToString("") { "%02x".format(it.toInt() and 0xff) },
             )
+
+            fun ofRawIdentity(deviceAddress: String, rawIdentity: String): PacketIdentity =
+                PacketIdentity(
+                    address = deviceAddress.trim().uppercase(Locale.ROOT),
+                    payload = rawIdentity.lowercase(Locale.ROOT)
+                        .takeLast(XIAOMI_SCALE_PACKET_PAYLOAD_SIZE * 2),
+                )
         }
     }
 
@@ -210,6 +256,10 @@ class PetMeasurementIngestionGate(
 
         fun registerPetPacket(deviceAddress: String, payload: ByteArray) {
             gate.registerPetPacket(owner, deviceAddress, payload)
+        }
+
+        fun protectPetPacket(deviceAddress: String, rawIdentity: String) {
+            gate.protectPetPacket(owner, deviceAddress, rawIdentity)
         }
     }
 }

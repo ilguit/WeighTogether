@@ -112,6 +112,17 @@ class RoomMeasurementPersistence(
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
 ) : MeasurementRoutingPersistence {
+    override suspend fun latestAcceptedStableMeasurement(
+        deviceAddress: String,
+    ): RawScaleMeasurement? {
+        acceptedStableMeasurementDao.getForDevice(deviceAddress)?.let {
+            return it.toRawScaleMeasurement()
+        }
+        return acceptedStableMeasurementDao.getLatest()
+            ?.takeIf { it.deviceAddress.equals(deviceAddress.trim(), ignoreCase = true) }
+            ?.toRawScaleMeasurement()
+    }
+
     fun observeAllEntities(accountId: AccountId): Flow<List<MeasurementEntity>> =
         measurementDao.observeAll(accountId.value)
 
@@ -216,7 +227,7 @@ class RoomMeasurementPersistence(
 
             suspend fun accepted(result: PendingPersistenceResult): PendingPersistenceResult {
                 if (raw.isStableWeight && result.updatesAcceptedStableBaseline()) {
-                    acceptedStableMeasurementDao.replaceLatest(
+                    acceptedStableMeasurementDao.replaceLatestAndDevice(
                         AcceptedStableMeasurementEntity.latest(raw),
                     )
                 }
