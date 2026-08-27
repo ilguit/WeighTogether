@@ -20,6 +20,8 @@ interface PetRepository {
 
     suspend fun deletePet(id: PetId): PetDeletionPreview
 
+    suspend fun deleteMeasurement(petId: PetId, measurementId: String)
+
     /** Atomically persists both stable scale readings and marks the pet as updated. */
     suspend fun recordCompletedMeasurement(
         petId: PetId,
@@ -28,3 +30,10 @@ interface PetRepository {
         secondWeightKg: Double,
     ): PetMeasurement
 }
+
+class PetMeasurementNotFoundException(
+    val petId: PetId,
+    val measurementId: String,
+) : NoSuchElementException(
+    "Measurement $measurementId does not exist for pet ${petId.value}",
+)

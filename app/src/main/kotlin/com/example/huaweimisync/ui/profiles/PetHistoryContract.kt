@@ -37,6 +37,12 @@ data class PetHistoryMeasurementUi(
     val weightText: String,
 )
 
+data class PetHistoryDeleteConfirmation(
+    val petId: PetId,
+    val measurement: PetHistoryMeasurementUi,
+    val isDeleting: Boolean = false,
+)
+
 data class PetHistoryUiState(
     val petId: PetId,
     val pet: Pet? = null,
@@ -48,6 +54,8 @@ data class PetHistoryUiState(
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
     val errorMessage: String? = null,
+    val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
+    val actionErrorMessage: String? = null,
 ) {
     init {
         require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
@@ -80,6 +88,10 @@ data class PetHistoryUiState(
 data class PetHistoryCallbacks(
     val selectRangePreset: (ChartRangePreset) -> Unit,
     val setDateRange: (startDate: LocalDate, endDateInclusive: LocalDate) -> Unit,
+    val requestDelete: (measurementId: String) -> Unit = {},
+    val confirmDelete: () -> Unit = {},
+    val dismissDelete: () -> Unit = {},
+    val dismissActionError: () -> Unit = {},
 )
 
 internal fun petHistoryPresentation(

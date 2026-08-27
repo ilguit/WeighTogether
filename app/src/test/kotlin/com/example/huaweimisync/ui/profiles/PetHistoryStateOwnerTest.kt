@@ -159,6 +159,122 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
+    fun `delete request can be dismissed without changing history`() = runBlocking {
+        val history = MutableStateFlow(listOf(measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.25)))
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to history)),
+            scope, clock, zone, Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.requestDelete("one")
+        assertEquals("one", owner.uiState.value.deleteConfirmation?.measurement?.id)
+        owner.dismissDelete()
+
+        assertNull(owner.uiState.value.deleteConfirmation)
+        assertEquals(listOf("one"), owner.uiState.value.measurements.map { it.id })
+        scope.cancel()
+    }
+
+    @Test
+    fun `delete uses exact pet and measurement prevents double submit and waits for emission`() = runBlocking {
+        val history = MutableStateFlow(listOf(measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.25)))
+        val releaseDelete = CompletableDeferred<Unit>()
+        val repository = FakeRepository(
+            pets = mapOf(luna.id to luna),
+            histories = mapOf(luna.id to history),
+            deleteBlock = { _, _ -> releaseDelete.await() },
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(luna.id, repository, scope, clock, zone, Locale.US)
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.requestDelete("one")
+        owner.confirmDelete()
+        owner.confirmDelete()
+        yield()
+
+        assertTrue(owner.uiState.value.deleteConfirmation?.isDeleting == true)
+        assertEquals(listOf(luna.id to "one"), repository.deleteCalls)
+        assertEquals(listOf("one"), owner.uiState.value.measurements.map { it.id })
+
+        releaseDelete.complete(Unit)
+        yield()
+        assertNull(owner.uiState.value.deleteConfirmation)
+        assertEquals(listOf("one"), owner.uiState.value.measurements.map { it.id })
+
+        history.value = emptyList()
+        yield()
+        assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)
+        scope.cancel()
+    }
+
+    @Test
+    fun `delete error preserves history and supports retry and dismissal`() = runBlocking {
+        val history = MutableStateFlow(listOf(measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.25)))
+        var attempts = 0
+        val repository = FakeRepository(
+            pets = mapOf(luna.id to luna),
+            histories = mapOf(luna.id to history),
+            deleteBlock = { _, _ -> if (++attempts == 1) error("write failed") },
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(luna.id, repository, scope, clock, zone, Locale.US)
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.requestDelete("one")
+        owner.confirmDelete()
+        yield()
+        assertEquals("write failed", owner.uiState.value.actionErrorMessage)
+        assertFalse(owner.uiState.value.deleteConfirmation!!.isDeleting)
+        assertEquals(listOf("one"), owner.uiState.value.measurements.map { it.id })
+
+        owner.dismissActionError()
+        owner.confirmDelete()
+        yield()
+        assertEquals(2, attempts)
+        assertNull(owner.uiState.value.deleteConfirmation)
+        assertNull(owner.uiState.value.actionErrorMessage)
+        scope.cancel()
+    }
+
+    @Test
+    fun `pet switch clears stale delete and old operation cannot affect new pet`() = runBlocking {
+        val newPet = pet("new", "Новая")
+        val oldHistory = MutableStateFlow(listOf(measurement("same", luna.id, "2026-03-20T10:00:00Z", 4.25)))
+        val newHistory = MutableStateFlow(listOf(measurement("same", newPet.id, "2026-03-21T10:00:00Z", 5.0)))
+        val releaseDelete = CompletableDeferred<Unit>()
+        val repository = FakeRepository(
+            pets = mapOf(luna.id to luna, newPet.id to newPet),
+            histories = mapOf(luna.id to oldHistory, newPet.id to newHistory),
+            deleteBlock = { _, _ -> releaseDelete.await() },
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(luna.id, repository, scope, clock, zone, Locale.US)
+        scope.launch { owner.uiState.collect() }
+        yield()
+        owner.requestDelete("same")
+        owner.confirmDelete()
+        yield()
+
+        owner.selectPet(newPet.id)
+        yield()
+        assertEquals(newPet.id, owner.uiState.value.petId)
+        assertNull(owner.uiState.value.deleteConfirmation)
+
+        releaseDelete.complete(Unit)
+        yield()
+        assertEquals(newPet.id, owner.uiState.value.petId)
+        assertEquals(listOf(luna.id to "same"), repository.deleteCalls)
+        scope.cancel()
+    }
+
+    @Test
     fun `changing pet cancels old load and never publishes old pet`() = runBlocking {
         val oldId = PetId("old")
         val newPet = pet("new", "Новая")
@@ -294,7 +410,9 @@ private class FakeRepository(
     private val pets: Map<PetId, Pet> = emptyMap(),
     private val histories: Map<PetId, Flow<List<PetMeasurement>>> = emptyMap(),
     private val getPetBlock: (suspend (PetId) -> Pet?)? = null,
+    private val deleteBlock: suspend (PetId, String) -> Unit = { _, _ -> error("unused") },
 ) : PetRepository {
+    val deleteCalls = mutableListOf<Pair<PetId, String>>()
     override fun observePets(): Flow<List<PetWithLatestWeight>> = emptyFlow()
     override fun observeMeasurements(petId: PetId): Flow<List<PetMeasurement>> =
         histories[petId] ?: emptyFlow()
@@ -305,6 +423,10 @@ private class FakeRepository(
     override suspend fun updatePet(pet: PetUpdate): Pet = error("unused")
     override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview = error("unused")
     override suspend fun deletePet(id: PetId): PetDeletionPreview = error("unused")
+    override suspend fun deleteMeasurement(petId: PetId, measurementId: String) {
+        deleteCalls += petId to measurementId
+        deleteBlock(petId, measurementId)
+    }
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,
