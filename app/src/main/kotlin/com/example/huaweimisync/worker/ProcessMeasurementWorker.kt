@@ -56,7 +56,7 @@ class PetMeasurementIngestionGate(
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
     private val activePetPackets = linkedSetOf<PacketIdentity>()
-    private val protectedPetPackets = linkedSetOf<PacketIdentity>()
+    private val protectedPetPackets = linkedMapOf<PacketIdentity, StableReadingIdentity?>()
     private val quarantinedPetPackets = linkedMapOf<PacketIdentity, QuarantineEntry>()
 
     suspend fun activate(): Lease {
@@ -139,8 +139,13 @@ class PetMeasurementIngestionGate(
                 activePetPackets.forEach { identity ->
                     putQuarantined(identity, expiresAt, protected = false)
                 }
-                protectedPetPackets.forEach { identity ->
-                    putQuarantined(identity, expiresAt, protected = true)
+                protectedPetPackets.forEach { (identity, stableReading) ->
+                    putQuarantined(
+                        identity,
+                        expiresAt,
+                        protected = true,
+                        stableReading = stableReading,
+                    )
                 }
                 activePetPackets.clear()
                 protectedPetPackets.clear()
@@ -202,15 +207,47 @@ class PetMeasurementIngestionGate(
             if (petSessionActive && activationOwner === owner) {
                 val identity = PacketIdentity.ofRawIdentity(deviceAddress, rawIdentity)
                 activePetPackets.remove(identity)
-                protectedPetPackets += identity
+                protectedPetPackets[identity] = protectedPetPackets[identity]
             }
         }
 
-    private fun putQuarantined(identity: PacketIdentity, expiresAtNanos: Long, protected: Boolean) {
+    private fun protectPetReading(
+        owner: Any,
+        deviceAddress: String,
+        rawIdentity: String,
+        measuredAt: java.time.Instant,
+        rawWeight: Int,
+    ) = synchronized(lock) {
+        if (petSessionActive && activationOwner === owner) {
+            val identity = PacketIdentity.ofRawIdentity(deviceAddress, rawIdentity)
+            activePetPackets.remove(identity)
+            protectedPetPackets[identity] = StableReadingIdentity.of(
+                deviceAddress,
+                measuredAt,
+                rawWeight,
+            )
+        }
+    }
+
+    internal fun isQuarantinedPetReading(raw: RawScaleMeasurement): Boolean = synchronized(lock) {
+        pruneQuarantine(monotonicNowNanos())
+        val stableReading = StableReadingIdentity.of(raw)
+        quarantinedPetPackets.values.any {
+            it.protected && it.stableReading == stableReading
+        }
+    }
+
+    private fun putQuarantined(
+        identity: PacketIdentity,
+        expiresAtNanos: Long,
+        protected: Boolean,
+        stableReading: StableReadingIdentity? = null,
+    ) {
         val previous = quarantinedPetPackets.remove(identity)
         quarantinedPetPackets[identity] = QuarantineEntry(
             expiresAtNanos = expiresAtNanos,
             protected = protected || previous?.protected == true,
+            stableReading = stableReading ?: previous?.stableReading,
         )
     }
 
@@ -222,7 +259,32 @@ class PetMeasurementIngestionGate(
         }
     }
 
-    private data class QuarantineEntry(val expiresAtNanos: Long, val protected: Boolean)
+    private data class QuarantineEntry(
+        val expiresAtNanos: Long,
+        val protected: Boolean,
+        val stableReading: StableReadingIdentity? = null,
+    )
+
+    private data class StableReadingIdentity(
+        val address: String,
+        val measuredAt: java.time.Instant,
+        val rawWeight: Int,
+    ) {
+        companion object {
+            fun of(raw: RawScaleMeasurement) = of(
+                raw.deviceAddress,
+                raw.measuredAt,
+                raw.rawWeight,
+            )
+
+            fun of(deviceAddress: String, measuredAt: java.time.Instant, rawWeight: Int) =
+                StableReadingIdentity(
+                    address = deviceAddress.trim().uppercase(Locale.ROOT),
+                    measuredAt = measuredAt,
+                    rawWeight = rawWeight,
+                )
+        }
+    }
 
     private data class PacketIdentity(val address: String, val payload: String) {
         companion object {
@@ -261,6 +323,15 @@ class PetMeasurementIngestionGate(
         fun protectPetPacket(deviceAddress: String, rawIdentity: String) {
             gate.protectPetPacket(owner, deviceAddress, rawIdentity)
         }
+
+        fun protectPetReading(
+            deviceAddress: String,
+            rawIdentity: String,
+            measuredAt: java.time.Instant,
+            rawWeight: Int,
+        ) {
+            gate.protectPetReading(owner, deviceAddress, rawIdentity, measuredAt, rawWeight)
+        }
     }
 }
 
@@ -286,6 +357,9 @@ class ScalePacketProcessor(
             val parsed = parse(packet.payload, packet.deviceAddress)
                 ?: return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             if (!parsed.isStableWeight) {
+                return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
+            }
+            if (petMeasurementGate.isQuarantinedPetReading(parsed)) {
                 return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             }
             ingestion.process(parsed)

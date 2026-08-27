@@ -1,6 +1,7 @@
 package com.example.huaweimisync
 
 import com.example.huaweimisync.core.MiScalePacketParser
+import com.example.huaweimisync.core.RawScaleMeasurement
 import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
@@ -11,6 +12,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.runBlocking
 import kotlin.math.abs
+import kotlin.math.roundToInt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -643,6 +645,11 @@ class PetMeasurementCoordinatorTest {
         receivedAtNanos = receivedAtNanos,
         measuredAt = measuredAt,
         weightKg = weightKg,
+        rawWeight = if (weightKg.isFinite()) {
+            (weightKg / RawScaleMeasurement.WEIGHT_RESOLUTION_KG).roundToInt()
+        } else {
+            0
+        },
         isStableWeight = stable,
         rawIdentity = raw,
     )
