@@ -10,6 +10,9 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -40,12 +43,13 @@ private data class PetHistoryInteraction(
 class PetHistoryStateOwner(
     initialPetId: PetId,
     private val repository: PetRepository,
-    scope: CoroutineScope,
+    parentScope: CoroutineScope,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val zoneId: ZoneId = clock.zone,
     private val locale: Locale = Locale.getDefault(),
-) {
-    private val scope = scope
+) : AutoCloseable {
+    private val ownerJob = SupervisorJob(parentScope.coroutineContext[Job])
+    private val ownerScope = CoroutineScope(parentScope.coroutineContext + ownerJob)
     private val initialState = PetHistoryUiState.initial(initialPetId, clock)
     private val selection = MutableStateFlow(
         PetHistorySelection(
@@ -70,7 +74,7 @@ class PetHistoryStateOwner(
         }
     }
         .stateIn(
-            scope,
+            ownerScope,
             SharingStarted.WhileSubscribed(
                 stopTimeoutMillis = 0,
                 replayExpirationMillis = 0,
@@ -110,7 +114,7 @@ class PetHistoryStateOwner(
         if (confirmation.isDeleting || owner.petId != selection.value.petId) return
         val operation = confirmation.copy(isDeleting = true)
         interaction.value = owner.copy(deleteConfirmation = operation, actionErrorMessage = null)
-        scope.launch {
+        ownerScope.launch {
             runCatching {
                 repository.deleteMeasurement(operation.petId, operation.measurement.id)
             }.onSuccess {
@@ -145,6 +149,10 @@ class PetHistoryStateOwner(
 
     fun dismissActionError() {
         interaction.update { it.copy(actionErrorMessage = null) }
+    }
+
+    override fun close() {
+        ownerScope.cancel()
     }
 
     fun selectRangePreset(preset: ChartRangePreset) {
