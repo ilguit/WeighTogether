@@ -82,6 +82,7 @@ internal data class PetMeasurementSaveRequest(
 internal class PetIngestionSession(
     val registerPetPacket: (String, ByteArray) -> Unit,
     val release: () -> Unit,
+    val protectPetPacket: (String, String) -> Unit = { _, _ -> },
     val preSessionBaseline: PetStableReadingBaseline? = null,
 )
 
@@ -96,6 +97,7 @@ internal suspend fun acquirePetIngestionSession(
         PetIngestionSession(
             registerPetPacket = activeSession.registerPetPacket,
             release = activeSession.release,
+            protectPetPacket = activeSession.protectPetPacket,
             preSessionBaseline = lookupBaseline(selectedAddress),
         )
     } catch (error: Throwable) {
@@ -195,11 +197,13 @@ internal class PetMeasurementCoordinator(
             val first = active.first
             if (first == null) {
                 if (active.preSessionBaseline?.matches(reading) == true) return null
+                active.ingestionSession.protectPetPacket(reading.address, reading.rawIdentity)
                 active.first = CapturedReading(identity, reading.measuredAt, reading.weightKg)
                 FirstAccepted(active.pet, reading.weightKg)
             } else {
                 if (first.identity == identity) return null
                 if (first.weightKg == reading.weightKg) return null
+                active.ingestionSession.protectPetPacket(reading.address, reading.rawIdentity)
                 active.cancelTimeout?.invoke()
                 active.cancelTimeout = null
                 active.saving = true

@@ -75,6 +75,39 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `only coordinator accepted stable readings are protected`() = runBlocking {
+        val protected = mutableListOf<Pair<String, String>>()
+        val guardedCoordinator = PetMeasurementCoordinator(
+            setState = {},
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                PetIngestionSession(
+                    registerPetPacket = { _, _ -> },
+                    release = {},
+                    protectPetPacket = { address, raw -> protected += address to raw },
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val token = requireNotNull(guardedCoordinator.start(pet, SELECTED_ADDRESS))
+
+        guardedCoordinator.accept(token, reading(69.0, stable = false, raw = "unstable"))
+        guardedCoordinator.accept(token, reading(70.0, raw = "first"))
+        guardedCoordinator.accept(token, reading(70.0, second = 2, raw = "same-weight"))
+        guardedCoordinator.accept(token, reading(74.0, second = 3, raw = "second"))
+
+        assertEquals(
+            listOf(
+                SELECTED_ADDRESS.lowercase() to "first",
+                SELECTED_ADDRESS.lowercase() to "second",
+            ),
+            protected,
+        )
+    }
+
+    @Test
     fun `lower second weight is equally valid and delta stays absolute`() {
         val token = start()
         coordinator.accept(token, reading(74.2, second = 1, raw = "person-with-pet"))

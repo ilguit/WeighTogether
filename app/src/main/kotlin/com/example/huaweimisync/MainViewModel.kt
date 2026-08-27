@@ -189,7 +189,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 selectedAddress = selectedAddress,
                 activateGate = {
                     val lease = container.petMeasurementIngestionGate.activate()
-                    PetIngestionSession(lease::registerPetPacket, lease::release)
+                    PetIngestionSession(
+                        registerPetPacket = lease::registerPetPacket,
+                        release = lease::release,
+                        protectPetPacket = lease::protectPetPacket,
+                    )
                 },
                 lookupBaseline = { address ->
                     container.repository.latestAcceptedStableMeasurement(address)?.let {
