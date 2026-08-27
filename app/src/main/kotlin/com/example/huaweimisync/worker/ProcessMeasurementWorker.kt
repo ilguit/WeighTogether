@@ -223,7 +223,6 @@ class PetMeasurementIngestionGate(
             activePetPackets.remove(identity)
             protectedPetPackets[identity] = StableReadingIdentity.of(
                 deviceAddress,
-                measuredAt,
                 rawWeight,
             )
         }
@@ -267,20 +266,17 @@ class PetMeasurementIngestionGate(
 
     private data class StableReadingIdentity(
         val address: String,
-        val measuredAt: java.time.Instant,
         val rawWeight: Int,
     ) {
         companion object {
             fun of(raw: RawScaleMeasurement) = of(
                 raw.deviceAddress,
-                raw.measuredAt,
                 raw.rawWeight,
             )
 
-            fun of(deviceAddress: String, measuredAt: java.time.Instant, rawWeight: Int) =
+            fun of(deviceAddress: String, rawWeight: Int) =
                 StableReadingIdentity(
                     address = deviceAddress.trim().uppercase(Locale.ROOT),
-                    measuredAt = measuredAt,
                     rawWeight = rawWeight,
                 )
         }

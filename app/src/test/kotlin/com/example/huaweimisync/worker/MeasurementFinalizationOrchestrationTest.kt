@@ -397,7 +397,7 @@ class MeasurementFinalizationOrchestrationTest {
         }
 
     @Test
-    fun acceptedStableReadingPayloadVariantsAreSuppressedButDistinctMeasurementPasses() =
+    fun acceptedStableReadingPayloadAndTimestampVariantsAreSuppressedButDistinctMeasurementPasses() =
         kotlinx.coroutines.runBlocking {
             val gate = PetMeasurementIngestionGate { 10L }
             val ingested = mutableListOf<RawScaleMeasurement>()
@@ -454,9 +454,9 @@ class MeasurementFinalizationOrchestrationTest {
                 MeasurementIngestionResult.IgnoredNotFinal,
                 processor.process(ScalePacket(byteArrayOf(4), second.deviceAddress)),
             )
-            assertTrue(
-                processor.process(ScalePacket(byteArrayOf(5), distinctTime.deviceAddress)) is
-                    MeasurementIngestionResult.CreatedAggregate,
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(5), distinctTime.deviceAddress)),
             )
             assertTrue(
                 processor.process(ScalePacket(byteArrayOf(6), distinctWeight.deviceAddress)) is
@@ -468,13 +468,12 @@ class MeasurementFinalizationOrchestrationTest {
             )
             assertEquals(
                 listOf(
-                    distinctTime.copy(rawPayload = byteArrayOf(5)),
                     distinctWeight.copy(rawPayload = byteArrayOf(6)),
                     distinctAddress.copy(rawPayload = byteArrayOf(7)),
                 ),
                 ingested,
             )
-            assertEquals(3, finalized)
+            assertEquals(2, finalized)
         }
 
     @Test
@@ -492,9 +491,9 @@ class MeasurementFinalizationOrchestrationTest {
             )
             active.release()
 
-            assertTrue(gate.isQuarantinedPetReading(reading))
+            assertTrue(gate.isQuarantinedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
             now += PET_PACKET_QUARANTINE_TTL_NANOS
-            assertFalse(gate.isQuarantinedPetReading(reading))
+            assertFalse(gate.isQuarantinedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
 
             val stale = gate.activate()
             stale.release()
