@@ -67,6 +67,7 @@ import com.example.huaweimisync.ui.components.HuaweiSettingRow
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
+import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -158,6 +159,22 @@ internal fun formatProfileSummary(profile: UserProfile?): String {
     val sex = if (profile.sex == Sex.MALE) "мужской" else "женский"
     return "$height см · ${profile.birthDate.format(ProfileSummaryDateFormatter)} · $sex"
 }
+
+internal fun formatLatestPetWeight(
+    weightKg: Double?,
+    locale: Locale = Locale.getDefault(),
+): String = weightKg?.let {
+    val formatted = NumberFormat.getNumberInstance(locale).run {
+        minimumFractionDigits = 0
+        maximumFractionDigits = 2
+        format(it)
+    }
+    "Последний вес: $formatted кг"
+} ?: "Измерений пока нет"
+
+internal const val BACKUP_REPLACE_WARNING =
+    "Все локальные аккаунты, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
+        "будут заменены. Это действие нельзя отменить."
 
 internal fun healthConnectPresentation(
     state: HealthConnectPermissionsUiState,
@@ -306,7 +323,7 @@ internal fun SettingsScreen(
             text = {
                 Text(
                     if (replaceWarning) {
-                        "Все локальные аккаунты, измерения и ожидающие измерения будут заменены. Это действие нельзя отменить."
+                        BACKUP_REPLACE_WARNING
                     } else {
                         "Аккаунты: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
                             "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
@@ -348,6 +365,10 @@ private fun PetManagementSection(state: MainUiState, callbacks: SettingsCallback
                         Column(Modifier.weight(1f)) {
                             Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
                             Text(petSpeciesLabel(item.pet.species), style = MaterialTheme.typography.bodySmall)
+                            Text(
+                                formatLatestPetWeight(item.latestPetWeightKg),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
                         }
                         TextButton(onClick = { callbacks.onEditPet(item.pet) }) { Text("Изменить") }
                         TextButton(onClick = { callbacks.onRequestDeletePet(item.pet.id) }) { Text("Удалить") }
