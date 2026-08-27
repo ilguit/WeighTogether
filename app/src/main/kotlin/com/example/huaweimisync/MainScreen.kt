@@ -74,6 +74,7 @@ import com.example.huaweimisync.ui.profiles.ProfileNavigationState
 import com.example.huaweimisync.ui.profiles.ProfileSelectionUiState
 import com.example.huaweimisync.ui.profiles.ProfileSelector
 import com.example.huaweimisync.ui.profiles.buildProfilePresentations
+import com.example.huaweimisync.ui.profiles.reconcileProfileNavigation
 import com.example.huaweimisync.ui.profiles.reconcileProfileSelection
 import kotlinx.coroutines.flow.Flow
 
@@ -205,13 +206,23 @@ fun HuaweiMiSyncApp(
     val profiles = buildProfilePresentations(state.accounts, state.pets)
     val requestedProfileKey = profileNavigation.selectedKey ?: measurementsState.accountSelector
         .selectedAccountId?.let(ProfileKey::Human)
-    val profileSelection = reconcileProfileSelection(
-        profiles = profiles,
-        requestedKey = requestedProfileKey,
-        primaryAccountId = state.accountSettings.primaryAccountId,
-    )
-    LaunchedEffect(profileSelection.selectedKey, profileSelection.fallback) {
-        profileNavigation = profileNavigation.reconcile(profileSelection)
+    val profileSelection = if (state.profilesLoaded) {
+        reconcileProfileSelection(
+            profiles = profiles,
+            requestedKey = requestedProfileKey,
+            primaryAccountId = state.accountSettings.primaryAccountId,
+        )
+    } else {
+        null
+    }
+    LaunchedEffect(profileSelection?.selectedKey, profileSelection?.fallback) {
+        profileSelection?.let {
+            profileNavigation = reconcileProfileNavigation(
+                state = profileNavigation,
+                selection = it,
+                profilesLoaded = state.profilesLoaded,
+            )
+        }
     }
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->

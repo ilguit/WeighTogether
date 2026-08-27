@@ -53,3 +53,9 @@ internal data class ProfileNavigationState(
         private const val DEFAULT_KEY = "default"
     }
 }
+
+internal fun reconcileProfileNavigation(
+    state: ProfileNavigationState,
+    selection: ProfileSelectionUiState,
+    profilesLoaded: Boolean,
+): ProfileNavigationState = if (profilesLoaded) state.reconcile(selection) else state

@@ -69,6 +69,32 @@ class ProfileNavigationTest {
     }
 
     @Test
+    fun initialEmptyProfilesDoNotDiscardRestoredPetBeforeLoading() {
+        val restored = ProfileNavigationState().select(ProfileKey.Pet(PetId("exact:pet-id")))
+        val initialEmpty = reconcileProfileSelection(emptyList(), restored.selectedKey, null)
+
+        val state = reconcileProfileNavigation(restored, initialEmpty, profilesLoaded = false)
+
+        assertEquals(restored, state)
+    }
+
+    @Test
+    fun missingRestoredPetFallsBackAfterProfilesHaveLoaded() {
+        val account = account("primary")
+        val restored = ProfileNavigationState().select(ProfileKey.Pet(PetId("missing")))
+        val loaded = reconcileProfileSelection(
+            profiles = buildProfilePresentations(listOf(account), emptyList()),
+            requestedKey = restored.selectedKey,
+            primaryAccountId = account.id,
+        )
+
+        val state = reconcileProfileNavigation(restored, loaded, profilesLoaded = true)
+
+        assertEquals(ProfileKey.Human(account.id), state.selectedKey)
+        assertEquals(ProfileDestination.HumanShell, state.destination)
+    }
+
+    @Test
     fun removedPetWithoutPrimaryClosesPetShellWithoutPromotingAnotherProfile() {
         val remainingPet = pet("remaining")
         val selection = reconcileProfileSelection(

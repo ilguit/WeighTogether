@@ -94,6 +94,7 @@ data class MainUiState(
     val healthConnectSystemManagementAvailable: Boolean = false,
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
     val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
+    val profilesLoaded: Boolean = false,
     val accounts: List<Account> = emptyList(),
     val accountSettings: AccountSettings = AccountSettings(),
     val accountManagement: AccountManagementUiState = AccountManagementUiState(),
@@ -123,6 +124,12 @@ data class MainUiState(
 private data class AccountsSnapshot(
     val accounts: List<Account>,
     val settings: AccountSettings,
+    val loaded: Boolean,
+)
+
+private data class PetsSnapshot(
+    val pets: List<PetWithLatestWeight>,
+    val loaded: Boolean,
 )
 
 data class BackupUiState(
@@ -231,15 +238,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val accountsSnapshot = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
-    ) { accounts, settings -> AccountsSnapshot(accounts, settings) }.stateIn(
+    ) { accounts, settings -> AccountsSnapshot(accounts, settings, loaded = true) }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
-        AccountsSnapshot(emptyList(), AccountSettings()),
+        AccountsSnapshot(emptyList(), AccountSettings(), loaded = false),
     )
-    private val pets = container.pets.observePets().stateIn(
+    private val pets = container.pets.observePets().map { pets ->
+        PetsSnapshot(pets, loaded = true)
+    }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
-        emptyList(),
+        PetsSnapshot(emptyList(), loaded = false),
     )
     private val pending = container.repository.observeUnassignedPending()
         .withPendingMeasurementReadiness()
@@ -365,6 +374,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
             huawei = core.huawei,
+            profilesLoaded = accountSnapshot.loaded,
             accounts = accountSnapshot.accounts,
             accountSettings = accountSnapshot.settings,
             accountManagement = management,
@@ -383,7 +393,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     ) { state, backupState, petValues, petState, petManagementState ->
         state.copy(
             backup = backupState,
-            pets = petValues,
+            profilesLoaded = state.profilesLoaded && petValues.loaded,
+            pets = petValues.pets,
             petMeasurement = petState,
             petManagement = petManagementState,
         )
