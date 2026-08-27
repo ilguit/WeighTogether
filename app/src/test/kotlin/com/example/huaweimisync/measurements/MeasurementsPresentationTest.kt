@@ -211,6 +211,8 @@ class MeasurementsPresentationTest {
         assertTrue(personalPending.canRetry)
         assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, local.state)
         assertFalse(local.canRetry)
+        assertEquals("", local.label)
+        assertTrue(local.directions.all { it.message.isEmpty() })
     }
 
     @Test

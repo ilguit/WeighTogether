@@ -587,6 +587,26 @@ class MeasurementsScreenTest {
     }
 
     @Test
+    fun localOnlyMeasurementHasNoSyncActionOrSheetOnSummaryAndHistory() {
+        var state by mutableStateOf(sampleState(sync = localOnlySync()))
+
+        composeRule.setContent {
+            HuaweiMiSyncTheme { MeasurementsScreen(state = state, callbacks = MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("summary-sync-status").assertDoesNotExist()
+        composeRule.onNodeWithTag("measurement-sync-sheet").assertDoesNotExist()
+        composeRule.onNodeWithText("Локальная запись").assertDoesNotExist()
+        composeRule.onNodeWithText("Только локально").assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            state = state.copy(destination = MeasurementsDestination.HISTORY)
+        }
+        composeRule.onNodeWithTag("history-sync-latest").assertDoesNotExist()
+        composeRule.onNodeWithTag("measurement-sync-sheet").assertDoesNotExist()
+    }
+
+    @Test
     fun weightOnlySummaryShowsLabelAndDashesForMissingMetrics() {
         val latest = sampleItem(
             id = "weight-only",
