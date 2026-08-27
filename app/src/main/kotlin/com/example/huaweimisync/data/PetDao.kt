@@ -48,6 +48,15 @@ interface PetDao {
     )
     fun observePetsWithLatestMeasurement(): Flow<List<PetWithLatestMeasurementRow>>
 
+    @Query(
+        """
+        SELECT * FROM pet_measurements
+        WHERE petId = :petId
+        ORDER BY measuredAtEpochSecond DESC, id DESC
+        """,
+    )
+    fun observeMeasurements(petId: String): Flow<List<PetMeasurementEntity>>
+
     @Query("SELECT * FROM pets WHERE id = :id")
     suspend fun getPet(id: String): PetEntity?
 

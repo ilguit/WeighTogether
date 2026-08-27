@@ -56,6 +56,7 @@ import com.example.huaweimisync.ui.routing.UnsavedPreviewSessionCoordinator
 import com.example.huaweimisync.ui.routing.activeCompletionFor
 import com.example.huaweimisync.ui.routing.buildResolverAccountOptions
 import com.example.huaweimisync.ui.routing.isActivePendingResolverTarget
+import com.example.huaweimisync.ui.profiles.PetHistoryStateOwner
 import com.example.huaweimisync.ui.routing.oldestPendingResolverTarget
 import com.example.huaweimisync.ui.routing.pendingForResolverLifecycle
 import com.example.huaweimisync.worker.ExternalSyncPauseTransition
@@ -167,6 +168,12 @@ private data class RoutingUiSnapshot(
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as MiSyncApplication).container
+
+    fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = PetHistoryStateOwner(
+        initialPetId = petId,
+        repository = container.pets,
+        scope = viewModelScope,
+    )
     private val huaweiAuthorization = HuaweiAuthorizationController(
         gateway = container.huaweiHealth,
         retryPendingHuawei = container.repository::retryPendingHuawei,

@@ -68,6 +68,8 @@ import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import com.example.huaweimisync.ui.profiles.PetProfileScreen
+import com.example.huaweimisync.ui.profiles.PetHistoryCallbacks
+import com.example.huaweimisync.ui.profiles.PetHistoryUiState
 import com.example.huaweimisync.ui.profiles.ProfileDestination
 import com.example.huaweimisync.ui.profiles.ProfileKey
 import com.example.huaweimisync.ui.profiles.ProfileNavigationState
@@ -231,6 +233,11 @@ fun HuaweiMiSyncApp(
             }
         }
     }
+    val selectedPetId = (profileNavigation.destination as? ProfileDestination.PetShell)?.petId
+    val petHistoryOwner = selectedPetId?.let { petId ->
+        remember(petId) { viewModel.petHistoryStateOwner(petId) }
+    }
+    val petHistoryState = petHistoryOwner?.uiState?.collectAsStateWithLifecycle()?.value
     MainUiEventHandler(
         events = viewModel.events,
         snackbarHostState = snackbarHostState,
@@ -254,6 +261,8 @@ fun HuaweiMiSyncApp(
         currentDestination = currentDestination,
         profileSelection = profileSelection,
         profileDestination = profileNavigation.destination,
+        petHistoryState = petHistoryState,
+        petHistoryCallbacks = petHistoryOwner?.callbacks,
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
         petMeasurementCallbacks = PetMeasurementCallbacks(
@@ -370,6 +379,8 @@ internal fun HuaweiMiSyncScaffold(
     currentDestination: AppDestination = AppDestination.ROOT,
     profileSelection: ProfileSelectionUiState? = null,
     profileDestination: ProfileDestination = ProfileDestination.HumanShell,
+    petHistoryState: PetHistoryUiState? = null,
+    petHistoryCallbacks: PetHistoryCallbacks? = null,
     measurementsDestination: MeasurementsDestination,
     measurementsCallbacks: MeasurementsCallbacks,
     petMeasurementCallbacks: PetMeasurementCallbacks = PetMeasurementCallbacks.None,
@@ -443,11 +454,13 @@ internal fun HuaweiMiSyncScaffold(
                             title = when {
                                 profileEditorOpen -> "Профиль"
                                 changelogOpen -> "История изменений"
-                                petProfile != null -> petProfile.pet.displayName
+                                petDestination != null -> petHistoryState?.pet?.displayName
+                                    ?: petProfile?.pet?.displayName
+                                    ?: "Питомец"
                                 else -> currentSection.title
                             },
-                            showBack = profileEditorOpen || changelogOpen || petProfile != null,
-                            onBack = if (petProfile != null) {
+                            showBack = profileEditorOpen || changelogOpen || petDestination != null,
+                            onBack = if (petDestination != null) {
                                 onPetBack
                             } else if (changelogOpen) {
                                 { onDestinationChanged(AppDestination.ROOT) }
@@ -456,9 +469,9 @@ internal fun HuaweiMiSyncScaffold(
                             },
                             backContentDescription = mainBackContentDescription(
                                 changelogOpen = changelogOpen,
-                                petProfileOpen = petProfile != null,
+                                petProfileOpen = petDestination != null,
                             ),
-                            showMeasurementActions = petProfile == null && !profileEditorOpen &&
+                            showMeasurementActions = petDestination == null && !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
                             pendingCount = state.resolverQueue.pendingCount,
@@ -489,9 +502,11 @@ internal fun HuaweiMiSyncScaffold(
                 },
             ) { padding ->
                 when {
-                    petProfile != null -> PetProfileScreen(
-                        profile = petProfile,
+                    petDestination != null -> PetProfileScreen(
+                        state = petHistoryState ?: PetHistoryUiState.initial(petDestination.petId),
+                        callbacks = petHistoryCallbacks ?: PetHistoryCallbacks({}, { _, _ -> }),
                         contentPadding = padding,
+                        onStartMeasurement = { petMeasurementCallbacks.onStart(petDestination.petId) },
                     )
 
                     profileEditorOpen -> ProfileEditorScreen(

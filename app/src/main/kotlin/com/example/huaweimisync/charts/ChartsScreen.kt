@@ -501,7 +501,7 @@ private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
 }
 
 @Composable
-private fun MetricChartCard(
+internal fun MetricChartCard(
     series: ChartSeries,
     startDate: LocalDate,
     endDateInclusive: LocalDate,

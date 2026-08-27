@@ -9,7 +9,11 @@ import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetUpdate
 import java.time.Instant
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.take
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -94,6 +98,69 @@ class PetRepositoryTest {
         assertEquals(3.5, observed.latestPetWeightKg!!, 0.0)
         assertEquals(Instant.ofEpochSecond(20), observed.latestMeasuredAt)
         assertEquals(Instant.ofEpochMilli(3_000), observed.pet.updatedAt)
+    }
+
+    @Test
+    fun measurementHistoryIsInitiallyEmptyAndIsolatedByPet() = runBlocking {
+        val ids = ArrayDeque(listOf("first-pet", "second-pet", "first-measurement", "second-measurement"))
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { ids.removeFirst() },
+        )
+        val firstPet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        val secondPet = repository.createPet(NewPet("Барсик", PetSpecies.CAT))
+
+        assertEquals(emptyList<Any>(), repository.observeMeasurements(firstPet.id).first())
+
+        repository.recordCompletedMeasurement(secondPet.id, Instant.ofEpochSecond(20), 70.0, 74.0)
+        val firstMeasurement = repository.recordCompletedMeasurement(
+            firstPet.id,
+            Instant.ofEpochSecond(10),
+            60.0,
+            63.0,
+        )
+
+        assertEquals(listOf(firstMeasurement), repository.observeMeasurements(firstPet.id).first())
+    }
+
+    @Test
+    fun measurementHistoryUsesNewestFirstDeterministicOrder() = runBlocking {
+        val ids = ArrayDeque(listOf("pet", "older", "same-time-a", "same-time-z"))
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { ids.removeFirst() },
+        )
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        repository.recordCompletedMeasurement(pet.id, Instant.ofEpochSecond(10), 70.0, 72.0)
+        repository.recordCompletedMeasurement(pet.id, Instant.ofEpochSecond(20), 70.0, 73.0)
+        repository.recordCompletedMeasurement(pet.id, Instant.ofEpochSecond(20), 70.0, 74.0)
+
+        assertEquals(
+            listOf("same-time-z", "same-time-a", "older"),
+            repository.observeMeasurements(pet.id).first().map { it.id },
+        )
+    }
+
+    @Test
+    fun measurementHistoryReactsToNewMeasurement() = runBlocking {
+        val ids = ArrayDeque(listOf("pet", "measurement"))
+        val repository = RoomPetRepository(
+            database = database,
+            now = { Instant.EPOCH },
+            newId = { ids.removeFirst() },
+        )
+        val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
+        val emissions = async(start = CoroutineStart.UNDISPATCHED) {
+            repository.observeMeasurements(pet.id).take(2).toList()
+        }
+
+        repository.recordCompletedMeasurement(pet.id, Instant.ofEpochSecond(10), 70.0, 74.0)
+
+        val history = emissions.await()
+        assertEquals(emptyList<Any>(), history.first())
+        assertEquals(listOf("measurement"), history.last().map { it.id })
     }
 
     @Test
