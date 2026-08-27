@@ -13,6 +13,7 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import com.example.huaweimisync.BuildConfig
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 
@@ -81,7 +82,7 @@ private fun LatestChangesCard(changes: List<ReleaseChange>, modifier: Modifier =
     HuaweiSurface(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Text(
-                "Последние изменения",
+                "Последние изменения (${BuildConfig.VERSION_CODE})",
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
                     .testTag(ChangelogScreenTestTags.LatestChangesHeading),

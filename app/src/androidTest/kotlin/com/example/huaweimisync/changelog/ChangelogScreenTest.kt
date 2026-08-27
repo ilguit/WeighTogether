@@ -13,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
+import com.example.huaweimisync.BuildConfig
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -56,7 +57,7 @@ class ChangelogScreenTest {
     fun latestChangesCardIsAbsentWhenThereAreNoLatestChanges() {
         setContent(latestChanges = emptyList())
         composeRule.onNodeWithTag(tags.LatestChanges).assertDoesNotExist()
-        composeRule.onNodeWithText("Последние изменения").assertDoesNotExist()
+        composeRule.onNodeWithText("Последние изменения (${BuildConfig.VERSION_CODE})").assertDoesNotExist()
     }
 
     @Test
