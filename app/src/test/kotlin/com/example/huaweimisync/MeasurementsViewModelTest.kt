@@ -25,6 +25,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 
 class MeasurementsViewModelTest {
     @Test
@@ -418,6 +421,85 @@ class MeasurementsViewModelTest {
 
         assertEquals(listOf("pending-move"), first.map { it.presentationKey })
         assertTrue(second.isEmpty())
+    }
+
+    @Test
+    fun preliminaryUpdatesDoNotInvalidateFinalizedPresentationInput() = runBlocking {
+        val account = account("account-a")
+        val initialSource = AccountMeasurementPresentationSource(
+            finalized = listOf(measurement(id = "final-existing")),
+            account = account,
+        )
+        val initial = AccountSelectionScopedLoad(
+            selection = "account-a",
+            load = AccountScopedLoad.Loaded(initialSource),
+        )
+        val weightOnly = pending(id = "pending-live", hasImpedance = false)
+        val full = weightOnly.copy(hasImpedance = true, impedanceOhm = 500)
+        val finalized = measurement(id = "final-live").copy(sourcePendingId = weightOnly.id.value)
+
+        val inputs = flowOf(
+            initial,
+            initial.copy(
+                load = AccountScopedLoad.Loaded(
+                    initialSource.copy(
+                        preliminary = listOf(weightOnly),
+                    ),
+                ),
+            ),
+            initial.copy(
+                load = AccountScopedLoad.Loaded(
+                    initialSource.copy(
+                        preliminary = listOf(full),
+                    ),
+                ),
+            ),
+            initial.copy(
+                load = AccountScopedLoad.Loaded(
+                    initialSource.copy(
+                        finalized = listOf(finalized, measurement(id = "final-existing")),
+                    ),
+                ),
+            ),
+        ).withoutPreliminaryUpdates().toList()
+
+        assertEquals(2, inputs.size)
+        assertEquals(
+            listOf("final-existing"),
+            (inputs.first().load as AccountScopedLoad.Loaded).value.finalized.map { it.id },
+        )
+        assertEquals(
+            listOf("final-live", "final-existing"),
+            (inputs.last().load as AccountScopedLoad.Loaded).value.finalized.map { it.id },
+        )
+    }
+
+    @Test
+    fun preliminaryToFinalizedTransitionKeepsPresentationIdentityWithoutDuplicate() {
+        val pending = pending(id = "pending-transition", hasImpedance = true)
+        val preliminaryItems = mergePreliminaryMeasurementPresentationItems(
+            finalizedItems = emptyList(),
+            preliminary = listOf(pending),
+            account = account("account-a"),
+            now = pending.enqueuedAt,
+            preliminaryComposition = { value, _ -> composition(value) },
+        )
+        val finalizedItem = measurement(id = "final-transition").copy(
+            sourcePendingId = pending.id.value,
+        ).toMeasurementUiItem(false)
+        val transitionedItems = mergePreliminaryMeasurementPresentationItems(
+            finalizedItems = listOf(finalizedItem),
+            preliminary = listOf(pending),
+            account = account("account-a"),
+            now = pending.finalizeAfter,
+            preliminaryComposition = { value, _ -> composition(value) },
+        )
+
+        assertEquals("pending-transition", preliminaryItems.single().presentationKey)
+        assertTrue(preliminaryItems.single().isPreliminary)
+        assertEquals("pending-transition", transitionedItems.single().presentationKey)
+        assertFalse(transitionedItems.single().isPreliminary)
+        assertEquals("final-transition", transitionedItems.single().mutationId)
     }
 
     @Test
