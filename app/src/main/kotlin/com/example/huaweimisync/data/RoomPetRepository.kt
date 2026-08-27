@@ -25,6 +25,9 @@ class RoomPetRepository(
     override fun observePets(): Flow<List<PetWithLatestWeight>> =
         dao.observePetsWithLatestMeasurement().map { rows -> rows.map { it.toDomain() } }
 
+    override fun observeMeasurements(petId: PetId): Flow<List<PetMeasurement>> =
+        dao.observeMeasurements(petId.value).map { entities -> entities.map { it.toDomain() } }
+
     override suspend fun getPet(id: PetId): Pet? = dao.getPet(id.value)?.toDomain()
 
     override suspend fun getPetWithMeasurementCount(id: PetId): PetWithMeasurementCount? =

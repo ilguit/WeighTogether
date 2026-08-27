@@ -6,6 +6,8 @@ import kotlinx.coroutines.flow.Flow
 interface PetRepository {
     fun observePets(): Flow<List<PetWithLatestWeight>>
 
+    fun observeMeasurements(petId: PetId): Flow<List<PetMeasurement>>
+
     suspend fun getPet(id: PetId): Pet?
 
     suspend fun getPetWithMeasurementCount(id: PetId): PetWithMeasurementCount?
