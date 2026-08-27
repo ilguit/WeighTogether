@@ -8,6 +8,7 @@ import java.time.ZoneOffset
 import java.util.Locale
 import java.util.TimeZone
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -367,5 +368,13 @@ class ChartsContractTest {
         assertTrue(single.min < 70.0 && single.max > 70.0)
         assertEquals(-0.1, constant.min, 0.0001)
         assertEquals(0.1, constant.max, 0.0001)
+    }
+
+    @Test
+    fun `chart renderability requires two distinct timestamps`() {
+        assertFalse(isChartRenderable(emptyList()))
+        assertFalse(isChartRenderable(listOf(ChartPoint(1L, 70.0))))
+        assertFalse(isChartRenderable(listOf(ChartPoint(1L, 70.0), ChartPoint(1L, 71.0))))
+        assertTrue(isChartRenderable(listOf(ChartPoint(1L, 70.0), ChartPoint(2L, 71.0))))
     }
 }

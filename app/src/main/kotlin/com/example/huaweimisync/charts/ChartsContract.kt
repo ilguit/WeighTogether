@@ -75,6 +75,10 @@ data class ChartSeries(
     val points: List<ChartPoint>,
 )
 
+/** Vico needs an actual x interval to derive a finite horizontal step safely. */
+fun isChartRenderable(points: List<ChartPoint>): Boolean =
+    points.asSequence().map(ChartPoint::xEpochMillis).distinct().take(2).count() == 2
+
 data class ChartValueSummary(
     val current: ChartPoint?,
     val previous: ChartPoint?,

@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
@@ -579,14 +580,14 @@ internal fun MetricChartCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
 
+                !isChartRenderable(points) -> Text(
+                    text = "Недостаточно данных для графика: нужно минимум два измерения в разное время",
+                    modifier = Modifier.testTag(MetricChartTestTags.InsufficientInterval),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
                 else -> {
-                    if (points.size == 1) {
-                        Text(
-                            text = "Одно измерение",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
                     MetricLineChart(
                         metric = series.metric,
                         points = points,
@@ -598,11 +599,17 @@ internal fun MetricChartCard(
                             append("Последнее значение: $currentValue. ")
                             append("Изменение к предыдущему: $delta")
                         },
+                        modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                     )
                 }
             }
         }
     }
+}
+
+object MetricChartTestTags {
+    const val ChartHost = "metric-chart-host"
+    const val InsufficientInterval = "metric-chart-insufficient-interval"
 }
 
 @Composable
@@ -635,6 +642,7 @@ internal fun MetricLineChart(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
+    modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -715,7 +723,7 @@ internal fun MetricLineChart(
             markerVisibilityListener = markerVisibilityListener,
         ),
         modelProducer = modelProducer,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
             .semantics { this.contentDescription = contentDescription },
