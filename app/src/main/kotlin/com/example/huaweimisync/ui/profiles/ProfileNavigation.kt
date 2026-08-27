@@ -1,5 +1,8 @@
 package com.example.huaweimisync.ui.profiles
 
+import androidx.compose.runtime.saveable.Saver
+import androidx.compose.runtime.saveable.listSaver
+import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.PetId
 
 internal sealed interface ProfileDestination {
@@ -26,4 +29,27 @@ internal data class ProfileNavigationState(
     }
 
     fun back(): ProfileNavigationState = ProfileNavigationState()
+
+    companion object {
+        val Saver: Saver<ProfileNavigationState, Any> = listSaver(
+            save = { state ->
+                when (val key = state.selectedKey) {
+                    is ProfileKey.Human -> listOf(HUMAN_KEY, key.accountId.value)
+                    is ProfileKey.Pet -> listOf(PET_KEY, key.petId.value)
+                    null -> listOf(DEFAULT_KEY)
+                }
+            },
+            restore = { saved ->
+                when (saved.firstOrNull()) {
+                    HUMAN_KEY -> saved.getOrNull(1)?.let { ProfileKey.Human(AccountId(it)) }
+                    PET_KEY -> saved.getOrNull(1)?.let { ProfileKey.Pet(PetId(it)) }
+                    else -> null
+                }?.let { ProfileNavigationState().select(it) } ?: ProfileNavigationState()
+            },
+        )
+
+        private const val HUMAN_KEY = "human"
+        private const val PET_KEY = "pet"
+        private const val DEFAULT_KEY = "default"
+    }
 }

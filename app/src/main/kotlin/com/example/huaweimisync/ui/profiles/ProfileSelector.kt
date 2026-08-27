@@ -55,7 +55,7 @@ fun ProfileSelector(
                 )
             }
         }
-        profileFallbackMessage(state.fallback)?.let { message ->
+        profileFallbackMessage(state)?.let { message ->
             Text(
                 text = message,
                 style = MaterialTheme.typography.bodySmall,
@@ -66,10 +66,13 @@ fun ProfileSelector(
     }
 }
 
-internal fun profileFallbackMessage(fallback: ProfileSelectionFallback): String? = when (fallback) {
+internal fun profileFallbackMessage(state: ProfileSelectionUiState): String? = when (state.fallback) {
     ProfileSelectionFallback.NONE -> null
-    ProfileSelectionFallback.SELECTED_PROFILE_UNAVAILABLE ->
+    ProfileSelectionFallback.SELECTED_PROFILE_UNAVAILABLE -> if (state.selectedKey is ProfileKey.Human) {
         "Выбранный профиль удалён. Показан основной аккаунт."
+    } else {
+        "Выбранный профиль удалён. Основной аккаунт недоступен. Выберите профиль."
+    }
     ProfileSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE ->
         "Основной аккаунт недоступен. Выберите профиль."
     ProfileSelectionFallback.NO_PROFILES -> "Создайте профиль в настройках."

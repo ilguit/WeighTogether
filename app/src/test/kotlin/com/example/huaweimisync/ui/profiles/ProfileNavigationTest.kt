@@ -12,8 +12,24 @@ import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import androidx.compose.runtime.saveable.SaverScope
 
 class ProfileNavigationTest {
+    @Test
+    fun saverRoundTripsDefaultHumanAndPetDestinationsWithoutIdCollisions() {
+        val default = ProfileNavigationState()
+        val human = default.select(ProfileKey.Human(AccountId("same")))
+        val pet = default.select(ProfileKey.Pet(PetId("same")))
+
+        assertEquals(default, roundTrip(default))
+        assertEquals(human, roundTrip(human))
+        assertEquals(ProfileDestination.HumanShell, roundTrip(human).destination)
+        assertEquals(pet, roundTrip(pet))
+        assertEquals(ProfileDestination.PetShell(PetId("same")), roundTrip(pet).destination)
+        assertEquals(ProfileKey.Human(AccountId("same")), roundTrip(human).selectedKey)
+        assertEquals(ProfileKey.Pet(PetId("same")), roundTrip(pet).selectedKey)
+    }
+
     @Test
     fun selectingPetCarriesExactTypedIdToPetShell() {
         val petId = PetId("pet:account-collision")
@@ -91,6 +107,13 @@ class ProfileNavigationTest {
         pet = Pet(PetId(id), id, createdAt = NOW, updatedAt = NOW),
         latestMeasurement = null,
     )
+
+    @Suppress("UNCHECKED_CAST")
+    private fun roundTrip(state: ProfileNavigationState): ProfileNavigationState {
+        val saver = ProfileNavigationState.Saver
+        val saved = with(saver) { SaverScope { true }.save(state) }
+        return saver.restore(saved as Any)!!
+    }
 
     private companion object {
         val NOW: Instant = Instant.parse("2026-01-01T00:00:00Z")

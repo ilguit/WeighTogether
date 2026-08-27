@@ -185,7 +185,9 @@ fun HuaweiMiSyncApp(
 ) {
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
-    var profileNavigation by remember { mutableStateOf(ProfileNavigationState()) }
+    var profileNavigation by rememberSaveable(stateSaver = ProfileNavigationState.Saver) {
+        mutableStateOf(ProfileNavigationState())
+    }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
@@ -441,11 +443,10 @@ internal fun HuaweiMiSyncScaffold(
                             } else {
                                 onCloseProfile
                             },
-                            backContentDescription = if (changelogOpen) {
-                                "Вернуться к настройкам"
-                            } else {
-                                "Закрыть редактор профиля"
-                            },
+                            backContentDescription = mainBackContentDescription(
+                                changelogOpen = changelogOpen,
+                                petProfileOpen = petProfile != null,
+                            ),
                             showMeasurementActions = petProfile == null && !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
@@ -591,6 +592,15 @@ internal fun HuaweiMiSyncScaffold(
             HuaweiSystemBarBackgrounds()
         }
     }
+}
+
+internal fun mainBackContentDescription(
+    changelogOpen: Boolean,
+    petProfileOpen: Boolean,
+): String = when {
+    changelogOpen -> "Вернуться к настройкам"
+    petProfileOpen -> "Вернуться к профилям"
+    else -> "Закрыть редактор профиля"
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
