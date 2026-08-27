@@ -15,6 +15,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotDisplayed
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -108,11 +110,16 @@ class MeasurementsShellNavigationUiTest {
             .assertContentDescriptionEquals("Открыть историю измерений")
             .performClick()
         externalSyncAction
-            .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию на 5 минут")
+            .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию")
+            .assert(SemanticsMatcher.expectValue(ExternalSyncPausedSemanticsKey, false))
             .performClick()
         composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
             .assertContentDescriptionEquals("Возобновить внешнюю синхронизацию")
+            .assert(SemanticsMatcher.expectValue(ExternalSyncPausedSemanticsKey, true))
             .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
+            .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию")
+            .assert(SemanticsMatcher.expectValue(ExternalSyncPausedSemanticsKey, false))
 
         composeRule.runOnIdle {
             assertEquals(1, pendingQueueClicks)

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -44,6 +45,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
@@ -131,6 +135,9 @@ internal object MainScreenTestTags {
     const val BottomNavigation = "main-bottom-navigation"
     const val SnackbarHost = "main-snackbar-host"
 }
+
+internal val ExternalSyncPausedSemanticsKey = SemanticsPropertyKey<Boolean>("ExternalSyncPaused")
+internal var SemanticsPropertyReceiver.externalSyncPaused by ExternalSyncPausedSemanticsKey
 
 @Composable
 internal fun MainUiEventHandler(
@@ -687,10 +694,19 @@ private fun HuaweiTopBar(
                     contentDescription = if (isExternalSyncPaused) {
                         "Возобновить внешнюю синхронизацию"
                     } else {
-                        "Приостановить внешнюю синхронизацию на 5 минут"
+                        "Приостановить внешнюю синхронизацию"
                     },
                     onClick = onToggleExternalSyncPause,
-                    modifier = Modifier.testTag(MainScreenTestTags.ExternalSyncAction),
+                    modifier = Modifier
+                        .testTag(MainScreenTestTags.ExternalSyncAction)
+                        .semantics { externalSyncPaused = isExternalSyncPaused },
+                    colors = if (isExternalSyncPaused) {
+                        IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        )
+                    } else {
+                        IconButtonDefaults.iconButtonColors()
+                    },
                 )
             }
         },

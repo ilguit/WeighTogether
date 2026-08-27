@@ -16,4 +16,16 @@ class ExternalSyncPauseUiContractTest {
             ExternalSyncPauseTransition.Resumed.snackbarMessage(),
         )
     }
+
+    @Test
+    fun pauseMessagesDescribePersistentStateWithoutLegacyDuration() {
+        val messages = listOf(
+            EXTERNAL_SYNC_PAUSED_MESSAGE,
+            EXTERNAL_SYNC_RESUMED_MESSAGE,
+        )
+
+        messages.forEach { message ->
+            assertEquals(false, message.contains("5 минут", ignoreCase = true))
+        }
+    }
 }
