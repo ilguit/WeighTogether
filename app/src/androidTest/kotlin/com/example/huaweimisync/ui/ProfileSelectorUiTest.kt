@@ -1,10 +1,13 @@
 package com.example.huaweimisync.ui
 
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -63,6 +66,35 @@ class ProfileSelectorUiTest {
             HuaweiIcons.Profile,
             ProfilePresentation.Pet(pet("legacy", PetSpecies.UNSPECIFIED)).selectorIcon(),
         )
+    }
+
+    @Test
+    fun largeProfileListStaysOnOneRowAndFarProfileCanBeSelected() {
+        val accounts = List(20) { index -> account("account-$index") }
+        val state = reconcileProfileSelection(
+            profiles = buildProfilePresentations(accounts, emptyList()),
+            requestedKey = ProfileKey.Human(accounts.first().id),
+            primaryAccountId = accounts.first().id,
+        )
+        var selected: ProfileKey? = null
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                ProfileSelector(state = state, onProfileSelected = { selected = it })
+            }
+        }
+
+        val first = composeRule.onNodeWithTag(ProfileSelectorTestTags.human("account-0"))
+        val last = composeRule.onNodeWithTag(ProfileSelectorTestTags.human("account-19"))
+        val firstTop = first.getUnclippedBoundsInRoot().top
+
+        last.performScrollTo().assertIsDisplayed()
+        val lastTop = last.getUnclippedBoundsInRoot().top
+        assertEquals(firstTop, lastTop)
+        last.performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(ProfileKey.Human(AccountId("account-19")), selected)
+        }
     }
 
     private fun account(id: String) = Account(

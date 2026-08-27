@@ -10,6 +10,9 @@ import java.time.ZoneId
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -22,6 +25,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal data class PetHistorySelection(
     val petId: PetId,
@@ -29,15 +33,23 @@ internal data class PetHistorySelection(
     val rangePreset: ChartRangePreset,
 )
 
+private data class PetHistoryInteraction(
+    val petId: PetId,
+    val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
+    val actionErrorMessage: String? = null,
+)
+
 @OptIn(ExperimentalCoroutinesApi::class)
 class PetHistoryStateOwner(
     initialPetId: PetId,
     private val repository: PetRepository,
-    scope: CoroutineScope,
+    parentScope: CoroutineScope,
     private val clock: Clock = Clock.systemDefaultZone(),
     private val zoneId: ZoneId = clock.zone,
     private val locale: Locale = Locale.getDefault(),
-) {
+) : AutoCloseable {
+    private val ownerJob = SupervisorJob(parentScope.coroutineContext[Job])
+    private val ownerScope = CoroutineScope(parentScope.coroutineContext + ownerJob)
     private val initialState = PetHistoryUiState.initial(initialPetId, clock)
     private val selection = MutableStateFlow(
         PetHistorySelection(
@@ -46,11 +58,23 @@ class PetHistoryStateOwner(
             rangePreset = initialState.rangePreset,
         ),
     )
+    private val interaction = MutableStateFlow(PetHistoryInteraction(initialPetId))
 
-    val uiState: StateFlow<PetHistoryUiState> = selection
-        .flatMapLatest(::observeSelection)
+    val uiState: StateFlow<PetHistoryUiState> = combine(
+        selection.flatMapLatest(::observeSelection),
+        interaction,
+    ) { state, currentInteraction ->
+        if (state.petId == currentInteraction.petId) {
+            state.copy(
+                deleteConfirmation = currentInteraction.deleteConfirmation,
+                actionErrorMessage = currentInteraction.actionErrorMessage,
+            )
+        } else {
+            state
+        }
+    }
         .stateIn(
-            scope,
+            ownerScope,
             SharingStarted.WhileSubscribed(
                 stopTimeoutMillis = 0,
                 replayExpirationMillis = 0,
@@ -61,10 +85,74 @@ class PetHistoryStateOwner(
     val callbacks = PetHistoryCallbacks(
         selectRangePreset = ::selectRangePreset,
         setDateRange = ::setDateRange,
+        requestDelete = ::requestDelete,
+        confirmDelete = ::confirmDelete,
+        dismissDelete = ::dismissDelete,
+        dismissActionError = ::dismissActionError,
     )
 
     fun selectPet(petId: PetId) {
+        interaction.value = PetHistoryInteraction(petId)
         selection.update { it.copy(petId = petId) }
+    }
+
+    fun requestDelete(measurementId: String) {
+        if (interaction.value.deleteConfirmation?.isDeleting == true) return
+        val state = uiState.value
+        val selected = state.measurements.firstOrNull { it.id == measurementId } ?: return
+        val currentPetId = selection.value.petId
+        if (state.petId != currentPetId) return
+        interaction.value = PetHistoryInteraction(
+            petId = currentPetId,
+            deleteConfirmation = PetHistoryDeleteConfirmation(currentPetId, selected),
+        )
+    }
+
+    fun confirmDelete() {
+        val owner = interaction.value
+        val confirmation = owner.deleteConfirmation ?: return
+        if (confirmation.isDeleting || owner.petId != selection.value.petId) return
+        val operation = confirmation.copy(isDeleting = true)
+        interaction.value = owner.copy(deleteConfirmation = operation, actionErrorMessage = null)
+        ownerScope.launch {
+            runCatching {
+                repository.deleteMeasurement(operation.petId, operation.measurement.id)
+            }.onSuccess {
+                interaction.update { current ->
+                    if (current.petId == operation.petId && current.deleteConfirmation == operation) {
+                        current.copy(deleteConfirmation = null, actionErrorMessage = null)
+                    } else {
+                        current
+                    }
+                }
+            }.onFailure { error ->
+                interaction.update { current ->
+                    if (current.petId == operation.petId && current.deleteConfirmation == operation) {
+                        current.copy(
+                            deleteConfirmation = operation.copy(isDeleting = false),
+                            actionErrorMessage = error.message ?: "Не удалось удалить измерение",
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
+    }
+
+    fun dismissDelete() {
+        interaction.update { current ->
+            if (current.deleteConfirmation?.isDeleting == true) current
+            else current.copy(deleteConfirmation = null)
+        }
+    }
+
+    fun dismissActionError() {
+        interaction.update { it.copy(actionErrorMessage = null) }
+    }
+
+    override fun close() {
+        ownerScope.cancel()
     }
 
     fun selectRangePreset(preset: ChartRangePreset) {

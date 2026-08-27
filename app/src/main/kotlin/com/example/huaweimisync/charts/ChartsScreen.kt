@@ -43,6 +43,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
@@ -579,14 +580,14 @@ internal fun MetricChartCard(
                     style = MaterialTheme.typography.bodyMedium,
                 )
 
+                !isChartRenderable(points) -> Text(
+                    text = "Недостаточно данных для графика: нужно минимум два измерения в разное время",
+                    modifier = Modifier.testTag(MetricChartTestTags.InsufficientInterval),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+
                 else -> {
-                    if (points.size == 1) {
-                        Text(
-                            text = "Одно измерение",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
                     MetricLineChart(
                         metric = series.metric,
                         points = points,
@@ -598,11 +599,17 @@ internal fun MetricChartCard(
                             append("Последнее значение: $currentValue. ")
                             append("Изменение к предыдущему: $delta")
                         },
+                        modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                     )
                 }
             }
         }
     }
+}
+
+object MetricChartTestTags {
+    const val ChartHost = "metric-chart-host"
+    const val InsufficientInterval = "metric-chart-insufficient-interval"
 }
 
 @Composable
@@ -635,8 +642,12 @@ internal fun MetricLineChart(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
+    modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
+    val chartPoints = remember(points) {
+        points.mapNotNull { point -> point.xEpochMillis?.let { x -> x to point } }
+    }
     val modelProducer = remember { CartesianChartModelProducer() }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
@@ -669,9 +680,9 @@ internal fun MetricLineChart(
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             val value = target.points.firstOrNull()?.entry?.y ?: return@ValueFormatter ""
-            points.firstOrNull { point ->
-                point.xEpochMillis == target.x.toLong() && point.value == value
-            }?.let { point ->
+            chartPoints.firstOrNull { (x, point) ->
+                x == target.x.toLong() && point.value == value
+            }?.let { (_, point) ->
                 formatChartMarkerText(point = point, metric = metric, zoneId = zoneId)
             } ?: formatChartMarkerText(
                 measuredAtEpochSecond = Math.floorDiv(target.x.toLong(), 1_000L),
@@ -692,8 +703,8 @@ internal fun MetricLineChart(
         modelProducer.runTransaction {
             lineModel {
                 series(
-                    x = points.map(ChartPoint::xEpochMillis),
-                    y = points.map(ChartPoint::value),
+                    x = chartPoints.map { it.first },
+                    y = chartPoints.map { it.second.value },
                 )
             }
         }
@@ -715,7 +726,7 @@ internal fun MetricLineChart(
             markerVisibilityListener = markerVisibilityListener,
         ),
         modelProducer = modelProducer,
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
             .semantics { this.contentDescription = contentDescription },

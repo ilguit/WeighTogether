@@ -3,13 +3,9 @@ package com.example.huaweimisync.charts
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.longClick
-import androidx.compose.ui.test.onNodeWithContentDescription
-import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.onNodeWithTag
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
-import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarker
-import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarkerVisibilityListener
 import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
@@ -42,16 +38,7 @@ class ChartVisualComponentsTest {
     }
 
     @Test
-    fun singleValueChartShowsMarkerForRealLongPressGesture() {
-        var markerShownCount = 0
-        val markerVisibilityListener = object : CartesianMarkerVisibilityListener {
-            override fun onShown(
-                marker: CartesianMarker,
-                targets: List<CartesianMarker.Target>,
-            ) {
-                markerShownCount++
-            }
-        }
+    fun singleValueCardReachesIdleWithoutCreatingChartHost() {
         val date = LocalDate.of(2026, 8, 12)
         val point = ChartPoint(
             measuredAtEpochSecond = date.atTime(12, 0).toEpochSecond(ZoneOffset.UTC),
@@ -60,26 +47,33 @@ class ChartVisualComponentsTest {
 
         composeRule.setContent {
             HuaweiMiSyncTheme {
-                MetricLineChart(
-                    metric = ChartMetricOption("weight", "Вес", "кг", 1),
-                    points = listOf(point),
+                MetricChartCard(
+                    series = ChartSeries(ChartMetricOption("weight", "Вес", "кг", 1), listOf(point)),
                     startDate = LocalDate.of(2026, 8, 9),
                     endDateInclusive = LocalDate.of(2026, 8, 15),
                     zoneId = ZoneOffset.UTC,
-                    contentDescription = SinglePointChartDescription,
-                    markerVisibilityListener = markerVisibilityListener,
                 )
             }
         }
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertIsDisplayed()
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertDoesNotExist()
+    }
 
-        val chart = composeRule.onNodeWithContentDescription(SinglePointChartDescription)
-            .assertIsDisplayed()
-        chart.performTouchInput { longClick(center) }
-
-        composeRule.runOnIdle {
-            assertTrue("The single point must remain a marker target.", markerShownCount > 0)
+    @Test
+    fun distinctTimestampValuesCreateChartHost() {
+        val metric = ChartMetricOption("weight", "Вес", "кг", 1)
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                MetricChartCard(
+                    ChartSeries(metric, listOf(ChartPoint(1L, 70.0), ChartPoint(2L, 71.0))),
+                    LocalDate.of(2026, 8, 9),
+                    LocalDate.of(2026, 8, 15),
+                    ZoneOffset.UTC,
+                )
+            }
         }
-        chart.assertIsDisplayed()
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
     }
 
     private fun LineCartesianLayer.Line.areaFillForTest(): Any? =
@@ -88,7 +82,4 @@ class ChartVisualComponentsTest {
             .apply { isAccessible = true }
             .invoke(this)
 
-    private companion object {
-        const val SinglePointChartDescription = "График с одним значением"
-    }
 }

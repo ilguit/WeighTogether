@@ -12,8 +12,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -25,6 +29,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
+import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.PendingMeasurement
@@ -55,9 +60,10 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarShowsPendingHistoryAndPauseActionsInOrderWithSemantics() {
+    fun summaryTopBarShowsPendingHistoryPetAndPauseActionsInOrderWithSemantics() {
         var pendingQueueClicks = 0
         var historyClicks = 0
+        var petMeasurementClicks = 0
         var pauseClicks = 0
         val paused = mutableStateOf(false)
         val callbacks = MeasurementsCallbacks.None.copy(
@@ -71,6 +77,9 @@ class MeasurementsShellNavigationUiTest {
                 currentSection = AppSection.MEASUREMENTS,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
                 measurementsCallbacks = callbacks,
+                petMeasurementCallbacks = PetMeasurementCallbacks.None.copy(
+                    onOpen = { petMeasurementClicks += 1 },
+                ),
                 snackbarHostState = remember { SnackbarHostState() },
                 onSectionSelected = {},
                 onCloseProfile = {},
@@ -92,6 +101,7 @@ class MeasurementsShellNavigationUiTest {
             .assertDoesNotExist()
         val pendingQueueAction = composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueAction)
         val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
+        val petMeasurementAction = composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
         val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
         assertTrue(
             "Pending queue action must not overlap the history action",
@@ -99,8 +109,13 @@ class MeasurementsShellNavigationUiTest {
                 historyAction.getUnclippedBoundsInRoot().left,
         )
         assertTrue(
-            "History action must not overlap the external sync action",
+            "History action must not overlap the pet measurement action",
             historyAction.getUnclippedBoundsInRoot().right <=
+                petMeasurementAction.getUnclippedBoundsInRoot().left,
+        )
+        assertTrue(
+            "Pet measurement action must not overlap the external sync action",
+            petMeasurementAction.getUnclippedBoundsInRoot().right <=
                 externalSyncAction.getUnclippedBoundsInRoot().left,
         )
         pendingQueueAction
@@ -108,6 +123,10 @@ class MeasurementsShellNavigationUiTest {
             .performClick()
         historyAction
             .assertContentDescriptionEquals("Открыть историю измерений")
+            .performClick()
+        petMeasurementAction
+            .assertIsEnabled()
+            .assertContentDescriptionEquals("Взвесить питомца")
             .performClick()
         externalSyncAction
             .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию")
@@ -124,8 +143,107 @@ class MeasurementsShellNavigationUiTest {
         composeRule.runOnIdle {
             assertEquals(1, pendingQueueClicks)
             assertEquals(1, historyClicks)
+            assertEquals(1, petMeasurementClicks)
             assertEquals(2, pauseClicks)
         }
+    }
+
+    @Test
+    fun summaryTopBarKeepsAllActionsUnclippedAtNarrowSupportedWidth() {
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 640.dp)),
+            ) {
+                HuaweiMiSyncScaffold(
+                    state = MainUiState(),
+                    currentSection = AppSection.MEASUREMENTS,
+                    measurementsDestination = MeasurementsDestination.SUMMARY,
+                    measurementsCallbacks = MeasurementsCallbacks.None,
+                    petMeasurementCallbacks = PetMeasurementCallbacks.None,
+                    snackbarHostState = remember { SnackbarHostState() },
+                    onSectionSelected = {},
+                    onCloseProfile = {},
+                    onSaveProfile = {},
+                    onProfileHeightChanged = {},
+                    onProfileBirthDateChanged = {},
+                    onProfileSexChanged = {},
+                    settingsCallbacks = settingsCallbacks(),
+                    onToggleExternalSyncPause = {},
+                    measurementsContent = {},
+                    chartsContent = {},
+                )
+            }
+        }
+
+        val topBarBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBar)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val actionBounds = listOf(
+            MainScreenTestTags.PendingQueueAction,
+            MainScreenTestTags.HistoryAction,
+            MainScreenTestTags.PetMeasurementAction,
+            MainScreenTestTags.ExternalSyncAction,
+        ).map { tag ->
+            composeRule.onNodeWithTag(tag)
+                .assertIsDisplayed()
+                .assertIsEnabled()
+                .getUnclippedBoundsInRoot()
+        }
+
+        assertTrue("Top bar title must have a non-empty width", titleBounds.right > titleBounds.left)
+        assertTrue("Top bar title must have a non-empty height", titleBounds.bottom > titleBounds.top)
+        assertTrue("Top bar title must stay within the left edge", titleBounds.left >= topBarBounds.left)
+        assertTrue("Top bar title must stay within the right edge", titleBounds.right <= topBarBounds.right)
+        assertTrue("Top bar title must stay within the top edge", titleBounds.top >= topBarBounds.top)
+        assertTrue("Top bar title must stay within the bottom edge", titleBounds.bottom <= topBarBounds.bottom)
+        assertTrue("Top bar title must not overlap the first action", titleBounds.right <= actionBounds.first().left)
+
+        actionBounds.forEach { bounds ->
+            assertTrue("Action touch target must be at least 48 dp wide", bounds.right - bounds.left >= 48.dp)
+            assertTrue("Action touch target must be at least 48 dp high", bounds.bottom - bounds.top >= 48.dp)
+            assertTrue("Action must not be clipped at the left edge", bounds.left >= topBarBounds.left)
+            assertTrue("Action must not be clipped at the right edge", bounds.right <= topBarBounds.right)
+            assertTrue("Action must not be clipped at the top edge", bounds.top >= topBarBounds.top)
+            assertTrue("Action must not be clipped at the bottom edge", bounds.bottom <= topBarBounds.bottom)
+        }
+        actionBounds.zipWithNext().forEach { (left, right) ->
+            assertTrue("Adjacent top bar actions must not overlap", left.right <= right.left)
+        }
+    }
+
+    @Test
+    fun petMeasurementTopActionIsDisabledWhileBleWorkIsActive() {
+        var clicks = 0
+
+        composeRule.setContent {
+            HuaweiMiSyncScaffold(
+                state = MainUiState(scanning = true),
+                currentSection = AppSection.MEASUREMENTS,
+                measurementsDestination = MeasurementsDestination.SUMMARY,
+                measurementsCallbacks = MeasurementsCallbacks.None,
+                petMeasurementCallbacks = PetMeasurementCallbacks.None.copy(
+                    onOpen = { clicks += 1 },
+                ),
+                snackbarHostState = remember { SnackbarHostState() },
+                onSectionSelected = {},
+                onCloseProfile = {},
+                onSaveProfile = {},
+                onProfileHeightChanged = {},
+                onProfileBirthDateChanged = {},
+                onProfileSexChanged = {},
+                settingsCallbacks = settingsCallbacks(),
+                measurementsContent = {},
+                chartsContent = {},
+            )
+        }
+
+        composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
+            .assertIsNotEnabled()
+            .performClick()
+        composeRule.runOnIdle { assertEquals(0, clicks) }
     }
 
     @Test

@@ -6,6 +6,7 @@ import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetDeletionPreview
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetMeasurement
+import com.example.huaweimisync.domain.PetMeasurementNotFoundException
 import com.example.huaweimisync.domain.PetRepository
 import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetUpdate
@@ -93,6 +94,14 @@ class RoomPetRepository(
         val deleted = PetDeletionPreview(pet.toDomain(), dao.countMeasurements(id.value))
         check(dao.deletePet(id.value) == 1) { "Pet ${id.value} disappeared while deleting" }
         deleted
+    }
+
+    override suspend fun deleteMeasurement(petId: PetId, measurementId: String) {
+        database.withTransaction {
+            if (dao.deleteMeasurement(petId.value, measurementId) != 1) {
+                throw PetMeasurementNotFoundException(petId, measurementId)
+            }
+        }
     }
 
     override suspend fun recordCompletedMeasurement(
