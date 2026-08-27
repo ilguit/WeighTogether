@@ -22,11 +22,18 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal data class PetHistorySelection(
     val petId: PetId,
     val range: ChartDateRange,
     val rangePreset: ChartRangePreset,
+)
+
+private data class PetHistoryInteraction(
+    val petId: PetId,
+    val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
+    val actionErrorMessage: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -38,6 +45,7 @@ class PetHistoryStateOwner(
     private val zoneId: ZoneId = clock.zone,
     private val locale: Locale = Locale.getDefault(),
 ) {
+    private val scope = scope
     private val initialState = PetHistoryUiState.initial(initialPetId, clock)
     private val selection = MutableStateFlow(
         PetHistorySelection(
@@ -46,9 +54,21 @@ class PetHistoryStateOwner(
             rangePreset = initialState.rangePreset,
         ),
     )
+    private val interaction = MutableStateFlow(PetHistoryInteraction(initialPetId))
 
-    val uiState: StateFlow<PetHistoryUiState> = selection
-        .flatMapLatest(::observeSelection)
+    val uiState: StateFlow<PetHistoryUiState> = combine(
+        selection.flatMapLatest(::observeSelection),
+        interaction,
+    ) { state, currentInteraction ->
+        if (state.petId == currentInteraction.petId) {
+            state.copy(
+                deleteConfirmation = currentInteraction.deleteConfirmation,
+                actionErrorMessage = currentInteraction.actionErrorMessage,
+            )
+        } else {
+            state
+        }
+    }
         .stateIn(
             scope,
             SharingStarted.WhileSubscribed(
@@ -61,10 +81,70 @@ class PetHistoryStateOwner(
     val callbacks = PetHistoryCallbacks(
         selectRangePreset = ::selectRangePreset,
         setDateRange = ::setDateRange,
+        requestDelete = ::requestDelete,
+        confirmDelete = ::confirmDelete,
+        dismissDelete = ::dismissDelete,
+        dismissActionError = ::dismissActionError,
     )
 
     fun selectPet(petId: PetId) {
+        interaction.value = PetHistoryInteraction(petId)
         selection.update { it.copy(petId = petId) }
+    }
+
+    fun requestDelete(measurementId: String) {
+        if (interaction.value.deleteConfirmation?.isDeleting == true) return
+        val state = uiState.value
+        val selected = state.measurements.firstOrNull { it.id == measurementId } ?: return
+        val currentPetId = selection.value.petId
+        if (state.petId != currentPetId) return
+        interaction.value = PetHistoryInteraction(
+            petId = currentPetId,
+            deleteConfirmation = PetHistoryDeleteConfirmation(currentPetId, selected),
+        )
+    }
+
+    fun confirmDelete() {
+        val owner = interaction.value
+        val confirmation = owner.deleteConfirmation ?: return
+        if (confirmation.isDeleting || owner.petId != selection.value.petId) return
+        val operation = confirmation.copy(isDeleting = true)
+        interaction.value = owner.copy(deleteConfirmation = operation, actionErrorMessage = null)
+        scope.launch {
+            runCatching {
+                repository.deleteMeasurement(operation.petId, operation.measurement.id)
+            }.onSuccess {
+                interaction.update { current ->
+                    if (current.petId == operation.petId && current.deleteConfirmation == operation) {
+                        current.copy(deleteConfirmation = null, actionErrorMessage = null)
+                    } else {
+                        current
+                    }
+                }
+            }.onFailure { error ->
+                interaction.update { current ->
+                    if (current.petId == operation.petId && current.deleteConfirmation == operation) {
+                        current.copy(
+                            deleteConfirmation = operation.copy(isDeleting = false),
+                            actionErrorMessage = error.message ?: "Не удалось удалить измерение",
+                        )
+                    } else {
+                        current
+                    }
+                }
+            }
+        }
+    }
+
+    fun dismissDelete() {
+        interaction.update { current ->
+            if (current.deleteConfirmation?.isDeleting == true) current
+            else current.copy(deleteConfirmation = null)
+        }
+    }
+
+    fun dismissActionError() {
+        interaction.update { it.copy(actionErrorMessage = null) }
     }
 
     fun selectRangePreset(preset: ChartRangePreset) {
