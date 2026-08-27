@@ -129,6 +129,27 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `tagged releases keep legacy order while an untagged candidate is newest first`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "older-release", true, "Раннее изменение выпуска")
+        git.commit("Add older release change (#1)")
+        git.fragment(2, "newer-release", true, "Позднее изменение выпуска")
+        git.commit("Add newer release change (#2)")
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(3, "older-candidate", true, "Раннее изменение кандидата")
+        git.commit("Add older candidate change (#3)")
+        git.fragment(4, "newer-candidate", true, "Позднее изменение кандидата")
+        git.commit("Add newer candidate change (#4)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        assertEquals(listOf(4, 3), history.releases[0].changes.map { it.issue })
+        assertEquals(listOf(1, 2), history.releases[1].changes.map { it.issue })
+    }
+
+    @Test
     fun `build mode rejects a version older than the latest release`() {
         val git = TestGit(directory)
         git.init()
@@ -555,6 +576,25 @@ class ReleaseHistoryGeneratorTest {
             .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
 
         assertEquals(listOf(2), history.latestChanges.map { it.issue })
+    }
+
+    @Test
+    fun `rejects unmatched technical fragment whose issue was not previously released`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(2, "unmatched", false, "Новое техническое изменение")
+        git.commit("Commit without issue")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+
+        assertTrue(error.message!!.contains("#2"))
+        assertTrue(error.message!!.contains("without a matching issue"))
     }
 
     @Test

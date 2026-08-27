@@ -103,7 +103,9 @@ class ReleaseHistoryGenerator(
         }
         val ranges = points.mapIndexed { index, point ->
             val base = points.getOrNull(index + 1)?.commitSha ?: baseline?.boundaryCommit
-            inspectRange(point, base, tags.firstOrNull { it.commitSha == base })
+            val isUntaggedCandidate = mode == ReleaseHistoryMode.RELEASE &&
+                point.commitSha == head && headTags.isEmpty()
+            inspectRange(point, base, tags.firstOrNull { it.commitSha == base }, isUntaggedCandidate)
         }
         val releases = ranges.mapIndexed { index, range ->
             generateRelease(points[index], range, flavor)
@@ -121,6 +123,7 @@ class ReleaseHistoryGenerator(
                     ReleasePoint(currentVersion, head),
                     latestBoundary,
                     tags.firstOrNull { it.commitSha == latestBoundary },
+                    newestFirst = true,
                 )
                 generateChanges(latestRange, flavor)
             }
@@ -138,9 +141,15 @@ class ReleaseHistoryGenerator(
         return ReleasePreflight(head, previousTag, ranges.firstOrNull(), currentVersion, history)
     }
 
-    private fun inspectRange(point: ReleasePoint, exclusiveBase: String?, previousTag: ApkTag?): ReleaseRange {
+    private fun inspectRange(
+        point: ReleasePoint,
+        exclusiveBase: String?,
+        previousTag: ApkTag?,
+        newestFirst: Boolean,
+    ): ReleaseRange {
+        val commits = repository.commits(point.commitSha, exclusiveBase)
         val issues = extractIssues(
-            repository.commits(point.commitSha, exclusiveBase).asReversed().map { it.subject },
+            (if (newestFirst) commits.asReversed() else commits).map { it.subject },
         )
         val fragments = repository.changedFragmentPaths(point.commitSha, exclusiveBase)
             .map { fragmentParser.parse(it, repository.readFile(point.commitSha, it)) }
@@ -152,8 +161,15 @@ class ReleaseHistoryGenerator(
             throw GenerationException("Release range $range has issue(s) without a changed fragment: " +
                 missing.joinToString { "#$it" } + "; add one fragment for each listed issue")
         }
+        val previouslyReleasedIssues = if (previousTag == null) {
+            emptySet()
+        } else {
+            extractIssues(repository.commits(previousTag.commitSha).map { it.subject }).toSet()
+        }
         val extra = fragmentsByIssue
-            .filter { (issue, fragments) -> issue !in issues && fragments.any { it.userVisible } }
+            .filter { (issue, fragments) ->
+                issue !in issues && (fragments.any { it.userVisible } || issue !in previouslyReleasedIssues)
+            }
             .keys
             .sorted()
         if (extra.isNotEmpty()) {
