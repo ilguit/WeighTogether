@@ -63,8 +63,8 @@ class MeasurementRepository(
 
     fun observeRecent(): Flow<List<MeasurementEntity>> = dao.observeLatest()
 
-    suspend fun latestAcceptedStableMeasurement(): RawScaleMeasurement? =
-        requireMultiAccountPersistence().latestAcceptedStableMeasurement()
+    suspend fun latestAcceptedStableMeasurement(deviceAddress: String): RawScaleMeasurement? =
+        requireMultiAccountPersistence().latestAcceptedStableMeasurement(deviceAddress)
 
     fun observeAll(): Flow<List<MeasurementEntity>> = dao.observeAll()
 

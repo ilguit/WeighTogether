@@ -122,6 +122,60 @@ class MeasurementDeduplicationPersistenceTest {
     }
 
     @Test
+    fun acceptedBaselineIsDeviceScopedWhileGlobalLatestStillSuppressesReplay() = runBlocking {
+        val persistence = persistence()
+        val scaleA = raw(
+            second = 0,
+            device = "AA:BB:CC:DD:EE:FF",
+            payload = byteArrayOf(1),
+        )
+        val scaleB = raw(
+            second = 20,
+            device = "11:22:33:44:55:66",
+            payload = byteArrayOf(2),
+        )
+
+        assertTrue(persistence.enqueue(scaleA) is PendingPersistenceResult.Inserted)
+        assertTrue(persistence.enqueue(scaleB) is PendingPersistenceResult.Inserted)
+
+        assertEquals(
+            scaleA,
+            persistence.latestAcceptedStableMeasurement(" aa:bb:cc:dd:ee:ff "),
+        )
+        assertEquals(scaleB, persistence.latestAcceptedStableMeasurement(scaleB.deviceAddress))
+        assertEquals(
+            scaleB.rawPayload.toList(),
+            database.acceptedStableMeasurementDao().getLatest()!!.rawPayload.toList(),
+        )
+        assertEquals(
+            scaleA.rawPayload.toList(),
+            database.acceptedStableMeasurementDao()
+                .getForDevice(scaleA.deviceAddress.lowercase())!!.rawPayload.toList(),
+        )
+
+        // #40 keeps its global replay contract: replay suppression still compares global latest.
+        assertEquals(PendingPersistenceResult.ExactReplay, persistence.enqueue(scaleB.copy()))
+    }
+
+    @Test
+    fun deviceLookupFallsBackToMatchingLegacyGlobalRow() = runBlocking {
+        val legacy = raw(second = 0, device = "AA:BB:CC:DD:EE:FF")
+        database.acceptedStableMeasurementDao().replaceLatest(
+            AcceptedStableMeasurementEntity.latest(legacy),
+        )
+        val persistence = persistence()
+
+        assertEquals(
+            legacy,
+            persistence.latestAcceptedStableMeasurement("aa:bb:cc:dd:ee:ff"),
+        )
+        assertEquals(
+            null,
+            persistence.latestAcceptedStableMeasurement("11:22:33:44:55:66"),
+        )
+    }
+
+    @Test
     fun sameRawWeightAtZeroNineTenAndThirtySecondsUsesStrictWindow() = runBlocking {
         val persistence = persistence()
         val first = persistence.enqueue(raw(second = 0)) as PendingPersistenceResult.Inserted

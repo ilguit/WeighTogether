@@ -50,4 +50,16 @@ class AcceptedStableMeasurementEntityTest {
         assertTrue(entity.exactlyMatches(raw.copy(measuredAt = raw.measuredAt.plusSeconds(5))))
         assertFalse(entity.exactlyMatches(raw.copy(rawPayload = byteArrayOf(1, 2, 4))))
     }
+
+    @Test
+    fun deviceRowUsesCaseAndWhitespaceNormalizedAddressKey() {
+        assertEquals(
+            AcceptedStableMeasurementEntity.deviceId("AA:BB:CC:DD:EE:FF"),
+            AcceptedStableMeasurementEntity.deviceId(" aa:bb:cc:dd:ee:ff "),
+        )
+        assertEquals(
+            "device:AA:BB:CC:DD:EE:FF",
+            AcceptedStableMeasurementEntity.deviceId("aa:bb:cc:dd:ee:ff"),
+        )
+    }
 }

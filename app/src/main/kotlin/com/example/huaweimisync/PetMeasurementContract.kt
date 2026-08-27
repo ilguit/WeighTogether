@@ -85,6 +85,25 @@ internal class PetIngestionSession(
     val preSessionBaseline: PetStableReadingBaseline? = null,
 )
 
+/** Closes ingestion before reading its durable baseline, eliminating the startup TOCTOU window. */
+internal suspend fun acquirePetIngestionSession(
+    selectedAddress: String,
+    activateGate: suspend () -> PetIngestionSession,
+    lookupBaseline: suspend (String) -> PetStableReadingBaseline?,
+): PetIngestionSession {
+    val activeSession = activateGate()
+    return try {
+        PetIngestionSession(
+            registerPetPacket = activeSession.registerPetPacket,
+            release = activeSession.release,
+            preSessionBaseline = lookupBaseline(selectedAddress),
+        )
+    } catch (error: Throwable) {
+        activeSession.release()
+        throw error
+    }
+}
+
 internal data class PetStableReadingBaseline(
     val address: String,
     val weightKg: Double,

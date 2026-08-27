@@ -185,17 +185,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         restoreAutomaticScanning = ::restoreAutomaticScanning,
         showMessage = ::showMessage,
         acquirePetSessionGate = { selectedAddress ->
-            val baseline = container.repository.latestAcceptedStableMeasurement()
-                ?.takeIf { isSelectedScaleAddress(selectedAddress, it.deviceAddress) }
-                ?.let {
-                    PetStableReadingBaseline(
-                        address = it.deviceAddress,
-                        weightKg = it.weightKg,
-                        rawIdentity = petReadingRawIdentity(it.rawPayload),
-                    )
-                }
-            val lease = container.petMeasurementIngestionGate.activate()
-            PetIngestionSession(lease::registerPetPacket, lease::release, baseline)
+            acquirePetIngestionSession(
+                selectedAddress = selectedAddress,
+                activateGate = {
+                    val lease = container.petMeasurementIngestionGate.activate()
+                    PetIngestionSession(lease::registerPetPacket, lease::release)
+                },
+                lookupBaseline = { address ->
+                    container.repository.latestAcceptedStableMeasurement(address)?.let {
+                        PetStableReadingBaseline(
+                            address = it.deviceAddress,
+                            weightKg = it.weightKg,
+                            rawIdentity = petReadingRawIdentity(it.rawPayload),
+                        )
+                    }
+                },
+            )
         },
         monotonicNowNanos = SystemClock::elapsedRealtimeNanos,
     )

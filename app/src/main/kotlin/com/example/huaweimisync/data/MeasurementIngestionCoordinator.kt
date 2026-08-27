@@ -33,7 +33,7 @@ import kotlinx.coroutines.sync.withLock
 /** Small persistence boundary which keeps ingestion logic unit-testable without Room. */
 interface MeasurementRoutingPersistence {
     /** Last stable packet accepted before the current in-memory consumer session. */
-    suspend fun latestAcceptedStableMeasurement(): RawScaleMeasurement? = null
+    suspend fun latestAcceptedStableMeasurement(deviceAddress: String): RawScaleMeasurement? = null
 
     suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult
 

@@ -527,6 +527,73 @@ class PetMeasurementCoordinatorTest {
         assertEquals(0, automaticRestores)
     }
 
+    @Test
+    fun `startup activates and drains gate before baseline lookup`() = runBlocking {
+        val order = mutableListOf<String>()
+        val session = acquirePetIngestionSession(
+            selectedAddress = SELECTED_ADDRESS,
+            activateGate = {
+                order += "gate-drained"
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+            },
+            lookupBaseline = {
+                order += "baseline"
+                null
+            },
+        )
+
+        assertEquals(listOf("gate-drained", "baseline"), order)
+        session.release()
+    }
+
+    @Test
+    fun `baseline lookup failure releases activated gate`() = runBlocking {
+        var releases = 0
+
+        val failure = runCatching {
+            acquirePetIngestionSession(
+                selectedAddress = SELECTED_ADDRESS,
+                activateGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = { releases++ },
+                    )
+                },
+                lookupBaseline = { error("lookup failed") },
+            )
+        }.exceptionOrNull()
+
+        assertEquals("lookup failed", failure?.message)
+        assertEquals(1, releases)
+    }
+
+    @Test
+    fun `cancellation during baseline lookup releases activated gate`() = runBlocking {
+        val lookupStarted = CompletableDeferred<Unit>()
+        val neverComplete = CompletableDeferred<PetStableReadingBaseline?>()
+        var releases = 0
+        val startup = async(start = CoroutineStart.UNDISPATCHED) {
+            acquirePetIngestionSession(
+                selectedAddress = SELECTED_ADDRESS,
+                activateGate = {
+                    PetIngestionSession(
+                        registerPetPacket = { _, _ -> },
+                        release = { releases++ },
+                    )
+                },
+                lookupBaseline = {
+                    lookupStarted.complete(Unit)
+                    neverComplete.await()
+                },
+            )
+        }
+        lookupStarted.await()
+
+        startup.cancelAndJoin()
+
+        assertEquals(1, releases)
+    }
+
     private fun start(): PetMeasurementCoordinator.OperationToken =
         runBlocking { requireNotNull(coordinator.start(pet, SELECTED_ADDRESS)) }
 
