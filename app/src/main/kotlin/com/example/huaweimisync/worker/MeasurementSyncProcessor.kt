@@ -9,6 +9,7 @@ import com.example.huaweimisync.sync.SyncResult
 internal sealed interface MeasurementSyncOutcome {
     data object Complete : MeasurementSyncOutcome
     data object Retry : MeasurementSyncOutcome
+    data object Paused : MeasurementSyncOutcome
     data class Deferred(val notBeforeEpochMillis: Long) : MeasurementSyncOutcome
 }
 
@@ -26,18 +27,13 @@ internal class MeasurementSyncProcessor(
     private val applyHuaweiResult: suspend (String, MeasurementSyncPayload, SyncResult) -> Unit,
     private val applyHealthConnectResult:
         suspend (String, MeasurementSyncPayload, SyncResult) -> Unit,
-    private val pausedUntilProvider: () -> Long = { 0L },
-    private val nowEpochMillis: () -> Long = System::currentTimeMillis,
+    private val isPaused: () -> Boolean = { false },
 ) {
     suspend fun sync(measurementId: String): MeasurementSyncOutcome {
         val huaweiResult = syncHuawei(measurementId)
-        if (huaweiResult is DestinationResult.Deferred) {
-            return MeasurementSyncOutcome.Deferred(huaweiResult.notBeforeEpochMillis)
-        }
+        if (huaweiResult is DestinationResult.Paused) return MeasurementSyncOutcome.Paused
         val healthConnectResult = syncHealthConnect(measurementId)
-        if (healthConnectResult is DestinationResult.Deferred) {
-            return MeasurementSyncOutcome.Deferred(healthConnectResult.notBeforeEpochMillis)
-        }
+        if (healthConnectResult is DestinationResult.Paused) return MeasurementSyncOutcome.Paused
         return if (huaweiResult.isRetryable() || healthConnectResult.isRetryable()) {
             MeasurementSyncOutcome.Retry
         } else {
@@ -55,7 +51,7 @@ internal class MeasurementSyncProcessor(
             measurement = value,
             includesWeight = !value.huaweiWeightSynced,
         )
-        pausedDeadline()?.let { return DestinationResult.Deferred(it) }
+        if (isPaused()) return DestinationResult.Paused
         val result = if (payload.isEmpty) SyncResult.Success else writeHuawei(payload)
         applyHuaweiResult(measurementId, payload, result)
         return DestinationResult.Attempted(result)
@@ -73,13 +69,11 @@ internal class MeasurementSyncProcessor(
             measurement = value,
             includesWeight = !value.healthConnectWeightSynced,
         )
-        pausedDeadline()?.let { return DestinationResult.Deferred(it) }
+        if (isPaused()) return DestinationResult.Paused
         val result = if (payload.isEmpty) SyncResult.Success else writeHealthConnect(payload)
         applyHealthConnectResult(measurementId, payload, result)
         return DestinationResult.Attempted(result)
     }
-
-    private fun pausedDeadline(): Long? = pausedUntilProvider().takeIf { it > nowEpochMillis() }
 
     private fun DestinationResult.isRetryable(): Boolean =
         this is DestinationResult.Attempted && result is SyncResult.Retryable
@@ -87,7 +81,7 @@ internal class MeasurementSyncProcessor(
     private sealed interface DestinationResult {
         data object Skipped : DestinationResult
         data class Attempted(val result: SyncResult) : DestinationResult
-        data class Deferred(val notBeforeEpochMillis: Long) : DestinationResult
+        data object Paused : DestinationResult
     }
 
     private companion object {

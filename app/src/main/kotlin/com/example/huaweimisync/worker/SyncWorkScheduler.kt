@@ -44,30 +44,31 @@ interface MeasurementSyncScheduler {
 
 class SyncWorkScheduler internal constructor(
     private val workManager: MeasurementSyncWorkManager,
-    private val pausedUntilProvider: () -> Long = { 0L },
+    private val isPaused: () -> Boolean = { false },
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) : MeasurementSyncScheduler {
     constructor(
         context: Context,
-        pausedUntilProvider: () -> Long = { 0L },
+        isPaused: () -> Boolean = { false },
         nowEpochMillis: () -> Long = System::currentTimeMillis,
     ) : this(
         workManager = AndroidMeasurementSyncWorkManager(WorkManager.getInstance(context)),
-        pausedUntilProvider = pausedUntilProvider,
+        isPaused = isPaused,
         nowEpochMillis = nowEpochMillis,
     )
 
     override fun enqueue(measurementId: String) {
-        enqueueUnique(measurementId, pausedUntilProvider(), ExistingWorkPolicy.KEEP)
+        if (!isPaused()) enqueueUnique(measurementId, 0L, ExistingWorkPolicy.KEEP)
     }
 
     override fun enqueueInitial(measurementId: String) {
+        if (isPaused()) return
         val now = nowEpochMillis()
         val work = OneTimeWorkRequestBuilder<MeasurementSyncKickoffWorker>()
             .setInputData(MeasurementSyncKickoffWorker.inputData(measurementId))
             .setInitialDelay(
                 initialDelayMillis(
-                    effectiveNotBeforeEpochMillis(now + INITIAL_SYNC_DELAY_MILLIS, pausedUntilProvider()),
+                    now + INITIAL_SYNC_DELAY_MILLIS,
                     now,
                 ),
                 TimeUnit.MILLISECONDS,
@@ -81,34 +82,38 @@ class SyncWorkScheduler internal constructor(
     }
 
     override fun enqueueImmediately(measurementId: String) {
+        if (isPaused()) return
         workManager.cancelUniqueWork(kickoffWorkName(measurementId))
         enqueueUnique(
             measurementId,
-            pausedUntilProvider(),
+            0L,
             ExistingWorkPolicy.KEEP,
         )
     }
 
     override fun enqueue(measurementId: String, notBeforeEpochMillis: Long) {
+        if (isPaused()) return
         enqueueUnique(
             measurementId,
-            effectiveNotBeforeEpochMillis(notBeforeEpochMillis, pausedUntilProvider()),
+            notBeforeEpochMillis,
             ExistingWorkPolicy.KEEP,
         )
     }
 
     override fun reschedule(measurementId: String, notBeforeEpochMillis: Long) {
+        if (isPaused()) return
         enqueueUnique(
             measurementId,
-            effectiveNotBeforeEpochMillis(notBeforeEpochMillis, pausedUntilProvider()),
+            notBeforeEpochMillis,
             ExistingWorkPolicy.REPLACE,
         )
     }
 
     override fun deferCurrent(measurementId: String, notBeforeEpochMillis: Long) {
+        if (isPaused()) return
         enqueueUnique(
             measurementId,
-            effectiveNotBeforeEpochMillis(notBeforeEpochMillis, pausedUntilProvider()),
+            notBeforeEpochMillis,
             ExistingWorkPolicy.APPEND_OR_REPLACE,
         )
     }
@@ -172,8 +177,3 @@ private class AndroidMeasurementSyncWorkManager(
 
 internal fun initialDelayMillis(notBeforeEpochMillis: Long, nowEpochMillis: Long): Long =
     max(0L, notBeforeEpochMillis - nowEpochMillis)
-
-internal fun effectiveNotBeforeEpochMillis(
-    requestedEpochMillis: Long,
-    pausedUntilEpochMillis: Long,
-): Long = max(requestedEpochMillis, pausedUntilEpochMillis)

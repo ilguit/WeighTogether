@@ -3,6 +3,7 @@ package com.example.huaweimisync.worker
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SyncWorkSchedulerTest {
@@ -18,17 +19,11 @@ class SyncWorkSchedulerTest {
     }
 
     @Test
-    fun globalPauseCannotBeBypassedByAnEarlierRequestedDeadline() {
-        assertEquals(400_000L, effectiveNotBeforeEpochMillis(200_000L, 400_000L))
-        assertEquals(500_000L, effectiveNotBeforeEpochMillis(500_000L, 400_000L))
-    }
-
-    @Test
     fun initialEnqueueKeepsExistingWorkAndWaitsSixtySecondsFromScheduling() {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(
             workManager = workManager,
-            pausedUntilProvider = { 120_000L },
+            isPaused = { false },
             nowEpochMillis = { 100_000L },
         )
 
@@ -45,11 +40,11 @@ class SyncWorkSchedulerTest {
     }
 
     @Test
-    fun immediateEnqueueCancelsKickoffAndKeepsActualWorkWhileHonoringGlobalPause() {
+    fun immediateEnqueueCancelsKickoffAndKeepsActualWork() {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(
             workManager = workManager,
-            pausedUntilProvider = { 130_000L },
+            isPaused = { false },
             nowEpochMillis = { 100_000L },
         )
 
@@ -58,7 +53,7 @@ class SyncWorkSchedulerTest {
         val enqueued = workManager.singleEnqueued()
         assertEquals("sync-measurement-retry", enqueued.uniqueWorkName)
         assertEquals(ExistingWorkPolicy.KEEP, enqueued.policy)
-        assertEquals(30_000L, enqueued.work.workSpec.initialDelay)
+        assertEquals(0L, enqueued.work.workSpec.initialDelay)
         assertEquals(listOf("sync-kickoff-measurement-retry"), workManager.cancelled)
     }
 
@@ -67,7 +62,7 @@ class SyncWorkSchedulerTest {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(
             workManager = workManager,
-            pausedUntilProvider = { 500_000L },
+            isPaused = { false },
             nowEpochMillis = { 100_000L },
         )
 
@@ -80,7 +75,7 @@ class SyncWorkSchedulerTest {
             "measurement-1",
             enqueued.work.workSpec.input.getString("measurement_id"),
         )
-        assertEquals(400_000L, enqueued.work.workSpec.initialDelay)
+        assertEquals(300_000L, enqueued.work.workSpec.initialDelay)
     }
 
     @Test
@@ -88,7 +83,7 @@ class SyncWorkSchedulerTest {
         val workManager = RecordingMeasurementSyncWorkManager()
         val scheduler = SyncWorkScheduler(
             workManager = workManager,
-            pausedUntilProvider = { 400_000L },
+            isPaused = { false },
             nowEpochMillis = { 100_000L },
         )
 
@@ -115,6 +110,22 @@ class SyncWorkSchedulerTest {
             listOf("sync-kickoff-measurement-3", "sync-measurement-3"),
             workManager.cancelled,
         )
+    }
+
+    @Test
+    fun pausedSchedulerDoesNotEnqueueDeferOrReschedule() {
+        val workManager = RecordingMeasurementSyncWorkManager()
+        val scheduler = SyncWorkScheduler(workManager, isPaused = { true })
+
+        scheduler.enqueue("one")
+        scheduler.enqueueInitial("two")
+        scheduler.enqueueImmediately("three")
+        scheduler.enqueue("four", 10L)
+        scheduler.deferCurrent("five", 10L)
+        scheduler.reschedule("six", 10L)
+
+        assertTrue(workManager.enqueued.isEmpty())
+        assertTrue(workManager.cancelled.isEmpty())
     }
 }
 

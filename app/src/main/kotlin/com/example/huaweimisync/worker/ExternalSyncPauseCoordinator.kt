@@ -5,10 +5,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
 sealed interface ExternalSyncPauseTransition {
-    data class Paused(
-        @Deprecated("Persistent pause no longer has a deadline")
-        val pausedUntilEpochMillis: Long = Long.MAX_VALUE,
-    ) : ExternalSyncPauseTransition
+    data object Paused : ExternalSyncPauseTransition
 
     data object Resumed : ExternalSyncPauseTransition
 }
@@ -17,8 +14,6 @@ class ExternalSyncPauseCoordinator(
     private val settings: ExternalSyncPauseSettingsStore,
     private val currentSyncIds: suspend () -> List<String>,
     private val scheduler: MeasurementSyncScheduler,
-    @Suppress("UNUSED_PARAMETER")
-    private val nowEpochMillis: () -> Long = System::currentTimeMillis,
     private val operations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
 ) {
     private val transitionMutex = Mutex()
@@ -29,7 +24,7 @@ class ExternalSyncPauseCoordinator(
             ExternalSyncPauseTransition.Resumed
         } else {
             pauseLocked()
-            ExternalSyncPauseTransition.Paused()
+            ExternalSyncPauseTransition.Paused
         }
     }
 
@@ -37,17 +32,12 @@ class ExternalSyncPauseCoordinator(
         pauseLocked()
     }
 
-    @Deprecated("Use pause")
-    suspend fun pauseForFiveMinutes(): Long {
-        pause()
-        return Long.MAX_VALUE
-    }
-
     suspend fun resume() = transitionMutex.withLock {
         resumeLocked()
     }
 
     private suspend fun pauseLocked() {
+        // Persist first so workers already queued for the serializer observe the gate when they run.
         settings.setExternalSyncPaused(true)
         operations.runExclusive {
             scheduler.cancelAll(currentSyncIds())

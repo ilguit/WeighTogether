@@ -1,6 +1,9 @@
 package com.example.huaweimisync.worker
 
 import com.example.huaweimisync.data.ExternalSyncPauseSettingsStore
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -38,6 +41,23 @@ class ExternalSyncPauseCoordinatorTest {
 
         assertFalse(settings.externalSyncPaused)
         assertEquals(listOf("first" to 0L, "second" to 0L), scheduler.rescheduled)
+    }
+
+    @Test
+    fun concurrentTogglesAreSerializedWithoutLosingTransitions() = runBlocking {
+        val settings = FakePauseSettings()
+        val scheduler = RecordingScheduler()
+        val coordinator = ExternalSyncPauseCoordinator(
+            settings = settings,
+            currentSyncIds = { listOf("only") },
+            scheduler = scheduler,
+        )
+
+        List(20) { async(Dispatchers.Default) { coordinator.toggle() } }.awaitAll()
+
+        assertFalse(settings.externalSyncPaused)
+        assertEquals(10, scheduler.cancelled.size)
+        assertEquals(10, scheduler.rescheduled.size)
     }
 }
 

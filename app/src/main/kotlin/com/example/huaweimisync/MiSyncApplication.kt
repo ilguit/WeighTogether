@@ -58,7 +58,7 @@ class AppContainer(application: Application) {
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(
         context = application,
-        pausedUntilProvider = { profileStore.externalSyncPausedUntilEpochMillis },
+        isPaused = { profileStore.externalSyncPaused },
     )
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val petMeasurementIngestionGate = PetMeasurementIngestionGate()

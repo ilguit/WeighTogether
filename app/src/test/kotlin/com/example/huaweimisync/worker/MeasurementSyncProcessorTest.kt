@@ -229,14 +229,11 @@ class MeasurementSyncProcessorTest {
 
     @Test
     fun activePauseDefersBeforeFirstGatewayWithoutUpdatingStatus() = runBlocking {
-        val store = FakeSyncStore(measurement()).also {
-            it.nowEpochMillis = 1_000L
-            it.pausedUntilEpochMillis = 301_000L
-        }
+        val store = FakeSyncStore(measurement()).also { it.paused = true }
 
         val outcome = store.processor().sync(ID)
 
-        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(MeasurementSyncOutcome.Paused, outcome)
         assertEquals(1, store.loadCount)
         assertTrue(store.externalWrites.isEmpty())
         assertTrue(store.statusUpdates.isEmpty())
@@ -244,7 +241,7 @@ class MeasurementSyncProcessorTest {
 
     @Test
     fun pauseStartingBetweenGatewaysDefersSecondGateway() = runBlocking {
-        val store = FakeSyncStore(measurement()).also { it.nowEpochMillis = 1_000L }
+        val store = FakeSyncStore(measurement())
         val operations = ExternalSyncOperationSerializer()
         val huaweiCompleted = CompletableDeferred<Unit>()
         val pausePersisted = CompletableDeferred<Unit>()
@@ -253,19 +250,17 @@ class MeasurementSyncProcessorTest {
             pausePersisted.await()
         }
         val settings = object : ExternalSyncPauseSettingsStore {
-            override val externalSyncPausedUntilEpochMillis: Long
-                get() = store.pausedUntilEpochMillis
+            override val externalSyncPaused: Boolean get() = store.paused
 
-            override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
-                store.pausedUntilEpochMillis = value
-                if (value > 0L) pausePersisted.complete(Unit)
+            override fun setExternalSyncPaused(value: Boolean) {
+                store.paused = value
+                if (value) pausePersisted.complete(Unit)
             }
         }
         val coordinator = ExternalSyncPauseCoordinator(
             settings = settings,
             currentSyncIds = { listOf(ID) },
             scheduler = NoOpSyncScheduler,
-            nowEpochMillis = { store.nowEpochMillis },
             operations = operations,
         )
 
@@ -274,13 +269,13 @@ class MeasurementSyncProcessorTest {
         }
         huaweiCompleted.await()
         val pause = async(start = CoroutineStart.UNDISPATCHED) {
-            coordinator.pauseForFiveMinutes()
+            coordinator.pause()
         }
 
         val outcome = worker.await()
         pause.await()
 
-        assertEquals(MeasurementSyncOutcome.Deferred(301_000L), outcome)
+        assertEquals(MeasurementSyncOutcome.Paused, outcome)
         assertEquals(listOf("huawei"), store.externalWrites)
         assertEquals(listOf("huawei"), store.statusUpdates.map { it.first })
     }
@@ -293,43 +288,39 @@ class MeasurementSyncProcessorTest {
             val currentWorker = async(start = CoroutineStart.UNDISPATCHED) {
                 operations.runExclusive { releaseCurrentWorker.await() }
             }
-            val stores = List(3) {
-                FakeSyncStore(measurement()).also { store -> store.nowEpochMillis = 1_000L }
-            }
+            val stores = List(3) { FakeSyncStore(measurement()) }
             val waitingWorkers = stores.map { store ->
                 async(start = CoroutineStart.UNDISPATCHED) {
                     operations.runExclusive { store.processor().sync(ID) }
                 }
             }
-            var pausedUntilEpochMillis = 0L
+            var paused = false
             val settings = object : ExternalSyncPauseSettingsStore {
-                override val externalSyncPausedUntilEpochMillis: Long
-                    get() = pausedUntilEpochMillis
+                override val externalSyncPaused: Boolean get() = paused
 
-                override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
-                    pausedUntilEpochMillis = value
-                    stores.forEach { it.pausedUntilEpochMillis = value }
+                override fun setExternalSyncPaused(value: Boolean) {
+                    paused = value
+                    stores.forEach { it.paused = value }
                 }
             }
             val coordinator = ExternalSyncPauseCoordinator(
                 settings = settings,
                 currentSyncIds = { listOf(ID) },
                 scheduler = NoOpSyncScheduler,
-                nowEpochMillis = { 1_000L },
                 operations = operations,
             )
 
             val pause = async(start = CoroutineStart.UNDISPATCHED) {
-                coordinator.pauseForFiveMinutes()
+                coordinator.pause()
             }
-            assertEquals(301_000L, pausedUntilEpochMillis)
+            assertTrue(paused)
 
             releaseCurrentWorker.complete(Unit)
             currentWorker.await()
             val outcomes = waitingWorkers.map { it.await() }
             pause.await()
 
-            assertEquals(List(3) { MeasurementSyncOutcome.Deferred(301_000L) }, outcomes)
+            assertEquals(List(3) { MeasurementSyncOutcome.Paused }, outcomes)
             stores.forEach { store ->
                 assertTrue(store.externalWrites.isEmpty())
                 assertTrue(store.statusUpdates.isEmpty())
@@ -386,8 +377,7 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
     var afterHuaweiResultApplied: suspend () -> Unit = {}
     var eligible: Boolean = true
     var eligibilityChecks: Int = 0
-    var pausedUntilEpochMillis: Long = 0L
-    var nowEpochMillis: Long = 0L
+    var paused: Boolean = false
     val externalWrites = mutableListOf<String>()
     val payloads = mutableListOf<Pair<String, MeasurementSyncPayload>>()
     val statusUpdates = mutableListOf<Pair<String, SyncResult>>()
@@ -443,8 +433,7 @@ private class FakeSyncStore(initialValue: MeasurementEntity?) {
                 )
             }
         },
-        pausedUntilProvider = { pausedUntilEpochMillis },
-        nowEpochMillis = { nowEpochMillis },
+        isPaused = { paused },
     )
 }
 

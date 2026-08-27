@@ -31,14 +31,13 @@ class MeasurementSyncWorker(
                 applyHealthConnectResult = { measurementId, payload, result ->
                     applyHealthConnectResult(dao, measurementId, payload, result)
                 },
-                pausedUntilProvider = {
-                    container.profileStore.externalSyncPausedUntilEpochMillis
-                },
+                isPaused = { container.profileStore.externalSyncPaused },
             ).sync(id)
 
             when (outcome) {
                 MeasurementSyncOutcome.Complete -> Result.success()
                 MeasurementSyncOutcome.Retry -> Result.retry()
+                MeasurementSyncOutcome.Paused -> Result.success()
                 is MeasurementSyncOutcome.Deferred -> {
                     // Append the deferred request while this worker still owns the operation
                     // serializer. Deletion-after-defer cancels the whole chain, while

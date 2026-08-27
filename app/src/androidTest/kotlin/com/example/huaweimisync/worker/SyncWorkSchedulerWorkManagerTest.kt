@@ -83,7 +83,7 @@ class SyncWorkSchedulerWorkManagerTest {
         val now = System.currentTimeMillis()
         val scheduler = SyncWorkScheduler(
             context = context,
-            pausedUntilProvider = { now + DEFER_MILLIS },
+            isPaused = { false },
             nowEpochMillis = { now },
         )
 
@@ -97,7 +97,7 @@ class SyncWorkSchedulerWorkManagerTest {
         assertEquals(WorkInfo.State.CANCELLED, waitForState(initial.id, WorkInfo.State.CANCELLED).state)
         val replacement = waitForUniqueWorkCount(actualWorkName, 1).single()
         assertEquals(WorkInfo.State.ENQUEUED, waitForState(replacement.id, WorkInfo.State.ENQUEUED).state)
-        assertEquals(DEFER_MILLIS, replacement.initialDelayMillis)
+        assertEquals(0L, replacement.initialDelayMillis)
     }
 
     private fun verifyImmediateRetryKeepsRunningActualWork() {
@@ -134,9 +134,9 @@ class SyncWorkSchedulerWorkManagerTest {
         val deadline = now + DEFER_MILLIS
         SyncWorkScheduler(
             context = context,
-            pausedUntilProvider = { deadline },
+            isPaused = { false },
             nowEpochMillis = { now },
-        ).deferCurrent(measurementId, deadline - 1_000L)
+        ).deferCurrent(measurementId, deadline)
         val successor = waitForUniqueWorkCount(uniqueWorkName, 2)
             .single { it.id != current.id }
 
@@ -168,7 +168,7 @@ class SyncWorkSchedulerWorkManagerTest {
         val deadline = now + DEFER_MILLIS
         SyncWorkScheduler(
             context = context,
-            pausedUntilProvider = { deadline },
+            isPaused = { false },
             nowEpochMillis = { now },
         ).reschedule(measurementId, deadline)
 

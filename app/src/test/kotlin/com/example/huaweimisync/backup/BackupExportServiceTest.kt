@@ -61,7 +61,7 @@ class BackupExportServiceTest {
             scaleName = "Scale",
             reliabilityMode = true,
             selectedChartMetricKeys = keys,
-            externalSyncPausedUntilEpochMillis = Long.MAX_VALUE,
+            externalSyncPaused = true,
         )
 
         val snapshot = settings.toPortableSnapshot()

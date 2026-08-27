@@ -278,14 +278,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
     private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
     private val externalSyncPaused = container.profileStore.settings
-        .externalSyncPausedState()
+        .map { it.externalSyncPaused }
+        .distinctUntilChanged()
         .stateIn(
             viewModelScope,
             SharingStarted.Eagerly,
-            isExternalSyncPaused(
-                container.profileStore.externalSyncPausedUntilEpochMillis,
-                System.currentTimeMillis(),
-            ),
+            container.profileStore.externalSyncPaused,
         )
 
     val events = eventEmitter.events
@@ -1642,33 +1640,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 }
 
 internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =
-    "Внешняя синхронизация приостановлена на 5 минут"
+    "Внешняя синхронизация приостановлена"
 internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "Внешняя синхронизация возобновлена"
 
 internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
     is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
     ExternalSyncPauseTransition.Resumed -> EXTERNAL_SYNC_RESUMED_MESSAGE
 }
-
-internal fun isExternalSyncPaused(pausedUntilEpochMillis: Long, nowEpochMillis: Long): Boolean =
-    pausedUntilEpochMillis > nowEpochMillis
-
-/** Emits again at the persisted deadline and rechecks wall time after every wake-up. */
-@OptIn(ExperimentalCoroutinesApi::class)
-internal fun Flow<AppSettings>.externalSyncPausedState(
-    nowEpochMillis: () -> Long = System::currentTimeMillis,
-): Flow<Boolean> = flatMapLatest { settings ->
-    flow {
-        val deadline = settings.externalSyncPausedUntilEpochMillis
-        var paused = isExternalSyncPaused(deadline, nowEpochMillis())
-        emit(paused)
-        while (paused) {
-            delay((deadline - nowEpochMillis()).coerceAtLeast(1L))
-            paused = isExternalSyncPaused(deadline, nowEpochMillis())
-        }
-        if (deadline > 0L) emit(false)
-    }
-}.distinctUntilChanged()
 
 internal fun resolverIgnoreUnknownPolicySelection(
     decision: RoutingDecision,

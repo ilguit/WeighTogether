@@ -450,18 +450,20 @@ class MeasurementRepositoryTest {
             settings = FakePauseSettings(),
             currentSyncIds = dao::idsNeedingSync,
             scheduler = scheduler,
-            nowEpochMillis = { 1_000L },
             operations = operations,
         )
 
-        pause.pauseForFiveMinutes()
+        pause.pause()
         repository.delete("delete-one")
         repository.delete("delete-two")
         scheduler.rescheduled.clear()
         pause.resume()
 
         assertEquals(setOf("keep"), dao.values.keys)
-        assertEquals(listOf("delete-one", "delete-two"), scheduler.cancelled)
+        assertEquals(
+            listOf("delete-one", "keep", "delete-two", "delete-one", "delete-two"),
+            scheduler.cancelled,
+        )
         assertEquals(listOf("keep" to 0L), scheduler.rescheduled)
     }
 
@@ -478,7 +480,7 @@ class MeasurementRepositoryTest {
         val idsReadStarted = CompletableDeferred<Unit>()
         val allowIdsRead = CompletableDeferred<Unit>()
         val pause = ExternalSyncPauseCoordinator(
-            settings = FakePauseSettings(301_000L),
+            settings = FakePauseSettings(true),
             currentSyncIds = {
                 idsReadStarted.complete(Unit)
                 allowIdsRead.await()
@@ -793,14 +795,13 @@ private class FakeSyncScheduler(
 }
 
 private class FakePauseSettings(
-    initialPausedUntilEpochMillis: Long = 0L,
+    initialPaused: Boolean = false,
 ) : ExternalSyncPauseSettingsStore {
-    private var pausedUntilEpochMillis = initialPausedUntilEpochMillis
-    override val externalSyncPausedUntilEpochMillis: Long
-        get() = pausedUntilEpochMillis
+    private var paused = initialPaused
+    override val externalSyncPaused: Boolean get() = paused
 
-    override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
-        pausedUntilEpochMillis = value
+    override fun setExternalSyncPaused(value: Boolean) {
+        paused = value
     }
 }
 
