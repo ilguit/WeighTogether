@@ -504,7 +504,12 @@ internal fun HuaweiMiSyncScaffold(
 
                     changelogOpen -> ChangelogScreen(contentPadding = padding)
 
-                    currentSection == AppSection.SETTINGS -> Column {
+                    currentSection == AppSection.SETTINGS -> Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .consumeWindowInsets(padding),
+                    ) {
                         profileSelection?.let { selection ->
                             ProfileSelector(
                                 state = selection,
@@ -516,9 +521,9 @@ internal fun HuaweiMiSyncScaffold(
                             )
                         }
                         SettingsScreen(
-                        state = state,
-                        callbacks = settingsCallbacks,
-                        contentPadding = padding,
+                            state = state,
+                            callbacks = settingsCallbacks,
+                            contentPadding = PaddingValues(),
                         )
                     }
 
@@ -543,7 +548,12 @@ internal fun HuaweiMiSyncScaffold(
                                 )
                             },
                         ) {
-                            Column {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(padding)
+                                    .consumeWindowInsets(padding),
+                            ) {
                                 profileSelection?.let { selection ->
                                     ProfileSelector(
                                         state = selection,
@@ -554,14 +564,19 @@ internal fun HuaweiMiSyncScaffold(
                                         ),
                                     )
                                 }
-                                Box(Modifier.weight(1f)) { measurementsContent(padding) }
+                                Box(Modifier.weight(1f)) { measurementsContent(PaddingValues()) }
                             }
                         }
                     }
 
                     currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding)
 
-                    else -> Column {
+                    else -> Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(padding)
+                            .consumeWindowInsets(padding),
+                    ) {
                         profileSelection?.let { selection ->
                             ProfileSelector(
                                 state = selection,
@@ -572,7 +587,7 @@ internal fun HuaweiMiSyncScaffold(
                                 ),
                             )
                         }
-                        Box(Modifier.weight(1f)) { chartsContent(padding) }
+                        Box(Modifier.weight(1f)) { chartsContent(PaddingValues()) }
                     }
                 }
             }
