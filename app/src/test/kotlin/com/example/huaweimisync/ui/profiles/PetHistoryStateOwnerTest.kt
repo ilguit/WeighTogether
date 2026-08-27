@@ -387,6 +387,82 @@ class PetHistoryStateOwnerTest {
         scope.cancel()
     }
 
+    @Test
+    fun `closing repeated owners stops upstream collections without cancelling parent`() = runBlocking {
+        var activeCollections = 0
+        var cancellations = 0
+        val parentJob = SupervisorJob()
+        val scope = CoroutineScope(parentJob + Dispatchers.Unconfined)
+
+        repeat(3) { index ->
+            val cancelled = CompletableDeferred<Unit>()
+            val instrumentedHistory = flow<List<PetMeasurement>> {
+                activeCollections += 1
+                try {
+                    emit(emptyList())
+                    awaitCancellation()
+                } finally {
+                    activeCollections -= 1
+                    cancellations += 1
+                    cancelled.complete(Unit)
+                }
+            }
+            val owner = PetHistoryStateOwner(
+                luna.id,
+                FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to instrumentedHistory)),
+                scope,
+                clock,
+                zone,
+                Locale.US,
+            )
+            val collector = launch { owner.uiState.collect() }
+            yield()
+            assertEquals(1, activeCollections)
+
+            owner.close()
+            owner.close()
+            cancelled.await()
+
+            assertEquals(0, activeCollections)
+            assertEquals(index + 1, cancellations)
+            assertTrue(parentJob.isActive)
+            collector.cancelAndJoin()
+        }
+
+        parentJob.cancel()
+    }
+
+    @Test
+    fun `parent cancellation stops owner upstream collection`() = runBlocking {
+        val cancelled = CompletableDeferred<Unit>()
+        val instrumentedHistory = flow<List<PetMeasurement>> {
+            try {
+                emit(emptyList())
+                awaitCancellation()
+            } finally {
+                cancelled.complete(Unit)
+            }
+        }
+        val parentJob = SupervisorJob()
+        val scope = CoroutineScope(parentJob + Dispatchers.Unconfined)
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to instrumentedHistory)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = launch { owner.uiState.collect() }
+        yield()
+
+        parentJob.cancel()
+        cancelled.await()
+
+        assertFalse(parentJob.isActive)
+        collector.cancelAndJoin()
+    }
+
     private fun testScope(): CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
 
     private fun pet(id: String, name: String) = Pet(

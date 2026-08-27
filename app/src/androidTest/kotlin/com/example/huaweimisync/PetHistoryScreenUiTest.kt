@@ -14,6 +14,8 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.example.huaweimisync.charts.ChartRangePreset
 import com.example.huaweimisync.charts.ChartSeries
+import com.example.huaweimisync.charts.ChartPoint
+import com.example.huaweimisync.charts.MetricChartTestTags
 import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.ui.profiles.PetHistoryCallbacks
@@ -56,6 +58,36 @@ class PetHistoryScreenUiTest {
         setScreen(state(PetHistoryContent.Multiple(listOf(first, second))))
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("two")).assertIsDisplayed()
+    }
+
+    @Test fun chartAppearsWhenSingletonHistoryReceivesSecondDistinctMeasurement() {
+        val first = row("one")
+        val second = row("two")
+        var screenState by mutableStateOf(
+            state(PetHistoryContent.Single(first)).copy(
+                series = ChartSeries(PetWeightChartMetric, listOf(ChartPoint(1_000L, 4.2))),
+            ),
+        )
+        composeRule.setContent {
+            PetProfileScreen(screenState, callbacks(), PaddingValues()) {}
+        }
+
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
+        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertIsDisplayed()
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            screenState = state(PetHistoryContent.Multiple(listOf(first, second))).copy(
+                series = ChartSeries(
+                    PetWeightChartMetric,
+                    listOf(ChartPoint(1_000L, 4.2), ChartPoint(2_000L, 4.3)),
+                ),
+            )
+        }
+
+        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertDoesNotExist()
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
     }
 
     @Test fun deleteActionOpensDialogForExactRowAndCancelDoesNotConfirm() {

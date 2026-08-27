@@ -172,7 +172,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = PetHistoryStateOwner(
         initialPetId = petId,
         repository = container.pets,
-        scope = viewModelScope,
+        parentScope = viewModelScope,
     )
     private val huaweiAuthorization = HuaweiAuthorizationController(
         gateway = container.huaweiHealth,

@@ -32,6 +32,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -239,6 +240,9 @@ fun HuaweiMiSyncApp(
     val selectedPetId = (profileNavigation.destination as? ProfileDestination.PetShell)?.petId
     val petHistoryOwner = selectedPetId?.let { petId ->
         remember(petId) { viewModel.petHistoryStateOwner(petId) }
+    }
+    DisposableEffect(petHistoryOwner) {
+        onDispose { petHistoryOwner?.close() }
     }
     val petHistoryState = petHistoryOwner?.uiState?.collectAsStateWithLifecycle()?.value
     MainUiEventHandler(

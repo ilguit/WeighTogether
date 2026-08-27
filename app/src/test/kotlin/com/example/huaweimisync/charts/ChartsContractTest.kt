@@ -8,6 +8,7 @@ import java.time.ZoneOffset
 import java.util.Locale
 import java.util.TimeZone
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -276,8 +277,14 @@ class ChartsContractTest {
         )
 
         assertEquals(listOf(1L, 4L, 66L), ordered.map { it.measuredAtEpochSecond })
-        assertEquals(3_000L, ordered[1].xEpochMillis - ordered[0].xEpochMillis)
-        assertEquals(62_000L, ordered[2].xEpochMillis - ordered[1].xEpochMillis)
+        assertEquals(
+            3_000L,
+            requireNotNull(ordered[1].xEpochMillis) - requireNotNull(ordered[0].xEpochMillis),
+        )
+        assertEquals(
+            62_000L,
+            requireNotNull(ordered[2].xEpochMillis) - requireNotNull(ordered[1].xEpochMillis),
+        )
     }
 
     @Test
@@ -367,5 +374,44 @@ class ChartsContractTest {
         assertTrue(single.min < 70.0 && single.max > 70.0)
         assertEquals(-0.1, constant.min, 0.0001)
         assertEquals(0.1, constant.max, 0.0001)
+    }
+
+    @Test
+    fun `chart renderability requires two distinct timestamps`() {
+        assertFalse(isChartRenderable(emptyList()))
+        assertFalse(isChartRenderable(listOf(ChartPoint(1L, 70.0))))
+        assertFalse(isChartRenderable(listOf(ChartPoint(1L, 70.0), ChartPoint(1L, 71.0))))
+        assertTrue(isChartRenderable(listOf(ChartPoint(1L, 70.0), ChartPoint(2L, 71.0))))
+    }
+
+    @Test
+    fun `chart renderability rejects epoch seconds outside millisecond range`() {
+        val maximumSafeEpochSecond = Long.MAX_VALUE / 1_000L
+        val minimumSafeEpochSecond = Long.MIN_VALUE / 1_000L
+
+        assertTrue(
+            isChartRenderable(
+                listOf(
+                    ChartPoint(minimumSafeEpochSecond, 70.0),
+                    ChartPoint(maximumSafeEpochSecond, 71.0),
+                ),
+            ),
+        )
+        assertFalse(
+            isChartRenderable(
+                listOf(
+                    ChartPoint(1L, 70.0),
+                    ChartPoint(maximumSafeEpochSecond + 1L, 71.0),
+                ),
+            ),
+        )
+        assertFalse(
+            isChartRenderable(
+                listOf(
+                    ChartPoint(minimumSafeEpochSecond - 1L, 70.0),
+                    ChartPoint(1L, 71.0),
+                ),
+            ),
+        )
     }
 }
