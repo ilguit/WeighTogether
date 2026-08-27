@@ -1,0 +1,5 @@
+issue: 51
+userVisible: true
+text: Пауза внешней синхронизации теперь сохраняется до явного возобновления
+flavors:
+  - personal

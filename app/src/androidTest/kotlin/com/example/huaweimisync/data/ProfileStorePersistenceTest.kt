@@ -21,13 +21,35 @@ class ProfileStorePersistenceTest {
     }
 
     @Test
-    fun pauseDeadlineSurvivesStoreRecreationAndResumeRemovesIt() {
-        ProfileStore(context).setExternalSyncPausedUntilEpochMillis(123_456L)
+    fun pauseBooleanSurvivesStoreRecreationAndResumePersists() {
+        ProfileStore(context).setExternalSyncPaused(true)
 
-        assertEquals(123_456L, ProfileStore(context).settings.value.externalSyncPausedUntilEpochMillis)
+        assertEquals(true, ProfileStore(context).settings.value.externalSyncPaused)
 
-        ProfileStore(context).setExternalSyncPausedUntilEpochMillis(0L)
-        assertEquals(0L, ProfileStore(context).settings.value.externalSyncPausedUntilEpochMillis)
+        ProfileStore(context).setExternalSyncPaused(false)
+        assertEquals(false, ProfileStore(context).settings.value.externalSyncPaused)
+    }
+
+    @Test
+    fun futureLegacyDeadlineMigratesToPersistentPauseAcrossRestart() {
+        preferences().edit()
+            .putLong("external_sync_paused_until_epoch_millis", 123_456L)
+            .commit()
+
+        assertEquals(true, ProfileStore(context, nowEpochMillis = { 100_000L }).externalSyncPaused)
+        assertEquals(true, ProfileStore(context, nowEpochMillis = { 999_999L }).externalSyncPaused)
+        assertEquals(false, preferences().contains("external_sync_paused_until_epoch_millis"))
+    }
+
+    @Test
+    fun expiredLegacyDeadlineMigratesToResumedAcrossRestart() {
+        preferences().edit()
+            .putLong("external_sync_paused_until_epoch_millis", 123_456L)
+            .commit()
+
+        assertEquals(false, ProfileStore(context, nowEpochMillis = { 123_456L }).externalSyncPaused)
+        assertEquals(false, ProfileStore(context, nowEpochMillis = { 1L }).externalSyncPaused)
+        assertEquals(false, preferences().contains("external_sync_paused_until_epoch_millis"))
     }
 
     @Test
@@ -45,7 +67,7 @@ class ProfileStorePersistenceTest {
     @Test
     fun applyingPortableSettingsRefreshesFlowAndPreservesDeviceLocalPause() {
         val store = ProfileStore(context)
-        store.setExternalSyncPausedUntilEpochMillis(123_456L)
+        store.setExternalSyncPaused(true)
 
         store.applyPortableSettings(
             PortableProfileSettings(
@@ -62,6 +84,10 @@ class ProfileStorePersistenceTest {
         assertEquals(true, store.settings.value.reliabilityMode)
         assertEquals(emptySet<String>(), store.settings.value.selectedChartMetricKeys)
         assertEquals(setOf("weight_kg"), store.settings.value.homeKgChartSeriesKeys)
-        assertEquals(123_456L, store.settings.value.externalSyncPausedUntilEpochMillis)
+        assertEquals(true, store.settings.value.externalSyncPaused)
+        assertEquals(true, ProfileStore(context).externalSyncPaused)
     }
+
+    private fun preferences() =
+        context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
 }

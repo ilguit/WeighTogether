@@ -13,7 +13,9 @@ data class AppSettings(
     val reliabilityMode: Boolean = false,
     val selectedChartMetricKeys: Set<String>? = null,
     val homeKgChartSeriesKeys: Set<String>? = null,
-    val externalSyncPausedUntilEpochMillis: Long = 0L,
+    val externalSyncPaused: Boolean = false,
+    @Deprecated("Use externalSyncPaused")
+    val externalSyncPausedUntilEpochMillis: Long = if (externalSyncPaused) Long.MAX_VALUE else 0L,
 )
 
 /** Settings that are meaningful when moved to another installation or device. */
@@ -39,14 +41,27 @@ fun AppSettings.toPortableSnapshot(): PortableProfileSettings = PortableProfileS
 )
 
 interface ExternalSyncPauseSettingsStore {
-    val externalSyncPausedUntilEpochMillis: Long
+    val externalSyncPaused: Boolean
+        get() = externalSyncPausedUntilEpochMillis > System.currentTimeMillis()
 
-    fun setExternalSyncPausedUntilEpochMillis(value: Long)
+    fun setExternalSyncPaused(value: Boolean) {
+        setExternalSyncPausedUntilEpochMillis(if (value) Long.MAX_VALUE else 0L)
+    }
+
+    @Deprecated("Use externalSyncPaused")
+    val externalSyncPausedUntilEpochMillis: Long
+        get() = if (externalSyncPaused) Long.MAX_VALUE else 0L
+
+    @Deprecated("Use setExternalSyncPaused")
+    fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+        setExternalSyncPaused(value > System.currentTimeMillis())
+    }
 }
 
 class ProfileStore(
     context: Context,
     private val portableOperations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
+    private val nowEpochMillis: () -> Long = System::currentTimeMillis,
 ) : ExternalSyncPauseSettingsStore {
     private val preferences = context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
     private val mutableSettings = MutableStateFlow(read())
@@ -123,18 +138,25 @@ class ProfileStore(
         }
     }
 
-    override val externalSyncPausedUntilEpochMillis: Long
-        get() = settings.value.externalSyncPausedUntilEpochMillis
+    override val externalSyncPaused: Boolean
+        get() = settings.value.externalSyncPaused
 
-    override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
-        preferences.edit {
-            if (value > 0L) {
-                putLong(KEY_EXTERNAL_SYNC_PAUSED_UNTIL, value)
-            } else {
-                remove(KEY_EXTERNAL_SYNC_PAUSED_UNTIL)
-            }
-        }
+    override fun setExternalSyncPaused(value: Boolean) {
+        val committed = preferences.edit()
+            .putBoolean(KEY_EXTERNAL_SYNC_PAUSED, value)
+            .remove(KEY_EXTERNAL_SYNC_PAUSED_UNTIL)
+            .commit()
+        check(committed) { "Could not durably commit external sync pause state" }
         refresh()
+    }
+
+    @Deprecated("Use externalSyncPaused")
+    override val externalSyncPausedUntilEpochMillis: Long
+        get() = if (externalSyncPaused) Long.MAX_VALUE else 0L
+
+    @Deprecated("Use setExternalSyncPaused")
+    override fun setExternalSyncPausedUntilEpochMillis(value: Long) {
+        setExternalSyncPaused(value > nowEpochMillis())
     }
 
     private fun refresh() {
@@ -150,6 +172,7 @@ class ProfileStore(
     }
 
     private fun read(): AppSettings {
+        val externalSyncPaused = readExternalSyncPaused()
         return AppSettings(
             scaleAddress = preferences.getString(KEY_SCALE_ADDRESS, null),
             scaleName = preferences.getString(KEY_SCALE_NAME, null),
@@ -160,11 +183,23 @@ class ProfileStore(
             homeKgChartSeriesKeys = preferences
                 .getStringSet(KEY_HOME_KG_CHART_SERIES, null)
                 ?.toSet(),
-            externalSyncPausedUntilEpochMillis = preferences.getLong(
-                KEY_EXTERNAL_SYNC_PAUSED_UNTIL,
-                0L,
-            ),
+            externalSyncPaused = externalSyncPaused,
         )
+    }
+
+    private fun readExternalSyncPaused(): Boolean {
+        if (preferences.contains(KEY_EXTERNAL_SYNC_PAUSED)) {
+            return preferences.getBoolean(KEY_EXTERNAL_SYNC_PAUSED, false)
+        }
+        if (!preferences.contains(KEY_EXTERNAL_SYNC_PAUSED_UNTIL)) return false
+
+        val migrated = preferences.getLong(KEY_EXTERNAL_SYNC_PAUSED_UNTIL, 0L) > nowEpochMillis()
+        val committed = preferences.edit()
+            .putBoolean(KEY_EXTERNAL_SYNC_PAUSED, migrated)
+            .remove(KEY_EXTERNAL_SYNC_PAUSED_UNTIL)
+            .commit()
+        check(committed) { "Could not durably migrate external sync pause state" }
+        return migrated
     }
 
     private companion object {
@@ -173,6 +208,7 @@ class ProfileStore(
         const val KEY_RELIABILITY = "reliability"
         const val KEY_SELECTED_CHART_METRICS = "selected_chart_metrics"
         const val KEY_HOME_KG_CHART_SERIES = "home_kg_chart_series"
+        const val KEY_EXTERNAL_SYNC_PAUSED = "external_sync_paused"
         const val KEY_EXTERNAL_SYNC_PAUSED_UNTIL = "external_sync_paused_until_epoch_millis"
     }
 }
