@@ -15,6 +15,7 @@ import com.example.huaweimisync.measurements.MeasurementsCallbacks
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.ui.profiles.ProfileSelectionUiState
 import com.example.huaweimisync.ui.profiles.ProfileSelectorTestTags
+import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -61,7 +62,10 @@ class ProfileSelectorShellPaddingUiTest {
         val contentTop = composeRule.onNodeWithTag(contentTag)
             .getUnclippedBoundsInRoot().top
 
-        assertEquals(selectorBottom, contentTop)
+        assertEquals(
+            HuaweiDimensions.CompactContentPadding,
+            contentTop - selectorBottom,
+        )
     }
 
     private fun setShell(
