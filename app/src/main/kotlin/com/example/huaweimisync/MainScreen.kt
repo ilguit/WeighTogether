@@ -44,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.huaweimisync.charts.ChartsScreen
@@ -125,6 +126,7 @@ internal object MainScreenTestTags {
     const val PendingQueueAction = "measurements-pending-queue-action"
     const val PendingQueueBadge = "measurements-pending-queue-badge"
     const val HistoryAction = "measurements-history-action"
+    const val PetMeasurementAction = "measurements-pet-measurement-action"
     const val ExternalSyncAction = "measurements-external-sync-action"
     const val PullToRefresh = "measurements-pull-to-refresh"
     const val PullToRefreshIndicator = "measurements-pull-to-refresh-indicator"
@@ -347,7 +349,6 @@ fun HuaweiMiSyncApp(
                     onPendingAssignRequested = viewModel::openResolverFromQueue,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
                     onPendingDeleteRequested = viewModel::deletePendingFromQueue,
-                    onPetMeasurementRequested = viewModel::openPetMeasurement,
                 ),
                 showAccountSelector = false,
                 modifier = Modifier
@@ -478,6 +479,9 @@ internal fun HuaweiMiSyncScaffold(
                             onPendingQueueRequested =
                                 measurementsCallbacks.onPendingQueueRequested,
                             onHistoryRequested = measurementsCallbacks.onHistoryRequested,
+                            petMeasurementEnabled = !state.scanning && !state.isRefreshing &&
+                                state.petMeasurement == PetMeasurementUiState.Idle,
+                            onPetMeasurementRequested = petMeasurementCallbacks.onOpen,
                             isExternalSyncPaused = state.isExternalSyncPaused,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
@@ -655,12 +659,20 @@ private fun HuaweiTopBar(
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
     onHistoryRequested: () -> Unit,
+    petMeasurementEnabled: Boolean,
+    onPetMeasurementRequested: () -> Unit,
     isExternalSyncPaused: Boolean,
     onToggleExternalSyncPause: () -> Unit,
 ) {
     TopAppBar(
         modifier = Modifier.testTag(MainScreenTestTags.TopBar),
-        title = { Text(title) },
+        title = {
+            Text(
+                text = title,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
         navigationIcon = {
             if (showBack) {
                 HuaweiIconButton(
@@ -681,6 +693,13 @@ private fun HuaweiTopBar(
                     contentDescription = "Открыть историю измерений",
                     onClick = onHistoryRequested,
                     modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
+                )
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Dog,
+                    contentDescription = "Взвесить питомца",
+                    onClick = onPetMeasurementRequested,
+                    modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
+                    enabled = petMeasurementEnabled,
                 )
                 HuaweiIconButton(
                     icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
