@@ -8,10 +8,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.ui.components.HuaweiFilterButton
+import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 
 object ProfileSelectorTestTags {
@@ -47,6 +50,7 @@ fun ProfileSelector(
                 }
                 HuaweiFilterButton(
                     text = profile.displayName,
+                    icon = profile.selectorIcon(),
                     selected = profile.key == state.selectedKey,
                     onClick = { onProfileSelected(profile.key) },
                     modifier = Modifier.testTag(tag).semantics {
@@ -63,6 +67,15 @@ fun ProfileSelector(
                 modifier = Modifier.testTag(ProfileSelectorTestTags.Fallback),
             )
         }
+    }
+}
+
+internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {
+    is ProfilePresentation.Human -> HuaweiIcons.Profile
+    is ProfilePresentation.Pet -> when (petWithLatestWeight.pet.species) {
+        PetSpecies.CAT -> HuaweiIcons.Cat
+        PetSpecies.DOG -> HuaweiIcons.Dog
+        PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
     }
 }
 

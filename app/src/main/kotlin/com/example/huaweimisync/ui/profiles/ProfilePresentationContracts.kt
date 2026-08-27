@@ -118,13 +118,13 @@ fun reconcileProfileSelection(
 }
 
 private val profilePresentationComparator =
-    compareBy<ProfilePresentation> { it.displayName.lowercase(Locale.ROOT) }
-        .thenBy {
-            when (it) {
-                is ProfilePresentation.Human -> 0
-                is ProfilePresentation.Pet -> 1
-            }
+    compareBy<ProfilePresentation> {
+        when (it) {
+            is ProfilePresentation.Human -> 0
+            is ProfilePresentation.Pet -> 1
         }
+    }
+        .thenBy { it.displayName.lowercase(Locale.ROOT) }
         .thenBy {
             when (val key = it.key) {
                 is ProfileKey.Human -> key.accountId.value

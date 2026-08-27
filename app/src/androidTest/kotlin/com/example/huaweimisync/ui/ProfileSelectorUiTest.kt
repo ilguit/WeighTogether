@@ -11,12 +11,16 @@ import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.Pet
 import com.example.huaweimisync.domain.PetId
+import com.example.huaweimisync.domain.PetSpecies
 import com.example.huaweimisync.domain.PetWithLatestWeight
+import com.example.huaweimisync.ui.icons.HuaweiIcons
 import com.example.huaweimisync.ui.profiles.ProfileKey
+import com.example.huaweimisync.ui.profiles.ProfilePresentation
 import com.example.huaweimisync.ui.profiles.ProfileSelector
 import com.example.huaweimisync.ui.profiles.ProfileSelectorTestTags
 import com.example.huaweimisync.ui.profiles.buildProfilePresentations
 import com.example.huaweimisync.ui.profiles.reconcileProfileSelection
+import com.example.huaweimisync.ui.profiles.selectorIcon
 import com.example.huaweimisync.ui.theme.HuaweiMiSyncTheme
 import java.time.Instant
 import java.time.LocalDate
@@ -51,6 +55,16 @@ class ProfileSelectorUiTest {
         composeRule.runOnIdle { assertEquals(ProfileKey.Pet(PetId("same")), selected) }
     }
 
+    @Test
+    fun petIconsFollowSpeciesAndUnspecifiedUsesSafeProfileFallback() {
+        assertEquals(HuaweiIcons.Cat, ProfilePresentation.Pet(pet("cat", PetSpecies.CAT)).selectorIcon())
+        assertEquals(HuaweiIcons.Dog, ProfilePresentation.Pet(pet("dog", PetSpecies.DOG)).selectorIcon())
+        assertEquals(
+            HuaweiIcons.Profile,
+            ProfilePresentation.Pet(pet("legacy", PetSpecies.UNSPECIFIED)).selectorIcon(),
+        )
+    }
+
     private fun account(id: String) = Account(
         id = AccountId(id),
         displayName = id,
@@ -59,8 +73,8 @@ class ProfileSelectorUiTest {
         updatedAt = NOW,
     )
 
-    private fun pet(id: String) = PetWithLatestWeight(
-        pet = Pet(PetId(id), id, createdAt = NOW, updatedAt = NOW),
+    private fun pet(id: String, species: PetSpecies = PetSpecies.CAT) = PetWithLatestWeight(
+        pet = Pet(PetId(id), id, species = species, createdAt = NOW, updatedAt = NOW),
         latestMeasurement = null,
     )
 
