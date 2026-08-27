@@ -534,16 +534,6 @@ internal fun HuaweiMiSyncScaffold(
                             .padding(padding)
                             .consumeWindowInsets(padding),
                     ) {
-                        profileSelection?.let { selection ->
-                            ProfileSelector(
-                                state = selection,
-                                onProfileSelected = onProfileSelected,
-                                modifier = Modifier.padding(
-                                    horizontal = HuaweiDimensions.ContentPadding,
-                                    vertical = HuaweiDimensions.CompactContentPadding,
-                                ),
-                            )
-                        }
                         SettingsScreen(
                             state = state,
                             callbacks = settingsCallbacks,

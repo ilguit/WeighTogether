@@ -2,8 +2,10 @@ package com.example.huaweimisync.ui.profiles
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -38,9 +40,11 @@ fun ProfileSelector(
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Text("Профиль", style = MaterialTheme.typography.labelLarge)
-        FlowRow(
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
             state.profiles.forEach { profile ->
                 val kind = if (profile is ProfilePresentation.Human) "человек" else "питомец"

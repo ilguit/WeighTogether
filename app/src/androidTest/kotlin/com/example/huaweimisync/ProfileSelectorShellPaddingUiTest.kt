@@ -41,10 +41,11 @@ class ProfileSelectorShellPaddingUiTest {
     }
 
     @Test
-    fun settingsContentStartsImmediatelyAfterProfileSelector() {
+    fun settingsDoesNotShowProfileSelector() {
         setShell(AppSection.SETTINGS)
 
-        assertContentStartsAfterSelector(SettingsScreenTestTags.List)
+        composeRule.onNodeWithTag(ProfileSelectorTestTags.Selector).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.List).assertExists()
     }
 
     @Test
