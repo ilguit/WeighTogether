@@ -15,6 +15,16 @@ class GitRepository(private val root: Path) {
     fun firstParentCommits(head: String, exclusiveBase: String? = null): List<GitCommit> {
         val range = exclusiveBase?.let { "$it..$head" } ?: head
         val output = git("log", "--first-parent", "--reverse", "--format=%H%x00%s", range)
+        return parseCommits(output)
+    }
+
+    fun commits(head: String, exclusiveBase: String? = null): List<GitCommit> {
+        val range = exclusiveBase?.let { "$it..$head" } ?: head
+        val output = git("log", "--reverse", "--format=%H%x00%s", range)
+        return parseCommits(output)
+    }
+
+    private fun parseCommits(output: String): List<GitCommit> {
         return output.lineSequence().filter { it.isNotEmpty() }.map { line ->
             val values = line.split('\u0000', limit = 2)
             GitCommit(values[0], values.getOrElse(1) { "" })

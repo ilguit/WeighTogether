@@ -519,6 +519,45 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `includes issue fragments introduced by merged branch commits`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "base", true, "Первое изменение")
+        git.commit("Base task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.branch("side")
+        git.file("README.md", "main")
+        git.commit("Prepare integration")
+        git.checkout("side")
+        git.fragment(2, "side", true, "Боковое изменение")
+        git.commit("Side task (#2)")
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side branch")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+    }
+
+    @Test
+    fun `allows technical carryover fragment changed after its released issue`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Изменение уже вошло в выпущенную версию")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+    }
+
+    @Test
     fun `rejects missing extra and conflicting fragments`() {
         val missing = TestGit(directory.resolve("missing"))
         missing.init()

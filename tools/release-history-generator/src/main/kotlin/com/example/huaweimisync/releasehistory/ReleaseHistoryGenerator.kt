@@ -140,7 +140,7 @@ class ReleaseHistoryGenerator(
 
     private fun inspectRange(point: ReleasePoint, exclusiveBase: String?, previousTag: ApkTag?): ReleaseRange {
         val issues = extractIssues(
-            repository.firstParentCommits(point.commitSha, exclusiveBase).asReversed().map { it.subject },
+            repository.commits(point.commitSha, exclusiveBase).asReversed().map { it.subject },
         )
         val fragments = repository.changedFragmentPaths(point.commitSha, exclusiveBase)
             .map { fragmentParser.parse(it, repository.readFile(point.commitSha, it)) }
@@ -152,7 +152,10 @@ class ReleaseHistoryGenerator(
             throw GenerationException("Release range $range has issue(s) without a changed fragment: " +
                 missing.joinToString { "#$it" } + "; add one fragment for each listed issue")
         }
-        val extra = fragmentsByIssue.keys.filterNot { it in issues }.sorted()
+        val extra = fragmentsByIssue
+            .filter { (issue, fragments) -> issue !in issues && fragments.any { it.userVisible } }
+            .keys
+            .sorted()
         if (extra.isNotEmpty()) {
             throw GenerationException("Release range $range has changed fragment(s) without a matching issue: " +
                 extra.joinToString { "#$it" } + "; remove each fragment or add the matching issue to a commit subject")
