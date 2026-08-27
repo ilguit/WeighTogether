@@ -98,6 +98,7 @@ fun MeasurementsScreen(
     state: MeasurementsUiState,
     callbacks: MeasurementsCallbacks,
     modifier: Modifier = Modifier,
+    showAccountSelector: Boolean = true,
 ) {
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -106,8 +107,9 @@ fun MeasurementsScreen(
 
     Column(modifier = modifier.fillMaxSize()) {
         if (
-            state.destination == MeasurementsDestination.SUMMARY ||
+            showAccountSelector && (state.destination == MeasurementsDestination.SUMMARY ||
             state.destination == MeasurementsDestination.HISTORY
+            )
         ) {
             AccountSelector(
                 state = state.accountSelector,

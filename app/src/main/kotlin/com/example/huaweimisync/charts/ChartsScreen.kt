@@ -79,6 +79,7 @@ fun ChartsScreen(
     callbacks: ChartsCallbacks,
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
+    showAccountSelector: Boolean = true,
 ) {
     if (state.isCustomDatePickerOpen) {
         InclusiveDateRangeDialog(
@@ -116,11 +117,13 @@ fun ChartsScreen(
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
         item { Spacer(Modifier.height(1.dp)) }
-        item {
-            AccountSelector(
-                state = state.accountSelector,
-                onAccountSelected = callbacks.onAccountSelected,
-            )
+        if (showAccountSelector) {
+            item {
+                AccountSelector(
+                    state = state.accountSelector,
+                    onAccountSelected = callbacks.onAccountSelected,
+                )
+            }
         }
         item {
             ChartFilterRow(
