@@ -46,7 +46,9 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.onEach
@@ -89,7 +91,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             isLoading = true,
         ),
     )
-    private val measurements = accountSelectionScopedLoad(
+    private val measurements: StateFlow<
+        AccountSelectionScopedLoad<AccountSelectorUiState, AccountMeasurementPresentationSource>
+    > = accountSelectionScopedLoad(
         selections = accountSelector,
         accountId = AccountSelectorUiState::selectedAccountId,
         emptyValue = AccountMeasurementPresentationSource(),
@@ -127,8 +131,11 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         )
     val events = eventChannel.receiveAsFlow()
 
+    private val finalizedMeasurements = measurements
+        .withoutPreliminaryUpdates()
+
     private val measurementsWithChartRefresh = homeChartRefreshInputs(
-        measurements,
+        finalizedMeasurements,
         profileStore.settings.map { it.homeKgChartSeriesKeys },
         currentLocalDates(
             zoneId = homeChartZoneId,
@@ -160,7 +167,25 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             )
         }
     }
-    private val presentationWithPending = combine(presentation, pending) { current, snapshot ->
+    private val presentationWithPreliminary = combine(presentation, measurements) { current, latest ->
+        val source = latest.load.valuesOrEmpty()
+        val items = mergePreliminaryMeasurementPresentationItems(
+            finalizedItems = current.items,
+            preliminary = source.preliminary,
+            account = source.account,
+            now = Instant.now(),
+            preliminaryComposition = { preliminary, account ->
+                repository.preliminaryComposition(preliminary, account.profile)
+            },
+        )
+        current.copy(
+            loadState = latest.load,
+            accountSelector = latest.selection,
+            items = items,
+            summary = buildMeasurementSummary(items),
+        )
+    }
+    private val presentationWithPending = combine(presentationWithPreliminary, pending) { current, snapshot ->
         current.copy(
             pending = snapshot.measurements.map { value ->
                 value.toPendingMeasurementUiItem(snapshot.observedAt)
@@ -625,6 +650,23 @@ internal data class AccountMeasurementPresentationSource(
     val account: Account? = null,
 )
 
+/**
+ * Preliminary rows can change several times during one BLE aggregation window. Keep those
+ * updates out of the finalized history/chart pipeline so they cannot repeatedly rebuild it.
+ */
+internal fun <S> kotlinx.coroutines.flow.Flow<
+    AccountSelectionScopedLoad<S, AccountMeasurementPresentationSource>,
+>.withoutPreliminaryUpdates() = map { scoped ->
+    scoped.copy(
+        load = when (val load = scoped.load) {
+            AccountScopedLoad.Loading -> AccountScopedLoad.Loading
+            is AccountScopedLoad.Loaded -> AccountScopedLoad.Loaded(
+                load.value.copy(preliminary = emptyList()),
+            )
+        },
+    )
+}.distinctUntilChanged()
+
 internal fun buildMeasurementPresentationItems(
     source: AccountMeasurementPresentationSource,
     now: Instant,
@@ -643,6 +685,29 @@ internal fun buildMeasurementPresentationItems(
             pending.toPreliminaryMeasurementUiItem(
                 now = now,
                 composition = source.account?.let { preliminaryComposition(pending, it) },
+            )
+        }
+    return (finalizedItems + preliminaryItems).sortedWith(
+        compareByDescending<MeasurementUiItem> { it.measuredAtEpochSecond }
+            .thenByDescending { it.presentationKey },
+    )
+}
+
+internal fun mergePreliminaryMeasurementPresentationItems(
+    finalizedItems: List<MeasurementUiItem>,
+    preliminary: List<PendingMeasurement>,
+    account: Account?,
+    now: Instant,
+    preliminaryComposition: (PendingMeasurement, Account) ->
+        com.example.huaweimisync.core.BodyComposition?,
+): List<MeasurementUiItem> {
+    val finalizedPendingIds = finalizedItems.mapNotNull(MeasurementUiItem::sourcePendingId).toSet()
+    val preliminaryItems = preliminary
+        .filterNot { it.id in finalizedPendingIds }
+        .map { pending ->
+            pending.toPreliminaryMeasurementUiItem(
+                now = now,
+                composition = account?.let { preliminaryComposition(pending, it) },
             )
         }
     return (finalizedItems + preliminaryItems).sortedWith(

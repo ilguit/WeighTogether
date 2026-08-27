@@ -196,7 +196,7 @@ enum class MeasurementSyncDirection(
 enum class MeasurementSyncPresentationState(
     val label: String,
 ) {
-    LOCAL_ONLY("Только локально"),
+    LOCAL_ONLY(""),
     ERROR("Ошибка синхронизации"),
     PENDING("Ожидает отправки"),
     SYNCED("Синхронизировано"),
@@ -280,6 +280,9 @@ data class MeasurementUiItem(
 
     val canSync: Boolean
         get() = hasFinalActions && !isOperationInProgress
+
+    val hasSyncPresentation: Boolean
+        get() = hasFinalActions && !isLocalOnly
 
     val measuredAt: Instant
         get() = Instant.ofEpochSecond(measuredAtEpochSecond)
@@ -584,8 +587,7 @@ private fun syncDirectionPresentation(
         else -> MeasurementSyncPresentationState.ERROR
     }
     val message = when (state) {
-        MeasurementSyncPresentationState.LOCAL_ONLY ->
-            "Запись хранится только на этом устройстве"
+        MeasurementSyncPresentationState.LOCAL_ONLY -> ""
 
         MeasurementSyncPresentationState.ERROR ->
             rawError?.takeIf(String::isNotBlank) ?: "Не удалось отправить данные"

@@ -64,12 +64,22 @@ class MainViewModelPendingResolutionContractTest {
     }
 
     @Test
-    fun `local-only measurement keeps local record presentation`() {
-        assertTrue(
-            measurementsScreenSource.contains(
-                "text = if (item.isLocalOnly) \"Локальная запись\" else \"Синхронизация\"",
-            ),
-        )
+    fun `local-only measurement has no sync presentation entry point or copy`() {
+        val measurementsContractSource = File(
+            "src/main/kotlin/com/example/huaweimisync/measurements/MeasurementsContract.kt",
+        ).readText()
+
+        assertTrue(measurementsScreenSource.contains("if (summary.latest.hasSyncPresentation)"))
+        assertTrue(measurementsScreenSource.contains("if (item.hasSyncPresentation)"))
+        assertTrue(measurementsScreenSource.contains("it.hasSyncPresentation"))
+        listOf(
+            "Локальная запись",
+            "Только локально",
+            "Запись хранится только на этом устройстве",
+        ).forEach { removedCopy ->
+            assertFalse(measurementsScreenSource.contains(removedCopy))
+            assertFalse(measurementsContractSource.contains(removedCopy))
+        }
     }
 }
 

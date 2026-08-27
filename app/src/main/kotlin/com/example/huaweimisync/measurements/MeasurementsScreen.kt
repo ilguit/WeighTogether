@@ -102,7 +102,9 @@ fun MeasurementsScreen(
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var syncMeasurementId by rememberSaveable { mutableStateOf<String?>(null) }
-    val syncItem = state.measurements.firstOrNull { it.finalMeasurementId == syncMeasurementId }
+    val syncItem = state.measurements.firstOrNull {
+        it.finalMeasurementId == syncMeasurementId && it.hasSyncPresentation
+    }
 
     Column(modifier = modifier.fillMaxSize()) {
         if (
@@ -484,7 +486,7 @@ private fun MeasurementSummaryCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    if (summary.latest.hasFinalActions) {
+                    if (summary.latest.hasSyncPresentation) {
                         HuaweiStatusAction(
                             icon = summary.latest.sync.state.icon,
                             contentDescription = summary.latest.sync.label,
@@ -779,7 +781,7 @@ private fun MeasurementHistoryCard(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                if (item.hasFinalActions) {
+                if (item.hasSyncPresentation) {
                     HuaweiStatusAction(
                         icon = item.sync.state.icon,
                         contentDescription = item.sync.label,
@@ -928,7 +930,7 @@ private fun MeasurementSyncSheet(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = if (item.isLocalOnly) "Локальная запись" else "Синхронизация",
+                        text = "Синхронизация",
                         modifier = Modifier.semantics { heading() },
                         style = MaterialTheme.typography.titleLarge,
                     )
@@ -1333,7 +1335,7 @@ private fun DeleteMeasurementDialog(
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    "Локальная запись будет удалена без возможности восстановления. " +
+                    "Измерение будет удалено без возможности восстановления. " +
                         "Данные в Health Connect и Huawei Health останутся без изменений.",
                 )
             }
