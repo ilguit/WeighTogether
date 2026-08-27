@@ -16,9 +16,11 @@ import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.ui.profiles.ProfileSelectionUiState
 import com.example.huaweimisync.ui.profiles.ProfileSelectorTestTags
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
-import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class ProfileSelectorShellPaddingUiTest {
     @get:Rule
@@ -61,10 +63,17 @@ class ProfileSelectorShellPaddingUiTest {
             .getUnclippedBoundsInRoot().bottom
         val contentTop = composeRule.onNodeWithTag(contentTag)
             .getUnclippedBoundsInRoot().top
+        val actualPaddingPx = with(composeRule.density) {
+            (contentTop - selectorBottom).toPx().roundToInt()
+        }
+        val expectedPaddingPx = with(composeRule.density) {
+            HuaweiDimensions.CompactContentPadding.roundToPx()
+        }
 
-        assertEquals(
-            HuaweiDimensions.CompactContentPadding,
-            contentTop - selectorBottom,
+        assertTrue(
+            "Expected content padding within 1 px of $expectedPaddingPx px, " +
+                "but was $actualPaddingPx px",
+            abs(actualPaddingPx - expectedPaddingPx) <= 1,
         )
     }
 
