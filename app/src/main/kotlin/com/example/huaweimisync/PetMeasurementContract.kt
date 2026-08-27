@@ -42,6 +42,7 @@ internal data class PetScaleReading(
     val receivedAtNanos: Long,
     val measuredAt: Instant,
     val weightKg: Double,
+    val rawWeight: Int,
     val isStableWeight: Boolean,
     /** Hex keeps ByteArray identity value-based and immutable for duplicate detection. */
     val rawIdentity: String,
@@ -83,6 +84,7 @@ internal class PetIngestionSession(
     val registerPetPacket: (String, ByteArray) -> Unit,
     val release: () -> Unit,
     val protectPetPacket: (String, String) -> Unit = { _, _ -> },
+    val protectPetReading: (String, String, Instant, Int) -> Unit = { _, _, _, _ -> },
     val preSessionBaseline: PetStableReadingBaseline? = null,
 )
 
@@ -98,6 +100,7 @@ internal suspend fun acquirePetIngestionSession(
             registerPetPacket = activeSession.registerPetPacket,
             release = activeSession.release,
             protectPetPacket = activeSession.protectPetPacket,
+            protectPetReading = activeSession.protectPetReading,
             preSessionBaseline = lookupBaseline(selectedAddress),
         )
     } catch (error: Throwable) {
@@ -198,12 +201,24 @@ internal class PetMeasurementCoordinator(
             if (first == null) {
                 if (active.preSessionBaseline?.matches(reading) == true) return null
                 active.ingestionSession.protectPetPacket(reading.address, reading.rawIdentity)
+                active.ingestionSession.protectPetReading(
+                    reading.address,
+                    reading.rawIdentity,
+                    reading.measuredAt,
+                    reading.rawWeight,
+                )
                 active.first = CapturedReading(identity, reading.measuredAt, reading.weightKg)
                 FirstAccepted(active.pet, reading.weightKg)
             } else {
                 if (first.identity == identity) return null
                 if (first.weightKg == reading.weightKg) return null
                 active.ingestionSession.protectPetPacket(reading.address, reading.rawIdentity)
+                active.ingestionSession.protectPetReading(
+                    reading.address,
+                    reading.rawIdentity,
+                    reading.measuredAt,
+                    reading.rawWeight,
+                )
                 active.cancelTimeout?.invoke()
                 active.cancelTimeout = null
                 active.saving = true

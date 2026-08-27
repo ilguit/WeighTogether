@@ -198,6 +198,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         registerPetPacket = lease::registerPetPacket,
                         release = lease::release,
                         protectPetPacket = lease::protectPetPacket,
+                        protectPetReading = lease::protectPetReading,
                     )
                 },
                 lookupBaseline = { address ->
@@ -1290,6 +1291,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 receivedAtNanos = result.timestampNanos,
                 measuredAt = parsed.measuredAt,
                 weightKg = parsed.weightKg,
+                rawWeight = parsed.rawWeight,
                 isStableWeight = parsed.isStableWeight,
                 rawIdentity = petReadingRawIdentity(parsed.rawPayload),
             ),
