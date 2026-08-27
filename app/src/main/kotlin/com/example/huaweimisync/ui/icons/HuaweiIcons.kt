@@ -123,6 +123,33 @@ object HuaweiIcons {
         )
     }
 
+    val Cat: ImageVector by lazy {
+        outlineIcon(
+            "Cat",
+            listOf(
+                "M5 9L4 3L9 6C10 5.5 14 5.5 15 6L20 3L19 9",
+                "M5 9C4 14 7 19 12 19C17 19 20 14 19 9",
+                "M9 12H9.01",
+                "M15 12H15.01",
+                "M10 15C11 16 13 16 14 15",
+            ),
+        )
+    }
+
+    val Dog: ImageVector by lazy {
+        outlineIcon(
+            "Dog",
+            listOf(
+                "M7 7C9 5 15 5 17 7L19 5C21 8 20 12 18 13",
+                "M7 7L5 5C3 8 4 12 6 13",
+                "M6 12C6 17 9 20 12 20C15 20 18 17 18 12",
+                "M9 11H9.01",
+                "M15 11H15.01",
+                "M10 15H14C14 17 10 17 10 15Z",
+            ),
+        )
+    }
+
     val Link: ImageVector by lazy {
         outlineIcon(
             "Link",

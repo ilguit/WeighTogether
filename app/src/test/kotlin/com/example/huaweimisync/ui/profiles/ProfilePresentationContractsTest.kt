@@ -17,7 +17,7 @@ import org.junit.Test
 
 class ProfilePresentationContractsTest {
     @Test
-    fun mergedProfilesUseRootAlphabeticalOrderThenHumanKindAndTypedId() {
+    fun mergedProfilesGroupAllHumansBeforePetsThenUseRootAlphabeticalOrderAndTypedId() {
         val originalLocale = Locale.getDefault()
         try {
             Locale.setDefault(Locale.forLanguageTag("tr-TR"))
@@ -28,11 +28,11 @@ class ProfilePresentationContractsTest {
 
             assertEquals(
                 listOf(
-                    ProfileKey.Pet(PetId("z-pet")),
                     ProfileKey.Human(AccountId("a-human")),
                     ProfileKey.Human(AccountId("b-human")),
-                    ProfileKey.Pet(PetId("a-pet")),
                     ProfileKey.Human(AccountId("z-human")),
+                    ProfileKey.Pet(PetId("z-pet")),
+                    ProfileKey.Pet(PetId("a-pet")),
                 ),
                 profiles.map { it.key },
             )
