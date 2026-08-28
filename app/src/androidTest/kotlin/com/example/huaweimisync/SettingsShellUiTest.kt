@@ -9,12 +9,14 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.SemanticsMatcher
@@ -86,6 +88,39 @@ class SettingsShellUiTest {
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
         composeRule.onNodeWithText("Настройки приложения").assertExists()
+    }
+
+    @Test
+    fun manualTestValuesSurviveAdditionalCollapseAndDispatchEditedValues() {
+        var submitted: Pair<String, String>? = null
+        setSettingsShell(
+            expandSections = false,
+            onManualTest = { weight, impedance -> submitted = weight to impedance },
+        )
+
+        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .performTextReplacement("82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .performTextReplacement("612")
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection)
+            .performScrollTo()
+            .performClick()
+        expandSection(SettingsScreenTestTags.AdditionalSection)
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .assertTextEquals("Вес, кг", "82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .assertTextEquals("Импеданс, Ом", "612")
+        composeRule.onNodeWithText("Отправить тест").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals("82.35" to "612", submitted) }
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .assertTextEquals("Вес, кг", "82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .assertTextEquals("Импеданс, Ом", "612")
     }
 
     @Test
@@ -459,6 +494,7 @@ class SettingsShellUiTest {
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+        onManualTest: (String, String) -> Unit = { _, _ -> },
         pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
@@ -502,6 +538,7 @@ class SettingsShellUiTest {
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
                     onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
+                    onManualTest = onManualTest,
                 ),
                 measurementsContent = {},
                 chartsContent = {},
@@ -530,12 +567,13 @@ class SettingsShellUiTest {
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+        onManualTest: (String, String) -> Unit = { _, _ -> },
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
-        onManualTest = { _, _ -> },
+        onManualTest = onManualTest,
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

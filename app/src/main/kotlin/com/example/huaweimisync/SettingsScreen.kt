@@ -151,6 +151,8 @@ internal object SettingsScreenTestTags {
     const val AboutContent = "settings-content-about"
     const val AdditionalToggle = AdditionalSection
     const val AdditionalContent = "settings-additional-content"
+    const val ManualTestWeight = "settings-manual-test-weight"
+    const val ManualTestImpedance = "settings-manual-test-impedance"
     const val ChangelogRow = "settings-changelog-row"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
@@ -303,6 +305,8 @@ internal fun SettingsScreen(
     var backupExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var additionalExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var aboutExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
+    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
     var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.destructiveActionInProgress) {
@@ -399,7 +403,16 @@ internal fun SettingsScreen(
                     testTag = SettingsScreenTestTags.AdditionalSection,
                     contentTestTag = SettingsScreenTestTags.AdditionalContent,
                     onToggle = { additionalExpansion = additionalExpansion.toggled() },
-                ) { AdditionalContent(state, callbacks) }
+                ) {
+                    AdditionalContent(
+                        state = state,
+                        callbacks = callbacks,
+                        weight = manualTestWeight,
+                        onWeightChanged = { manualTestWeight = it },
+                        impedance = manualTestImpedance,
+                        onImpedanceChanged = { manualTestImpedance = it },
+                    )
+                }
             }
             item {
                 CollapsibleSettingsSection(
@@ -867,11 +880,12 @@ private fun CollapsibleSettingsSection(
 private fun AdditionalContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
+    weight: String,
+    onWeightChanged: (String) -> Unit,
+    impedance: String,
+    onImpedanceChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var weight by rememberSaveable { mutableStateOf("70.0") }
-    var impedance by rememberSaveable { mutableStateOf("500") }
-
     Column(
         modifier = modifier.fillMaxWidth().padding(HuaweiDimensions.ContentPadding),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
@@ -884,9 +898,9 @@ private fun AdditionalContent(
         )
         ResponsiveTestFields(
             weight = weight,
-            onWeightChanged = { weight = it },
+            onWeightChanged = onWeightChanged,
             impedance = impedance,
-            onImpedanceChanged = { impedance = it },
+            onImpedanceChanged = onImpedanceChanged,
         )
         OutlinedButton(
             onClick = { callbacks.onManualTest(weight, impedance) },
@@ -957,14 +971,14 @@ private fun ResponsiveTestFields(
                     onWeightChanged,
                     "Вес, кг",
                     KeyboardType.Decimal,
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestWeight),
                 )
                 TestField(
                     impedance,
                     onImpedanceChanged,
                     "Импеданс, Ом",
                     KeyboardType.Number,
-                    Modifier.fillMaxWidth(),
+                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestImpedance),
                 )
             }
         } else {
@@ -974,14 +988,14 @@ private fun ResponsiveTestFields(
                     onWeightChanged,
                     "Вес, кг",
                     KeyboardType.Decimal,
-                    Modifier.weight(1f),
+                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestWeight),
                 )
                 TestField(
                     impedance,
                     onImpedanceChanged,
                     "Импеданс, Ом",
                     KeyboardType.Number,
-                    Modifier.weight(1f),
+                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestImpedance),
                 )
             }
         }
