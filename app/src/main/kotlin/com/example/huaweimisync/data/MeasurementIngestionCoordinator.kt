@@ -47,7 +47,8 @@ interface MeasurementRoutingPersistence {
     suspend fun pendingSnapshot(): List<PendingMeasurement>
 
     /** Pending rows which still require an explicit account decision. */
-    suspend fun unassignedPendingSnapshot(): List<PendingMeasurement>
+    suspend fun unassignedPendingSnapshot(): List<PendingMeasurement> =
+        pendingSnapshot().filter { it.provisionalAccountId == null }
 
     /** Refreshes best-effort preliminary matches after account or routing-setting changes. */
     suspend fun reclassifyPending(matchingEngine: MatchingEngine): List<PendingMeasurement>? = null

@@ -603,7 +603,20 @@ class MeasurementIngestionCoordinatorTest {
 
         assertEquals(1, count)
         assertEquals(listOf(1), notifier.counts)
-        assertEquals(1, persistence.unassignedPendingSnapshotCallCount)
+        assertEquals(1, persistence.pendingSnapshotCallCount)
+    }
+
+    @Test
+    fun defaultUnassignedSnapshotFiltersProvisionallyAssignedMeasurements() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val unassigned = persistence.enqueue(raw(70.0)) as PendingPersistenceResult.Inserted
+        val assigned = persistence.enqueue(raw(71.0)) as PendingPersistenceResult.Inserted
+        persistence.replacePending(assigned.pending.copy(provisionalAccountId = primary.id))
+
+        val snapshot = persistence.unassignedPendingSnapshot()
+
+        assertEquals(listOf(unassigned.pending), snapshot)
     }
 
     private fun coordinator(
@@ -652,7 +665,7 @@ private class FakeRoutingPersistence(
     var enqueueMatchingEngine: MatchingEngine? = null
     var reclassificationMatchingEngine: MatchingEngine? = null
     var nextEnqueueResult: PendingPersistenceResult? = null
-    var unassignedPendingSnapshotCallCount = 0
+    var pendingSnapshotCallCount = 0
         private set
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
@@ -696,13 +709,9 @@ private class FakeRoutingPersistence(
     override suspend fun getPending(id: PendingMeasurementId): PendingMeasurement? = pending[id]
 
     override suspend fun pendingSnapshot(): List<PendingMeasurement> {
-        return pending.values.toList()
-    }
-
-    override suspend fun unassignedPendingSnapshot(): List<PendingMeasurement> {
-        val snapshot = pending.values.filter { it.provisionalAccountId == null }
-        unassignedPendingSnapshotCallCount += 1
-        if (unassignedPendingSnapshotCallCount == 1) {
+        val snapshot = pending.values.toList()
+        pendingSnapshotCallCount += 1
+        if (pendingSnapshotCallCount == 1) {
             firstPendingSnapshotCaptured?.complete(Unit)
             releaseFirstPendingSnapshot?.await()
         }
