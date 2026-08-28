@@ -100,15 +100,26 @@ class ProfileStore(
         }
     }
 
-    fun clearScale() {
+    /** Atomically forgets the selected scale and disables its reliability scan. */
+    fun forgetScale(): AppSettings {
         portableOperations.runExclusiveBlocking {
-            preferences.edit {
+            val committed = preferences.edit().run {
                 remove(KEY_SCALE_ADDRESS)
                 remove(KEY_SCALE_NAME)
+                putBoolean(KEY_RELIABILITY, false)
+                commit()
             }
+            check(committed) { "Could not durably forget selected scale" }
             refreshPortable()
         }
+        return settings.value.also {
+            check(it.scaleAddress == null && it.scaleName == null && !it.reliabilityMode) {
+                "Selected scale was not fully cleared"
+            }
+        }
     }
+
+    fun clearScale() { forgetScale() }
 
     fun setReliabilityMode(enabled: Boolean) {
         portableOperations.runExclusiveBlocking {
