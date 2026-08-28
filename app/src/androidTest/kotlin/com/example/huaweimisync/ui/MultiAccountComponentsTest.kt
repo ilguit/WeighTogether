@@ -94,6 +94,53 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.OperationError).assertIsDisplayed()
         assertTrue(modes.isEmpty())
     }
+
+    @Test
+    fun profileUpdatePromptKeepsAllActionsInsideDialogInVerticalOrder() {
+        val account = account("one", "Анна")
+        val update = AccountUpdate(
+            account.id,
+            account.displayName,
+            (account.profile as AccountProfile.Complete).copy(heightCm = 171.0),
+        )
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(
+                        accounts = listOf(account),
+                        profileUpdateConfirmation = ProfileUpdateConfirmation(
+                            update,
+                            AccountEditorDraft.edit(account).copy(heightCm = "171"),
+                        ),
+                    ),
+                    callbacks = AccountManagementCallbacks.None,
+                )
+            }
+        }
+
+        val dialog = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdatePrompt)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val recalculate = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateRecalculate)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val keepExisting = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val cancel = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateCancel)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+
+        listOf(recalculate, keepExisting, cancel).forEach { action ->
+            assertTrue(action.left >= dialog.left)
+            assertTrue(action.right <= dialog.right)
+            assertTrue(action.top >= dialog.top)
+            assertTrue(action.bottom <= dialog.bottom)
+        }
+        assertTrue(recalculate.bottom <= keepExisting.top)
+        assertTrue(keepExisting.bottom <= cancel.top)
+    }
+
     @get:Rule
     val composeRule = createComposeRule()
 

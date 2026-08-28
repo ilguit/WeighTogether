@@ -268,23 +268,29 @@ private fun ProfileUpdateConfirmationDialog(
             }
         },
         confirmButton = {
-            Button(
-                onClick = onRecalculate,
-                enabled = !operationInProgress,
-                modifier = Modifier
-                    .testTag(AccountManagementTestTags.ProfileUpdateRecalculate)
-                    .semantics { contentDescription = "Сохранить и пересчитать историю" },
-            ) { Text(if (operationInProgress) "Сохранение…" else "Сохранить и пересчитать") }
-        },
-        dismissButton = {
-            Column(horizontalAlignment = Alignment.End) {
-                TextButton(
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Button(
+                    onClick = onRecalculate,
+                    enabled = !operationInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .testTag(AccountManagementTestTags.ProfileUpdateRecalculate)
+                        .semantics { contentDescription = "Сохранить и пересчитать историю" },
+                ) {
+                    Text(if (operationInProgress) "Сохранение…" else "Сохранить и пересчитать")
+                }
+                OutlinedButton(
                     onClick = onKeepExisting,
                     enabled = !operationInProgress,
                     modifier = Modifier
+                        .fillMaxWidth()
                         .testTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
                         .semantics { contentDescription = "Сохранить без пересчёта истории" },
-                ) { Text("Без пересчёта") }
+                ) { Text("Сохранить без пересчёта") }
                 TextButton(
                     onClick = onCancel,
                     enabled = !operationInProgress,
