@@ -89,8 +89,7 @@ class PendingDecisionPresentationCoordinator(
 
     fun recordNotificationDismissed(pendingIds: Set<PendingMeasurementId>) {
         if (pendingIds.isNotEmpty()) dismissalStore?.writeDismissedIds(pendingIds)
-        cancelSafely()
-        mutableFallback.value = PendingDecisionFallback.Hidden
+        updatePendingMeasurements(currentPendingIds)
     }
 
     private fun postSafely(pendingIds: Set<PendingMeasurementId>): Boolean = try {

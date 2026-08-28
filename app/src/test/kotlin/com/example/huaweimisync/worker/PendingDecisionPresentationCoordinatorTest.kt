@@ -147,9 +147,10 @@ class PendingDecisionPresentationCoordinatorTest {
     @Test
     fun receiverSnapshotIsPersistedInsteadOfLaterCoordinatorState() {
         val store = MemoryDismissalStore()
+        val posted = mutableListOf<Set<PendingMeasurementId>>()
         val coordinator = PendingDecisionPresentationCoordinator(
             notificationsAllowed = { true },
-            postNotification = {},
+            postNotification = posted::add,
             cancelNotification = {},
             dismissalStore = store,
         )
@@ -158,6 +159,10 @@ class PendingDecisionPresentationCoordinatorTest {
         coordinator.recordNotificationDismissed(ids("old"))
 
         assertEquals(ids("old"), store.ids)
+        assertEquals(
+            listOf(ids("old", "new"), ids("old", "new")),
+            posted,
+        )
     }
 
     @Test
