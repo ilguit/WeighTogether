@@ -44,7 +44,7 @@ class UnifiedProfileManagementUiTest {
             }
         }
 
-        composeRule.onNodeWithText("Аккаунты и питомцы").assertExists()
+        composeRule.onNodeWithText("Профили").assertExists()
         composeRule.onNodeWithText("Человек").assertExists()
         composeRule.onNodeWithText("Питомец · Кошка").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertDoesNotExist()

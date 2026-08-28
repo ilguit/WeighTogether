@@ -513,7 +513,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 backup.value = BackupUiState()
                 showMessage(
-                    "Импорт завершён: аккаунтов ${result.counts.accountsAdded}, " +
+                    "Импорт завершён: профилей ${result.counts.accountsAdded}, " +
                         "измерений ${result.counts.measurementsAdded}, питомцев ${result.counts.petsAdded}, " +
                         "измерений питомцев ${result.counts.petMeasurementsAdded}",
                 )
@@ -624,7 +624,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             if (accountsSnapshot.value.settings.primaryAccountId == null) {
                 container.accountSelection.select(created.id)
             }
-            finishAccountOperation("Аккаунт «${created.displayName}» создан")
+            finishAccountOperation("Профиль «${created.displayName}» создан")
             return@runAccountOperation
         }
         val completion = requireNotNull(
@@ -641,11 +641,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 container.accountSelection.select(result.account.id)
                 completePendingResolution(completion)
                 finishAccountOperation(
-                    "Аккаунт «${result.account.displayName}» создан, измерение назначено",
+                    "Профиль «${result.account.displayName}» создан, измерение назначено",
                 )
             }
             is CreateAccountAndAssignResult.NameConflict -> failAccountOperation(
-                "Аккаунт с таким именем уже существует",
+                "Профиль с таким именем уже существует",
             )
             CreateAccountAndAssignResult.PendingNotFound,
             is CreateAccountAndAssignResult.AlreadyFinalized,
@@ -660,7 +660,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
         when (val result = container.accounts.attemptProfileUpdate(account)) {
             is ProfileUpdateAttemptResult.Saved ->
-                finishAccountOperation("Аккаунт «${result.account.displayName}» сохранён")
+                finishAccountOperation("Профиль «${result.account.displayName}» сохранён")
             ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
@@ -679,14 +679,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
         val updated = container.accounts.updateAccount(account, mode)
-        finishAccountOperation("Аккаунт «${updated.displayName}» сохранён")
+        finishAccountOperation("Профиль «${updated.displayName}» сохранён")
     }
 
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
         runAccountOperation {
             container.accounts.setPrimaryAccount(accountId, mode)
             container.accountSelection.select(accountId)
-            finishAccountOperation("Основной аккаунт изменён")
+            finishAccountOperation("Основной профиль изменён")
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
@@ -695,7 +695,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (selection.accountId == accountId) {
             container.accountSelection.selectIfCurrent(selection, null)
         }
-        finishAccountOperation("Аккаунт и его локальная история удалены")
+        finishAccountOperation("Профиль и его локальная история удалены")
     }
 
     fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
@@ -705,7 +705,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             historySyncMode = request.historySyncMode,
         )
         container.accountSelection.select(request.replacementAccountId)
-        finishAccountOperation("Основной аккаунт и его локальная история удалены")
+        finishAccountOperation("Основной профиль и его локальная история удалены")
     }
 
     fun updateWeightDeltaEditor(state: WeightDeltaEditorState) {
@@ -795,8 +795,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                         showMessage("Измерение уже назначено")
                     }
                     FinalizePendingResult.ProfileIncomplete ->
-                        showMessage("Сначала заполните профиль выбранного аккаунта")
-                    FinalizePendingResult.AccountNotFound -> showMessage("Аккаунт уже удалён")
+                        showMessage("Сначала заполните выбранный профиль")
+                    FinalizePendingResult.AccountNotFound -> showMessage("Профиль уже удалён")
                     FinalizePendingResult.PendingNotFound -> {
                         completePendingResolution(completion)
                         showMessage("Измерение уже обработано")
@@ -1099,14 +1099,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     if (result.wasAlreadyFinalized) {
                         "Такое тестовое измерение уже обработано"
                     } else {
-                        "Тестовое измерение назначено аккаунту «$accountName»"
+                        "Тестовое измерение назначено профилю «$accountName»"
                     },
                 )
             }
             is MeasurementIngestionResult.AwaitingDecision -> {
                 selectPendingForResolver(result.pending.id, PendingResolverSource.EXTERNAL)
                 pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
-                showMessage("Тестовое измерение ожидает выбора аккаунта")
+                showMessage("Тестовое измерение ожидает выбора профиля")
             }
             MeasurementIngestionResult.Tombstoned,
             MeasurementIngestionResult.LegacyDuplicate,
@@ -1659,7 +1659,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                failAccountOperation(error.userFacingMessage("Не удалось изменить аккаунт"))
+                failAccountOperation(error.userFacingMessage("Не удалось изменить профиль"))
             } finally {
                 accountManagementDialog.value = accountManagementDialog.value.copy(
                     operationInProgress = false,
@@ -1790,6 +1790,6 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
 }
 
 private fun Throwable.userFacingMessage(fallback: String): String = when (this) {
-    is AccountNameConflictException -> "Аккаунт с таким именем уже существует"
+    is AccountNameConflictException -> "Профиль с таким именем уже существует"
     else -> message?.takeIf(String::isNotBlank) ?: fallback
 }

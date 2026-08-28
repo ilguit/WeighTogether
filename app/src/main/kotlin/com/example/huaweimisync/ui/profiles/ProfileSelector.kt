@@ -86,11 +86,11 @@ internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {
 internal fun profileFallbackMessage(state: ProfileSelectionUiState): String? = when (state.fallback) {
     ProfileSelectionFallback.NONE -> null
     ProfileSelectionFallback.SELECTED_PROFILE_UNAVAILABLE -> if (state.selectedKey is ProfileKey.Human) {
-        "Выбранный профиль удалён. Показан основной аккаунт."
+        "Выбранный профиль удалён. Показан основной профиль."
     } else {
-        "Выбранный профиль удалён. Основной аккаунт недоступен. Выберите профиль."
+        "Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль."
     }
     ProfileSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE ->
-        "Основной аккаунт недоступен. Выберите профиль."
+        "Основной профиль недоступен. Выберите профиль."
     ProfileSelectionFallback.NO_PROFILES -> "Создайте профиль в настройках."
 }

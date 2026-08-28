@@ -121,7 +121,7 @@ fun AccountManagementSection(
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Аккаунты и питомцы", Modifier.weight(1f))
+            HuaweiSectionTitle("Профили", Modifier.weight(1f))
             TextButton(
                 onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
                 enabled = !state.operationInProgress,
@@ -139,7 +139,7 @@ fun AccountManagementSection(
         ) {
             if (state.accounts.isEmpty() && pets.isEmpty()) {
                 Text(
-                    text = "Аккаунтов и питомцев пока нет.",
+                    text = "Профилей пока нет.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .padding(HuaweiDimensions.ContentPadding)
@@ -254,7 +254,7 @@ private fun ProfileUpdateConfirmationDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(
-                    "Новые данные профиля могут изменить состав тела в предыдущих измерениях аккаунта «${request.update.displayName}».",
+                    "Новые данные профиля могут изменить состав тела в предыдущих измерениях профиля «${request.update.displayName}».",
                 )
                 error?.let {
                     Text(
@@ -355,14 +355,14 @@ private fun AccountRow(
         }
         HuaweiIconButton(
             icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить аккаунт ${account.displayName}",
+            contentDescription = "Изменить профиль ${account.displayName}",
             onClick = onEdit,
             enabled = enabled,
             modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
         )
         HuaweiIconButton(
             icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить аккаунт ${account.displayName}",
+            contentDescription = "Удалить профиль ${account.displayName}",
             onClick = onDelete,
             enabled = enabled,
             modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
@@ -416,7 +416,7 @@ private fun PrimaryBadge(accountId: AccountId) {
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .testTag(AccountManagementTestTags.primaryBadge(accountId))
-            .semantics { contentDescription = "Основной аккаунт" },
+            .semantics { contentDescription = "Основной профиль" },
     ) {
         Text(
             text = "Основной",
@@ -442,7 +442,7 @@ fun AccountEditorDialog(
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.Editor),
         onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text(if (draft.editingAccountId == null) "Новый аккаунт" else "Изменить аккаунт") },
+        title = { Text(if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -572,7 +572,7 @@ private fun PrimaryAccountChangeDialog(
                 Text("Внешняя синхронизация будет доступна только для «${account?.displayName.orEmpty()}».")
                 SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 Text(
-                    "Уже отправленные данные прежнего основного аккаунта не удаляются.",
+                    "Уже отправленные данные прежнего основного профиля не удаляются.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -606,7 +606,7 @@ private fun AccountDeletionDialog(
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.DeleteWarning),
         onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text("Удалить аккаунт «${account?.displayName.orEmpty()}»?") },
+        title = { Text("Удалить профиль «${account?.displayName.orEmpty()}»?") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -618,12 +618,12 @@ private fun AccountDeletionDialog(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Text(
-                        "Локальная история аккаунта будет удалена безвозвратно. Записи во внешних сервисах останутся.",
+                        "Локальная история профиля будет удалена безвозвратно. Записи во внешних сервисах останутся.",
                         modifier = Modifier.padding(12.dp),
                     )
                 }
                 if (requiresReplacement) {
-                    Text("Новый основной аккаунт", style = MaterialTheme.typography.labelLarge)
+                    Text("Новый основной профиль", style = MaterialTheme.typography.labelLarge)
                     replacements.forEach { replacement ->
                         SelectionRow(
                             label = replacement.displayName,
@@ -637,7 +637,7 @@ private fun AccountDeletionDialog(
                     }
                     SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 } else if (request.wasPrimary) {
-                    Text("После удаления последнего аккаунта основного аккаунта не будет.")
+                    Text("После удаления последнего профиля основного профиля не будет.")
                 }
             }
         },

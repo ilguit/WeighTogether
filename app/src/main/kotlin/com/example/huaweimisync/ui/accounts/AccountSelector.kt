@@ -27,13 +27,13 @@ fun AccountSelector(
     state: AccountSelectorUiState,
     onAccountSelected: (AccountId) -> Unit,
     modifier: Modifier = Modifier,
-    label: String = "Аккаунт",
+    label: String = "Профиль",
 ) {
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag(AccountSelectorTestTags.Selector)
-            .semantics { contentDescription = "Выбор аккаунта для данных" },
+            .semantics { contentDescription = "Выбор профиля для данных" },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Text(label, style = MaterialTheme.typography.labelLarge)

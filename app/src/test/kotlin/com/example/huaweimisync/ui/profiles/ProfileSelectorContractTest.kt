@@ -11,11 +11,11 @@ class ProfileSelectorContractTest {
         val noSelection = state(null)
 
         assertEquals(
-            "Выбранный профиль удалён. Показан основной аккаунт.",
+            "Выбранный профиль удалён. Показан основной профиль.",
             profileFallbackMessage(selectedPrimary),
         )
         assertEquals(
-            "Выбранный профиль удалён. Основной аккаунт недоступен. Выберите профиль.",
+            "Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль.",
             profileFallbackMessage(noSelection),
         )
     }

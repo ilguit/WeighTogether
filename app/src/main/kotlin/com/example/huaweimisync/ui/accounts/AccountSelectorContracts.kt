@@ -26,11 +26,11 @@ data class AccountSelectorUiState(
         get() = when (fallback) {
             AccountSelectionFallback.NONE -> null
             AccountSelectionFallback.SELECTED_ACCOUNT_REMOVED ->
-                "Выбранный аккаунт удалён. Показан основной аккаунт."
+                "Выбранный профиль удалён. Показан основной профиль."
             AccountSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE ->
-                "Основной аккаунт недоступен. Выберите аккаунт."
+                "Основной профиль недоступен. Выберите профиль."
             AccountSelectionFallback.NO_ACCOUNTS ->
-                "Создайте аккаунт, чтобы сохранять и просматривать измерения."
+                "Создайте профиль, чтобы сохранять и просматривать измерения."
         }
 }
 

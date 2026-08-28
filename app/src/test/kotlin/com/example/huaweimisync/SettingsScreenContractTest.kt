@@ -65,7 +65,8 @@ class SettingsScreenContractTest {
 
     @Test
     fun `replace warning names every human and pet data group`() {
-        assertTrue(BACKUP_REPLACE_WARNING.contains("аккаунты"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("профили"))
+        assertFalse(BACKUP_REPLACE_WARNING.contains("аккаунт", ignoreCase = true))
         assertTrue(BACKUP_REPLACE_WARNING.contains("измерения людей"))
         assertTrue(BACKUP_REPLACE_WARNING.contains("ожидающие измерения"))
         assertTrue(BACKUP_REPLACE_WARNING.contains("питомцы"))

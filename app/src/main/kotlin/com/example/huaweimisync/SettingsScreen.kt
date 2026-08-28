@@ -114,7 +114,7 @@ internal enum class SettingsSectionExpansion {
 }
 
 internal enum class SettingsSectionKey(val title: String) {
-    ACCOUNTS("Аккаунты"),
+    ACCOUNTS("Профили"),
     INTEGRATIONS("Интеграции"),
     SCALE("Весы"),
     BACKUP("Резервная копия"),
@@ -228,7 +228,7 @@ internal fun formatLatestPetWeight(
 } ?: "Измерений пока нет"
 
 internal const val BACKUP_REPLACE_WARNING =
-    "Все локальные аккаунты, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
+    "Все локальные профили, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
         "будут заменены. Это действие нельзя отменить."
 
 internal fun healthConnectPresentation(
@@ -325,11 +325,58 @@ internal fun SettingsScreen(
     onDestinationChanged: (SettingsDestination) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    if (destination != SettingsDestination.ROOT) {
-        SettingsDetailPlaceholder(destination, contentPadding, modifier)
-        return
+    when (destination) {
+        SettingsDestination.ROOT -> SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+        SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
+        else -> SettingsDetailPlaceholder(destination, contentPadding, modifier)
     }
-    SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+}
+
+@Composable
+private fun SettingsProfilesContent(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().widthIn(max = 720.dp),
+            contentPadding = PaddingValues(
+                start = HuaweiDimensions.ContentPadding,
+                end = HuaweiDimensions.ContentPadding,
+                top = 4.dp,
+                bottom = 28.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        ) {
+            item {
+                AccountManagementSection(
+                    state = state.accountManagement,
+                    callbacks = callbacks.accountManagement,
+                    pets = state.pets,
+                    onAddPet = callbacks.onCreatePet,
+                    onEditPet = { callbacks.onEditPet(it.pet) },
+                    onDeletePet = callbacks.onRequestDeletePet,
+                    petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
+                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
+                )
+            }
+            item {
+                WeightRecognitionSetting(
+                    state = state.weightDeltaEditor,
+                    onStateChanged = callbacks.onWeightDeltaStateChanged,
+                    onSave = callbacks.onWeightDeltaSave,
+                    ignoreUnknownMeasurements = state.accountSettings.ignoreUnknownMeasurements,
+                    onIgnoreUnknownMeasurementsChanged = callbacks.onIgnoreUnknownMeasurementsChanged,
+                )
+            }
+        }
+    }
+    PetManagementDialogs(state, callbacks)
 }
 
 @Composable
@@ -482,7 +529,7 @@ private fun LegacySettingsScreen(
         ) {
             item {
                 CollapsibleSettingsSection(
-                    title = "Аккаунты",
+                    title = "Профили",
                     expansion = accountsExpansion,
                     testTag = SettingsScreenTestTags.AccountsSection,
                     contentTestTag = SettingsScreenTestTags.AccountsContent,
@@ -599,7 +646,7 @@ private fun LegacySettingsScreen(
                     if (replaceWarning) {
                         BACKUP_REPLACE_WARNING
                     } else {
-                        "Аккаунты: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
+                        "Профили: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
                             "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
                             "Питомцы: +${counts.petsAdded}, пропущено ${counts.petsSkipped}, заменено ${counts.petsReplaced}. " +
                             "Измерения питомцев: +${counts.petMeasurementsAdded}, пропущено ${counts.petMeasurementsSkipped}, заменено ${counts.petMeasurementsReplaced}."
@@ -856,7 +903,7 @@ private fun SettingsIntegrationsContent(
     val primary = state.primaryAccount
     val healthConnectCapabilities = state.healthConnectCapabilities
     val primaryStatus = when {
-        primary == null -> "Основной аккаунт не выбран"
+        primary == null -> "Основной профиль не выбран"
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
         else -> "Основной: ${primary.displayName}"
     }
@@ -1038,7 +1085,7 @@ private fun AdditionalContent(
     ) {
         Text("Ручное тестовое измерение", style = MaterialTheme.typography.titleSmall)
         Text(
-            "Проходит тот же путь распознавания аккаунта, что и измерение с весов.",
+            "Проходит тот же путь распознавания профиля, что и измерение с весов.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
