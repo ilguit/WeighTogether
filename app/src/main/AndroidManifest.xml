@@ -67,6 +67,10 @@
             android:exported="false" />
 
         <receiver
+            android:name=".worker.PendingNotificationDismissReceiver"
+            android:exported="false" />
+
+        <receiver
             android:name=".ble.BootReceiver"
             android:enabled="true"
             android:exported="true">

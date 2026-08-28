@@ -480,7 +480,7 @@ class MeasurementIngestionCoordinatorTest {
         var cancelled = 0
         val presentation = PendingDecisionPresentationCoordinator(
             notificationsAllowed = { true },
-            postNotification = posted::add,
+            postNotification = { posted += it.size },
             cancelNotification = { cancelled += 1 },
         )
         val presentedCounts = mutableListOf<Int>()

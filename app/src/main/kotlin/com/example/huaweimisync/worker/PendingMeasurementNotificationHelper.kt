@@ -49,7 +49,7 @@ class SharedPreferencesPendingNotificationDismissalStore(
 /** Pure state machine used by the Android notification transport and JVM tests. */
 class PendingDecisionPresentationCoordinator(
     private val notificationsAllowed: () -> Boolean,
-    private val postNotification: (Int) -> Unit,
+    private val postNotification: (Set<PendingMeasurementId>) -> Unit,
     private val cancelNotification: () -> Unit,
     private val dismissalStore: PendingNotificationDismissalStore? = null,
 ) : PendingDecisionNotifier {
@@ -75,7 +75,7 @@ class PendingDecisionPresentationCoordinator(
         } else if (pendingIds == retainedDismissedIds) {
             cancelSafely()
             mutableFallback.value = PendingDecisionFallback.Hidden
-        } else if (postSafely(count)) {
+        } else if (postSafely(pendingIds)) {
             mutableFallback.value = PendingDecisionFallback.Hidden
         } else {
             cancelSafely()
@@ -84,14 +84,18 @@ class PendingDecisionPresentationCoordinator(
     }
 
     fun recordCurrentNotificationDismissed() {
-        if (currentPendingIds.isNotEmpty()) dismissalStore?.writeDismissedIds(currentPendingIds)
+        recordNotificationDismissed(currentPendingIds)
+    }
+
+    fun recordNotificationDismissed(pendingIds: Set<PendingMeasurementId>) {
+        if (pendingIds.isNotEmpty()) dismissalStore?.writeDismissedIds(pendingIds)
         cancelSafely()
         mutableFallback.value = PendingDecisionFallback.Hidden
     }
 
-    private fun postSafely(count: Int): Boolean = try {
+    private fun postSafely(pendingIds: Set<PendingMeasurementId>): Boolean = try {
         if (notificationsAllowed()) {
-            postNotification(count)
+            postNotification(pendingIds.toSet())
             true
         } else {
             false
@@ -137,6 +141,10 @@ class PendingMeasurementNotificationHelper(
         presentation.recordCurrentNotificationDismissed()
     }
 
+    fun recordNotificationDismissed(pendingIds: Set<PendingMeasurementId>) {
+        presentation.recordNotificationDismissed(pendingIds)
+    }
+
     fun areNotificationsAllowed(): Boolean {
         val runtimePermissionGranted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
             ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
@@ -144,7 +152,8 @@ class PendingMeasurementNotificationHelper(
         return runtimePermissionGranted && notifications.areNotificationsEnabled()
     }
 
-    private fun post(count: Int) {
+    private fun post(pendingIds: Set<PendingMeasurementId>) {
+        val count = pendingIds.size
         // Re-check at the transport boundary: permission can be revoked after the coordinator's
         // capability check. Throwing keeps that race on the existing foreground-fallback path.
         if (
@@ -166,6 +175,19 @@ class PendingMeasurementNotificationHelper(
             resolverIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
+        val dismissIntent = Intent(context, PendingNotificationDismissReceiver::class.java).apply {
+            action = ACTION_DISMISS_PENDING
+            putStringArrayListExtra(
+                EXTRA_PENDING_IDS,
+                ArrayList(pendingIds.map(PendingMeasurementId::value)),
+            )
+        }
+        val deleteIntent = PendingIntent.getBroadcast(
+            context,
+            DISMISS_REQUEST_CODE,
+            dismissIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
         val text = if (count == 1) {
             "Ожидает назначения аккаунта: 1 измерение"
         } else {
@@ -178,8 +200,9 @@ class PendingMeasurementNotificationHelper(
                 .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(text)
                 .setContentIntent(contentIntent)
-                // Opening the resolver is navigation, not resolution. Only a durable queue change
-                // may remove this ongoing entry via an empty pending-ID snapshot.
+                .setDeleteIntent(deleteIntent)
+                // Opening the resolver is navigation, not dismissal; only an explicit swipe invokes
+                // the delete intent and suppresses this exact displayed snapshot.
                 .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
                 .setNumber(count)
@@ -201,10 +224,14 @@ class PendingMeasurementNotificationHelper(
     companion object {
         const val ACTION_RESOLVE_PENDING =
             "com.example.huaweimisync.action.RESOLVE_PENDING_MEASUREMENT"
+        const val ACTION_DISMISS_PENDING =
+            "com.example.huaweimisync.action.DISMISS_PENDING_MEASUREMENT"
         const val EXTRA_PENDING_COUNT = "pending_measurement_count"
+        const val EXTRA_PENDING_IDS = "pending_measurement_ids"
         private const val CHANNEL_ID = "pending_measurement_routing"
         private const val NOTIFICATION_ID = 183
         private const val RESOLVER_REQUEST_CODE = 183
+        private const val DISMISS_REQUEST_CODE = 184
         private const val PREFERENCES_NAME = "pending_measurement_notifications"
     }
 }
