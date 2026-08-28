@@ -11,4 +11,16 @@ class MainScreenContractTest {
             mainBackContentDescription(changelogOpen = false, petProfileOpen = true),
         )
     }
+
+    @Test
+    fun settingsDetailBackButtonDescribesReturningToSettings() {
+        assertEquals(
+            "Вернуться к настройкам",
+            mainBackContentDescription(
+                changelogOpen = false,
+                petProfileOpen = false,
+                settingsDetailOpen = true,
+            ),
+        )
+    }
 }

@@ -122,6 +122,25 @@ internal enum class SettingsSectionKey(val title: String) {
     ABOUT("О приложении"),
 }
 
+internal enum class SettingsDestination(val title: String) {
+    ROOT("Настройки"),
+    PROFILES("Профили"),
+    SCALE("Весы"),
+    HEALTH_CONNECT("Health Connect"),
+    HUAWEI_HEALTH("Huawei Health"),
+    BACKUP("Резервная копия"),
+    DIAGNOSTICS("Диагностика"),
+}
+
+internal fun settingsRootDestinations(huaweiEnabled: Boolean): List<SettingsDestination> = buildList {
+    add(SettingsDestination.PROFILES)
+    add(SettingsDestination.SCALE)
+    add(SettingsDestination.HEALTH_CONNECT)
+    if (huaweiEnabled) add(SettingsDestination.HUAWEI_HEALTH)
+    add(SettingsDestination.BACKUP)
+    add(SettingsDestination.DIAGNOSTICS)
+}
+
 internal data class IntegrationPresentation(
     val supportingText: String,
     val actionLabel: String? = null,
@@ -132,6 +151,11 @@ internal data class IntegrationPresentation(
 
 internal object SettingsScreenTestTags {
     const val List = "settings-list"
+    const val Detail = "settings-detail"
+    const val ProfilesRow = "settings-profiles-row"
+    const val ScaleRow = "settings-scale-row"
+    const val BackupRow = "settings-backup-row"
+    const val DiagnosticsRow = "settings-diagnostics-row"
     const val ProfileRow = "settings-profile-row"
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
@@ -294,6 +318,128 @@ internal fun huaweiIntegrationPresentation(
 
 @Composable
 internal fun SettingsScreen(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    destination: SettingsDestination = SettingsDestination.ROOT,
+    onDestinationChanged: (SettingsDestination) -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
+    if (destination != SettingsDestination.ROOT) {
+        SettingsDetailPlaceholder(destination, contentPadding, modifier)
+        return
+    }
+    SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+}
+
+@Composable
+private fun SettingsRootScreen(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    onDestinationChanged: (SettingsDestination) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val healthPresentation = healthConnectPresentation(
+        state.healthConnect,
+        state.settings.healthConnectSyncEnabled,
+    ).withHealthConnectManagementFallback(state.healthConnectSystemManagementAvailable)
+    val huaweiPresentation = huaweiIntegrationPresentation(
+        state.huawei,
+        state.settings.huaweiSyncEnabled,
+    )
+    Box(
+        modifier = modifier.fillMaxSize().padding(contentPadding),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(SettingsScreenTestTags.List),
+            contentPadding = PaddingValues(
+                start = HuaweiDimensions.ContentPadding,
+                end = HuaweiDimensions.ContentPadding,
+                top = 4.dp,
+                bottom = 28.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        ) {
+            item { SettingsNavigationRow(SettingsDestination.PROFILES, "Люди и питомцы", SettingsScreenTestTags.ProfilesRow, onDestinationChanged) }
+            item {
+                Text(
+                    "Весы и синхронизация",
+                    style = MaterialTheme.typography.titleSmall,
+                    modifier = Modifier.padding(start = HuaweiDimensions.CompactContentPadding),
+                )
+            }
+            item { SettingsNavigationRow(SettingsDestination.SCALE, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged) }
+            item { SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged) }
+            if (BuildConfig.HUAWEI_EXTENDED_ENABLED) item {
+                SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged)
+            }
+            item { SettingsNavigationRow(SettingsDestination.BACKUP, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged) }
+            item { SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged) }
+            item {
+                HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+                    HuaweiSettingRow(
+                        icon = HuaweiIcons.Calendar,
+                        title = "История версий",
+                        supportingText = "Что нового в приложении",
+                        modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
+                        onClick = callbacks.onOpenChangelog,
+                    ) {
+                        HuaweiIconButton(HuaweiIcons.ChevronRight, "Открыть историю версий", callbacks.onOpenChangelog)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun scaleStatus(state: MainUiState): String = if (state.settings.scaleAddress == null) {
+    "Весы ещё не выбраны"
+} else {
+    state.settings.scaleName ?: "Весы подключены"
+}
+
+@Composable
+private fun SettingsNavigationRow(
+    destination: SettingsDestination,
+    supportingText: String,
+    testTag: String,
+    onDestinationChanged: (SettingsDestination) -> Unit,
+) {
+    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+        HuaweiSettingRow(
+            icon = HuaweiIcons.ChevronRight,
+            title = destination.title,
+            supportingText = supportingText,
+            modifier = Modifier.testTag(testTag),
+            onClick = { onDestinationChanged(destination) },
+        ) {
+            HuaweiIconButton(
+                icon = HuaweiIcons.ChevronRight,
+                contentDescription = "Открыть ${destination.title}",
+                onClick = { onDestinationChanged(destination) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsDetailPlaceholder(
+    destination: SettingsDestination,
+    contentPadding: PaddingValues,
+    modifier: Modifier,
+) {
+    Box(
+        modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(destination.title, style = MaterialTheme.typography.titleLarge)
+    }
+}
+
+@Composable
+private fun LegacySettingsScreen(
     state: MainUiState,
     callbacks: SettingsCallbacks,
     contentPadding: PaddingValues,

@@ -82,17 +82,25 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `settings expansion is a reversible state transition`() {
-        assertEquals(SettingsSectionExpansion.Expanded, SettingsSectionExpansion.Collapsed.toggled())
-        assertEquals(SettingsSectionExpansion.Collapsed, SettingsSectionExpansion.Expanded.toggled())
+    fun `settings root destinations have the required stable order`() {
+        assertEquals(
+            listOf(
+                SettingsDestination.PROFILES,
+                SettingsDestination.SCALE,
+                SettingsDestination.HEALTH_CONNECT,
+                SettingsDestination.HUAWEI_HEALTH,
+                SettingsDestination.BACKUP,
+                SettingsDestination.DIAGNOSTICS,
+            ),
+            settingsRootDestinations(huaweiEnabled = true),
+        )
+        assertFalse(settingsRootDestinations(huaweiEnabled = false).contains(SettingsDestination.HUAWEI_HEALTH))
     }
 
     @Test
-    fun `settings sections have the required stable order`() {
-        assertEquals(
-            listOf("Аккаунты", "Интеграции", "Весы", "Резервная копия", "Дополнительно", "О приложении"),
-            SettingsSectionKey.entries.map(SettingsSectionKey::title),
-        )
+    fun `settings destinations expose detail chrome titles`() {
+        assertEquals("Профили", SettingsDestination.PROFILES.title)
+        assertEquals("Резервная копия", SettingsDestination.BACKUP.title)
     }
 
     @Test
