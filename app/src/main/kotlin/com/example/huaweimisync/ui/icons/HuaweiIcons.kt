@@ -123,6 +123,18 @@ object HuaweiIcons {
         )
     }
 
+    val Users: ImageVector by lazy {
+        outlineIcon(
+            "Users",
+            listOf(
+                "M16 21V19A4 4 0 0 0 12 15H6A4 4 0 0 0 2 19V21",
+                "M9 11A4 4 0 1 0 9 3A4 4 0 1 0 9 11Z",
+                "M22 21V19A4 4 0 0 0 19 15.13",
+                "M16 3.13A4 4 0 0 1 16 10.87",
+            ),
+        )
+    }
+
     val Cat: ImageVector by lazy {
         outlineIcon(
             "Cat",
@@ -191,6 +203,52 @@ object HuaweiIcons {
         outlineIcon(
             "Health",
             listOf("M20.8 4.6A5.5 5.5 0 0 0 13 4.6L12 5.7L10.9 4.6A5.5 5.5 0 0 0 3.1 12.4L4.2 13.5L12 21L19.8 13.5L20.9 12.4A5.5 5.5 0 0 0 20.8 4.6Z"),
+        )
+    }
+
+    val HealthConnect: ImageVector by lazy {
+        outlineIcon(
+            "HealthConnect",
+            listOf(
+                "M20.8 4.6A5.5 5.5 0 0 0 13 4.6L12 5.7L10.9 4.6A5.5 5.5 0 0 0 3.1 12.4L4.2 13.5L12 21L19.8 13.5L20.9 12.4A5.5 5.5 0 0 0 20.8 4.6Z",
+                "M5 12H8L10 9L13 15L15 12H19",
+            ),
+        )
+    }
+
+    val HuaweiHealth: ImageVector by lazy {
+        outlineIcon(
+            "HuaweiHealth",
+            listOf(
+                "M12 21S4 16.2 4 10.1A4.1 4.1 0 0 1 11 7.2L12 8.3L13 7.2A4.1 4.1 0 0 1 20 10.1C20 16.2 12 21 12 21Z",
+            ),
+        )
+    }
+
+    val Archive: ImageVector by lazy {
+        outlineIcon(
+            "Archive",
+            listOf("M3 5H21V9H3Z", "M5 9V20H19V9", "M9 13H15"),
+        )
+    }
+
+    val Stethoscope: ImageVector by lazy {
+        outlineIcon(
+            "Stethoscope",
+            listOf(
+                "M6 3V9A5 5 0 0 0 16 9V3",
+                "M4 3H8",
+                "M14 3H18",
+                "M11 14V16A4 4 0 0 0 19 16V14",
+                "M21 12A2 2 0 1 1 17 12A2 2 0 1 1 21 12Z",
+            ),
+        )
+    }
+
+    val History: ImageVector by lazy {
+        outlineIcon(
+            "History",
+            listOf("M3 12A9 9 0 1 0 6 5.3L3 8", "M3 3V8H8", "M12 7V12L15 14"),
         )
     }
 

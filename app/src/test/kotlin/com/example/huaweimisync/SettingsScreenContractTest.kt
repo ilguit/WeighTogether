@@ -119,6 +119,46 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `settings root destinations keep their approved thematic line icons`() {
+        assertEquals("Huawei.Users", settingsRootIcon(SettingsDestination.PROFILES).name)
+        assertEquals("Huawei.Bluetooth", settingsRootIcon(SettingsDestination.SCALE).name)
+        assertEquals("Huawei.HealthConnect", settingsRootIcon(SettingsDestination.HEALTH_CONNECT).name)
+        assertEquals("Huawei.HuaweiHealth", settingsRootIcon(SettingsDestination.HUAWEI_HEALTH).name)
+        assertEquals("Huawei.Archive", settingsRootIcon(SettingsDestination.BACKUP).name)
+        assertEquals("Huawei.Stethoscope", settingsRootIcon(SettingsDestination.DIAGNOSTICS).name)
+    }
+
+    @Test
+    fun `root status marks are successful only for actually ready integrations`() {
+        val permissions = setOf("weight")
+        val connectedHealth = HealthConnectPermissionsUiState.snapshot(
+            isAvailable = true,
+            requiredPermissions = permissions,
+            grantedPermissions = permissions,
+        )
+        assertTrue(healthRootStatusSuccessful(connectedHealth, locallyEnabled = true))
+        assertFalse(healthRootStatusSuccessful(connectedHealth, locallyEnabled = false))
+        assertFalse(
+            healthRootStatusSuccessful(
+                HealthConnectPermissionsUiState(HealthConnectAvailability.CHECKING),
+                locallyEnabled = true,
+            ),
+        )
+        assertTrue(
+            huaweiRootStatusSuccessful(
+                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+                locallyEnabled = true,
+            ),
+        )
+        assertFalse(
+            huaweiRootStatusSuccessful(
+                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+                locallyEnabled = false,
+            ),
+        )
+    }
+
+    @Test
     fun `partial health connect access stays disconnected and requests permissions`() {
         val presentation = healthConnectPresentation(
             HealthConnectPermissionsUiState.snapshot(

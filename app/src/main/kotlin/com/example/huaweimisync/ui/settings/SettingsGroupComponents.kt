@@ -30,6 +30,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -67,8 +68,10 @@ internal fun SettingsGroupRow(
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
     enabled: Boolean = true,
+    leadingIconTag: String? = null,
+    trailingTag: String? = null,
     status: (@Composable () -> Unit)? = null,
-    trailing: (@Composable () -> Unit)? = { SettingsTrailingChevron() },
+    trailing: (@Composable () -> Unit)? = { SettingsTrailingChevron(tag = trailingTag) },
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth()) {
         val compact = maxWidth < SettingsCompactWidth
@@ -104,7 +107,7 @@ internal fun SettingsGroupRow(
                 .padding(horizontal = horizontalPadding, vertical = 11.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            SettingsLeadingIcon(leadingIcon, leadingSize)
+            SettingsLeadingIcon(leadingIcon, leadingSize, leadingIconTag)
             Column(
                 modifier = Modifier.padding(start = itemSpacing).weight(1f),
             ) {
@@ -157,17 +160,19 @@ internal fun SettingsStatusMark(
 }
 
 @Composable
-internal fun SettingsTrailingChevron(modifier: Modifier = Modifier) {
+internal fun SettingsTrailingChevron(modifier: Modifier = Modifier, tag: String? = null) {
     Icon(
         imageVector = HuaweiIcons.ChevronRight,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = modifier.size(20.dp),
+        modifier = modifier
+            .size(20.dp)
+            .then(if (tag == null) Modifier else Modifier.testTag(tag)),
     )
 }
 
 @Composable
-private fun SettingsLeadingIcon(icon: ImageVector, size: Dp) {
+private fun SettingsLeadingIcon(icon: ImageVector, size: Dp, tag: String?) {
     Surface(
         modifier = Modifier.size(size),
         shape = MaterialTheme.shapes.small,
@@ -178,7 +183,9 @@ private fun SettingsLeadingIcon(icon: ImageVector, size: Dp) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(HuaweiDimensions.Icon),
+                modifier = Modifier
+                    .size(HuaweiDimensions.Icon)
+                    .then(if (tag == null) Modifier else Modifier.testTag(tag)),
             )
         }
     }
