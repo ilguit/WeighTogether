@@ -15,6 +15,7 @@ import com.example.huaweimisync.ble.BleSupport
 import com.example.huaweimisync.ble.ManualScaleScanner
 import com.example.huaweimisync.ble.ReliabilityScanService
 import com.example.huaweimisync.ble.ScanWorkScheduler
+import com.example.huaweimisync.ble.ForgetScaleCoordinator
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.data.AccountNameConflictException
 import com.example.huaweimisync.data.ExternalSyncDestination
@@ -962,6 +963,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         container.profileStore.setReliabilityMode(enabled)
         ReliabilityScanService.setEnabled(getApplication(), enabled)
         showMessage(if (enabled) "Режим повышенной надёжности включён" else "Режим выключен")
+    }
+
+    /** Stops every BLE producer before durably removing the selected scale. */
+    fun forgetScale() = viewModelScope.launch {
+        ForgetScaleCoordinator(
+            stopBleSessions = {
+                invalidatePetMeasurementStartup()
+                scanner.stop()
+                scanning.value = false
+                scaleRefresh.clear()
+                petMeasurementCoordinator.clear()
+                refreshScanner.stop()
+                petScanner.stop()
+            },
+            unregisterPendingIntentScan = {
+                BackgroundScanRegistrar.unregister(getApplication())
+            },
+            stopReliabilityService = {
+                ReliabilityScanService.setEnabled(getApplication(), false)
+            },
+            cancelBleWork = {
+                WorkManager.getInstance(getApplication())
+                    .cancelAllWorkByTag(ScanWorkScheduler.BLE_PROCESSING_WORK_TAG)
+            },
+            packetGate = container.scalePacketProcessingGate,
+            clearSettings = container.profileStore::forgetScale,
+        ).forget()
     }
 
     fun authorizeHuawei() = viewModelScope.launch {

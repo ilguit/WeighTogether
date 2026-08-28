@@ -35,6 +35,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import com.example.huaweimisync.ble.ScalePacketProcessingGate
 
 class MiSyncApplication : Application() {
     lateinit var container: AppContainer
@@ -62,6 +63,7 @@ class AppContainer(application: Application) {
     )
     val finalizationScheduler = WorkManagerPendingFinalizationScheduler(application)
     val petMeasurementIngestionGate = PetMeasurementIngestionGate()
+    val scalePacketProcessingGate = ScalePacketProcessingGate()
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
     val measurementPersistence = RoomMeasurementPersistence(

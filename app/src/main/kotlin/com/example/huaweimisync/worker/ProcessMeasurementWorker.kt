@@ -366,6 +366,7 @@ class ScalePacketProcessor(
 enum class DirectPacketProcessingResult {
     PROCESSED_DIRECTLY,
     FALLBACK_ENQUEUED,
+    REJECTED_STALE_SCALE,
 }
 
 /** Keeps fallback policy independent of Android callbacks and straightforward to regression-test. */
@@ -392,8 +393,14 @@ class ProcessMeasurementWorker(
         val payload = inputData.getByteArray(KEY_PAYLOAD) ?: return Result.failure()
         val mac = inputData.getString(KEY_MAC) ?: "unknown"
         val container = (applicationContext as MiSyncApplication).container
+        val packet = ScalePacket(payload, mac)
         val outcome = try {
-            container.packetProcessor.process(ScalePacket(payload, mac))
+            container.scalePacketProcessingGate.processIfSelected(
+                packet = packet,
+                selectedAddress = { container.profileStore.settings.value.scaleAddress },
+            ) {
+                container.packetProcessor.process(packet)
+            } ?: return Result.success()
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Throwable) {

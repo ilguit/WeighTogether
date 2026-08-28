@@ -34,10 +34,15 @@ object ScanWorkScheduler {
         packet: ScalePacket,
     ): DirectPacketProcessingResult {
         val container = (context.applicationContext as MiSyncApplication).container
-        return DirectPacketProcessingOrchestrator(
-            process = { container.packetProcessor.process(it) },
-            enqueueFallback = { enqueue(context, it) },
-        ).process(packet)
+        return container.scalePacketProcessingGate.processIfSelected(
+            packet = packet,
+            selectedAddress = { container.profileStore.settings.value.scaleAddress },
+        ) {
+            DirectPacketProcessingOrchestrator(
+                process = { container.packetProcessor.process(it) },
+                enqueueFallback = { enqueue(context, it) },
+            ).process(packet)
+        } ?: DirectPacketProcessingResult.REJECTED_STALE_SCALE
     }
 
     private fun packet(context: Context, result: ScanResult): ScalePacket? {
@@ -60,6 +65,7 @@ object ScanWorkScheduler {
         val work = OneTimeWorkRequestBuilder<ProcessMeasurementWorker>()
             .setInputData(data)
             .setInitialDelay(150, TimeUnit.MILLISECONDS)
+            .addTag(BLE_PROCESSING_WORK_TAG)
             .build()
         WorkManager.getInstance(context).enqueueUniqueWork(
             "ble-${packet.deviceAddress}-${packet.payload.contentHashCode()}",
@@ -67,4 +73,6 @@ object ScanWorkScheduler {
             work,
         )
     }
+
+    const val BLE_PROCESSING_WORK_TAG = "ble-measurement-processing"
 }
