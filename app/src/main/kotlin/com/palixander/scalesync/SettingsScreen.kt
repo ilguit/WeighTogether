@@ -24,8 +24,10 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
@@ -44,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -59,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.backup.BackupImportMode
@@ -74,6 +78,11 @@ import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiSettingRow
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.settings.SettingsGroup
+import com.palixander.scalesync.ui.settings.SettingsGroupDivider
+import com.palixander.scalesync.ui.settings.SettingsGroupRow
+import com.palixander.scalesync.ui.settings.SettingsStatusMark
+import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
@@ -149,6 +158,47 @@ internal fun settingsRootDestinations(huaweiEnabled: Boolean): List<SettingsDest
     add(SettingsDestination.DIAGNOSTICS)
 }
 
+internal fun settingsRootIcon(destination: SettingsDestination) = when (destination) {
+    SettingsDestination.PROFILES -> HuaweiIcons.Users
+    SettingsDestination.SCALE -> HuaweiIcons.Bluetooth
+    SettingsDestination.HEALTH_CONNECT -> HuaweiIcons.HealthConnect
+    SettingsDestination.HUAWEI_HEALTH -> HuaweiIcons.HuaweiHealth
+    SettingsDestination.BACKUP -> HuaweiIcons.Archive
+    SettingsDestination.DIAGNOSTICS -> HuaweiIcons.Stethoscope
+    SettingsDestination.ROOT -> HuaweiIcons.Settings
+}
+
+internal fun scaleRootStatusSuccessful(presentation: ScaleSettingsPresentation): Boolean =
+    presentation.status == ScaleSettingsStatus.READY
+
+internal fun healthRootStatusSuccessful(
+    state: HealthConnectPermissionsUiState,
+    locallyEnabled: Boolean,
+): Boolean = state.availability == HealthConnectAvailability.AVAILABLE &&
+    state.isConnected && locallyEnabled
+
+internal fun huaweiRootStatusSuccessful(
+    state: HuaweiIntegrationUiState,
+    locallyEnabled: Boolean,
+): Boolean = state.status == HuaweiIntegrationStatus.AUTHORIZED && locallyEnabled
+
+internal fun settingsDetailDestructiveAction(
+    destination: SettingsDestination,
+    state: MainUiState,
+): DestructiveSettingsAction? = when (destination) {
+    SettingsDestination.SCALE -> DestructiveSettingsAction.SCALE.takeIf {
+        scalePresentation(state).allowForget
+    }
+    SettingsDestination.HEALTH_CONNECT -> DestructiveSettingsAction.HEALTH_CONNECT.takeIf {
+        state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
+    }
+    SettingsDestination.HUAWEI_HEALTH -> DestructiveSettingsAction.HUAWEI.takeIf {
+        BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
+            state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
+    }
+    else -> null
+}
+
 internal data class IntegrationPresentation(
     val supportingText: String,
     val actionLabel: String? = null,
@@ -211,6 +261,35 @@ internal object SettingsScreenTestTags {
     const val DestructiveDialog = "settings-destructive-dialog"
     const val DestructiveConfirm = "settings-destructive-confirm"
     const val IntegrationStatus = "settings-integration-status"
+    const val DetailHero = "settings-detail-hero"
+    const val DetailHeroIcon = "settings-detail-hero-icon"
+    const val DetailPrimaryAction = "settings-detail-primary-action"
+    const val DetailStatusGroup = "settings-detail-status-group"
+    const val DetailStatusDivider = "settings-detail-status-divider"
+    const val DetailDangerZone = "settings-detail-danger-zone"
+    const val BackupSaveGroup = "settings-backup-save-group"
+    const val BackupRestoreGroup = "settings-backup-restore-group"
+    const val BackupRestoreDivider = "settings-backup-restore-divider"
+    const val DiagnosticsMeasurementGroup = "settings-diagnostics-measurement-group"
+    const val DiagnosticsBackgroundGroup = "settings-diagnostics-background-group"
+    const val DiagnosticsBackgroundDivider = "settings-diagnostics-background-divider"
+    const val DiagnosticsBackgroundSecondDivider = "settings-diagnostics-background-divider-second"
+    const val ManualTestAction = "settings-manual-test-action"
+    const val ProfilesGroup = "settings-group-profiles"
+    const val ConnectionsGroup = "settings-group-connections"
+    const val SupportGroup = "settings-group-support"
+    const val ConnectionsDivider = "settings-group-connections-divider"
+    const val SupportDivider = "settings-group-support-divider"
+    const val SupportSecondDivider = "settings-group-support-divider-second"
+    const val ConnectionsSecondDivider = "settings-group-connections-divider-second"
+    const val RootDivider = "settings-root-divider"
+    const val ConnectionsHeading = "settings-heading-connections"
+    const val SupportHeading = "settings-heading-support"
+    const val LeadingIconSuffix = "-leading-icon"
+    const val TrailingChevronSuffix = "-trailing-chevron"
+    const val ScaleStatusMark = "settings-scale-status-mark"
+    const val HealthConnectStatusMark = "settings-health-connect-status-mark"
+    const val HuaweiHealthStatusMark = "settings-huawei-health-status-mark"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -238,6 +317,23 @@ internal fun profilesRootSummary(peopleCount: Int, petCount: Int): String {
     if (peopleCount == 0 && petCount == 0) return "Добавьте первый профиль"
     return "${russianCount(peopleCount, "человек", "человека", "человек")} · " +
         russianCount(petCount, "питомец", "питомца", "питомцев")
+}
+
+internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? = when (destination) {
+    SettingsDestination.PROFILES -> 0
+    SettingsDestination.SCALE,
+    SettingsDestination.HEALTH_CONNECT,
+    SettingsDestination.HUAWEI_HEALTH,
+    -> 2
+    SettingsDestination.BACKUP,
+    SettingsDestination.DIAGNOSTICS,
+    -> 4
+    SettingsDestination.ROOT -> null
+}
+
+internal fun scaleDetailIdentity(settings: AppSettings): String {
+    val address = settings.scaleAddress ?: return "Устройство не выбрано"
+    return listOfNotNull(settings.scaleName, address).joinToString(" · ")
 }
 
 private fun russianCount(count: Int, one: String, few: String, many: String): String {
@@ -371,11 +467,9 @@ internal fun SettingsScreen(
     LaunchedEffect(destination) {
         if (destination == SettingsDestination.ROOT) {
             returnFocusDestination?.let { returnedFrom ->
-                val destinationIndex = settingsRootDestinations(
-                    BuildConfig.HUAWEI_EXTENDED_ENABLED,
-                ).indexOf(returnedFrom)
-                if (destinationIndex >= 0) {
-                    rootListState.scrollToItem(destinationIndex + if (destinationIndex == 0) 0 else 1)
+                settingsRootGroupItemIndex(returnedFrom)?.let { groupItemIndex ->
+                    rootListState.scrollToItem(groupItemIndex)
+                    withFrameNanos { }
                     rootFocusRequesters[returnedFrom]?.requestFocus()
                 }
             }
@@ -424,7 +518,7 @@ private fun SettingsBackupDetail(
     modifier: Modifier = Modifier,
 ) {
     SettingsSimpleDetail(contentPadding, SettingsScreenTestTags.BackupDetail, modifier) {
-        SettingsBackupContent(state.backup, callbacks)
+        SettingsBackupDetailContent(state.backup, callbacks)
     }
     BackupImportDialog(state.backup, callbacks)
 }
@@ -441,16 +535,14 @@ private fun SettingsDiagnosticsDetail(
     modifier: Modifier = Modifier,
 ) {
     SettingsSimpleDetail(contentPadding, SettingsScreenTestTags.DiagnosticsDetail, modifier) {
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            AdditionalContent(
-                state = state,
-                callbacks = callbacks,
-                weight = weight,
-                onWeightChanged = onWeightChanged,
-                impedance = impedance,
-                onImpedanceChanged = onImpedanceChanged,
-            )
-        }
+        SettingsDiagnosticsContent(
+            state = state,
+            callbacks = callbacks,
+            weight = weight,
+            onWeightChanged = onWeightChanged,
+            impedance = impedance,
+            onImpedanceChanged = onImpedanceChanged,
+        )
     }
 }
 
@@ -488,11 +580,28 @@ private fun SettingsScaleDetail(
         state = state,
         contentPadding = contentPadding,
         testTag = SettingsScreenTestTags.ScaleDetail,
-        destructiveAction = DestructiveSettingsAction.SCALE.takeIf { scalePresentation(state).allowForget },
+        destructiveAction = settingsDetailDestructiveAction(SettingsDestination.SCALE, state),
         callbacks = callbacks,
         modifier = modifier,
     ) {
-        SettingsScaleContent(state, callbacks)
+        val presentation = scalePresentation(state)
+        ConnectionDetailContent(
+            title = "Весы",
+            icon = HuaweiIcons.Bluetooth,
+            status = presentation.supportingText,
+            identityLabel = "Устройство",
+            identity = scaleDetailIdentity(state.settings),
+            actionLabel = presentation.actionLabel,
+            actionEnabled = presentation.actionEnabled,
+            actionTag = SettingsScreenTestTags.ScaleAction,
+            progress = presentation.showProgress,
+            statusTag = SettingsScreenTestTags.ScaleStatus,
+            onAction = when (presentation.action) {
+                ScaleSettingsAction.OPEN_APP_SETTINGS -> callbacks.openApplicationSettings
+                ScaleSettingsAction.SEARCH, ScaleSettingsAction.RETRY -> callbacks.onManualScan
+                null -> ({})
+            },
+        )
     }
 }
 
@@ -511,15 +620,18 @@ private fun SettingsHealthConnectDetail(
         state = state,
         contentPadding = contentPadding,
         testTag = SettingsScreenTestTags.HealthConnectDetail,
-        destructiveAction = DestructiveSettingsAction.HEALTH_CONNECT.takeIf {
-            state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-        },
+        destructiveAction = settingsDetailDestructiveAction(SettingsDestination.HEALTH_CONNECT, state),
         callbacks = callbacks,
         modifier = modifier,
     ) {
-        IntegrationDetailCard(
+        ConnectionDetailContent(
             title = "Health Connect",
-            presentation = presentation,
+            icon = HuaweiIcons.HealthConnect,
+            status = presentation.supportingText,
+            identityLabel = "Устройство",
+            identity = "Системная интеграция",
+            actionLabel = presentation.actionLabel,
+            actionEnabled = presentation.actionEnabled,
             actionTag = SettingsScreenTestTags.HealthConnectAction,
             actionContentDescription = if (presentation.actionOpensManagement) {
                 SettingsScreenContentDescriptions.HealthConnectOpenAction
@@ -550,15 +662,18 @@ private fun SettingsHuaweiHealthDetail(
         state = state,
         contentPadding = contentPadding,
         testTag = SettingsScreenTestTags.HuaweiHealthDetail,
-        destructiveAction = DestructiveSettingsAction.HUAWEI.takeIf {
-            state.settings.huaweiSyncEnabled && state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
-        },
+        destructiveAction = settingsDetailDestructiveAction(SettingsDestination.HUAWEI_HEALTH, state),
         callbacks = callbacks,
         modifier = modifier,
     ) {
-        IntegrationDetailCard(
+        ConnectionDetailContent(
             title = "Huawei Health",
-            presentation = presentation,
+            icon = HuaweiIcons.HuaweiHealth,
+            status = presentation.supportingText,
+            identityLabel = "Интеграция",
+            identity = "Huawei Health Kit",
+            actionLabel = presentation.actionLabel,
+            actionEnabled = presentation.actionEnabled,
             actionTag = SettingsScreenTestTags.HuaweiHealthAction,
             onAction = if (presentation.actionRetriesCheck) {
                 callbacks.onHuaweiPermissionRefresh
@@ -636,35 +751,233 @@ private fun SettingsActionDetail(
 }
 
 @Composable
-private fun IntegrationDetailCard(
+private fun ConnectionDetailContent(
     title: String,
-    presentation: IntegrationPresentation,
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    status: String,
+    identityLabel: String,
+    identity: String,
+    actionLabel: String?,
+    actionEnabled: Boolean,
     actionTag: String,
     onAction: () -> Unit,
     actionContentDescription: String? = null,
+    progress: Boolean = false,
+    statusTag: String = SettingsScreenTestTags.IntegrationStatus,
 ) {
-    HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-            Text(title, style = MaterialTheme.typography.titleMedium)
+    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp)
+                .testTag(SettingsScreenTestTags.DetailHero),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(52.dp).testTag(SettingsScreenTestTags.DetailHeroIcon),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.primary,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp))
+                }
+            }
+            Text(title, style = MaterialTheme.typography.titleLarge)
             Text(
-                presentation.supportingText,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier
-                    .testTag(SettingsScreenTestTags.IntegrationStatus)
-                    .semantics { stateDescription = presentation.supportingText },
+                status,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
-            presentation.actionLabel?.let { label ->
+        }
+        actionLabel?.let { label ->
+            Box(Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DetailPrimaryAction)) {
                 Button(
                     onClick = onAction,
-                    enabled = presentation.actionEnabled,
-                    modifier = Modifier.fillMaxWidth().testTag(actionTag).then(
-                        if (actionContentDescription == null) Modifier else Modifier.semantics {
-                            contentDescription = actionContentDescription
-                        },
-                    ),
-                ) { Text(label) }
+                    enabled = actionEnabled,
+                    modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(actionTag).then(
+                            if (actionContentDescription == null) Modifier else Modifier.semantics {
+                                contentDescription = actionContentDescription
+                            },
+                        ),
+                ) {
+                    if (progress) CircularProgressIndicator(Modifier.size(20.dp).testTag(SettingsScreenTestTags.ScaleProgress))
+                    Text(label, modifier = if (progress) Modifier.padding(start = 8.dp) else Modifier)
+                }
             }
         }
+        DetailSectionTitle("Состояние")
+        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DetailStatusGroup)) {
+            DetailInfoRow(identityLabel, identity)
+            SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DetailStatusDivider))
+            DetailInfoRow(
+                label = "Статус",
+                value = status,
+                modifier = Modifier.testTag(statusTag)
+                    .semantics { stateDescription = status },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailInfoRow(label: String, value: String, modifier: Modifier = Modifier) {
+    Row(
+        modifier = modifier.fillMaxWidth().heightIn(min = 58.dp)
+            .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+    ) {
+        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(value, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1.4f))
+    }
+}
+
+@Composable
+private fun DetailSectionTitle(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(start = 10.dp, top = 6.dp).semantics { heading() },
+    )
+}
+
+@Composable
+private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: SettingsCallbacks) {
+    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+        DetailSectionTitle("Сохранить данные")
+        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupSaveGroup)) {
+            DetailActionRow(
+                icon = HuaweiIcons.Archive,
+                title = "Экспортировать резервную копию",
+                supportingText = "Профили, питомцы, измерения и настройки",
+                enabled = !state.inProgress,
+                tag = SettingsScreenTestTags.BackupExport,
+                onClick = callbacks.onExportBackup,
+            )
+        }
+        if (state.inProgress) Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 8.dp),
+        ) {
+            CircularProgressIndicator(Modifier.size(24.dp))
+            Text("Обработка резервной копии…")
+        }
+        DetailSectionTitle("Восстановить данные")
+        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupRestoreGroup)) {
+            DetailActionRow(
+                icon = HuaweiIcons.Refresh,
+                title = "Импортировать и объединить",
+                supportingText = "Сохранить существующие данные",
+                enabled = !state.inProgress,
+                tag = SettingsScreenTestTags.BackupMerge,
+                onClick = { callbacks.onImportBackup(BackupImportMode.MERGE) },
+            )
+            SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.BackupRestoreDivider))
+            DetailActionRow(
+                icon = HuaweiIcons.Warning,
+                title = "Полностью заменить данные",
+                supportingText = "Текущие данные будут удалены после подтверждения",
+                enabled = !state.inProgress,
+                tag = SettingsScreenTestTags.BackupReplace,
+                onClick = { callbacks.onImportBackup(BackupImportMode.REPLACE) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun DetailActionRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    title: String,
+    supportingText: String,
+    enabled: Boolean = true,
+    tag: String,
+    onClick: () -> Unit,
+) {
+    SettingsGroupRow(
+        leadingIcon = icon,
+        title = title,
+        supportingText = supportingText,
+        enabled = enabled,
+        modifier = Modifier.testTag(tag),
+        onClick = onClick,
+    )
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun SettingsDiagnosticsContent(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    weight: String,
+    onWeightChanged: (String) -> Unit,
+    impedance: String,
+    onImpedanceChanged: (String) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+        DetailSectionTitle("Проверка весов")
+        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup)) {
+            Column(
+                modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
+                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            ) {
+                ResponsiveTestFields(weight, onWeightChanged, impedance, onImpedanceChanged)
+                Button(
+                    onClick = { callbacks.onManualTest(weight, impedance) },
+                    modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(SettingsScreenTestTags.ManualTestAction),
+                ) { Text("Отправить тестовое измерение") }
+            }
+        }
+        DetailSectionTitle("Работа в фоне")
+        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup)) {
+            DiagnosticsSwitchRow(state, callbacks)
+            SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider))
+            DetailActionRow(
+                icon = HuaweiIcons.Settings,
+                title = "Настройки батареи",
+                supportingText = "Разрешить фоновую работу",
+                tag = "settings-diagnostics-battery",
+                onClick = callbacks.openBatterySettings,
+            )
+            SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider))
+            DetailActionRow(
+                icon = HuaweiIcons.Tune,
+                title = "Системные настройки приложения",
+                supportingText = "Разрешения и уведомления",
+                tag = "settings-diagnostics-application",
+                onClick = callbacks.openApplicationSettings,
+            )
+        }
+    }
+}
+
+@Composable
+private fun DiagnosticsSwitchRow(state: MainUiState, callbacks: SettingsCallbacks) {
+    Row(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
+            .clickable(role = Role.Switch) {
+                callbacks.onReliabilityMode(!state.settings.reliabilityMode)
+            }.padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Режим надёжности", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "Поддерживать поиск весов в фоне",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Switch(
+            checked = state.settings.reliabilityMode,
+            onCheckedChange = callbacks.onReliabilityMode,
+            modifier = Modifier.semantics { contentDescription = "Режим надёжности" },
+        )
     }
 }
 
@@ -679,12 +992,13 @@ private fun DetailDestructiveAction(
         DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health" to SettingsScreenTestTags.DisableHuawei
         DestructiveSettingsAction.SCALE -> "Забыть выбранные весы" to SettingsScreenTestTags.ForgetScale
     }
-    Column {
-        SettingsDivider()
+    Column(Modifier.testTag(SettingsScreenTestTags.DetailDangerZone)) {
+        DetailSectionTitle("Управление")
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
-            modifier = Modifier.fillMaxWidth().testTag(tag),
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
+            modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget).testTag(tag),
         ) { Text(label) }
     }
 }
@@ -746,6 +1060,7 @@ private fun SettingsRootScreen(
     listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    val scalePresentation = scalePresentation(state)
     val healthPresentation = healthConnectPresentation(
         state.healthConnect,
         state.settings.healthConnectSyncEnabled,
@@ -762,98 +1077,175 @@ private fun SettingsRootScreen(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(SettingsScreenTestTags.List),
             state = listState,
             contentPadding = PaddingValues(
-                start = HuaweiDimensions.ContentPadding,
-                end = HuaweiDimensions.ContentPadding,
+                start = HuaweiDimensions.CompactContentPadding,
+                end = HuaweiDimensions.CompactContentPadding,
                 top = 4.dp,
                 bottom = 28.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
             item {
-                SettingsNavigationRow(
-                    SettingsDestination.PROFILES,
-                    profilesRootSummary(state.accountManagement.accounts.size, state.pets.size),
-                    SettingsScreenTestTags.ProfilesRow,
-                    onDestinationChanged,
-                    focusRequesters[SettingsDestination.PROFILES],
-                )
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.ProfilesGroup)) {
+                    SettingsNavigationRow(
+                        SettingsDestination.PROFILES,
+                        settingsRootIcon(SettingsDestination.PROFILES),
+                        profilesRootSummary(state.accountManagement.accounts.size, state.pets.size),
+                        SettingsScreenTestTags.ProfilesRow,
+                        onDestinationChanged,
+                        focusRequesters[SettingsDestination.PROFILES],
+                    )
+                }
             }
             item {
                 Text(
                     "Весы и синхронизация",
                     style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier
-                        .padding(start = HuaweiDimensions.CompactContentPadding)
+                        .padding(start = 10.dp, top = 18.dp, bottom = 8.dp)
+                        .testTag(SettingsScreenTestTags.ConnectionsHeading)
                         .semantics { heading() },
                 )
             }
-            item { SettingsNavigationRow(SettingsDestination.SCALE, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged, focusRequesters[SettingsDestination.SCALE]) }
-            item { SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged, focusRequesters[SettingsDestination.HEALTH_CONNECT]) }
-            if (BuildConfig.HUAWEI_EXTENDED_ENABLED) item {
-                SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH])
-            }
-            item { SettingsNavigationRow(SettingsDestination.BACKUP, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged, focusRequesters[SettingsDestination.BACKUP]) }
-            item { SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged, focusRequesters[SettingsDestination.DIAGNOSTICS]) }
             item {
-                HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-                    HuaweiSettingRow(
-                        icon = HuaweiIcons.Calendar,
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.ConnectionsGroup)) {
+                    SettingsNavigationRow(
+                        SettingsDestination.SCALE, settingsRootIcon(SettingsDestination.SCALE),
+                        scaleRootSupportingText(scalePresentation, state.settings.scaleName),
+                        SettingsScreenTestTags.ScaleRow,
+                        onDestinationChanged, focusRequesters[SettingsDestination.SCALE],
+                        status = {
+                            SettingsRootStatusMark(
+                                scaleRootStatusSuccessful(scalePresentation),
+                                SettingsScreenTestTags.ScaleStatusMark,
+                            )
+                        },
+                    )
+                    SettingsRootDivider(SettingsScreenTestTags.ConnectionsDivider)
+                    SettingsNavigationRow(
+                        SettingsDestination.HEALTH_CONNECT,
+                        settingsRootIcon(SettingsDestination.HEALTH_CONNECT),
+                        healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow,
+                        onDestinationChanged, focusRequesters[SettingsDestination.HEALTH_CONNECT],
+                        status = {
+                            SettingsRootStatusMark(
+                                healthRootStatusSuccessful(
+                                    state.healthConnect,
+                                    state.settings.healthConnectSyncEnabled,
+                                ),
+                                SettingsScreenTestTags.HealthConnectStatusMark,
+                            )
+                        },
+                    )
+                    if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
+                        SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
+                        SettingsNavigationRow(
+                            SettingsDestination.HUAWEI_HEALTH,
+                            settingsRootIcon(SettingsDestination.HUAWEI_HEALTH),
+                            huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow,
+                            onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH],
+                            status = {
+                                SettingsRootStatusMark(
+                                    huaweiRootStatusSuccessful(
+                                        state.huawei,
+                                        state.settings.huaweiSyncEnabled,
+                                    ),
+                                    SettingsScreenTestTags.HuaweiHealthStatusMark,
+                                )
+                            },
+                        )
+                    }
+                }
+            }
+            item {
+                Text(
+                    "Данные и приложение",
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier
+                        .padding(start = 10.dp, top = 18.dp, bottom = 8.dp)
+                        .testTag(SettingsScreenTestTags.SupportHeading)
+                        .semantics { heading() },
+                )
+            }
+            item {
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.SupportGroup)) {
+                    SettingsNavigationRow(
+                        SettingsDestination.BACKUP,
+                        settingsRootIcon(SettingsDestination.BACKUP),
+                        "Экспорт и восстановление данных",
+                        SettingsScreenTestTags.BackupRow,
+                        onDestinationChanged,
+                        focusRequesters[SettingsDestination.BACKUP],
+                    )
+                    SettingsRootDivider(SettingsScreenTestTags.SupportDivider)
+                    SettingsNavigationRow(
+                        SettingsDestination.DIAGNOSTICS,
+                        settingsRootIcon(SettingsDestination.DIAGNOSTICS),
+                        "Проверка и системные параметры",
+                        SettingsScreenTestTags.DiagnosticsRow,
+                        onDestinationChanged,
+                        focusRequesters[SettingsDestination.DIAGNOSTICS],
+                    )
+                    SettingsRootDivider(SettingsScreenTestTags.SupportSecondDivider)
+                    SettingsGroupRow(
+                        leadingIcon = HuaweiIcons.History,
                         title = "История версий",
-                        supportingText = "Что нового в приложении",
+                        supportingText = "Что изменилось в приложении",
                         modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
                         onClick = callbacks.onOpenChangelog,
-                        titleMaxLines = Int.MAX_VALUE,
-                        supportingTextMaxLines = Int.MAX_VALUE,
-                    ) { SettingsNavigationChevron() }
+                        leadingIconTag = SettingsScreenTestTags.ChangelogRow + SettingsScreenTestTags.LeadingIconSuffix,
+                        trailingTag = SettingsScreenTestTags.ChangelogRow + SettingsScreenTestTags.TrailingChevronSuffix,
+                    )
                 }
             }
         }
     }
 }
 
-private fun scaleStatus(state: MainUiState): String = scalePresentation(state).supportingText
-
 @Composable
 private fun SettingsNavigationRow(
     destination: SettingsDestination,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
     supportingText: String,
     testTag: String,
     onDestinationChanged: (SettingsDestination) -> Unit,
     focusRequester: FocusRequester?,
+    status: (@Composable () -> Unit)? = null,
 ) {
-    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-        HuaweiSettingRow(
-            icon = HuaweiIcons.ChevronRight,
-            title = destination.title,
-            supportingText = supportingText,
-            modifier = Modifier
-                .testTag(testTag)
-                .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
-                .semantics {
-                    stateDescription = supportingText
-                    if (destination == SettingsDestination.HEALTH_CONNECT) {
-                        contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
-                    }
-                },
-            onClick = { onDestinationChanged(destination) },
-            titleMaxLines = Int.MAX_VALUE,
-            supportingTextMaxLines = Int.MAX_VALUE,
-        ) { SettingsNavigationChevron() }
+    SettingsGroupRow(
+        leadingIcon = leadingIcon,
+        title = destination.title,
+        supportingText = supportingText,
+        modifier = Modifier
+            .testTag(testTag)
+            .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
+            .semantics {
+                stateDescription = supportingText
+                if (destination == SettingsDestination.HEALTH_CONNECT) {
+                    contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                }
+            },
+        onClick = { onDestinationChanged(destination) },
+        leadingIconTag = testTag + SettingsScreenTestTags.LeadingIconSuffix,
+        trailingTag = testTag + SettingsScreenTestTags.TrailingChevronSuffix,
+        status = status,
+    )
+}
+
+@Composable
+private fun SettingsRootDivider(tag: String) {
+    Box(Modifier.testTag(tag)) {
+        SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.RootDivider))
     }
 }
 
 @Composable
-private fun SettingsNavigationChevron() {
-    Box(
-        modifier = Modifier.size(HuaweiDimensions.TouchTarget),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = HuaweiIcons.ChevronRight,
-            contentDescription = null,
-            modifier = Modifier.size(HuaweiDimensions.Icon),
-        )
-    }
+private fun SettingsRootStatusMark(success: Boolean, tag: String) {
+    SettingsStatusMark(
+        icon = if (success) HuaweiIcons.Success else HuaweiIcons.Warning,
+        tint = if (success) MaterialTheme.colorScheme.primary else HuaweiColors.Warning,
+        modifier = Modifier.testTag(tag),
+    )
 }
 
 @Composable

@@ -11,8 +11,25 @@ class ScaleSettingsPresentationTest {
         val value = presentation(address = "AA:BB", name = "MIBFS")
         assertEquals(ScaleSettingsStatus.READY, value.status)
         assertEquals("MIBFS · AA:BB", value.supportingText)
+        assertEquals("MIBFS", scaleRootSupportingText(value, "MIBFS"))
         assertEquals(ScaleSettingsAction.SEARCH, value.action)
         assertTrue(value.allowForget)
+    }
+
+    @Test fun rootUsesFallbackModelWithoutAddressWhileDetailKeepsFullIdentity() {
+        val value = presentation(address = "AA:BB:CC:DD:EE:FF")
+
+        assertEquals(
+            "Mi Body Composition Scale 2",
+            scaleRootSupportingText(value, selectedName = null),
+        )
+        assertEquals("Mi Body Composition Scale 2 · AA:BB:CC:DD:EE:FF", value.supportingText)
+    }
+
+    @Test fun rootKeepsNonReadyStatusText() {
+        val value = presentation(scanning = true)
+
+        assertEquals("Идёт поиск весов…", scaleRootSupportingText(value, "Старое имя"))
     }
 
     @Test fun emptyOffersSearchWithoutForget() {

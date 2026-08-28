@@ -31,7 +31,6 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
@@ -59,6 +58,8 @@ object AccountManagementTestTags {
     const val Add = "account-management-add"
     const val AddPet = "profile-management-add-pet"
     const val Empty = "profile-management-empty"
+    const val PeopleGroup = "profile-management-people-group"
+    const val PetsGroup = "profile-management-pets-group"
     const val Editor = "account-editor"
     const val EditorBirthDate = "account-editor-birth-date"
     const val EditorSave = "account-editor-save"
@@ -117,33 +118,31 @@ fun AccountManagementSection(
     modifier: Modifier = Modifier,
 ) {
     Column(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Профили", Modifier.weight(1f))
+            HuaweiSectionTitle("Люди", Modifier.weight(1f))
             TextButton(
                 onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
                 enabled = !state.operationInProgress,
                 modifier = Modifier.testTag(AccountManagementTestTags.Add),
-            ) { Text("Добавить человека") }
+            ) { Text("Добавить") }
         }
-        TextButton(
-            onClick = onAddPet,
-            enabled = !state.operationInProgress,
-            modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
-        ) { Text("Добавить питомца") }
         HuaweiSurface(
-            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PeopleGroup),
             contentPadding = PaddingValues(0.dp),
         ) {
-            if (state.accounts.isEmpty() && pets.isEmpty()) {
+            if (state.accounts.isEmpty()) {
                 Text(
                     text = "Профилей пока нет.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
                         .padding(HuaweiDimensions.ContentPadding)
-                        .testTag(AccountManagementTestTags.Empty),
+                        .then(
+                            if (pets.isEmpty()) Modifier.testTag(AccountManagementTestTags.Empty)
+                            else Modifier,
+                        ),
                 )
             } else {
                 Column {
@@ -164,19 +163,40 @@ fun AccountManagementSection(
                                 callbacks.onAction(AccountManagementAction.DeleteRequested(account.id))
                             },
                         )
-                        if (account != state.accounts.last() || pets.isNotEmpty()) HorizontalDivider()
+                        if (account != state.accounts.last()) HorizontalDivider()
                     }
-                    pets.forEachIndexed { index, pet ->
-                        PetProfileRow(
-                            pet = pet,
-                            enabled = !state.operationInProgress,
-                            speciesLabel = petSpeciesLabel(pet),
-                            weightLabel = petWeightLabel(pet),
-                            onEdit = { onEditPet(pet) },
-                            onDelete = { onDeletePet(pet.pet.id) },
-                        )
-                        if (index != pets.lastIndex) HorizontalDivider()
-                    }
+                }
+            }
+        }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            HuaweiSectionTitle("Питомцы", Modifier.weight(1f))
+            TextButton(
+                onClick = onAddPet,
+                enabled = !state.operationInProgress,
+                modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
+            ) { Text("Добавить") }
+        }
+        HuaweiSurface(
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PetsGroup),
+            contentPadding = PaddingValues(0.dp),
+        ) {
+            if (pets.isEmpty()) {
+                Text(
+                    text = "Питомцев пока нет.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
+                )
+            } else Column {
+                pets.forEachIndexed { index, pet ->
+                    PetProfileRow(
+                        pet = pet,
+                        enabled = !state.operationInProgress,
+                        speciesLabel = petSpeciesLabel(pet),
+                        weightLabel = petWeightLabel(pet),
+                        onEdit = { onEditPet(pet) },
+                        onDelete = { onDeletePet(pet.pet.id) },
+                    )
+                    if (index != pets.lastIndex) HorizontalDivider()
                 }
             }
         }
@@ -327,8 +347,6 @@ private fun AccountRow(
                 Text(
                     text = account.displayName,
                     style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 if (isPrimary) PrimaryBadge(account.id)

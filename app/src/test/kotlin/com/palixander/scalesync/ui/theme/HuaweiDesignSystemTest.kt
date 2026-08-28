@@ -121,6 +121,12 @@ class HuaweiDesignSystemTest {
             HuaweiIcons.Edit,
             HuaweiIcons.Delete,
             HuaweiIcons.Refresh,
+            HuaweiIcons.Users,
+            HuaweiIcons.HealthConnect,
+            HuaweiIcons.HuaweiHealth,
+            HuaweiIcons.Archive,
+            HuaweiIcons.Stethoscope,
+            HuaweiIcons.History,
         )
 
         icons.forEach { icon ->

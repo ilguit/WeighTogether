@@ -1,9 +1,14 @@
 package com.palixander.scalesync
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
@@ -13,17 +18,22 @@ import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.domain.Account
@@ -45,6 +55,7 @@ import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorTestTags
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeFalse
 import org.junit.Assume.assumeTrue
 import org.junit.Rule
@@ -196,6 +207,204 @@ class SettingsShellUiTest {
     }
 
     @Test
+    fun rootRowsArePartitionedIntoGroupedSurfacesWithInternalDividers() {
+        setSettingsShell(expandSections = false)
+
+        listOf(
+            SettingsScreenTestTags.ProfilesGroup,
+            SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.SupportGroup,
+        ).forEach { composeRule.onNodeWithTag(it).assertExists() }
+        listOf(
+            SettingsScreenTestTags.ProfilesRow to SettingsScreenTestTags.ProfilesGroup,
+            SettingsScreenTestTags.ScaleRow to SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.HealthConnectRow to SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.BackupRow to SettingsScreenTestTags.SupportGroup,
+            SettingsScreenTestTags.DiagnosticsRow to SettingsScreenTestTags.SupportGroup,
+            SettingsScreenTestTags.ChangelogRow to SettingsScreenTestTags.SupportGroup,
+        ).forEach { (row, group) ->
+            composeRule.onNode(hasTestTag(row) and hasAnyAncestor(hasTestTag(group))).assertExists()
+        }
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ConnectionsDivider)
+            .assertExists()
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.SupportDivider)
+            .assertExists()
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.SupportSecondDivider)
+            .assertExists()
+            .assertHasNoClickAction()
+        composeRule.onAllNodesWithTag(
+            SettingsScreenTestTags.RootDivider,
+            useUnmergedTree = true,
+        ).assertCountEquals(if (BuildConfig.HUAWEI_EXTENDED_ENABLED) 4 else 3)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ConnectionsHeading)
+            .assertTextEquals("Весы и синхронизация")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.SupportHeading)
+            .assertTextEquals("Данные и приложение")
+        val profilesGroup = composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesGroup)
+            .getUnclippedBoundsInRoot()
+        val rootList = composeRule.onNodeWithTag(SettingsScreenTestTags.List)
+            .getUnclippedBoundsInRoot()
+        assertEquals(12.dp, profilesGroup.left - rootList.left)
+    }
+
+    @Test
+    fun narrowLargeTextRootRowsGrowAndKeepStatusAndChevronInsideTheRow() {
+        val longScaleName =
+            "Очень длинное имя весов для узкого экрана с увеличенным системным шрифтом"
+        composeRule.setContent {
+            val currentDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(currentDensity.density, fontScale = 2f),
+            ) {
+                Box(Modifier.width(320.dp)) {
+                    SettingsScreen(
+                        state = MainUiState(
+                            settings = AppSettings(
+                                scaleAddress = "AA:BB:CC:DD:EE:FF",
+                                scaleName = longScaleName,
+                            ),
+                        ),
+                        callbacks = settingsCallbacks(),
+                        contentPadding = PaddingValues(),
+                    )
+                }
+            }
+        }
+
+        val row = composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleRow)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val status = composeRule.onNodeWithText(longScaleName)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val chevron = composeRule.onNodeWithTag(
+            SettingsScreenTestTags.ScaleRow + SettingsScreenTestTags.TrailingChevronSuffix,
+            useUnmergedTree = true,
+        ).getUnclippedBoundsInRoot()
+
+        composeRule.runOnIdle {
+            assertTrue(row.bottom - row.top > 68.dp)
+            assertTrue(status.left >= row.left && status.right <= row.right)
+            assertTrue(chevron.left >= row.left && chevron.right <= row.right)
+        }
+    }
+
+    @Test
+    fun narrowLargeTextProfilesDetailWrapsLongNameInsideItsRow() {
+        val longName = "Александра Екатерина Очень Длинное Имя Профиля"
+        val account = completeAccount().copy(displayName = longName)
+        composeRule.setContent {
+            val currentDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(currentDensity.density, fontScale = 2f),
+            ) {
+                Box(Modifier.width(320.dp)) {
+                    val destination = remember { mutableStateOf(SettingsDestination.ROOT) }
+                    ScaleSyncScaffold(
+                        state = MainUiState(
+                            accounts = listOf(account),
+                            accountSettings = AccountSettings(primaryAccountId = account.id),
+                            accountManagement = AccountManagementUiState(
+                                accounts = listOf(account),
+                                primaryAccountId = account.id,
+                            ),
+                        ),
+                        currentSection = AppSection.SETTINGS,
+                        settingsDestination = destination.value,
+                        measurementsDestination = MeasurementsDestination.SUMMARY,
+                        measurementsCallbacks = MeasurementsCallbacks.None,
+                        snackbarHostState = remember { SnackbarHostState() },
+                        onSectionSelected = {},
+                        onSettingsDestinationChanged = { destination.value = it },
+                        onCloseProfile = {},
+                        onSaveProfile = {},
+                        onProfileHeightChanged = {},
+                        onProfileBirthDateChanged = {},
+                        onProfileSexChanged = {},
+                        settingsCallbacks = settingsCallbacks(),
+                        measurementsContent = {},
+                        chartsContent = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        val row = composeRule.onNodeWithTag(AccountManagementTestTags.row(account.id))
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val name = composeRule.onNodeWithText(longName)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+
+        composeRule.runOnIdle {
+            assertTrue(name.bottom - name.top > 40.dp)
+            assertTrue(name.left >= row.left && name.right <= row.right)
+            assertTrue(name.top >= row.top && name.bottom <= row.bottom)
+        }
+    }
+
+    @Test
+    fun rootRowsHaveOneThematicLeadingIconAndOneDecorativeChevron() {
+        setSettingsShell(expandSections = false)
+
+        val rows = buildList {
+            add(SettingsScreenTestTags.ProfilesRow)
+            add(SettingsScreenTestTags.ScaleRow)
+            add(SettingsScreenTestTags.HealthConnectRow)
+            if (BuildConfig.HUAWEI_EXTENDED_ENABLED) add(SettingsScreenTestTags.HuaweiHealthRow)
+            add(SettingsScreenTestTags.BackupRow)
+            add(SettingsScreenTestTags.DiagnosticsRow)
+            add(SettingsScreenTestTags.ChangelogRow)
+        }
+        rows.forEach { row ->
+            composeRule.onAllNodes(
+                hasTestTag(row + SettingsScreenTestTags.LeadingIconSuffix) and
+                    hasAnyAncestor(hasTestTag(row)),
+                useUnmergedTree = true,
+            ).assertCountEquals(1)
+            composeRule.onAllNodes(
+                hasTestTag(row + SettingsScreenTestTags.TrailingChevronSuffix) and
+                    hasAnyAncestor(hasTestTag(row)),
+                useUnmergedTree = true,
+            ).assertCountEquals(1)
+        }
+    }
+
+    @Test
+    fun rootConnectionRowsExposeStateMarksWithoutReplacingTextStatus() {
+        val permissions = setOf("weight")
+        setSettingsShell(
+            settings = AppSettings(
+                scaleAddress = "AA:BB",
+                scaleName = "Mi Body Composition Scale 2",
+                healthConnectSyncEnabled = true,
+                huaweiSyncEnabled = true,
+            ),
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = permissions,
+                grantedPermissions = permissions,
+            ),
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleStatusMark).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectStatusMark).assertExists()
+        composeRule.onNodeWithText("Mi Body Composition Scale 2").assertExists()
+        composeRule.onNodeWithText("Подключено · все разрешения выданы").assertExists()
+        if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
+            composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark).assertExists()
+            composeRule.onNodeWithText("Подключено").assertExists()
+        } else {
+            composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark)
+                .assertDoesNotExist()
+        }
+    }
+
+    @Test
     fun profilesRootSummaryShowsExplicitEmptyState() {
         setSettingsShell(expandSections = false, account = null)
         composeRule.onNodeWithText("Добавьте первый профиль").assertIsDisplayed()
@@ -241,6 +450,23 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
         composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).assertIsFocused()
+    }
+
+    @Test
+    fun enterpriseHuaweiDetailReturnsFocusToHuaweiRootRow() {
+        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        setSettingsShell(
+            expandSections = false,
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED),
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsFocused()
+
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertIsFocused()
     }
 
     @Test

@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -38,6 +39,27 @@ class BackupSettingsScreenTest {
         compose.onNodeWithTag(SettingsScreenTestTags.BackupExport).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupMerge).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupReplace).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupSaveGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupRestoreGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupRestoreDivider).assertExists()
+    }
+
+    @Test
+    fun busyBackupKeepsGroupsAndDisablesEveryAction() {
+        compose.setContent {
+            SettingsScreen(
+                MainUiState(backup = BackupUiState(inProgress = true)),
+                callbacks(),
+                PaddingValues(),
+                destination = SettingsDestination.BACKUP,
+            )
+        }
+
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupSaveGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupRestoreGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupExport).assertIsNotEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupMerge).assertIsNotEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupReplace).assertIsNotEnabled()
     }
 
     @Test

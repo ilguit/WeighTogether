@@ -2,6 +2,7 @@ package com.palixander.scalesync
 
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
+import com.palixander.scalesync.data.AppSettings
 import java.time.LocalDate
 import com.palixander.scalesync.domain.PetSpecies
 import org.junit.Assert.assertEquals
@@ -113,9 +114,102 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `root focus restoration targets actual lazy column group items`() {
+        assertEquals(0, settingsRootGroupItemIndex(SettingsDestination.PROFILES))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.SCALE))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HEALTH_CONNECT))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HUAWEI_HEALTH))
+        assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.BACKUP))
+        assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.DIAGNOSTICS))
+        assertNull(settingsRootGroupItemIndex(SettingsDestination.ROOT))
+    }
+
+    @Test
+    fun `scale detail identity never invents an unselected device`() {
+        assertEquals("Устройство не выбрано", scaleDetailIdentity(AppSettings()))
+        assertEquals(
+            "MIBFS · AA:BB",
+            scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")),
+        )
+        assertEquals("AA:BB", scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB")))
+    }
+
+    @Test
     fun `settings destinations expose detail chrome titles`() {
         assertEquals("Профили", SettingsDestination.PROFILES.title)
         assertEquals("Резервная копия", SettingsDestination.BACKUP.title)
+    }
+
+    @Test
+    fun `settings root destinations keep their approved thematic line icons`() {
+        assertEquals("Huawei.Users", settingsRootIcon(SettingsDestination.PROFILES).name)
+        assertEquals("Huawei.Bluetooth", settingsRootIcon(SettingsDestination.SCALE).name)
+        assertEquals("Huawei.HealthConnect", settingsRootIcon(SettingsDestination.HEALTH_CONNECT).name)
+        assertEquals("Huawei.HuaweiHealth", settingsRootIcon(SettingsDestination.HUAWEI_HEALTH).name)
+        assertEquals("Huawei.Archive", settingsRootIcon(SettingsDestination.BACKUP).name)
+        assertEquals("Huawei.Stethoscope", settingsRootIcon(SettingsDestination.DIAGNOSTICS).name)
+    }
+
+    @Test
+    fun `root status marks are successful only for actually ready integrations`() {
+        val permissions = setOf("weight")
+        val connectedHealth = HealthConnectPermissionsUiState.snapshot(
+            isAvailable = true,
+            requiredPermissions = permissions,
+            grantedPermissions = permissions,
+        )
+        assertTrue(healthRootStatusSuccessful(connectedHealth, locallyEnabled = true))
+        assertFalse(healthRootStatusSuccessful(connectedHealth, locallyEnabled = false))
+        assertFalse(
+            healthRootStatusSuccessful(
+                HealthConnectPermissionsUiState(HealthConnectAvailability.CHECKING),
+                locallyEnabled = true,
+            ),
+        )
+        assertTrue(
+            huaweiRootStatusSuccessful(
+                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+                locallyEnabled = true,
+            ),
+        )
+        assertFalse(
+            huaweiRootStatusSuccessful(
+                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+                locallyEnabled = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `detail destructive actions exist only for connected usable targets`() {
+        val permissions = setOf("weight")
+        val connected = HealthConnectPermissionsUiState.snapshot(true, permissions, permissions)
+
+        assertEquals(
+            DestructiveSettingsAction.SCALE,
+            settingsDetailDestructiveAction(
+                SettingsDestination.SCALE,
+                MainUiState(settings = AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")),
+            ),
+        )
+        assertEquals(
+            DestructiveSettingsAction.HEALTH_CONNECT,
+            settingsDetailDestructiveAction(
+                SettingsDestination.HEALTH_CONNECT,
+                MainUiState(healthConnect = connected),
+            ),
+        )
+        assertNull(
+            settingsDetailDestructiveAction(
+                SettingsDestination.HEALTH_CONNECT,
+                MainUiState(
+                    settings = AppSettings(healthConnectSyncEnabled = false),
+                    healthConnect = connected,
+                ),
+            ),
+        )
+        assertNull(settingsDetailDestructiveAction(SettingsDestination.BACKUP, MainUiState()))
+        assertNull(settingsDetailDestructiveAction(SettingsDestination.DIAGNOSTICS, MainUiState()))
     }
 
     @Test
