@@ -188,6 +188,8 @@ internal object SettingsScreenTestTags {
     const val BackupReplace = "settings-backup-replace"
     const val BackupDialog = "settings-backup-dialog"
     const val BackupConfirm = "settings-backup-confirm"
+    const val BackupDetail = "settings-backup-detail"
+    const val DiagnosticsDetail = "settings-diagnostics-detail"
     const val PetsSection = "settings-pets-section"
     const val PetEditor = "settings-pet-editor"
     const val PetDeleteDialog = "settings-pet-delete-dialog"
@@ -328,6 +330,8 @@ internal fun SettingsScreen(
     onDestinationChanged: (SettingsDestination) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
+    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
+    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     when (destination) {
         SettingsDestination.ROOT -> SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
         SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
@@ -338,7 +342,78 @@ internal fun SettingsScreen(
         } else {
             SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
         }
-        else -> SettingsDetailPlaceholder(destination, contentPadding, modifier)
+        SettingsDestination.BACKUP -> SettingsBackupDetail(state, callbacks, contentPadding, modifier)
+        SettingsDestination.DIAGNOSTICS -> SettingsDiagnosticsDetail(
+            state = state,
+            callbacks = callbacks,
+            weight = manualTestWeight,
+            onWeightChanged = { manualTestWeight = it },
+            impedance = manualTestImpedance,
+            onImpedanceChanged = { manualTestImpedance = it },
+            contentPadding = contentPadding,
+            modifier = modifier,
+        )
+    }
+}
+
+@Composable
+private fun SettingsBackupDetail(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    SettingsSimpleDetail(contentPadding, SettingsScreenTestTags.BackupDetail, modifier) {
+        SettingsBackupContent(state.backup, callbacks)
+    }
+    BackupImportDialog(state.backup, callbacks)
+}
+
+@Composable
+private fun SettingsDiagnosticsDetail(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    weight: String,
+    onWeightChanged: (String) -> Unit,
+    impedance: String,
+    onImpedanceChanged: (String) -> Unit,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    SettingsSimpleDetail(contentPadding, SettingsScreenTestTags.DiagnosticsDetail, modifier) {
+        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+            AdditionalContent(
+                state = state,
+                callbacks = callbacks,
+                weight = weight,
+                onWeightChanged = onWeightChanged,
+                impedance = impedance,
+                onImpedanceChanged = onImpedanceChanged,
+            )
+        }
+    }
+}
+
+@Composable
+private fun SettingsSimpleDetail(
+    contentPadding: PaddingValues,
+    testTag: String,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Box(
+        modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(testTag),
+            contentPadding = PaddingValues(
+                start = HuaweiDimensions.ContentPadding,
+                end = HuaweiDimensions.ContentPadding,
+                top = 4.dp,
+                bottom = 28.dp,
+            ),
+        ) { item { content() } }
     }
 }
 
@@ -1114,6 +1189,41 @@ private fun SettingsBackupContent(state: BackupUiState, callbacks: SettingsCallb
                 ) { Text("Импортировать с заменой") }
             }
         }
+}
+
+@Composable
+private fun BackupImportDialog(state: BackupUiState, callbacks: SettingsCallbacks) {
+    state.preview?.let { preview ->
+        val counts = preview.counts
+        val replaceWarning = state.replaceConfirmationRequested
+        AlertDialog(
+            modifier = Modifier.testTag(SettingsScreenTestTags.BackupDialog),
+            onDismissRequest = callbacks.onDismissBackupImport,
+            title = { Text(if (replaceWarning) "Подтвердите замену" else "Проверка импорта") },
+            text = {
+                Text(
+                    if (replaceWarning) {
+                        BACKUP_REPLACE_WARNING
+                    } else {
+                        "Профили: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
+                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
+                            "Питомцы: +${counts.petsAdded}, пропущено ${counts.petsSkipped}, заменено ${counts.petsReplaced}. " +
+                            "Измерения питомцев: +${counts.petMeasurementsAdded}, пропущено ${counts.petMeasurementsSkipped}, заменено ${counts.petMeasurementsReplaced}."
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = callbacks.onConfirmBackupImport,
+                    enabled = !state.inProgress,
+                    modifier = Modifier.testTag(SettingsScreenTestTags.BackupConfirm),
+                ) { Text(if (replaceWarning) "Заменить данные" else "Импортировать") }
+            },
+            dismissButton = {
+                TextButton(onClick = callbacks.onDismissBackupImport) { Text("Отмена") }
+            },
+        )
+    }
 }
 
 @Composable

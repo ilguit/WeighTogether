@@ -12,14 +12,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
-import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.test.SemanticsMatcher
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.domain.Account
@@ -79,15 +77,15 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun additionalToggleRevealsExistingActions() {
+    fun diagnosticsRowOpensExistingActions() {
         setSettingsShell(expandSections = false)
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalToggle)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow)
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
         composeRule.onNodeWithText("Отправить тест").assertExists()
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
@@ -95,23 +93,21 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun manualTestValuesSurviveAdditionalCollapseAndDispatchEditedValues() {
+    fun manualTestValuesSurviveNavigationAndRecreationAndDispatchEditedValues() {
         var submitted: Pair<String, String>? = null
         setSettingsShell(
             expandSections = false,
             onManualTest = { weight, impedance -> submitted = weight to impedance },
         )
 
-        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
             .performTextReplacement("82.35")
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
             .performTextReplacement("612")
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection)
-            .performScrollTo()
-            .performClick()
-        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithContentDescription("Вернуться к настройкам").performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
             .assertTextEquals("Вес, кг", "82.35")
@@ -181,36 +177,27 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun allSixSectionHeadersAreButtonsAndCollapsedByDefault() {
+    fun rootUsesRequiredNavigationOrderWithoutAccordionHeaders() {
         setSettingsShell(expandSections = false)
 
-        listOf(
-            SettingsScreenTestTags.AccountsSection,
-            SettingsScreenTestTags.IntegrationsSection,
-            SettingsScreenTestTags.ScaleSection,
-            SettingsScreenTestTags.BackupSection,
-            SettingsScreenTestTags.AdditionalSection,
-            SettingsScreenTestTags.AboutSection,
-        ).forEach { tag ->
-            composeRule.onNodeWithTag(tag)
-                .performScrollTo()
-                .assertHasClickAction()
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
+        listOf(SettingsScreenTestTags.ProfilesRow, SettingsScreenTestTags.ScaleRow,
+            SettingsScreenTestTags.HealthConnectRow, SettingsScreenTestTags.BackupRow,
+            SettingsScreenTestTags.DiagnosticsRow, SettingsScreenTestTags.ChangelogRow).forEach {
+            composeRule.onNodeWithTag(it).performScrollTo().assertHasClickAction()
         }
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsSection).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection).assertDoesNotExist()
     }
 
     @Test
-    fun sectionsToggleIndependentlyAndRestoreAfterRecreation() {
+    fun diagnosticsDestinationRestoresAfterRecreation() {
         setSettingsShell(expandSections = false)
 
-        expandSection(SettingsScreenTestTags.AccountsSection)
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
 
         composeRule.activityRule.scenario.recreate()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
     }
 
     @Test
@@ -527,6 +514,7 @@ class SettingsShellUiTest {
         pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
+            val settingsDestination = remember { mutableStateOf(SettingsDestination.ROOT) }
             val management = remember {
                 mutableStateOf(
                     AccountManagementUiState(
@@ -549,10 +537,12 @@ class SettingsShellUiTest {
                     pets = pets,
                 ),
                 currentSection = AppSection.SETTINGS,
+                settingsDestination = settingsDestination.value,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
                 measurementsCallbacks = MeasurementsCallbacks.None,
                 snackbarHostState = snackbarHostState,
                 onSectionSelected = {},
+                onSettingsDestinationChanged = { settingsDestination.value = it },
                 onCloseProfile = {},
                 onSaveProfile = {},
                 onProfileHeightChanged = {},
@@ -573,20 +563,6 @@ class SettingsShellUiTest {
                 chartsContent = {},
             )
         }
-        if (expandSections) {
-            listOf(
-                SettingsScreenTestTags.AccountsSection,
-                SettingsScreenTestTags.IntegrationsSection,
-                SettingsScreenTestTags.ScaleSection,
-                SettingsScreenTestTags.BackupSection,
-                SettingsScreenTestTags.AdditionalSection,
-                SettingsScreenTestTags.AboutSection,
-            ).forEach(::expandSection)
-        }
-    }
-
-    private fun expandSection(tag: String) {
-        composeRule.onNodeWithTag(tag).performScrollTo().performClick()
     }
 
     private fun settingsCallbacks(
