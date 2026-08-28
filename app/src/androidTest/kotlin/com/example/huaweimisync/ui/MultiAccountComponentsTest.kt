@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -94,6 +95,85 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.OperationError).assertIsDisplayed()
         assertTrue(modes.isEmpty())
     }
+
+    @Test
+    fun profileUpdatePromptKeepsAllActionsInsideDialogInVerticalOrder() {
+        val account = account("one", "Анна")
+        val update = AccountUpdate(
+            account.id,
+            account.displayName,
+            (account.profile as AccountProfile.Complete).copy(heightCm = 171.0),
+        )
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(
+                        accounts = listOf(account),
+                        profileUpdateConfirmation = ProfileUpdateConfirmation(
+                            update,
+                            AccountEditorDraft.edit(account).copy(heightCm = "171"),
+                        ),
+                    ),
+                    callbacks = AccountManagementCallbacks.None,
+                )
+            }
+        }
+
+        val dialog = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdatePrompt)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val recalculateNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateRecalculate)
+            .assertIsDisplayed()
+            .assertTextEquals("Сохранить и пересчитать")
+        val keepExistingNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
+            .assertIsDisplayed()
+            .assertTextEquals("Сохранить без пересчёта")
+        val cancelNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateCancel)
+            .assertIsDisplayed()
+            .assertTextEquals("Отмена")
+
+        val recalculate = recalculateNode.getUnclippedBoundsInRoot()
+        val keepExisting = keepExistingNode.getUnclippedBoundsInRoot()
+        val cancel = cancelNode.getUnclippedBoundsInRoot()
+        val recalculateText = composeRule.onNodeWithText(
+            "Сохранить и пересчитать",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val keepExistingText = composeRule.onNodeWithText(
+            "Сохранить без пересчёта",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val cancelText = composeRule.onNodeWithText(
+            "Отмена",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
+
+        listOf(recalculate, keepExisting, cancel).forEach { action ->
+            assertTrue(action.left >= dialog.left)
+            assertTrue(action.right <= dialog.right)
+            assertTrue(action.top >= dialog.top)
+            assertTrue(action.bottom <= dialog.bottom)
+        }
+        assertTrue(recalculate.bottom <= keepExisting.top)
+        assertTrue(keepExisting.bottom <= cancel.top)
+
+        listOf(
+            recalculateText to recalculate,
+            keepExistingText to keepExisting,
+            cancelText to cancel,
+        ).forEach { (text, action) ->
+            assertTrue("Action text must start inside its action", text.left >= action.left)
+            assertTrue("Action text must end inside its action", text.right <= action.right)
+            assertTrue("Action text must start below its action top", text.top >= action.top)
+            assertTrue("Action text must end above its action bottom", text.bottom <= action.bottom)
+        }
+        assertTrue(recalculateText.bottom <= keepExistingText.top)
+        assertTrue(keepExistingText.bottom <= cancelText.top)
+    }
+
     @get:Rule
     val composeRule = createComposeRule()
 
