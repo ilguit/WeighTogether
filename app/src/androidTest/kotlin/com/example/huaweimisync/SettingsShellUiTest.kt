@@ -9,11 +9,17 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.test.SemanticsMatcher
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.domain.Account
@@ -70,7 +76,7 @@ class SettingsShellUiTest {
 
     @Test
     fun additionalToggleRevealsExistingActions() {
-        setSettingsShell()
+        setSettingsShell(expandSections = false)
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalToggle)
@@ -82,6 +88,39 @@ class SettingsShellUiTest {
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
         composeRule.onNodeWithText("Настройки приложения").assertExists()
+    }
+
+    @Test
+    fun manualTestValuesSurviveAdditionalCollapseAndDispatchEditedValues() {
+        var submitted: Pair<String, String>? = null
+        setSettingsShell(
+            expandSections = false,
+            onManualTest = { weight, impedance -> submitted = weight to impedance },
+        )
+
+        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .performTextReplacement("82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .performTextReplacement("612")
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection)
+            .performScrollTo()
+            .performClick()
+        expandSection(SettingsScreenTestTags.AdditionalSection)
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .assertTextEquals("Вес, кг", "82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .assertTextEquals("Импеданс, Ом", "612")
+        composeRule.onNodeWithText("Отправить тест").performScrollTo().performClick()
+        composeRule.runOnIdle { assertEquals("82.35" to "612", submitted) }
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
+            .assertTextEquals("Вес, кг", "82.35")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
+            .assertTextEquals("Импеданс, Ом", "612")
     }
 
     @Test
@@ -110,6 +149,39 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithText("Последний вес: 4,25 кг").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Измерений пока нет").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun allSixSectionHeadersAreButtonsAndCollapsedByDefault() {
+        setSettingsShell(expandSections = false)
+
+        listOf(
+            SettingsScreenTestTags.AccountsSection,
+            SettingsScreenTestTags.IntegrationsSection,
+            SettingsScreenTestTags.ScaleSection,
+            SettingsScreenTestTags.BackupSection,
+            SettingsScreenTestTags.AdditionalSection,
+            SettingsScreenTestTags.AboutSection,
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag)
+                .performScrollTo()
+                .assertHasClickAction()
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
+        }
+    }
+
+    @Test
+    fun sectionsToggleIndependentlyAndRestoreAfterRecreation() {
+        setSettingsShell(expandSections = false)
+
+        expandSection(SettingsScreenTestTags.AccountsSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
     }
 
     @Test
@@ -411,6 +483,7 @@ class SettingsShellUiTest {
     }
 
     private fun setSettingsShell(
+        expandSections: Boolean = true,
         settings: AppSettings = AppSettings(),
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
@@ -421,6 +494,7 @@ class SettingsShellUiTest {
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+        onManualTest: (String, String) -> Unit = { _, _ -> },
         pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
@@ -464,11 +538,26 @@ class SettingsShellUiTest {
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
                     onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
+                    onManualTest = onManualTest,
                 ),
                 measurementsContent = {},
                 chartsContent = {},
             )
         }
+        if (expandSections) {
+            listOf(
+                SettingsScreenTestTags.AccountsSection,
+                SettingsScreenTestTags.IntegrationsSection,
+                SettingsScreenTestTags.ScaleSection,
+                SettingsScreenTestTags.BackupSection,
+                SettingsScreenTestTags.AdditionalSection,
+                SettingsScreenTestTags.AboutSection,
+            ).forEach(::expandSection)
+        }
+    }
+
+    private fun expandSection(tag: String) {
+        composeRule.onNodeWithTag(tag).performScrollTo().performClick()
     }
 
     private fun settingsCallbacks(
@@ -478,12 +567,13 @@ class SettingsShellUiTest {
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
+        onManualTest: (String, String) -> Unit = { _, _ -> },
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
-        onManualTest = { _, _ -> },
+        onManualTest = onManualTest,
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},
