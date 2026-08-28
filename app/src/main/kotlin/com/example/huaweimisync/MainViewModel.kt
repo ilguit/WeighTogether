@@ -94,6 +94,8 @@ data class MainUiState(
     val settings: AppSettings = AppSettings(),
     val scanning: Boolean = false,
     val isRefreshing: Boolean = false,
+    val scaleAvailability: ScaleAvailability = ScaleAvailability.AVAILABLE,
+    val scaleScanError: String? = null,
     val isExternalSyncPaused: Boolean = false,
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
     val healthConnectSystemManagementAvailable: Boolean = false,
@@ -156,6 +158,8 @@ private data class MainCoreState(
     val settings: AppSettings,
     val scanning: Boolean,
     val isRefreshing: Boolean,
+    val scaleAvailability: ScaleAvailability,
+    val scaleScanError: String?,
     val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
     val huawei: HuaweiIntegrationUiState,
@@ -166,6 +170,8 @@ private data class ScaleScanningState(
     val settings: AppSettings,
     val scanning: Boolean,
     val isRefreshing: Boolean,
+    val availability: ScaleAvailability,
+    val error: String?,
 )
 
 private data class RoutingUiSnapshot(
@@ -199,6 +205,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
+    private val scaleAvailability = MutableStateFlow(currentScaleAvailability())
+    private val scaleScanError = MutableStateFlow<String?>(null)
     private val refreshing = MutableStateFlow(false)
     private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
     private val petManagement = MutableStateFlow(PetManagementUiState())
@@ -307,8 +315,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         container.profileStore.settings,
         scanning,
         refreshing,
-    ) { settings, isScanning, isRefreshing ->
-        ScaleScanningState(settings, isScanning, isRefreshing)
+        scaleAvailability,
+        scaleScanError,
+    ) { settings, isScanning, isRefreshing, availability, error ->
+        ScaleScanningState(settings, isScanning, isRefreshing, availability, error)
     }
     private val coreState = combine(
         scaleScanningState,
@@ -321,6 +331,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings = scanState.settings,
             scanning = scanState.scanning,
             isRefreshing = scanState.isRefreshing,
+            scaleAvailability = scanState.availability,
+            scaleScanError = scanState.error,
             isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
             huawei = huaweiState,
@@ -394,6 +406,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             settings = core.settings,
             scanning = core.scanning,
             isRefreshing = core.isRefreshing,
+            scaleAvailability = core.scaleAvailability,
+            scaleScanError = core.scaleScanError,
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
             huawei = core.huawei,
@@ -923,6 +937,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             showMessage("Ручное сканирование остановлено")
             return
         }
+        scaleAvailability.value = currentScaleAvailability()
+        scaleScanError.value = null
+        if (scaleAvailability.value != ScaleAvailability.AVAILABLE) return
         BackgroundScanRegistrar.unregister(getApplication())
         ReliabilityScanService.setEnabled(getApplication(), false)
         val started = scanner.start(
@@ -931,6 +948,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 scanner.stop()
                 scanning.value = false
                 restoreAutomaticScanning()
+                scaleScanError.value = error
                 showMessage(error)
             },
         )
@@ -939,7 +957,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             showMessage("Встаньте на весы и дождитесь финального измерения")
         }.onFailure {
             restoreAutomaticScanning()
-            showMessage(it.message ?: "Не удалось запустить сканирование")
+            scaleAvailability.value = currentScaleAvailability()
+            val message = it.message ?: "Не удалось запустить сканирование"
+            if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = message
+            showMessage(message)
         }
     }
 
@@ -1129,6 +1150,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun onBluetoothPermissionsReady() {
+        scaleAvailability.value = currentScaleAvailability()
         registerBackgroundScan()
         if (container.profileStore.settings.value.reliabilityMode) {
             runCatching { ReliabilityScanService.setEnabled(getApplication(), true) }
@@ -1170,6 +1192,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     /** Foreground repair closes Room→WorkManager gaps and restores pending presentation. */
     fun onForeground() = viewModelScope.launch {
+        scaleAvailability.value = currentScaleAvailability()
         notificationPermissionGranted.value =
             container.pendingMeasurementNotifications.areNotificationsAllowed()
         runCatching { MeasurementWorkSweep(container.repository).run() }
@@ -1488,6 +1511,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (container.profileStore.settings.value.reliabilityMode) {
             runCatching { ReliabilityScanService.setEnabled(getApplication(), true) }
         }
+    }
+
+    private fun currentScaleAvailability(): ScaleAvailability = when {
+        !BleSupport.hasScanPermission(getApplication()) -> ScaleAvailability.PERMISSION_REQUIRED
+        BleSupport.scanner(getApplication()) == null -> ScaleAvailability.BLUETOOTH_DISABLED
+        else -> ScaleAvailability.AVAILABLE
     }
 
     private suspend fun updateHealthConnectPermissions(

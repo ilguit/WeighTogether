@@ -173,6 +173,9 @@ internal object SettingsScreenTestTags {
     const val HuaweiHealthAction = "settings-huawei-health-action"
     const val HuaweiHealthDetail = "settings-huawei-health-detail"
     const val ScaleDetail = "settings-scale-detail"
+    const val ScaleStatus = "settings-scale-status"
+    const val ScaleAction = "settings-scale-action"
+    const val ScaleProgress = "settings-scale-progress"
     const val AccountsSection = "settings-section-accounts"
     const val IntegrationsSection = "settings-section-integrations"
     const val ScaleSection = "settings-section-scale"
@@ -485,13 +488,11 @@ private fun SettingsScaleDetail(
         state = state,
         contentPadding = contentPadding,
         testTag = SettingsScreenTestTags.ScaleDetail,
-        destructiveAction = DestructiveSettingsAction.SCALE.takeIf {
-            state.settings.scaleAddress != null
-        },
+        destructiveAction = DestructiveSettingsAction.SCALE.takeIf { scalePresentation(state).allowForget },
         callbacks = callbacks,
         modifier = modifier,
     ) {
-        SettingsScaleContent(state, callbacks.onManualScan)
+        SettingsScaleContent(state, callbacks)
     }
 }
 
@@ -810,11 +811,7 @@ private fun SettingsRootScreen(
     }
 }
 
-private fun scaleStatus(state: MainUiState): String = if (state.settings.scaleAddress == null) {
-    "Весы ещё не выбраны"
-} else {
-    state.settings.scaleName ?: "Весы подключены"
-}
+private fun scaleStatus(state: MainUiState): String = scalePresentation(state).supportingText
 
 @Composable
 private fun SettingsNavigationRow(
@@ -964,7 +961,7 @@ private fun LegacySettingsScreen(
                     contentTestTag = SettingsScreenTestTags.ScaleContent,
                     onToggle = { scaleExpansion = scaleExpansion.toggled() },
                 ) {
-                    SettingsScaleContent(state, callbacks.onManualScan)
+                    SettingsScaleContent(state, callbacks)
                     ScaleDestructiveAction(state) { destructiveConfirmation = it }
                 }
             }
@@ -1427,24 +1424,39 @@ private fun IntegrationPresentation.forPrimaryAccount(
     actionEnabled = actionEnabled && enabled,
 )
 
+private fun scalePresentation(state: MainUiState) = scaleSettingsPresentation(
+    selectedAddress = state.settings.scaleAddress,
+    selectedName = state.settings.scaleName,
+    scanning = state.scanning,
+    availability = state.scaleAvailability,
+    scanError = state.scaleScanError,
+)
+
 @Composable
-private fun SettingsScaleContent(
-    state: MainUiState,
-    onManualScan: () -> Unit,
-) {
-    val selectedScale = if (state.settings.scaleAddress == null) {
-        "Весы ещё не выбраны"
-    } else {
-        "${state.settings.scaleName ?: "XMTZC05HM"} · ${state.settings.scaleAddress}"
-    }
+private fun SettingsScaleContent(state: MainUiState, callbacks: SettingsCallbacks) {
+    val presentation = scalePresentation(state)
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             HuaweiSettingRow(
                 icon = HuaweiIcons.Bluetooth,
                 title = "Mi Body Composition Scale 2",
-                supportingText = selectedScale,
+                supportingText = presentation.supportingText,
+                modifier = Modifier.testTag(SettingsScreenTestTags.ScaleStatus),
             ) {
-                TextButton(onClick = onManualScan) {
-                    Text(if (state.scanning) "Стоп" else "Найти")
+                if (presentation.showProgress) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp).testTag(SettingsScreenTestTags.ScaleProgress),
+                    )
+                }
+                presentation.actionLabel?.let { label ->
+                    TextButton(
+                        onClick = when (presentation.action) {
+                            ScaleSettingsAction.OPEN_APP_SETTINGS -> callbacks.openApplicationSettings
+                            ScaleSettingsAction.SEARCH, ScaleSettingsAction.RETRY -> callbacks.onManualScan
+                            null -> ({})
+                        },
+                        enabled = presentation.actionEnabled,
+                        modifier = Modifier.testTag(SettingsScreenTestTags.ScaleAction),
+                    ) { Text(label) }
                 }
             }
         }
