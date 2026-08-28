@@ -1,7 +1,6 @@
 package com.palixander.scalesync.ble
 
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.bluetooth.le.ScanCallback
@@ -13,6 +12,7 @@ import androidx.annotation.DrawableRes
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 import com.palixander.scalesync.R
+import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.data.ProfileStore
 
 class ReliabilityScanService : Service() {
@@ -92,17 +92,14 @@ class ReliabilityScanService : Service() {
     }
 
     private fun createChannel() {
-        getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                "Сканирование весов",
-                NotificationManager.IMPORTANCE_LOW,
-            ),
+        NotificationChannelRegistry.register(
+            getSystemService(NotificationManager::class.java),
+            NotificationChannelRegistry.scaleScanning,
         )
     }
 
     companion object {
-        private const val CHANNEL_ID = "scale_scanning"
+        private val CHANNEL_ID = NotificationChannelRegistry.scaleScanning.id
         private const val NOTIFICATION_ID = 181
 
         fun setEnabled(context: Context, enabled: Boolean) {

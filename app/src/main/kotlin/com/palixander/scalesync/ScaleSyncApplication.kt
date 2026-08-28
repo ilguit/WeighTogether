@@ -44,6 +44,7 @@ class ScaleSyncApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        NotificationChannelRegistry.registerAll(this)
         container = AppContainer(this)
         MeasurementWorkSweepScheduler.enqueueBestEffort(this)
     }

@@ -2,7 +2,6 @@ package com.palixander.scalesync.worker
 
 import android.Manifest
 import android.annotation.SuppressLint
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -14,6 +13,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.palixander.scalesync.MainActivity
+import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.data.SuccessfulMeasurementNotifier
 import com.palixander.scalesync.domain.AccountMeasurement
 import java.nio.charset.StandardCharsets
@@ -135,20 +135,15 @@ class SuccessfulMeasurementNotificationHelper(
 
     private fun createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
-        notificationManager.createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                "Сохранённые измерения",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ).apply {
-                description = "Подтверждения об успешном сохранении измерений"
-            },
+        NotificationChannelRegistry.register(
+            notificationManager,
+            NotificationChannelRegistry.successfulMeasurementSaves,
         )
     }
 
     companion object {
         const val ACTION_OPEN_SAVED_MEASUREMENT =
             "com.palixander.scalesync.action.OPEN_SAVED_MEASUREMENT"
-        const val CHANNEL_ID = "successful_measurement_saves"
+        val CHANNEL_ID = NotificationChannelRegistry.successfulMeasurementSaves.id
     }
 }
