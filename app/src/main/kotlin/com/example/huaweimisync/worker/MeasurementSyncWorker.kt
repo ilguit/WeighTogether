@@ -32,6 +32,12 @@ class MeasurementSyncWorker(
                     applyHealthConnectResult(dao, measurementId, payload, result)
                 },
                 isPaused = { container.profileStore.externalSyncPaused },
+                isHuaweiEnabled = {
+                    container.profileStore.isExternalSyncEnabled(ExternalSyncDestination.HUAWEI)
+                },
+                isHealthConnectEnabled = {
+                    container.profileStore.isExternalSyncEnabled(ExternalSyncDestination.HEALTH_CONNECT)
+                },
             ).sync(id)
 
             when (outcome) {

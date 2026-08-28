@@ -50,14 +50,14 @@ class HuaweiAuthorizationControllerTest {
     }
 
     @Test
-    fun `granted permission authorizes and restarts queue`() = runBlocking {
+    fun `passive granted permission never restarts queue`() = runBlocking {
         val gateway = FakeHuaweiGateway(checkResult = HuaweiPermissionCheckResult.AUTHORIZED)
         var queueRetries = 0
 
         val result = controller(gateway) { queueRetries++ }.refresh {}
 
         assertEquals(HuaweiIntegrationStatus.AUTHORIZED, result.status)
-        assertEquals(1, queueRetries)
+        assertEquals(0, queueRetries)
     }
 
     @Test
