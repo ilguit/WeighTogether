@@ -480,14 +480,14 @@ class MeasurementIngestionCoordinatorTest {
         var cancelled = 0
         val presentation = PendingDecisionPresentationCoordinator(
             notificationsAllowed = { true },
-            postNotification = posted::add,
+            postNotification = { posted += it.size },
             cancelNotification = { cancelled += 1 },
         )
         val presentedCounts = mutableListOf<Int>()
         val notifier = object : PendingDecisionNotifier {
-            override fun updatePendingCount(count: Int) {
-                presentedCounts += count
-                presentation.updatePendingCount(count)
+            override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+                presentedCounts += pendingIds.size
+                presentation.updatePendingMeasurements(pendingIds)
             }
         }
         val coordinator = coordinator(
@@ -603,6 +603,7 @@ class MeasurementIngestionCoordinatorTest {
 
         assertEquals(1, count)
         assertEquals(listOf(1), notifier.counts)
+        assertEquals(listOf(setOf(dueUnassigned.pending.id)), notifier.snapshots)
         assertEquals(1, persistence.pendingSnapshotCallCount)
     }
 
@@ -931,8 +932,10 @@ private class UniqueFakeScheduler(
 
 private class RecordingNotifier : PendingDecisionNotifier {
     val counts = mutableListOf<Int>()
-    override fun updatePendingCount(count: Int) {
-        counts += count
+    val snapshots = mutableListOf<Set<PendingMeasurementId>>()
+    override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+        snapshots += pendingIds
+        counts += pendingIds.size
     }
 }
 

@@ -363,8 +363,8 @@ class MeasurementDeduplicationEndToEndTest {
     private class RecordingPendingNotifier : PendingDecisionNotifier {
         val counts = mutableListOf<Int>()
 
-        override fun updatePendingCount(count: Int) {
-            counts += count
+        override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+            counts += pendingIds.size
         }
     }
 
