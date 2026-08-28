@@ -1435,31 +1435,31 @@ private fun scalePresentation(state: MainUiState) = scaleSettingsPresentation(
 @Composable
 private fun SettingsScaleContent(state: MainUiState, callbacks: SettingsCallbacks) {
     val presentation = scalePresentation(state)
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            HuaweiSettingRow(
-                icon = HuaweiIcons.Bluetooth,
-                title = "Mi Body Composition Scale 2",
-                supportingText = presentation.supportingText,
-                modifier = Modifier.testTag(SettingsScreenTestTags.ScaleStatus),
-            ) {
-                if (presentation.showProgress) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(24.dp).testTag(SettingsScreenTestTags.ScaleProgress),
-                    )
-                }
-                presentation.actionLabel?.let { label ->
-                    TextButton(
-                        onClick = when (presentation.action) {
-                            ScaleSettingsAction.OPEN_APP_SETTINGS -> callbacks.openApplicationSettings
-                            ScaleSettingsAction.SEARCH, ScaleSettingsAction.RETRY -> callbacks.onManualScan
-                            null -> ({})
-                        },
-                        enabled = presentation.actionEnabled,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.ScaleAction),
-                    ) { Text(label) }
-                }
+    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+        HuaweiSettingRow(
+            icon = HuaweiIcons.Bluetooth,
+            title = "Mi Body Composition Scale 2",
+            supportingText = presentation.supportingText,
+            modifier = Modifier.testTag(SettingsScreenTestTags.ScaleStatus),
+        ) {
+            if (presentation.showProgress) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(24.dp).testTag(SettingsScreenTestTags.ScaleProgress),
+                )
+            }
+            presentation.actionLabel?.let { label ->
+                TextButton(
+                    onClick = when (presentation.action) {
+                        ScaleSettingsAction.OPEN_APP_SETTINGS -> callbacks.openApplicationSettings
+                        ScaleSettingsAction.SEARCH, ScaleSettingsAction.RETRY -> callbacks.onManualScan
+                        null -> ({})
+                    },
+                    enabled = presentation.actionEnabled,
+                    modifier = Modifier.testTag(SettingsScreenTestTags.ScaleAction),
+                ) { Text(label) }
             }
         }
+    }
 }
 
 @Composable
