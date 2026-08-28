@@ -3,7 +3,7 @@ plugins {
     `java-gradle-plugin`
 }
 
-group = "com.example.huaweimisync.tools"
+group = "com.palixander.scalesync.tools"
 version = "1.0.0"
 
 kotlin {
@@ -26,8 +26,8 @@ dependencies {
 
 gradlePlugin {
     plugins.create("releaseHistory") {
-        id = "com.example.huaweimisync.release-history"
-        implementationClass = "com.example.huaweimisync.releasehistory.ReleaseHistoryPlugin"
+        id = "com.palixander.scalesync.release-history"
+        implementationClass = "com.palixander.scalesync.releasehistory.ReleaseHistoryPlugin"
     }
 }
 

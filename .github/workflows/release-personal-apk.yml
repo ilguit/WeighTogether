@@ -114,7 +114,7 @@ jobs:
           fi
 
           artifact_dir="build-artifacts"
-          artifact_name="HuaweiMiSync-personal-release-${version_name}-run-${RUN_NUMBER}-attempt-${RUN_ATTEMPT}"
+          artifact_name="ScaleSync-personal-release-${version_name}-run-${RUN_NUMBER}-attempt-${RUN_ATTEMPT}"
           artifact_file="${artifact_name}.apk"
           release_metadata_file="${artifact_name}.json"
           mkdir -p "${artifact_dir}"
