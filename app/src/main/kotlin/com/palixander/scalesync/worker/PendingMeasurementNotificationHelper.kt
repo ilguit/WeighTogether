@@ -1,7 +1,6 @@
 package com.palixander.scalesync.worker
 
 import android.Manifest
-import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
@@ -13,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.palixander.scalesync.MainActivity
+import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.R
 import com.palixander.scalesync.data.PendingDecisionNotifier
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -213,12 +213,9 @@ class PendingMeasurementNotificationHelper(
     }
 
     private fun createChannel() {
-        context.getSystemService(NotificationManager::class.java).createNotificationChannel(
-            NotificationChannel(
-                CHANNEL_ID,
-                "Нераспознанные измерения",
-                NotificationManager.IMPORTANCE_DEFAULT,
-            ),
+        NotificationChannelRegistry.register(
+            context.getSystemService(NotificationManager::class.java),
+            NotificationChannelRegistry.pendingMeasurementRouting,
         )
     }
 
@@ -229,7 +226,7 @@ class PendingMeasurementNotificationHelper(
             "com.palixander.scalesync.action.DISMISS_PENDING_MEASUREMENT"
         const val EXTRA_PENDING_COUNT = "pending_measurement_count"
         const val EXTRA_PENDING_IDS = "pending_measurement_ids"
-        private const val CHANNEL_ID = "pending_measurement_routing"
+        private val CHANNEL_ID = NotificationChannelRegistry.pendingMeasurementRouting.id
         private const val NOTIFICATION_ID = 183
         private const val RESOLVER_REQUEST_CODE = 183
         private const val DISMISS_REQUEST_CODE = 184
