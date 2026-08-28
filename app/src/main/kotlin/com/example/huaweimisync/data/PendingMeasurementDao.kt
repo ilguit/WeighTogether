@@ -27,6 +27,12 @@ interface PendingMeasurementDao {
     @Query("SELECT * FROM pending_measurements ORDER BY enqueuedAtEpochMillis ASC, id ASC")
     suspend fun getAll(): List<PendingMeasurementEntity>
 
+    @Query(
+        "SELECT * FROM pending_measurements WHERE provisionalAccountId IS NULL " +
+            "ORDER BY enqueuedAtEpochMillis ASC, id ASC",
+    )
+    suspend fun getUnassigned(): List<PendingMeasurementEntity>
+
     @Query("SELECT * FROM measurement_tombstones ORDER BY deduplicationHash ASC")
     suspend fun getAllTombstones(): List<MeasurementTombstoneEntity>
 

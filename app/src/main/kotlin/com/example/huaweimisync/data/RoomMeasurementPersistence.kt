@@ -205,6 +205,9 @@ class RoomMeasurementPersistence(
     override suspend fun pendingSnapshot(): List<PendingMeasurement> =
         pendingDao.getAll().map(PendingMeasurementEntity::toDomain)
 
+    override suspend fun unassignedPendingSnapshot(): List<PendingMeasurement> =
+        pendingDao.getUnassigned().map(PendingMeasurementEntity::toDomain)
+
     suspend fun eligiblePendingSyncIds(primaryAccountId: AccountId): List<String> =
         measurementDao.eligiblePendingSyncIds(primaryAccountId.value)
 

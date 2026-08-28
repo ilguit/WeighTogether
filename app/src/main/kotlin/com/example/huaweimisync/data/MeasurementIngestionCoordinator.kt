@@ -46,6 +46,9 @@ interface MeasurementRoutingPersistence {
 
     suspend fun pendingSnapshot(): List<PendingMeasurement>
 
+    /** Pending rows which still require an explicit account decision. */
+    suspend fun unassignedPendingSnapshot(): List<PendingMeasurement>
+
     /** Refreshes best-effort preliminary matches after account or routing-setting changes. */
     suspend fun reclassifyPending(matchingEngine: MatchingEngine): List<PendingMeasurement>? = null
 
@@ -487,7 +490,8 @@ class MeasurementIngestionCoordinator(
 
     suspend fun refreshPendingPresentation(): Int = pendingPresentationMutex.withLock {
         val timestamp = Instant.now()
-        val count = persistence.pendingSnapshot().count { it.isAwaitingDecisionAt(timestamp) }
+        val count = persistence.unassignedPendingSnapshot()
+            .count { it.isAwaitingDecisionAt(timestamp) }
         notifier.updatePendingCount(count)
         count
     }
