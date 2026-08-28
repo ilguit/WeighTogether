@@ -7,10 +7,10 @@ import org.junit.Test
 
 class MainViewModelPendingResolutionContractTest {
     private val source by lazy {
-        File("src/main/kotlin/com/example/huaweimisync/MainViewModel.kt").readText()
+        File("src/main/kotlin/com/palixander/scalesync/MainViewModel.kt").readText()
     }
     private val measurementsScreenSource by lazy {
-        File("src/main/kotlin/com/example/huaweimisync/measurements/MeasurementsScreen.kt")
+        File("src/main/kotlin/com/palixander/scalesync/measurements/MeasurementsScreen.kt")
             .readText()
     }
 
@@ -66,7 +66,7 @@ class MainViewModelPendingResolutionContractTest {
     @Test
     fun `local-only measurement has no sync presentation entry point or copy`() {
         val measurementsContractSource = File(
-            "src/main/kotlin/com/example/huaweimisync/measurements/MeasurementsContract.kt",
+            "src/main/kotlin/com/palixander/scalesync/measurements/MeasurementsContract.kt",
         ).readText()
 
         assertTrue(measurementsScreenSource.contains("if (summary.latest.hasSyncPresentation)"))

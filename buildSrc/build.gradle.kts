@@ -10,8 +10,8 @@ repositories {
 gradlePlugin {
     plugins {
         create("roomSchemaGuard") {
-            id = "com.example.huaweimisync.room-schema-guard"
-            implementationClass = "com.example.huaweimisync.gradle.RoomSchemaGuardPlugin"
+            id = "com.palixander.scalesync.room-schema-guard"
+            implementationClass = "com.palixander.scalesync.gradle.RoomSchemaGuardPlugin"
         }
     }
 }

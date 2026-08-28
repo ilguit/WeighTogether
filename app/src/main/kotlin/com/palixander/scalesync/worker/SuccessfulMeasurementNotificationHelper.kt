@@ -34,7 +34,7 @@ object SuccessfulMeasurementNotificationContract {
             notificationTag = "saved-measurement:$measurementId",
             notificationId = stableId,
             requestCode = stableId,
-            intentData = "huaweimisync://measurement/saved/${encodePathSegment(measurementId)}",
+            intentData = "scalesync://measurement/saved/${encodePathSegment(measurementId)}",
         )
     }
 

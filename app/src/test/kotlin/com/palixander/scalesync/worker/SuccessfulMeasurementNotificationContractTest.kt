@@ -31,7 +31,7 @@ class SuccessfulMeasurementNotificationContractTest {
         val identity = SuccessfulMeasurementNotificationContract.identityFor("row/42 with space")
 
         assertEquals(
-            "huaweimisync://measurement/saved/row%2F42%20with%20space",
+            "scalesync://measurement/saved/row%2F42%20with%20space",
             identity.intentData,
         )
     }

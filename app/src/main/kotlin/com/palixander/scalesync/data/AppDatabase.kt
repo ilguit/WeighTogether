@@ -58,7 +58,7 @@ abstract class AppDatabase : RoomDatabase() {
 
         fun build(
             context: Context,
-            databaseName: String = "huawei-mi-sync.db",
+            databaseName: String = "scalesync.db",
         ): AppDatabase = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
             .addMigrations(
                 migration1To2(context),

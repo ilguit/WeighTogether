@@ -3,7 +3,7 @@ plugins {
     java
 }
 
-group = "com.example.huaweimisync.tools"
+group = "com.palixander.scalesync.tools"
 version = "1.0.0"
 
 java {
@@ -13,7 +13,7 @@ java {
 }
 
 application {
-    mainClass = "com.example.huaweimisync.releasenotes.Main"
+    mainClass = "com.palixander.scalesync.releasenotes.Main"
 }
 
 dependencies {

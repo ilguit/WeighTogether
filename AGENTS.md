@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-HuaweiMiSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose UI, BLE scanning, Room persistence, WorkManager jobs, and Health Connect integration. Production code is under `app/src/main/kotlin/`; JVM tests are in `app/src/test/`, device tests in `app/src/androidTest/`, and resources in `app/src/main/res/`. Huawei code is isolated in `app/src/huaweiEnterprise/`; personal builds must not depend on it. Version Room schemas in `app/schemas/`.
+ScaleSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose UI, BLE scanning, Room persistence, WorkManager jobs, and Health Connect integration. Production code is under `app/src/main/kotlin/`; JVM tests are in `app/src/test/`, device tests in `app/src/androidTest/`, and resources in `app/src/main/res/`. Huawei code is isolated in `app/src/huaweiEnterprise/`; personal builds must not depend on it. Version Room schemas in `app/schemas/`.
 
 `core/` is the platform-independent parsing and body-composition library. User setup is in `README.md`. Do not create separate plan files unless the user explicitly requests one; record task planning in the relevant GitHub issue.
 
@@ -22,7 +22,7 @@ Before building an APK, delete the previous APK artifact for the target variant 
 
 ## Coding Style & Naming Conventions
 
-Follow existing Kotlin style: four-space indentation, trailing commas in multiline declarations, and package names rooted at `com.example.huaweimisync`. Use `UpperCamelCase` for classes/composables and `lowerCamelCase` for functions/properties. Keep domain logic out of Compose screens; place persistence in `data`, synchronization in `sync` or `worker`, and reusable UI in `ui`. No formatter is configured, so use IDE Kotlin formatting and clean imports.
+Follow existing Kotlin style: four-space indentation, trailing commas in multiline declarations, and package names rooted at `com.palixander.scalesync`. Use `UpperCamelCase` for classes/composables and `lowerCamelCase` for functions/properties. Keep domain logic out of Compose screens; place persistence in `data`, synchronization in `sync` or `worker`, and reusable UI in `ui`. No formatter is configured, so use IDE Kotlin formatting and clean imports.
 
 ## Testing Guidelines
 

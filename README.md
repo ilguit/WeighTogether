@@ -1,6 +1,6 @@
-# Xiaomi Scale Sync
+# Scale Sync
 
-Xiaomi Scale Sync — локальное Android-приложение для автоматического получения
+Scale Sync — локальное Android-приложение для автоматического получения
 новых измерений с весов Xiaomi Mi Body Composition Scale 2 (`XMTZC05HM`) по
 Bluetooth Low Energy. Приложение сохраняет результаты на устройстве, рассчитывает
 показатели состава тела и передаёт поддерживаемые данные в Health Connect.
