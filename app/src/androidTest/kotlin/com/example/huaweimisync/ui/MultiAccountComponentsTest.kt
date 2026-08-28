@@ -7,6 +7,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -121,15 +122,34 @@ class MultiAccountComponentsTest {
         val dialog = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdatePrompt)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
-        val recalculate = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateRecalculate)
+        val recalculateNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateRecalculate)
             .assertIsDisplayed()
-            .getUnclippedBoundsInRoot()
-        val keepExisting = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
+            .assertTextEquals("Сохранить и пересчитать")
+        val keepExistingNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
             .assertIsDisplayed()
-            .getUnclippedBoundsInRoot()
-        val cancel = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateCancel)
+            .assertTextEquals("Сохранить без пересчёта")
+        val cancelNode = composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateCancel)
             .assertIsDisplayed()
-            .getUnclippedBoundsInRoot()
+            .assertTextEquals("Отмена")
+
+        val recalculate = recalculateNode.getUnclippedBoundsInRoot()
+        val keepExisting = keepExistingNode.getUnclippedBoundsInRoot()
+        val cancel = cancelNode.getUnclippedBoundsInRoot()
+        val recalculateText = composeRule.onNodeWithText(
+            "Сохранить и пересчитать",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val keepExistingText = composeRule.onNodeWithText(
+            "Сохранить без пересчёта",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
+        val cancelText = composeRule.onNodeWithText(
+            "Отмена",
+            substring = false,
+            useUnmergedTree = true,
+        ).assertIsDisplayed().getUnclippedBoundsInRoot()
 
         listOf(recalculate, keepExisting, cancel).forEach { action ->
             assertTrue(action.left >= dialog.left)
@@ -139,6 +159,19 @@ class MultiAccountComponentsTest {
         }
         assertTrue(recalculate.bottom <= keepExisting.top)
         assertTrue(keepExisting.bottom <= cancel.top)
+
+        listOf(
+            recalculateText to recalculate,
+            keepExistingText to keepExisting,
+            cancelText to cancel,
+        ).forEach { (text, action) ->
+            assertTrue("Action text must start inside its action", text.left >= action.left)
+            assertTrue("Action text must end inside its action", text.right <= action.right)
+            assertTrue("Action text must start below its action top", text.top >= action.top)
+            assertTrue("Action text must end above its action bottom", text.bottom <= action.bottom)
+        }
+        assertTrue(recalculateText.bottom <= keepExistingText.top)
+        assertTrue(keepExistingText.bottom <= cancelText.top)
     }
 
     @get:Rule
