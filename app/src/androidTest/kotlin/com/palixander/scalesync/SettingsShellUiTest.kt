@@ -302,7 +302,7 @@ class SettingsShellUiTest {
             ) {
                 Box(Modifier.width(320.dp)) {
                     val destination = remember { mutableStateOf(SettingsDestination.ROOT) }
-                    HuaweiMiSyncScaffold(
+                    ScaleSyncScaffold(
                         state = MainUiState(
                             accounts = listOf(account),
                             accountSettings = AccountSettings(primaryAccountId = account.id),

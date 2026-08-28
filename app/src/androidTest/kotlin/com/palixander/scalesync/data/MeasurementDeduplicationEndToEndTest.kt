@@ -9,6 +9,7 @@ import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.DiscardPendingResult
 import com.palixander.scalesync.domain.NewAccount
 import com.palixander.scalesync.domain.PendingMeasurement
+import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.isAwaitingDecisionAt
 import com.palixander.scalesync.worker.MeasurementSyncScheduler
 import com.palixander.scalesync.worker.PendingFinalizationScheduler
