@@ -323,6 +323,7 @@ fun HuaweiMiSyncApp(
                 onAction = viewModel::onAccountManagementAction,
                 onCreate = viewModel::createAccount,
                 onUpdate = viewModel::updateAccount,
+                onConfirmProfileUpdate = viewModel::confirmProfileUpdate,
                 onSetPrimary = viewModel::setPrimaryAccount,
                 onDelete = viewModel::deleteAccount,
                 onDeletePrimary = viewModel::deletePrimaryAccount,

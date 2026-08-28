@@ -24,6 +24,7 @@ import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
+import com.example.huaweimisync.domain.DecideProfileUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.DiscardPendingResult
@@ -39,6 +40,8 @@ import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
+import com.example.huaweimisync.domain.ProfileUpdateDecision
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
@@ -280,6 +283,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         emptyList(),
     )
     private val accountManagementDialog = MutableStateFlow(AccountManagementUiState())
+    private val decideProfileUpdate = DecideProfileUpdate(container.accounts)
     private val weightDeltaEditor = MutableStateFlow(WeightDeltaEditorState())
     private val resolverSession = MutableStateFlow<PendingResolverSession?>(null)
     private val notificationPermissionGranted = MutableStateFlow(
@@ -656,10 +660,29 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
-        val updated = container.accounts.updateAccount(
-            account,
-            com.example.huaweimisync.domain.ProfileHistoryUpdateMode.RECALCULATE,
-        )
+        when (decideProfileUpdate(account)) {
+            ProfileUpdateDecision.SAVE_KEEP_EXISTING -> saveAccountUpdate(
+                account,
+                ProfileHistoryUpdateMode.KEEP_EXISTING,
+            )
+            ProfileUpdateDecision.ASK_HISTORY_RECALCULATION -> {
+                val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
+                accountManagementDialog.value = reduceAccountManagement(
+                    accountManagementDialog.value.copy(operationInProgress = false),
+                    AccountManagementAction.ProfileUpdateConfirmationRequested(account, draft),
+                )
+            }
+        }
+    }
+
+    fun confirmProfileUpdate(mode: ProfileHistoryUpdateMode) = runAccountOperation {
+        val update = accountManagementDialog.value.profileUpdateConfirmation?.update
+            ?: return@runAccountOperation
+        saveAccountUpdate(update, mode)
+    }
+
+    private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
+        val updated = container.accounts.updateAccount(account, mode)
         finishAccountOperation("Аккаунт «${updated.displayName}» сохранён")
     }
 
@@ -1632,6 +1655,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (accountManagementDialog.value.operationInProgress) return
         accountManagementDialog.value = accountManagementDialog.value.copy(
             operationInProgress = true,
+            operationError = null,
         )
         viewModelScope.launch(Dispatchers.Default) {
             try {
@@ -1656,6 +1680,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private fun failAccountOperation(message: String) {
         accountManagementDialog.value = accountManagementDialog.value.copy(
             operationInProgress = false,
+            operationError = message,
         )
         showMessage(message)
     }

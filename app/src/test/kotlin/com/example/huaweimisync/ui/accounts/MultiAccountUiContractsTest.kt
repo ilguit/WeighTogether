@@ -18,6 +18,42 @@ import org.junit.Test
 
 class MultiAccountUiContractsTest {
     @Test
+    fun profileUpdateConfirmationCancelRestoresEditorWithoutWritingStateAway() {
+        val account = account("one", "One")
+        val draft = AccountEditorDraft.edit(account).copy(heightCm = "181")
+        val update = requireNotNull(draft.toAccountUpdateOrNull(validateAccountEditor(draft, listOf(account))))
+        val prompted = reduceAccountManagement(
+            AccountManagementUiState(accounts = listOf(account), editor = draft),
+            AccountManagementAction.ProfileUpdateConfirmationRequested(update, draft),
+        )
+
+        assertNull(prompted.editor)
+        assertEquals(update, prompted.profileUpdateConfirmation?.update)
+        val cancelled = reduceAccountManagement(
+            prompted,
+            AccountManagementAction.ProfileUpdateConfirmationCancelled,
+        )
+        assertEquals(draft, cancelled.editor)
+        assertNull(cancelled.profileUpdateConfirmation)
+    }
+
+    @Test
+    fun profileUpdatePromptIgnoresActionsWhileSavingAndSurvivesErrorState() {
+        val account = account("one", "One")
+        val draft = AccountEditorDraft.edit(account)
+        val update = requireNotNull(draft.toAccountUpdateOrNull(validateAccountEditor(draft, listOf(account))))
+        val busy = AccountManagementUiState(
+            accounts = listOf(account),
+            profileUpdateConfirmation = ProfileUpdateConfirmation(update, draft),
+            operationInProgress = true,
+            operationError = "Ошибка",
+        )
+
+        assertEquals(busy, reduceAccountManagement(busy, AccountManagementAction.ProfileUpdateConfirmationCancelled))
+        assertEquals(update, busy.profileUpdateConfirmation?.update)
+        assertEquals("Ошибка", busy.operationError)
+    }
+    @Test
     fun `localized decimal accepts dot and comma but not mixed input`() {
         assertEquals(3.0, parseLocalizedDecimal("3,0")!!, 0.0)
         assertEquals(3.0, parseLocalizedDecimal(" 3.0 ")!!, 0.0)
