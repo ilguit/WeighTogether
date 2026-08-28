@@ -170,6 +170,28 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `health connect checking disables connect while failed check keeps authorization flow`() {
+        val checking = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.CHECKING,
+            ),
+        )
+        val failed = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.CHECK_FAILED,
+            ),
+        )
+
+        assertEquals("Проверка разрешений…", checking.supportingText)
+        assertEquals("Подключить", checking.actionLabel)
+        assertFalse(checking.actionEnabled)
+        assertEquals("Не удалось проверить разрешения", failed.supportingText)
+        assertEquals("Подключить", failed.actionLabel)
+        assertTrue(failed.actionEnabled)
+        assertFalse(failed.actionOpensManagement)
+    }
+
+    @Test
     fun `huawei status is flavor aware and only configured enterprise can authorize`() {
         val personal = huaweiIntegrationPresentation(
             HuaweiIntegrationUiState(HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD),

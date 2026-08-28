@@ -23,10 +23,10 @@ class DestructiveSettingsScreenTest {
                 ),
                 callbacks = callbacks(),
                 contentPadding = PaddingValues(),
+                destination = SettingsDestination.SCALE,
             )
         }
 
-        compose.onNodeWithTag(SettingsScreenTestTags.ScaleSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveDialog).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveConfirm).assertExists()
@@ -35,12 +35,15 @@ class DestructiveSettingsScreenTest {
     @Test
     fun noConnectedTargetHidesDestructiveSection() {
         compose.setContent {
-            SettingsScreen(MainUiState(), callbacks(), PaddingValues())
+            SettingsScreen(
+                MainUiState(),
+                callbacks(),
+                PaddingValues(),
+                destination = SettingsDestination.SCALE,
+            )
         }
 
-        compose.onNodeWithTag(SettingsScreenTestTags.IntegrationsSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveSection).assertDoesNotExist()
-        compose.onNodeWithTag(SettingsScreenTestTags.ScaleSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).assertDoesNotExist()
     }
 

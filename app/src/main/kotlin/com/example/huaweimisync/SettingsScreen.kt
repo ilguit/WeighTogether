@@ -159,9 +159,12 @@ internal object SettingsScreenTestTags {
     const val ProfileRow = "settings-profile-row"
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
+    const val HealthConnectDetail = "settings-health-connect-detail"
     const val HuaweiHealthDivider = "settings-huawei-health-divider"
     const val HuaweiHealthRow = "settings-huawei-health-row"
     const val HuaweiHealthAction = "settings-huawei-health-action"
+    const val HuaweiHealthDetail = "settings-huawei-health-detail"
+    const val ScaleDetail = "settings-scale-detail"
     const val AccountsSection = "settings-section-accounts"
     const val IntegrationsSection = "settings-section-integrations"
     const val ScaleSection = "settings-section-scale"
@@ -328,7 +331,225 @@ internal fun SettingsScreen(
     when (destination) {
         SettingsDestination.ROOT -> SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
         SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
+        SettingsDestination.SCALE -> SettingsScaleDetail(state, callbacks, contentPadding, modifier)
+        SettingsDestination.HEALTH_CONNECT -> SettingsHealthConnectDetail(state, callbacks, contentPadding, modifier)
+        SettingsDestination.HUAWEI_HEALTH -> if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
+            SettingsHuaweiHealthDetail(state, callbacks, contentPadding, modifier)
+        } else {
+            SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+        }
         else -> SettingsDetailPlaceholder(destination, contentPadding, modifier)
+    }
+}
+
+@Composable
+private fun SettingsScaleDetail(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    SettingsActionDetail(
+        state = state,
+        contentPadding = contentPadding,
+        testTag = SettingsScreenTestTags.ScaleDetail,
+        destructiveAction = DestructiveSettingsAction.SCALE.takeIf {
+            state.settings.scaleAddress != null
+        },
+        callbacks = callbacks,
+        modifier = modifier,
+    ) {
+        SettingsScaleContent(state, callbacks.onManualScan)
+    }
+}
+
+@Composable
+private fun SettingsHealthConnectDetail(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    val presentation = healthConnectPresentation(
+        state.healthConnect,
+        state.settings.healthConnectSyncEnabled,
+    ).withHealthConnectManagementFallback(state.healthConnectSystemManagementAvailable)
+    SettingsActionDetail(
+        state = state,
+        contentPadding = contentPadding,
+        testTag = SettingsScreenTestTags.HealthConnectDetail,
+        destructiveAction = DestructiveSettingsAction.HEALTH_CONNECT.takeIf {
+            state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
+        },
+        callbacks = callbacks,
+        modifier = modifier,
+    ) {
+        IntegrationDetailCard(
+            title = "Health Connect",
+            presentation = presentation,
+            actionTag = SettingsScreenTestTags.HealthConnectAction,
+            actionContentDescription = if (presentation.actionOpensManagement) {
+                SettingsScreenContentDescriptions.HealthConnectOpenAction
+            } else {
+                SettingsScreenContentDescriptions.HealthConnectConnectAction
+            },
+            onAction = if (presentation.actionOpensManagement) {
+                callbacks.onHealthConnectAccessManagement
+            } else {
+                callbacks.onHealthConnectAuthorization
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsHuaweiHealthDetail(
+    state: MainUiState,
+    callbacks: SettingsCallbacks,
+    contentPadding: PaddingValues,
+    modifier: Modifier = Modifier,
+) {
+    val presentation = huaweiIntegrationPresentation(
+        state.huawei,
+        state.settings.huaweiSyncEnabled,
+    )
+    SettingsActionDetail(
+        state = state,
+        contentPadding = contentPadding,
+        testTag = SettingsScreenTestTags.HuaweiHealthDetail,
+        destructiveAction = DestructiveSettingsAction.HUAWEI.takeIf {
+            state.settings.huaweiSyncEnabled && state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
+        },
+        callbacks = callbacks,
+        modifier = modifier,
+    ) {
+        IntegrationDetailCard(
+            title = "Huawei Health",
+            presentation = presentation,
+            actionTag = SettingsScreenTestTags.HuaweiHealthAction,
+            onAction = if (presentation.actionRetriesCheck) {
+                callbacks.onHuaweiPermissionRefresh
+            } else {
+                callbacks.onHuaweiAuthorization
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsActionDetail(
+    state: MainUiState,
+    contentPadding: PaddingValues,
+    testTag: String,
+    destructiveAction: DestructiveSettingsAction?,
+    callbacks: SettingsCallbacks,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    var confirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
+    var submitted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.destructiveActionInProgress) {
+        if (submitted && state.destructiveActionInProgress == null) {
+            confirmation = null
+            submitted = false
+        }
+    }
+    Box(
+        modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
+        contentAlignment = Alignment.TopCenter,
+    ) {
+        LazyColumn(
+            modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(testTag),
+            contentPadding = PaddingValues(
+                start = HuaweiDimensions.ContentPadding,
+                end = HuaweiDimensions.ContentPadding,
+                top = 4.dp,
+                bottom = 28.dp,
+            ),
+            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        ) {
+            item { content() }
+            destructiveAction?.let { action ->
+                item {
+                    DetailDestructiveAction(
+                        action = action,
+                        enabled = state.destructiveActionInProgress == null,
+                        onClick = { confirmation = action },
+                    )
+                }
+            }
+        }
+    }
+    confirmation?.let { action ->
+        DestructiveConfirmationDialog(
+            action = action,
+            busy = state.destructiveActionInProgress != null,
+            onDismiss = {
+                if (state.destructiveActionInProgress == null) {
+                    confirmation = null
+                    submitted = false
+                }
+            },
+            onConfirm = {
+                submitted = true
+                when (action) {
+                    DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
+                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
+                    DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun IntegrationDetailCard(
+    title: String,
+    presentation: IntegrationPresentation,
+    actionTag: String,
+    onAction: () -> Unit,
+    actionContentDescription: String? = null,
+) {
+    HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Text(title, style = MaterialTheme.typography.titleMedium)
+            Text(
+                presentation.supportingText,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            presentation.actionLabel?.let { label ->
+                Button(
+                    onClick = onAction,
+                    enabled = presentation.actionEnabled,
+                    modifier = Modifier.fillMaxWidth().testTag(actionTag).then(
+                        if (actionContentDescription == null) Modifier else Modifier.semantics {
+                            contentDescription = actionContentDescription
+                        },
+                    ),
+                ) { Text(label) }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DetailDestructiveAction(
+    action: DestructiveSettingsAction,
+    enabled: Boolean,
+    onClick: () -> Unit,
+) {
+    val (label, tag) = when (action) {
+        DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect" to SettingsScreenTestTags.DisableHealthConnect
+        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health" to SettingsScreenTestTags.DisableHuawei
+        DestructiveSettingsAction.SCALE -> "Забыть выбранные весы" to SettingsScreenTestTags.ForgetScale
+    }
+    Column {
+        SettingsDivider()
+        OutlinedButton(
+            onClick = onClick,
+            enabled = enabled,
+            modifier = Modifier.fillMaxWidth().testTag(tag),
+        ) { Text(label) }
     }
 }
 
