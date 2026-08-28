@@ -1,6 +1,7 @@
 package com.example.huaweimisync.worker
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
@@ -100,6 +101,7 @@ class SuccessfulMeasurementNotificationHelper(
         )
     }
 
+    @SuppressLint("MissingPermission")
     private fun post(measurementId: String, accountDisplayName: String) {
         // Permission and channel state can change after the capability check. A transport failure
         // remains best-effort and is contained by notifyMeasurementSaved.
