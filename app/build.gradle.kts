@@ -8,11 +8,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.huaweimisync"
+    namespace = "com.palixander.scalesync"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.huaweimisync"
+        applicationId = "com.palixander.scalesync"
         minSdk = 26
         targetSdk = 36
         versionCode = 65

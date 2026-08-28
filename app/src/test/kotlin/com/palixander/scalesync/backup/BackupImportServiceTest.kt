@@ -1,0 +1,801 @@
+package com.palixander.scalesync.backup
+
+import com.palixander.scalesync.recoverBackupImportAtStartup
+import com.palixander.scalesync.data.AppStateEntity
+import com.palixander.scalesync.data.BackupImportCheckpointEntity
+import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.PortableProfileSettings
+import com.palixander.scalesync.data.PetEntity
+import com.palixander.scalesync.data.PetMeasurementEntity
+import com.palixander.scalesync.data.SyncStatus
+import com.palixander.scalesync.domain.ExternalSyncPolicy
+import com.palixander.scalesync.domain.PetSpecies
+import java.io.ByteArrayInputStream
+import java.io.IOException
+import java.io.InputStream
+import kotlinx.coroutines.CancellationException
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
+import org.junit.Test
+import kotlinx.coroutines.runBlocking
+import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
+
+class BackupImportServiceTest {
+    private val service = BackupImportService()
+    private val emptySettings = PortableProfileSettings(null, null, false, null, null)
+
+    @Test
+    fun `read uses codec validation and enforces byte limit without closing stream`() {
+        val json = BackupJsonCodec().encode(document())
+        val input = TrackingInputStream(json.toByteArray())
+        assertEquals("a", service.read(input).accounts.single().id)
+        assertEquals(false, input.closed)
+        assertThrows(BackupException.Limits::class.java) {
+            BackupImportService(byteLimit = 4).read(ByteArrayInputStream(json.toByteArray()))
+        }
+        assertThrows(BackupException.Corrupt::class.java) {
+            service.read(ByteArrayInputStream(byteArrayOf(0xc3.toByte(), 0x28)))
+        }
+        assertThrows(BackupException.Io::class.java) { service.read(object : InputStream() {
+            override fun read(): Int = throw IOException("lost provider")
+        }) }
+    }
+
+    @Test
+    fun `merge is idempotent and keeps stable identities and local configuration`() {
+        val document = document()
+        val imported = service.preview(document, emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val localSettings = PortableProfileSettings("LOCAL", "Local", false, setOf("weight"), null)
+        val repeated = service.preview(document, imported.result, localSettings, BackupImportMode.MERGE)
+
+        assertEquals(1, imported.counts.accountsAdded)
+        assertEquals(1, imported.counts.measurementsAdded)
+        assertEquals(1, repeated.counts.accountsSkipped)
+        assertEquals(1, repeated.counts.measurementsSkipped)
+        assertEquals("m", repeated.result.measurements.single().id)
+        assertEquals("f", repeated.result.measurements.single().fingerprint)
+        assertEquals("d", repeated.result.measurements.single().deduplicationHash)
+        assertEquals("a", repeated.result.measurements.single().accountId)
+        assertEquals("LOCAL", repeated.settings.scaleAddress)
+        assertEquals(emptySet<String>(), repeated.settings.homeKgChartSeriesKeys)
+    }
+
+    @Test
+    fun `merge blocks incompatible ids names fingerprints and hashes before producing a result`() {
+        val base = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE).result
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(document(accountDisplayName = "Changed"), base, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(BackupImportConflict.AccountId("a"), it.conflicts.first()) }
+
+        val renamedId = document().copy(accounts = listOf(document().accounts.single().copy(id = "other")),
+            appState = document().appState.copy(primaryAccountId = "other"),
+            measurements = listOf(document().measurements.single().copy(id = "other-m", accountId = "other")))
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(renamedId, base, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.AccountName("account"))) }
+
+        val collision = document().copy(measurements = listOf(document().measurements.single().copy(id = "new", weightKg = 71.0)))
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(collision, base, emptySettings, BackupImportMode.MERGE)
+        }.also {
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementFingerprint("f")))
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementDeduplicationHash("d")))
+        }
+    }
+
+    @Test
+    fun `pet merge skips identical rows and rejects id and normalized name conflicts`() {
+        val petDocument = document().copy(
+            pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 3, 70.0, 74.0, 4.0)),
+        )
+        val imported = service.preview(petDocument, emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val repeated = service.preview(petDocument, imported.result, emptySettings, BackupImportMode.MERGE)
+        assertEquals(1, repeated.counts.petsSkipped)
+        assertEquals(1, repeated.counts.petMeasurementsSkipped)
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                petDocument.copy(pets = listOf(petDocument.pets.single().copy(species = PetSpecies.DOG))),
+                imported.result,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p"))) }
+
+        val renamed = petDocument.copy(
+            pets = listOf(petDocument.pets.single().copy(id = "other")),
+            petMeasurements = listOf(petDocument.petMeasurements.single().copy(id = "other-pm", petId = "other")),
+        )
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(renamed, imported.result, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetName("cat"))) }
+    }
+
+    @Test
+    fun `pet measurement id conflict is rejected and replace removes old pet graph`() {
+        val current = BackupDatabaseSnapshot(
+            emptyList(),
+            AppStateEntity(),
+            emptyList(),
+            listOf(PetEntity("old", "Old", "old", PetSpecies.DOG, 1, 2)),
+            listOf(PetMeasurementEntity("pm", "old", 3, 80.0, 85.0, 5.0)),
+        )
+        val incoming = document().copy(
+            pets = listOf(BackupPetV2("new", "New", "new", PetSpecies.CAT, 4, 5)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "new", 6, 70.0, 74.0, 4.0)),
+        )
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetMeasurementId("pm"))) }
+
+        val replacement = service.preview(incoming, current, emptySettings, BackupImportMode.REPLACE)
+        assertEquals(listOf("new"), replacement.result.pets.map { it.id })
+        assertEquals("new", replacement.result.petMeasurements.single().petId)
+        assertEquals(1, replacement.counts.petsReplaced)
+        assertEquals(1, replacement.counts.petMeasurementsReplaced)
+    }
+
+    @Test
+    fun `replace reports disjoint imported rows as added and uses imported links and settings`() {
+        val base = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE).result
+        val replacement = document().copy(
+            accounts = listOf(document().accounts.single().copy(id = "b", normalizedName = "b")),
+            appState = document().appState.copy(primaryAccountId = "b"),
+            measurements = listOf(document().measurements.single().copy(id = "n", fingerprint = "nf", deduplicationHash = "nd", accountId = "b")),
+        )
+        val preview = service.preview(replacement, base, emptySettings, BackupImportMode.REPLACE)
+        assertEquals(BackupImportCounts(1, 0, 1, 1, 0, 1), preview.counts)
+        assertEquals("b", preview.result.appState.primaryAccountId)
+        assertEquals("b", preview.result.measurements.single().accountId)
+        assertEquals("AA:BB", preview.settings.scaleAddress)
+    }
+
+    @Test
+    fun `replace reports all incoming rows as added and all local rows as replaced`() {
+        val original = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+        val extra = document().copy(
+            accounts = document().accounts + document().accounts.single().copy(
+                id = "b",
+                displayName = "Second",
+                normalizedName = "second",
+            ),
+            measurements = document().measurements + document().measurements.single().copy(
+                id = "n",
+                fingerprint = "nf",
+                deduplicationHash = "nd",
+                accountId = "b",
+            ),
+        )
+
+        val preview = service.preview(extra, original, emptySettings, BackupImportMode.REPLACE)
+
+        assertEquals(BackupImportCounts(2, 0, 1, 2, 0, 1), preview.counts)
+    }
+
+    @Test
+    fun `replace with empty backup reports all deleted local rows as replaced`() {
+        val original = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+        val empty = document().copy(
+            accounts = emptyList(),
+            appState = BackupAppStateV1(null, 3.0, false),
+            measurements = emptyList(),
+        )
+
+        val preview = service.preview(empty, original, emptySettings, BackupImportMode.REPLACE)
+
+        assertEquals(BackupImportCounts(0, 0, 1, 0, 0, 1), preview.counts)
+    }
+
+    @Test
+    fun `apply persists database before settings and invokes hooks only after success`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.REPLACE)
+        val gateway = TrackingGateway(events)
+        val result = BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
+            successHooks = listOf(BackupImportSuccessHook { events += "hook:${it.mode}" }),
+        ).apply(preview)
+
+        assertEquals(listOf("database", "settings:AA:BB", "checkpoint-cleanup", "hook:REPLACE"), events)
+        assertEquals(BackupImportMode.REPLACE, result.mode)
+        assertEquals(preview.counts, result.counts)
+    }
+
+    @Test
+    fun `merge and replace trigger completion sweep after checkpoint cleanup outside import mutex`() =
+        runBlocking {
+            BackupImportMode.entries.forEach { mode ->
+                val events = mutableListOf<String>()
+                val operations = ExternalSyncOperationSerializer()
+                val preview = service.preview(document(), emptySnapshot(), emptySettings, mode)
+                BackupImportApplier(
+                    gateway = TrackingGateway(events),
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    operations = operations,
+                    completionHooks = listOf(
+                        BackupImportCompletionHook {
+                            operations.runExclusive { events += "sweep:$mode" }
+                        },
+                    ),
+                ).apply(preview)
+
+                assertEquals(
+                    listOf("database", "settings", "checkpoint-cleanup", "sweep:$mode"),
+                    events,
+                )
+            }
+        }
+
+    @Test
+    fun `post commit hook failures do not change completed result or prevent durable scheduling`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            val result = BackupImportApplier(
+                gateway = TrackingGateway(events),
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                successHooks = listOf(
+                    BackupImportSuccessHook {
+                        events += "failed-success-hook"
+                        error("analytics unavailable")
+                    },
+                    BackupImportSuccessHook { events += "later-success-hook" },
+                ),
+                completionHooks = listOf(
+                    BackupImportCompletionHook {
+                        events += "failed-scheduler"
+                        error("WorkManager unavailable")
+                    },
+                    BackupImportCompletionHook { events += "scheduled" },
+                ),
+            ).apply(preview)
+
+            assertEquals(true, result is BackupImportApplyResult.Completed)
+            assertEquals(
+                listOf(
+                    "database",
+                    "settings",
+                    "checkpoint-cleanup",
+                    "failed-success-hook",
+                    "later-success-hook",
+                    "failed-scheduler",
+                    "scheduled",
+                ),
+                events,
+            )
+        }
+
+    @Test
+    fun `cancellation while completing apply is propagated and leaves checkpoint retryable`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            val cancellation = CancellationException("cancel checkpoint cleanup")
+            val gateway = TrackingGateway(
+                events,
+                completeFailure = cancellation,
+                completeFailuresRemaining = 1,
+            )
+            val laterHooks = mutableListOf<String>()
+            val applier = BackupImportApplier(
+                gateway = gateway,
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                successHooks = listOf(BackupImportSuccessHook { laterHooks += "success" }),
+                completionHooks = listOf(BackupImportCompletionHook { laterHooks += "completion" }),
+            )
+
+            val thrown = assertThrows(CancellationException::class.java) {
+                runBlocking { applier.apply(preview) }
+            }
+
+            assertEquals(cancellation, thrown)
+            assertEquals(listOf("database", "settings"), events)
+            assertEquals(emptyList<String>(), laterHooks)
+            assertEquals(true, gateway.pendingRecovery() != null)
+
+            applier.recoverPendingImport()
+
+            assertEquals(null, gateway.pendingRecovery())
+            assertEquals(listOf("completion"), laterHooks)
+        }
+
+    @Test
+    fun `cancellation in success hook is propagated and stops all later hooks`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val cancellation = CancellationException("cancel observer")
+        val gateway = TrackingGateway(events)
+        val applier = BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { events += "settings" },
+            successHooks = listOf(
+                BackupImportSuccessHook { throw cancellation },
+                BackupImportSuccessHook { events += "later-success" },
+            ),
+            completionHooks = listOf(BackupImportCompletionHook { events += "completion" }),
+        )
+
+        val thrown = assertThrows(CancellationException::class.java) {
+            runBlocking { applier.apply(preview) }
+        }
+
+        assertEquals(cancellation, thrown)
+        assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
+    fun `cancellation in completion hook is propagated and stops later completion hooks`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.REPLACE,
+            )
+            val cancellation = CancellationException("cancel scheduling")
+            val gateway = TrackingGateway(events)
+            val applier = BackupImportApplier(
+                gateway = gateway,
+                settingsWriter = PortableSettingsWriter { events += "settings" },
+                completionHooks = listOf(
+                    BackupImportCompletionHook { throw cancellation },
+                    BackupImportCompletionHook { events += "later-completion" },
+                ),
+            )
+
+            val thrown = assertThrows(CancellationException::class.java) {
+                runBlocking { applier.apply(preview) }
+            }
+
+            assertEquals(cancellation, thrown)
+            assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
+            assertEquals(null, gateway.pendingRecovery())
+        }
+
+    @Test
+    fun `database failure does not change settings or invoke post success hooks`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        val failure = IllegalStateException("transaction rolled back")
+        var sweepCount = 0
+        val thrown = assertThrows(IllegalStateException::class.java) {
+            runBlocking {
+                BackupImportApplier(
+                    gateway = TrackingGateway(events, stageFailure = failure),
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+                ).apply(preview)
+            }
+        }
+
+        assertEquals(failure, thrown)
+        assertEquals(emptyList<String>(), events)
+        assertEquals(0, sweepCount)
+    }
+
+    @Test
+    fun `stale preview does not trigger completion sweep`() = runBlocking {
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        var sweepCount = 0
+
+        assertThrows(BackupPreviewStale::class.java) {
+            runBlocking {
+                BackupImportApplier(
+                    gateway = TrackingGateway(
+                        mutableListOf(),
+                        stageFailure = BackupPreviewStale(preview),
+                    ),
+                    settingsWriter = PortableSettingsWriter {},
+                    completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+                ).apply(preview)
+            }
+        }
+
+        assertEquals(0, sweepCount)
+    }
+
+    @Test
+    fun `settings failure returns completed pending recovery without rolling database back`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        var firstWrite = true
+        var sweepCount = 0
+        val result = BackupImportApplier(
+            gateway = TrackingGateway(events),
+            settingsWriter = PortableSettingsWriter {
+                events += "settings:${it.scaleAddress}"
+                if (firstWrite) {
+                    firstWrite = false
+                    throw IllegalArgumentException("preferences")
+                }
+            },
+            successHooks = listOf(BackupImportSuccessHook { events += "hook" }),
+            completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+        ).apply(preview)
+
+        assertEquals(true, result is BackupImportApplyResult.CompletedPendingRecovery)
+        assertEquals(listOf("database", "settings:AA:BB"), events)
+        assertEquals(0, sweepCount)
+    }
+
+    @Test
+    fun `pending settings commit is retried idempotently on recovery`() = runBlocking {
+        val events = mutableListOf<String>()
+        val preview = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        var settingsAttempts = 0
+        var sweeps = 0
+        val applier = BackupImportApplier(
+            gateway = TrackingGateway(events),
+            settingsWriter = PortableSettingsWriter {
+                settingsAttempts++
+                events += "settings:$settingsAttempts"
+                if (settingsAttempts == 1) error("preferences")
+            },
+            completionHooks = listOf(BackupImportCompletionHook { sweeps++ }),
+        )
+
+        assertEquals(
+            true,
+            applier.apply(preview) is BackupImportApplyResult.CompletedPendingRecovery,
+        )
+        applier.recoverPendingImport()
+        applier.recoverPendingImport()
+
+        assertEquals(listOf("database", "settings:1", "settings:2", "checkpoint-cleanup"), events)
+        assertEquals(1, sweeps)
+    }
+
+    @Test
+    fun `pending import schedules only after recovery cleanup and scheduler failure is best effort`() =
+        runBlocking {
+            val events = mutableListOf<String>()
+            val preview = service.preview(
+                document(),
+                emptySnapshot(),
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+            var settingsAttempts = 0
+            var schedulingAttempts = 0
+            val applier = BackupImportApplier(
+                gateway = TrackingGateway(events),
+                settingsWriter = PortableSettingsWriter {
+                    settingsAttempts++
+                    events += "settings:$settingsAttempts"
+                    if (settingsAttempts == 1) error("preferences unavailable")
+                },
+                completionHooks = listOf(
+                    BackupImportCompletionHook {
+                        schedulingAttempts++
+                        events += "schedule:$schedulingAttempts"
+                        error("WorkManager unavailable")
+                    },
+                ),
+            )
+
+            val applyResult = applier.apply(preview)
+            assertEquals(true, applyResult is BackupImportApplyResult.CompletedPendingRecovery)
+            assertEquals(0, schedulingAttempts)
+
+            applier.recoverPendingImport()
+            applier.recoverPendingImport()
+
+            assertEquals(
+                listOf(
+                    "database",
+                    "settings:1",
+                    "settings:2",
+                    "checkpoint-cleanup",
+                    "schedule:1",
+                ),
+                events,
+            )
+            assertEquals(1, schedulingAttempts)
+        }
+
+    @Test
+    fun `startup recovery commits journal settings and cleans checkpoint`() = runBlocking {
+        val events = mutableListOf<String>()
+        val gateway = TrackingGateway(events, recoverySettings = document().settings.let {
+            PortableProfileSettings(
+                it.scaleAddress,
+                it.scaleName,
+                it.reliabilityMode,
+                it.selectedChartMetricKeys?.toSet(),
+                it.homeKgChartSeriesKeys?.toSet(),
+            )
+        })
+
+        BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter { events += "settings:${it.scaleAddress}" },
+        ).recoverPendingImport()
+
+        assertEquals(listOf("settings:AA:BB", "checkpoint-cleanup"), events)
+    }
+
+    @Test
+    fun `startup recovery keeps checkpoint after writer failure and succeeds on retry`() = runBlocking {
+        val events = mutableListOf<String>()
+        val failures = mutableListOf<Exception>()
+        val preview = service.preview(
+            document(),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        )
+        val gateway = TrackingGateway(events)
+        gateway.stage(preview)
+        var writeAttempts = 0
+        var sweepCount = 0
+        val applier = BackupImportApplier(
+            gateway = gateway,
+            settingsWriter = PortableSettingsWriter {
+                writeAttempts++
+                events += "settings:$writeAttempts"
+                if (writeAttempts == 1) error("settings unavailable")
+            },
+            completionHooks = listOf(BackupImportCompletionHook { sweepCount++ }),
+        )
+
+        recoverBackupImportAtStartup(applier::recoverPendingImport, failures::add)
+
+        assertEquals(1, failures.size)
+        assertEquals("settings unavailable", failures.single().message)
+        assertEquals(true, gateway.pendingRecovery() != null)
+        assertEquals(0, sweepCount)
+
+        recoverBackupImportAtStartup(applier::recoverPendingImport, failures::add)
+
+        assertEquals(1, failures.size)
+        assertEquals(null, gateway.pendingRecovery())
+        assertEquals(1, sweepCount)
+        assertEquals(
+            listOf("database", "settings:1", "settings:2", "checkpoint-cleanup"),
+            events,
+        )
+    }
+
+    @Test
+    fun `startup recovery does not swallow cancellation or fatal errors`() {
+        assertThrows(CancellationException::class.java) {
+            runBlocking {
+                recoverBackupImportAtStartup(
+                    recovery = { throw CancellationException("cancelled") },
+                    reportFailure = {},
+                )
+            }
+        }
+        assertThrows(AssertionError::class.java) {
+            runBlocking {
+                recoverBackupImportAtStartup(
+                    recovery = { throw AssertionError("fatal") },
+                    reportFailure = {},
+                )
+            }
+        }
+    }
+
+    @Test
+    fun `startup and foreground recovery propagate cleanup cancellation and remain retryable`() =
+        runBlocking {
+            listOf(false, true).forEach { useStartupWrapper ->
+                val events = mutableListOf<String>()
+                val cancellation = CancellationException("cancel recovery cleanup")
+                val gateway = TrackingGateway(
+                    events = events,
+                    recoverySettings = emptySettings,
+                    completeFailure = cancellation,
+                    completeFailuresRemaining = 1,
+                )
+                var completionHooks = 0
+                val applier = BackupImportApplier(
+                    gateway = gateway,
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    completionHooks = listOf(BackupImportCompletionHook { completionHooks++ }),
+                )
+
+                val thrown = assertThrows(CancellationException::class.java) {
+                    runBlocking {
+                        if (useStartupWrapper) {
+                            recoverBackupImportAtStartup(applier::recoverPendingImport) {
+                                error("cancellation must not be reported as an ordinary failure")
+                            }
+                        } else {
+                            applier.recoverPendingImport()
+                        }
+                    }
+                }
+
+                assertEquals(cancellation, thrown)
+                assertEquals(true, gateway.pendingRecovery() != null)
+                assertEquals(0, completionHooks)
+
+                applier.recoverPendingImport()
+
+                assertEquals(null, gateway.pendingRecovery())
+                assertEquals(1, completionHooks)
+            }
+        }
+
+    @Test
+    fun `successful startup recovery sweeps only after cleanup while rollback recovery does not`() =
+        runBlocking {
+            listOf(true, false).forEach { successfulImport ->
+                val events = mutableListOf<String>()
+                val operations = ExternalSyncOperationSerializer()
+                BackupImportApplier(
+                    gateway = TrackingGateway(
+                        events,
+                        recoverySettings = emptySettings,
+                        recoverySweepNeeded = successfulImport,
+                    ),
+                    settingsWriter = PortableSettingsWriter { events += "settings" },
+                    operations = operations,
+                    completionHooks = listOf(
+                        BackupImportCompletionHook {
+                            operations.runExclusive { events += "sweep" }
+                        },
+                    ),
+                ).recoverPendingImport()
+
+                assertEquals(
+                    if (successfulImport) {
+                        listOf("settings", "checkpoint-cleanup", "sweep")
+                    } else {
+                        listOf("settings", "checkpoint-cleanup")
+                    },
+                    events,
+                )
+            }
+        }
+
+    @Test
+    fun `checkpoint codec round trips nullable portable settings`() {
+        val codec = BackupImportCheckpointCodec()
+        val settings = PortableProfileSettings(null, "Scale", true, setOf("weight"), emptySet())
+
+        val decodedSettings = codec.decodeSettings(codec.encodeSettings(settings))
+
+        assertEquals(settings, decodedSettings)
+    }
+
+    @Test
+    fun `checkpoint codec distinguishes bounded and legacy version 7 rows`() {
+        val codec = BackupImportCheckpointCodec()
+        val target = PortableProfileSettings("AA:BB", "Imported", true, emptySet(), setOf("weight"))
+        val previous = PortableProfileSettings("11:22", "Previous", false, null, emptySet())
+        val rollbackJson =
+            """{"accounts":[],"appState":{},"measurements":[],"pendingMeasurements":[],"tombstones":[]}"""
+
+        val bounded = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                operationId = "123e4567-e89b-12d3-a456-426614174000",
+                sweepNeeded = "false",
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+        val legacyTarget = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                operationId = rollbackJson,
+                sweepNeeded = codec.encodeSettings(previous),
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+        val legacyRollback = codec.decodeRecovery(
+            BackupImportCheckpointEntity(
+                phase = BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED,
+                operationId = rollbackJson,
+                sweepNeeded = codec.encodeSettings(previous),
+                targetSettingsJson = codec.encodeSettings(target),
+            ),
+        )
+
+        assertEquals(false, bounded?.sweepNeeded)
+        assertEquals(target, bounded?.settings)
+        assertEquals(true, legacyTarget?.sweepNeeded)
+        assertEquals(target, legacyTarget?.settings)
+        assertEquals(false, legacyRollback?.sweepNeeded)
+        assertEquals(previous, legacyRollback?.settings)
+    }
+
+    @Test
+    fun `checkpoint codec rejects malformed rows without strict boolean exceptions`() {
+        val codec = BackupImportCheckpointCodec()
+        val validSettings = codec.encodeSettings(emptySettings)
+
+        listOf(
+            BackupImportCheckpointEntity(
+                operationId = "123e4567-e89b-12d3-a456-426614174000",
+                sweepNeeded = "definitely",
+                targetSettingsJson = validSettings,
+            ),
+            BackupImportCheckpointEntity(
+                operationId = "{not-json",
+                sweepNeeded = "{}",
+                targetSettingsJson = validSettings,
+            ),
+            BackupImportCheckpointEntity(
+                phase = BackupImportCheckpointEntity.PHASE_ROLLBACK_APPLIED,
+                operationId = "{not-json",
+                sweepNeeded = "{\"reliabilityMode\":\"not-a-boolean\"}",
+                targetSettingsJson = validSettings,
+            ),
+        ).forEach { malformed ->
+            assertEquals(null, codec.decodeRecovery(malformed))
+        }
+    }
+
+    private class TrackingGateway(
+        private val events: MutableList<String>,
+        private val stageFailure: Throwable? = null,
+        private var recoverySettings: PortableProfileSettings? = null,
+        private var recoverySweepNeeded: Boolean = true,
+        private val completeFailure: Throwable? = null,
+        private var completeFailuresRemaining: Int = 0,
+    ) : BackupImportGateway {
+        override suspend fun stage(preview: BackupImportPreview) {
+            stageFailure?.let { throw it }
+            events += "database"
+            recoverySettings = preview.settings
+        }
+
+        override suspend fun pendingRecovery(): BackupImportRecovery? = recoverySettings?.let {
+            BackupImportRecovery("operation", it, recoverySweepNeeded)
+        }
+
+        override suspend fun complete() {
+            if (completeFailuresRemaining > 0) {
+                completeFailuresRemaining--
+                throw requireNotNull(completeFailure)
+            }
+            events += "checkpoint-cleanup"
+            recoverySettings = null
+        }
+    }
+
+    private fun emptySnapshot() = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList())
+
+    private fun document(accountDisplayName: String = "Account") = BackupDocumentV1(
+        exportedAt = "2026-08-25T00:00:00Z",
+        accounts = listOf(BackupAccountV1("a", accountDisplayName, "account", BackupAccountProfileV1(null, null, null, false), 1, 2)),
+        appState = BackupAppStateV1("a", 3.0, false),
+        measurements = listOf(BackupMeasurementV1(
+            "m", "f", MeasurementType.WEIGHT_ONLY, "AA:BB", 3, "00ff", 70.0, 14000,
+            null, null, null, null, null, null, null, null, null, null, null, null, null,
+            null, null, null, SyncStatus.LOCAL_ONLY, SyncStatus.LOCAL_ONLY, null, null, false,
+            false, 4, "a", ExternalSyncPolicy.USER_LOCAL, null, "d", null, null,
+        )),
+        settings = BackupSettingsV1("AA:BB", "Scale", true, emptyList(), emptyList()),
+    )
+
+    private class TrackingInputStream(bytes: ByteArray) : ByteArrayInputStream(bytes) {
+        var closed = false
+        override fun close() { closed = true; super.close() }
+    }
+}
