@@ -13,6 +13,7 @@ import com.example.huaweimisync.domain.AccountSettingsWriter
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import com.example.huaweimisync.domain.WEIGHT_DELTA_KG_RANGE
 import java.time.Instant
 import java.util.UUID
@@ -58,14 +59,22 @@ class RoomAccountRepository(
         entity.toDomain()
     }
 
-    override suspend fun updateAccount(account: AccountUpdate): Account = database.withTransaction {
+    override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean =
+        measurementDao.hasProfileRecalculationCandidates(accountId.value)
+
+    override suspend fun updateAccount(
+        account: AccountUpdate,
+        historyUpdateMode: ProfileHistoryUpdateMode,
+    ): Account = database.withTransaction {
         val current = accountDao.get(account.id.value)
             ?: throw AccountNotFoundException(account.id)
         accountDao.getByNormalizedName(account.normalizedName)
             ?.takeIf { it.id != current.id }
             ?.let { throw AccountNameConflictException(account.normalizedName) }
         val updated = account.toEntity(current, now())
-        if (current.requiresProfileRecalculation(updated)) {
+        if (current.requiresProfileRecalculation(updated) &&
+            historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
+        ) {
             val profile = account.profile.toUserProfile()
             measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
                 val recalculated = measurement

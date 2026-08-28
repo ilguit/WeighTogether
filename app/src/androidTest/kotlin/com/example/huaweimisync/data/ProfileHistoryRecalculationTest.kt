@@ -13,6 +13,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.NewAccount
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -69,7 +70,10 @@ class ProfileHistoryRecalculationTest {
                 sex = Sex.FEMALE,
             ),
         ).forEach { profile ->
-            repository.updateAccount(AccountUpdate(account.id, "Alice", profile))
+            repository.updateAccount(
+                AccountUpdate(account.id, "Alice", profile),
+                ProfileHistoryUpdateMode.RECALCULATE,
+            )
             val recalculated = requireNotNull(database.measurementDao().get(original.id))
 
             assertEquals(expectedValues(packet, profile), recalculated.fullValues)
@@ -84,9 +88,68 @@ class ProfileHistoryRecalculationTest {
                 profile = requireNotNull(repository.getAccount(account.id)).profile
                     as AccountProfile.Complete,
             ),
+            ProfileHistoryUpdateMode.RECALCULATE,
         )
 
         assertEquals(previous, database.measurementDao().get(original.id))
+    }
+
+    @Test
+    fun candidateReadAndKeepExistingUseTheSameEligibleHistoryBoundary() = runBlocking {
+        val repository = repository()
+        val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
+        val eligible = entity(
+            raw("2026-08-15T10:00:00Z", 72.35, 517),
+            account.id,
+            ORIGINAL_PROFILE,
+        )
+        val manual = entity(
+            raw("2026-08-15T10:01:00Z", 73.0, 520),
+            account.id,
+            ORIGINAL_PROFILE,
+        ).copy(externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name)
+        assertTrue(database.multiAccountMeasurementDao().insert(eligible) != -1L)
+        assertTrue(database.multiAccountMeasurementDao().insert(manual) != -1L)
+        assertTrue(repository.hasProfileRecalculationCandidates(account.id))
+
+        val updated = repository.updateAccount(
+            AccountUpdate(
+                account.id,
+                "Alice",
+                ORIGINAL_PROFILE.copy(heightCm = 181.0),
+            ),
+            ProfileHistoryUpdateMode.KEEP_EXISTING,
+        )
+
+        assertEquals(181.0, (updated.profile as AccountProfile.Complete).heightCm, 0.0)
+        assertEquals(eligible, database.measurementDao().get(eligible.id))
+        assertEquals(manual, database.measurementDao().get(manual.id))
+    }
+
+    @Test
+    fun candidateReadIgnoresManualWeightOnlyAndOtherAccountHistory() = runBlocking {
+        val repository = repository()
+        val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
+        val other = repository.createAccount(NewAccount("Bob", ORIGINAL_PROFILE))
+        val manual = entity(
+            raw("2026-08-15T10:00:00Z", 72.35, 517),
+            account.id,
+            ORIGINAL_PROFILE,
+        ).copy(externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name)
+        val weightOnly = raw("2026-08-15T10:01:00Z", 73.0, 0)
+            .copy(hasImpedance = false)
+            .toWeightOnlyEntity(accountId = account.id)
+        val otherEligible = entity(
+            raw("2026-08-15T10:02:00Z", 74.0, 520),
+            other.id,
+            ORIGINAL_PROFILE,
+        )
+        listOf(manual, weightOnly, otherEligible).forEach {
+            assertTrue(database.multiAccountMeasurementDao().insert(it) != -1L)
+        }
+
+        assertFalse(repository.hasProfileRecalculationCandidates(account.id))
+        assertTrue(repository.hasProfileRecalculationCandidates(other.id))
     }
 
     @Test
@@ -138,7 +201,10 @@ class ProfileHistoryRecalculationTest {
             birthDate = LocalDate.of(1982, 2, 2),
             sex = Sex.FEMALE,
         )
-        repository.updateAccount(AccountUpdate(account.id, "Alice", updatedProfile))
+        repository.updateAccount(
+            AccountUpdate(account.id, "Alice", updatedProfile),
+            ProfileHistoryUpdateMode.RECALCULATE,
+        )
 
         val recalculatedAuto = requireNotNull(database.measurementDao().get(auto.id))
         val recalculatedAccountLocal = requireNotNull(database.measurementDao().get(accountLocal.id))
@@ -192,6 +258,7 @@ class ProfileHistoryRecalculationTest {
                 "Alice",
                 ORIGINAL_PROFILE.copy(heightCm = 181.0),
             ),
+            ProfileHistoryUpdateMode.RECALCULATE,
         )
 
         val recalculated = requireNotNull(database.measurementDao().get(original.id))
@@ -227,6 +294,7 @@ class ProfileHistoryRecalculationTest {
                     "Alice",
                     ORIGINAL_PROFILE.copy(heightCm = 180.0),
                 ),
+                ProfileHistoryUpdateMode.RECALCULATE,
             )
         }.exceptionOrNull()
 

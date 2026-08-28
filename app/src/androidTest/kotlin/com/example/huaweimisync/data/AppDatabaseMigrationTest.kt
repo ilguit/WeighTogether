@@ -11,6 +11,7 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import java.io.IOException
 import java.time.Instant
 import java.time.LocalDate
@@ -427,6 +428,7 @@ class AppDatabaseMigrationTest {
                     sex = Sex.FEMALE,
                 ),
             ),
+            ProfileHistoryUpdateMode.RECALCULATE,
         )
 
         val recalculated = requireNotNull(room.measurementDao().get("measurement"))

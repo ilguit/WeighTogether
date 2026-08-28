@@ -14,7 +14,16 @@ interface AccountRepository {
 
     suspend fun createAccount(account: NewAccount): Account
 
-    suspend fun updateAccount(account: AccountUpdate): Account
+    /** Returns whether this account has full, non-manual history eligible for profile recalculation. */
+    suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean
+
+    /**
+     * Updates an account and applies [historyUpdateMode] atomically when calculation inputs changed.
+     */
+    suspend fun updateAccount(
+        account: AccountUpdate,
+        historyUpdateMode: ProfileHistoryUpdateMode,
+    ): Account
 
     suspend fun setPrimaryAccount(
         accountId: AccountId,
@@ -36,6 +45,11 @@ interface AccountRepository {
         replacementAccountId: AccountId?,
         historySyncMode: PrimaryHistorySyncMode,
     )
+}
+
+enum class ProfileHistoryUpdateMode {
+    RECALCULATE,
+    KEEP_EXISTING,
 }
 
 /** Explicit write side for account-level settings. */

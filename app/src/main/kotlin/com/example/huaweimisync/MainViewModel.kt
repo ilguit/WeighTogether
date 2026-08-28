@@ -656,7 +656,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
-        val updated = container.accounts.updateAccount(account)
+        val updated = container.accounts.updateAccount(
+            account,
+            com.example.huaweimisync.domain.ProfileHistoryUpdateMode.RECALCULATE,
+        )
         finishAccountOperation("Аккаунт «${updated.displayName}» сохранён")
     }
 
