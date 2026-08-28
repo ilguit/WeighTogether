@@ -573,6 +573,52 @@ class MeasurementIngestionCoordinatorTest {
         assertEquals(listOf(1, 0), notifier.counts)
     }
 
+    @Test
+    fun refreshCountsOnlyDueUnassignedPendingMeasurements() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val dueUnassigned = persistence.enqueue(raw(70.0)) as PendingPersistenceResult.Inserted
+        val dueAssigned = persistence.enqueue(raw(71.0)) as PendingPersistenceResult.Inserted
+        val notDueUnassigned = persistence.enqueue(raw(72.0)) as PendingPersistenceResult.Inserted
+        persistence.replacePending(
+            dueUnassigned.pending.copy(finalizeAfter = Instant.EPOCH),
+        )
+        persistence.replacePending(
+            dueAssigned.pending.copy(
+                finalizeAfter = Instant.EPOCH,
+                provisionalAccountId = primary.id,
+            ),
+        )
+        persistence.replacePending(
+            notDueUnassigned.pending.copy(finalizeAfter = Instant.parse("9999-01-01T00:00:00Z")),
+        )
+        val notifier = RecordingNotifier()
+
+        val count = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            notifier,
+        ).refreshPendingPresentation()
+
+        assertEquals(1, count)
+        assertEquals(listOf(1), notifier.counts)
+        assertEquals(1, persistence.pendingSnapshotCallCount)
+    }
+
+    @Test
+    fun defaultUnassignedSnapshotFiltersProvisionallyAssignedMeasurements() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val unassigned = persistence.enqueue(raw(70.0)) as PendingPersistenceResult.Inserted
+        val assigned = persistence.enqueue(raw(71.0)) as PendingPersistenceResult.Inserted
+        persistence.replacePending(assigned.pending.copy(provisionalAccountId = primary.id))
+
+        val snapshot = persistence.unassignedPendingSnapshot()
+
+        assertEquals(listOf(unassigned.pending), snapshot)
+    }
+
     private fun coordinator(
         persistence: FakeRoutingPersistence,
         accounts: FakeAccountRepository,
@@ -619,7 +665,8 @@ private class FakeRoutingPersistence(
     var enqueueMatchingEngine: MatchingEngine? = null
     var reclassificationMatchingEngine: MatchingEngine? = null
     var nextEnqueueResult: PendingPersistenceResult? = null
-    private var pendingSnapshotCallCount = 0
+    var pendingSnapshotCallCount = 0
+        private set
 
     override suspend fun enqueue(raw: RawScaleMeasurement): PendingPersistenceResult {
         events += "enqueue"
@@ -669,6 +716,11 @@ private class FakeRoutingPersistence(
             releaseFirstPendingSnapshot?.await()
         }
         return snapshot
+    }
+
+    fun replacePending(value: PendingMeasurement) {
+        require(pending.containsKey(value.id))
+        pending[value.id] = value
     }
 
     override suspend fun latestHistoryBefore(
