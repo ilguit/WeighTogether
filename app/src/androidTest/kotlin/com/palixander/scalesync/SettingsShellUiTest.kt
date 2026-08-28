@@ -453,6 +453,23 @@ class SettingsShellUiTest {
     }
 
     @Test
+    fun enterpriseHuaweiDetailReturnsFocusToHuaweiRootRow() {
+        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        setSettingsShell(
+            expandSections = false,
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED),
+        )
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsFocused()
+
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertIsFocused()
+    }
+
+    @Test
     fun navigationRowsExposeTheirTextualStatusToAccessibilityServices() {
         val longScaleStatus = "Очень длинное имя весов для узкого экрана и крупного шрифта без потери текста"
         setSettingsShell(

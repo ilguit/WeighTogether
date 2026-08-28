@@ -24,6 +24,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,6 +46,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -60,6 +62,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.backup.BackupImportMode
@@ -259,6 +262,7 @@ internal object SettingsScreenTestTags {
     const val DestructiveConfirm = "settings-destructive-confirm"
     const val IntegrationStatus = "settings-integration-status"
     const val DetailHero = "settings-detail-hero"
+    const val DetailHeroIcon = "settings-detail-hero-icon"
     const val DetailPrimaryAction = "settings-detail-primary-action"
     const val DetailStatusGroup = "settings-detail-status-group"
     const val DetailStatusDivider = "settings-detail-status-divider"
@@ -313,6 +317,23 @@ internal fun profilesRootSummary(peopleCount: Int, petCount: Int): String {
     if (peopleCount == 0 && petCount == 0) return "Добавьте первый профиль"
     return "${russianCount(peopleCount, "человек", "человека", "человек")} · " +
         russianCount(petCount, "питомец", "питомца", "питомцев")
+}
+
+internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? = when (destination) {
+    SettingsDestination.PROFILES -> 0
+    SettingsDestination.SCALE,
+    SettingsDestination.HEALTH_CONNECT,
+    SettingsDestination.HUAWEI_HEALTH,
+    -> 2
+    SettingsDestination.BACKUP,
+    SettingsDestination.DIAGNOSTICS,
+    -> 4
+    SettingsDestination.ROOT -> null
+}
+
+internal fun scaleDetailIdentity(settings: AppSettings): String {
+    val address = settings.scaleAddress ?: return "Устройство не выбрано"
+    return listOfNotNull(settings.scaleName, address).joinToString(" · ")
 }
 
 private fun russianCount(count: Int, one: String, few: String, many: String): String {
@@ -446,11 +467,9 @@ internal fun SettingsScreen(
     LaunchedEffect(destination) {
         if (destination == SettingsDestination.ROOT) {
             returnFocusDestination?.let { returnedFrom ->
-                val destinationIndex = settingsRootDestinations(
-                    BuildConfig.HUAWEI_EXTENDED_ENABLED,
-                ).indexOf(returnedFrom)
-                if (destinationIndex >= 0) {
-                    rootListState.scrollToItem(destinationIndex + if (destinationIndex == 0) 0 else 1)
+                settingsRootGroupItemIndex(returnedFrom)?.let { groupItemIndex ->
+                    rootListState.scrollToItem(groupItemIndex)
+                    withFrameNanos { }
                     rootFocusRequesters[returnedFrom]?.requestFocus()
                 }
             }
@@ -571,7 +590,7 @@ private fun SettingsScaleDetail(
             icon = HuaweiIcons.Bluetooth,
             status = presentation.supportingText,
             identityLabel = "Устройство",
-            identity = state.settings.scaleName ?: "Mi Body Composition Scale 2",
+            identity = scaleDetailIdentity(state.settings),
             actionLabel = presentation.actionLabel,
             actionEnabled = presentation.actionEnabled,
             actionTag = SettingsScreenTestTags.ScaleAction,
@@ -747,21 +766,28 @@ private fun ConnectionDetailContent(
     statusTag: String = SettingsScreenTestTags.IntegrationStatus,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-        Surface(
-            modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DetailHero),
-            shape = MaterialTheme.shapes.large,
-            color = MaterialTheme.colorScheme.secondaryContainer,
-            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp)
+                .testTag(SettingsScreenTestTags.DetailHero),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(7.dp),
         ) {
-            Column(
-                modifier = Modifier.padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            Surface(
+                modifier = Modifier.size(52.dp).testTag(SettingsScreenTestTags.DetailHeroIcon),
+                shape = RoundedCornerShape(16.dp),
+                color = MaterialTheme.colorScheme.secondaryContainer,
+                contentColor = MaterialTheme.colorScheme.primary,
             ) {
-                Icon(icon, contentDescription = null, modifier = Modifier.size(36.dp))
-                Text(title, style = MaterialTheme.typography.titleLarge)
-                Text(status, style = MaterialTheme.typography.bodyMedium)
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(icon, contentDescription = null, modifier = Modifier.size(30.dp))
+                }
             }
+            Text(title, style = MaterialTheme.typography.titleLarge)
+            Text(
+                status,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.primary,
+            )
         }
         actionLabel?.let { label ->
             Box(Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DetailPrimaryAction)) {

@@ -114,6 +114,27 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `root focus restoration targets actual lazy column group items`() {
+        assertEquals(0, settingsRootGroupItemIndex(SettingsDestination.PROFILES))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.SCALE))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HEALTH_CONNECT))
+        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HUAWEI_HEALTH))
+        assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.BACKUP))
+        assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.DIAGNOSTICS))
+        assertNull(settingsRootGroupItemIndex(SettingsDestination.ROOT))
+    }
+
+    @Test
+    fun `scale detail identity never invents an unselected device`() {
+        assertEquals("Устройство не выбрано", scaleDetailIdentity(AppSettings()))
+        assertEquals(
+            "MIBFS · AA:BB",
+            scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")),
+        )
+        assertEquals("AA:BB", scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB")))
+    }
+
+    @Test
     fun `settings destinations expose detail chrome titles`() {
         assertEquals("Профили", SettingsDestination.PROFILES.title)
         assertEquals("Резервная копия", SettingsDestination.BACKUP.title)
