@@ -322,6 +322,9 @@ fun HuaweiMiSyncApp(
             onRequestDeletePet = viewModel::requestDeletePet,
             onConfirmDeletePet = viewModel::confirmDeletePet,
             onDismissPetManagement = viewModel::dismissPetManagement,
+            onDisableHealthConnect = viewModel::disableHealthConnect,
+            onDisableHuawei = viewModel::disableHuawei,
+            onForgetScale = viewModel::forgetScale,
         ),
         resolverCallbacks = MeasurementResolverCallbacks(
             onAccountSelected = viewModel::choosePendingAccount,
