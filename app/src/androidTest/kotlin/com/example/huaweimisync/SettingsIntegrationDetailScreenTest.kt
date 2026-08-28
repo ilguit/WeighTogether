@@ -35,6 +35,9 @@ class SettingsIntegrationDetailScreenTest {
                 .fetchSemanticsNode().config[SemanticsProperties.StateDescription],
         )
         compose.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertIsNotEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailHero).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailStatusGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailStatusDivider).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DisableHealthConnect).assertDoesNotExist()
 
         setDetail(
@@ -78,6 +81,8 @@ class SettingsIntegrationDetailScreenTest {
         )
 
         compose.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).performClick()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailPrimaryAction).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailDangerZone).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DisableHealthConnect).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveConfirm).performClick()
         compose.runOnIdle {
@@ -103,6 +108,19 @@ class SettingsIntegrationDetailScreenTest {
         compose.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DisableHealthConnect).assertDoesNotExist()
         compose.runOnIdle { assertEquals(1, authorizationCalls) }
+    }
+
+    @Test
+    fun diagnosticsUsesSeparateMeasurementAndBackgroundGroups() {
+        setDetail(SettingsDestination.DIAGNOSTICS, MainUiState())
+
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestAction).assertIsEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider).assertExists()
     }
 
     @Test

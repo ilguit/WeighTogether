@@ -25,6 +25,9 @@ class ScaleSettingsScreenTest {
 
     @Test fun readyEnablesSelectionAndShowsDestructiveAction() {
         show(MainUiState(settings = selectedScale()))
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailHero).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailStatusGroup).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.DetailDangerZone).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.ScaleStatus).assertTextContains("MIBFS · AA:BB")
         compose.onNodeWithTag(SettingsScreenTestTags.ScaleAction).assertIsEnabled()
         compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).assertExists()

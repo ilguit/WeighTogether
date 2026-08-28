@@ -2,6 +2,7 @@ package com.example.huaweimisync
 
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.core.UserProfile
+import com.example.huaweimisync.data.AppSettings
 import java.time.LocalDate
 import com.example.huaweimisync.domain.PetSpecies
 import org.junit.Assert.assertEquals
@@ -156,6 +157,38 @@ class SettingsScreenContractTest {
                 locallyEnabled = false,
             ),
         )
+    }
+
+    @Test
+    fun `detail destructive actions exist only for connected usable targets`() {
+        val permissions = setOf("weight")
+        val connected = HealthConnectPermissionsUiState.snapshot(true, permissions, permissions)
+
+        assertEquals(
+            DestructiveSettingsAction.SCALE,
+            settingsDetailDestructiveAction(
+                SettingsDestination.SCALE,
+                MainUiState(settings = AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")),
+            ),
+        )
+        assertEquals(
+            DestructiveSettingsAction.HEALTH_CONNECT,
+            settingsDetailDestructiveAction(
+                SettingsDestination.HEALTH_CONNECT,
+                MainUiState(healthConnect = connected),
+            ),
+        )
+        assertNull(
+            settingsDetailDestructiveAction(
+                SettingsDestination.HEALTH_CONNECT,
+                MainUiState(
+                    settings = AppSettings(healthConnectSyncEnabled = false),
+                    healthConnect = connected,
+                ),
+            ),
+        )
+        assertNull(settingsDetailDestructiveAction(SettingsDestination.BACKUP, MainUiState()))
+        assertNull(settingsDetailDestructiveAction(SettingsDestination.DIAGNOSTICS, MainUiState()))
     }
 
     @Test
