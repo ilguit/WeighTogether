@@ -147,6 +147,8 @@ fun HuaweiSettingRow(
     supportingText: String,
     modifier: Modifier = Modifier,
     onClick: (() -> Unit)? = null,
+    titleMaxLines: Int = 2,
+    supportingTextMaxLines: Int = 3,
     action: @Composable RowScope.() -> Unit = {},
 ) {
     val interactionModifier = if (onClick == null) {
@@ -169,14 +171,14 @@ fun HuaweiSettingRow(
             Text(
                 text = title,
                 style = MaterialTheme.typography.titleSmall,
-                maxLines = 2,
+                maxLines = titleMaxLines,
                 overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = supportingText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
-                maxLines = 3,
+                maxLines = supportingTextMaxLines,
                 overflow = TextOverflow.Ellipsis,
             )
         }

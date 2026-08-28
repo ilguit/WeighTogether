@@ -1,6 +1,8 @@
 package com.example.huaweimisync
 
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -24,14 +26,15 @@ class BackupSettingsScreenTest {
     @Test
     fun backupActionsHaveStableAccessibilityTags() {
         compose.setContent {
+            val destination = remember { mutableStateOf(SettingsDestination.ROOT) }
             SettingsScreen(MainUiState(), SettingsCallbacks(
                 onHuaweiAuthorization = {}, onHuaweiPermissionRefresh = {},
                 onHealthConnectAuthorization = {}, onHealthConnectAccessManagement = {},
                 onManualTest = { _, _ -> }, onManualScan = {}, onReliabilityMode = {},
                 openBatterySettings = {}, openApplicationSettings = {},
-            ), PaddingValues())
+            ), PaddingValues(), destination.value, { destination.value = it })
         }
-        compose.onNodeWithTag(SettingsScreenTestTags.BackupSection).performClick()
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupRow).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupExport).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupMerge).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupReplace).assertExists()
@@ -49,6 +52,7 @@ class BackupSettingsScreenTest {
                 ),
                 callbacks(),
                 PaddingValues(),
+                destination = SettingsDestination.BACKUP,
             )
         }
 

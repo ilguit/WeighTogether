@@ -40,7 +40,7 @@ fun WeightRecognitionSetting(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle("Распознавание аккаунта")
+        HuaweiSectionTitle("Распознавание профиля")
         HuaweiSurface(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text(
@@ -93,7 +93,7 @@ fun WeightRecognitionSetting(
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Text(
-                            "Применяется только к новым замерам без подходящего аккаунта.",
+                            "Применяется только к новым замерам без подходящего профиля.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )

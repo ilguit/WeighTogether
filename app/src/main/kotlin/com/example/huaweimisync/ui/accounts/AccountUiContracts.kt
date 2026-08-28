@@ -95,7 +95,7 @@ fun validateAccountEditor(
             it.id != draft.editingAccountId && it.normalizedName == normalizedName
         }
     ) {
-        errors[AccountEditorField.NAME] = "Аккаунт с таким именем уже существует"
+        errors[AccountEditorField.NAME] = "Профиль с таким именем уже существует"
     }
 
     val height = parseLocalizedDecimal(draft.heightCm)

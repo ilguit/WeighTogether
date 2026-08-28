@@ -13,6 +13,20 @@ import java.util.Locale
 
 class SettingsScreenContractTest {
     @Test
+    fun `profile root summary explicitly describes empty state`() {
+        assertEquals("Добавьте первый профиль", profilesRootSummary(0, 0))
+    }
+
+    @Test
+    fun `profile root summary uses correct russian count forms`() {
+        assertEquals("1 человек · 1 питомец", profilesRootSummary(1, 1))
+        assertEquals("2 человека · 4 питомца", profilesRootSummary(2, 4))
+        assertEquals("5 человек · 5 питомцев", profilesRootSummary(5, 5))
+        assertEquals("11 человек · 11 питомцев", profilesRootSummary(11, 11))
+        assertEquals("21 человек · 22 питомца", profilesRootSummary(21, 22))
+    }
+
+    @Test
     fun `connected health connect explains manual management when system destination is missing`() {
         val presentation = IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
@@ -65,7 +79,8 @@ class SettingsScreenContractTest {
 
     @Test
     fun `replace warning names every human and pet data group`() {
-        assertTrue(BACKUP_REPLACE_WARNING.contains("аккаунты"))
+        assertTrue(BACKUP_REPLACE_WARNING.contains("профили"))
+        assertFalse(BACKUP_REPLACE_WARNING.contains("аккаунт", ignoreCase = true))
         assertTrue(BACKUP_REPLACE_WARNING.contains("измерения людей"))
         assertTrue(BACKUP_REPLACE_WARNING.contains("ожидающие измерения"))
         assertTrue(BACKUP_REPLACE_WARNING.contains("питомцы"))
@@ -82,17 +97,25 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `settings expansion is a reversible state transition`() {
-        assertEquals(SettingsSectionExpansion.Expanded, SettingsSectionExpansion.Collapsed.toggled())
-        assertEquals(SettingsSectionExpansion.Collapsed, SettingsSectionExpansion.Expanded.toggled())
+    fun `settings root destinations have the required stable order`() {
+        assertEquals(
+            listOf(
+                SettingsDestination.PROFILES,
+                SettingsDestination.SCALE,
+                SettingsDestination.HEALTH_CONNECT,
+                SettingsDestination.HUAWEI_HEALTH,
+                SettingsDestination.BACKUP,
+                SettingsDestination.DIAGNOSTICS,
+            ),
+            settingsRootDestinations(huaweiEnabled = true),
+        )
+        assertFalse(settingsRootDestinations(huaweiEnabled = false).contains(SettingsDestination.HUAWEI_HEALTH))
     }
 
     @Test
-    fun `settings sections have the required stable order`() {
-        assertEquals(
-            listOf("Аккаунты", "Интеграции", "Весы", "Резервная копия", "Дополнительно", "О приложении"),
-            SettingsSectionKey.entries.map(SettingsSectionKey::title),
-        )
+    fun `settings destinations expose detail chrome titles`() {
+        assertEquals("Профили", SettingsDestination.PROFILES.title)
+        assertEquals("Резервная копия", SettingsDestination.BACKUP.title)
     }
 
     @Test
@@ -158,6 +181,28 @@ class SettingsScreenContractTest {
             providerMissing.supportingText,
         )
         assertNull(providerMissing.actionLabel)
+    }
+
+    @Test
+    fun `health connect checking disables connect while failed check keeps authorization flow`() {
+        val checking = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.CHECKING,
+            ),
+        )
+        val failed = healthConnectPresentation(
+            HealthConnectPermissionsUiState(
+                availability = HealthConnectAvailability.CHECK_FAILED,
+            ),
+        )
+
+        assertEquals("Проверка разрешений…", checking.supportingText)
+        assertEquals("Подключить", checking.actionLabel)
+        assertFalse(checking.actionEnabled)
+        assertEquals("Не удалось проверить разрешения", failed.supportingText)
+        assertEquals("Подключить", failed.actionLabel)
+        assertTrue(failed.actionEnabled)
+        assertFalse(failed.actionOpensManagement)
     }
 
     @Test

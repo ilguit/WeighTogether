@@ -9,17 +9,21 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.semantics.SemanticsProperties
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.test.SemanticsMatcher
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.domain.Account
@@ -51,21 +55,25 @@ class SettingsShellUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun accountsSectionReplacesLegacyProfileAndOpensAccountEditor() {
-        setSettingsShell()
+    fun profilesDetailReplacesLegacyProfileAndOpensProfileEditor() {
+        setSettingsShell(expandSections = false)
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfileRow).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        composeRule.onNodeWithText("Профили").assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.List).assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithText("Новый профиль").assertIsDisplayed()
         composeRule.onNodeWithText("Отмена").performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertDoesNotExist()
-        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
     }
 
     @Test
-    fun invalidAccountDraftShowsValidationErrors() {
-        setSettingsShell()
+    fun invalidProfileDraftShowsValidationErrors() {
+        setSettingsShell(expandSections = false)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
 
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
@@ -75,15 +83,15 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun additionalToggleRevealsExistingActions() {
+    fun diagnosticsRowOpensExistingActions() {
         setSettingsShell(expandSections = false)
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalToggle)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow)
             .performScrollTo()
             .performClick()
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
         composeRule.onNodeWithText("Отправить тест").assertExists()
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
@@ -91,23 +99,21 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun manualTestValuesSurviveAdditionalCollapseAndDispatchEditedValues() {
+    fun manualTestValuesSurviveNavigationAndRecreationAndDispatchEditedValues() {
         var submitted: Pair<String, String>? = null
         setSettingsShell(
             expandSections = false,
             onManualTest = { weight, impedance -> submitted = weight to impedance },
         )
 
-        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
             .performTextReplacement("82.35")
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
             .performTextReplacement("612")
 
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection)
-            .performScrollTo()
-            .performClick()
-        expandSection(SettingsScreenTestTags.AdditionalSection)
+        composeRule.onNodeWithContentDescription("Вернуться к настройкам").performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
             .assertTextEquals("Вес, кг", "82.35")
@@ -126,7 +132,11 @@ class SettingsShellUiTest {
     @Test
     fun ignoreUnknownSettingIsNextToRecognitionAndDispatchesSavedPolicyChange() {
         var enabled: Boolean? = null
-        setSettingsShell(onIgnoreUnknownMeasurementsChanged = { enabled = it })
+        setSettingsShell(
+            expandSections = false,
+            onIgnoreUnknownMeasurementsChanged = { enabled = it },
+        )
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
 
         composeRule.onNodeWithTag(WeightDeltaEditorTestTags.IgnoreUnknown)
             .performScrollTo()
@@ -141,47 +151,121 @@ class SettingsShellUiTest {
         val cat = pet("cat", "Мурка", PetSpecies.CAT)
         val dog = pet("dog", "Шарик", PetSpecies.DOG)
         setSettingsShell(
+            expandSections = false,
             pets = listOf(
                 PetWithLatestWeight(cat, PetMeasurement("m1", cat.id, measuredAt, 70.0, 74.25)),
                 PetWithLatestWeight(dog, null),
             ),
         )
 
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
         composeRule.onNodeWithText("Последний вес: 4,25 кг").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Измерений пока нет").performScrollTo().assertIsDisplayed()
     }
 
     @Test
-    fun allSixSectionHeadersAreButtonsAndCollapsedByDefault() {
+    fun profilesDetailShowsEmptyState() {
+        setSettingsShell(expandSections = false, account = null)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        composeRule.onNodeWithText("Профилей пока нет.").assertIsDisplayed()
+    }
+
+    @Test
+    fun profilesDetailShowsLongProfileNameAndHumanPrimaryBadge() {
+        val longName = "Очень длинное имя профиля для проверки переноса строки"
+        setSettingsShell(
+            expandSections = false,
+            account = completeAccount().copy(displayName = longName),
+        )
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        composeRule.onNodeWithText(longName).assertIsDisplayed()
+        composeRule.onNodeWithText("Основной").assertIsDisplayed()
+    }
+
+    @Test
+    fun rootUsesRequiredNavigationOrderWithoutAccordionHeaders() {
+        setSettingsShell(expandSections = false)
+
+        listOf(SettingsScreenTestTags.ProfilesRow, SettingsScreenTestTags.ScaleRow,
+            SettingsScreenTestTags.HealthConnectRow, SettingsScreenTestTags.BackupRow,
+            SettingsScreenTestTags.DiagnosticsRow, SettingsScreenTestTags.ChangelogRow).forEach {
+            composeRule.onNodeWithTag(it).performScrollTo().assertHasClickAction()
+        }
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsSection).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection).assertDoesNotExist()
+    }
+
+    @Test
+    fun profilesRootSummaryShowsExplicitEmptyState() {
+        setSettingsShell(expandSections = false, account = null)
+        composeRule.onNodeWithText("Добавьте первый профиль").assertIsDisplayed()
+    }
+
+    @Test
+    fun profilesRootSummaryShowsPeopleAndPetCounts() {
+        setSettingsShell(
+            expandSections = false,
+            pets = listOf(PetWithLatestWeight(pet("cat", "Мурка", PetSpecies.CAT), null)),
+        )
+        composeRule.onNodeWithText("1 человек · 1 питомец").assertIsDisplayed()
+    }
+
+    @Test
+    fun rootNavigationRowsExposeOnlyTheirSingleRowClickAction() {
         setSettingsShell(expandSections = false)
 
         listOf(
-            SettingsScreenTestTags.AccountsSection,
-            SettingsScreenTestTags.IntegrationsSection,
-            SettingsScreenTestTags.ScaleSection,
-            SettingsScreenTestTags.BackupSection,
-            SettingsScreenTestTags.AdditionalSection,
-            SettingsScreenTestTags.AboutSection,
+            SettingsScreenTestTags.ProfilesRow,
+            SettingsScreenTestTags.ScaleRow,
+            SettingsScreenTestTags.HealthConnectRow,
+            SettingsScreenTestTags.BackupRow,
+            SettingsScreenTestTags.DiagnosticsRow,
+            SettingsScreenTestTags.ChangelogRow,
         ).forEach { tag ->
-            composeRule.onNodeWithTag(tag)
-                .performScrollTo()
-                .assertHasClickAction()
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
-                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
+            composeRule.onNodeWithTag(tag).performScrollTo().assertHasClickAction()
+            composeRule.onAllNodes(
+                hasClickAction() and hasAnyAncestor(hasTestTag(tag)),
+                useUnmergedTree = true,
+            ).assertCountEquals(0)
         }
     }
 
     @Test
-    fun sectionsToggleIndependentlyAndRestoreAfterRecreation() {
+    fun detailFocusStartsOnBackAndReturnsToOriginatingRootRow() {
         setSettingsShell(expandSections = false)
 
-        expandSection(SettingsScreenTestTags.AccountsSection)
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsFocused()
+
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).assertIsFocused()
+    }
+
+    @Test
+    fun navigationRowsExposeTheirTextualStatusToAccessibilityServices() {
+        val longScaleStatus = "Очень длинное имя весов для узкого экрана и крупного шрифта без потери текста"
+        setSettingsShell(
+            expandSections = false,
+            settings = AppSettings(scaleAddress = "AA:BB", scaleName = longScaleStatus),
+        )
+
+        val scaleNode = composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleRow)
+            .fetchSemanticsNode()
+        assertEquals(longScaleStatus, scaleNode.config[SemanticsProperties.StateDescription])
+        composeRule.onNodeWithText(longScaleStatus).assertExists()
+    }
+
+    @Test
+    fun diagnosticsDestinationRestoresAfterRecreation() {
+        setSettingsShell(expandSections = false)
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
 
         composeRule.activityRule.scenario.recreate()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
     }
 
     @Test
@@ -498,6 +582,7 @@ class SettingsShellUiTest {
         pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
+            val settingsDestination = remember { mutableStateOf(SettingsDestination.ROOT) }
             val management = remember {
                 mutableStateOf(
                     AccountManagementUiState(
@@ -520,10 +605,12 @@ class SettingsShellUiTest {
                     pets = pets,
                 ),
                 currentSection = AppSection.SETTINGS,
+                settingsDestination = settingsDestination.value,
                 measurementsDestination = MeasurementsDestination.SUMMARY,
                 measurementsCallbacks = MeasurementsCallbacks.None,
                 snackbarHostState = snackbarHostState,
                 onSectionSelected = {},
+                onSettingsDestinationChanged = { settingsDestination.value = it },
                 onCloseProfile = {},
                 onSaveProfile = {},
                 onProfileHeightChanged = {},
@@ -544,20 +631,6 @@ class SettingsShellUiTest {
                 chartsContent = {},
             )
         }
-        if (expandSections) {
-            listOf(
-                SettingsScreenTestTags.AccountsSection,
-                SettingsScreenTestTags.IntegrationsSection,
-                SettingsScreenTestTags.ScaleSection,
-                SettingsScreenTestTags.BackupSection,
-                SettingsScreenTestTags.AdditionalSection,
-                SettingsScreenTestTags.AboutSection,
-            ).forEach(::expandSection)
-        }
-    }
-
-    private fun expandSection(tag: String) {
-        composeRule.onNodeWithTag(tag).performScrollTo().performClick()
     }
 
     private fun settingsCallbacks(

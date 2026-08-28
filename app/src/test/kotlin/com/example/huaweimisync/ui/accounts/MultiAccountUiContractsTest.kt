@@ -167,7 +167,7 @@ class MultiAccountUiContractsTest {
             today = LocalDate.of(2026, 8, 15),
         )
         assertEquals(
-            "Аккаунт с таким именем уже существует",
+            "Профиль с таким именем уже существует",
             duplicateValidation.error(AccountEditorField.NAME),
         )
 

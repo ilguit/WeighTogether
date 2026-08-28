@@ -1,0 +1,1764 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline' 'unsafe-eval' 'wasm-unsafe-eval' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src 'unsafe-inline' blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<title>Settings Live Mockup</title>
+<style>:root{color-scheme:light dark;background:light-dark(rgb(255 255 255), rgb(24 24 24))}html,body{margin:0}body{box-sizing:border-box;padding:1rem;background:inherit}iframe{display:block;width:100%;height:calc(100vh - 2rem);margin:0 auto;border:0}</style>
+</head>
+<body>
+<iframe sandbox="allow-scripts" referrerpolicy="no-referrer" title="Settings Live Mockup" srcdoc="&lt;!doctype html&gt;
+&lt;html lang=&quot;ru&quot;&gt;
+&lt;head&gt;
+&lt;meta charset=&quot;utf-8&quot;&gt;
+&lt;meta name=&quot;viewport&quot; content=&quot;width=device-width, initial-scale=1&quot;&gt;
+&lt;meta name=&quot;referrer&quot; content=&quot;no-referrer&quot;&gt;
+&lt;meta http-equiv=&quot;Content-Security-Policy&quot; content=&quot;default-src &#x27;none&#x27;; script-src &#x27;unsafe-inline&#x27; &#x27;unsafe-eval&#x27; &#x27;wasm-unsafe-eval&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; style-src &#x27;unsafe-inline&#x27; blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; img-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; font-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; media-src blob: data: https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://esm.sh https://fonts.bunny.net https://fonts.googleapis.com https://fonts.gstatic.com https://unpkg.com; worker-src blob:; connect-src blob: data:; frame-src &#x27;none&#x27;; object-src &#x27;none&#x27;; base-uri &#x27;none&#x27;; form-action &#x27;none&#x27;&quot;&gt;
+&lt;title&gt;Settings Live Mockup&lt;/title&gt;
+&lt;style&gt;:root {
+  color-scheme: light dark;
+  background-color: var(
+    --background,
+    var(--color-background-primary, light-dark(rgb(255 255 255), rgb(24 24 24)))
+  ) !important;
+
+  /* Agent-facing contract; keep in sync with SKILL.md. */
+  --background: var(
+    --color-background-primary,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --card: color-mix(in oklab, var(--foreground) 5%, var(--background));
+  --card-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --popover: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255), rgb(45 45 45))
+  );
+  --popover-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --primary: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --primary-foreground: var(
+    --color-text-inverse,
+    light-dark(rgb(255 255 255), rgb(13 13 13))
+  );
+  --secondary: var(
+    --color-background-secondary,
+    light-dark(rgb(255 255 255 / 96%), rgb(54 54 54 / 96%))
+  );
+  --secondary-foreground: var(
+    --color-text-primary,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --muted: color-mix(in srgb, var(--foreground) 10%, transparent);
+  --muted-foreground: var(
+    --color-text-secondary,
+    light-dark(rgb(26 28 31 / 49.4%), rgb(255 255 255 / 49.8%))
+  );
+  --accent: var(
+    --color-background-info,
+    light-dark(rgb(229 242 255), rgb(13 39 63))
+  );
+  --accent-foreground: var(
+    --color-text-info,
+    light-dark(rgb(51 156 255), rgb(131 195 255))
+  );
+  --destructive: var(
+    --color-text-warning,
+    light-dark(rgb(226 85 7), rgb(255 133 73))
+  );
+  --border: var(
+    --color-border-secondary,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+  --input: var(
+    --color-border-primary,
+    light-dark(
+      rgb(26 28 31 / 11.8%),
+      color-mix(in oklab, rgb(0 0 0) 10%, transparent)
+    )
+  );
+  --ring: var(
+    --color-ring-primary,
+    light-dark(rgb(51 156 255), rgb(131 195 255 / 76%))
+  );
+  --font-size-base: var(--font-text-md-size, 14px);
+  --blue: light-dark(rgb(51 156 255), rgb(51 156 255));
+  --orange: light-dark(rgb(226 85 7), rgb(251 106 34));
+  --green: light-dark(rgb(0 162 64), rgb(64 201 119));
+  --red: light-dark(rgb(224 46 42), rgb(255 103 100));
+  --purple: light-dark(rgb(146 79 247), rgb(173 123 249));
+  --yellow: light-dark(rgb(255 195 0), rgb(255 210 64));
+  --viz-series-1: var(--primary);
+  --viz-series-2: light-dark(rgb(243 136 59), rgb(245 154 86));
+  --viz-series-3: light-dark(rgb(93 201 119), rgb(116 213 139));
+  --viz-series-4: light-dark(rgb(235 119 177), rgb(240 143 192));
+  --viz-series-5: light-dark(rgb(155 121 236), rgb(170 145 239));
+  --viz-series-6: light-dark(rgb(58 185 177), rgb(90 203 194));
+
+  /* Internal implementation variables; not part of the agent contract. */
+  --font-sans: -apple-system, system-ui, &quot;Segoe UI&quot;, sans-serif;
+  --font-mono:
+    ui-monospace, SFMono-Regular, &quot;SF Mono&quot;, Menlo, Consolas, &quot;Liberation Mono&quot;,
+    monospace;
+  --font-size-normal: max(11px, var(--font-size-base));
+  --font-size-tooltip: calc(var(--font-size-base) - 1px);
+  --font-size-small: max(11px, calc(var(--font-size-base) - 2px));
+  --font-size-h1: calc(var(--font-size-normal) * 1.7142857143);
+  --font-size-h2: calc(var(--font-size-normal) * 1.4285714286);
+  --font-size-h3: calc(var(--font-size-normal) * 1.2857142857);
+  --font-weight-normal: 430;
+  --font-weight-medium: 500;
+  --line-height-normal: calc(var(--font-size-normal) * 1.5);
+  --line-height-tooltip: calc(var(--font-size-tooltip) * 1.4285714286);
+  --line-height-small: calc(var(--font-size-small) + 4px);
+  --radius: var(--border-radius-lg, 12.5px);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-2xl: calc(var(--radius) * 1.6);
+  --radius-full: 9999px;
+  --shadow-sm: 0 1px 2px -1px rgb(0 0 0 / 8%);
+  --checkmark-image: url(&quot;data:image/svg+xml,%3Csvg xmlns=&#x27;http://www.w3.org/2000/svg&#x27; viewBox=&#x27;0 0 17 17&#x27;%3E%3Cpath d=&#x27;M12.8961 3.64101C13.1297 3.41418 13.4984 3.37523 13.7779 3.56581C14.0571 3.75635 14.1554 4.11331 14.0299 4.41347L13.9615 4.53847L7.71151 13.7045C7.59411 13.8767 7.4063 13.9877 7.19881 14.0072C6.99136 14.0267 6.78564 13.9533 6.63826 13.806L2.88826 10.056L2.79842 9.9457C2.6192 9.67407 2.64927 9.30496 2.88826 9.06581C3.12738 8.82669 3.49647 8.79676 3.76815 8.97597L3.8785 9.06581L7.03084 12.2182L12.8053 3.74941L12.8961 3.64101Z&#x27;/%3E%3C/svg%3E&quot;);
+
+  /* Legacy aliases; not part of the current agent contract. */
+  --viz-bg: transparent;
+  --viz-panel: var(--card);
+  --viz-border: var(--border);
+  --viz-text: var(--foreground);
+  --viz-muted: var(--muted-foreground);
+  --viz-accent: var(--primary);
+  --viz-accent-text: var(--primary-foreground);
+  --viz-accent-bg: var(--accent);
+  --viz-font-size: var(--font-size-base);
+  --viz-warning: var(--destructive);
+}
+
+:root[data-theme=&quot;light&quot;] {
+  color-scheme: light;
+}
+
+:root[data-theme=&quot;dark&quot;] {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html &gt; body {
+  /* Preserve MCP aliases for older inline renderers without creating :root cycles. */
+  --color-background-primary: var(
+    --background,
+    light-dark(rgb(255 255 255), rgb(24 24 24))
+  );
+  --color-text-primary: var(
+    --foreground,
+    light-dark(rgb(26 28 31), rgb(255 255 255))
+  );
+  --color-border-secondary: var(
+    --border,
+    light-dark(rgb(26 28 31 / 8%), rgb(255 255 255 / 8.2%))
+  );
+
+  margin: 0;
+  padding: 5px;
+  color: var(--foreground);
+  background: transparent !important;
+  font-family: var(--font-sans) !important;
+  font-size: var(--font-size-normal);
+  font-weight: var(--font-weight-normal);
+  line-height: var(--line-height-normal);
+}
+
+a {
+  color: color-mix(in srgb, var(--viz-accent) 80%, var(--viz-text) 20%);
+  cursor: pointer;
+  font-weight: var(--font-weight-medium, 500);
+  text-decoration: none;
+  text-underline-offset: 2px;
+}
+
+a:is(:hover, :focus-visible) {
+  text-decoration-line: underline;
+  text-decoration-style: dashed;
+  text-decoration-thickness: 0.5px;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p {
+  margin-block: 0;
+}
+
+h1 {
+  font-size: var(--font-size-h1);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h2 {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+h3,
+h4,
+h5,
+h6 {
+  font-size: var(--font-size-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.3;
+}
+
+b,
+strong,
+th {
+  font-weight: var(--font-weight-medium);
+}
+
+code:not(pre code) {
+  display: inline;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background: var(--muted);
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  overflow-wrap: anywhere;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+  word-break: break-word;
+}
+
+.table-responsive {
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  color: var(--foreground);
+  font: inherit;
+  text-align: start;
+}
+
+.table :is(th, td) {
+  padding-block: 10px;
+  padding-inline: 0 24px;
+  overflow-wrap: anywhere;
+  border-bottom: 1px solid var(--border);
+  text-align: start;
+  vertical-align: top;
+}
+
+.table-responsive &gt; .table :is(th, td) {
+  overflow-wrap: break-word;
+}
+
+.table :is(th, td):last-child {
+  padding-inline-end: 0;
+}
+
+.table :is(caption, thead th) {
+  font-weight: 600;
+}
+
+.table thead th {
+  padding-block: 8px;
+  border-bottom-color: color-mix(in srgb, var(--foreground) 16%, transparent);
+}
+
+.table tbody tr:last-child :is(th, td) {
+  border-bottom: 0;
+}
+
+.table.table-sm :is(th, td) {
+  padding-block: 6px;
+}
+
+.table.table-sm :is(th, td):not(:last-child) {
+  padding-inline-end: 16px;
+}
+
+.table :is(.text-end, [align=&quot;right&quot;]) {
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.table :is(.text-center, [align=&quot;center&quot;]) {
+  text-align: center;
+}
+
+.table .text-nowrap {
+  white-space: nowrap;
+}
+
+#widget {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  padding: 0;
+  background: transparent !important;
+}
+
+.card {
+  min-width: 0;
+  padding: 12px;
+  overflow: hidden;
+  overflow-wrap: break-word;
+  border-radius: var(--radius-2xl);
+  corner-shape: superellipse(1.5);
+  color: var(--card-foreground);
+  background: var(--card);
+}
+
+#widget &gt; :not(.card, .progress) {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.tooltip {
+  position: fixed;
+  z-index: 50;
+  top: 0;
+  left: 0;
+  width: max-content;
+  max-width: min(
+    20rem,
+    var(--tooltip-available-width, calc(100vw - 10px)),
+    calc(100vw - 10px)
+  );
+  max-height: min(
+    var(--tooltip-available-height, calc(100vh - 10px)),
+    calc(100vh - 10px)
+  );
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--popover-foreground);
+  background: var(--popover);
+  box-shadow: none;
+  font-size: var(--font-size-tooltip);
+  line-height: var(--line-height-tooltip);
+  overflow-wrap: break-word;
+  white-space: normal;
+  pointer-events: none;
+  user-select: none;
+}
+
+.viz-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(max(180px, 24%), 1fr));
+  gap: 10px;
+}
+
+.viz-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.viz-stat-value {
+  font-size: var(--font-size-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: 1.25;
+}
+
+.viz-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.progress {
+  display: flex;
+  height: 6px;
+  margin-block: calc((var(--line-height-normal, 1.5em) - 6px) / 2);
+  overflow: hidden;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+}
+
+.progress-bar {
+  height: 100%;
+  flex-shrink: 0;
+  border: 0;
+  background: var(--viz-series-1);
+}
+
+.viz-badge {
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+  color: var(--accent-foreground);
+  background: var(--accent);
+  font-weight: var(--font-weight-medium);
+}
+
+small,
+.text-small,
+.viz-badge {
+  font-size: var(--font-size-small);
+  line-height: var(--line-height-small);
+}
+
+.text-muted {
+  color: var(--muted-foreground);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.viz-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.viz-controls &gt; .form-label {
+  display: grid;
+  min-width: min(100%, 260px);
+  flex: 1 1 280px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 2px 12px;
+  margin-bottom: 0;
+}
+
+.viz-controls &gt; .form-label &gt; :is(.form-control, .form-range, .form-select) {
+  grid-column: 1 / -1;
+}
+
+.btn,
+.form-check-input,
+.form-control,
+.form-range,
+.form-select {
+  font: inherit;
+}
+
+.btn {
+  appearance: button;
+  display: inline-flex;
+  inline-size: fit-content;
+  max-inline-size: 100%;
+  min-height: 28px;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0 8px;
+  -webkit-app-region: no-drag;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: var(--cursor-interaction, pointer);
+  text-align: center;
+  text-decoration: none;
+  white-space: nowrap;
+  user-select: none;
+  -webkit-font-smoothing: antialiased;
+}
+
+.btn:is(.btn-block, .viz-tile) {
+  inline-size: 100%;
+}
+
+.btn.viz-tile {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: normal;
+}
+
+a.btn {
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.btn:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn-primary {
+  border-color: transparent;
+  color: var(--primary-foreground);
+  background: var(--foreground);
+  background-clip: padding-box;
+}
+
+.btn-primary .text-muted {
+  color: color-mix(in srgb, var(--primary-foreground) 50%, transparent);
+}
+
+.btn-primary:not(:disabled):hover {
+  background: color-mix(in srgb, var(--foreground) 80%, transparent);
+  background-clip: padding-box;
+}
+
+.btn-ghost {
+  border-color: transparent;
+  color: var(--muted-foreground);
+  background: transparent;
+}
+
+.btn-ghost:not(:disabled):hover {
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+[data-lucide] {
+  stroke-width: 1.6;
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--foreground);
+}
+
+.form-control {
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  padding: 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background: var(--secondary);
+}
+
+.form-control::placeholder {
+  color: var(--muted-foreground);
+}
+
+.form-control[type=&quot;file&quot;] {
+  padding: 0;
+  overflow: hidden;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control[type=&quot;file&quot;]::file-selector-button {
+  min-height: 26px;
+  margin-right: 8px;
+  padding: 0 8px;
+  border: 0;
+  border-right: 1px solid var(--input);
+  color: var(--secondary-foreground);
+  background: var(--secondary);
+  cursor: inherit;
+  font: inherit;
+}
+
+.form-control[type=&quot;file&quot;]:not(:disabled):hover::file-selector-button {
+  background: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-control-color[type=&quot;color&quot;] {
+  width: 40px;
+  height: 28px;
+  padding: 3px;
+  cursor: var(--cursor-interaction, pointer);
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch-wrapper {
+  padding: 0;
+}
+
+.form-control-color[type=&quot;color&quot;]::-webkit-color-swatch {
+  border: 0;
+  border-radius: calc(var(--radius-lg) - 4px);
+  corner-shape: superellipse(1.5);
+}
+
+textarea.form-control {
+  height: auto;
+  min-height: 72px;
+  padding: 8px 10px;
+  resize: vertical;
+}
+
+.form-control:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-control:disabled,
+.form-select:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.form-select {
+  appearance: none;
+  display: block;
+  width: 100%;
+  min-height: 28px;
+  margin: 0;
+  padding: 0 32px 0 8px;
+  outline: none;
+  border: 1px solid var(--input);
+  border-radius: var(--radius-lg);
+  corner-shape: superellipse(1.5);
+  color: var(--foreground);
+  background-color: var(--secondary);
+  background-image:
+    linear-gradient(45deg, transparent 50%, var(--muted-foreground) 50%),
+    linear-gradient(135deg, var(--muted-foreground) 50%, transparent 50%);
+  background-position:
+    calc(100% - 14px) 50%,
+    calc(100% - 10px) 50%;
+  background-repeat: no-repeat;
+  background-size: 4px 4px;
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-select:not(:disabled):hover {
+  background-color: color-mix(in srgb, var(--foreground) 6%, var(--secondary));
+}
+
+.form-select:focus-visible {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-check {
+  display: flex;
+  min-height: 20px;
+  align-items: center;
+  gap: 6px;
+}
+
+.form-check-input {
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+  margin: 0;
+  border: 1px solid var(--input);
+  color: var(--primary-foreground);
+  background-color: transparent;
+  cursor: var(--cursor-interaction, default);
+  transition:
+    background-color 150ms,
+    border-color 150ms,
+    box-shadow 150ms;
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;] {
+  border-color: var(--input);
+  border-radius: var(--radius-sm);
+  corner-shape: superellipse(1.5);
+  background-color: var(--secondary);
+  box-shadow: var(--shadow-sm);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input:not(:disabled):not(:checked):hover {
+  background-color: var(--card);
+}
+
+.form-check:not(.form-switch) .form-check-input[type=&quot;checkbox&quot;]:checked {
+  border-color: var(--primary);
+  background-color: var(--primary);
+}
+
+.form-check:not(.form-switch)
+  .form-check-input[type=&quot;checkbox&quot;]:checked::before {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--primary-foreground);
+  content: &quot;&quot;;
+  mask: var(--checkmark-image) center / 12px 12px no-repeat;
+}
+
+.form-check-input[type=&quot;radio&quot;] {
+  width: 14px;
+  height: 14px;
+  border-radius: var(--radius-full);
+}
+
+.form-check-input[type=&quot;radio&quot;]:checked {
+  border: 2px solid var(--primary);
+  background:
+    radial-gradient(circle, var(--primary-foreground) 0 2.5px, transparent 3px),
+    var(--primary);
+}
+
+.form-check:not(.form-switch) .form-check-input:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled {
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+.form-check:not(.form-switch) .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+}
+
+.form-switch .form-check-input:disabled,
+.form-switch .form-check-input:disabled + .form-check-label {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.form-check-label {
+  color: var(--foreground);
+  cursor: var(--cursor-interaction, default);
+}
+
+.form-switch .form-check-input {
+  position: relative;
+  width: 32px;
+  height: 20px;
+  border: 0;
+  border-radius: var(--radius-full);
+  background: var(--muted);
+  box-shadow: none;
+  transition: background-color 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input::before {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  width: 16px;
+  height: 16px;
+  box-sizing: border-box;
+  border: 1px solid light-dark(var(--primary-foreground), var(--foreground));
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+  box-shadow: var(--shadow-sm);
+  content: &quot;&quot;;
+  transform: translate(2px, -50%);
+  transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+}
+
+.form-switch .form-check-input:checked {
+  background: var(--primary);
+}
+
+.form-switch .form-check-input:checked::before {
+  transform: translate(14px, -50%);
+}
+
+.form-switch .form-check-input:focus-visible {
+  box-shadow: 0 0 0 2px var(--ring);
+}
+
+.form-range {
+  appearance: none;
+  display: block;
+  width: 100%;
+  height: 28px;
+  flex: 1;
+  margin: 0;
+  padding: 0;
+  outline: none;
+  border: 0;
+  accent-color: var(--primary);
+  background: linear-gradient(
+      color-mix(in srgb, var(--foreground) 7%, transparent),
+      color-mix(in srgb, var(--foreground) 7%, transparent)
+    )
+    center / 100% 2px no-repeat;
+}
+
+.form-range::-webkit-slider-runnable-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  margin-top: 4px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-webkit-slider-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range::-moz-range-track {
+  height: 28px;
+  background: transparent;
+}
+
+.form-range::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  background: light-dark(var(--primary-foreground), var(--foreground));
+}
+
+.form-range:focus-visible::-moz-range-thumb {
+  border-color: var(--ring);
+  box-shadow: inset 0 0 0 1px var(--ring);
+}
+
+.form-range:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+.btn:not(.btn-primary, .viz-tile):is(
+  [aria-pressed=&quot;true&quot;],
+  [aria-selected=&quot;true&quot;],
+  .is-selected
+) {
+  border-color: var(--primary);
+  color: var(--primary-foreground);
+  background: var(--primary);
+}
+
+.btn.viz-tile:is([aria-pressed=&quot;true&quot;], [aria-selected=&quot;true&quot;], .is-selected) {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+svg {
+  display: block;
+  max-width: 100%;
+  height: auto;
+}
+
+#widget &gt; svg {
+  width: 100%;
+}
+
+/* Model-authored chart rules can otherwise stretch icons after these styles load. */
+svg.lucide {
+  display: block;
+  width: 16px !important;
+  height: 16px !important;
+  flex: none;
+  margin: 0 !important;
+  stroke-width: 1.6;
+}
+
+.text-warning,
+.text-destructive {
+  color: var(--destructive);
+}
+
+html&gt;body{padding:0}&lt;/style&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;scalesync-settings-mockup&quot;&gt;
+  &lt;div class=&quot;prototype-controls&quot; aria-label=&quot;Состояние макета&quot;&gt;
+    &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Сборка&quot;&gt;
+      &lt;button type=&quot;button&quot; data-flavor=&quot;personal&quot; aria-pressed=&quot;true&quot;&gt;Personal&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-flavor=&quot;enterprise&quot; aria-pressed=&quot;false&quot;&gt;Enterprise&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Данные&quot;&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;ready&quot; aria-pressed=&quot;true&quot;&gt;Настроено&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;empty&quot; aria-pressed=&quot;false&quot;&gt;Пусто&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;checking&quot; aria-pressed=&quot;false&quot;&gt;Проверка&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;disabled&quot; aria-pressed=&quot;false&quot;&gt;Отключено&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;unavailable&quot; aria-pressed=&quot;false&quot;&gt;Недоступно&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-state=&quot;error&quot; aria-pressed=&quot;false&quot;&gt;Ошибка&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Ширина&quot;&gt;
+      &lt;button type=&quot;button&quot; data-width=&quot;regular&quot; aria-pressed=&quot;true&quot;&gt;Обычный экран&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-width=&quot;narrow&quot; aria-pressed=&quot;false&quot;&gt;Узкий экран&lt;/button&gt;
+    &lt;/div&gt;
+    &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Размер текста&quot;&gt;
+      &lt;button type=&quot;button&quot; data-text-scale=&quot;normal&quot; aria-pressed=&quot;true&quot;&gt;Обычный текст&lt;/button&gt;
+      &lt;button type=&quot;button&quot; data-text-scale=&quot;large&quot; aria-pressed=&quot;false&quot;&gt;Крупный текст&lt;/button&gt;
+    &lt;/div&gt;
+  &lt;/div&gt;
+
+  &lt;div class=&quot;device-shell&quot; data-width-mode=&quot;regular&quot;&gt;
+    &lt;div class=&quot;system-strip&quot;&gt;&lt;span&gt;10:28&lt;/span&gt;&lt;span&gt;● ◔ ▰&lt;/span&gt;&lt;/div&gt;
+    &lt;div class=&quot;app-topbar&quot;&gt;
+      &lt;button type=&quot;button&quot; class=&quot;back-action&quot; aria-label=&quot;Назад&quot; hidden&gt;&lt;i data-lucide=&quot;arrow-left&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;strong class=&quot;screen-title&quot;&gt;Настройки&lt;/strong&gt;
+    &lt;/div&gt;
+    &lt;main class=&quot;app-content&quot; aria-live=&quot;polite&quot;&gt;&lt;/main&gt;
+    &lt;nav class=&quot;bottom-navigation&quot; aria-label=&quot;Основная навигация&quot;&gt;
+      &lt;button type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;scale&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Измерения&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot;&gt;&lt;i data-lucide=&quot;chart-no-axes-column&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Графики&lt;/span&gt;&lt;/button&gt;
+      &lt;button type=&quot;button&quot; class=&quot;selected&quot;&gt;&lt;i data-lucide=&quot;settings&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span&gt;Настройки&lt;/span&gt;&lt;/button&gt;
+    &lt;/nav&gt;
+  &lt;/div&gt;
+
+  &lt;template id=&quot;root-screen-template&quot;&gt;
+    &lt;section class=&quot;settings-root&quot;&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;profiles&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;users&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Профили&lt;/strong&gt;&lt;span data-profile-summary&gt;2 человека · 1 питомец&lt;/span&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      &lt;h2&gt;Весы и синхронизация&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;scale-detail&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;bluetooth&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Весы&lt;/strong&gt;&lt;span data-scale-status&gt;Mi Body Composition Scale 2&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;status-mark success&quot; data-scale-mark&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;health-detail&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;heart-pulse&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Health Connect&lt;/strong&gt;&lt;span data-health-status&gt;Подключено&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;status-mark success&quot; data-health-mark&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row huawei-row&quot; data-screen=&quot;huawei-detail&quot; hidden&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;heart&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Huawei Health&lt;/strong&gt;&lt;span data-huawei-status&gt;Подключено&lt;/span&gt;&lt;/span&gt;
+          &lt;span class=&quot;status-mark success&quot; data-huawei-mark&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+
+      &lt;h2&gt;Данные и приложение&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;backup&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;archive&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Резервная копия&lt;/strong&gt;&lt;span&gt;Экспорт и восстановление данных&lt;/span&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;diagnostics&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;stethoscope&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Диагностика&lt;/strong&gt;&lt;span&gt;Проверка и системные параметры&lt;/span&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot; data-screen=&quot;history&quot;&gt;
+          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;history&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
+          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;История версий&lt;/strong&gt;&lt;span&gt;Что изменилось в приложении&lt;/span&gt;&lt;/span&gt;
+          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
+        &lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+
+  &lt;template id=&quot;profiles-screen-template&quot;&gt;
+    &lt;section class=&quot;detail-screen profiles-screen&quot;&gt;
+      &lt;div class=&quot;section-heading&quot;&gt;&lt;h2&gt;Люди&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;compact-action&quot;&gt;&lt;i data-lucide=&quot;user-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Добавить&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;settings-group profile-list populated-profiles&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;avatar&quot;&gt;А&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Александр&lt;/strong&gt;&lt;span&gt;Основной профиль · 75 кг&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;avatar&quot;&gt;М&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Мария&lt;/strong&gt;&lt;span&gt;Профиль человека&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;empty-state empty-profiles&quot; hidden&gt;&lt;i data-lucide=&quot;user-round-plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong&gt;Пока нет профилей людей&lt;/strong&gt;&lt;span&gt;Добавьте профиль для сохранения измерений&lt;/span&gt;&lt;/div&gt;
+
+      &lt;div class=&quot;section-heading&quot;&gt;&lt;h2&gt;Питомцы&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;compact-action&quot;&gt;&lt;i data-lucide=&quot;plus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;Добавить&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;settings-group populated-profiles&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;avatar pet&quot;&gt;&lt;i data-lucide=&quot;paw-print&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Барсик&lt;/strong&gt;&lt;span&gt;Кот · последнее измерение 4,8 кг&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;div class=&quot;empty-state empty-profiles&quot; hidden&gt;&lt;i data-lucide=&quot;paw-print&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;strong&gt;Питомцев пока нет&lt;/strong&gt;&lt;span&gt;Добавьте питомца, чтобы отслеживать его вес&lt;/span&gt;&lt;/div&gt;
+
+      &lt;h2&gt;Автоматическое распознавание&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;scan-search&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Допустимая разница веса&lt;/strong&gt;&lt;span&gt;5 кг&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;label class=&quot;setting-row switch-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;shield-minus&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Игнорировать неизвестные измерения&lt;/strong&gt;&lt;span&gt;Не сохранять измерения без подходящего профиля&lt;/span&gt;&lt;/span&gt;&lt;input type=&quot;checkbox&quot; role=&quot;switch&quot;&gt;&lt;/label&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+
+  &lt;template id=&quot;backup-screen-template&quot;&gt;
+    &lt;section class=&quot;detail-screen&quot;&gt;
+      &lt;h2&gt;Сохранить данные&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;&lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;file-down&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Экспортировать резервную копию&lt;/strong&gt;&lt;span&gt;Профили, питомцы, измерения и настройки&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;&lt;/div&gt;
+      &lt;div class=&quot;operation-status&quot; data-backup-status hidden role=&quot;status&quot;&gt;&lt;/div&gt;
+      &lt;h2&gt;Восстановить данные&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;merge&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Импортировать и объединить&lt;/strong&gt;&lt;span&gt;Сохранить существующие данные&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row destructive-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;replace&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Полностью заменить данные&lt;/strong&gt;&lt;span&gt;Текущие данные будут удалены после подтверждения&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+
+  &lt;template id=&quot;diagnostics-screen-template&quot;&gt;
+    &lt;section class=&quot;detail-screen&quot;&gt;
+      &lt;h2&gt;Проверка весов&lt;/h2&gt;
+      &lt;div class=&quot;settings-group diagnostic-form&quot;&gt;
+        &lt;label&gt;&lt;span&gt;Вес, кг&lt;/span&gt;&lt;input type=&quot;number&quot; value=&quot;75.0&quot; step=&quot;0.1&quot;&gt;&lt;/label&gt;
+        &lt;label&gt;&lt;span&gt;Импеданс, Ом&lt;/span&gt;&lt;input type=&quot;number&quot; value=&quot;520&quot;&gt;&lt;/label&gt;
+        &lt;button type=&quot;button&quot; class=&quot;primary-action&quot;&gt;Отправить тестовое измерение&lt;/button&gt;
+      &lt;/div&gt;
+      &lt;h2&gt;Работа в фоне&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;
+        &lt;label class=&quot;setting-row switch-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;radio-tower&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Режим надёжности&lt;/strong&gt;&lt;span&gt;Поддерживать поиск весов в фоне&lt;/span&gt;&lt;/span&gt;&lt;input type=&quot;checkbox&quot; role=&quot;switch&quot;&gt;&lt;/label&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;battery-charging&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Настройки батареи&lt;/strong&gt;&lt;span&gt;Разрешить фоновую работу&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;external-link&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+        &lt;button type=&quot;button&quot; class=&quot;setting-row&quot;&gt;&lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;settings-2&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Системные настройки приложения&lt;/strong&gt;&lt;span&gt;Разрешения и уведомления&lt;/span&gt;&lt;/span&gt;&lt;i data-lucide=&quot;external-link&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/button&gt;
+      &lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+
+  &lt;template id=&quot;connection-screen-template&quot;&gt;
+    &lt;section class=&quot;detail-screen connection-detail&quot;&gt;
+      &lt;div class=&quot;connection-hero&quot;&gt;&lt;span class=&quot;hero-icon&quot;&gt;&lt;i data-lucide=&quot;bluetooth&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;&lt;strong data-connection-title&gt;Весы&lt;/strong&gt;&lt;span data-connection-status&gt;Подключено&lt;/span&gt;&lt;/div&gt;
+      &lt;button type=&quot;button&quot; class=&quot;external-action&quot; data-primary-action hidden&gt;&lt;i data-lucide=&quot;external-link&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;span data-primary-label&gt;Открыть Health Connect&lt;/span&gt;&lt;/button&gt;
+      &lt;h2&gt;Состояние&lt;/h2&gt;
+      &lt;div class=&quot;settings-group&quot;&gt;&lt;div class=&quot;info-row&quot;&gt;&lt;span&gt;Устройство&lt;/span&gt;&lt;strong data-connection-device&gt;Mi Body Composition Scale 2&lt;/strong&gt;&lt;/div&gt;&lt;div class=&quot;info-row&quot;&gt;&lt;span&gt;Статус&lt;/span&gt;&lt;strong data-connection-state&gt;Готово к измерению&lt;/strong&gt;&lt;/div&gt;&lt;/div&gt;
+      &lt;div class=&quot;danger-zone&quot; data-danger-zone&gt;&lt;h2&gt;Управление&lt;/h2&gt;&lt;button type=&quot;button&quot; class=&quot;danger-action&quot; data-danger-action&gt;Забыть выбранные весы&lt;/button&gt;&lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+
+  &lt;template id=&quot;history-screen-template&quot;&gt;
+    &lt;section class=&quot;detail-screen history-screen&quot;&gt;
+      &lt;div class=&quot;version-entry&quot;&gt;&lt;strong&gt;0.1.21&lt;/strong&gt;&lt;span&gt;Последняя версия&lt;/span&gt;&lt;ul&gt;&lt;li&gt;Улучшена работа уведомлений измерений&lt;/li&gt;&lt;li&gt;Обновлена история приложения&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+      &lt;div class=&quot;version-entry&quot;&gt;&lt;strong&gt;0.1.20&lt;/strong&gt;&lt;span&gt;Предыдущая версия&lt;/span&gt;&lt;ul&gt;&lt;li&gt;Добавлены новые графики показателей&lt;/li&gt;&lt;/ul&gt;&lt;/div&gt;
+    &lt;/section&gt;
+  &lt;/template&gt;
+&lt;/div&gt;
+
+&lt;style&gt;
+#scalesync-settings-mockup {
+  color-scheme: light;
+  display: grid;
+  gap: 16px;
+  justify-items: center;
+  width: 100%;
+  color: #19211e;
+  font-family: Roboto, system-ui, sans-serif;
+}
+#scalesync-settings-mockup * { box-sizing: border-box; }
+#scalesync-settings-mockup button,
+#scalesync-settings-mockup input { font: inherit; }
+#scalesync-settings-mockup button:focus-visible,
+#scalesync-settings-mockup input:focus-visible {
+  outline: 3px solid #28766b;
+  outline-offset: 2px;
+}
+#scalesync-settings-mockup .prototype-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+}
+#scalesync-settings-mockup .control-group {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 12px;
+  background: #edf3ef;
+}
+#scalesync-settings-mockup .control-group button {
+  border: 0;
+  border-radius: 9px;
+  padding: 7px 10px;
+  color: #4f625c;
+  background: transparent;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .control-group button[aria-pressed=&quot;true&quot;] {
+  color: #ffffff;
+  background: #28766b;
+}
+#scalesync-settings-mockup .device-shell {
+  width: min(100%, 430px);
+  overflow: hidden;
+  border-radius: 28px;
+  background: #f5f7f3;
+  box-shadow: 0 14px 36px rgba(25, 33, 30, .18);
+  transition: width 180ms ease;
+}
+#scalesync-settings-mockup .device-shell[data-width-mode=&quot;narrow&quot;] { width: min(100%, 340px); }
+#scalesync-settings-mockup .device-shell[data-text-scale=&quot;large&quot;] { font-size: 1.25em; }
+#scalesync-settings-mockup .device-shell[data-text-scale=&quot;large&quot;] .row-copy span,
+#scalesync-settings-mockup .device-shell[data-text-scale=&quot;large&quot;] .empty-state span,
+#scalesync-settings-mockup .device-shell[data-text-scale=&quot;large&quot;] .version-entry &gt; span { font-size: 1em; }
+#scalesync-settings-mockup .system-strip {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 18px 4px;
+  color: #68736f;
+  background: #f5f7f3;
+}
+#scalesync-settings-mockup .app-topbar {
+  display: flex;
+  align-items: center;
+  min-height: 58px;
+  padding: 8px 16px;
+  gap: 10px;
+  background: #f5f7f3;
+}
+#scalesync-settings-mockup .screen-title { font-size: 22px; font-weight: 500; }
+#scalesync-settings-mockup .back-action {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border: 0;
+  border-radius: 20px;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .back-action[hidden] { display: none; }
+#scalesync-settings-mockup .app-content { padding: 4px 12px 18px; }
+#scalesync-settings-mockup h2 {
+  margin: 18px 10px 8px;
+  color: #4f625c;
+  font-size: 14px;
+  font-weight: 500;
+}
+#scalesync-settings-mockup .settings-group {
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #e0e5e2;
+  background: #ffffff;
+}
+#scalesync-settings-mockup .setting-row {
+  display: flex;
+  width: 100%;
+  min-height: 68px;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 14px;
+  border: 0;
+  border-bottom: 1px solid #e0e5e2;
+  text-align: left;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .setting-row:last-child { border-bottom: 0; }
+#scalesync-settings-mockup .setting-row[hidden] { display: none; }
+#scalesync-settings-mockup button.setting-row:hover { background: #edf5f1; }
+#scalesync-settings-mockup .row-icon,
+#scalesync-settings-mockup .avatar,
+#scalesync-settings-mockup .hero-icon {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  color: #28766b;
+  background: #e5f0ec;
+}
+#scalesync-settings-mockup .avatar { border-radius: 50%; font-weight: 500; }
+#scalesync-settings-mockup .row-copy {
+  display: grid;
+  min-width: 0;
+  flex: 1 1 auto;
+  gap: 3px;
+}
+#scalesync-settings-mockup .row-copy strong { font-weight: 500; }
+#scalesync-settings-mockup .row-copy span {
+  color: #68736f;
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+#scalesync-settings-mockup .status-mark { display: grid; place-items: center; }
+#scalesync-settings-mockup .status-mark.success { color: #28766b; }
+#scalesync-settings-mockup .status-mark.warning { color: #9c5b34; }
+#scalesync-settings-mockup .section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 14px;
+}
+#scalesync-settings-mockup .section-heading h2 { margin-top: 8px; }
+#scalesync-settings-mockup .compact-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  padding: 8px 10px;
+  color: #28766b;
+  background: transparent;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .switch-row { cursor: default; }
+#scalesync-settings-mockup input[type=&quot;checkbox&quot;] { width: 40px; height: 22px; accent-color: #28766b; }
+#scalesync-settings-mockup .empty-state {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 22px 14px;
+  border-radius: 18px;
+  text-align: center;
+  border: 1px solid #e0e5e2;
+  background: #ffffff;
+}
+#scalesync-settings-mockup .empty-state[hidden] { display: none; }
+#scalesync-settings-mockup .empty-state span { color: #68736f; font-size: 13px; }
+#scalesync-settings-mockup .operation-status {
+  margin: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  color: #4f625c;
+  background: #e5f0ec;
+}
+#scalesync-settings-mockup .operation-status[hidden] { display: none; }
+#scalesync-settings-mockup .diagnostic-form { display: grid; gap: 12px; padding: 16px; }
+#scalesync-settings-mockup .diagnostic-form label { display: grid; gap: 5px; color: #68736f; font-size: 13px; }
+#scalesync-settings-mockup .diagnostic-form input {
+  width: 100%;
+  border: 1px solid #bccbc6;
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: inherit;
+  background: #ffffff;
+}
+#scalesync-settings-mockup .primary-action {
+  border: 0;
+  border-radius: 20px;
+  padding: 11px 16px;
+  color: #ffffff;
+  background: #28766b;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .connection-hero {
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+  padding: 20px;
+}
+#scalesync-settings-mockup .connection-hero .hero-icon { width: 52px; height: 52px; border-radius: 16px; }
+#scalesync-settings-mockup .connection-hero span:last-child { color: #28766b; }
+#scalesync-settings-mockup .external-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: calc(100% - 20px);
+  margin: 0 10px 16px;
+  border: 0;
+  border-radius: 18px;
+  padding: 12px 16px;
+  color: #ffffff;
+  background: #28766b;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .external-action[hidden] { display: none; }
+#scalesync-settings-mockup .info-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  border-bottom: 1px solid #e0e5e2;
+}
+#scalesync-settings-mockup .info-row:last-child { border-bottom: 0; }
+#scalesync-settings-mockup .info-row span { color: #68736f; }
+#scalesync-settings-mockup .info-row strong { text-align: right; font-weight: 500; }
+#scalesync-settings-mockup .danger-zone { margin-top: 26px; }
+#scalesync-settings-mockup .danger-action {
+  width: 100%;
+  border: 1px solid #ba4d45;
+  border-radius: 18px;
+  padding: 13px;
+  color: #ba4d45;
+  background: transparent;
+  cursor: pointer;
+}
+#scalesync-settings-mockup .destructive-row { color: #ba4d45; }
+#scalesync-settings-mockup .version-entry {
+  display: grid;
+  gap: 5px;
+  margin-bottom: 12px;
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid #e0e5e2;
+  background: #ffffff;
+}
+#scalesync-settings-mockup .version-entry &gt; strong { font-size: 18px; font-weight: 500; }
+#scalesync-settings-mockup .version-entry &gt; span { color: #68736f; font-size: 13px; }
+#scalesync-settings-mockup .version-entry ul { margin: 7px 0 0; padding-left: 20px; }
+#scalesync-settings-mockup .bottom-navigation {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  padding: 8px 10px 12px;
+  border-top: 1px solid #e0e5e2;
+  background: #ffffff;
+}
+#scalesync-settings-mockup .bottom-navigation[hidden] { display: none; }
+#scalesync-settings-mockup .bottom-navigation button {
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  border: 0;
+  padding: 7px 4px;
+  color: #68736f;
+  background: transparent;
+}
+#scalesync-settings-mockup .bottom-navigation button span { font-size: 11px; }
+#scalesync-settings-mockup .bottom-navigation .selected { color: #28766b; }
+#scalesync-settings-mockup .device-shell[data-width-mode=&quot;narrow&quot;] .setting-row { gap: 9px; padding-inline: 11px; }
+#scalesync-settings-mockup .device-shell[data-width-mode=&quot;narrow&quot;] .row-icon { width: 34px; height: 34px; }
+@media (max-width: 480px) {
+  #scalesync-settings-mockup .prototype-controls { justify-content: stretch; }
+  #scalesync-settings-mockup .control-group { flex: 1 1 auto; justify-content: center; }
+  #scalesync-settings-mockup .control-group button { padding-inline: 7px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #scalesync-settings-mockup .device-shell { transition: none; }
+}
+&lt;/style&gt;
+
+&lt;script&gt;
+(() =&gt; {
+  const root = document.getElementById(&#x27;scalesync-settings-mockup&#x27;);
+  const shell = root.querySelector(&#x27;.device-shell&#x27;);
+  const content = root.querySelector(&#x27;.app-content&#x27;);
+  const title = root.querySelector(&#x27;.screen-title&#x27;);
+  const back = root.querySelector(&#x27;.back-action&#x27;);
+  const nav = root.querySelector(&#x27;.bottom-navigation&#x27;);
+  const state = { flavor: &#x27;personal&#x27;, data: &#x27;ready&#x27;, screen: &#x27;root&#x27;, width: &#x27;regular&#x27;, textScale: &#x27;normal&#x27; };
+
+  const screens = {
+    root: [&#x27;Настройки&#x27;, &#x27;root-screen-template&#x27;],
+    profiles: [&#x27;Профили&#x27;, &#x27;profiles-screen-template&#x27;],
+    backup: [&#x27;Резервная копия&#x27;, &#x27;backup-screen-template&#x27;],
+    diagnostics: [&#x27;Диагностика&#x27;, &#x27;diagnostics-screen-template&#x27;],
+    history: [&#x27;История версий&#x27;, &#x27;history-screen-template&#x27;],
+    &#x27;scale-detail&#x27;: [&#x27;Весы&#x27;, &#x27;connection-screen-template&#x27;],
+    &#x27;health-detail&#x27;: [&#x27;Health Connect&#x27;, &#x27;connection-screen-template&#x27;],
+    &#x27;huawei-detail&#x27;: [&#x27;Huawei Health&#x27;, &#x27;connection-screen-template&#x27;]
+  };
+
+  function setPressed(selector, value, attribute) {
+    root.querySelectorAll(selector).forEach(button =&gt; {
+      button.setAttribute(&#x27;aria-pressed&#x27;, String(button.dataset[attribute] === value));
+    });
+  }
+
+  function render(focusTarget = null) {
+    const [screenTitle, templateId] = screens[state.screen];
+    title.textContent = screenTitle;
+    content.replaceChildren(root.querySelector(`#${templateId}`).content.cloneNode(true));
+    const nested = state.screen !== &#x27;root&#x27;;
+    back.hidden = !nested;
+    nav.hidden = nested;
+    shell.dataset.widthMode = state.width;
+    shell.dataset.textScale = state.textScale;
+
+    if (state.screen === &#x27;root&#x27;) {
+      const empty = state.data === &#x27;empty&#x27;;
+      const rootStatuses = {
+        ready: [&#x27;Mi Body Composition Scale 2&#x27;, &#x27;Подключено&#x27;, &#x27;Подключено&#x27;],
+        empty: [&#x27;Весы не выбраны&#x27;, &#x27;Требуется разрешение&#x27;, &#x27;Не подключено&#x27;],
+        checking: [&#x27;Поиск весов…&#x27;, &#x27;Проверка состояния…&#x27;, &#x27;Проверка состояния…&#x27;],
+        disabled: [&#x27;Весы не выбраны&#x27;, &#x27;Отключено в приложении&#x27;, &#x27;Отключено в приложении&#x27;],
+        unavailable: [&#x27;Bluetooth недоступен&#x27;, &#x27;Недоступно на устройстве&#x27;, &#x27;Требуется обновление&#x27;],
+        error: [&#x27;Не удалось найти весы&#x27;, &#x27;Не удалось проверить&#x27;, &#x27;Не удалось проверить&#x27;]
+      };
+      const statuses = rootStatuses[state.data];
+      content.querySelector(&#x27;.huawei-row&#x27;).hidden = state.flavor !== &#x27;enterprise&#x27;;
+      content.querySelector(&#x27;[data-profile-summary]&#x27;).textContent = empty ? &#x27;Добавьте первый профиль&#x27; : &#x27;2 человека · 1 питомец&#x27;;
+      content.querySelector(&#x27;[data-scale-status]&#x27;).textContent = statuses[0];
+      content.querySelector(&#x27;[data-health-status]&#x27;).textContent = statuses[1];
+      content.querySelector(&#x27;[data-huawei-status]&#x27;).textContent = statuses[2];
+      [&#x27;scale&#x27;, &#x27;health&#x27;, &#x27;huawei&#x27;].forEach(kind =&gt; {
+        const mark = content.querySelector(`[data-${kind}-mark]`);
+        if (!mark) return;
+        const successful = state.data === &#x27;ready&#x27;;
+        mark.classList.toggle(&#x27;success&#x27;, successful);
+        mark.classList.toggle(&#x27;warning&#x27;, !successful);
+        mark.innerHTML = successful ? &#x27;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27; : &#x27;&lt;i data-lucide=&quot;circle-alert&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&#x27;;
+      });
+    }
+
+    if (state.screen === &#x27;profiles&#x27;) {
+      const empty = state.data === &#x27;empty&#x27;;
+      content.querySelectorAll(&#x27;.populated-profiles&#x27;).forEach(element =&gt; element.hidden = empty);
+      content.querySelectorAll(&#x27;.empty-profiles&#x27;).forEach(element =&gt; element.hidden = !empty);
+      if (state.textScale === &#x27;large&#x27; &amp;&amp; !empty) {
+        const names = content.querySelectorAll(&#x27;.profile-list .row-copy strong&#x27;);
+        if (names[0]) names[0].textContent = &#x27;Александр Константинопольский&#x27;;
+        if (names[1]) names[1].textContent = &#x27;Мария Александровна Смирнова&#x27;;
+      }
+    }
+
+    if (state.screen === &#x27;backup&#x27;) {
+      const status = content.querySelector(&#x27;[data-backup-status]&#x27;);
+      const messages = {
+        checking: &#x27;Подготовка резервной копии…&#x27;,
+        unavailable: &#x27;Хранилище временно недоступно&#x27;,
+        error: &#x27;Не удалось завершить операцию. Можно повторить попытку.&#x27;
+      };
+      status.hidden = !messages[state.data];
+      status.textContent = messages[state.data] || &#x27;&#x27;;
+    }
+
+    if (state.screen.endsWith(&#x27;-detail&#x27;)) {
+      const variants = {
+        &#x27;scale-detail&#x27;: {
+          ready: [&#x27;Весы&#x27;, &#x27;Подключено&#x27;, &#x27;Mi Body Composition Scale 2&#x27;, &#x27;Готово к измерению&#x27;, null, &#x27;Забыть выбранные весы&#x27;],
+          empty: [&#x27;Весы&#x27;, &#x27;Не выбраны&#x27;, &#x27;Устройство не выбрано&#x27;, &#x27;Выберите весы поблизости&#x27;, &#x27;Выбрать весы&#x27;, null],
+          checking: [&#x27;Весы&#x27;, &#x27;Поиск…&#x27;, &#x27;Устройство не выбрано&#x27;, &#x27;Идёт поиск весов&#x27;, &#x27;Поиск весов…&#x27;, null],
+          disabled: [&#x27;Весы&#x27;, &#x27;Не выбраны&#x27;, &#x27;Устройство не выбрано&#x27;, &#x27;Выберите весы поблизости&#x27;, &#x27;Выбрать весы&#x27;, null],
+          unavailable: [&#x27;Весы&#x27;, &#x27;Bluetooth недоступен&#x27;, &#x27;Устройство не выбрано&#x27;, &#x27;Включите Bluetooth и разрешите поиск&#x27;, &#x27;Открыть настройки Bluetooth&#x27;, null],
+          error: [&#x27;Весы&#x27;, &#x27;Ошибка поиска&#x27;, &#x27;Устройство не выбрано&#x27;, &#x27;Не удалось найти весы&#x27;, &#x27;Повторить поиск&#x27;, null]
+        },
+        &#x27;health-detail&#x27;: {
+          ready: [&#x27;Health Connect&#x27;, &#x27;Подключено&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Синхронизация включена&#x27;, &#x27;Открыть Health Connect&#x27;, &#x27;Отключить Health Connect&#x27;],
+          empty: [&#x27;Health Connect&#x27;, &#x27;Требуется разрешение&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Предоставьте доступ к данным&#x27;, &#x27;Подключить Health Connect&#x27;, null],
+          checking: [&#x27;Health Connect&#x27;, &#x27;Проверка…&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Проверяем доступность и разрешения&#x27;, &#x27;Проверяем…&#x27;, null],
+          disabled: [&#x27;Health Connect&#x27;, &#x27;Отключено в приложении&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Синхронизация отключена&#x27;, &#x27;Подключить снова&#x27;, null],
+          unavailable: [&#x27;Health Connect&#x27;, &#x27;Требуется обновление&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Провайдер недоступен или требует обновления&#x27;, null, null],
+          error: [&#x27;Health Connect&#x27;, &#x27;Ошибка проверки&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Не удалось проверить разрешения&#x27;, &#x27;Подключить&#x27;, null]
+        },
+        &#x27;huawei-detail&#x27;: {
+          ready: [&#x27;Huawei Health&#x27;, &#x27;Подключено&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Синхронизация включена&#x27;, null, &#x27;Отключить Huawei Health&#x27;],
+          empty: [&#x27;Huawei Health&#x27;, &#x27;Не подключено&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Требуется авторизация&#x27;, &#x27;Разрешить доступ&#x27;, null],
+          checking: [&#x27;Huawei Health&#x27;, &#x27;Проверка…&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Проверяем авторизацию&#x27;, &#x27;Проверяем…&#x27;, null],
+          disabled: [&#x27;Huawei Health&#x27;, &#x27;Отключено в приложении&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Синхронизация отключена&#x27;, &#x27;Подключить снова&#x27;, null],
+          unavailable: [&#x27;Huawei Health&#x27;, &#x27;Недоступно&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Сервис недоступен на устройстве&#x27;, null, null],
+          error: [&#x27;Huawei Health&#x27;, &#x27;Ошибка проверки&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Не удалось проверить авторизацию&#x27;, &#x27;Повторить&#x27;, null]
+        }
+      };
+      const config = variants[state.screen][state.data];
+      content.querySelector(&#x27;[data-connection-title]&#x27;).textContent = config[0];
+      content.querySelector(&#x27;[data-connection-status]&#x27;).textContent = config[1];
+      content.querySelector(&#x27;[data-connection-device]&#x27;).textContent = config[2];
+      content.querySelector(&#x27;[data-connection-state]&#x27;).textContent = config[3];
+      const primaryAction = content.querySelector(&#x27;[data-primary-action]&#x27;);
+      primaryAction.hidden = !config[4];
+      primaryAction.disabled = state.data === &#x27;checking&#x27;;
+      content.querySelector(&#x27;[data-primary-label]&#x27;).textContent = config[4] || &#x27;&#x27;;
+      const dangerZone = content.querySelector(&#x27;[data-danger-zone]&#x27;);
+      dangerZone.hidden = !config[5];
+      content.querySelector(&#x27;[data-danger-action]&#x27;).textContent = config[5] || &#x27;&#x27;;
+    }
+
+    content.querySelectorAll(&#x27;[data-screen]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+      state.screen = button.dataset.screen;
+      render(&#x27;back&#x27;);
+    }));
+    if (window.lucide) window.lucide.createIcons({ attrs: { width: 16, height: 16 } });
+    if (focusTarget === &#x27;back&#x27;) requestAnimationFrame(() =&gt; back.focus());
+    if (focusTarget &amp;&amp; focusTarget !== &#x27;back&#x27;) requestAnimationFrame(() =&gt; content.querySelector(`[data-screen=&quot;${focusTarget}&quot;]`)?.focus());
+  }
+
+  root.querySelectorAll(&#x27;[data-flavor]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+    state.flavor = button.dataset.flavor;
+    setPressed(&#x27;[data-flavor]&#x27;, state.flavor, &#x27;flavor&#x27;);
+    if (state.screen === &#x27;huawei-detail&#x27; &amp;&amp; state.flavor !== &#x27;enterprise&#x27;) state.screen = &#x27;root&#x27;;
+    render();
+  }));
+  root.querySelectorAll(&#x27;[data-state]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+    state.data = button.dataset.state;
+    setPressed(&#x27;[data-state]&#x27;, state.data, &#x27;state&#x27;);
+    render();
+  }));
+  root.querySelectorAll(&#x27;[data-width]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+    state.width = button.dataset.width;
+    setPressed(&#x27;[data-width]&#x27;, state.width, &#x27;width&#x27;);
+    render();
+  }));
+  root.querySelectorAll(&#x27;[data-text-scale]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
+    state.textScale = button.dataset.textScale;
+    setPressed(&#x27;[data-text-scale]&#x27;, state.textScale, &#x27;textScale&#x27;);
+    render();
+  }));
+  back.addEventListener(&#x27;click&#x27;, () =&gt; {
+    const previous = state.screen;
+    state.screen = &#x27;root&#x27;;
+    render(previous);
+  });
+  render();
+})();
+&lt;/script&gt;
+
+&lt;script src=&quot;https://unpkg.com/@floating-ui/core@1.7.3/dist/floating-ui.core.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script src=&quot;https://unpkg.com/@floating-ui/dom@1.7.4/dist/floating-ui.dom.umd.min.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  if (window.FloatingUIDOM == null) {
+    return;
+  }
+  const { autoUpdate, computePosition, flip, offset, shift, size } =
+    window.FloatingUIDOM;
+  const tooltipPlacements = new Set([&quot;top&quot;, &quot;right&quot;, &quot;bottom&quot;, &quot;left&quot;]);
+  const tooltipId = `codex-visualization-tooltip-${
+    window.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  }`;
+  const tooltipGap = 5;
+  const hoverDelay = 700;
+  const skipDelay = 300;
+  let activeTrigger = null;
+  let pendingTrigger = null;
+  let tooltip = null;
+  let openTimeout = null;
+  let autoUpdateCleanup = null;
+  let positionRequest = 0;
+  let skipDelayUntil = 0;
+
+  const getTrigger = (target) =&gt;
+    target?.nodeType === Node.ELEMENT_NODE
+      ? target.closest(&quot;[data-tooltip]&quot;)
+      : null;
+  const containsTarget = (trigger, target) =&gt;
+    target?.nodeType != null &amp;&amp; trigger.contains(target);
+  const getContent = (trigger) =&gt;
+    trigger.getAttribute(&quot;data-tooltip&quot;)?.trim() ?? &quot;&quot;;
+  const getPlacement = (trigger) =&gt; {
+    const placement = trigger.getAttribute(&quot;data-tooltip-placement&quot;);
+    return tooltipPlacements.has(placement) ? placement : &quot;top&quot;;
+  };
+  const getTooltip = () =&gt; {
+    if (tooltip == null) {
+      tooltip = document.createElement(&quot;div&quot;);
+      tooltip.id = tooltipId;
+      tooltip.className = &quot;tooltip&quot;;
+      tooltip.setAttribute(&quot;role&quot;, &quot;tooltip&quot;);
+    }
+    return tooltip;
+  };
+  const setDescribedBy = (trigger, described) =&gt; {
+    const ids = new Set(
+      (trigger.getAttribute(&quot;aria-describedby&quot;) ?? &quot;&quot;)
+        .split(/\s+/)
+        .filter(Boolean),
+    );
+    if (described) {
+      ids.add(tooltipId);
+    } else {
+      ids.delete(tooltipId);
+    }
+    if (ids.size === 0) {
+      trigger.removeAttribute(&quot;aria-describedby&quot;);
+    } else {
+      trigger.setAttribute(&quot;aria-describedby&quot;, [...ids].join(&quot; &quot;));
+    }
+  };
+  const clearOpenTimeout = () =&gt; {
+    if (openTimeout != null) {
+      window.clearTimeout(openTimeout);
+      openTimeout = null;
+    }
+    pendingTrigger = null;
+  };
+  const closeTooltip = (activateSkipDelay = true) =&gt; {
+    clearOpenTimeout();
+    positionRequest += 1;
+    autoUpdateCleanup?.();
+    autoUpdateCleanup = null;
+    if (activeTrigger == null) {
+      return;
+    }
+    setDescribedBy(activeTrigger, false);
+    activeTrigger = null;
+    tooltip?.remove();
+    if (activateSkipDelay) {
+      skipDelayUntil = Date.now() + skipDelay;
+    }
+  };
+  const updatePosition = (trigger, floating) =&gt; {
+    const request = ++positionRequest;
+    void computePosition(trigger, floating, {
+      middleware: [
+        offset(tooltipGap),
+        flip({ padding: tooltipGap }),
+        shift({ padding: tooltipGap }),
+        size({
+          padding: tooltipGap,
+          apply({ availableHeight, availableWidth, elements }) {
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-width&quot;,
+              `${Math.max(0, availableWidth)}px`,
+            );
+            elements.floating.style.setProperty(
+              &quot;--tooltip-available-height&quot;,
+              `${Math.max(0, availableHeight)}px`,
+            );
+          },
+        }),
+      ],
+      placement: getPlacement(trigger),
+      strategy: &quot;fixed&quot;,
+    })
+      .then(({ x, y }) =&gt; {
+        if (activeTrigger !== trigger || request !== positionRequest) {
+          return;
+        }
+        const scale = window.devicePixelRatio || 1;
+        floating.style.transform = `translate(${Math.round(x * scale) / scale}px, ${Math.round(y * scale) / scale}px)`;
+        floating.style.visibility = &quot;visible&quot;;
+      })
+      .catch(() =&gt; {
+        if (activeTrigger === trigger &amp;&amp; request === positionRequest) {
+          closeTooltip(false);
+        }
+      });
+  };
+  const openTooltip = (trigger) =&gt; {
+    const content = getContent(trigger);
+    if (!trigger.isConnected || content.length === 0) {
+      return;
+    }
+    clearOpenTimeout();
+    if (activeTrigger === trigger) {
+      return;
+    }
+    closeTooltip();
+    const floating = getTooltip();
+    floating.textContent = content;
+    floating.style.visibility = &quot;hidden&quot;;
+    floating.style.transform = &quot;translate(0, 0)&quot;;
+    document.body.appendChild(floating);
+    activeTrigger = trigger;
+    setDescribedBy(trigger, true);
+    autoUpdateCleanup = autoUpdate(trigger, floating, () =&gt; {
+      updatePosition(trigger, floating);
+    });
+  };
+  const requestOpen = (trigger, immediate = false) =&gt; {
+    if (
+      getContent(trigger).length === 0 ||
+      activeTrigger === trigger ||
+      pendingTrigger === trigger
+    ) {
+      return;
+    }
+    clearOpenTimeout();
+    pendingTrigger = trigger;
+    const delay =
+      immediate || activeTrigger != null || Date.now() &lt; skipDelayUntil
+        ? 0
+        : hoverDelay;
+    if (delay === 0) {
+      openTooltip(trigger);
+      return;
+    }
+    openTimeout = window.setTimeout(() =&gt; {
+      openTimeout = null;
+      pendingTrigger = null;
+      openTooltip(trigger);
+    }, delay);
+  };
+  const handlePointerOpen = (event) =&gt; {
+    if (event.pointerType === &quot;touch&quot;) {
+      return;
+    }
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    requestOpen(trigger);
+  };
+  const handleLeave = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger == null || containsTarget(trigger, event.relatedTarget)) {
+      return;
+    }
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const handleFocusIn = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (trigger?.matches(&quot;:focus-visible&quot;)) {
+      requestOpen(trigger, true);
+    }
+  };
+  const handleKeyDown = (event) =&gt; {
+    if (event.key === &quot;Escape&quot;) {
+      closeTooltip();
+    }
+  };
+  const handleContextMenu = (event) =&gt; {
+    const trigger = getTrigger(event.target);
+    if (activeTrigger === trigger || pendingTrigger === trigger) {
+      closeTooltip();
+    }
+  };
+  const destroy = () =&gt; {
+    closeTooltip(false);
+    document.removeEventListener(&quot;pointerover&quot;, handlePointerOpen);
+    document.removeEventListener(&quot;pointerout&quot;, handleLeave);
+    document.removeEventListener(&quot;focusin&quot;, handleFocusIn);
+    document.removeEventListener(&quot;focusout&quot;, handleLeave);
+    document.removeEventListener(&quot;keydown&quot;, handleKeyDown);
+    document.removeEventListener(&quot;contextmenu&quot;, handleContextMenu);
+    tooltip = null;
+  };
+
+  document.addEventListener(&quot;pointerover&quot;, handlePointerOpen);
+  document.addEventListener(&quot;pointerout&quot;, handleLeave);
+  document.addEventListener(&quot;focusin&quot;, handleFocusIn);
+  document.addEventListener(&quot;focusout&quot;, handleLeave);
+  document.addEventListener(&quot;keydown&quot;, handleKeyDown);
+  document.addEventListener(&quot;contextmenu&quot;, handleContextMenu);
+  window.addEventListener(&quot;pagehide&quot;, destroy, { once: true });
+})();
+&lt;/script&gt;
+&lt;script id=&quot;codex-visualization-lucide&quot; async src=&quot;https://unpkg.com/lucide@1.17.0/dist/umd/lucide.js&quot;&gt;&lt;/script&gt;
+&lt;script&gt;
+(() =&gt; {
+  const initialize = () =&gt; {
+    globalThis.lucide?.createIcons({ attrs: { width: 16, height: 16 } });
+  };
+  if (globalThis.lucide != null) {
+    initialize();
+    return;
+  }
+  document
+    .getElementById(&quot;codex-visualization-lucide&quot;)
+    ?.addEventListener(&quot;load&quot;, initialize, { once: true });
+})();
+&lt;/script&gt;
+
+&lt;/body&gt;
+&lt;/html&gt;
+"></iframe>
+</body>
+</html>

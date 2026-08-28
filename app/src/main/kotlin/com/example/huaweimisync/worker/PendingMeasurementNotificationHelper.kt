@@ -190,9 +190,9 @@ class PendingMeasurementNotificationHelper(
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val text = if (count == 1) {
-            "Ожидает назначения аккаунта: 1 измерение"
+            "Ожидает назначения профиля: 1 измерение"
         } else {
-            "Ожидают назначения аккаунта: $count измерений"
+            "Ожидают назначения профиля: $count измерений"
         }
         notifications.notify(
             NOTIFICATION_ID,

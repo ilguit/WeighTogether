@@ -43,6 +43,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -129,6 +131,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
     const val TopBarTitle = "main-top-bar-title"
+    const val SettingsBack = "settings-detail-back"
     const val PendingQueueAction = "measurements-pending-queue-action"
     const val PendingQueueBadge = "measurements-pending-queue-badge"
     const val HistoryAction = "measurements-history-action"
@@ -199,6 +202,7 @@ fun HuaweiMiSyncApp(
 ) {
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
+    var settingsDestination by rememberSaveable { mutableStateOf(SettingsDestination.ROOT) }
     var profileNavigation by rememberSaveable(stateSaver = ProfileNavigationState.Saver) {
         mutableStateOf(ProfileNavigationState())
     }
@@ -273,6 +277,7 @@ fun HuaweiMiSyncApp(
         ),
         currentSection = currentSection,
         currentDestination = currentDestination,
+        settingsDestination = settingsDestination,
         profileSelection = profileSelection,
         profileDestination = profileNavigation.destination,
         petHistoryState = petHistoryState,
@@ -292,6 +297,7 @@ fun HuaweiMiSyncApp(
             currentDestination = AppDestination.ROOT
         },
         onDestinationChanged = { currentDestination = it },
+        onSettingsDestinationChanged = { settingsDestination = it },
         onProfileSelected = { key ->
             profileNavigation = profileNavigation.select(key)
             if (key is ProfileKey.Human) measurementsViewModel.callbacks.onAccountSelected(key.accountId)
@@ -394,6 +400,7 @@ internal fun HuaweiMiSyncScaffold(
     state: MainUiState,
     currentSection: AppSection,
     currentDestination: AppDestination = AppDestination.ROOT,
+    settingsDestination: SettingsDestination = SettingsDestination.ROOT,
     profileSelection: ProfileSelectionUiState? = null,
     profileDestination: ProfileDestination = ProfileDestination.HumanShell,
     petHistoryState: PetHistoryUiState? = null,
@@ -404,6 +411,7 @@ internal fun HuaweiMiSyncScaffold(
     snackbarHostState: SnackbarHostState,
     onSectionSelected: (AppSection) -> Unit,
     onDestinationChanged: (AppDestination) -> Unit = {},
+    onSettingsDestinationChanged: (SettingsDestination) -> Unit = {},
     onProfileSelected: (ProfileKey) -> Unit = {},
     onPetBack: () -> Unit = {},
     onCloseProfile: () -> Unit,
@@ -426,13 +434,20 @@ internal fun HuaweiMiSyncScaffold(
     }
     val profileEditorOpen = state.profileEditor.isOpen
     val changelogOpen = !profileEditorOpen && currentDestination == AppDestination.CHANGELOG
+    val settingsDetailOpen = currentSection == AppSection.SETTINGS &&
+        settingsDestination != SettingsDestination.ROOT && !changelogOpen
+    val settingsBackFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(settingsDetailOpen, settingsDestination) {
+        if (settingsDetailOpen) settingsBackFocusRequester.requestFocus()
+    }
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
         profileEditorOpen -> true
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
         else -> true
     }
-    val showBottomNavigation = petDestination == null && !profileEditorOpen && !changelogOpen && when (currentSection) {
+    val showBottomNavigation = petDestination == null && !profileEditorOpen && !changelogOpen &&
+        !settingsDetailOpen && when (currentSection) {
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
@@ -449,6 +464,10 @@ internal fun HuaweiMiSyncScaffold(
     BackHandler(
         enabled = changelogOpen,
         onBack = { onDestinationChanged(AppDestination.ROOT) },
+    )
+    BackHandler(
+        enabled = settingsDetailOpen,
+        onBack = { onSettingsDestinationChanged(SettingsDestination.ROOT) },
     )
     BackHandler(enabled = petDestination != null, onBack = onPetBack)
     BackHandler(
@@ -471,23 +490,34 @@ internal fun HuaweiMiSyncScaffold(
                             title = when {
                                 profileEditorOpen -> "Профиль"
                                 changelogOpen -> "История изменений"
+                                settingsDetailOpen -> settingsDestination.title
                                 petDestination != null -> petHistoryState?.pet?.displayName
                                     ?: petProfile?.pet?.displayName
                                     ?: "Питомец"
                                 else -> currentSection.title
                             },
-                            showBack = profileEditorOpen || changelogOpen || petDestination != null,
+                            showBack = profileEditorOpen || changelogOpen || petDestination != null || settingsDetailOpen,
                             onBack = if (petDestination != null) {
                                 onPetBack
                             } else if (changelogOpen) {
                                 { onDestinationChanged(AppDestination.ROOT) }
+                            } else if (settingsDetailOpen) {
+                                { onSettingsDestinationChanged(SettingsDestination.ROOT) }
                             } else {
                                 onCloseProfile
                             },
                             backContentDescription = mainBackContentDescription(
                                 changelogOpen = changelogOpen,
                                 petProfileOpen = petDestination != null,
+                                settingsDetailOpen = settingsDetailOpen,
                             ),
+                            backModifier = if (settingsDetailOpen) {
+                                Modifier
+                                    .testTag(MainScreenTestTags.SettingsBack)
+                                    .focusRequester(settingsBackFocusRequester)
+                            } else {
+                                Modifier
+                            },
                             showMeasurementActions = petDestination == null && !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
@@ -549,6 +579,8 @@ internal fun HuaweiMiSyncScaffold(
                             state = state,
                             callbacks = settingsCallbacks,
                             contentPadding = PaddingValues(),
+                            destination = settingsDestination,
+                            onDestinationChanged = onSettingsDestinationChanged,
                         )
                     }
 
@@ -648,8 +680,10 @@ internal fun HuaweiMiSyncScaffold(
 internal fun mainBackContentDescription(
     changelogOpen: Boolean,
     petProfileOpen: Boolean,
+    settingsDetailOpen: Boolean = false,
 ): String = when {
     changelogOpen -> "Вернуться к настройкам"
+    settingsDetailOpen -> "Вернуться к настройкам"
     petProfileOpen -> "Вернуться к профилям"
     else -> "Закрыть редактор профиля"
 }
@@ -661,6 +695,7 @@ private fun HuaweiTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
     backContentDescription: String,
+    backModifier: Modifier,
     showMeasurementActions: Boolean,
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
@@ -686,6 +721,7 @@ private fun HuaweiTopBar(
                     icon = HuaweiIcons.Back,
                     contentDescription = backContentDescription,
                     onClick = onBack,
+                    modifier = backModifier,
                 )
             }
         },

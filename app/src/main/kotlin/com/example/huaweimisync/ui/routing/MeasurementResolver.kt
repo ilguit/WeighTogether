@@ -100,7 +100,7 @@ fun MeasurementResolverDialog(
                 )
                 if (state.candidateCount > 0) {
                     Text(
-                        "Сначала показаны подходящие аккаунты",
+                        "Сначала показаны подходящие профили",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -118,7 +118,7 @@ fun MeasurementResolverDialog(
                     onClick = { callbacks.onCreateAccount(state.pending.id) },
                     enabled = !state.operationInProgress,
                     modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.CreateAccount),
-                ) { Text("Создать новый аккаунт") }
+                ) { Text("Создать новый профиль") }
                 OutlinedButton(
                     onClick = { callbacks.onShowWithoutSaving(state.pending.id) },
                     enabled = !state.operationInProgress,
@@ -180,9 +180,9 @@ private fun ResolverAccountButton(
     val supportingText = if (option.isCandidate) {
         "Подходит · разница ${formatLocalizedDecimal(requireNotNull(option.differenceKg))} кг"
     } else {
-        "Другой аккаунт"
+        "Другой профиль"
     }
-    val primaryDescription = if (option.isPrimary) ". Основной аккаунт" else ""
+    val primaryDescription = if (option.isPrimary) ". Основной профиль" else ""
     Surface(
         onClick = onClick,
         enabled = enabled,
