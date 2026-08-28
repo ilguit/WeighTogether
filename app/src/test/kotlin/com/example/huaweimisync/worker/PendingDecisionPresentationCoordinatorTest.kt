@@ -1,5 +1,6 @@
 package com.example.huaweimisync.worker
 
+import com.example.huaweimisync.domain.PendingMeasurementId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -15,8 +16,8 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = { cancelled += 1 },
         )
 
-        coordinator.updatePendingCount(1)
-        coordinator.updatePendingCount(3)
+        coordinator.updatePendingMeasurements(ids("a"))
+        coordinator.updatePendingMeasurements(ids("a", "b", "c"))
 
         assertEquals(listOf(1, 3), posted)
         assertEquals(0, cancelled)
@@ -33,12 +34,12 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = { cancelled += 1 },
         )
 
-        coordinator.updatePendingCount(2)
+        coordinator.updatePendingMeasurements(ids("a", "b"))
 
         assertEquals(PendingDecisionFallback.ShowOnForeground(2), coordinator.notificationDeniedFallback.value)
         assertTrue(posted.isEmpty())
 
-        coordinator.updatePendingCount(0)
+        coordinator.updatePendingMeasurements(emptySet())
 
         assertEquals(PendingDecisionFallback.Hidden, coordinator.notificationDeniedFallback.value)
         assertEquals(2, cancelled)
@@ -55,9 +56,9 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = { cancelled += 1 },
         )
 
-        coordinator.updatePendingCount(2)
+        coordinator.updatePendingMeasurements(ids("a", "b"))
         notificationsAllowed = false
-        coordinator.updatePendingCount(2)
+        coordinator.updatePendingMeasurements(ids("a", "b"))
 
         assertEquals(listOf(2), posted)
         assertEquals(1, cancelled)
@@ -67,7 +68,7 @@ class PendingDecisionPresentationCoordinatorTest {
         )
 
         notificationsAllowed = true
-        coordinator.updatePendingCount(2)
+        coordinator.updatePendingMeasurements(ids("a", "b"))
 
         assertEquals(listOf(2, 2), posted)
         assertEquals(PendingDecisionFallback.Hidden, coordinator.notificationDeniedFallback.value)
@@ -82,7 +83,7 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = { cancelled += 1 },
         )
 
-        coordinator.updatePendingCount(2)
+        coordinator.updatePendingMeasurements(ids("a", "b"))
 
         assertEquals(1, cancelled)
         assertEquals(
@@ -101,7 +102,7 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = {},
         )
 
-        coordinator.updatePendingCount(1)
+        coordinator.updatePendingMeasurements(ids("a"))
 
         assertEquals(
             PendingDecisionFallback.ShowOnForeground(1),
@@ -109,12 +110,64 @@ class PendingDecisionPresentationCoordinatorTest {
         )
     }
 
-    @Test(expected = IllegalArgumentException::class)
-    fun negativePendingCountIsRejected() {
-        PendingDecisionPresentationCoordinator(
+    @Test
+    fun dismissedSnapshotIsSuppressedUntilANewIdArrives() {
+        val store = MemoryDismissalStore()
+        val posted = mutableListOf<Int>()
+        val coordinator = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = posted::add,
+            cancelNotification = {},
+            dismissalStore = store,
+        )
+        coordinator.updatePendingMeasurements(ids("a", "b"))
+        coordinator.recordCurrentNotificationDismissed()
+        coordinator.updatePendingMeasurements(ids("a", "b"))
+        coordinator.updatePendingMeasurements(ids("a", "b", "c"))
+
+        assertEquals(listOf(2, 3), posted)
+        assertEquals(ids("a", "b"), store.ids)
+    }
+
+    @Test
+    fun shrinkingAndEmptySnapshotsCleanPersistedDismissal() {
+        val store = MemoryDismissalStore(ids("a", "b"))
+        val coordinator = PendingDecisionPresentationCoordinator(
             notificationsAllowed = { true },
             postNotification = {},
             cancelNotification = {},
-        ).updatePendingCount(-1)
+            dismissalStore = store,
+        )
+        coordinator.updatePendingMeasurements(ids("b"))
+        assertEquals(ids("b"), store.ids)
+        coordinator.updatePendingMeasurements(emptySet())
+        assertTrue(store.ids.isEmpty())
+    }
+
+    @Test
+    fun persistedDismissalSurvivesCoordinatorRecreation() {
+        val store = MemoryDismissalStore(ids("a"))
+        val posted = mutableListOf<Int>()
+        PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = posted::add,
+            cancelNotification = {},
+            dismissalStore = store,
+        ).updatePendingMeasurements(ids("a"))
+
+        assertTrue(posted.isEmpty())
     }
 }
+
+private class MemoryDismissalStore(
+    var ids: Set<PendingMeasurementId> = emptySet(),
+) : PendingNotificationDismissalStore {
+    override fun readDismissedIds(): Set<PendingMeasurementId> = ids
+
+    override fun writeDismissedIds(ids: Set<PendingMeasurementId>) {
+        this.ids = ids
+    }
+}
+
+private fun ids(vararg values: String): Set<PendingMeasurementId> =
+    values.mapTo(linkedSetOf(), ::PendingMeasurementId)

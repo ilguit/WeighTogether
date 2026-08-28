@@ -157,12 +157,12 @@ sealed interface AutoIgnorePendingPersistenceResult {
 }
 
 interface PendingDecisionNotifier {
-    /** Implementations must treat repeated values as idempotent updates. */
-    fun updatePendingCount(count: Int)
+    /** Implementations must treat repeated snapshots as idempotent updates. */
+    fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>)
 }
 
 object NoOpPendingDecisionNotifier : PendingDecisionNotifier {
-    override fun updatePendingCount(count: Int) = Unit
+    override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) = Unit
 }
 
 sealed interface MeasurementIngestionResult {
@@ -491,10 +491,12 @@ class MeasurementIngestionCoordinator(
 
     suspend fun refreshPendingPresentation(): Int = pendingPresentationMutex.withLock {
         val timestamp = Instant.now()
-        val count = persistence.unassignedPendingSnapshot()
-            .count { it.isAwaitingDecisionAt(timestamp) }
-        notifier.updatePendingCount(count)
-        count
+        val pendingIds = persistence.unassignedPendingSnapshot()
+            .asSequence()
+            .filter { it.isAwaitingDecisionAt(timestamp) }
+            .mapTo(linkedSetOf(), PendingMeasurement::id)
+        notifier.updatePendingMeasurements(pendingIds)
+        pendingIds.size
     }
 
     private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {

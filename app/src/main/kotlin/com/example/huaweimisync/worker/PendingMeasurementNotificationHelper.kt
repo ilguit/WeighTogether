@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.content.pm.PackageManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
@@ -14,6 +15,7 @@ import androidx.core.content.ContextCompat
 import com.example.huaweimisync.MainActivity
 import com.example.huaweimisync.R
 import com.example.huaweimisync.data.PendingDecisionNotifier
+import com.example.huaweimisync.domain.PendingMeasurementId
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -23,11 +25,33 @@ sealed interface PendingDecisionFallback {
     data class ShowOnForeground(val pendingCount: Int) : PendingDecisionFallback
 }
 
+interface PendingNotificationDismissalStore {
+    fun readDismissedIds(): Set<PendingMeasurementId>
+    fun writeDismissedIds(ids: Set<PendingMeasurementId>)
+}
+
+class SharedPreferencesPendingNotificationDismissalStore(
+    private val preferences: SharedPreferences,
+) : PendingNotificationDismissalStore {
+    override fun readDismissedIds(): Set<PendingMeasurementId> =
+        preferences.getStringSet(KEY_DISMISSED_IDS, emptySet()).orEmpty()
+            .mapTo(linkedSetOf(), ::PendingMeasurementId)
+
+    override fun writeDismissedIds(ids: Set<PendingMeasurementId>) {
+        preferences.edit().putStringSet(KEY_DISMISSED_IDS, ids.mapTo(linkedSetOf()) { it.value }).apply()
+    }
+
+    private companion object {
+        const val KEY_DISMISSED_IDS = "dismissed_pending_measurement_ids"
+    }
+}
+
 /** Pure state machine used by the Android notification transport and JVM tests. */
 class PendingDecisionPresentationCoordinator(
     private val notificationsAllowed: () -> Boolean,
     private val postNotification: (Int) -> Unit,
     private val cancelNotification: () -> Unit,
+    private val dismissalStore: PendingNotificationDismissalStore? = null,
 ) : PendingDecisionNotifier {
     private val mutableFallback = MutableStateFlow<PendingDecisionFallback>(
         PendingDecisionFallback.Hidden,
@@ -35,9 +59,20 @@ class PendingDecisionPresentationCoordinator(
     val notificationDeniedFallback: StateFlow<PendingDecisionFallback> =
         mutableFallback.asStateFlow()
 
-    override fun updatePendingCount(count: Int) {
-        require(count >= 0) { "Pending count cannot be negative" }
-        if (count == 0) {
+    private var currentPendingIds = emptySet<PendingMeasurementId>()
+
+    override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+        currentPendingIds = pendingIds.toSet()
+        val dismissedIds = dismissalStore?.readDismissedIds().orEmpty()
+        val retainedDismissedIds = dismissedIds.intersect(pendingIds)
+        if (retainedDismissedIds != dismissedIds) {
+            dismissalStore?.writeDismissedIds(retainedDismissedIds)
+        }
+        val count = pendingIds.size
+        if (pendingIds.isEmpty()) {
+            cancelSafely()
+            mutableFallback.value = PendingDecisionFallback.Hidden
+        } else if (pendingIds == retainedDismissedIds) {
             cancelSafely()
             mutableFallback.value = PendingDecisionFallback.Hidden
         } else if (postSafely(count)) {
@@ -46,6 +81,12 @@ class PendingDecisionPresentationCoordinator(
             cancelSafely()
             mutableFallback.value = PendingDecisionFallback.ShowOnForeground(count)
         }
+    }
+
+    fun recordCurrentNotificationDismissed() {
+        if (currentPendingIds.isNotEmpty()) dismissalStore?.writeDismissedIds(currentPendingIds)
+        cancelSafely()
+        mutableFallback.value = PendingDecisionFallback.Hidden
     }
 
     private fun postSafely(count: Int): Boolean = try {
@@ -80,13 +121,20 @@ class PendingMeasurementNotificationHelper(
         notificationsAllowed = ::areNotificationsAllowed,
         postNotification = ::post,
         cancelNotification = { notifications.cancel(NOTIFICATION_ID) },
+        dismissalStore = SharedPreferencesPendingNotificationDismissalStore(
+            context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE),
+        ),
     )
 
     val notificationDeniedFallback: StateFlow<PendingDecisionFallback>
         get() = presentation.notificationDeniedFallback
 
-    override fun updatePendingCount(count: Int) {
-        presentation.updatePendingCount(count)
+    override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+        presentation.updatePendingMeasurements(pendingIds)
+    }
+
+    fun recordCurrentNotificationDismissed() {
+        presentation.recordCurrentNotificationDismissed()
     }
 
     fun areNotificationsAllowed(): Boolean {
@@ -131,7 +179,7 @@ class PendingMeasurementNotificationHelper(
                 .setContentText(text)
                 .setContentIntent(contentIntent)
                 // Opening the resolver is navigation, not resolution. Only a durable queue change
-                // may remove this ongoing entry via updatePendingCount(0).
+                // may remove this ongoing entry via an empty pending-ID snapshot.
                 .setAutoCancel(false)
                 .setOnlyAlertOnce(true)
                 .setNumber(count)
@@ -157,5 +205,6 @@ class PendingMeasurementNotificationHelper(
         private const val CHANNEL_ID = "pending_measurement_routing"
         private const val NOTIFICATION_ID = 183
         private const val RESOLVER_REQUEST_CODE = 183
+        private const val PREFERENCES_NAME = "pending_measurement_notifications"
     }
 }

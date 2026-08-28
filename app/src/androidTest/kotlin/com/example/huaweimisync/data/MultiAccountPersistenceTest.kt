@@ -571,8 +571,8 @@ class MultiAccountPersistenceTest {
         val counts = mutableListOf<Int>()
         val repository = repository(
             object : PendingDecisionNotifier {
-                override fun updatePendingCount(count: Int) {
-                    counts += count
+                override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
+                    counts += pendingIds.size
                 }
             },
         )
