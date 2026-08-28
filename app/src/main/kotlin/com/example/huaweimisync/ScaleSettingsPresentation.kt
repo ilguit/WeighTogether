@@ -27,15 +27,6 @@ internal fun scaleSettingsPresentation(
     availability: ScaleAvailability,
     scanError: String?,
 ): ScaleSettingsPresentation {
-    if (scanning) return ScaleSettingsPresentation(
-        status = ScaleSettingsStatus.CHECKING,
-        supportingText = "Идёт поиск весов…",
-        action = null,
-        actionLabel = "Поиск…",
-        actionEnabled = false,
-        showProgress = true,
-        allowForget = false,
-    )
     if (availability != ScaleAvailability.AVAILABLE) {
         val permissionMissing = availability == ScaleAvailability.PERMISSION_REQUIRED
         return ScaleSettingsPresentation(
@@ -52,6 +43,15 @@ internal fun scaleSettingsPresentation(
             allowForget = false,
         )
     }
+    if (scanning) return ScaleSettingsPresentation(
+        status = ScaleSettingsStatus.CHECKING,
+        supportingText = "Идёт поиск весов…",
+        action = null,
+        actionLabel = "Поиск…",
+        actionEnabled = false,
+        showProgress = true,
+        allowForget = false,
+    )
     if (scanError != null) return ScaleSettingsPresentation(
         status = ScaleSettingsStatus.ERROR,
         supportingText = scanError,

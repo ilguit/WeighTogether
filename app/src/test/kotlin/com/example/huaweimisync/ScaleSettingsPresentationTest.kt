@@ -45,6 +45,17 @@ class ScaleSettingsPresentationTest {
         assertNull(value.action)
     }
 
+    @Test fun unavailableStateTakesPriorityOverStaleScanningState() {
+        val value = presentation(
+            scanning = true,
+            availability = ScaleAvailability.BLUETOOTH_DISABLED,
+        )
+        assertEquals(ScaleSettingsStatus.UNAVAILABLE, value.status)
+        assertEquals("Bluetooth выключен", value.supportingText)
+        assertFalse(value.showProgress)
+        assertNull(value.action)
+    }
+
     @Test fun scannerErrorOffersRetryAndHidesForget() {
         val value = presentation(address = "AA:BB", error = "Ошибка BLE-сканирования: 2")
         assertEquals(ScaleSettingsStatus.ERROR, value.status)

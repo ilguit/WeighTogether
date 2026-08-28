@@ -2,6 +2,7 @@ package com.example.huaweimisync
 
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -16,7 +17,9 @@ class ScaleSettingsScreenTest {
         show(MainUiState(settings = selectedScale(), scanning = true))
         compose.onNodeWithTag(SettingsScreenTestTags.ScaleStatus).assertTextContains("Идёт поиск")
         compose.onNodeWithTag(SettingsScreenTestTags.ScaleProgress).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ScaleAction).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ScaleAction)
+            .assertTextContains("Поиск…")
+            .assertIsNotEnabled()
         compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).assertDoesNotExist()
     }
 
