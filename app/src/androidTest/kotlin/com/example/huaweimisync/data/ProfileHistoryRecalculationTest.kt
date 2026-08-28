@@ -14,6 +14,8 @@ import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.ExternalSyncPolicy
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
+import com.example.huaweimisync.domain.ProfileUpdateAttemptResult
+import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -42,6 +44,58 @@ class ProfileHistoryRecalculationTest {
     @After
     fun closeDatabase() {
         database.close()
+    }
+
+    @Test
+    fun atomicProfileUpdateAttemptSeesNewCandidateAndSkipsWriteAndSweep() = runBlocking {
+        val repository = repository()
+        val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
+        val candidate = entity(
+            raw("2026-08-15T10:00:00Z", 72.35, 517),
+            account.id,
+            ORIGINAL_PROFILE,
+        )
+        var sweepCalls = 0
+        val updater = SerializedAccountUpdater(
+            updateDelegate = repository::updateAccount,
+            attemptDelegate = { update ->
+                assertTrue(database.multiAccountMeasurementDao().insert(candidate) != -1L)
+                repository.attemptProfileUpdate(update)
+            },
+            sweepPendingRouting = { sweepCalls += 1 },
+            operations = ExternalSyncOperationSerializer(),
+        )
+
+        val result = updater.attempt(
+            AccountUpdate(account.id, "Alicia", ORIGINAL_PROFILE.copy(heightCm = 181.0)),
+        )
+
+        assertEquals(ProfileUpdateAttemptResult.ConfirmationRequired, result)
+        assertEquals(account, repository.getAccount(account.id))
+        assertEquals(candidate, database.measurementDao().get(candidate.id))
+        assertEquals(0, sweepCalls)
+    }
+
+    @Test
+    fun atomicProfileUpdateAttemptSavesNameOnlyAndProfileWithoutHistory() = runBlocking {
+        val repository = repository()
+        val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
+
+        val renamed = repository.attemptProfileUpdate(
+            AccountUpdate(account.id, "Alicia", ORIGINAL_PROFILE),
+        )
+        val changedWithoutHistory = repository.attemptProfileUpdate(
+            AccountUpdate(account.id, "Alicia", ORIGINAL_PROFILE.copy(heightCm = 181.0)),
+        )
+
+        assertTrue(renamed is ProfileUpdateAttemptResult.Saved)
+        assertTrue(changedWithoutHistory is ProfileUpdateAttemptResult.Saved)
+        assertEquals(
+            181.0,
+            ((changedWithoutHistory as ProfileUpdateAttemptResult.Saved).account.profile
+                as AccountProfile.Complete).heightCm,
+            0.0,
+        )
     }
 
     @Test

@@ -24,7 +24,6 @@ import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountSettings
 import com.example.huaweimisync.domain.AccountUpdate
-import com.example.huaweimisync.domain.DecideProfileUpdate
 import com.example.huaweimisync.domain.CreateAccountAndAssignResult
 import com.example.huaweimisync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.example.huaweimisync.domain.DiscardPendingResult
@@ -41,7 +40,7 @@ import com.example.huaweimisync.domain.isAwaitingDecisionAt
 import com.example.huaweimisync.domain.withPendingMeasurementReadiness
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
-import com.example.huaweimisync.domain.ProfileUpdateDecision
+import com.example.huaweimisync.domain.ProfileUpdateAttemptResult
 import com.example.huaweimisync.domain.RoutingCandidate
 import com.example.huaweimisync.domain.RoutingDecision
 import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
@@ -283,7 +282,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         emptyList(),
     )
     private val accountManagementDialog = MutableStateFlow(AccountManagementUiState())
-    private val decideProfileUpdate = DecideProfileUpdate(container.accounts)
     private val weightDeltaEditor = MutableStateFlow(WeightDeltaEditorState())
     private val resolverSession = MutableStateFlow<PendingResolverSession?>(null)
     private val notificationPermissionGranted = MutableStateFlow(
@@ -660,12 +658,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
-        when (decideProfileUpdate(account)) {
-            ProfileUpdateDecision.SAVE_KEEP_EXISTING -> saveAccountUpdate(
-                account,
-                ProfileHistoryUpdateMode.KEEP_EXISTING,
-            )
-            ProfileUpdateDecision.ASK_HISTORY_RECALCULATION -> {
+        when (val result = container.accounts.attemptProfileUpdate(account)) {
+            is ProfileUpdateAttemptResult.Saved ->
+                finishAccountOperation("Аккаунт «${result.account.displayName}» сохранён")
+            ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
                     accountManagementDialog.value.copy(operationInProgress = false),

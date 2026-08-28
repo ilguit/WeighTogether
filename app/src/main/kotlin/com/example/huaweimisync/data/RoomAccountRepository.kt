@@ -14,6 +14,7 @@ import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
+import com.example.huaweimisync.domain.ProfileUpdateAttemptResult
 import com.example.huaweimisync.domain.WEIGHT_DELTA_KG_RANGE
 import java.time.Instant
 import java.util.UUID
@@ -62,15 +63,27 @@ class RoomAccountRepository(
     override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean =
         measurementDao.hasProfileRecalculationCandidates(accountId.value)
 
+    override suspend fun attemptProfileUpdate(
+        account: AccountUpdate,
+    ): ProfileUpdateAttemptResult = database.withTransaction {
+        val current = accountDao.get(account.id.value)
+            ?: throw AccountNotFoundException(account.id)
+        val updated = account.toEntity(current, now())
+        if (current.requiresProfileRecalculation(updated) &&
+            measurementDao.hasProfileRecalculationCandidates(current.id)
+        ) {
+            return@withTransaction ProfileUpdateAttemptResult.ConfirmationRequired
+        }
+        saveAccountLocked(account, current, updated)
+        ProfileUpdateAttemptResult.Saved(updated.toDomain())
+    }
+
     override suspend fun updateAccount(
         account: AccountUpdate,
         historyUpdateMode: ProfileHistoryUpdateMode,
     ): Account = database.withTransaction {
         val current = accountDao.get(account.id.value)
             ?: throw AccountNotFoundException(account.id)
-        accountDao.getByNormalizedName(account.normalizedName)
-            ?.takeIf { it.id != current.id }
-            ?.let { throw AccountNameConflictException(account.normalizedName) }
         val updated = account.toEntity(current, now())
         if (current.requiresProfileRecalculation(updated) &&
             historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
@@ -85,7 +98,7 @@ class RoomAccountRepository(
                 }
             }
         }
-        if (accountDao.update(updated) != 1) throw AccountNotFoundException(account.id)
+        saveAccountLocked(account, current, updated)
         updated.toDomain()
     }
 
@@ -177,6 +190,17 @@ class RoomAccountRepository(
 
     private suspend fun ensureAppState() {
         appStateDao.insertDefault()
+    }
+
+    private suspend fun saveAccountLocked(
+        account: AccountUpdate,
+        current: AccountEntity,
+        updated: AccountEntity,
+    ) {
+        accountDao.getByNormalizedName(account.normalizedName)
+            ?.takeIf { it.id != current.id }
+            ?.let { throw AccountNameConflictException(account.normalizedName) }
+        if (accountDao.update(updated) != 1) throw AccountNotFoundException(account.id)
     }
 }
 

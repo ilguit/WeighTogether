@@ -849,6 +849,9 @@ private class FakeAccountRepository(
     private val events: MutableList<String> = mutableListOf(),
 ) : AccountRepository {
     override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean = false
+    override suspend fun attemptProfileUpdate(
+        account: AccountUpdate,
+    ): com.example.huaweimisync.domain.ProfileUpdateAttemptResult = error("not needed")
     private val values = MutableStateFlow(initialAccounts)
     val settings = MutableStateFlow(AccountSettings(primaryId))
 

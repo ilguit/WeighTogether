@@ -18,6 +18,12 @@ interface AccountRepository {
     suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean
 
     /**
+     * Atomically decides whether a profile edit needs confirmation and, when it does not, saves
+     * it while preserving existing history.
+     */
+    suspend fun attemptProfileUpdate(account: AccountUpdate): ProfileUpdateAttemptResult
+
+    /**
      * Updates an account and applies [historyUpdateMode] atomically when calculation inputs changed.
      */
     suspend fun updateAccount(
@@ -50,6 +56,11 @@ interface AccountRepository {
 enum class ProfileHistoryUpdateMode {
     RECALCULATE,
     KEEP_EXISTING,
+}
+
+sealed interface ProfileUpdateAttemptResult {
+    data class Saved(val account: Account) : ProfileUpdateAttemptResult
+    data object ConfirmationRequired : ProfileUpdateAttemptResult
 }
 
 /** Explicit write side for account-level settings. */

@@ -9,6 +9,7 @@ import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
 import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
+import com.example.huaweimisync.domain.ProfileUpdateAttemptResult
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import kotlinx.coroutines.flow.Flow
@@ -29,6 +30,7 @@ class SyncAwareAccountRepository(
 ) : AccountRepository, AccountSettingsWriter {
     private val accountUpdater = SerializedAccountUpdater(
         updateDelegate = delegate::updateAccount,
+        attemptDelegate = delegate::attemptProfileUpdate,
         sweepPendingRouting = measurements::sweepPendingRouting,
         operations = externalSyncOperations,
     )
@@ -50,6 +52,9 @@ class SyncAwareAccountRepository(
         account: AccountUpdate,
         historyUpdateMode: ProfileHistoryUpdateMode,
     ): Account = accountUpdater.update(account, historyUpdateMode)
+
+    override suspend fun attemptProfileUpdate(account: AccountUpdate): ProfileUpdateAttemptResult =
+        accountUpdater.attempt(account)
 
     override suspend fun setPrimaryAccount(
         accountId: AccountId,
@@ -103,9 +108,20 @@ class SyncAwareAccountRepository(
  */
 internal class SerializedAccountUpdater(
     private val updateDelegate: suspend (AccountUpdate, ProfileHistoryUpdateMode) -> Account,
+    private val attemptDelegate: suspend (AccountUpdate) -> ProfileUpdateAttemptResult = { account ->
+        ProfileUpdateAttemptResult.Saved(
+            updateDelegate(account, ProfileHistoryUpdateMode.KEEP_EXISTING),
+        )
+    },
     private val sweepPendingRouting: suspend () -> Unit,
     private val operations: ExternalSyncOperationSerializer,
 ) {
+    suspend fun attempt(account: AccountUpdate): ProfileUpdateAttemptResult {
+        val result = operations.runExclusive { attemptDelegate(account) }
+        if (result is ProfileUpdateAttemptResult.Saved) sweepPendingRouting()
+        return result
+    }
+
     suspend fun update(
         account: AccountUpdate,
         historyUpdateMode: ProfileHistoryUpdateMode,
