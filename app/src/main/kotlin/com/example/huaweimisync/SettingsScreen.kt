@@ -219,6 +219,18 @@ internal fun healthConnectPresentation(
     }
 }
 
+/** Keeps permission management system-owned while explaining the manual fallback when unavailable. */
+internal fun IntegrationPresentation.withHealthConnectManagementFallback(
+    systemManagementAvailable: Boolean,
+): IntegrationPresentation = if (actionOpensManagement && !systemManagementAvailable) {
+    copy(
+        supportingText = "$supportingText · управляйте доступом вручную в Health Connect",
+        actionLabel = null,
+    )
+} else {
+    this
+}
+
 internal fun huaweiIntegrationPresentation(
     state: HuaweiIntegrationUiState,
 ): IntegrationPresentation = when (state.status) {
@@ -600,10 +612,14 @@ private fun SettingsIntegrationsSection(
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
         else -> "Основной: ${primary.displayName}"
     }
-    val healthConnect = healthConnectPresentation(state.healthConnect).forPrimaryAccount(
-        primaryStatus,
-        healthConnectCapabilities.selectedAccountSyncEligible,
-    )
+    val healthConnect = healthConnectPresentation(state.healthConnect)
+        .withHealthConnectManagementFallback(
+            healthConnectCapabilities.systemManagementAvailable,
+        )
+        .forPrimaryAccount(
+            primaryStatus,
+            healthConnectCapabilities.selectedAccountSyncEligible,
+        )
     val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
         huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
             primaryStatus,
