@@ -80,6 +80,9 @@ class SettingsIntegrationDetailScreenTest {
             ),
         )
 
+        compose.onNodeWithText("Устройство").assertExists()
+        compose.onNodeWithText("Интеграция").assertDoesNotExist()
+        compose.onNodeWithText("Системная интеграция").assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DetailPrimaryAction).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DetailDangerZone).assertExists()

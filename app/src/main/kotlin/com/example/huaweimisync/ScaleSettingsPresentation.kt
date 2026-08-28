@@ -80,3 +80,13 @@ internal fun scaleSettingsPresentation(
         allowForget = true,
     )
 }
+
+/** Keeps the compact settings root aligned with the selected model while detail retains address. */
+internal fun scaleRootSupportingText(
+    presentation: ScaleSettingsPresentation,
+    selectedName: String?,
+): String = if (presentation.status == ScaleSettingsStatus.READY) {
+    selectedName ?: "Mi Body Composition Scale 2"
+} else {
+    presentation.supportingText
+}

@@ -276,7 +276,7 @@ class SettingsShellUiTest {
         val row = composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleRow)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
-        val status = composeRule.onNodeWithText("$longScaleName · AA:BB:CC:DD:EE:FF")
+        val status = composeRule.onNodeWithText(longScaleName)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
         val chevron = composeRule.onNodeWithTag(
@@ -288,6 +288,61 @@ class SettingsShellUiTest {
             assertTrue(row.bottom - row.top > 68.dp)
             assertTrue(status.left >= row.left && status.right <= row.right)
             assertTrue(chevron.left >= row.left && chevron.right <= row.right)
+        }
+    }
+
+    @Test
+    fun narrowLargeTextProfilesDetailWrapsLongNameInsideItsRow() {
+        val longName = "Александра Екатерина Очень Длинное Имя Профиля"
+        val account = completeAccount().copy(displayName = longName)
+        composeRule.setContent {
+            val currentDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(currentDensity.density, fontScale = 2f),
+            ) {
+                Box(Modifier.width(320.dp)) {
+                    val destination = remember { mutableStateOf(SettingsDestination.ROOT) }
+                    HuaweiMiSyncScaffold(
+                        state = MainUiState(
+                            accounts = listOf(account),
+                            accountSettings = AccountSettings(primaryAccountId = account.id),
+                            accountManagement = AccountManagementUiState(
+                                accounts = listOf(account),
+                                primaryAccountId = account.id,
+                            ),
+                        ),
+                        currentSection = AppSection.SETTINGS,
+                        settingsDestination = destination.value,
+                        measurementsDestination = MeasurementsDestination.SUMMARY,
+                        measurementsCallbacks = MeasurementsCallbacks.None,
+                        snackbarHostState = remember { SnackbarHostState() },
+                        onSectionSelected = {},
+                        onSettingsDestinationChanged = { destination.value = it },
+                        onCloseProfile = {},
+                        onSaveProfile = {},
+                        onProfileHeightChanged = {},
+                        onProfileBirthDateChanged = {},
+                        onProfileSexChanged = {},
+                        settingsCallbacks = settingsCallbacks(),
+                        measurementsContent = {},
+                        chartsContent = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        val row = composeRule.onNodeWithTag(AccountManagementTestTags.row(account.id))
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+        val name = composeRule.onNodeWithText(longName)
+            .assertIsDisplayed()
+            .getUnclippedBoundsInRoot()
+
+        composeRule.runOnIdle {
+            assertTrue(name.bottom - name.top > 40.dp)
+            assertTrue(name.left >= row.left && name.right <= row.right)
+            assertTrue(name.top >= row.top && name.bottom <= row.bottom)
         }
     }
 
@@ -338,7 +393,7 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleStatusMark).assertExists()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectStatusMark).assertExists()
-        composeRule.onNodeWithText("Mi Body Composition Scale 2 · AA:BB").assertExists()
+        composeRule.onNodeWithText("Mi Body Composition Scale 2").assertExists()
         composeRule.onNodeWithText("Подключено · все разрешения выданы").assertExists()
         if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
             composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark).assertExists()

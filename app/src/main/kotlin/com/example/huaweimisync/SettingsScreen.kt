@@ -609,7 +609,7 @@ private fun SettingsHealthConnectDetail(
             title = "Health Connect",
             icon = HuaweiIcons.HealthConnect,
             status = presentation.supportingText,
-            identityLabel = "Интеграция",
+            identityLabel = "Устройство",
             identity = "Системная интеграция",
             actionLabel = presentation.actionLabel,
             actionEnabled = presentation.actionEnabled,
@@ -1084,7 +1084,8 @@ private fun SettingsRootScreen(
                 SettingsGroup(Modifier.testTag(SettingsScreenTestTags.ConnectionsGroup)) {
                     SettingsNavigationRow(
                         SettingsDestination.SCALE, settingsRootIcon(SettingsDestination.SCALE),
-                        scalePresentation.supportingText, SettingsScreenTestTags.ScaleRow,
+                        scaleRootSupportingText(scalePresentation, state.settings.scaleName),
+                        SettingsScreenTestTags.ScaleRow,
                         onDestinationChanged, focusRequesters[SettingsDestination.SCALE],
                         status = {
                             SettingsRootStatusMark(
