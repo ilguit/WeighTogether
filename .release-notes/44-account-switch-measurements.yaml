@@ -1,0 +1,5 @@
+issue: 44
+userVisible: true
+text: Исправлено отображение измерений при быстром переключении аккаунтов
+flavors:
+  - personal

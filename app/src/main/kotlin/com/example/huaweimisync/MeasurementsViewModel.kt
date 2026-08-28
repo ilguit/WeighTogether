@@ -45,13 +45,14 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
-import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.mapNotNull
 import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
@@ -67,37 +68,40 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val interaction = MutableStateFlow(MeasurementsInteractionState())
     private var nextOperationSequence = 0L
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
-    private val accountSelector = combine(
+    private val accountSelection = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
         container.accountSelection.selection,
     ) { accounts, settings, selection ->
         selection to reconcileAccountSelection(accounts, selection.accountId, settings.primaryAccountId)
-    }.onEach { (sourceSelection, selector) ->
+    }.mapNotNull { (sourceSelection, selector) ->
         val authoritative = container.accountSelection.selectIfCurrent(
             sourceSelection,
             selector.selectedAccountId,
         )
+        if (authoritative.accountId != selector.selectedAccountId) return@mapNotNull null
         interaction.update { it.normalizedFor(authoritative) }
-    }.map { (_, selector) ->
-        selector
+        MeasurementAccountSelection(authoritative, selector)
     }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
-        AccountSelectorUiState(
-            accounts = emptyList(),
-            selectedAccountId = null,
-            primaryAccountId = null,
-            isLoading = true,
+        MeasurementAccountSelection(
+            selection = AccountSelection(),
+            selector = AccountSelectorUiState(
+                accounts = emptyList(),
+                selectedAccountId = null,
+                primaryAccountId = null,
+                isLoading = true,
+            ),
         ),
     )
     private val measurements: StateFlow<
-        AccountSelectionScopedLoad<AccountSelectorUiState, AccountMeasurementPresentationSource>
+        AccountSelectionScopedLoad<MeasurementAccountSelection, AccountMeasurementPresentationSource>
     > = accountSelectionScopedLoad(
-        selections = accountSelector,
-        accountId = AccountSelectorUiState::selectedAccountId,
+        selections = accountSelection,
+        accountId = { it.selector.selectedAccountId },
         emptyValue = AccountMeasurementPresentationSource(),
-        observe = { accountId, selector ->
+        observe = { accountId, selection ->
                 combine(
                     repository.observeAllEntities(accountId),
                     repository.observePreliminary(accountId),
@@ -105,7 +109,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                     AccountMeasurementPresentationSource(
                         finalized = finalized,
                         preliminary = preliminary,
-                        account = selector.accounts.firstOrNull { it.id == accountId },
+                        account = selection.selector.accounts.firstOrNull { it.id == accountId },
                     )
                 }
         },
@@ -113,11 +117,14 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         viewModelScope,
         SharingStarted.WhileSubscribed(),
         AccountSelectionScopedLoad(
-            selection = AccountSelectorUiState(
-                accounts = emptyList(),
-                selectedAccountId = null,
-                primaryAccountId = null,
-                isLoading = true,
+            selection = MeasurementAccountSelection(
+                selection = AccountSelection(),
+                selector = AccountSelectorUiState(
+                    accounts = emptyList(),
+                    selectedAccountId = null,
+                    primaryAccountId = null,
+                    isLoading = true,
+                ),
             ),
             load = AccountScopedLoad.Loading,
         ),
@@ -155,7 +162,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             )
             MeasurementsPresentation(
                 loadState = refresh.measurements.load,
-                accountSelector = refresh.measurements.selection,
+                accountSelection = refresh.measurements.selection,
                 items = items,
                 summary = buildMeasurementSummary(items),
                 homeKgChart = buildHomeKgChartUiState(
@@ -167,24 +174,14 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             )
         }
     }
-    private val presentationWithPreliminary = combine(presentation, measurements) { current, latest ->
-        val source = latest.load.valuesOrEmpty()
-        val items = mergePreliminaryMeasurementPresentationItems(
-            finalizedItems = current.items,
-            preliminary = source.preliminary,
-            account = source.account,
-            now = Instant.now(),
-            preliminaryComposition = { preliminary, account ->
-                repository.preliminaryComposition(preliminary, account.profile)
-            },
-        )
-        current.copy(
-            loadState = latest.load,
-            accountSelector = latest.selection,
-            items = items,
-            summary = buildMeasurementSummary(items),
-        )
-    }
+    private val presentationWithPreliminary = mergeMeasurementPresentationUpdates(
+        presentations = presentation,
+        measurements = measurements,
+        now = Instant::now,
+        preliminaryComposition = { preliminary, account ->
+            repository.preliminaryComposition(preliminary, account.profile)
+        },
+    )
     private val presentationWithPending = combine(presentationWithPreliminary, pending) { current, snapshot ->
         current.copy(
             pending = snapshot.measurements.map { value ->
@@ -215,7 +212,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             editor = currentInteraction.editor,
             deleteConfirmation = deletion,
             homeKgChart = current.homeKgChart,
-            accountSelector = current.accountSelector,
+            accountSelector = current.accountSelection.selector,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), MeasurementsUiState())
 
@@ -245,7 +242,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun selectAccount(accountId: AccountId) {
-        if (accountSelector.value.accounts.none { it.id == accountId }) return
+        if (accountSelection.value.selector.accounts.none { it.id == accountId }) return
         val selection = container.accountSelection.select(accountId)
         interaction.update { it.normalizedFor(selection) }
     }
@@ -635,14 +632,60 @@ private fun MeasurementType.toUiType(): MeasurementUiType = when (this) {
     MeasurementType.WEIGHT_ONLY -> MeasurementUiType.WEIGHT_ONLY
 }
 
-private data class MeasurementsPresentation(
+internal data class MeasurementAccountSelection(
+    val selection: AccountSelection,
+    val selector: AccountSelectorUiState,
+)
+
+internal data class MeasurementsPresentation(
     val loadState: AccountScopedLoad<AccountMeasurementPresentationSource>,
-    val accountSelector: AccountSelectorUiState,
+    val accountSelection: MeasurementAccountSelection,
     val items: List<MeasurementUiItem>,
     val summary: com.example.huaweimisync.measurements.MeasurementSummaryPresentation?,
     val homeKgChart: com.example.huaweimisync.measurements.HomeKgChartUiState,
     val pending: List<PendingMeasurementUiItem> = emptyList(),
 )
+
+/** Never combines a newly selected account with presentation derived for an older generation. */
+internal fun MeasurementsPresentation.loadingFor(
+    selection: MeasurementAccountSelection,
+): MeasurementsPresentation = copy(
+    loadState = AccountScopedLoad.Loading,
+    accountSelection = selection,
+    items = emptyList(),
+    summary = null,
+    homeKgChart = homeKgChart.copy(
+        series = homeKgChart.series.map { series -> series.copy(points = emptyList()) },
+    ),
+)
+
+internal fun mergeMeasurementPresentationUpdates(
+    presentations: Flow<MeasurementsPresentation>,
+    measurements: Flow<
+        AccountSelectionScopedLoad<MeasurementAccountSelection, AccountMeasurementPresentationSource>
+    >,
+    now: () -> Instant,
+    preliminaryComposition: (PendingMeasurement, Account) ->
+        com.example.huaweimisync.core.BodyComposition?,
+): Flow<MeasurementsPresentation> = combine(presentations, measurements) { current, latest ->
+    if (current.accountSelection.selection != latest.selection.selection) {
+        return@combine current.loadingFor(latest.selection)
+    }
+    val source = latest.load.valuesOrEmpty()
+    val items = mergePreliminaryMeasurementPresentationItems(
+        finalizedItems = current.items,
+        preliminary = source.preliminary,
+        account = source.account,
+        now = now(),
+        preliminaryComposition = preliminaryComposition,
+    )
+    current.copy(
+        loadState = latest.load,
+        accountSelection = latest.selection,
+        items = items,
+        summary = buildMeasurementSummary(items),
+    )
+}
 
 internal data class AccountMeasurementPresentationSource(
     val finalized: List<MeasurementEntity> = emptyList(),

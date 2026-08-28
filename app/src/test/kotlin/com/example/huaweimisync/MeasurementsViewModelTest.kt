@@ -18,6 +18,8 @@ import com.example.huaweimisync.measurements.MeasurementEditorState
 import com.example.huaweimisync.measurements.MeasurementUiType
 import com.example.huaweimisync.measurements.MeasurementsDestination
 import com.example.huaweimisync.measurements.MeasurementsNavigationState
+import com.example.huaweimisync.measurements.buildHomeKgChartUiState
+import com.example.huaweimisync.ui.accounts.AccountSelectorUiState
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -25,11 +27,68 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 
 class MeasurementsViewModelTest {
+    @Test
+    fun delayedOldHeavyPresentationCannotAppearUnderNewAccountSelector() = runBlocking {
+        val accountA = account("account-a")
+        val accountB = account("account-b")
+        val selectionA = measurementSelection(accountA, epoch = 0L)
+        val selectionB = measurementSelection(accountB, epoch = 1L)
+        val itemA = buildMeasurementPresentationItems(
+            AccountMeasurementPresentationSource(finalized = listOf(measurement("measurement-a"))),
+            Instant.EPOCH,
+        ) { _, _ -> null }.single()
+        val itemB = buildMeasurementPresentationItems(
+            AccountMeasurementPresentationSource(finalized = listOf(measurement("measurement-b"))),
+            Instant.EPOCH,
+        ) { _, _ -> null }.single()
+        val presentationA = measurementPresentation(selectionA, itemA)
+        val presentationB = measurementPresentation(selectionB, itemB)
+        val firstCombined = CompletableDeferred<Unit>()
+        val selectionBPublished = CompletableDeferred<Unit>()
+
+        val heavy = flow {
+            emit(presentationA)
+            selectionBPublished.await()
+            emit(presentationA) // Non-cooperative old calculation finishes late.
+            emit(presentationB)
+        }
+        val lightweight = flow {
+            emit(measurementLoad(selectionA, accountA))
+            firstCombined.await()
+            emit(measurementLoad(selectionB, accountB))
+            selectionBPublished.complete(Unit)
+        }
+        val states = mutableListOf<MeasurementsPresentation>()
+
+        mergeMeasurementPresentationUpdates(
+            presentations = heavy,
+            measurements = lightweight,
+            now = { Instant.EPOCH },
+            preliminaryComposition = { _, _ -> null },
+        ).take(4).collect { state ->
+            states += state
+            if (states.size == 1) firstCombined.complete(Unit)
+        }
+
+        assertEquals(listOf("measurement-a"), states.first().items.map { it.id })
+        assertTrue(states.drop(1).filter { it.accountSelection == selectionB }.all { state ->
+            state.items.none { it.id == "measurement-a" }
+        })
+        assertTrue(states[1].loadState is AccountScopedLoad.Loading)
+        assertTrue(states[1].items.isEmpty())
+        assertEquals(null, states[1].summary)
+        assertTrue(states[1].homeKgChart.series.all { it.points.isEmpty() })
+        assertEquals(listOf("measurement-b"), states.last().items.map { it.id })
+    }
+
     @Test
     fun newAccountSnapshotPreservesHistoryAndAtomicallyClearsOldEditorAndDelete() {
         val oldAccount = AccountId("account-a")
@@ -473,6 +532,32 @@ class MeasurementsViewModelTest {
             (inputs.last().load as AccountScopedLoad.Loaded).value.finalized.map { it.id },
         )
     }
+
+    private fun measurementSelection(account: Account, epoch: Long) = MeasurementAccountSelection(
+        selection = AccountSelection(account.id, epoch),
+        selector = AccountSelectorUiState(
+            accounts = listOf(account),
+            selectedAccountId = account.id,
+            primaryAccountId = account.id,
+        ),
+    )
+
+    private fun measurementLoad(selection: MeasurementAccountSelection, account: Account) =
+        AccountSelectionScopedLoad(
+            selection = selection,
+            load = AccountScopedLoad.Loaded(AccountMeasurementPresentationSource(account = account)),
+        )
+
+    private fun measurementPresentation(
+        selection: MeasurementAccountSelection,
+        item: com.example.huaweimisync.measurements.MeasurementUiItem,
+    ) = MeasurementsPresentation(
+        loadState = AccountScopedLoad.Loaded(AccountMeasurementPresentationSource()),
+        accountSelection = selection,
+        items = listOf(item),
+        summary = null,
+        homeKgChart = buildHomeKgChartUiState(listOf(item)),
+    )
 
     @Test
     fun preliminaryToFinalizedTransitionKeepsPresentationIdentityWithoutDuplicate() {
