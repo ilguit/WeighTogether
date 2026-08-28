@@ -9,11 +9,15 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.test.SemanticsMatcher
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.domain.Account
@@ -70,7 +74,7 @@ class SettingsShellUiTest {
 
     @Test
     fun additionalToggleRevealsExistingActions() {
-        setSettingsShell()
+        setSettingsShell(expandSections = false)
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalContent).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalToggle)
@@ -110,6 +114,39 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithText("Последний вес: 4,25 кг").performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithText("Измерений пока нет").performScrollTo().assertIsDisplayed()
+    }
+
+    @Test
+    fun allSixSectionHeadersAreButtonsAndCollapsedByDefault() {
+        setSettingsShell(expandSections = false)
+
+        listOf(
+            SettingsScreenTestTags.AccountsSection,
+            SettingsScreenTestTags.IntegrationsSection,
+            SettingsScreenTestTags.ScaleSection,
+            SettingsScreenTestTags.BackupSection,
+            SettingsScreenTestTags.AdditionalSection,
+            SettingsScreenTestTags.AboutSection,
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag)
+                .performScrollTo()
+                .assertHasClickAction()
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button))
+                .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
+        }
+    }
+
+    @Test
+    fun sectionsToggleIndependentlyAndRestoreAfterRecreation() {
+        setSettingsShell(expandSections = false)
+
+        expandSection(SettingsScreenTestTags.AccountsSection)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
+
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsContent).assertExists()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.IntegrationsContent).assertDoesNotExist()
     }
 
     @Test
@@ -411,6 +448,7 @@ class SettingsShellUiTest {
     }
 
     private fun setSettingsShell(
+        expandSections: Boolean = true,
         settings: AppSettings = AppSettings(),
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
@@ -469,6 +507,20 @@ class SettingsShellUiTest {
                 chartsContent = {},
             )
         }
+        if (expandSections) {
+            listOf(
+                SettingsScreenTestTags.AccountsSection,
+                SettingsScreenTestTags.IntegrationsSection,
+                SettingsScreenTestTags.ScaleSection,
+                SettingsScreenTestTags.BackupSection,
+                SettingsScreenTestTags.AdditionalSection,
+                SettingsScreenTestTags.AboutSection,
+            ).forEach(::expandSection)
+        }
+    }
+
+    private fun expandSection(tag: String) {
+        composeRule.onNodeWithTag(tag).performScrollTo().performClick()
     }
 
     private fun settingsCallbacks(

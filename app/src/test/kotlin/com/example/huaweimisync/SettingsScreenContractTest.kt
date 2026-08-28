@@ -82,9 +82,17 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `additional settings expansion is a reversible state transition`() {
-        assertEquals(AdditionalExpansion.Expanded, AdditionalExpansion.Collapsed.toggled())
-        assertEquals(AdditionalExpansion.Collapsed, AdditionalExpansion.Expanded.toggled())
+    fun `settings expansion is a reversible state transition`() {
+        assertEquals(SettingsSectionExpansion.Expanded, SettingsSectionExpansion.Collapsed.toggled())
+        assertEquals(SettingsSectionExpansion.Collapsed, SettingsSectionExpansion.Expanded.toggled())
+    }
+
+    @Test
+    fun `settings sections have the required stable order`() {
+        assertEquals(
+            listOf("Аккаунты", "Интеграции", "Весы", "Резервная копия", "Дополнительно", "О приложении"),
+            SettingsSectionKey.entries.map(SettingsSectionKey::title),
+        )
     }
 
     @Test

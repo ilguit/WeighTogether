@@ -63,7 +63,6 @@ import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementSection
 import com.example.huaweimisync.ui.accounts.WeightRecognitionSetting
 import com.example.huaweimisync.ui.components.HuaweiIconButton
-import com.example.huaweimisync.ui.components.HuaweiSectionTitle
 import com.example.huaweimisync.ui.components.HuaweiSettingRow
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
@@ -103,15 +102,24 @@ internal data class SettingsCallbacks(
     val onForgetScale: () -> Unit = {},
 )
 
-internal enum class AdditionalExpansion {
+internal enum class SettingsSectionExpansion {
     Collapsed,
     Expanded,
     ;
 
-    fun toggled(): AdditionalExpansion = when (this) {
+    fun toggled(): SettingsSectionExpansion = when (this) {
         Collapsed -> Expanded
         Expanded -> Collapsed
     }
+}
+
+internal enum class SettingsSectionKey(val title: String) {
+    ACCOUNTS("Аккаунты"),
+    INTEGRATIONS("Интеграции"),
+    SCALE("Весы"),
+    BACKUP("Резервная копия"),
+    ADDITIONAL("Дополнительно"),
+    ABOUT("О приложении"),
 }
 
 internal data class IntegrationPresentation(
@@ -130,7 +138,18 @@ internal object SettingsScreenTestTags {
     const val HuaweiHealthDivider = "settings-huawei-health-divider"
     const val HuaweiHealthRow = "settings-huawei-health-row"
     const val HuaweiHealthAction = "settings-huawei-health-action"
-    const val AdditionalToggle = "settings-additional-toggle"
+    const val AccountsSection = "settings-section-accounts"
+    const val IntegrationsSection = "settings-section-integrations"
+    const val ScaleSection = "settings-section-scale"
+    const val BackupSection = "settings-section-backup"
+    const val AdditionalSection = "settings-section-additional"
+    const val AboutSection = "settings-section-about"
+    const val AccountsContent = "settings-content-accounts"
+    const val IntegrationsContent = "settings-content-integrations"
+    const val ScaleContent = "settings-content-scale"
+    const val BackupContent = "settings-content-backup"
+    const val AboutContent = "settings-content-about"
+    const val AdditionalToggle = AdditionalSection
     const val AdditionalContent = "settings-additional-content"
     const val ChangelogRow = "settings-changelog-row"
     const val ProfileEditor = "profile-editor"
@@ -278,7 +297,12 @@ internal fun SettingsScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
-    var additionalExpansion by rememberSaveable { mutableStateOf(AdditionalExpansion.Collapsed) }
+    var accountsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var integrationsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var scaleExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var backupExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var additionalExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
+    var aboutExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
     var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.destructiveActionInProgress) {
@@ -307,41 +331,84 @@ internal fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
             item {
-                AccountManagementSection(
-                    state = state.accountManagement,
-                    callbacks = callbacks.accountManagement,
-                    pets = state.pets,
-                    onAddPet = callbacks.onCreatePet,
-                    onEditPet = { callbacks.onEditPet(it.pet) },
-                    onDeletePet = callbacks.onRequestDeletePet,
-                    petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
-                )
+                CollapsibleSettingsSection(
+                    title = "Аккаунты",
+                    expansion = accountsExpansion,
+                    testTag = SettingsScreenTestTags.AccountsSection,
+                    contentTestTag = SettingsScreenTestTags.AccountsContent,
+                    onToggle = { accountsExpansion = accountsExpansion.toggled() },
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+                        AccountManagementSection(
+                            state = state.accountManagement,
+                            callbacks = callbacks.accountManagement,
+                            pets = state.pets,
+                            onAddPet = callbacks.onCreatePet,
+                            onEditPet = { callbacks.onEditPet(it.pet) },
+                            onDeletePet = callbacks.onRequestDeletePet,
+                            petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
+                            petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
+                        )
+                        WeightRecognitionSetting(
+                            state = state.weightDeltaEditor,
+                            onStateChanged = callbacks.onWeightDeltaStateChanged,
+                            onSave = callbacks.onWeightDeltaSave,
+                            ignoreUnknownMeasurements = state.accountSettings.ignoreUnknownMeasurements,
+                            onIgnoreUnknownMeasurementsChanged = callbacks.onIgnoreUnknownMeasurementsChanged,
+                        )
+                    }
+                }
             }
             item {
-                WeightRecognitionSetting(
-                    state = state.weightDeltaEditor,
-                    onStateChanged = callbacks.onWeightDeltaStateChanged,
-                    onSave = callbacks.onWeightDeltaSave,
-                    ignoreUnknownMeasurements = state.accountSettings.ignoreUnknownMeasurements,
-                    onIgnoreUnknownMeasurementsChanged =
-                        callbacks.onIgnoreUnknownMeasurementsChanged,
-                )
+                CollapsibleSettingsSection(
+                    title = "Интеграции",
+                    expansion = integrationsExpansion,
+                    testTag = SettingsScreenTestTags.IntegrationsSection,
+                    contentTestTag = SettingsScreenTestTags.IntegrationsContent,
+                    onToggle = { integrationsExpansion = integrationsExpansion.toggled() },
+                ) {
+                    SettingsIntegrationsContent(state, callbacks)
+                    IntegrationDestructiveActions(state) { destructiveConfirmation = it }
+                }
             }
-            item { SettingsIntegrationsSection(state, callbacks) }
-            item { SettingsScaleSection(state, callbacks.onManualScan) }
-            item { SettingsDestructiveSection(state) { destructiveConfirmation = it } }
-            item { SettingsBackupSection(state.backup, callbacks) }
             item {
-                SettingsAdditionalSection(
-                    state = state,
+                CollapsibleSettingsSection(
+                    title = "Весы",
+                    expansion = scaleExpansion,
+                    testTag = SettingsScreenTestTags.ScaleSection,
+                    contentTestTag = SettingsScreenTestTags.ScaleContent,
+                    onToggle = { scaleExpansion = scaleExpansion.toggled() },
+                ) {
+                    SettingsScaleContent(state, callbacks.onManualScan)
+                    ScaleDestructiveAction(state) { destructiveConfirmation = it }
+                }
+            }
+            item {
+                CollapsibleSettingsSection(
+                    title = "Резервная копия",
+                    expansion = backupExpansion,
+                    testTag = SettingsScreenTestTags.BackupSection,
+                    contentTestTag = SettingsScreenTestTags.BackupContent,
+                    onToggle = { backupExpansion = backupExpansion.toggled() },
+                ) { SettingsBackupContent(state.backup, callbacks) }
+            }
+            item {
+                CollapsibleSettingsSection(
+                    title = "Дополнительно",
                     expansion = additionalExpansion,
+                    testTag = SettingsScreenTestTags.AdditionalSection,
+                    contentTestTag = SettingsScreenTestTags.AdditionalContent,
                     onToggle = { additionalExpansion = additionalExpansion.toggled() },
-                    callbacks = callbacks,
-                )
+                ) { AdditionalContent(state, callbacks) }
             }
             item {
-                SettingsSection(title = "О приложении") {
+                CollapsibleSettingsSection(
+                    title = "О приложении",
+                    expansion = aboutExpansion,
+                    testTag = SettingsScreenTestTags.AboutSection,
+                    contentTestTag = SettingsScreenTestTags.AboutContent,
+                    onToggle = { aboutExpansion = aboutExpansion.toggled() },
+                ) {
                     HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
                         HuaweiSettingRow(
                             icon = HuaweiIcons.Calendar,
@@ -416,7 +483,7 @@ internal fun SettingsScreen(
 }
 
 @Composable
-private fun SettingsDestructiveSection(
+private fun IntegrationDestructiveActions(
     state: MainUiState,
     onRequest: (DestructiveSettingsAction) -> Unit,
 ) {
@@ -424,9 +491,9 @@ private fun SettingsDestructiveSection(
     val healthEnabled = state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
     val huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
         state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
-    val scaleEnabled = state.settings.scaleAddress != null
-    if (!healthEnabled && !huaweiEnabled && !scaleEnabled) return
-    SettingsSection(title = "Отключение и сброс") {
+    if (!healthEnabled && !huaweiEnabled) return
+    Column {
+        SettingsDivider()
         HuaweiSurface(
             modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveSection),
             contentPadding = PaddingValues(HuaweiDimensions.ContentPadding),
@@ -447,14 +514,26 @@ private fun SettingsDestructiveSection(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHuawei),
                 ) { Text("Отключить Huawei Health") }
-                if (scaleEnabled) OutlinedButton(
-                    onClick = { onRequest(DestructiveSettingsAction.SCALE) },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ForgetScale),
-                ) { Text("Забыть выбранные весы") }
             }
         }
     }
+}
+
+@Composable
+private fun ScaleDestructiveAction(
+    state: MainUiState,
+    onRequest: (DestructiveSettingsAction) -> Unit,
+) {
+    if (state.settings.scaleAddress == null) return
+    SettingsDivider()
+    OutlinedButton(
+        onClick = { onRequest(DestructiveSettingsAction.SCALE) },
+        enabled = state.destructiveActionInProgress == null,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(HuaweiDimensions.ContentPadding)
+            .testTag(SettingsScreenTestTags.ForgetScale),
+    ) { Text("Забыть выбранные весы") }
 }
 
 @Composable
@@ -578,8 +657,7 @@ private fun PetManagementDialogs(state: MainUiState, callbacks: SettingsCallback
 }
 
 @Composable
-private fun SettingsBackupSection(state: BackupUiState, callbacks: SettingsCallbacks) {
-    SettingsSection(title = "Резервная копия") {
+private fun SettingsBackupContent(state: BackupUiState, callbacks: SettingsCallbacks) {
         HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text("Сохраните данные в JSON или импортируйте копию с предварительной проверкой.")
@@ -609,11 +687,10 @@ private fun SettingsBackupSection(state: BackupUiState, callbacks: SettingsCallb
                 ) { Text("Импортировать с заменой") }
             }
         }
-    }
 }
 
 @Composable
-private fun SettingsIntegrationsSection(
+private fun SettingsIntegrationsContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
 ) {
@@ -646,7 +723,6 @@ private fun SettingsIntegrationsSection(
     } else {
         null
     }
-    SettingsSection(title = "Интеграции") {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
                 HuaweiSettingRow(
@@ -712,7 +788,6 @@ private fun SettingsIntegrationsSection(
                 }
             }
         }
-    }
 }
 
 private fun IntegrationPresentation.forPrimaryAccount(
@@ -724,7 +799,7 @@ private fun IntegrationPresentation.forPrimaryAccount(
 )
 
 @Composable
-private fun SettingsScaleSection(
+private fun SettingsScaleContent(
     state: MainUiState,
     onManualScan: () -> Unit,
 ) {
@@ -733,7 +808,6 @@ private fun SettingsScaleSection(
     } else {
         "${state.settings.scaleName ?: "XMTZC05HM"} · ${state.settings.scaleAddress}"
     }
-    SettingsSection(title = "Весы") {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             HuaweiSettingRow(
                 icon = HuaweiIcons.Bluetooth,
@@ -745,52 +819,45 @@ private fun SettingsScaleSection(
                 }
             }
         }
-    }
 }
 
 @Composable
-private fun SettingsAdditionalSection(
-    state: MainUiState,
-    expansion: AdditionalExpansion,
+private fun CollapsibleSettingsSection(
+    title: String,
+    expansion: SettingsSectionExpansion,
+    testTag: String,
+    contentTestTag: String,
     onToggle: () -> Unit,
-    callbacks: SettingsCallbacks,
+    content: @Composable () -> Unit,
 ) {
-    val expanded = expansion == AdditionalExpansion.Expanded
-    SettingsSection(title = "Дополнительно") {
+    val expanded = expansion == SettingsSectionExpansion.Expanded
+    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            Column {
-                HuaweiSettingRow(
-                    icon = HuaweiIcons.Lab,
-                    title = "Тестирование и фон",
-                    supportingText = "Тестовое измерение и надёжность BLE",
-                    modifier = Modifier
-                        .testTag(SettingsScreenTestTags.AdditionalToggle)
-                        .semantics {
-                            role = Role.Button
-                            stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
-                        },
+            HuaweiSettingRow(
+                icon = HuaweiIcons.ChevronRight,
+                title = title,
+                supportingText = if (expanded) "Развёрнуто" else "Свёрнуто",
+                modifier = Modifier
+                    .testTag(testTag)
+                    .semantics {
+                        role = Role.Button
+                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                    },
+                onClick = onToggle,
+            ) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.ChevronRight,
+                    contentDescription = if (expanded) "Свернуть $title" else "Развернуть $title",
                     onClick = onToggle,
-                ) {
-                    HuaweiIconButton(
-                        icon = HuaweiIcons.ChevronRight,
-                        contentDescription = if (expanded) {
-                            "Свернуть дополнительные настройки"
-                        } else {
-                            "Развернуть дополнительные настройки"
-                        },
-                        onClick = onToggle,
-                        modifier = Modifier.graphicsLayer { rotationZ = if (expanded) 90f else 0f },
-                    )
-                }
-                if (expanded) {
-                    SettingsDivider()
-                    AdditionalContent(
-                        state = state,
-                        callbacks = callbacks,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.AdditionalContent),
-                    )
-                }
+                    modifier = Modifier.graphicsLayer { rotationZ = if (expanded) 90f else 0f },
+                )
             }
+        }
+        if (expanded) {
+            Column(
+                modifier = Modifier.fillMaxWidth().testTag(contentTestTag),
+                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            ) { content() }
         }
     }
 }
@@ -937,17 +1004,6 @@ private fun TestField(
         singleLine = true,
         modifier = modifier,
     )
-}
-
-@Composable
-private fun SettingsSection(
-    title: String,
-    content: @Composable () -> Unit,
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-        HuaweiSectionTitle(title)
-        content()
-    }
 }
 
 @Composable

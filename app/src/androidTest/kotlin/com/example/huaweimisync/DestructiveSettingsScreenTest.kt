@@ -26,7 +26,7 @@ class DestructiveSettingsScreenTest {
             )
         }
 
-        compose.onNodeWithTag(SettingsScreenTestTags.DestructiveSection).assertExists()
+        compose.onNodeWithTag(SettingsScreenTestTags.ScaleSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveDialog).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveConfirm).assertExists()
@@ -38,7 +38,10 @@ class DestructiveSettingsScreenTest {
             SettingsScreen(MainUiState(), callbacks(), PaddingValues())
         }
 
+        compose.onNodeWithTag(SettingsScreenTestTags.IntegrationsSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.DestructiveSection).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ScaleSection).performClick()
+        compose.onNodeWithTag(SettingsScreenTestTags.ForgetScale).assertDoesNotExist()
     }
 
     private fun callbacks() = SettingsCallbacks(

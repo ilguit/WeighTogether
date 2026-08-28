@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import com.example.huaweimisync.backup.BackupAppStateV1
 import com.example.huaweimisync.backup.BackupDatabaseSnapshot
 import com.example.huaweimisync.backup.BackupDocumentV1
@@ -30,6 +31,7 @@ class BackupSettingsScreenTest {
                 openBatterySettings = {}, openApplicationSettings = {},
             ), PaddingValues())
         }
+        compose.onNodeWithTag(SettingsScreenTestTags.BackupSection).performClick()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupExport).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupMerge).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.BackupReplace).assertExists()
