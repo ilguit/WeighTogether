@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -28,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -225,6 +227,24 @@ internal fun formatProfileSummary(profile: UserProfile?): String {
     }
     val sex = if (profile.sex == Sex.MALE) "мужской" else "женский"
     return "$height см · ${profile.birthDate.format(ProfileSummaryDateFormatter)} · $sex"
+}
+
+internal fun profilesRootSummary(peopleCount: Int, petCount: Int): String {
+    require(peopleCount >= 0)
+    require(petCount >= 0)
+    if (peopleCount == 0 && petCount == 0) return "Добавьте первый профиль"
+    return "${russianCount(peopleCount, "человек", "человека", "человек")} · " +
+        russianCount(petCount, "питомец", "питомца", "питомцев")
+}
+
+private fun russianCount(count: Int, one: String, few: String, many: String): String {
+    val word = when {
+        count % 100 in 11..14 -> many
+        count % 10 == 1 -> one
+        count % 10 in 2..4 -> few
+        else -> many
+    }
+    return "$count $word"
 }
 
 internal fun formatLatestPetWeight(
@@ -748,7 +768,15 @@ private fun SettingsRootScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
-            item { SettingsNavigationRow(SettingsDestination.PROFILES, "Люди и питомцы", SettingsScreenTestTags.ProfilesRow, onDestinationChanged, focusRequesters[SettingsDestination.PROFILES]) }
+            item {
+                SettingsNavigationRow(
+                    SettingsDestination.PROFILES,
+                    profilesRootSummary(state.accountManagement.accounts.size, state.pets.size),
+                    SettingsScreenTestTags.ProfilesRow,
+                    onDestinationChanged,
+                    focusRequesters[SettingsDestination.PROFILES],
+                )
+            }
             item {
                 Text(
                     "Весы и синхронизация",
@@ -775,9 +803,7 @@ private fun SettingsRootScreen(
                         onClick = callbacks.onOpenChangelog,
                         titleMaxLines = Int.MAX_VALUE,
                         supportingTextMaxLines = Int.MAX_VALUE,
-                    ) {
-                        HuaweiIconButton(HuaweiIcons.ChevronRight, "Открыть историю версий", callbacks.onOpenChangelog)
-                    }
+                    ) { SettingsNavigationChevron() }
                 }
             }
         }
@@ -815,13 +841,21 @@ private fun SettingsNavigationRow(
             onClick = { onDestinationChanged(destination) },
             titleMaxLines = Int.MAX_VALUE,
             supportingTextMaxLines = Int.MAX_VALUE,
-        ) {
-            HuaweiIconButton(
-                icon = HuaweiIcons.ChevronRight,
-                contentDescription = "Открыть ${destination.title}",
-                onClick = { onDestinationChanged(destination) },
-            )
-        }
+        ) { SettingsNavigationChevron() }
+    }
+}
+
+@Composable
+private fun SettingsNavigationChevron() {
+    Box(
+        modifier = Modifier.size(HuaweiDimensions.TouchTarget),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = HuaweiIcons.ChevronRight,
+            contentDescription = null,
+            modifier = Modifier.size(HuaweiDimensions.Icon),
+        )
     }
 }
 

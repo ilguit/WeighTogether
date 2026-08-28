@@ -11,7 +11,11 @@ import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasClickAction
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -189,6 +193,41 @@ class SettingsShellUiTest {
         }
         composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsSection).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection).assertDoesNotExist()
+    }
+
+    @Test
+    fun profilesRootSummaryShowsExplicitEmptyState() {
+        setSettingsShell(expandSections = false, account = null)
+        composeRule.onNodeWithText("Добавьте первый профиль").assertIsDisplayed()
+    }
+
+    @Test
+    fun profilesRootSummaryShowsPeopleAndPetCounts() {
+        setSettingsShell(
+            expandSections = false,
+            pets = listOf(PetWithLatestWeight(pet("cat", "Мурка", PetSpecies.CAT), null)),
+        )
+        composeRule.onNodeWithText("1 человек · 1 питомец").assertIsDisplayed()
+    }
+
+    @Test
+    fun rootNavigationRowsExposeOnlyTheirSingleRowClickAction() {
+        setSettingsShell(expandSections = false)
+
+        listOf(
+            SettingsScreenTestTags.ProfilesRow,
+            SettingsScreenTestTags.ScaleRow,
+            SettingsScreenTestTags.HealthConnectRow,
+            SettingsScreenTestTags.BackupRow,
+            SettingsScreenTestTags.DiagnosticsRow,
+            SettingsScreenTestTags.ChangelogRow,
+        ).forEach { tag ->
+            composeRule.onNodeWithTag(tag).performScrollTo().assertHasClickAction()
+            composeRule.onAllNodes(
+                hasClickAction() and hasAnyAncestor(hasTestTag(tag)),
+                useUnmergedTree = true,
+            ).assertCountEquals(0)
+        }
     }
 
     @Test

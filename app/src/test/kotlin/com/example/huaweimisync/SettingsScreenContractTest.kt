@@ -13,6 +13,20 @@ import java.util.Locale
 
 class SettingsScreenContractTest {
     @Test
+    fun `profile root summary explicitly describes empty state`() {
+        assertEquals("Добавьте первый профиль", profilesRootSummary(0, 0))
+    }
+
+    @Test
+    fun `profile root summary uses correct russian count forms`() {
+        assertEquals("1 человек · 1 питомец", profilesRootSummary(1, 1))
+        assertEquals("2 человека · 4 питомца", profilesRootSummary(2, 4))
+        assertEquals("5 человек · 5 питомцев", profilesRootSummary(5, 5))
+        assertEquals("11 человек · 11 питомцев", profilesRootSummary(11, 11))
+        assertEquals("21 человек · 22 питомца", profilesRootSummary(21, 22))
+    }
+
+    @Test
     fun `connected health connect explains manual management when system destination is missing`() {
         val presentation = IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
