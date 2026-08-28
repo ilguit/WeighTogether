@@ -165,6 +165,20 @@ object NoOpPendingDecisionNotifier : PendingDecisionNotifier {
     override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) = Unit
 }
 
+interface SuccessfulMeasurementNotifier {
+    fun notifyMeasurementSaved(
+        measurement: AccountMeasurement,
+        accountDisplayName: String,
+    )
+}
+
+object NoOpSuccessfulMeasurementNotifier : SuccessfulMeasurementNotifier {
+    override fun notifyMeasurementSaved(
+        measurement: AccountMeasurement,
+        accountDisplayName: String,
+    ) = Unit
+}
+
 sealed interface MeasurementIngestionResult {
     data object IgnoredNotFinal : MeasurementIngestionResult
     /** The stable packet exactly repeats the durable last-accepted packet. */
@@ -218,6 +232,8 @@ class MeasurementIngestionCoordinator(
     private val calculator: BodyCompositionCalculator,
     private val syncScheduler: MeasurementSyncScheduler,
     private val notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
+    private val successfulMeasurementNotifier: SuccessfulMeasurementNotifier =
+        NoOpSuccessfulMeasurementNotifier,
     private val matchingEngine: MatchingEngine = MatchingEngine(),
 ) {
     private val pendingPresentationMutex = Mutex()
@@ -275,6 +291,7 @@ class MeasurementIngestionCoordinator(
                     AggregateFinalizationResult.Reschedule(atomic.pending)
                 is AtomicDueRoutingResult.Finalized -> {
                     scheduleIfEligible(atomic.measurement)
+                    notifySuccessfulFinalization(atomic.measurement)
                     refreshPendingPresentation()
                     AggregateFinalizationResult.Completed(
                         MeasurementIngestionResult.Assigned(atomic.measurement),
@@ -332,6 +349,7 @@ class MeasurementIngestionCoordinator(
                     AggregateFinalizationResult.Reschedule(result.pending)
                 is DuePendingPersistenceResult.Finalized -> {
                     scheduleIfEligible(result.measurement)
+                    notifySuccessfulFinalization(result.measurement)
                     refreshPendingPresentation()
                     AggregateFinalizationResult.Completed(
                         MeasurementIngestionResult.Assigned(result.measurement),
@@ -400,7 +418,10 @@ class MeasurementIngestionCoordinator(
     ): FinalizePendingResult {
         val result = persistence.finalizePending(pendingId, accountId)
         when (result) {
-            is FinalizePendingResult.Finalized -> scheduleIfEligible(result.measurement)
+            is FinalizePendingResult.Finalized -> {
+                scheduleIfEligible(result.measurement)
+                notifySuccessfulFinalization(result.measurement)
+            }
             is FinalizePendingResult.AlreadyFinalized -> Unit
             FinalizePendingResult.PendingNotFound,
             FinalizePendingResult.AccountNotFound,
@@ -518,6 +539,7 @@ class MeasurementIngestionCoordinator(
             when (val finalized = persistence.finalizePending(pending.id, selectedAccountId)) {
                 is FinalizePendingResult.Finalized -> {
                     scheduleIfEligible(finalized.measurement)
+                    notifySuccessfulFinalization(finalized.measurement)
                     refreshPendingPresentation()
                     return MeasurementIngestionResult.Assigned(finalized.measurement)
                 }
@@ -553,6 +575,18 @@ class MeasurementIngestionCoordinator(
         val account = accounts.getAccount(measurement.accountId) ?: return
         if (!account.profile.isComplete) return
         syncScheduler.enqueueInitial(measurement.measurementId)
+    }
+
+    private suspend fun notifySuccessfulFinalization(measurement: AccountMeasurement) {
+        val account = accounts.getAccount(measurement.accountId) ?: return
+        try {
+            successfulMeasurementNotifier.notifyMeasurementSaved(
+                measurement = measurement,
+                accountDisplayName = account.displayName,
+            )
+        } catch (_: Exception) {
+            // A user-facing confirmation is best-effort and must not change a durable save result.
+        }
     }
 }
 
