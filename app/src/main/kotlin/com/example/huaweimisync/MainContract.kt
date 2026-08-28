@@ -412,6 +412,12 @@ internal fun healthConnectIntegrationCapabilities(
     selectedAccountSyncReady = selectedAccountSyncEligible && permissions.isConnected,
 )
 
+/** A foreground/recreation refresh observes system state but never overrides a durable opt-out. */
+internal fun shouldActivateHealthConnectAfterPermissionRefresh(
+    isConnected: Boolean,
+    explicitAuthorization: Boolean,
+): Boolean = isConnected && explicitAuthorization
+
 enum class HuaweiIntegrationStatus {
     UNAVAILABLE_IN_BUILD,
     CONFIGURATION_REQUIRED,

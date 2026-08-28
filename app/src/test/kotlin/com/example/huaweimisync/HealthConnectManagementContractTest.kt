@@ -9,6 +9,26 @@ import org.junit.Test
 
 class HealthConnectManagementContractTest {
     @Test
+    fun `foreground and recreation refresh never activate a connected opt-out`() {
+        assertFalse(
+            shouldActivateHealthConnectAfterPermissionRefresh(
+                isConnected = true,
+                explicitAuthorization = false,
+            ),
+        )
+    }
+
+    @Test
+    fun `explicit reconnect activates a connected destination`() {
+        assertTrue(
+            shouldActivateHealthConnectAfterPermissionRefresh(
+                isConnected = true,
+                explicitAuthorization = true,
+            ),
+        )
+    }
+
+    @Test
     fun `SDK management intent is exposed when a system handler is available`() {
         val sdkIntent = Any()
 

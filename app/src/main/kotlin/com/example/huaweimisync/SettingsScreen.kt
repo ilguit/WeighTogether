@@ -188,6 +188,7 @@ internal const val BACKUP_REPLACE_WARNING =
 
 internal fun healthConnectPresentation(
     state: HealthConnectPermissionsUiState,
+    locallyEnabled: Boolean = true,
 ): IntegrationPresentation = when (state.availability) {
     HealthConnectAvailability.CHECKING -> IntegrationPresentation(
         supportingText = "Проверка разрешений…",
@@ -204,7 +205,12 @@ internal fun healthConnectPresentation(
         supportingText = "Не удалось проверить разрешения",
         actionLabel = "Подключить",
     )
-    HealthConnectAvailability.AVAILABLE -> if (state.isConnected) {
+    HealthConnectAvailability.AVAILABLE -> if (!locallyEnabled) {
+        IntegrationPresentation(
+            supportingText = "Отключено в приложении",
+            actionLabel = "Подключить снова",
+        )
+    } else if (state.isConnected) {
         IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
             actionLabel = "Открыть",
@@ -233,6 +239,7 @@ internal fun IntegrationPresentation.withHealthConnectManagementFallback(
 
 internal fun huaweiIntegrationPresentation(
     state: HuaweiIntegrationUiState,
+    locallyEnabled: Boolean = true,
 ): IntegrationPresentation = when (state.status) {
     HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD -> IntegrationPresentation(
         supportingText = "Недоступно в personal-сборке",
@@ -249,9 +256,14 @@ internal fun huaweiIntegrationPresentation(
         supportingText = "Настроено · требуется авторизация",
         actionLabel = "Разрешить",
     )
-    HuaweiIntegrationStatus.AUTHORIZED -> IntegrationPresentation(
-        supportingText = "Подключено",
-    )
+    HuaweiIntegrationStatus.AUTHORIZED -> if (locallyEnabled) {
+        IntegrationPresentation(supportingText = "Подключено")
+    } else {
+        IntegrationPresentation(
+            supportingText = "Отключено в приложении",
+            actionLabel = "Подключить снова",
+        )
+    }
     HuaweiIntegrationStatus.CHECK_FAILED -> IntegrationPresentation(
         supportingText = "Не удалось проверить разрешение",
         actionLabel = "Повторить",
@@ -612,7 +624,10 @@ private fun SettingsIntegrationsSection(
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
         else -> "Основной: ${primary.displayName}"
     }
-    val healthConnect = healthConnectPresentation(state.healthConnect)
+    val healthConnect = healthConnectPresentation(
+        state.healthConnect,
+        locallyEnabled = state.settings.healthConnectSyncEnabled,
+    )
         .withHealthConnectManagementFallback(
             healthConnectCapabilities.systemManagementAvailable,
         )
@@ -621,7 +636,10 @@ private fun SettingsIntegrationsSection(
             healthConnectCapabilities.selectedAccountSyncEligible,
         )
     val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-        huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
+        huaweiIntegrationPresentation(
+            state.huawei,
+            locallyEnabled = state.settings.huaweiSyncEnabled,
+        ).forPrimaryAccount(
             primaryStatus,
             state.canUseExternalIntegrations,
         )

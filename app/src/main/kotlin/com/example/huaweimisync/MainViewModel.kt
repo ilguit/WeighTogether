@@ -182,7 +182,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val huaweiAuthorization = HuaweiAuthorizationController(
         gateway = container.huaweiHealth,
-        retryPendingHuawei = container.repository::retryPendingHuawei,
+        onExplicitAuthorizationConfirmed = {
+            container.profileStore.setExternalSyncEnabled(
+                ExternalSyncDestination.HUAWEI,
+                true,
+            )
+            container.repository.retryPendingHuawei()
+        },
     )
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
@@ -1042,12 +1048,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun authorizeHuawei() = viewModelScope.launch {
         val attempt = huaweiAuthorization.authorize { huawei.value = it }
-        if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
-            container.profileStore.setExternalSyncEnabled(
-                ExternalSyncDestination.HUAWEI,
-                true,
-            )
-        }
         showMessage(huaweiAuthorizationMessage(attempt))
     }
 
@@ -1125,6 +1125,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateHealthConnectPermissions(
             notifyResult = true,
             grantedHint = if (allGranted) healthConnectPermissions else null,
+            explicitAuthorization = true,
         )
     }
 
@@ -1132,6 +1133,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateHealthConnectPermissions(
             notifyResult = true,
             grantedHint = grantedPermissions,
+            explicitAuthorization = true,
         )
     }
 
@@ -1471,6 +1473,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun updateHealthConnectPermissions(
         notifyResult: Boolean,
         grantedHint: Set<String>? = null,
+        explicitAuthorization: Boolean = false,
     ) {
         val required = healthConnectPermissions
         val availability = container.healthConnect.availability()
@@ -1504,7 +1507,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             grantedPermissions = granted,
         )
         healthConnect.value = snapshot
-        if (snapshot.isConnected) {
+        if (shouldActivateHealthConnectAfterPermissionRefresh(
+                isConnected = snapshot.isConnected,
+                explicitAuthorization = explicitAuthorization,
+            )
+        ) {
             container.profileStore.setExternalSyncEnabled(
                 ExternalSyncDestination.HEALTH_CONNECT,
                 true,

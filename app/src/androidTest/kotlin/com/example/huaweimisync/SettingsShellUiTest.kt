@@ -267,6 +267,59 @@ class SettingsShellUiTest {
     }
 
     @Test
+    fun locallyDisabledHealthConnectShowsReconnectAndHidesDestructiveAction() {
+        var authorizationCalls = 0
+        var managementCalls = 0
+        val requiredPermissions = setOf("weight", "fat")
+        setSettingsShell(
+            settings = AppSettings(healthConnectSyncEnabled = false),
+            healthConnect = HealthConnectPermissionsUiState.snapshot(
+                isAvailable = true,
+                requiredPermissions = requiredPermissions,
+                grantedPermissions = requiredPermissions,
+            ),
+            onHealthConnectAuthorization = { authorizationCalls++ },
+            onHealthConnectAccessManagement = { managementCalls++ },
+        )
+
+        composeRule.onNodeWithText("Основной: Анна · Отключено в приложении")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Подключить снова").assertIsDisplayed().performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DisableHealthConnect)
+            .assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            assertEquals(1, authorizationCalls)
+            assertEquals(0, managementCalls)
+        }
+    }
+
+    @Test
+    fun locallyDisabledHuaweiShowsReconnectAndHidesDestructiveAction() {
+        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        var authorizationCalls = 0
+        var refreshCalls = 0
+        setSettingsShell(
+            settings = AppSettings(huaweiSyncEnabled = false),
+            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+            onHuaweiAuthorization = { authorizationCalls++ },
+            onHuaweiPermissionRefresh = { refreshCalls++ },
+        )
+
+        composeRule.onNodeWithText("Основной: Анна · Отключено в приложении")
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DisableHuawei).assertDoesNotExist()
+
+        composeRule.runOnIdle {
+            assertEquals(1, authorizationCalls)
+            assertEquals(0, refreshCalls)
+        }
+    }
+
+    @Test
     fun missingHealthConnectManagementHandlerHidesOnlyOpenAndDisablesRow() {
         var managementCalls = 0
         val requiredPermissions = setOf("weight", "fat")
@@ -358,6 +411,7 @@ class SettingsShellUiTest {
     }
 
     private fun setSettingsShell(
+        settings: AppSettings = AppSettings(),
         huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
         healthConnectSystemManagementAvailable: Boolean = true,
@@ -381,7 +435,7 @@ class SettingsShellUiTest {
             val snackbarHostState = remember { SnackbarHostState() }
             HuaweiMiSyncScaffold(
                 state = MainUiState(
-                    settings = AppSettings(),
+                    settings = settings,
                     healthConnect = healthConnect,
                     healthConnectSystemManagementAvailable =
                         healthConnectSystemManagementAvailable,

@@ -115,6 +115,19 @@ class SettingsScreenContractTest {
     }
 
     @Test
+    fun `locally disabled health connect offers explicit reconnect`() {
+        val required = setOf("weight", "fat")
+        val presentation = healthConnectPresentation(
+            HealthConnectPermissionsUiState.snapshot(true, required, required),
+            locallyEnabled = false,
+        )
+
+        assertEquals("Отключено в приложении", presentation.supportingText)
+        assertEquals("Подключить снова", presentation.actionLabel)
+        assertFalse(presentation.actionOpensManagement)
+    }
+
+    @Test
     fun `unavailable health connect explains cause and exposes no action`() {
         val unsupported = healthConnectPresentation(
             HealthConnectPermissionsUiState(
@@ -172,5 +185,17 @@ class SettingsScreenContractTest {
         assertEquals("Не удалось проверить разрешение", failed.supportingText)
         assertEquals("Повторить", failed.actionLabel)
         assertTrue(failed.actionRetriesCheck)
+    }
+
+    @Test
+    fun `locally disabled authorized huawei offers explicit reconnect`() {
+        val presentation = huaweiIntegrationPresentation(
+            HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
+            locallyEnabled = false,
+        )
+
+        assertEquals("Отключено в приложении", presentation.supportingText)
+        assertEquals("Подключить снова", presentation.actionLabel)
+        assertFalse(presentation.actionRetriesCheck)
     }
 }

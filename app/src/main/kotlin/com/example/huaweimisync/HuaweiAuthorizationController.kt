@@ -15,7 +15,7 @@ internal data class HuaweiAuthorizationAttempt(
 /** Keeps SDK authorization checks and queue restarts in one testable state machine. */
 internal class HuaweiAuthorizationController(
     private val gateway: HuaweiHealthGateway,
-    private val retryPendingHuawei: suspend () -> Unit,
+    private val onExplicitAuthorizationConfirmed: suspend () -> Unit,
 ) {
     private val operationMutex = Mutex()
 
@@ -36,7 +36,7 @@ internal class HuaweiAuthorizationController(
 
         return operationMutex.withLock {
             publishState(initial)
-            checkAndPublish(publishState)
+            checkAndPublish(publishState, explicitAuthorization = false)
         }
     }
 
@@ -53,7 +53,7 @@ internal class HuaweiAuthorizationController(
             SyncResult.Retryable("Авторизация Huawei Health временно недоступна")
         }
         val confirmedState = if (initial.status == HuaweiIntegrationStatus.CHECKING) {
-            checkAndPublish(publishState)
+            checkAndPublish(publishState, explicitAuthorization = true)
         } else {
             initial
         }
@@ -62,6 +62,7 @@ internal class HuaweiAuthorizationController(
 
     private suspend fun checkAndPublish(
         publishState: (HuaweiIntegrationUiState) -> Unit,
+        explicitAuthorization: Boolean,
     ): HuaweiIntegrationUiState {
         val permission = try {
             gateway.checkWriteWeightPermission()
@@ -76,8 +77,8 @@ internal class HuaweiAuthorizationController(
             permission = permission,
         )
         publishState(confirmed)
-        if (confirmed.status == HuaweiIntegrationStatus.AUTHORIZED) {
-            retryPendingHuawei()
+        if (explicitAuthorization && confirmed.status == HuaweiIntegrationStatus.AUTHORIZED) {
+            onExplicitAuthorizationConfirmed()
         }
         return confirmed
     }
