@@ -848,6 +848,10 @@ private class FakeAccountRepository(
     primaryId: AccountId?,
     private val events: MutableList<String> = mutableListOf(),
 ) : AccountRepository {
+    override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean = false
+    override suspend fun attemptProfileUpdate(
+        account: AccountUpdate,
+    ): com.example.huaweimisync.domain.ProfileUpdateAttemptResult = error("not needed")
     private val values = MutableStateFlow(initialAccounts)
     val settings = MutableStateFlow(AccountSettings(primaryId))
 
@@ -870,7 +874,10 @@ private class FakeAccountRepository(
         return value
     }
 
-    override suspend fun updateAccount(account: AccountUpdate): Account = error("not needed")
+    override suspend fun updateAccount(
+        account: AccountUpdate,
+        historyUpdateMode: com.example.huaweimisync.domain.ProfileHistoryUpdateMode,
+    ): Account = error("not needed")
 
     override suspend fun setPrimaryAccount(accountId: AccountId, historySyncMode: PrimaryHistorySyncMode) {
         settings.value = settings.value.copy(primaryAccountId = accountId)

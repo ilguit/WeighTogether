@@ -8,6 +8,8 @@ import com.example.huaweimisync.domain.AccountSettingsWriter
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
+import com.example.huaweimisync.domain.ProfileUpdateAttemptResult
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import com.example.huaweimisync.worker.MeasurementSyncScheduler
 import kotlinx.coroutines.flow.Flow
@@ -28,6 +30,7 @@ class SyncAwareAccountRepository(
 ) : AccountRepository, AccountSettingsWriter {
     private val accountUpdater = SerializedAccountUpdater(
         updateDelegate = delegate::updateAccount,
+        attemptDelegate = delegate::attemptProfileUpdate,
         sweepPendingRouting = measurements::sweepPendingRouting,
         operations = externalSyncOperations,
     )
@@ -42,7 +45,16 @@ class SyncAwareAccountRepository(
         measurements.sweepPendingRouting()
     }
 
-    override suspend fun updateAccount(account: AccountUpdate): Account = accountUpdater.update(account)
+    override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean =
+        delegate.hasProfileRecalculationCandidates(accountId)
+
+    override suspend fun updateAccount(
+        account: AccountUpdate,
+        historyUpdateMode: ProfileHistoryUpdateMode,
+    ): Account = accountUpdater.update(account, historyUpdateMode)
+
+    override suspend fun attemptProfileUpdate(account: AccountUpdate): ProfileUpdateAttemptResult =
+        accountUpdater.attempt(account)
 
     override suspend fun setPrimaryAccount(
         accountId: AccountId,
@@ -95,12 +107,26 @@ class SyncAwareAccountRepository(
  * serializer: it may start workers, but it must not keep their external gateway locked out.
  */
 internal class SerializedAccountUpdater(
-    private val updateDelegate: suspend (AccountUpdate) -> Account,
+    private val updateDelegate: suspend (AccountUpdate, ProfileHistoryUpdateMode) -> Account,
+    private val attemptDelegate: suspend (AccountUpdate) -> ProfileUpdateAttemptResult = { account ->
+        ProfileUpdateAttemptResult.Saved(
+            updateDelegate(account, ProfileHistoryUpdateMode.KEEP_EXISTING),
+        )
+    },
     private val sweepPendingRouting: suspend () -> Unit,
     private val operations: ExternalSyncOperationSerializer,
 ) {
-    suspend fun update(account: AccountUpdate): Account {
-        val updated = operations.runExclusive { updateDelegate(account) }
+    suspend fun attempt(account: AccountUpdate): ProfileUpdateAttemptResult {
+        val result = operations.runExclusive { attemptDelegate(account) }
+        if (result is ProfileUpdateAttemptResult.Saved) sweepPendingRouting()
+        return result
+    }
+
+    suspend fun update(
+        account: AccountUpdate,
+        historyUpdateMode: ProfileHistoryUpdateMode,
+    ): Account {
+        val updated = operations.runExclusive { updateDelegate(account, historyUpdateMode) }
         sweepPendingRouting()
         return updated
     }

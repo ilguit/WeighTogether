@@ -21,12 +21,15 @@ import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
+import com.example.huaweimisync.domain.AccountUpdate
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import com.example.huaweimisync.domain.PendingMeasurement
 import com.example.huaweimisync.domain.PendingMeasurementId
 import com.example.huaweimisync.measurements.formatMeasurementDateTime
 import com.example.huaweimisync.ui.accounts.AccountManagementCallbacks
 import com.example.huaweimisync.ui.accounts.AccountManagementTestTags
 import com.example.huaweimisync.ui.accounts.AccountManagementUiState
+import com.example.huaweimisync.ui.accounts.ProfileUpdateConfirmation
 import com.example.huaweimisync.ui.accounts.AccountDeletionRequest
 import com.example.huaweimisync.ui.accounts.AccountEditorDialog
 import com.example.huaweimisync.ui.accounts.AccountEditorDraft
@@ -56,6 +59,41 @@ import org.junit.Rule
 import org.junit.Test
 
 class MultiAccountComponentsTest {
+    @Test
+    fun profileUpdatePromptShowsThreeActionsAndDisablesThemWhileSaving() {
+        val account = account("one", "Анна")
+        val update = AccountUpdate(
+            account.id,
+            account.displayName,
+            (account.profile as AccountProfile.Complete).copy(heightCm = 171.0),
+        )
+        val modes = mutableListOf<ProfileHistoryUpdateMode>()
+        composeRule.setContent {
+            HuaweiMiSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(
+                        accounts = listOf(account),
+                        profileUpdateConfirmation = ProfileUpdateConfirmation(
+                            update,
+                            AccountEditorDraft.edit(account).copy(heightCm = "171"),
+                        ),
+                        operationInProgress = true,
+                        operationError = "Не удалось сохранить",
+                    ),
+                    callbacks = AccountManagementCallbacks.None.copy(
+                        onConfirmProfileUpdate = { modes += it },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdatePrompt).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateRecalculate).assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateKeepExisting).assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.ProfileUpdateCancel).assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.OperationError).assertIsDisplayed()
+        assertTrue(modes.isEmpty())
+    }
     @get:Rule
     val composeRule = createComposeRule()
 

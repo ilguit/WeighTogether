@@ -40,6 +40,7 @@ import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
 import com.example.huaweimisync.domain.NewAccount
 import com.example.huaweimisync.domain.PrimaryHistorySyncMode
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import com.example.huaweimisync.domain.PetId
 import com.example.huaweimisync.domain.PetWithLatestWeight
 import com.example.huaweimisync.ui.components.BirthDateField
@@ -64,6 +65,11 @@ object AccountManagementTestTags {
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
+    const val ProfileUpdatePrompt = "account-profile-update-prompt"
+    const val ProfileUpdateRecalculate = "account-profile-update-recalculate"
+    const val ProfileUpdateKeepExisting = "account-profile-update-keep-existing"
+    const val ProfileUpdateCancel = "account-profile-update-cancel"
+    const val OperationError = "account-management-operation-error"
     fun row(accountId: AccountId): String = "account-row-${accountId.value}"
     fun primaryBadge(accountId: AccountId): String = "account-primary-badge-${accountId.value}"
     fun replacement(accountId: AccountId): String = "account-replacement-${accountId.value}"
@@ -80,6 +86,7 @@ data class AccountManagementCallbacks(
     val onAction: (AccountManagementAction) -> Unit,
     val onCreate: (NewAccount) -> Unit,
     val onUpdate: (AccountUpdate) -> Unit,
+    val onConfirmProfileUpdate: (ProfileHistoryUpdateMode) -> Unit,
     val onSetPrimary: (AccountId, PrimaryHistorySyncMode) -> Unit,
     val onDelete: (AccountId) -> Unit,
     val onDeletePrimary: (AccountDeletionRequest) -> Unit,
@@ -89,6 +96,7 @@ data class AccountManagementCallbacks(
             onAction = {},
             onCreate = {},
             onUpdate = {},
+            onConfirmProfileUpdate = {},
             onSetPrimary = { _, _ -> },
             onDelete = {},
             onDeletePrimary = {},
@@ -179,6 +187,7 @@ fun AccountManagementSection(
             draft = draft,
             accounts = state.accounts,
             operationInProgress = state.operationInProgress,
+            error = state.operationError,
             onDraftChanged = { callbacks.onAction(AccountManagementAction.EditorChanged(it)) },
             onCreate = callbacks.onCreate,
             onUpdate = callbacks.onUpdate,
@@ -215,6 +224,77 @@ fun AccountManagementSection(
             onDismiss = { callbacks.onAction(AccountManagementAction.DialogDismissed) },
         )
     }
+    state.profileUpdateConfirmation?.let { request ->
+        ProfileUpdateConfirmationDialog(
+            request = request,
+            operationInProgress = state.operationInProgress,
+            error = state.operationError,
+            onRecalculate = { callbacks.onConfirmProfileUpdate(ProfileHistoryUpdateMode.RECALCULATE) },
+            onKeepExisting = { callbacks.onConfirmProfileUpdate(ProfileHistoryUpdateMode.KEEP_EXISTING) },
+            onCancel = {
+                callbacks.onAction(AccountManagementAction.ProfileUpdateConfirmationCancelled)
+            },
+        )
+    }
+}
+
+@Composable
+private fun ProfileUpdateConfirmationDialog(
+    request: ProfileUpdateConfirmation,
+    operationInProgress: Boolean,
+    error: String?,
+    onRecalculate: () -> Unit,
+    onKeepExisting: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    AlertDialog(
+        modifier = Modifier.testTag(AccountManagementTestTags.ProfileUpdatePrompt),
+        onDismissRequest = { if (!operationInProgress) onCancel() },
+        title = { Text("Пересчитать историю?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(
+                    "Новые данные профиля могут изменить состав тела в предыдущих измерениях аккаунта «${request.update.displayName}».",
+                )
+                error?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .testTag(AccountManagementTestTags.OperationError)
+                            .semantics { contentDescription = "Ошибка сохранения: $it" },
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onRecalculate,
+                enabled = !operationInProgress,
+                modifier = Modifier
+                    .testTag(AccountManagementTestTags.ProfileUpdateRecalculate)
+                    .semantics { contentDescription = "Сохранить и пересчитать историю" },
+            ) { Text(if (operationInProgress) "Сохранение…" else "Сохранить и пересчитать") }
+        },
+        dismissButton = {
+            Column(horizontalAlignment = Alignment.End) {
+                TextButton(
+                    onClick = onKeepExisting,
+                    enabled = !operationInProgress,
+                    modifier = Modifier
+                        .testTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
+                        .semantics { contentDescription = "Сохранить без пересчёта истории" },
+                ) { Text("Без пересчёта") }
+                TextButton(
+                    onClick = onCancel,
+                    enabled = !operationInProgress,
+                    modifier = Modifier
+                        .testTag(AccountManagementTestTags.ProfileUpdateCancel)
+                        .semantics { contentDescription = "Отменить изменение профиля" },
+                ) { Text("Отмена") }
+            }
+        },
+    )
 }
 
 @Composable
@@ -345,6 +425,7 @@ fun AccountEditorDialog(
     draft: AccountEditorDraft,
     accounts: List<Account>,
     operationInProgress: Boolean,
+    error: String? = null,
     onDraftChanged: (AccountEditorDraft) -> Unit,
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
@@ -413,6 +494,15 @@ fun AccountEditorDialog(
                 }
                 validation.error(AccountEditorField.SEX)?.let {
                     Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
+                error?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier
+                            .testTag(AccountManagementTestTags.OperationError)
+                            .semantics { contentDescription = "Ошибка сохранения: $it" },
+                    )
                 }
             }
         },

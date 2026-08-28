@@ -5,6 +5,7 @@ import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
 import com.example.huaweimisync.domain.AccountProfile
 import com.example.huaweimisync.domain.AccountUpdate
+import com.example.huaweimisync.domain.ProfileHistoryUpdateMode
 import com.example.huaweimisync.worker.ExternalSyncOperationSerializer
 import java.time.Instant
 import java.time.LocalDate
@@ -27,7 +28,8 @@ class SerializedAccountUpdaterTest {
             val releaseWorker = CompletableDeferred<Unit>()
             val events = ConcurrentLinkedQueue<String>()
             val updater = SerializedAccountUpdater(
-                updateDelegate = {
+                updateDelegate = { _, mode ->
+                    assertEquals(ProfileHistoryUpdateMode.RECALCULATE, mode)
                     events += "delegate"
                     updatedAccount
                 },
@@ -43,7 +45,7 @@ class SerializedAccountUpdaterTest {
             workerEntered.await()
 
             val accountUpdate = async(start = CoroutineStart.UNDISPATCHED) {
-                updater.update(nameOnlyUpdate)
+                updater.update(nameOnlyUpdate, ProfileHistoryUpdateMode.RECALCULATE)
             }
             val wasBlocked = !accountUpdate.isCompleted
             val eventsWhileWorkerHeldLock = events.toList()
@@ -69,7 +71,8 @@ class SerializedAccountUpdaterTest {
             val workerEntered = CompletableDeferred<Unit>()
             val events = ConcurrentLinkedQueue<String>()
             val updater = SerializedAccountUpdater(
-                updateDelegate = {
+                updateDelegate = { _, mode ->
+                    assertEquals(ProfileHistoryUpdateMode.KEEP_EXISTING, mode)
                     events += "delegate-start"
                     delegateEntered.complete(Unit)
                     releaseDelegate.await()
@@ -84,7 +87,7 @@ class SerializedAccountUpdaterTest {
                 operations = operations,
             )
             val accountUpdate = async(start = CoroutineStart.UNDISPATCHED) {
-                updater.update(nameOnlyUpdate)
+                updater.update(nameOnlyUpdate, ProfileHistoryUpdateMode.KEEP_EXISTING)
             }
             delegateEntered.await()
 
@@ -127,12 +130,14 @@ class SerializedAccountUpdaterTest {
         val expected = IllegalStateException("write failed")
         var sweepCalls = 0
         val updater = SerializedAccountUpdater(
-            updateDelegate = { throw expected },
+            updateDelegate = { _, _ -> throw expected },
             sweepPendingRouting = { sweepCalls += 1 },
             operations = operations,
         )
 
-        val actual = runCatching { updater.update(nameOnlyUpdate) }.exceptionOrNull()
+        val actual = runCatching {
+            updater.update(nameOnlyUpdate, ProfileHistoryUpdateMode.RECALCULATE)
+        }.exceptionOrNull()
         var subsequentOperationEntered = false
         operations.runExclusive { subsequentOperationEntered = true }
 

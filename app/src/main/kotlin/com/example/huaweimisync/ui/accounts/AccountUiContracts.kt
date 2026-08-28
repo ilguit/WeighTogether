@@ -177,17 +177,25 @@ data class AccountDeletionRequest(
 )
 
 @Immutable
+data class ProfileUpdateConfirmation(
+    val update: AccountUpdate,
+    val editorDraft: AccountEditorDraft,
+)
+
+@Immutable
 data class AccountManagementUiState(
     val accounts: List<Account> = emptyList(),
     val primaryAccountId: AccountId? = null,
     val editor: AccountEditorDraft? = null,
     val primaryChange: PrimaryAccountChangeRequest? = null,
     val deletion: AccountDeletionRequest? = null,
+    val profileUpdateConfirmation: ProfileUpdateConfirmation? = null,
     val operationInProgress: Boolean = false,
+    val operationError: String? = null,
 ) {
     init {
         require(accounts.distinctBy(Account::id).size == accounts.size)
-        require(listOfNotNull(editor, primaryChange, deletion).size <= 1) {
+        require(listOfNotNull(editor, primaryChange, deletion, profileUpdateConfirmation).size <= 1) {
             "Only one account-management dialog may be open"
         }
     }
@@ -232,12 +240,16 @@ fun reconcileAccountManagement(
             replacementAccountId = replacementAccountId,
         )
     }
+    val profileUpdateConfirmation = state.profileUpdateConfirmation?.takeIf {
+        it.update.id in accountIds
+    }
     return state.copy(
         accounts = uniqueAccounts,
         primaryAccountId = validPrimaryAccountId,
         editor = editor,
         primaryChange = primaryChange,
         deletion = deletion,
+        profileUpdateConfirmation = profileUpdateConfirmation,
     )
 }
 
@@ -249,6 +261,11 @@ sealed interface AccountManagementAction {
     data class EditorChanged(val draft: AccountEditorDraft) : AccountManagementAction
     data class ReplacementSelected(val accountId: AccountId) : AccountManagementAction
     data class SyncModeSelected(val mode: PrimaryHistorySyncMode) : AccountManagementAction
+    data class ProfileUpdateConfirmationRequested(
+        val update: AccountUpdate,
+        val editorDraft: AccountEditorDraft,
+    ) : AccountManagementAction
+    data object ProfileUpdateConfirmationCancelled : AccountManagementAction
     data object DialogDismissed : AccountManagementAction
 }
 
@@ -262,6 +279,8 @@ fun reduceAccountManagement(
             editor = AccountEditorDraft.add(),
             primaryChange = null,
             deletion = null,
+            profileUpdateConfirmation = null,
+            operationError = null,
         )
         is AccountManagementAction.EditRequested -> state.accounts
             .firstOrNull { it.id == action.accountId }
@@ -270,6 +289,8 @@ fun reduceAccountManagement(
                     editor = AccountEditorDraft.edit(it),
                     primaryChange = null,
                     deletion = null,
+                    profileUpdateConfirmation = null,
+                    operationError = null,
                 )
             }
             ?: state
@@ -282,6 +303,8 @@ fun reduceAccountManagement(
                 editor = null,
                 primaryChange = PrimaryAccountChangeRequest(action.accountId),
                 deletion = null,
+                profileUpdateConfirmation = null,
+                operationError = null,
             )
         }
         is AccountManagementAction.DeleteRequested -> state.accounts
@@ -301,6 +324,8 @@ fun reduceAccountManagement(
                         wasPrimary = isPrimary,
                         replacementAccountId = replacement,
                     ),
+                    profileUpdateConfirmation = null,
+                    operationError = null,
                 )
             }
             ?: state
@@ -308,7 +333,7 @@ fun reduceAccountManagement(
             state.editor != null &&
             state.editor.editingAccountId == action.draft.editingAccountId
         ) {
-            state.copy(editor = action.draft)
+            state.copy(editor = action.draft, operationError = null)
         } else {
             state
         }
@@ -332,10 +357,32 @@ fun reduceAccountManagement(
             )
             else -> state
         }
+        is AccountManagementAction.ProfileUpdateConfirmationRequested -> {
+            if (state.editor?.editingAccountId != action.update.id) state else state.copy(
+                editor = null,
+                primaryChange = null,
+                deletion = null,
+                profileUpdateConfirmation = ProfileUpdateConfirmation(
+                    update = action.update,
+                    editorDraft = action.editorDraft,
+                ),
+                operationError = null,
+            )
+        }
+        AccountManagementAction.ProfileUpdateConfirmationCancelled -> {
+            val pending = state.profileUpdateConfirmation ?: return state
+            state.copy(
+                editor = pending.editorDraft,
+                profileUpdateConfirmation = null,
+                operationError = null,
+            )
+        }
         AccountManagementAction.DialogDismissed -> state.copy(
             editor = null,
             primaryChange = null,
             deletion = null,
+            profileUpdateConfirmation = null,
+            operationError = null,
         )
     }
 }

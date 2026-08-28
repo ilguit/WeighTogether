@@ -37,6 +37,18 @@ interface MultiAccountMeasurementDao {
 
     @Query(
         """
+        SELECT EXISTS(
+            SELECT 1 FROM measurements
+            WHERE accountId = :accountId
+                AND measurementType = 'FULL'
+                AND externalSyncPolicy != 'USER_LOCAL'
+        )
+        """,
+    )
+    suspend fun hasProfileRecalculationCandidates(accountId: String): Boolean
+
+    @Query(
+        """
         SELECT * FROM measurements
         WHERE deviceAddress = :deviceAddress COLLATE NOCASE
             AND rawWeight = :rawWeight
