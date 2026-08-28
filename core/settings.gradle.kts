@@ -14,4 +14,4 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HuaweiMiSyncCore"
+rootProject.name = "ScaleSyncCore"

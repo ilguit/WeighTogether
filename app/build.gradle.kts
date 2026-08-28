@@ -3,16 +3,16 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
-    id("com.example.huaweimisync.release-history")
-    id("com.example.huaweimisync.room-schema-guard")
+    id("com.palixander.scalesync.release-history")
+    id("com.palixander.scalesync.room-schema-guard")
 }
 
 android {
-    namespace = "com.example.huaweimisync"
+    namespace = "com.palixander.scalesync"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.huaweimisync"
+        applicationId = "com.palixander.scalesync"
         minSdk = 26
         targetSdk = 36
         versionCode = 66

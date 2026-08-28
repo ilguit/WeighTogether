@@ -16,5 +16,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "HuaweiMiSync"
+rootProject.name = "ScaleSync"
 include(":app", ":core")
