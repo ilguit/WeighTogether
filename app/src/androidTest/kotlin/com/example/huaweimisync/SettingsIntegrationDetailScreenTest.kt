@@ -9,6 +9,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.semantics.SemanticsProperties
 import com.example.huaweimisync.data.AppSettings
 import org.junit.Assert.assertEquals
 import org.junit.Assume.assumeFalse
@@ -30,6 +31,11 @@ class SettingsIntegrationDetailScreenTest {
             ),
         )
         compose.onNodeWithText("Проверка разрешений…").assertExists()
+        assertEquals(
+            "Проверка разрешений…",
+            compose.onNodeWithTag(SettingsScreenTestTags.IntegrationStatus)
+                .fetchSemanticsNode().config[SemanticsProperties.StateDescription],
+        )
         compose.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertIsNotEnabled()
         compose.onNodeWithTag(SettingsScreenTestTags.DisableHealthConnect).assertDoesNotExist()
 

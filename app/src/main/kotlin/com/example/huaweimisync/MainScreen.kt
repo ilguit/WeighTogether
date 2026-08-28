@@ -43,6 +43,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -129,6 +131,7 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
     const val TopBarTitle = "main-top-bar-title"
+    const val SettingsBack = "settings-detail-back"
     const val PendingQueueAction = "measurements-pending-queue-action"
     const val PendingQueueBadge = "measurements-pending-queue-badge"
     const val HistoryAction = "measurements-history-action"
@@ -433,6 +436,10 @@ internal fun HuaweiMiSyncScaffold(
     val changelogOpen = !profileEditorOpen && currentDestination == AppDestination.CHANGELOG
     val settingsDetailOpen = currentSection == AppSection.SETTINGS &&
         settingsDestination != SettingsDestination.ROOT && !changelogOpen
+    val settingsBackFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(settingsDetailOpen, settingsDestination) {
+        if (settingsDetailOpen) settingsBackFocusRequester.requestFocus()
+    }
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
         profileEditorOpen -> true
@@ -504,6 +511,13 @@ internal fun HuaweiMiSyncScaffold(
                                 petProfileOpen = petDestination != null,
                                 settingsDetailOpen = settingsDetailOpen,
                             ),
+                            backModifier = if (settingsDetailOpen) {
+                                Modifier
+                                    .testTag(MainScreenTestTags.SettingsBack)
+                                    .focusRequester(settingsBackFocusRequester)
+                            } else {
+                                Modifier
+                            },
                             showMeasurementActions = petDestination == null && !profileEditorOpen &&
                                 currentSection == AppSection.MEASUREMENTS &&
                                 measurementsDestination == MeasurementsDestination.SUMMARY,
@@ -681,6 +695,7 @@ private fun HuaweiTopBar(
     showBack: Boolean,
     onBack: () -> Unit,
     backContentDescription: String,
+    backModifier: Modifier,
     showMeasurementActions: Boolean,
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
@@ -706,6 +721,7 @@ private fun HuaweiTopBar(
                     icon = HuaweiIcons.Back,
                     contentDescription = backContentDescription,
                     onClick = onBack,
+                    modifier = backModifier,
                 )
             }
         },

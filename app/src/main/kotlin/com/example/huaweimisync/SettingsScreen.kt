@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.AlertDialog
@@ -37,14 +39,18 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -199,6 +205,7 @@ internal object SettingsScreenTestTags {
     const val ForgetScale = "settings-forget-scale"
     const val DestructiveDialog = "settings-destructive-dialog"
     const val DestructiveConfirm = "settings-destructive-confirm"
+    const val IntegrationStatus = "settings-integration-status"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -332,15 +339,45 @@ internal fun SettingsScreen(
 ) {
     var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
     var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
+    var returnFocusDestination by rememberSaveable { mutableStateOf<SettingsDestination?>(null) }
+    val rootListState = rememberLazyListState()
+    val rootFocusRequesters = remember {
+        settingsRootDestinations(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+            .associateWith { FocusRequester() }
+    }
+    LaunchedEffect(destination) {
+        if (destination == SettingsDestination.ROOT) {
+            returnFocusDestination?.let { returnedFrom ->
+                val destinationIndex = settingsRootDestinations(
+                    BuildConfig.HUAWEI_EXTENDED_ENABLED,
+                ).indexOf(returnedFrom)
+                if (destinationIndex >= 0) {
+                    rootListState.scrollToItem(destinationIndex + if (destinationIndex == 0) 0 else 1)
+                    rootFocusRequesters[returnedFrom]?.requestFocus()
+                }
+            }
+            returnFocusDestination = null
+        }
+    }
+    val openDestination: (SettingsDestination) -> Unit = {
+        returnFocusDestination = it
+        onDestinationChanged(it)
+    }
     when (destination) {
-        SettingsDestination.ROOT -> SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+        SettingsDestination.ROOT -> SettingsRootScreen(
+            state, callbacks, contentPadding, openDestination, rootFocusRequesters, rootListState,
+            modifier,
+        )
         SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
         SettingsDestination.SCALE -> SettingsScaleDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.HEALTH_CONNECT -> SettingsHealthConnectDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.HUAWEI_HEALTH -> if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
             SettingsHuaweiHealthDetail(state, callbacks, contentPadding, modifier)
         } else {
-            SettingsRootScreen(state, callbacks, contentPadding, onDestinationChanged, modifier)
+            SettingsRootScreen(
+                state, callbacks, contentPadding, openDestination, rootFocusRequesters,
+                rootListState, modifier,
+            )
         }
         SettingsDestination.BACKUP -> SettingsBackupDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.DIAGNOSTICS -> SettingsDiagnosticsDetail(
@@ -591,6 +628,9 @@ private fun IntegrationDetailCard(
             Text(
                 presentation.supportingText,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier
+                    .testTag(SettingsScreenTestTags.IntegrationStatus)
+                    .semantics { stateDescription = presentation.supportingText },
             )
             presentation.actionLabel?.let { label ->
                 Button(
@@ -681,6 +721,8 @@ private fun SettingsRootScreen(
     callbacks: SettingsCallbacks,
     contentPadding: PaddingValues,
     onDestinationChanged: (SettingsDestination) -> Unit,
+    focusRequesters: Map<SettingsDestination, FocusRequester>,
+    listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
     val healthPresentation = healthConnectPresentation(
@@ -697,6 +739,7 @@ private fun SettingsRootScreen(
     ) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(SettingsScreenTestTags.List),
+            state = listState,
             contentPadding = PaddingValues(
                 start = HuaweiDimensions.ContentPadding,
                 end = HuaweiDimensions.ContentPadding,
@@ -705,21 +748,23 @@ private fun SettingsRootScreen(
             ),
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
-            item { SettingsNavigationRow(SettingsDestination.PROFILES, "Люди и питомцы", SettingsScreenTestTags.ProfilesRow, onDestinationChanged) }
+            item { SettingsNavigationRow(SettingsDestination.PROFILES, "Люди и питомцы", SettingsScreenTestTags.ProfilesRow, onDestinationChanged, focusRequesters[SettingsDestination.PROFILES]) }
             item {
                 Text(
                     "Весы и синхронизация",
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(start = HuaweiDimensions.CompactContentPadding),
+                    modifier = Modifier
+                        .padding(start = HuaweiDimensions.CompactContentPadding)
+                        .semantics { heading() },
                 )
             }
-            item { SettingsNavigationRow(SettingsDestination.SCALE, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged) }
-            item { SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged) }
+            item { SettingsNavigationRow(SettingsDestination.SCALE, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged, focusRequesters[SettingsDestination.SCALE]) }
+            item { SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged, focusRequesters[SettingsDestination.HEALTH_CONNECT]) }
             if (BuildConfig.HUAWEI_EXTENDED_ENABLED) item {
-                SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged)
+                SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH])
             }
-            item { SettingsNavigationRow(SettingsDestination.BACKUP, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged) }
-            item { SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged) }
+            item { SettingsNavigationRow(SettingsDestination.BACKUP, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged, focusRequesters[SettingsDestination.BACKUP]) }
+            item { SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged, focusRequesters[SettingsDestination.DIAGNOSTICS]) }
             item {
                 HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
                     HuaweiSettingRow(
@@ -728,6 +773,8 @@ private fun SettingsRootScreen(
                         supportingText = "Что нового в приложении",
                         modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
                         onClick = callbacks.onOpenChangelog,
+                        titleMaxLines = Int.MAX_VALUE,
+                        supportingTextMaxLines = Int.MAX_VALUE,
                     ) {
                         HuaweiIconButton(HuaweiIcons.ChevronRight, "Открыть историю версий", callbacks.onOpenChangelog)
                     }
@@ -749,14 +796,25 @@ private fun SettingsNavigationRow(
     supportingText: String,
     testTag: String,
     onDestinationChanged: (SettingsDestination) -> Unit,
+    focusRequester: FocusRequester?,
 ) {
     HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
         HuaweiSettingRow(
             icon = HuaweiIcons.ChevronRight,
             title = destination.title,
             supportingText = supportingText,
-            modifier = Modifier.testTag(testTag),
+            modifier = Modifier
+                .testTag(testTag)
+                .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
+                .semantics {
+                    stateDescription = supportingText
+                    if (destination == SettingsDestination.HEALTH_CONNECT) {
+                        contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                    }
+                },
             onClick = { onDestinationChanged(destination) },
+            titleMaxLines = Int.MAX_VALUE,
+            supportingTextMaxLines = Int.MAX_VALUE,
         ) {
             HuaweiIconButton(
                 icon = HuaweiIcons.ChevronRight,

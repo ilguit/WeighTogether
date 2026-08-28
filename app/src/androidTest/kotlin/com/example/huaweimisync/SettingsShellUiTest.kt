@@ -9,6 +9,7 @@ import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextReplacement
+import androidx.compose.ui.semantics.SemanticsProperties
 import com.example.huaweimisync.core.Sex
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.domain.Account
@@ -187,6 +189,33 @@ class SettingsShellUiTest {
         }
         composeRule.onNodeWithTag(SettingsScreenTestTags.AccountsSection).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.AdditionalSection).assertDoesNotExist()
+    }
+
+    @Test
+    fun detailFocusStartsOnBackAndReturnsToOriginatingRootRow() {
+        setSettingsShell(expandSections = false)
+
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsFocused()
+
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).assertIsFocused()
+    }
+
+    @Test
+    fun navigationRowsExposeTheirTextualStatusToAccessibilityServices() {
+        val longScaleStatus = "Очень длинное имя весов для узкого экрана и крупного шрифта без потери текста"
+        setSettingsShell(
+            expandSections = false,
+            settings = AppSettings(scaleAddress = "AA:BB", scaleName = longScaleStatus),
+        )
+
+        val scaleNode = composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleRow)
+            .fetchSemanticsNode()
+        assertEquals(longScaleStatus, scaleNode.config[SemanticsProperties.StateDescription])
+        composeRule.onNodeWithText(longScaleStatus).assertExists()
     }
 
     @Test
