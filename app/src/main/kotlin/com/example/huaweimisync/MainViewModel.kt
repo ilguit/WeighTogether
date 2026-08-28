@@ -15,8 +15,10 @@ import com.example.huaweimisync.ble.BleSupport
 import com.example.huaweimisync.ble.ManualScaleScanner
 import com.example.huaweimisync.ble.ReliabilityScanService
 import com.example.huaweimisync.ble.ScanWorkScheduler
+import com.example.huaweimisync.ble.ForgetScaleCoordinator
 import com.example.huaweimisync.data.AppSettings
 import com.example.huaweimisync.data.AccountNameConflictException
+import com.example.huaweimisync.data.ExternalSyncDestination
 import com.example.huaweimisync.data.MeasurementIngestionResult
 import com.example.huaweimisync.domain.Account
 import com.example.huaweimisync.domain.AccountId
@@ -107,6 +109,7 @@ data class MainUiState(
     val pets: List<PetWithLatestWeight> = emptyList(),
     val petMeasurement: PetMeasurementUiState = PetMeasurementUiState.Idle,
     val petManagement: PetManagementUiState = PetManagementUiState(),
+    val destructiveActionInProgress: DestructiveSettingsAction? = null,
 ) {
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == accountSettings.primaryAccountId }
@@ -121,6 +124,8 @@ data class MainUiState(
             selectedAccountSyncEligible = canUseExternalIntegrations,
         )
 }
+
+enum class DestructiveSettingsAction { HEALTH_CONNECT, HUAWEI, SCALE }
 
 private data class AccountsSnapshot(
     val accounts: List<Account>,
@@ -152,6 +157,7 @@ private data class MainCoreState(
     val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
     val huawei: HuaweiIntegrationUiState,
+    val destructiveActionInProgress: DestructiveSettingsAction?,
 )
 
 private data class ScaleScanningState(
@@ -176,7 +182,13 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
     private val huaweiAuthorization = HuaweiAuthorizationController(
         gateway = container.huaweiHealth,
-        retryPendingHuawei = container.repository::retryPendingHuawei,
+        onExplicitAuthorizationConfirmed = {
+            container.profileStore.setExternalSyncEnabled(
+                ExternalSyncDestination.HUAWEI,
+                true,
+            )
+            container.repository.retryPendingHuawei()
+        },
     )
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
@@ -274,6 +286,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         container.pendingMeasurementNotifications.areNotificationsAllowed(),
     )
     private val resolverOperationInProgress = MutableStateFlow(false)
+    private val destructiveActionInProgress = MutableStateFlow<DestructiveSettingsAction?>(null)
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
     private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
@@ -300,7 +313,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         externalSyncPaused,
         healthConnect,
         huawei,
-    ) { scanState, isSyncPaused, healthConnectState, huaweiState ->
+        destructiveActionInProgress,
+    ) { scanState, isSyncPaused, healthConnectState, huaweiState, destructiveAction ->
         MainCoreState(
             settings = scanState.settings,
             scanning = scanState.scanning,
@@ -308,6 +322,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
             huawei = huaweiState,
+            destructiveActionInProgress = destructiveAction,
         )
     }
     private val accountManagement = combine(
@@ -380,6 +395,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
             huawei = core.huawei,
+            destructiveActionInProgress = core.destructiveActionInProgress,
             profilesLoaded = accountSnapshot.loaded,
             accounts = accountSnapshot.accounts,
             accountSettings = accountSnapshot.settings,
@@ -961,6 +977,73 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         showMessage(if (enabled) "Режим повышенной надёжности включён" else "Режим выключен")
     }
 
+    /** Stops every BLE producer before durably removing the selected scale. */
+    fun forgetScale() = runDestructiveAction(DestructiveSettingsAction.SCALE) {
+        ForgetScaleCoordinator(
+            stopBleSessions = {
+                invalidatePetMeasurementStartup()
+                scanner.stop()
+                scanning.value = false
+                scaleRefresh.clear()
+                petMeasurementCoordinator.clear()
+                refreshScanner.stop()
+                petScanner.stop()
+            },
+            unregisterPendingIntentScan = {
+                BackgroundScanRegistrar.unregister(getApplication())
+            },
+            stopReliabilityService = {
+                ReliabilityScanService.setEnabled(getApplication(), false)
+            },
+            cancelBleWork = {
+                WorkManager.getInstance(getApplication())
+                    .cancelAllWorkByTag(ScanWorkScheduler.BLE_PROCESSING_WORK_TAG)
+            },
+            packetGate = container.scalePacketProcessingGate,
+            clearSettings = container.profileStore::forgetScale,
+        ).forget()
+        showMessage("Весы забыты")
+    }
+
+    fun disableHealthConnect() = disableExternalIntegration(
+        DestructiveSettingsAction.HEALTH_CONNECT,
+        ExternalSyncDestination.HEALTH_CONNECT,
+        "Health Connect отключён в приложении. Разрешения можно отозвать в системных настройках.",
+    )
+
+    fun disableHuawei() = disableExternalIntegration(
+        DestructiveSettingsAction.HUAWEI,
+        ExternalSyncDestination.HUAWEI,
+        "Huawei Health отключён в приложении. Доступ можно отозвать в Huawei Health или настройках приложения.",
+    )
+
+    private fun disableExternalIntegration(
+        action: DestructiveSettingsAction,
+        destination: ExternalSyncDestination,
+        successMessage: String,
+    ) = runDestructiveAction(action) {
+        container.profileStore.setExternalSyncEnabled(destination, false)
+        showMessage(successMessage)
+    }
+
+    private fun runDestructiveAction(
+        action: DestructiveSettingsAction,
+        block: suspend () -> Unit,
+    ) {
+        if (!destructiveActionInProgress.compareAndSet(null, action)) return
+        viewModelScope.launch {
+            try {
+                block()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                showMessage(error.userFacingMessage("Не удалось выполнить действие"))
+            } finally {
+                destructiveActionInProgress.compareAndSet(action, null)
+            }
+        }
+    }
+
     fun authorizeHuawei() = viewModelScope.launch {
         val attempt = huaweiAuthorization.authorize { huawei.value = it }
         showMessage(huaweiAuthorizationMessage(attempt))
@@ -1040,6 +1123,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateHealthConnectPermissions(
             notifyResult = true,
             grantedHint = if (allGranted) healthConnectPermissions else null,
+            explicitAuthorization = true,
         )
     }
 
@@ -1047,6 +1131,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         updateHealthConnectPermissions(
             notifyResult = true,
             grantedHint = grantedPermissions,
+            explicitAuthorization = true,
         )
     }
 
@@ -1386,6 +1471,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun updateHealthConnectPermissions(
         notifyResult: Boolean,
         grantedHint: Set<String>? = null,
+        explicitAuthorization: Boolean = false,
     ) {
         val required = healthConnectPermissions
         val availability = container.healthConnect.availability()
@@ -1419,7 +1505,15 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             grantedPermissions = granted,
         )
         healthConnect.value = snapshot
-        if (snapshot.isConnected) {
+        if (shouldActivateHealthConnectAfterPermissionRefresh(
+                isConnected = snapshot.isConnected,
+                explicitAuthorization = explicitAuthorization,
+            )
+        ) {
+            container.profileStore.setExternalSyncEnabled(
+                ExternalSyncDestination.HEALTH_CONNECT,
+                true,
+            )
             container.repository.retryPendingHealthConnect()
             if (notifyResult) {
                 showMessage("Health Connect: разрешения выданы, очередь перезапущена")

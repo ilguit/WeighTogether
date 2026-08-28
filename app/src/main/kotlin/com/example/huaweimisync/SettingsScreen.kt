@@ -34,6 +34,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -97,6 +98,9 @@ internal data class SettingsCallbacks(
     val onImportBackup: (BackupImportMode) -> Unit = {},
     val onConfirmBackupImport: () -> Unit = {},
     val onDismissBackupImport: () -> Unit = {},
+    val onDisableHealthConnect: () -> Unit = {},
+    val onDisableHuawei: () -> Unit = {},
+    val onForgetScale: () -> Unit = {},
 )
 
 internal enum class AdditionalExpansion {
@@ -139,6 +143,12 @@ internal object SettingsScreenTestTags {
     const val PetsSection = "settings-pets-section"
     const val PetEditor = "settings-pet-editor"
     const val PetDeleteDialog = "settings-pet-delete-dialog"
+    const val DestructiveSection = "settings-destructive-section"
+    const val DisableHealthConnect = "settings-disable-health-connect"
+    const val DisableHuawei = "settings-disable-huawei"
+    const val ForgetScale = "settings-forget-scale"
+    const val DestructiveDialog = "settings-destructive-dialog"
+    const val DestructiveConfirm = "settings-destructive-confirm"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -178,6 +188,7 @@ internal const val BACKUP_REPLACE_WARNING =
 
 internal fun healthConnectPresentation(
     state: HealthConnectPermissionsUiState,
+    locallyEnabled: Boolean = true,
 ): IntegrationPresentation = when (state.availability) {
     HealthConnectAvailability.CHECKING -> IntegrationPresentation(
         supportingText = "Проверка разрешений…",
@@ -194,7 +205,12 @@ internal fun healthConnectPresentation(
         supportingText = "Не удалось проверить разрешения",
         actionLabel = "Подключить",
     )
-    HealthConnectAvailability.AVAILABLE -> if (state.isConnected) {
+    HealthConnectAvailability.AVAILABLE -> if (!locallyEnabled) {
+        IntegrationPresentation(
+            supportingText = "Отключено в приложении",
+            actionLabel = "Подключить снова",
+        )
+    } else if (state.isConnected) {
         IntegrationPresentation(
             supportingText = "Подключено · все разрешения выданы",
             actionLabel = "Открыть",
@@ -209,8 +225,21 @@ internal fun healthConnectPresentation(
     }
 }
 
+/** Keeps permission management system-owned while explaining the manual fallback when unavailable. */
+internal fun IntegrationPresentation.withHealthConnectManagementFallback(
+    systemManagementAvailable: Boolean,
+): IntegrationPresentation = if (actionOpensManagement && !systemManagementAvailable) {
+    copy(
+        supportingText = "$supportingText · управляйте доступом вручную в Health Connect",
+        actionLabel = null,
+    )
+} else {
+    this
+}
+
 internal fun huaweiIntegrationPresentation(
     state: HuaweiIntegrationUiState,
+    locallyEnabled: Boolean = true,
 ): IntegrationPresentation = when (state.status) {
     HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD -> IntegrationPresentation(
         supportingText = "Недоступно в personal-сборке",
@@ -227,9 +256,14 @@ internal fun huaweiIntegrationPresentation(
         supportingText = "Настроено · требуется авторизация",
         actionLabel = "Разрешить",
     )
-    HuaweiIntegrationStatus.AUTHORIZED -> IntegrationPresentation(
-        supportingText = "Подключено",
-    )
+    HuaweiIntegrationStatus.AUTHORIZED -> if (locallyEnabled) {
+        IntegrationPresentation(supportingText = "Подключено")
+    } else {
+        IntegrationPresentation(
+            supportingText = "Отключено в приложении",
+            actionLabel = "Подключить снова",
+        )
+    }
     HuaweiIntegrationStatus.CHECK_FAILED -> IntegrationPresentation(
         supportingText = "Не удалось проверить разрешение",
         actionLabel = "Повторить",
@@ -245,6 +279,14 @@ internal fun SettingsScreen(
     modifier: Modifier = Modifier,
 ) {
     var additionalExpansion by rememberSaveable { mutableStateOf(AdditionalExpansion.Collapsed) }
+    var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
+    var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(state.destructiveActionInProgress) {
+        if (destructiveSubmitted && state.destructiveActionInProgress == null) {
+            destructiveConfirmation = null
+            destructiveSubmitted = false
+        }
+    }
 
     Box(
         modifier = modifier.fillMaxSize().padding(contentPadding),
@@ -288,6 +330,7 @@ internal fun SettingsScreen(
             }
             item { SettingsIntegrationsSection(state, callbacks) }
             item { SettingsScaleSection(state, callbacks.onManualScan) }
+            item { SettingsDestructiveSection(state) { destructiveConfirmation = it } }
             item { SettingsBackupSection(state.backup, callbacks) }
             item {
                 SettingsAdditionalSection(
@@ -350,6 +393,110 @@ internal fun SettingsScreen(
         )
     }
     PetManagementDialogs(state, callbacks)
+    destructiveConfirmation?.let { action ->
+        DestructiveConfirmationDialog(
+            action = action,
+            busy = state.destructiveActionInProgress != null,
+            onDismiss = {
+                if (state.destructiveActionInProgress == null) {
+                    destructiveConfirmation = null
+                    destructiveSubmitted = false
+                }
+            },
+            onConfirm = {
+                destructiveSubmitted = true
+                when (action) {
+                    DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
+                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
+                    DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
+                }
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsDestructiveSection(
+    state: MainUiState,
+    onRequest: (DestructiveSettingsAction) -> Unit,
+) {
+    val busy = state.destructiveActionInProgress != null
+    val healthEnabled = state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
+    val huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
+        state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
+    val scaleEnabled = state.settings.scaleAddress != null
+    if (!healthEnabled && !huaweiEnabled && !scaleEnabled) return
+    SettingsSection(title = "Отключение и сброс") {
+        HuaweiSurface(
+            modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveSection),
+            contentPadding = PaddingValues(HuaweiDimensions.ContentPadding),
+        ) {
+            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+                Text(
+                    "Эти действия прекращают будущую синхронизацию или удаляют привязку устройства.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (healthEnabled) OutlinedButton(
+                    onClick = { onRequest(DestructiveSettingsAction.HEALTH_CONNECT) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHealthConnect),
+                ) { Text("Отключить Health Connect") }
+                if (huaweiEnabled) OutlinedButton(
+                    onClick = { onRequest(DestructiveSettingsAction.HUAWEI) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHuawei),
+                ) { Text("Отключить Huawei Health") }
+                if (scaleEnabled) OutlinedButton(
+                    onClick = { onRequest(DestructiveSettingsAction.SCALE) },
+                    enabled = !busy,
+                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ForgetScale),
+                ) { Text("Забыть выбранные весы") }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DestructiveConfirmationDialog(
+    action: DestructiveSettingsAction,
+    busy: Boolean,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit,
+) {
+    val (title, warning) = when (action) {
+        DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect?" to
+            "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Системные разрешения отзываются отдельно."
+        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health?" to
+            "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Доступ отзывается отдельно в Huawei Health."
+        DestructiveSettingsAction.SCALE -> "Забыть выбранные весы?" to
+            "Фоновое сканирование будет остановлено, а привязку весов потребуется настроить заново. Измерения не удалятся."
+    }
+    AlertDialog(
+        modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveDialog),
+        onDismissRequest = { if (!busy) onDismiss() },
+        title = { Text(title) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                Text(warning)
+                if (busy) Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    CircularProgressIndicator()
+                    Text("Выполняется…")
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                enabled = !busy,
+                modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveConfirm),
+            ) { Text("Подтвердить") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Отмена") } },
+    )
 }
 
 @Composable
@@ -477,12 +624,22 @@ private fun SettingsIntegrationsSection(
         !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
         else -> "Основной: ${primary.displayName}"
     }
-    val healthConnect = healthConnectPresentation(state.healthConnect).forPrimaryAccount(
-        primaryStatus,
-        healthConnectCapabilities.selectedAccountSyncEligible,
+    val healthConnect = healthConnectPresentation(
+        state.healthConnect,
+        locallyEnabled = state.settings.healthConnectSyncEnabled,
     )
+        .withHealthConnectManagementFallback(
+            healthConnectCapabilities.systemManagementAvailable,
+        )
+        .forPrimaryAccount(
+            primaryStatus,
+            healthConnectCapabilities.selectedAccountSyncEligible,
+        )
     val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-        huaweiIntegrationPresentation(state.huawei).forPrimaryAccount(
+        huaweiIntegrationPresentation(
+            state.huawei,
+            locallyEnabled = state.settings.huaweiSyncEnabled,
+        ).forPrimaryAccount(
             primaryStatus,
             state.canUseExternalIntegrations,
         )

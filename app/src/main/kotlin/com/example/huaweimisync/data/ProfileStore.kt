@@ -14,6 +14,9 @@ data class AppSettings(
     val selectedChartMetricKeys: Set<String>? = null,
     val homeKgChartSeriesKeys: Set<String>? = null,
     val externalSyncPaused: Boolean = false,
+    // Missing keys from installations created before #43 intentionally mean enabled.
+    val healthConnectSyncEnabled: Boolean = true,
+    val huaweiSyncEnabled: Boolean = true,
 )
 
 /** Settings that are meaningful when moved to another installation or device. */
@@ -43,11 +46,16 @@ interface ExternalSyncPauseSettingsStore {
     fun setExternalSyncPaused(value: Boolean)
 }
 
+interface ExternalSyncDestinationSettingsStore {
+    fun isExternalSyncEnabled(destination: ExternalSyncDestination): Boolean
+    fun setExternalSyncEnabled(destination: ExternalSyncDestination, enabled: Boolean)
+}
+
 class ProfileStore(
     context: Context,
     private val portableOperations: ExternalSyncOperationSerializer = ExternalSyncOperationSerializer(),
     private val nowEpochMillis: () -> Long = System::currentTimeMillis,
-) : ExternalSyncPauseSettingsStore {
+) : ExternalSyncPauseSettingsStore, ExternalSyncDestinationSettingsStore {
     private val preferences = context.getSharedPreferences("mi_sync_settings", Context.MODE_PRIVATE)
     private val mutableSettings = MutableStateFlow(read())
     @Volatile
@@ -135,6 +143,25 @@ class ProfileStore(
         refresh()
     }
 
+    override fun isExternalSyncEnabled(destination: ExternalSyncDestination): Boolean =
+        when (destination) {
+            ExternalSyncDestination.HEALTH_CONNECT -> settings.value.healthConnectSyncEnabled
+            ExternalSyncDestination.HUAWEI -> settings.value.huaweiSyncEnabled
+        }
+
+    override fun setExternalSyncEnabled(destination: ExternalSyncDestination, enabled: Boolean) {
+        portableOperations.runExclusiveBlocking {
+            val key = when (destination) {
+                ExternalSyncDestination.HEALTH_CONNECT -> KEY_HEALTH_CONNECT_SYNC_ENABLED
+                ExternalSyncDestination.HUAWEI -> KEY_HUAWEI_SYNC_ENABLED
+            }
+            check(preferences.edit().putBoolean(key, enabled).commit()) {
+                "Could not durably commit ${destination.name} sync setting"
+            }
+            refresh()
+        }
+    }
+
     private fun refresh() {
         mutableSettings.value = read()
     }
@@ -160,6 +187,8 @@ class ProfileStore(
                 .getStringSet(KEY_HOME_KG_CHART_SERIES, null)
                 ?.toSet(),
             externalSyncPaused = externalSyncPaused,
+            healthConnectSyncEnabled = preferences.getBoolean(KEY_HEALTH_CONNECT_SYNC_ENABLED, true),
+            huaweiSyncEnabled = preferences.getBoolean(KEY_HUAWEI_SYNC_ENABLED, true),
         )
     }
 
@@ -186,5 +215,7 @@ class ProfileStore(
         const val KEY_HOME_KG_CHART_SERIES = "home_kg_chart_series"
         const val KEY_EXTERNAL_SYNC_PAUSED = "external_sync_paused"
         const val KEY_EXTERNAL_SYNC_PAUSED_UNTIL = "external_sync_paused_until_epoch_millis"
+        const val KEY_HEALTH_CONNECT_SYNC_ENABLED = "health_connect_sync_enabled"
+        const val KEY_HUAWEI_SYNC_ENABLED = "huawei_sync_enabled"
     }
 }
