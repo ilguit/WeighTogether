@@ -121,7 +121,7 @@ class PendingDecisionPresentationCoordinatorTest {
             dismissalStore = store,
         )
         coordinator.updatePendingMeasurements(ids("a", "b"))
-        coordinator.recordCurrentNotificationDismissed()
+        coordinator.recordNotificationDismissed(ids("a", "b"))
         coordinator.updatePendingMeasurements(ids("a", "b"))
         coordinator.updatePendingMeasurements(ids("a", "b", "c"))
 
@@ -145,7 +145,7 @@ class PendingDecisionPresentationCoordinatorTest {
     }
 
     @Test
-    fun receiverSnapshotIsPersistedInsteadOfLaterCoordinatorState() {
+    fun coldStartReceiverOnlyPersistsItsSnapshot() {
         val store = MemoryDismissalStore()
         val posted = mutableListOf<Set<PendingMeasurementId>>()
         val coordinator = PendingDecisionPresentationCoordinator(
@@ -154,15 +154,48 @@ class PendingDecisionPresentationCoordinatorTest {
             cancelNotification = {},
             dismissalStore = store,
         )
-        coordinator.updatePendingMeasurements(ids("old", "new"))
-
         coordinator.recordNotificationDismissed(ids("old"))
 
         assertEquals(ids("old"), store.ids)
-        assertEquals(
-            listOf(ids("old", "new"), ids("old", "new")),
-            posted,
+        assertTrue(posted.isEmpty())
+    }
+
+    @Test
+    fun staleDismissIntentDoesNotSuppressNewPendingNotification() {
+        val store = MemoryDismissalStore()
+        val posted = mutableListOf<Set<PendingMeasurementId>>()
+        val coordinator = PendingDecisionPresentationCoordinator(
+            notificationsAllowed = { true },
+            postNotification = posted::add,
+            cancelNotification = {},
+            dismissalStore = store,
         )
+
+        coordinator.updatePendingMeasurements(ids("new"))
+        coordinator.recordNotificationDismissed(ids("old"))
+
+        assertEquals(listOf(ids("new")), posted)
+        assertEquals(ids("old"), store.ids)
+
+        coordinator.updatePendingMeasurements(ids("new"))
+
+        assertEquals(listOf(ids("new"), ids("new")), posted)
+        assertTrue(store.ids.isEmpty())
+    }
+
+    @Test
+    fun dismissalStoreAtomicallyUnionsSnapshotsBeforeAuthoritativeRetain() {
+        val store = MemoryDismissalStore(ids("existing"))
+
+        store.addDismissedIds(ids("first"))
+        store.addDismissedIds(ids("second"))
+
+        assertEquals(ids("existing", "first", "second"), store.ids)
+        assertEquals(
+            ids("first", "second"),
+            store.retainDismissedIds(ids("first", "second", "pending")),
+        )
+        assertEquals(ids("first", "second"), store.ids)
     }
 
     @Test
@@ -183,10 +216,15 @@ class PendingDecisionPresentationCoordinatorTest {
 private class MemoryDismissalStore(
     var ids: Set<PendingMeasurementId> = emptySet(),
 ) : PendingNotificationDismissalStore {
-    override fun readDismissedIds(): Set<PendingMeasurementId> = ids
+    override fun addDismissedIds(ids: Set<PendingMeasurementId>): Set<PendingMeasurementId> =
+        synchronized(this) {
+            (this.ids + ids).also { this.ids = it }
+        }
 
-    override fun writeDismissedIds(ids: Set<PendingMeasurementId>) {
-        this.ids = ids
+    override fun retainDismissedIds(
+        pendingIds: Set<PendingMeasurementId>,
+    ): Set<PendingMeasurementId> = synchronized(this) {
+        ids.intersect(pendingIds).also { ids = it }
     }
 }
 

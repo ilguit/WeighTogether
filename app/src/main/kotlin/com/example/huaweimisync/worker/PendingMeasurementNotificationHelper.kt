@@ -26,23 +26,41 @@ sealed interface PendingDecisionFallback {
 }
 
 interface PendingNotificationDismissalStore {
-    fun readDismissedIds(): Set<PendingMeasurementId>
-    fun writeDismissedIds(ids: Set<PendingMeasurementId>)
+    fun addDismissedIds(ids: Set<PendingMeasurementId>): Set<PendingMeasurementId>
+    fun retainDismissedIds(pendingIds: Set<PendingMeasurementId>): Set<PendingMeasurementId>
 }
 
 class SharedPreferencesPendingNotificationDismissalStore(
     private val preferences: SharedPreferences,
 ) : PendingNotificationDismissalStore {
-    override fun readDismissedIds(): Set<PendingMeasurementId> =
+    override fun addDismissedIds(ids: Set<PendingMeasurementId>): Set<PendingMeasurementId> =
+        synchronized(preferencesLock) {
+            val updated = readDismissedIdsLocked() + ids
+            writeDismissedIdsLocked(updated)
+            updated
+        }
+
+    override fun retainDismissedIds(
+        pendingIds: Set<PendingMeasurementId>,
+    ): Set<PendingMeasurementId> = synchronized(preferencesLock) {
+        val retained = readDismissedIdsLocked().intersect(pendingIds)
+        writeDismissedIdsLocked(retained)
+        retained
+    }
+
+    private fun readDismissedIdsLocked(): Set<PendingMeasurementId> =
         preferences.getStringSet(KEY_DISMISSED_IDS, emptySet()).orEmpty()
             .mapTo(linkedSetOf(), ::PendingMeasurementId)
 
-    override fun writeDismissedIds(ids: Set<PendingMeasurementId>) {
-        preferences.edit().putStringSet(KEY_DISMISSED_IDS, ids.mapTo(linkedSetOf()) { it.value }).apply()
+    private fun writeDismissedIdsLocked(ids: Set<PendingMeasurementId>) {
+        preferences.edit()
+            .putStringSet(KEY_DISMISSED_IDS, ids.mapTo(linkedSetOf()) { it.value })
+            .commit()
     }
 
     private companion object {
         const val KEY_DISMISSED_IDS = "dismissed_pending_measurement_ids"
+        val preferencesLock = Any()
     }
 }
 
@@ -59,15 +77,8 @@ class PendingDecisionPresentationCoordinator(
     val notificationDeniedFallback: StateFlow<PendingDecisionFallback> =
         mutableFallback.asStateFlow()
 
-    private var currentPendingIds = emptySet<PendingMeasurementId>()
-
     override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
-        currentPendingIds = pendingIds.toSet()
-        val dismissedIds = dismissalStore?.readDismissedIds().orEmpty()
-        val retainedDismissedIds = dismissedIds.intersect(pendingIds)
-        if (retainedDismissedIds != dismissedIds) {
-            dismissalStore?.writeDismissedIds(retainedDismissedIds)
-        }
+        val retainedDismissedIds = dismissalStore?.retainDismissedIds(pendingIds).orEmpty()
         val count = pendingIds.size
         if (pendingIds.isEmpty()) {
             cancelSafely()
@@ -83,13 +94,8 @@ class PendingDecisionPresentationCoordinator(
         }
     }
 
-    fun recordCurrentNotificationDismissed() {
-        recordNotificationDismissed(currentPendingIds)
-    }
-
     fun recordNotificationDismissed(pendingIds: Set<PendingMeasurementId>) {
-        if (pendingIds.isNotEmpty()) dismissalStore?.writeDismissedIds(pendingIds)
-        updatePendingMeasurements(currentPendingIds)
+        if (pendingIds.isNotEmpty()) dismissalStore?.addDismissedIds(pendingIds)
     }
 
     private fun postSafely(pendingIds: Set<PendingMeasurementId>): Boolean = try {
@@ -134,10 +140,6 @@ class PendingMeasurementNotificationHelper(
 
     override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
         presentation.updatePendingMeasurements(pendingIds)
-    }
-
-    fun recordCurrentNotificationDismissed() {
-        presentation.recordCurrentNotificationDismissed()
     }
 
     fun recordNotificationDismissed(pendingIds: Set<PendingMeasurementId>) {
