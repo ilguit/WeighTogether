@@ -196,6 +196,33 @@ class SettingsShellUiTest {
     }
 
     @Test
+    fun rootRowsArePartitionedIntoGroupedSurfacesWithInternalDividers() {
+        setSettingsShell(expandSections = false)
+
+        listOf(
+            SettingsScreenTestTags.ProfilesGroup,
+            SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.SupportGroup,
+        ).forEach { composeRule.onNodeWithTag(it).assertExists() }
+        listOf(
+            SettingsScreenTestTags.ProfilesRow to SettingsScreenTestTags.ProfilesGroup,
+            SettingsScreenTestTags.ScaleRow to SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.HealthConnectRow to SettingsScreenTestTags.ConnectionsGroup,
+            SettingsScreenTestTags.BackupRow to SettingsScreenTestTags.SupportGroup,
+            SettingsScreenTestTags.DiagnosticsRow to SettingsScreenTestTags.SupportGroup,
+            SettingsScreenTestTags.ChangelogRow to SettingsScreenTestTags.SupportGroup,
+        ).forEach { (row, group) ->
+            composeRule.onNode(hasTestTag(row) and hasAnyAncestor(hasTestTag(group))).assertExists()
+        }
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ConnectionsDivider)
+            .assertExists()
+            .assertHasNoClickAction()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.SupportDivider)
+            .assertExists()
+            .assertHasNoClickAction()
+    }
+
+    @Test
     fun profilesRootSummaryShowsExplicitEmptyState() {
         setSettingsShell(expandSections = false, account = null)
         composeRule.onNodeWithText("Добавьте первый профиль").assertIsDisplayed()

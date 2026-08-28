@@ -74,6 +74,9 @@ import com.example.huaweimisync.ui.components.HuaweiIconButton
 import com.example.huaweimisync.ui.components.HuaweiSettingRow
 import com.example.huaweimisync.ui.components.HuaweiSurface
 import com.example.huaweimisync.ui.icons.HuaweiIcons
+import com.example.huaweimisync.ui.settings.SettingsGroup
+import com.example.huaweimisync.ui.settings.SettingsGroupDivider
+import com.example.huaweimisync.ui.settings.SettingsGroupRow
 import com.example.huaweimisync.ui.theme.HuaweiDimensions
 import java.text.NumberFormat
 import java.time.format.DateTimeFormatter
@@ -211,6 +214,11 @@ internal object SettingsScreenTestTags {
     const val DestructiveDialog = "settings-destructive-dialog"
     const val DestructiveConfirm = "settings-destructive-confirm"
     const val IntegrationStatus = "settings-integration-status"
+    const val ProfilesGroup = "settings-group-profiles"
+    const val ConnectionsGroup = "settings-group-connections"
+    const val SupportGroup = "settings-group-support"
+    const val ConnectionsDivider = "settings-group-connections-divider"
+    const val SupportDivider = "settings-group-support-divider"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -770,13 +778,16 @@ private fun SettingsRootScreen(
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         ) {
             item {
-                SettingsNavigationRow(
-                    SettingsDestination.PROFILES,
-                    profilesRootSummary(state.accountManagement.accounts.size, state.pets.size),
-                    SettingsScreenTestTags.ProfilesRow,
-                    onDestinationChanged,
-                    focusRequesters[SettingsDestination.PROFILES],
-                )
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.ProfilesGroup)) {
+                    SettingsNavigationRow(
+                        SettingsDestination.PROFILES,
+                        HuaweiIcons.Profile,
+                        profilesRootSummary(state.accountManagement.accounts.size, state.pets.size),
+                        SettingsScreenTestTags.ProfilesRow,
+                        onDestinationChanged,
+                        focusRequesters[SettingsDestination.PROFILES],
+                    )
+                }
             }
             item {
                 Text(
@@ -787,24 +798,30 @@ private fun SettingsRootScreen(
                         .semantics { heading() },
                 )
             }
-            item { SettingsNavigationRow(SettingsDestination.SCALE, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged, focusRequesters[SettingsDestination.SCALE]) }
-            item { SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged, focusRequesters[SettingsDestination.HEALTH_CONNECT]) }
-            if (BuildConfig.HUAWEI_EXTENDED_ENABLED) item {
-                SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH])
-            }
-            item { SettingsNavigationRow(SettingsDestination.BACKUP, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged, focusRequesters[SettingsDestination.BACKUP]) }
-            item { SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged, focusRequesters[SettingsDestination.DIAGNOSTICS]) }
             item {
-                HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-                    HuaweiSettingRow(
-                        icon = HuaweiIcons.Calendar,
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.ConnectionsGroup)) {
+                    SettingsNavigationRow(SettingsDestination.SCALE, HuaweiIcons.Scale, scaleStatus(state), SettingsScreenTestTags.ScaleRow, onDestinationChanged, focusRequesters[SettingsDestination.SCALE])
+                    SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.ConnectionsDivider))
+                    SettingsNavigationRow(SettingsDestination.HEALTH_CONNECT, HuaweiIcons.Health, healthPresentation.supportingText, SettingsScreenTestTags.HealthConnectRow, onDestinationChanged, focusRequesters[SettingsDestination.HEALTH_CONNECT])
+                    if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
+                        SettingsGroupDivider()
+                        SettingsNavigationRow(SettingsDestination.HUAWEI_HEALTH, HuaweiIcons.Health, huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow, onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH])
+                    }
+                }
+            }
+            item {
+                SettingsGroup(Modifier.testTag(SettingsScreenTestTags.SupportGroup)) {
+                    SettingsNavigationRow(SettingsDestination.BACKUP, HuaweiIcons.Settings, "Экспорт и импорт данных", SettingsScreenTestTags.BackupRow, onDestinationChanged, focusRequesters[SettingsDestination.BACKUP])
+                    SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.SupportDivider))
+                    SettingsNavigationRow(SettingsDestination.DIAGNOSTICS, HuaweiIcons.Lab, "Проверка и системные настройки", SettingsScreenTestTags.DiagnosticsRow, onDestinationChanged, focusRequesters[SettingsDestination.DIAGNOSTICS])
+                    SettingsGroupDivider()
+                    SettingsGroupRow(
+                        leadingIcon = HuaweiIcons.Calendar,
                         title = "История версий",
                         supportingText = "Что нового в приложении",
                         modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
                         onClick = callbacks.onOpenChangelog,
-                        titleMaxLines = Int.MAX_VALUE,
-                        supportingTextMaxLines = Int.MAX_VALUE,
-                    ) { SettingsNavigationChevron() }
+                    )
                 }
             }
         }
@@ -816,30 +833,27 @@ private fun scaleStatus(state: MainUiState): String = scalePresentation(state).s
 @Composable
 private fun SettingsNavigationRow(
     destination: SettingsDestination,
+    leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
     supportingText: String,
     testTag: String,
     onDestinationChanged: (SettingsDestination) -> Unit,
     focusRequester: FocusRequester?,
 ) {
-    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-        HuaweiSettingRow(
-            icon = HuaweiIcons.ChevronRight,
-            title = destination.title,
-            supportingText = supportingText,
-            modifier = Modifier
-                .testTag(testTag)
-                .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
-                .semantics {
-                    stateDescription = supportingText
-                    if (destination == SettingsDestination.HEALTH_CONNECT) {
-                        contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
-                    }
-                },
-            onClick = { onDestinationChanged(destination) },
-            titleMaxLines = Int.MAX_VALUE,
-            supportingTextMaxLines = Int.MAX_VALUE,
-        ) { SettingsNavigationChevron() }
-    }
+    SettingsGroupRow(
+        leadingIcon = leadingIcon,
+        title = destination.title,
+        supportingText = supportingText,
+        modifier = Modifier
+            .testTag(testTag)
+            .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
+            .semantics {
+                stateDescription = supportingText
+                if (destination == SettingsDestination.HEALTH_CONNECT) {
+                    contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                }
+            },
+        onClick = { onDestinationChanged(destination) },
+    )
 }
 
 @Composable
