@@ -411,6 +411,162 @@ class MeasurementIngestionCoordinatorTest {
     }
 
     @Test
+    fun automaticFinalizationNotifiesExistingAccountExactlyOnceAcrossRepeatsAndSweep() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts).apply {
+            useAtomicDueRouting = true
+        }
+        val successNotifier = RecordingSuccessfulMeasurementNotifier()
+        val coordinator = coordinator(
+            persistence = persistence,
+            accounts = accounts,
+            scheduler = UniqueFakeScheduler(),
+            successfulMeasurementNotifier = successNotifier,
+        )
+        val packet = raw(70.0)
+        val created = coordinator.ingest(packet) as MeasurementIngestionResult.CreatedAggregate
+
+        val finalized = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
+            as AggregateFinalizationResult.Completed
+        val repeated = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
+        val duplicate = coordinator.ingest(packet)
+        coordinator.sweepPendingRouting()
+
+        val assigned = finalized.outcome as MeasurementIngestionResult.Assigned
+        assertEquals(
+            MeasurementIngestionResult.PendingMissing,
+            (repeated as AggregateFinalizationResult.Completed).outcome,
+        )
+        assertEquals(MeasurementIngestionResult.SuppressedFinal, duplicate)
+        assertEquals(
+            listOf(SuccessfulNotification(assigned.measurement, "Alice")),
+            successNotifier.notifications,
+        )
+    }
+
+    @Test
+    fun nonDueRouteAndManualChoiceNotifyTheSelectedExistingAccount() = runBlocking {
+        val automaticAccounts = FakeAccountRepository(listOf(primary), primary.id)
+        val automaticPersistence = FakeRoutingPersistence(automaticAccounts)
+        val automaticNotifier = RecordingSuccessfulMeasurementNotifier()
+        val automaticCoordinator = coordinator(
+            automaticPersistence,
+            automaticAccounts,
+            UniqueFakeScheduler(),
+            successfulMeasurementNotifier = automaticNotifier,
+        )
+        val created = automaticCoordinator.ingest(raw(70.0))
+            as MeasurementIngestionResult.CreatedAggregate
+
+        val routed = automaticCoordinator.route(created.pending.id)
+            as MeasurementIngestionResult.Assigned
+
+        assertEquals(
+            listOf(SuccessfulNotification(routed.measurement, "Alice")),
+            automaticNotifier.notifications,
+        )
+
+        val manualAccounts = FakeAccountRepository(listOf(primary, secondary), primary.id)
+        val manualPersistence = FakeRoutingPersistence(manualAccounts).apply {
+            histories[primary.id] = listOf(history(50.0))
+        }
+        val manualNotifier = RecordingSuccessfulMeasurementNotifier()
+        val manualCoordinator = coordinator(
+            manualPersistence,
+            manualAccounts,
+            UniqueFakeScheduler(),
+            successfulMeasurementNotifier = manualNotifier,
+        )
+        val waiting = manualCoordinator.ingestAndFinalize(raw(71.0))
+            as MeasurementIngestionResult.AwaitingDecision
+
+        val chosen = manualCoordinator.chooseAccount(waiting.pending.id, secondary.id)
+            as FinalizePendingResult.Finalized
+        val repeatedChoice = manualCoordinator.chooseAccount(waiting.pending.id, secondary.id)
+
+        assertTrue(repeatedChoice is FinalizePendingResult.AlreadyFinalized)
+        assertEquals(
+            listOf(SuccessfulNotification(chosen.measurement, "Bob")),
+            manualNotifier.notifications,
+        )
+    }
+
+    @Test
+    fun aggregateUpdatesReplayUpgradesAndRecoveryNeverNotify() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val successNotifier = RecordingSuccessfulMeasurementNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            successfulMeasurementNotifier = successNotifier,
+        )
+        val packet = raw(70.0)
+        val created = coordinator.ingest(packet) as MeasurementIngestionResult.CreatedAggregate
+
+        assertTrue(coordinator.ingest(packet) is MeasurementIngestionResult.UpdatedAggregate)
+        persistence.nextEnqueueResult = PendingPersistenceResult.ExactReplay
+        assertEquals(MeasurementIngestionResult.ExactReplay, coordinator.ingest(raw(71.0)))
+        val upgraded = AccountMeasurement(
+            accountId = primary.id,
+            composition = composition(created.pending, "upgraded"),
+            externalSyncPolicy = ExternalSyncPolicy.AUTO,
+            createdAt = RAW_TIME,
+        )
+        persistence.nextEnqueueResult = PendingPersistenceResult.UpgradedFinalized(upgraded)
+        assertTrue(coordinator.ingest(raw(72.0)) is MeasurementIngestionResult.UpgradedFinalized)
+        val discarded = coordinator.discard(created.pending.id) as DiscardPendingResult.Discarded
+        assertTrue(coordinator.restore(discarded.undoToken) is RestorePendingResult.Restored)
+
+        assertTrue(successNotifier.notifications.isEmpty())
+    }
+
+    @Test
+    fun createAccountAndAssignDoesNotNotifySuccess() = runBlocking {
+        val accounts = FakeAccountRepository(emptyList(), null)
+        val persistence = FakeRoutingPersistence(accounts)
+        val successNotifier = RecordingSuccessfulMeasurementNotifier()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            UniqueFakeScheduler(),
+            successfulMeasurementNotifier = successNotifier,
+        )
+        val waiting = coordinator.ingestAndFinalize(raw(70.0))
+            as MeasurementIngestionResult.AwaitingDecision
+
+        val result = coordinator.createAccountAndAssign(
+            waiting.pending.id,
+            NewAccount("Cara", completeProfile()),
+        )
+
+        assertTrue(result is CreateAccountAndAssignResult.Created)
+        assertTrue(successNotifier.notifications.isEmpty())
+    }
+
+    @Test
+    fun notifierFailureDoesNotChangeDurableSaveOrResult() = runBlocking {
+        val accounts = FakeAccountRepository(listOf(primary), primary.id)
+        val persistence = FakeRoutingPersistence(accounts)
+        val scheduler = UniqueFakeScheduler()
+        val coordinator = coordinator(
+            persistence,
+            accounts,
+            scheduler,
+            successfulMeasurementNotifier = ThrowingSuccessfulMeasurementNotifier,
+        )
+        val created = coordinator.ingest(raw(70.0)) as MeasurementIngestionResult.CreatedAggregate
+
+        val completed = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
+            as AggregateFinalizationResult.Completed
+
+        val assigned = completed.outcome as MeasurementIngestionResult.Assigned
+        assertEquals(assigned.measurement, persistence.finalized.getValue(created.pending.id.value))
+        assertEquals(setOf(assigned.measurement.measurementId), scheduler.enqueued)
+    }
+
+    @Test
     fun incompleteAutoTargetStaysPendingAndOneShotPreviewDoesNotCrossPersistence() = runBlocking {
         val incomplete = primary.copy(profile = AccountProfile.IncompleteRecovery(heightCm = 175.0))
         val accounts = FakeAccountRepository(listOf(incomplete), incomplete.id)
@@ -625,12 +781,15 @@ class MeasurementIngestionCoordinatorTest {
         accounts: FakeAccountRepository,
         scheduler: UniqueFakeScheduler,
         notifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
+        successfulMeasurementNotifier: SuccessfulMeasurementNotifier =
+            NoOpSuccessfulMeasurementNotifier,
     ) = MeasurementIngestionCoordinator(
         persistence = persistence,
         accounts = accounts,
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = scheduler,
         notifier = notifier,
+        successfulMeasurementNotifier = successfulMeasurementNotifier,
     )
 
     private fun history(weight: Double) = WeightHistoryRecord(RAW_TIME.minusSeconds(1), weight)
@@ -666,6 +825,7 @@ private class FakeRoutingPersistence(
     var enqueueMatchingEngine: MatchingEngine? = null
     var reclassificationMatchingEngine: MatchingEngine? = null
     var nextEnqueueResult: PendingPersistenceResult? = null
+    var useAtomicDueRouting = false
     var pendingSnapshotCallCount = 0
         private set
 
@@ -730,6 +890,27 @@ private class FakeRoutingPersistence(
     ): List<WeightHistoryRecord> {
         events += "history:${accountId.value}"
         return histories[accountId].orEmpty().filter { it.measuredAt.isBefore(measuredAtExclusive) }
+    }
+
+    override suspend fun routeDueAtomically(
+        pendingId: PendingMeasurementId,
+        now: Instant,
+        matchingEngine: MatchingEngine,
+    ): AtomicDueRoutingResult? {
+        if (!useAtomicDueRouting) return null
+        val value = pending[pendingId] ?: return AtomicDueRoutingResult.PendingNotFound
+        if (now < value.finalizeAfter) return AtomicDueRoutingResult.NotDue(value)
+        val account = accounts.observeAccounts().first().singleOrNull()
+            ?: return AtomicDueRoutingResult.AccountUnavailable
+        return when (val result = finalizePending(pendingId, account.id)) {
+            is FinalizePendingResult.Finalized -> AtomicDueRoutingResult.Finalized(result.measurement)
+            is FinalizePendingResult.AlreadyFinalized ->
+                AtomicDueRoutingResult.AlreadyFinalized(result.measurement)
+            FinalizePendingResult.PendingNotFound -> AtomicDueRoutingResult.PendingNotFound
+            FinalizePendingResult.AccountNotFound,
+            FinalizePendingResult.ProfileIncomplete,
+            -> AtomicDueRoutingResult.AccountUnavailable
+        }
     }
 
     override suspend fun finalizePending(
@@ -936,6 +1117,31 @@ private class RecordingNotifier : PendingDecisionNotifier {
     override fun updatePendingMeasurements(pendingIds: Set<PendingMeasurementId>) {
         snapshots += pendingIds
         counts += pendingIds.size
+    }
+}
+
+private data class SuccessfulNotification(
+    val measurement: AccountMeasurement,
+    val accountDisplayName: String,
+)
+
+private class RecordingSuccessfulMeasurementNotifier : SuccessfulMeasurementNotifier {
+    val notifications = mutableListOf<SuccessfulNotification>()
+
+    override fun notifyMeasurementSaved(
+        measurement: AccountMeasurement,
+        accountDisplayName: String,
+    ) {
+        notifications += SuccessfulNotification(measurement, accountDisplayName)
+    }
+}
+
+private object ThrowingSuccessfulMeasurementNotifier : SuccessfulMeasurementNotifier {
+    override fun notifyMeasurementSaved(
+        measurement: AccountMeasurement,
+        accountDisplayName: String,
+    ) {
+        throw IllegalStateException("notification unavailable")
     }
 }
 

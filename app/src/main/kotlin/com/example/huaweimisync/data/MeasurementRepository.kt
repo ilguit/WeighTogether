@@ -41,6 +41,8 @@ class MeasurementRepository(
     private val multiAccountPersistence: RoomMeasurementPersistence? = null,
     private val accountRepository: AccountRepository? = null,
     pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
+    successfulMeasurementNotifier: SuccessfulMeasurementNotifier =
+        NoOpSuccessfulMeasurementNotifier,
     matchingEngine: MatchingEngine = MatchingEngine(),
     private val pendingFinalizationScheduler: PendingFinalizationScheduler? = null,
     private val externalSyncOperations: ExternalSyncOperationSerializer =
@@ -55,6 +57,7 @@ class MeasurementRepository(
             calculator = calculator,
             syncScheduler = syncScheduler,
             notifier = pendingDecisionNotifier,
+            successfulMeasurementNotifier = successfulMeasurementNotifier,
             matchingEngine = matchingEngine,
         )
     } else {

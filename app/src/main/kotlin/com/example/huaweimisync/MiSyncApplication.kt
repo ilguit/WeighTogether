@@ -28,6 +28,7 @@ import com.example.huaweimisync.worker.PendingMeasurementNotificationHelper
 import com.example.huaweimisync.worker.PetMeasurementIngestionGate
 import com.example.huaweimisync.worker.ScalePacketProcessor
 import com.example.huaweimisync.worker.SyncWorkScheduler
+import com.example.huaweimisync.worker.SuccessfulMeasurementNotificationHelper
 import com.example.huaweimisync.worker.WorkManagerPendingFinalizationScheduler
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +66,7 @@ class AppContainer(application: Application) {
     val petMeasurementIngestionGate = PetMeasurementIngestionGate()
     val scalePacketProcessingGate = ScalePacketProcessingGate()
     val pendingMeasurementNotifications = PendingMeasurementNotificationHelper(application)
+    val successfulMeasurementNotifications = SuccessfulMeasurementNotificationHelper(application)
     private val calculator = BodyCompositionCalculator()
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
@@ -84,6 +86,7 @@ class AppContainer(application: Application) {
         multiAccountPersistence = measurementPersistence,
         accountRepository = baseAccounts,
         pendingDecisionNotifier = pendingMeasurementNotifications,
+        successfulMeasurementNotifier = successfulMeasurementNotifications,
         pendingFinalizationScheduler = finalizationScheduler,
         externalSyncOperations = externalSyncOperations,
     )
