@@ -2,13 +2,15 @@ package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 2
+const val BACKUP_SCHEMA_VERSION: Int = 3
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
+const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -113,6 +115,8 @@ data class BackupMeasurementV1(
     val deduplicationHash: String?,
     val huaweiSyncedCalculatedValues: String?,
     val healthConnectSyncedCalculatedValues: String?,
+    val ratingHeightCm: Double? = null,
+    val ratingHeightOrigin: RatingHeightOrigin? = RatingHeightOrigin.CAPTURED,
 )
 
 sealed class BackupException(message: String, cause: Throwable? = null) : Exception(message, cause) {

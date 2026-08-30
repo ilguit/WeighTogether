@@ -1,6 +1,7 @@
 package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
@@ -35,7 +36,7 @@ class BackupJsonCodecTest {
 
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":3").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document()).replace("\"schemaVersion\":3", "\"schemaVersion\":4").replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -88,15 +89,70 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v2RoundTripPreservesPetsAndV1DecodesWithEmptyPetCollections() {
+    fun v3RoundTripPreservesMeasurementContextAndPets() {
         val source = document().copy(
+            measurements = listOf(
+                document().measurements.single().copy(
+                    ratingHeightCm = 181.5,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+                ),
+            ),
             pets = listOf(BackupPetV2("p", "Мурка", "мурка", PetSpecies.CAT, 10, 11)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 70.0, 74.5, 4.5)),
         )
 
         assertEquals(source, codec.decode(codec.encode(source)))
+        assertEquals(181.5, codec.decode(codec.encode(source)).measurements.single().ratingHeightCm)
+    }
 
-        val v1Json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":1")
+    @Test
+    fun v1AndV2RestoreEachMeasurementHeightFromItsImportedOwnerOnly() {
+        val current = document().copy(
+            accounts = listOf(
+                document().accounts.single().copy(id = "a", profile = BackupAccountProfileV1(161.0, null, null, false)),
+                document().accounts.single().copy(id = "b", normalizedName = "account-b", profile = BackupAccountProfileV1(null, null, null, false)),
+            ),
+            measurements = listOf(
+                document().measurements.single().copy(id = "ma", fingerprint = "fa", accountId = "a", deduplicationHash = "da"),
+                document().measurements.single().copy(id = "mb", fingerprint = "fb", accountId = "b", deduplicationHash = "db"),
+            ),
+        )
+        val encoded = codec.encode(current)
+        val legacyMeasurementFields = ",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\""
+
+        listOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION_V2).forEach { version ->
+            var legacyJson = encoded
+                .replace("\"schemaVersion\":3", "\"schemaVersion\":$version")
+                .replace(legacyMeasurementFields, "")
+            if (version == BACKUP_SCHEMA_VERSION_V1) {
+                legacyJson = legacyJson.replace(",\"pets\":[],\"petMeasurements\":[]", "")
+            }
+            val decoded = codec.decode(legacyJson)
+            assertEquals(listOf(161.0, null), decoded.measurements.map { it.ratingHeightCm })
+            assertTrue(decoded.measurements.all { it.ratingHeightOrigin == RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT })
+        }
+    }
+
+    @Test
+    fun schemaShapesAndMeasurementContextValuesAreStrict() {
+        val encoded = codec.encode(document())
+        val v2WithV3Fields = encoded.replace("\"schemaVersion\":3", "\"schemaVersion\":2")
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(v2WithV3Fields) }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace(",\"ratingHeightCm\":null", ""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace(",\"ratingHeightOrigin\":\"CAPTURED\"", ""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace("\"ratingHeightOrigin\":\"CAPTURED\"", "\"ratingHeightOrigin\":\"FUTURE\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(measurements = listOf(document().measurements.single().copy(ratingHeightCm = Double.NaN))))
+        }
+
+        val v1Json = encoded.replace("\"schemaVersion\":3", "\"schemaVersion\":1")
+            .replace(",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\"", "")
             .replace(",\"pets\":[],\"petMeasurements\":[]", "")
         val legacy = codec.decode(v1Json)
         assertEquals(1, legacy.schemaVersion)
