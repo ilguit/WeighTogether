@@ -61,9 +61,9 @@ class PetMeasurementCoordinatorTest {
         val token = start()
         coordinator.attachTimeout(token) { timeoutCancellations++ }
 
-        assertNull(coordinator.accept(token, reading(70.0, second = 1, raw = "first")))
+        assertNull(acceptAfterTransient(token, reading(70.0, second = 1, raw = "first")))
         coordinator.attachTimeout(token) { timeoutCancellations++ }
-        val request = coordinator.accept(token, reading(74.2, second = 2, raw = "second"))
+        val request = acceptAfterTransient(token, reading(74.2, second = 2, raw = "second"))
 
         requireNotNull(request)
         assertEquals(pet.id, request.petId)
@@ -74,6 +74,88 @@ class PetMeasurementCoordinatorTest {
         assertEquals(2, timeoutCancellations)
         assertTrue(states.last() is PetMeasurementUiState.Saving)
         assertEquals(0, automaticRestores)
+    }
+
+    @Test
+    fun `stale stable replay cannot become first weight before a transient`() {
+        val token = start()
+        val stableReplay = reading(70.0, second = 1, raw = "stable-replay")
+
+        assertNull(coordinator.accept(token, stableReplay))
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+
+        coordinator.accept(
+            token,
+            reading(69.5, second = 2, stable = false, raw = "fresh-transient"),
+        )
+        assertNull(
+            coordinator.accept(
+                token,
+                stableReplay.copy(receivedAtNanos = operationStartedAtNanos + 3),
+            ),
+        )
+
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
+    }
+
+    @Test
+    fun `new transient is required between first and second stable weights`() {
+        val token = start()
+        acceptAfterTransient(token, reading(70.0, second = 2, raw = "person"))
+
+        assertNull(
+            coordinator.accept(
+                token,
+                reading(74.2, second = 3, raw = "person-with-pet-replay"),
+            ),
+        )
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
+
+        coordinator.accept(
+            token,
+            reading(73.8, second = 4, stable = false, raw = "second-transient"),
+        )
+        val request = coordinator.accept(
+            token,
+            reading(74.2, second = 5, raw = "person-with-pet"),
+        )
+
+        requireNotNull(request)
+        assertEquals(70.0, request.firstWeightKg, 0.0)
+        assertEquals(74.2, request.secondWeightKg, 0.0)
+    }
+
+    @Test
+    fun `a later pet cycle does not inherit transient state from the completed cycle`() {
+        val firstToken = start()
+        acceptAfterTransient(firstToken, reading(74.2, second = 2, raw = "first-cycle-with-pet"))
+        val firstRequest = requireNotNull(
+            acceptAfterTransient(firstToken, reading(70.0, second = 4, raw = "first-cycle-person")),
+        )
+        coordinator.saved(
+            firstToken,
+            PetMeasurement(
+                id = "first-cycle",
+                petId = pet.id,
+                measuredAt = firstRequest.measuredAt,
+                firstWeightKg = firstRequest.firstWeightKg,
+                secondWeightKg = firstRequest.secondWeightKg,
+            ),
+        )
+
+        val secondToken = start()
+        assertNull(coordinator.accept(secondToken, reading(70.0, second = 5, raw = "replayed-person")))
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+
+        acceptAfterTransient(secondToken, reading(70.0, second = 7, raw = "second-cycle-person"))
+        val secondRequest = requireNotNull(
+            acceptAfterTransient(
+                secondToken,
+                reading(74.2, second = 9, raw = "second-cycle-with-pet"),
+            ),
+        )
+        assertEquals(70.0, secondRequest.firstWeightKg, 0.0)
+        assertEquals(74.2, secondRequest.secondWeightKg, 0.0)
     }
 
     @Test
@@ -97,6 +179,7 @@ class PetMeasurementCoordinatorTest {
 
         guardedCoordinator.accept(token, reading(69.0, stable = false, raw = "unstable"))
         guardedCoordinator.accept(token, reading(70.0, raw = "first"))
+        guardedCoordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "unstable-2"))
         guardedCoordinator.accept(token, reading(70.0, second = 2, raw = "same-weight"))
         guardedCoordinator.accept(token, reading(74.0, second = 3, raw = "second"))
 
@@ -112,9 +195,9 @@ class PetMeasurementCoordinatorTest {
     @Test
     fun `lower second weight is equally valid and delta stays absolute`() {
         val token = start()
-        coordinator.accept(token, reading(74.2, second = 1, raw = "person-with-pet"))
+        acceptAfterTransient(token, reading(74.2, second = 1, raw = "person-with-pet"))
 
-        val request = coordinator.accept(token, reading(70.0, second = 2, raw = "person"))
+        val request = acceptAfterTransient(token, reading(70.0, second = 2, raw = "person"))
 
         requireNotNull(request)
         assertEquals(4.2, abs(request.secondWeightKg - request.firstWeightKg), 0.000_001)
@@ -124,7 +207,8 @@ class PetMeasurementCoordinatorTest {
     fun `same timestamp and raw identity cannot become second reading`() {
         val token = start()
         val first = reading(70.0, second = 1, raw = "same-packet")
-        coordinator.accept(token, first)
+        acceptAfterTransient(token, first)
+        coordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "new-transient"))
 
         assertNull(coordinator.accept(token, first.copy(weightKg = 74.0)))
 
@@ -146,6 +230,8 @@ class PetMeasurementCoordinatorTest {
     fun `reading received before operation start does not advance`() {
         val token = start()
 
+        coordinator.accept(token, reading(69.0, stable = false))
+
         assertNull(
             coordinator.accept(
                 token,
@@ -158,8 +244,13 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
-    fun `reading received at operation start is accepted despite scale RTC skew`() {
+    fun `reading received at operation start is accepted after transient despite scale RTC skew`() {
         val token = start()
+
+        coordinator.accept(
+            token,
+            reading(69.0, stable = false, receivedAtNanos = operationStartedAtNanos),
+        )
 
         coordinator.accept(
             token,
@@ -198,6 +289,8 @@ class PetMeasurementCoordinatorTest {
         val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
         baselineCoordinator.attachTimeout(token) { timeoutCancellations++ }
 
+        baselineCoordinator.accept(token, reading(69.0, stable = false, raw = "transient"))
+
         assertNull(
             baselineCoordinator.accept(
                 token,
@@ -226,7 +319,7 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
-    fun `new stable value after pre-session baseline is accepted without zero transition`() =
+    fun `new stable value after pre-session baseline is accepted after transient`() =
         runBlocking {
             val baselineCoordinator = PetMeasurementCoordinator(
                 setState = states::add,
@@ -248,6 +341,11 @@ class PetMeasurementCoordinatorTest {
             )
             val token = requireNotNull(baselineCoordinator.start(pet, SELECTED_ADDRESS))
 
+            baselineCoordinator.accept(
+                token,
+                reading(69.0, stable = false, raw = "transient"),
+            )
+
             assertNull(
                 baselineCoordinator.accept(
                     token,
@@ -263,6 +361,8 @@ class PetMeasurementCoordinatorTest {
     fun `non finite and non positive weights do not advance`() {
         val token = start()
 
+        coordinator.accept(token, reading(69.0, stable = false))
+
         listOf(Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY, 0.0, -1.0)
             .forEachIndexed { index, weight ->
                 assertNull(coordinator.accept(token, reading(weight, second = index.toLong())))
@@ -276,8 +376,10 @@ class PetMeasurementCoordinatorTest {
     fun `distinct second packet with unchanged weight keeps waiting`() {
         val token = start()
         coordinator.attachTimeout(token) { timeoutCancellations++ }
-        coordinator.accept(token, reading(70.0, second = 1, raw = "first"))
+        acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
         coordinator.attachTimeout(token) { timeoutCancellations++ }
+
+        coordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "transient-2"))
 
         assertNull(coordinator.accept(token, reading(70.0, second = 2, raw = "second")))
 
@@ -294,7 +396,9 @@ class PetMeasurementCoordinatorTest {
     @Test
     fun `invalid second readings keep first reading and continue waiting`() {
         val token = start()
-        coordinator.accept(token, reading(70.0, second = 1, raw = "first"))
+        acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
+
+        coordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "transient-2"))
 
         assertNull(coordinator.accept(token, reading(Double.NaN, second = 2, raw = "nan")))
         assertNull(coordinator.accept(token, reading(0.0, second = 3, raw = "zero")))
@@ -318,9 +422,9 @@ class PetMeasurementCoordinatorTest {
     @Test
     fun `successful persistence finishes session and restores automatic mode`() {
         val token = start()
-        coordinator.accept(token, reading(70.0, second = 1, raw = "first"))
+        acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
         val request = requireNotNull(
-            coordinator.accept(token, reading(72.0, second = 2, raw = "second")),
+            acceptAfterTransient(token, reading(72.0, second = 2, raw = "second")),
         )
         val measurement = PetMeasurement(
             id = "measurement",
@@ -417,15 +521,15 @@ class PetMeasurementCoordinatorTest {
         assertTrue(coordinator.isActive)
         assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
         assertTrue(messages.isEmpty())
-        assertNull(coordinator.accept(newToken, reading(70.0, second = 1, raw = "new-first")))
+        assertNull(acceptAfterTransient(newToken, reading(70.0, second = 1, raw = "new-first")))
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
     }
 
     @Test
     fun `stale save cancellation cannot cancel a later operation`() {
         val oldToken = start()
-        coordinator.accept(oldToken, reading(70.0, second = 1, raw = "old-first"))
-        requireNotNull(coordinator.accept(oldToken, reading(72.0, second = 2, raw = "old-second")))
+        acceptAfterTransient(oldToken, reading(70.0, second = 1, raw = "old-first"))
+        requireNotNull(acceptAfterTransient(oldToken, reading(72.0, second = 2, raw = "old-second")))
         coordinator.fail(oldToken, "save failed")
         val newToken = start()
 
@@ -433,7 +537,7 @@ class PetMeasurementCoordinatorTest {
 
         assertTrue(coordinator.isActive)
         assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
-        assertNull(coordinator.accept(newToken, reading(71.0, second = 3, raw = "new-first")))
+        assertNull(acceptAfterTransient(newToken, reading(71.0, second = 3, raw = "new-first")))
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 71.0), states.last())
         assertEquals(1, scannerStops)
         assertEquals(1, automaticRestores)
@@ -471,7 +575,8 @@ class PetMeasurementCoordinatorTest {
         )
         val token = start()
         val firstReading = reading(70.0, raw = petReadingRawIdentity(first.rawPayload))
-        coordinator.accept(token, firstReading)
+        acceptAfterTransient(token, firstReading)
+        coordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "new-transient"))
         assertNull(
             coordinator.accept(
                 token,
@@ -631,6 +736,22 @@ class PetMeasurementCoordinatorTest {
 
     private fun start(): PetMeasurementCoordinator.OperationToken =
         runBlocking { requireNotNull(coordinator.start(pet, SELECTED_ADDRESS)) }
+
+    private fun acceptAfterTransient(
+        token: PetMeasurementCoordinator.OperationToken,
+        stableReading: PetScaleReading,
+    ): PetMeasurementSaveRequest? {
+        coordinator.accept(
+            token,
+            stableReading.copy(
+                receivedAtNanos = maxOf(operationStartedAtNanos, stableReading.receivedAtNanos - 1),
+                measuredAt = stableReading.measuredAt.minusNanos(1),
+                isStableWeight = false,
+                rawIdentity = "transient-before-${stableReading.rawIdentity}",
+            ),
+        )
+        return coordinator.accept(token, stableReading)
+    }
 
     private fun reading(
         weightKg: Double,

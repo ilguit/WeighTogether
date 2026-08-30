@@ -190,12 +190,16 @@ internal class PetMeasurementCoordinator(
         val transition = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return null
             if (active.saving) return null
-            if (!reading.isStableWeight ||
-                !reading.weightKg.isFinite() ||
+            if (!reading.weightKg.isFinite() ||
                 reading.weightKg <= 0.0 ||
                 reading.receivedAtNanos < active.startedAtNanos ||
                 !isSelectedScaleAddress(active.selectedAddress, reading.address)
             ) return null
+            if (!reading.isStableWeight) {
+                active.transientSeenSinceLastStable = true
+                return null
+            }
+            if (!active.transientSeenSinceLastStable) return null
             val identity = ReadingIdentity(reading.measuredAt, reading.rawIdentity)
             val first = active.first
             if (first == null) {
@@ -208,6 +212,7 @@ internal class PetMeasurementCoordinator(
                     reading.rawWeight,
                 )
                 active.first = CapturedReading(identity, reading.measuredAt, reading.weightKg)
+                active.transientSeenSinceLastStable = false
                 FirstAccepted(active.pet, reading.weightKg)
             } else {
                 if (first.identity == identity) return null
@@ -326,6 +331,7 @@ internal class PetMeasurementCoordinator(
         val ingestionSession: PetIngestionSession,
         val preSessionBaseline: PetStableReadingBaseline?,
         var first: CapturedReading? = null,
+        var transientSeenSinceLastStable: Boolean = false,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,
         var scannerStopped: Boolean = false,
