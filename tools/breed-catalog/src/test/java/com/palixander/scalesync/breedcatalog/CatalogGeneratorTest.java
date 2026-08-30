@@ -1,0 +1,81 @@
+package com.palixander.scalesync.breedcatalog;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+
+class CatalogGeneratorTest {
+    @TempDir Path tempDir;
+
+    @Test
+    void generatesCanonicalBreedConceptsWithAliasesOverridesAndSpecials() throws Exception {
+        Path source = resource("vbo-fixture.obo");
+        Path output = tempDir.resolve("catalog.json");
+
+        new CatalogGenerator().generate(request(source, output, CatalogGenerator.sha256(Files.readAllBytes(source))));
+
+        String json = Files.readString(output);
+        assertTrue(json.contains("\"id\": \"VBO:0100002\""));
+        assertTrue(json.contains("\"displayNameRu\": \"Листовая кошка\""));
+        assertTrue(json.contains("\"aliases\": [\"Alternate Cat\", \"Cat \\\"Quoted\\\"\"]"));
+        assertTrue(json.contains("\"id\": \"VBO:0200001\""));
+        assertTrue(json.contains("\"displayNameRu\": \"Leaf Dog\""));
+        assertTrue(json.contains("\"id\": \"scalesync:cat:mixed-breed\""));
+        assertTrue(json.contains("\"id\": \"scalesync:dog:breed-unknown\""));
+        assertTrue(json.contains("\"id\": \"VBO:0100001\""));
+        assertFalse(json.contains("VBO:0100003"));
+        assertFalse(json.contains("VBO:123"));
+        assertFalse(json.contains("Broad Cat"));
+    }
+
+    @Test
+    void outputIsByteForByteDeterministicAndContainsVerifiableCatalogHash() throws Exception {
+        Path source = resource("vbo-fixture.obo");
+        String sourceSha = CatalogGenerator.sha256(Files.readAllBytes(source));
+        Path first = tempDir.resolve("first.json");
+        Path second = tempDir.resolve("second.json");
+
+        new CatalogGenerator().generate(request(source, first, sourceSha));
+        new CatalogGenerator().generate(request(source, second, sourceSha));
+
+        assertEquals(Files.readString(first), Files.readString(second));
+        String json = Files.readString(first);
+        String breeds = json.substring(json.indexOf("[\n", json.indexOf("\"breeds\"")), json.length() - 3);
+        String expectedHash = CatalogGenerator.sha256(breeds.getBytes(StandardCharsets.UTF_8));
+        assertTrue(json.contains("\"catalogSha256\": \"" + expectedHash + "\""));
+    }
+
+    @Test
+    void rejectsUnexpectedSourceChecksumBeforeParsing() throws Exception {
+        Path source = resource("vbo-fixture.obo");
+        IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
+                new CatalogGenerator().generate(request(source, tempDir.resolve("catalog.json"), "0".repeat(64))));
+        assertTrue(error.getMessage().contains("Source SHA-256 mismatch"));
+    }
+
+    private CatalogGenerator.Request request(Path source, Path output, String sha256) {
+        return new CatalogGenerator.Request(
+                source,
+                "2099-01-02",
+                "https://purl.obolibrary.org/obo/vbo/releases/2099-01-02/vbo.obo",
+                sha256,
+                "2099-01-03",
+                resource("overrides-fixture.tsv"),
+                output);
+    }
+
+    private static Path resource(String name) {
+        try {
+            return Path.of(CatalogGeneratorTest.class.getResource("/" + name).toURI());
+        } catch (Exception exception) {
+            throw new IllegalStateException(exception);
+        }
+    }
+}
