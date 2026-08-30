@@ -60,10 +60,31 @@ class ReleaseNotesValidatorTest {
         fragment("24-internal-change.yaml", """
                 issue: 24
                 userVisible: false
+                suppressReleasedChange: true
                 reason: Изменена внутренняя проверка релизных заметок
                 """);
 
         assertEquals(2, validator.validate(repositoryRoot));
+    }
+
+    @Test
+    void validatesReleasedChangeSuppressionTypeAndVisibility() throws Exception {
+        fragment("24-change.yaml", """
+                issue: 24
+                userVisible: false
+                suppressReleasedChange: yes
+                reason: Внутреннее изменение
+                """);
+        assertInvalid("field 'suppressReleasedChange' must be a boolean");
+
+        resetFragments();
+        fragment("24-change.yaml", """
+                issue: 24
+                userVisible: true
+                suppressReleasedChange: false
+                text: Исправлена синхронизация
+                """);
+        assertInvalid("field 'suppressReleasedChange' is forbidden when 'userVisible' is true");
     }
 
     @Test

@@ -21,6 +21,44 @@ class FragmentParserTest {
         )
         assertEquals(25, fragment.issue)
         assertEquals(setOf(ReleaseFlavor.PERSONAL), fragment.flavors)
+        assertEquals(false, fragment.suppressReleasedChange)
+    }
+
+    @Test
+    fun `parses explicit released change suppression for technical fragments`() {
+        val fragment = parser.parse(
+            ".release-notes/25-generator.yaml",
+            """
+                issue: 25
+                userVisible: false
+                suppressReleasedChange: true
+                reason: Служебная генерация истории
+            """.trimIndent(),
+        )
+
+        assertEquals(true, fragment.suppressReleasedChange)
+    }
+
+    @Test
+    fun `validates released change suppression type and visibility`() {
+        assertThrows(GenerationException::class.java) {
+            parser.parse(
+                ".release-notes/25-a.yaml",
+                "issue: 25\nuserVisible: false\nsuppressReleasedChange: yes\nreason: x",
+            )
+        }
+        assertThrows(GenerationException::class.java) {
+            parser.parse(
+                ".release-notes/25-a.yaml",
+                "issue: 25\nuserVisible: false\nsuppressReleasedChange: null\nreason: x",
+            )
+        }
+        assertThrows(GenerationException::class.java) {
+            parser.parse(
+                ".release-notes/25-a.yaml",
+                "issue: 25\nuserVisible: true\nsuppressReleasedChange: false\ntext: Видимое изменение",
+            )
+        }
     }
 
     @Test

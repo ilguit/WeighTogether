@@ -38,7 +38,8 @@ public final class ReleaseNotesValidator {
     private static final Pattern FILE_NAME = Pattern.compile("([1-9][0-9]*)-([a-z0-9]+(?:-[a-z0-9]+)*)\\.yaml");
     private static final Pattern UNICODE_TOKEN = Pattern.compile("[\\p{L}\\p{M}]+");
     static final int MAX_FRAGMENT_BYTES = 64 * 1024;
-    private static final Set<String> ALLOWED_KEYS = Set.of("issue", "userVisible", "text", "reason", "flavors");
+    private static final Set<String> ALLOWED_KEYS = Set.of(
+            "issue", "userVisible", "text", "reason", "flavors", "suppressReleasedChange");
     private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
     private static final Set<String> SUPPORT_FILES = Set.of("README.md", "template.yaml.example");
 
@@ -203,11 +204,19 @@ public final class ReleaseNotesValidator {
             if (values.containsKey("reason")) {
                 throw error(fragment, "field 'reason' is forbidden when 'userVisible' is true");
             }
+            if (values.containsKey("suppressReleasedChange")) {
+                throw error(fragment, "field 'suppressReleasedChange' is forbidden when 'userVisible' is true");
+            }
         } else {
             requireNonBlankString(fragment, values, "reason");
             if (values.containsKey("text")) {
                 throw error(fragment, "field 'text' is forbidden when 'userVisible' is false");
             }
+        }
+
+        if (values.containsKey("suppressReleasedChange")
+                && !(values.get("suppressReleasedChange") instanceof Boolean)) {
+            throw error(fragment, "field 'suppressReleasedChange' must be a boolean");
         }
 
         if (values.containsKey("flavors")) {

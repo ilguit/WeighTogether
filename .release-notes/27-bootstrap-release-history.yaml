@@ -1,0 +1,4 @@
+issue: 27
+userVisible: false
+suppressReleasedChange: true
+reason: Уже выпущенное восстановление истории версий сохранено как технический маркер полноты диапазона
