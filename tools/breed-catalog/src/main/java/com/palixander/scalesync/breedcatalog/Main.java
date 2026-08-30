@@ -16,6 +16,7 @@ public final class Main {
                 requiredString(values, "source-sha256"),
                 requiredString(values, "snapshot-date"),
                 required(values, "overrides"),
+                required(values, "exclusions"),
                 required(values, "output"));
         new CatalogGenerator().generate(request);
     }

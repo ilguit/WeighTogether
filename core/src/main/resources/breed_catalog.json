@@ -8,7 +8,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "snapshotDate": "2026-08-30",
     "sourceSha256": "4ada4d18dcc2ea421f1ee630dfee29042ae2a45a34b0928419475377ee3304bd",
-    "catalogSha256": "31de582bdd0e2e36ac8781b9723012287c149dd9190ac3dbef8d1daf97f1e7bb"
+    "catalogSha256": "fcfea23e8037f111e8421e3bfe7da63c4618e9bd30e366f8c263728084544343"
   },
   "breeds": [
     {
@@ -2036,14 +2036,6 @@
       "kind": "vbo"
     },
     {
-      "id": "VBO:0100262",
-      "species": "cat",
-      "canonicalName": "Mixed Breed",
-      "displayNameRu": "Mixed Breed",
-      "aliases": [],
-      "kind": "vbo"
-    },
-    {
       "id": "VBO:0100263",
       "species": "cat",
       "canonicalName": "Japanese Domestic",
@@ -2144,14 +2136,6 @@
       "species": "cat",
       "canonicalName": "Chinchilla",
       "displayNameRu": "Chinchilla",
-      "aliases": [],
-      "kind": "vbo"
-    },
-    {
-      "id": "VBO:0100285",
-      "species": "cat",
-      "canonicalName": "Cross Breed",
-      "displayNameRu": "Cross Breed",
       "aliases": [],
       "kind": "vbo"
     },
@@ -6468,14 +6452,6 @@
       "kind": "vbo"
     },
     {
-      "id": "VBO:0200393",
-      "species": "dog",
-      "canonicalName": "Crossbreed",
-      "displayNameRu": "Crossbreed",
-      "aliases": ["Batard", "Crossbreed (Mongrel) (Batard)", "Mongrel"],
-      "kind": "vbo"
-    },
-    {
       "id": "VBO:0200394",
       "species": "dog",
       "canonicalName": "Cumberland Sheepdog",
@@ -10441,14 +10417,6 @@
       "canonicalName": "Miniature Schnoodle",
       "displayNameRu": "Miniature Schnoodle",
       "aliases": ["Schnoodle ( Schoodle ) - Miniature", "Schnoodle - Miniature", "Schoodle - Miniature"],
-      "kind": "vbo"
-    },
-    {
-      "id": "VBO:0200902",
-      "species": "dog",
-      "canonicalName": "Mixed Breed",
-      "displayNameRu": "Mixed Breed",
-      "aliases": [],
       "kind": "vbo"
     },
     {

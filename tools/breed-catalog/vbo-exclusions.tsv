@@ -1,0 +1,5 @@
+# VBO ID<TAB>expected VBO label<TAB>rationale
+VBO:0100262	Mixed Breed (Cat)	Duplicate of application-owned cat mixed-breed choice
+VBO:0100285	Cross Breed (Cat)	Generic cross-breed choice duplicated by application-owned cat mixed-breed choice
+VBO:0200393	Crossbreed (Dog)	Generic cross-breed choice duplicated by application-owned dog mixed-breed choice
+VBO:0200902	Mixed Breed (Dog)	Grouping concept and duplicate of application-owned dog mixed-breed choice; concrete descendant breeds remain selectable

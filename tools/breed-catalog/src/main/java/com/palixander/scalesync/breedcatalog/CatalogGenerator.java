@@ -38,6 +38,7 @@ public final class CatalogGenerator {
             String sourceSha256,
             String snapshotDate,
             Path overrides,
+            Path exclusions,
             Path output) {}
 
     record Term(String id, String label, List<String> synonyms, List<String> parents, boolean obsolete) {}
@@ -59,7 +60,8 @@ public final class CatalogGenerator {
                     + request.sourceVersion() + ", got " + parsed.dataVersion);
         }
         Map<String, String> overrides = parseOverrides(request.overrides());
-        List<Breed> breeds = buildBreeds(parsed.terms, overrides);
+        Map<String, Exclusion> exclusions = parseExclusions(request.exclusions());
+        List<Breed> breeds = buildBreeds(parsed.terms, overrides, exclusions);
         validateBreeds(breeds);
         String breedsJson = renderBreeds(breeds);
         String catalogSha = sha256(breedsJson.getBytes(StandardCharsets.UTF_8));
@@ -244,9 +246,34 @@ public final class CatalogGenerator {
         return result;
     }
 
-    private static List<Breed> buildBreeds(Map<String, Term> terms, Map<String, String> overrides) {
+    private record Exclusion(String expectedLabel, String rationale) {}
+
+    private static Map<String, Exclusion> parseExclusions(Path path) throws IOException {
+        Map<String, Exclusion> result = new TreeMap<>();
+        int lineNumber = 0;
+        for (String rawLine : Files.readAllLines(path, StandardCharsets.UTF_8)) {
+            lineNumber++;
+            String line = rawLine.strip();
+            if (line.isEmpty() || line.startsWith("#")) continue;
+            String[] columns = line.split("\\t", -1);
+            if (columns.length != 3 || !CANONICAL_ID.matcher(columns[0]).matches()
+                    || columns[1].isBlank() || columns[2].isBlank()) {
+                throw new IllegalArgumentException("Invalid VBO exclusion at " + path + ":" + lineNumber);
+            }
+            if (result.put(columns[0], new Exclusion(columns[1].strip(), columns[2].strip())) != null) {
+                throw new IllegalArgumentException("Duplicate VBO exclusion for " + columns[0]);
+            }
+        }
+        return result;
+    }
+
+    private static List<Breed> buildBreeds(
+            Map<String, Term> terms,
+            Map<String, String> overrides,
+            Map<String, Exclusion> exclusions) {
         requireRoot(terms, CAT_ROOT, "Cat breed");
         requireRoot(terms, DOG_ROOT, "Dog breed");
+        validateExclusions(terms, exclusions);
         Map<String, List<String>> children = new HashMap<>();
         for (Term term : terms.values()) {
             if (term.obsolete()) continue;
@@ -255,14 +282,27 @@ public final class CatalogGenerator {
 
         List<Breed> result = new ArrayList<>();
         Set<String> included = new HashSet<>();
-        addSpeciesBreeds("cat", CAT_ROOT, terms, children, overrides, result, included);
-        addSpeciesBreeds("dog", DOG_ROOT, terms, children, overrides, result, included);
+        addSpeciesBreeds("cat", CAT_ROOT, terms, children, overrides, exclusions.keySet(), result, included);
+        addSpeciesBreeds("dog", DOG_ROOT, terms, children, overrides, exclusions.keySet(), result, included);
         for (String id : overrides.keySet()) {
             if (!included.contains(id)) throw new IllegalArgumentException("Override does not identify a cat/dog breed: " + id);
         }
         addSpecials(result);
         result.sort(Comparator.comparing(Breed::species).thenComparing(Breed::id));
         return result;
+    }
+
+    private static void validateExclusions(Map<String, Term> terms, Map<String, Exclusion> exclusions) {
+        for (Map.Entry<String, Exclusion> entry : exclusions.entrySet()) {
+            Term term = terms.get(entry.getKey());
+            if (term == null || term.obsolete()) {
+                throw new IllegalArgumentException("Excluded VBO term is missing or obsolete: " + entry.getKey());
+            }
+            if (!entry.getValue().expectedLabel().equals(term.label())) {
+                throw new IllegalArgumentException("Excluded VBO term label changed: " + entry.getKey()
+                        + " (expected '" + entry.getValue().expectedLabel() + "', got '" + term.label() + "')");
+            }
+        }
     }
 
     private static void requireRoot(Map<String, Term> terms, String id, String label) {
@@ -278,12 +318,14 @@ public final class CatalogGenerator {
             Map<String, Term> terms,
             Map<String, List<String>> children,
             Map<String, String> overrides,
+            Set<String> exclusions,
             List<Breed> result,
             Set<String> included) {
         Set<String> descendants = descendants(root, children);
         for (String id : new TreeMap<String, Term>(terms).keySet()) {
             Term term = terms.get(id);
-            if (!descendants.contains(id) || term.obsolete() || !CANONICAL_ID.matcher(id).matches()) continue;
+            if (!descendants.contains(id) || term.obsolete() || !CANONICAL_ID.matcher(id).matches()
+                    || exclusions.contains(id)) continue;
             if (term.label() == null || term.label().isBlank()) continue;
             String canonical = cleanName(term.label(), species);
             if (canonical.isBlank()) continue;

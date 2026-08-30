@@ -43,5 +43,20 @@ synonym: "Dog Alias" RELATED []
 is_a: VBO:0400024 ! Dog breed
 
 [Term]
+id: VBO:0100004
+name: Mixed Breed (Cat)
+is_a: VBO:0400018 ! Cat breed
+
+[Term]
+id: VBO:0200002
+name: Chihuahua (Dog)
+is_a: VBO:0400024 ! Dog breed
+
+[Term]
+id: VBO:0200003
+name: Chihuahua, Long-Haired (Dog)
+is_a: VBO:0200002 ! Chihuahua (Dog)
+
+[Term]
 id: VBO:0999999
 name: Other Animal

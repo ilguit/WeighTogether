@@ -21,11 +21,12 @@ Generate from a previously downloaded source, from the repository root:
   --source-sha256 4ada4d18dcc2ea421f1ee630dfee29042ae2a45a34b0928419475377ee3304bd \
   --snapshot-date 2026-08-30 \
   --overrides russian-overrides.tsv \
+  --exclusions vbo-exclusions.tsv \
   --output ../../core/src/main/resources/breed_catalog.json'
 ```
 
 ## Selection and output rules
 
-The parser consumes `id`, `name`, `is_a`, `is_obsolete`, and `EXACT`/`RELATED` synonyms. It walks concrete breed concepts below the VBO `Cat breed` and `Dog breed` roots, excludes the roots themselves, obsolete terms, and non-canonical identifiers, and emits only canonical `VBO:NNNNNNN` identifiers. A concrete breed remains in the catalog when it has varieties or national populations below it (for example, Chihuahua); hierarchy is not mistaken for an abstract-only marker. Aliases are suffix-cleaned, case-insensitively deduplicated, and sorted. Russian overrides are explicit; every other Russian display label falls back to the cleaned canonical label.
+The parser consumes `id`, `name`, `is_a`, `is_obsolete`, and `EXACT`/`RELATED` synonyms. It walks breed concepts below the VBO `Cat breed` and `Dog breed` roots, excludes the roots themselves, obsolete terms, non-canonical identifiers, and the checked ID/label pairs in `vbo-exclusions.tsv`, and emits only canonical `VBO:NNNNNNN` identifiers. The exclusion file is intentionally narrow: it removes generic mixed/cross-breed choices that duplicate ScaleSync-owned choices, while concrete descendants remain selectable. A concrete parent breed remains in the catalog when it has varieties or national populations below it (for example, Chihuahua); hierarchy is not mistaken for an abstract-only marker. Aliases are suffix-cleaned, case-insensitively deduplicated, and sorted. Russian overrides are explicit; every other Russian display label falls back to the cleaned canonical label.
 
 Each species also gets application-owned stable `mixed` and `unknown` records. Output records are ordered by species and ID. `catalogSha256` is the SHA-256 of the UTF-8 bytes of the exact JSON array stored in `breeds`, from its opening `[` through its closing `]`. Given the same inputs and arguments, output is byte-for-byte identical. The tracked output belongs in `core/src/main/resources` so catalog consumers remain independent of Android resources.

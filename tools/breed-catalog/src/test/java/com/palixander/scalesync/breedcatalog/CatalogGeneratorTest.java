@@ -34,6 +34,8 @@ class CatalogGeneratorTest {
         assertFalse(json.contains("VBO:0100003"));
         assertFalse(json.contains("VBO:123"));
         assertFalse(json.contains("Broad Cat"));
+        assertFalse(json.contains("VBO:0100004"));
+        assertTrue(json.contains("VBO:0200002"));
     }
 
     @Test
@@ -76,6 +78,26 @@ class CatalogGeneratorTest {
         assertTrue(Files.readString(catalog).contains("\"id\": \"VBO:0100002\""));
     }
 
+    @Test
+    void rejectsExclusionWhenThePinnedVboLabelDrifts() throws Exception {
+        Path source = resource("vbo-fixture.obo");
+        Path exclusions = tempDir.resolve("exclusions.tsv");
+        Files.writeString(exclusions, "VBO:0100004\tRenamed Mixed Breed (Cat)\tFixture rationale\n");
+        CatalogGenerator.Request base = request(
+                source,
+                tempDir.resolve("catalog.json"),
+                CatalogGenerator.sha256(Files.readAllBytes(source)));
+        CatalogGenerator.Request request = new CatalogGenerator.Request(
+                base.source(), base.sourceVersion(), base.sourceUrl(), base.sourceSha256(), base.snapshotDate(),
+                base.overrides(), exclusions, base.output());
+
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> new CatalogGenerator().generate(request));
+
+        assertTrue(error.getMessage().contains("Excluded VBO term label changed: VBO:0100004"));
+    }
+
     private CatalogGenerator.Request request(Path source, Path output, String sha256) {
         return new CatalogGenerator.Request(
                 source,
@@ -84,6 +106,7 @@ class CatalogGeneratorTest {
                 sha256,
                 "2099-01-03",
                 resource("overrides-fixture.tsv"),
+                resource("exclusions-fixture.tsv"),
                 output);
     }
 
