@@ -1,6 +1,9 @@
 package com.palixander.scalesync.domain
 
 import java.time.Instant
+import java.time.LocalDate
+import java.time.YearMonth
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 import kotlin.math.abs
 
@@ -19,6 +22,95 @@ enum class PetSpecies {
     UNSPECIFIED,
 }
 
+enum class PetSex {
+    MALE,
+    FEMALE,
+}
+
+@JvmInline
+value class BreedId(val value: String) {
+    init {
+        require(value.isNotBlank()) { "Breed id must not be blank" }
+        require(value == value.trim()) { "Breed id must be trimmed" }
+    }
+
+    override fun toString(): String = value
+}
+
+enum class BirthDatePrecision {
+    YEAR,
+    MONTH,
+    DAY,
+}
+
+sealed interface PartialBirthDate {
+    val precision: BirthDatePrecision
+
+    data class Year(val value: java.time.Year) : PartialBirthDate {
+        override val precision: BirthDatePrecision = BirthDatePrecision.YEAR
+    }
+
+    data class Month(val value: YearMonth) : PartialBirthDate {
+        override val precision: BirthDatePrecision = BirthDatePrecision.MONTH
+    }
+
+    data class Day(val value: LocalDate) : PartialBirthDate {
+        override val precision: BirthDatePrecision = BirthDatePrecision.DAY
+    }
+}
+
+/** A deterministic range of possible completed ages on [referenceDate]. */
+data class AgeInterval(
+    val referenceDate: LocalDate,
+    val earliestBirthDate: LocalDate,
+    val latestBirthDate: LocalDate,
+) {
+    init {
+        require(!latestBirthDate.isBefore(earliestBirthDate)) {
+            "Latest birth date cannot precede earliest birth date"
+        }
+        require(!earliestBirthDate.isAfter(referenceDate)) {
+            "Reference date cannot precede the earliest possible birth date"
+        }
+        require(!latestBirthDate.isAfter(referenceDate)) {
+            "Latest birth date cannot be after the reference date"
+        }
+    }
+
+    val minimumDays: Long = ChronoUnit.DAYS.between(latestBirthDate, referenceDate)
+    val maximumDays: Long = ChronoUnit.DAYS.between(earliestBirthDate, referenceDate)
+    val minimumWeeks: Long = minimumDays / 7
+    val maximumWeeks: Long = maximumDays / 7
+    val minimumMonths: Long = ChronoUnit.MONTHS.between(latestBirthDate, referenceDate)
+    val maximumMonths: Long = ChronoUnit.MONTHS.between(earliestBirthDate, referenceDate)
+    val minimumYears: Long = ChronoUnit.YEARS.between(latestBirthDate, referenceDate)
+    val maximumYears: Long = ChronoUnit.YEARS.between(earliestBirthDate, referenceDate)
+}
+
+fun PartialBirthDate.ageAt(referenceDate: LocalDate): AgeInterval {
+    val earliestBirthDate = when (this) {
+        is PartialBirthDate.Year -> value.atDay(1)
+        is PartialBirthDate.Month -> value.atDay(1)
+        is PartialBirthDate.Day -> value
+    }
+    require(!earliestBirthDate.isAfter(referenceDate)) {
+        "Reference date cannot precede the earliest possible birth date"
+    }
+    val latestBirthDate = when (this) {
+        is PartialBirthDate.Year -> value.atMonth(12).atEndOfMonth()
+        is PartialBirthDate.Month -> value.atEndOfMonth()
+        is PartialBirthDate.Day -> value
+    }.coerceAtMost(referenceDate)
+    return AgeInterval(referenceDate, earliestBirthDate, latestBirthDate)
+}
+
+fun PartialBirthDate.validateAgainst(referenceDate: LocalDate) {
+    ageAt(referenceDate)
+}
+
+private fun LocalDate.coerceAtMost(maximum: LocalDate): LocalDate =
+    if (isAfter(maximum)) maximum else this
+
 data class Pet(
     val id: PetId,
     val displayName: String,
@@ -26,6 +118,9 @@ data class Pet(
     val normalizedName: String = normalizePetName(displayName),
     val createdAt: Instant,
     val updatedAt: Instant,
+    val sex: PetSex? = null,
+    val breedId: BreedId? = null,
+    val birthDate: PartialBirthDate? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -39,6 +134,9 @@ data class Pet(
 data class NewPet(
     val displayName: String,
     val species: PetSpecies,
+    val sex: PetSex? = null,
+    val breedId: BreedId? = null,
+    val birthDate: PartialBirthDate? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -52,6 +150,9 @@ data class PetUpdate(
     val id: PetId,
     val displayName: String,
     val species: PetSpecies,
+    val sex: PetSex? = null,
+    val breedId: BreedId? = null,
+    val birthDate: PartialBirthDate? = null,
 ) {
     init {
         validatePetName(displayName)
