@@ -114,23 +114,38 @@ class ReleaseHistoryGenerator(
         val baselineHistory = baseline.orEmpty().filter {
             oldestGeneratedVersion == null || compareVersions(it.version, oldestGeneratedVersion) < 0
         }
-        val latestChanges = if (mode == ReleaseHistoryMode.BUILD) {
+        val latestRange = if (mode == ReleaseHistoryMode.BUILD) {
             val latestBoundary = tags.firstOrNull()?.commitSha ?: baseline?.boundaryCommit
             if (latestBoundary == head) {
-                emptyList()
+                null
             } else {
-                val latestRange = inspectRange(
+                inspectRange(
                     ReleasePoint(currentVersion, head),
                     latestBoundary,
                     tags.firstOrNull { it.commitSha == latestBoundary },
                     newestFirst = true,
                 )
-                generateChanges(latestRange, flavor)
             }
         } else {
-            emptyList()
+            null
         }
-        val history = GeneratedHistory(releases + baselineHistory, latestChanges)
+        val carryoverIssues = (ranges.asSequence() + listOfNotNull(latestRange).asSequence())
+            .flatMap { range ->
+                range.fragments.asSequence()
+                    .filter { fragment ->
+                        !fragment.userVisible && fragment.issue !in range.issues && fragment.appliesTo(flavor)
+                    }
+                    .map { it.issue }
+            }
+            .toSet()
+        val history = GeneratedHistory(
+            releases = (releases + baselineHistory).map { release ->
+                release.copy(changes = release.changes.filterNot { it.issue in carryoverIssues })
+            },
+            latestChanges = latestRange?.let { generateChanges(it, flavor) }
+                .orEmpty()
+                .filterNot { it.issue in carryoverIssues },
+        )
         if (mode == ReleaseHistoryMode.RELEASE && history.releases.firstOrNull()?.version != currentVersion) {
             throw GenerationException(
                 "Release range ${ranges.firstOrNull()?.displayName ?: rangeName(previousTag?.commitSha, head)}: " +
