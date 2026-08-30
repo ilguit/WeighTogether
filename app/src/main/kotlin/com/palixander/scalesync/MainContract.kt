@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingDiscardUndoToken
@@ -84,6 +85,29 @@ internal fun scaleRefreshPreflight(address: String?): ScaleRefreshPreflightResul
 
 internal fun isSelectedScaleAddress(selectedAddress: String, observedAddress: String): Boolean =
     selectedAddress.equals(observedAddress.trim(), ignoreCase = true)
+
+/**
+ * Android-free foreground scan contract. Valid transient readings are reported synchronously
+ * before the caller returns to the BLE callback; stable noise never mutates pet protection.
+ */
+internal fun shouldProcessForegroundScaleReading(
+    raw: RawScaleMeasurement,
+    selectedAddress: String? = null,
+    observeTransient: (RawScaleMeasurement) -> Unit,
+): Boolean {
+    if (selectedAddress != null && !isSelectedScaleAddress(selectedAddress, raw.deviceAddress)) {
+        return false
+    }
+    if (!raw.isStable) {
+        if (raw.weightKg.isFinite() &&
+            raw.weightKg in RawScaleMeasurement.MIN_WEIGHT_KG..RawScaleMeasurement.MAX_WEIGHT_KG
+        ) {
+            observeTransient(raw)
+        }
+        return false
+    }
+    return raw.isStableWeight
+}
 
 /**
  * Keeps address validation ahead of coordinator activation so a rejected gesture has no refresh,

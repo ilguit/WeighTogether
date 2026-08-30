@@ -41,6 +41,7 @@ class MeasurementIngestionWorkOrchestrator(
 /** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
 internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
 internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+internal const val PET_PROTECTED_READING_MAX_IDENTITIES = 32
 private const val XIAOMI_SCALE_PACKET_PAYLOAD_SIZE = 13
 
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
@@ -145,7 +146,12 @@ class PetMeasurementIngestionGate(
                 protectedPetPackets.forEach { identity ->
                     putQuarantined(identity, expiresAt, protected = true)
                 }
-                protectedPetReadings += activePetReadings
+                val replacedAddresses = activePetReadings.mapTo(linkedSetOf()) { it.address }
+                if (replacedAddresses.isNotEmpty()) {
+                    protectedPetReadings.removeAll { it.address in replacedAddresses }
+                    protectedPetReadings += activePetReadings
+                    trimProtectedReadings()
+                }
                 activePetPackets.clear()
                 protectedPetPackets.clear()
                 activePetReadings.clear()
@@ -230,9 +236,19 @@ class PetMeasurementIngestionGate(
         StableReadingIdentity.of(raw) in protectedPetReadings
     }
 
-    internal fun observeTransientReading(raw: RawScaleMeasurement) = synchronized(lock) {
+    fun observeTransientReading(raw: RawScaleMeasurement) = synchronized(lock) {
+        if (raw.isStable ||
+            !raw.weightKg.isFinite() ||
+            raw.weightKg !in RawScaleMeasurement.MIN_WEIGHT_KG..RawScaleMeasurement.MAX_WEIGHT_KG
+        ) return@synchronized
         val address = StableReadingIdentity.normalizeAddress(raw.deviceAddress)
         protectedPetReadings.removeAll { it.address == address }
+    }
+
+    private fun trimProtectedReadings() {
+        while (protectedPetReadings.size > PET_PROTECTED_READING_MAX_IDENTITIES) {
+            protectedPetReadings.remove(protectedPetReadings.first())
+        }
     }
 
     private fun putQuarantined(

@@ -181,6 +181,7 @@ class PetMeasurementCoordinatorTest {
         guardedCoordinator.accept(token, reading(70.0, raw = "first"))
         guardedCoordinator.accept(token, reading(69.0, second = 2, stable = false, raw = "unstable-2"))
         guardedCoordinator.accept(token, reading(70.0, second = 2, raw = "same-weight"))
+        guardedCoordinator.accept(token, reading(73.0, second = 3, stable = false, raw = "unstable-3"))
         guardedCoordinator.accept(token, reading(74.0, second = 3, raw = "second"))
 
         assertEquals(
@@ -212,8 +213,12 @@ class PetMeasurementCoordinatorTest {
 
         assertNull(coordinator.accept(token, first.copy(weightKg = 74.0)))
 
-        assertTrue(states.last() is PetMeasurementUiState.AwaitingSecondWeight)
-        assertEquals(0, scannerStops)
+        assertNull(coordinator.accept(token, reading(74.0, second = 3, raw = "fresh-packet")))
+        coordinator.accept(token, reading(73.0, second = 4, stable = false, raw = "rearm"))
+        val request = coordinator.accept(token, reading(74.0, second = 5, raw = "fresh-packet"))
+
+        requireNotNull(request)
+        assertEquals(1, scannerStops)
     }
 
     @Test
@@ -314,6 +319,15 @@ class PetMeasurementCoordinatorTest {
             ),
         )
 
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        baselineCoordinator.accept(token, reading(73.0, second = 22, stable = false))
+        assertNull(
+            baselineCoordinator.accept(
+                token,
+                reading(74.2, second = 23, raw = "new-stable-packet"),
+            ),
+        )
+
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 74.2), states.last())
         assertEquals(0, timeoutCancellations)
     }
@@ -388,9 +402,25 @@ class PetMeasurementCoordinatorTest {
         assertEquals(1, timeoutCancellations)
 
         val request = coordinator.accept(token, reading(72.0, second = 3, raw = "third"))
-        requireNotNull(request)
-        assertEquals(70.0, request.firstWeightKg, 0.0)
-        assertEquals(72.0, request.secondWeightKg, 0.0)
+        assertNull(request)
+        coordinator.accept(token, reading(71.0, second = 4, stable = false, raw = "rearm"))
+        val rearmedRequest = coordinator.accept(token, reading(72.0, second = 5, raw = "third"))
+        requireNotNull(rearmedRequest)
+        assertEquals(70.0, rearmedRequest.firstWeightKg, 0.0)
+        assertEquals(72.0, rearmedRequest.secondWeightKg, 0.0)
+    }
+
+    @Test
+    fun `stable invalid noise neither arms nor consumes transient permission`() {
+        val token = start()
+
+        assertNull(coordinator.accept(token, reading(0.0, second = 1, stable = true)))
+        assertNull(coordinator.accept(token, reading(70.0, second = 2)))
+        coordinator.accept(token, reading(69.0, second = 3, stable = false))
+        assertNull(coordinator.accept(token, reading(301.0, second = 4, stable = true)))
+        assertNull(coordinator.accept(token, reading(70.0, second = 5)))
+
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
     }
 
     @Test
@@ -746,6 +776,7 @@ class PetMeasurementCoordinatorTest {
             stableReading.copy(
                 receivedAtNanos = maxOf(operationStartedAtNanos, stableReading.receivedAtNanos - 1),
                 measuredAt = stableReading.measuredAt.minusNanos(1),
+                isStable = false,
                 isStableWeight = false,
                 rawIdentity = "transient-before-${stableReading.rawIdentity}",
             ),
@@ -771,6 +802,7 @@ class PetMeasurementCoordinatorTest {
         } else {
             0
         },
+        isStable = stable,
         isStableWeight = stable,
         rawIdentity = raw,
     )

@@ -709,6 +709,126 @@ class MeasurementFinalizationOrchestrationTest {
         }
 
     @Test
+    fun acceptedReadingsReplacePriorProtectionOnlyForTheirAddress() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val addressAOld = raw(rawWeight = 14_000)
+            val addressB = raw(rawWeight = 15_000).copy(deviceAddress = "11:22:33:44:55:66")
+            val first = gate.activate()
+            first.protectPetReading(
+                addressAOld.deviceAddress,
+                "01",
+                addressAOld.measuredAt,
+                addressAOld.rawWeight,
+            )
+            first.protectPetReading(
+                addressB.deviceAddress,
+                "02",
+                addressB.measuredAt,
+                addressB.rawWeight,
+            )
+            first.release()
+
+            val addressANew = addressAOld.copy(rawWeight = 14_100)
+            val second = gate.activate()
+            second.protectPetReading(
+                addressANew.deviceAddress,
+                "03",
+                addressANew.measuredAt,
+                addressANew.rawWeight,
+            )
+            second.release()
+
+            assertFalse(gate.isProtectedPetReading(addressAOld))
+            assertTrue(gate.isProtectedPetReading(addressANew))
+            assertTrue(gate.isProtectedPetReading(addressB))
+        }
+
+    @Test
+    fun emptyAndStaleSessionsPreserveExistingSemanticProtection() =
+        kotlinx.coroutines.runBlocking {
+            val gate = PetMeasurementIngestionGate()
+            val protected = raw()
+            val original = gate.activate()
+            original.protectPetReading(
+                protected.deviceAddress,
+                "01",
+                protected.measuredAt,
+                protected.rawWeight,
+            )
+            original.release()
+
+            val stale = gate.activate()
+            stale.release()
+            val current = gate.activate()
+            stale.protectPetReading(
+                protected.deviceAddress,
+                "02",
+                protected.measuredAt,
+                protected.rawWeight + 1,
+            )
+            current.release()
+
+            assertTrue(gate.isProtectedPetReading(protected))
+            assertFalse(gate.isProtectedPetReading(protected.copy(rawWeight = protected.rawWeight + 1)))
+        }
+
+    @Test
+    fun semanticProtectionHasDeterministicGlobalBound() = kotlinx.coroutines.runBlocking {
+        val gate = PetMeasurementIngestionGate()
+        repeat(PET_PROTECTED_READING_MAX_IDENTITIES + 1) { index ->
+            val reading = raw(rawWeight = 14_000 + index).copy(
+                deviceAddress = "AA:BB:CC:DD:EE:${index.toString(16).padStart(2, '0')}",
+            )
+            val lease = gate.activate()
+            lease.protectPetReading(
+                reading.deviceAddress,
+                index.toString(16),
+                reading.measuredAt,
+                reading.rawWeight,
+            )
+            lease.release()
+        }
+
+        assertFalse(
+            gate.isProtectedPetReading(
+                raw(rawWeight = 14_000).copy(deviceAddress = "AA:BB:CC:DD:EE:00"),
+            ),
+        )
+        val newest = PET_PROTECTED_READING_MAX_IDENTITIES
+        assertTrue(
+            gate.isProtectedPetReading(
+                raw(rawWeight = 14_000 + newest).copy(
+                    deviceAddress = "AA:BB:CC:DD:EE:${newest.toString(16).padStart(2, '0')}",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun stableOrInvalidNoiseCannotClearSemanticProtection() = kotlinx.coroutines.runBlocking {
+        val gate = PetMeasurementIngestionGate()
+        val protected = raw()
+        val lease = gate.activate()
+        lease.protectPetReading(
+            protected.deviceAddress,
+            "01",
+            protected.measuredAt,
+            protected.rawWeight,
+        )
+        lease.release()
+
+        gate.observeTransientReading(protected.copy(weightKg = 0.0, rawWeight = 0))
+        gate.observeTransientReading(
+            protected.copy(isStable = false, weightKg = 0.0, rawWeight = 0),
+        )
+        assertTrue(gate.isProtectedPetReading(protected))
+
+        gate.observeTransientReading(protected.copy(isStable = false))
+        assertFalse(gate.isProtectedPetReading(protected))
+    }
+
+    @Test
     fun workPlanIsUniqueByPendingIdAndUsesRemainingSlidingDelay() {
         val pending = pending(finalizeAfter = NOW.plusSeconds(10))
 
