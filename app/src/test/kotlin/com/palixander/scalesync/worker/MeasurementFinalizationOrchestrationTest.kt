@@ -399,7 +399,8 @@ class MeasurementFinalizationOrchestrationTest {
     @Test
     fun acceptedStableReadingPayloadAndTimestampVariantsAreSuppressedButDistinctMeasurementPasses() =
         kotlinx.coroutines.runBlocking {
-            val gate = PetMeasurementIngestionGate { 10L }
+            var now = 10L
+            val gate = PetMeasurementIngestionGate { now }
             val ingested = mutableListOf<RawScaleMeasurement>()
             val first = raw(measuredAt = NOW, rawWeight = 14_000)
             val second = raw(measuredAt = NOW.plusSeconds(5), rawWeight = 15_000)
@@ -445,6 +446,7 @@ class MeasurementFinalizationOrchestrationTest {
                 second.rawWeight,
             )
             lease.release()
+            now += PET_PACKET_QUARANTINE_TTL_NANOS
 
             assertEquals(
                 MeasurementIngestionResult.IgnoredNotFinal,
@@ -477,7 +479,7 @@ class MeasurementFinalizationOrchestrationTest {
         }
 
     @Test
-    fun acceptedStableReadingSemanticQuarantineHonorsTtlAndSessionOwnership() =
+    fun acceptedStableReadingProtectionSurvivesTtlAndStaleSession() =
         kotlinx.coroutines.runBlocking {
             var now = 10L
             val gate = PetMeasurementIngestionGate { now }
@@ -491,21 +493,95 @@ class MeasurementFinalizationOrchestrationTest {
             )
             active.release()
 
-            assertTrue(gate.isQuarantinedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
+            assertTrue(gate.isProtectedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
             now += PET_PACKET_QUARANTINE_TTL_NANOS
-            assertFalse(gate.isQuarantinedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
+            assertTrue(gate.isProtectedPetReading(reading.copy(measuredAt = NOW.plusSeconds(30))))
 
             val stale = gate.activate()
             stale.release()
             val current = gate.activate()
+            val staleReading = reading.copy(rawWeight = reading.rawWeight + 1)
             stale.protectPetReading(
-                reading.deviceAddress,
+                staleReading.deviceAddress,
                 byteArrayOf(2).toHexIdentity(),
-                reading.measuredAt,
-                reading.rawWeight,
+                staleReading.measuredAt,
+                staleReading.rawWeight,
             )
             current.release()
-            assertFalse(gate.isQuarantinedPetReading(reading))
+            assertTrue(gate.isProtectedPetReading(reading))
+            assertFalse(gate.isProtectedPetReading(staleReading))
+        }
+
+    @Test
+    fun sameDeviceTransientStartsNewCycleWithoutIngestionOrFinalizationSideEffects() =
+        kotlinx.coroutines.runBlocking {
+            var now = 10L
+            val gate = PetMeasurementIngestionGate { now }
+            val protected = raw()
+            val otherDeviceTransient = protected.copy(
+                deviceAddress = "AA:BB:CC:DD:EE:00",
+                isStable = false,
+            )
+            val sameDeviceTransient = protected.copy(isStable = false)
+            val ingested = mutableListOf<RawScaleMeasurement>()
+            var finalized = 0
+            val processor = ScalePacketProcessor(
+                parse = { payload, _ ->
+                    when (payload.first().toInt()) {
+                        3 -> otherDeviceTransient.copy(rawPayload = payload)
+                        4 -> sameDeviceTransient.copy(rawPayload = payload)
+                        else -> protected.copy(rawPayload = payload)
+                    }
+                },
+                ingestion = MeasurementIngestionWorkOrchestrator(
+                    ingest = {
+                        ingested += it
+                        MeasurementIngestionResult.CreatedAggregate(pending())
+                    },
+                    finalizationScheduler = object : PendingFinalizationScheduler {
+                        override fun enqueue(pending: PendingMeasurement) = Unit
+                        override fun enqueueIfAbsent(pending: PendingMeasurement) {
+                            finalized += 1
+                        }
+                    },
+                ),
+                petMeasurementGate = gate,
+            )
+            val lease = gate.activate()
+            lease.protectPetReading(
+                protected.deviceAddress,
+                byteArrayOf(1).toHexIdentity(),
+                protected.measuredAt,
+                protected.rawWeight,
+            )
+            lease.release()
+            now += PET_PACKET_QUARANTINE_TTL_NANOS
+
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(2), protected.deviceAddress)),
+            )
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(3), otherDeviceTransient.deviceAddress)),
+            )
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(2), protected.deviceAddress)),
+            )
+            assertTrue(ingested.isEmpty())
+            assertEquals(0, finalized)
+
+            assertEquals(
+                MeasurementIngestionResult.IgnoredNotFinal,
+                processor.process(ScalePacket(byteArrayOf(4), protected.deviceAddress)),
+            )
+            assertTrue(
+                processor.process(ScalePacket(byteArrayOf(5), protected.deviceAddress)) is
+                    MeasurementIngestionResult.CreatedAggregate,
+            )
+            assertEquals(listOf(protected.copy(rawPayload = byteArrayOf(5))), ingested)
+            assertEquals(1, finalized)
         }
 
     @Test
