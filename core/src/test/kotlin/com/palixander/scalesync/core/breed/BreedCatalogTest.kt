@@ -29,6 +29,28 @@ class BreedCatalogTest {
     }
 
     @Test
+    fun bundledCatalogHasExactApplicationOwnedChoicesAndExcludesRandomBredDuplicates() {
+        val catalog = BreedCatalog.bundled()
+        val specials = catalog.all().filter { it.kind != BreedKind.VBO }
+
+        assertEquals(
+            listOf(
+                SpecialChoice("scalesync:cat:breed-unknown", BreedSpecies.CAT, BreedKind.UNKNOWN, "Без породы"),
+                SpecialChoice("scalesync:dog:breed-unknown", BreedSpecies.DOG, BreedKind.UNKNOWN, "Без породы"),
+                SpecialChoice("scalesync:cat:mixed-breed", BreedSpecies.CAT, BreedKind.MIXED, "Метис"),
+                SpecialChoice("scalesync:dog:mixed-breed", BreedSpecies.DOG, BreedKind.MIXED, "Метис"),
+            ),
+            specials.map { SpecialChoice(it.id, it.species, it.kind, it.displayNameRu) },
+        )
+        assertEquals(
+            listOf("scalesync:cat:breed-unknown", "scalesync:dog:breed-unknown"),
+            catalog.search("Без породы").map { it.id },
+        )
+        assertNull(catalog.findById("VBO:0201489"))
+        assertNull(catalog.findById("VBO:0200986"))
+    }
+
+    @Test
     fun searchesRussianCanonicalAndAliasesIgnoringCaseUnicodeAndWhitespace() {
         val catalog = loadFixture()
 
@@ -64,6 +86,13 @@ class BreedCatalogTest {
     }
 
     private fun loadFixture() = BreedCatalog.load { ByteArrayInputStream(fixture.toByteArray()) }
+
+    private data class SpecialChoice(
+        val id: String,
+        val species: BreedSpecies,
+        val kind: BreedKind,
+        val displayNameRu: String,
+    )
 
     private companion object {
         val fixture = """

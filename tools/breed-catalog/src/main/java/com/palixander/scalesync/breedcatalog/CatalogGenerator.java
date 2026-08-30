@@ -388,9 +388,9 @@ public final class CatalogGenerator {
 
     private static void addSpecials(List<Breed> result) {
         result.add(new Breed("scalesync:cat:mixed-breed", "cat", "Mixed breed", "Метис", List.of(), "mixed"));
-        result.add(new Breed("scalesync:cat:breed-unknown", "cat", "Breed unknown", "Порода неизвестна", List.of(), "unknown"));
+        result.add(new Breed("scalesync:cat:breed-unknown", "cat", "Breed unknown", "Без породы", List.of(), "unknown"));
         result.add(new Breed("scalesync:dog:mixed-breed", "dog", "Mixed breed", "Метис", List.of(), "mixed"));
-        result.add(new Breed("scalesync:dog:breed-unknown", "dog", "Breed unknown", "Порода неизвестна", List.of(), "unknown"));
+        result.add(new Breed("scalesync:dog:breed-unknown", "dog", "Breed unknown", "Без породы", List.of(), "unknown"));
     }
 
     private static String renderBreeds(List<Breed> breeds) {

@@ -8,7 +8,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "snapshotDate": "2026-08-30",
     "sourceSha256": "4ada4d18dcc2ea421f1ee630dfee29042ae2a45a34b0928419475377ee3304bd",
-    "catalogSha256": "887abcc9f41dd30f275a4ce9b2da26aff69d6ade077cc599565269b7f9db2338"
+    "catalogSha256": "6f530bdcfb4e3d6930a690f616f3c9d4fb39bd94245ce88da17dfd0d3536e929"
   },
   "breeds": [
     {
@@ -2415,7 +2415,7 @@
       "id": "scalesync:cat:breed-unknown",
       "species": "cat",
       "canonicalName": "Breed unknown",
-      "displayNameRu": "Порода неизвестна",
+      "displayNameRu": "Без породы",
       "aliases": [],
       "kind": "unknown"
     },
@@ -14703,7 +14703,7 @@
       "id": "scalesync:dog:breed-unknown",
       "species": "dog",
       "canonicalName": "Breed unknown",
-      "displayNameRu": "Порода неизвестна",
+      "displayNameRu": "Без породы",
       "aliases": [],
       "kind": "unknown"
     },
