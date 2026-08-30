@@ -2,6 +2,7 @@ package com.palixander.scalesync.breedcatalog;
 
 import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +22,7 @@ import java.util.Set;
 import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.zip.GZIPInputStream;
 
 public final class CatalogGenerator {
     static final String CAT_ROOT = "VBO:0400018";
@@ -44,20 +46,21 @@ public final class CatalogGenerator {
 
     public void generate(Request request) throws IOException {
         validateRequest(request);
-        byte[] sourceBytes = Files.readAllBytes(request.source());
+        byte[] sourceBytes = readSourceBytes(request.source());
         String actualSourceSha = sha256(sourceBytes);
         if (!actualSourceSha.equalsIgnoreCase(request.sourceSha256())) {
             throw new IllegalArgumentException("Source SHA-256 mismatch: expected " + request.sourceSha256()
                     + ", got " + actualSourceSha);
         }
 
-        ParsedObo parsed = parseObo(request.source());
+        ParsedObo parsed = parseObo(sourceBytes);
         if (!parsed.dataVersion.equals("releases/" + request.sourceVersion())) {
             throw new IllegalArgumentException("VBO data-version mismatch: expected releases/"
                     + request.sourceVersion() + ", got " + parsed.dataVersion);
         }
         Map<String, String> overrides = parseOverrides(request.overrides());
         List<Breed> breeds = buildBreeds(parsed.terms, overrides);
+        validateBreeds(breeds);
         String breedsJson = renderBreeds(breeds);
         String catalogSha = sha256(breedsJson.getBytes(StandardCharsets.UTF_8));
         String document = renderDocument(request, actualSourceSha, catalogSha, breedsJson);
@@ -67,6 +70,15 @@ public final class CatalogGenerator {
             Files.createDirectories(parent);
         }
         Files.writeString(request.output(), document, StandardCharsets.UTF_8);
+    }
+
+    private static byte[] readSourceBytes(Path source) throws IOException {
+        try (InputStream file = Files.newInputStream(source);
+             InputStream input = source.getFileName().toString().endsWith(".gz")
+                     ? new GZIPInputStream(file)
+                     : file) {
+            return input.readAllBytes();
+        }
     }
 
     private static void validateRequest(Request request) {
@@ -85,11 +97,12 @@ public final class CatalogGenerator {
 
     private record ParsedObo(String dataVersion, Map<String, Term> terms) {}
 
-    private static ParsedObo parseObo(Path source) throws IOException {
+    private static ParsedObo parseObo(byte[] sourceBytes) throws IOException {
         String dataVersion = null;
         Map<String, Term> terms = new LinkedHashMap<>();
         MutableTerm current = null;
-        try (BufferedReader reader = Files.newBufferedReader(source, StandardCharsets.UTF_8)) {
+        try (BufferedReader reader = new BufferedReader(new java.io.InputStreamReader(
+                new java.io.ByteArrayInputStream(sourceBytes), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 if (line.startsWith("data-version: ")) {
@@ -108,6 +121,49 @@ public final class CatalogGenerator {
         if (current != null) addTerm(terms, current);
         if (dataVersion == null) throw new IllegalArgumentException("OBO data-version is missing");
         return new ParsedObo(dataVersion, terms);
+    }
+
+    private static void validateBreeds(List<Breed> breeds) {
+        Set<String> ids = new HashSet<>();
+        Comparator<Breed> order = Comparator.comparing(Breed::species).thenComparing(Breed::id);
+        for (int index = 0; index < breeds.size(); index++) {
+            Breed breed = breeds.get(index);
+            if (!ids.add(breed.id())) {
+                throw new IllegalArgumentException("Duplicate breed ID: " + breed.id());
+            }
+            if (!breed.species().equals("cat") && !breed.species().equals("dog")) {
+                throw new IllegalArgumentException("Unsupported breed species: " + breed.species());
+            }
+            if (index > 0 && order.compare(breeds.get(index - 1), breed) >= 0) {
+                throw new IllegalArgumentException("Breed records are not uniquely sorted by species and ID");
+            }
+            String previousAlias = null;
+            Set<String> normalizedAliases = new HashSet<>();
+            for (String alias : breed.aliases()) {
+                String normalized = normalize(alias);
+                if (alias.isBlank() || !normalizedAliases.add(normalized)) {
+                    throw new IllegalArgumentException("Invalid or duplicate alias for " + breed.id());
+                }
+                if (normalized.equals(normalize(breed.canonicalName()))
+                        || normalized.equals(normalize(breed.displayNameRu()))) {
+                    throw new IllegalArgumentException("Redundant alias for " + breed.id());
+                }
+                if (previousAlias != null && normalize(previousAlias).compareTo(normalized) >= 0) {
+                    throw new IllegalArgumentException("Aliases are not uniquely sorted for " + breed.id());
+                }
+                previousAlias = alias;
+            }
+        }
+        for (String species : List.of("cat", "dog")) {
+            for (String kind : List.of("mixed", "unknown")) {
+                long count = breeds.stream()
+                        .filter(breed -> breed.species().equals(species) && breed.kind().equals(kind))
+                        .count();
+                if (count != 1) {
+                    throw new IllegalArgumentException("Expected exactly one " + species + " " + kind + " record");
+                }
+            }
+        }
     }
 
     private static void addTerm(Map<String, Term> terms, MutableTerm mutable) {

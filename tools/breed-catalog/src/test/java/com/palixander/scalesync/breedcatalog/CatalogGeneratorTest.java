@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.zip.GZIPOutputStream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -58,6 +59,21 @@ class CatalogGeneratorTest {
         IllegalArgumentException error = assertThrows(IllegalArgumentException.class, () ->
                 new CatalogGenerator().generate(request(source, tempDir.resolve("catalog.json"), "0".repeat(64))));
         assertTrue(error.getMessage().contains("Source SHA-256 mismatch"));
+    }
+
+    @Test
+    void readsVendoredGzipWhileCheckingTheUncompressedSourceChecksum() throws Exception {
+        Path source = resource("vbo-fixture.obo");
+        byte[] sourceBytes = Files.readAllBytes(source);
+        Path compressed = tempDir.resolve("fixture.obo.gz");
+        try (GZIPOutputStream output = new GZIPOutputStream(Files.newOutputStream(compressed))) {
+            output.write(sourceBytes);
+        }
+
+        Path catalog = tempDir.resolve("catalog.json");
+        new CatalogGenerator().generate(request(compressed, catalog, CatalogGenerator.sha256(sourceBytes)));
+
+        assertTrue(Files.readString(catalog).contains("\"id\": \"VBO:0100002\""));
     }
 
     private CatalogGenerator.Request request(Path source, Path output, String sha256) {

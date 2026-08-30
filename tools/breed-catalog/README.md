@@ -2,6 +2,8 @@
 
 This tool creates the bundled cat and dog breed snapshot without network access. Downloading is deliberately separate: generation accepts only a local VBO OBO file and rejects it unless its release version and SHA-256 match the expected values.
 
+The immutable source used by the tracked snapshot is vendored as `vbo-2026-04-15.obo.gz` so CI never needs the network. Run `./gradlew verifyBreedCatalogSnapshot` from the repository root to regenerate into a temporary build directory, run the generator tests, and compare the result byte-for-byte with the tracked resource.
+
 The tracked snapshot uses the immutable Vertebrate Breed Ontology release `2026-04-15`:
 
 - source: `https://purl.obolibrary.org/obo/vbo/releases/2026-04-15/vbo.obo`

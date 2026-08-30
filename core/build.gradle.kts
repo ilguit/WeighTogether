@@ -15,3 +15,7 @@ dependencies {
 tasks.test {
     useJUnit()
 }
+
+tasks.named("check") {
+    dependsOn(gradle.includedBuild("breed-catalog").task(":verifySnapshot"))
+}
