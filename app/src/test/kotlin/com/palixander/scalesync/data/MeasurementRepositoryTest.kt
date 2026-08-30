@@ -86,7 +86,10 @@ class MeasurementRepositoryTest {
         assertEquals(listOf(dao.values.keys.single()), scheduler.enqueued)
         assertEquals(scheduler.enqueued, scheduler.initiallyEnqueued)
         assertTrue(scheduler.cancelled.isEmpty())
-        assertEquals(SyncStatus.DISABLED.name, dao.values.values.single().huaweiStatus)
+        val stored = dao.values.values.single()
+        assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
+        assertEquals(profile.heightCm, requireNotNull(stored.ratingHeightCm), 0.0)
+        assertEquals(RatingHeightOrigin.CAPTURED, stored.ratingHeightOrigin)
     }
 
     @Test
@@ -112,6 +115,8 @@ class MeasurementRepositoryTest {
         assertEquals(70.0, stored.weightKg, 0.0)
         assertNull(stored.impedanceOhm)
         assertNull(stored.fullValues)
+        assertNull(stored.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.CAPTURED, stored.ratingHeightOrigin)
         assertEquals(listOf(stored.id), scheduler.enqueued)
     }
 

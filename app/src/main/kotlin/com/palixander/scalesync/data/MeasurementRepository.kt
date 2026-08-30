@@ -103,15 +103,20 @@ class MeasurementRepository(
 
     suspend fun store(raw: RawScaleMeasurement): StoreResult {
         if (!raw.isStableWeight) return StoreResult.Rejected
+        val profile = profileProvider()
         val entity = if (raw.hasFullBodyComposition) {
-            val profile = profileProvider() ?: return StoreResult.ProfileMissing
+            profile ?: return StoreResult.ProfileMissing
             calculator.calculate(raw, profile).toEntity(
                 rawPayload = raw.rawPayload,
                 fingerprint = measurementFingerprint(raw),
                 huaweiSyncEnabled = huaweiSyncEnabled,
+                ratingHeightCm = profile.heightCm,
             )
         } else {
-            raw.toWeightOnlyEntity(huaweiSyncEnabled)
+            raw.toWeightOnlyEntity(
+                huaweiSyncEnabled = huaweiSyncEnabled,
+                ratingHeightCm = profile?.heightCm,
+            )
         }
         return when (val result = dao.upsertScaleMeasurement(entity)) {
             is MeasurementUpsertResult.Inserted -> {

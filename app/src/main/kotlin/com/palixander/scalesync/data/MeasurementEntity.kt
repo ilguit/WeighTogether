@@ -4,6 +4,7 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 import com.palixander.scalesync.core.BodyComposition
 import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.core.measurementFingerprint
@@ -26,6 +27,11 @@ enum class SyncStatus {
 enum class MeasurementType {
     FULL,
     WEIGHT_ONLY,
+}
+
+enum class RatingHeightOrigin {
+    CAPTURED,
+    RESTORED_CURRENT_ACCOUNT,
 }
 
 data class MeasurementValues(
@@ -296,6 +302,11 @@ data class MeasurementEntity(
     val huaweiSyncedCalculatedValues: String? = null,
     /** Exact profile-dependent values last successfully sent to Health Connect. */
     val healthConnectSyncedCalculatedValues: String? = null,
+    /** Height snapshot used to interpret this measurement against reference ranges. */
+    val ratingHeightCm: Double? = null,
+    /** Whether [ratingHeightCm] was captured at measurement time or restored for legacy data. */
+    @ColumnInfo(defaultValue = "'RESTORED_CURRENT_ACCOUNT'")
+    val ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
 ) {
     val values: MeasurementValues
         get() = checkNotNull(fullValues) { "Weight-only measurement $id has no composition values" }
@@ -422,6 +433,8 @@ fun BodyComposition.toEntity(
     externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
     sourcePendingId: String? = null,
     deduplicationHash: String? = null,
+    ratingHeightCm: Double? = null,
+    ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId,
     fingerprint = fingerprint,
@@ -452,6 +465,8 @@ fun BodyComposition.toEntity(
     externalSyncPolicy = externalSyncPolicy.name,
     sourcePendingId = sourcePendingId,
     deduplicationHash = deduplicationHash,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
 )
 
 fun RawScaleMeasurement.toWeightOnlyEntity(
@@ -460,6 +475,8 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
     sourcePendingId: String? = null,
     deduplicationHash: String? = null,
+    ratingHeightCm: Double? = null,
+    ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId(this),
     fingerprint = measurementFingerprint(this),
@@ -490,6 +507,8 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     externalSyncPolicy = externalSyncPolicy.name,
     sourcePendingId = sourcePendingId,
     deduplicationHash = deduplicationHash,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
 )
 
 const val LEGACY_UNASSIGNED_ACCOUNT_ID: String = "00000000-0000-0000-0000-000000000000"

@@ -45,6 +45,8 @@ interface MeasurementDao {
             deduplicationHash = current.deduplicationHash,
             huaweiSyncedCalculatedValues = current.huaweiSyncedCalculatedValues,
             healthConnectSyncedCalculatedValues = current.healthConnectSyncedCalculatedValues,
+            ratingHeightCm = current.ratingHeightCm,
+            ratingHeightOrigin = current.ratingHeightOrigin,
         )
         return if (update(upgraded) == 1) {
             MeasurementUpsertResult.Upgraded(upgraded)

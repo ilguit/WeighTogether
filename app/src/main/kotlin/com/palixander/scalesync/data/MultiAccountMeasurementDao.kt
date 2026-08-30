@@ -28,7 +28,6 @@ interface MultiAccountMeasurementDao {
         """
         SELECT * FROM measurements
         WHERE accountId = :accountId
-            AND measurementType = 'FULL'
             AND externalSyncPolicy != 'USER_LOCAL'
         ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
@@ -40,7 +39,6 @@ interface MultiAccountMeasurementDao {
         SELECT EXISTS(
             SELECT 1 FROM measurements
             WHERE accountId = :accountId
-                AND measurementType = 'FULL'
                 AND externalSyncPolicy != 'USER_LOCAL'
         )
         """,
