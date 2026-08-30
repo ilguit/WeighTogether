@@ -1438,6 +1438,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 measuredAt = parsed.measuredAt,
                 weightKg = parsed.weightKg,
                 rawWeight = parsed.rawWeight,
+                isStable = parsed.isStable,
                 isStableWeight = parsed.isStableWeight,
                 rawIdentity = petReadingRawIdentity(parsed.rawPayload),
             ),
@@ -1477,7 +1478,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val payload = BleSupport.serviceData(result) ?: return
         val address = runCatching { result.device.address }.getOrNull() ?: return
         val parsed = container.packetParser.parse(payload, address) ?: return
-        if (!parsed.isStableWeight) return
+        if (!shouldProcessForegroundScaleReading(
+                raw = parsed,
+                observeTransient = container.petMeasurementIngestionGate::observeTransientReading,
+            )
+        ) return
 
         val name = runCatching { result.device.name }.getOrNull()
         container.profileStore.saveScale(address, name)
@@ -1498,7 +1503,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val address = runCatching { result.device.address }.getOrNull() ?: return
         if (!isSelectedScaleAddress(selectedAddress, address)) return
         val parsed = container.packetParser.parse(payload, address) ?: return
-        if (!parsed.isStableWeight) return
+        if (!shouldProcessForegroundScaleReading(
+                raw = parsed,
+                selectedAddress = selectedAddress,
+                observeTransient = container.petMeasurementIngestionGate::observeTransientReading,
+            )
+        ) return
 
         ScanWorkScheduler.processDirect(getApplication(), result)
         scaleRefresh.complete(operation)

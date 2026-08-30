@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
@@ -43,6 +44,8 @@ internal data class PetScaleReading(
     val measuredAt: Instant,
     val weightKg: Double,
     val rawWeight: Int,
+    /** Raw scale stability bit, kept separate from the validated stable-weight predicate. */
+    val isStable: Boolean,
     val isStableWeight: Boolean,
     /** Hex keeps ByteArray identity value-based and immutable for duplicate detection. */
     val rawIdentity: String,
@@ -190,12 +193,19 @@ internal class PetMeasurementCoordinator(
         val transition = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return null
             if (active.saving) return null
-            if (!reading.isStableWeight ||
-                !reading.weightKg.isFinite() ||
-                reading.weightKg <= 0.0 ||
+            if (!reading.weightKg.isFinite() ||
+                reading.weightKg !in RawScaleMeasurement.MIN_WEIGHT_KG..RawScaleMeasurement.MAX_WEIGHT_KG ||
                 reading.receivedAtNanos < active.startedAtNanos ||
                 !isSelectedScaleAddress(active.selectedAddress, reading.address)
             ) return null
+            if (!reading.isStable) {
+                active.transientSeenSinceLastStable = true
+                return null
+            }
+            if (!reading.isStableWeight || !active.transientSeenSinceLastStable) return null
+            // Transient permission is one-shot: every valid stable candidate consumes it,
+            // including candidates later rejected as baseline, duplicate, or same-weight.
+            active.transientSeenSinceLastStable = false
             val identity = ReadingIdentity(reading.measuredAt, reading.rawIdentity)
             val first = active.first
             if (first == null) {
@@ -326,6 +336,7 @@ internal class PetMeasurementCoordinator(
         val ingestionSession: PetIngestionSession,
         val preSessionBaseline: PetStableReadingBaseline?,
         var first: CapturedReading? = null,
+        var transientSeenSinceLastStable: Boolean = false,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,
         var scannerStopped: Boolean = false,

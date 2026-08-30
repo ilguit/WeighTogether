@@ -41,6 +41,7 @@ class MeasurementIngestionWorkOrchestrator(
 /** BLE callbacks can outlive a scan briefly; retain pet packet identities across gate release. */
 internal const val PET_PACKET_QUARANTINE_TTL_NANOS = 120_000_000_000L
 internal const val PET_PACKET_QUARANTINE_MAX_IDENTITIES = 32
+internal const val PET_PROTECTED_READING_MAX_IDENTITIES = 32
 private const val XIAOMI_SCALE_PACKET_PAYLOAD_SIZE = 13
 
 /** Application-scoped switch preventing pet readings from entering the human pipeline. */
@@ -56,7 +57,9 @@ class PetMeasurementIngestionGate(
     private var processingCount = 0
     private var processingDrained: CompletableDeferred<Unit>? = null
     private val activePetPackets = linkedSetOf<PacketIdentity>()
-    private val protectedPetPackets = linkedMapOf<PacketIdentity, StableReadingIdentity?>()
+    private val protectedPetPackets = linkedSetOf<PacketIdentity>()
+    private val activePetReadings = linkedSetOf<StableReadingIdentity>()
+    private val protectedPetReadings = linkedSetOf<StableReadingIdentity>()
     private val quarantinedPetPackets = linkedMapOf<PacketIdentity, QuarantineEntry>()
 
     suspend fun activate(): Lease {
@@ -69,6 +72,7 @@ class PetMeasurementIngestionGate(
             activationOwner = owner
             activePetPackets.clear()
             protectedPetPackets.clear()
+            activePetReadings.clear()
             if (processingCount == 0) null else CompletableDeferred<Unit>().also {
                 processingDrained = it
             }
@@ -139,16 +143,18 @@ class PetMeasurementIngestionGate(
                 activePetPackets.forEach { identity ->
                     putQuarantined(identity, expiresAt, protected = false)
                 }
-                protectedPetPackets.forEach { (identity, stableReading) ->
-                    putQuarantined(
-                        identity,
-                        expiresAt,
-                        protected = true,
-                        stableReading = stableReading,
-                    )
+                protectedPetPackets.forEach { identity ->
+                    putQuarantined(identity, expiresAt, protected = true)
+                }
+                val replacedAddresses = activePetReadings.mapTo(linkedSetOf()) { it.address }
+                if (replacedAddresses.isNotEmpty()) {
+                    protectedPetReadings.removeAll { it.address in replacedAddresses }
+                    protectedPetReadings += activePetReadings
+                    trimProtectedReadings()
                 }
                 activePetPackets.clear()
                 protectedPetPackets.clear()
+                activePetReadings.clear()
                 trimQuarantine()
                 petSessionActive = false
                 activationOwner = null
@@ -207,7 +213,7 @@ class PetMeasurementIngestionGate(
             if (petSessionActive && activationOwner === owner) {
                 val identity = PacketIdentity.ofRawIdentity(deviceAddress, rawIdentity)
                 activePetPackets.remove(identity)
-                protectedPetPackets[identity] = protectedPetPackets[identity]
+                protectedPetPackets += identity
             }
         }
 
@@ -221,18 +227,27 @@ class PetMeasurementIngestionGate(
         if (petSessionActive && activationOwner === owner) {
             val identity = PacketIdentity.ofRawIdentity(deviceAddress, rawIdentity)
             activePetPackets.remove(identity)
-            protectedPetPackets[identity] = StableReadingIdentity.of(
-                deviceAddress,
-                rawWeight,
-            )
+            protectedPetPackets += identity
+            activePetReadings += StableReadingIdentity.of(deviceAddress, rawWeight)
         }
     }
 
-    internal fun isQuarantinedPetReading(raw: RawScaleMeasurement): Boolean = synchronized(lock) {
-        pruneQuarantine(monotonicNowNanos())
-        val stableReading = StableReadingIdentity.of(raw)
-        quarantinedPetPackets.values.any {
-            it.protected && it.stableReading == stableReading
+    internal fun isProtectedPetReading(raw: RawScaleMeasurement): Boolean = synchronized(lock) {
+        StableReadingIdentity.of(raw) in protectedPetReadings
+    }
+
+    fun observeTransientReading(raw: RawScaleMeasurement) = synchronized(lock) {
+        if (raw.isStable ||
+            !raw.weightKg.isFinite() ||
+            raw.weightKg !in RawScaleMeasurement.MIN_WEIGHT_KG..RawScaleMeasurement.MAX_WEIGHT_KG
+        ) return@synchronized
+        val address = StableReadingIdentity.normalizeAddress(raw.deviceAddress)
+        protectedPetReadings.removeAll { it.address == address }
+    }
+
+    private fun trimProtectedReadings() {
+        while (protectedPetReadings.size > PET_PROTECTED_READING_MAX_IDENTITIES) {
+            protectedPetReadings.remove(protectedPetReadings.first())
         }
     }
 
@@ -240,13 +255,11 @@ class PetMeasurementIngestionGate(
         identity: PacketIdentity,
         expiresAtNanos: Long,
         protected: Boolean,
-        stableReading: StableReadingIdentity? = null,
     ) {
         val previous = quarantinedPetPackets.remove(identity)
         quarantinedPetPackets[identity] = QuarantineEntry(
             expiresAtNanos = expiresAtNanos,
             protected = protected || previous?.protected == true,
-            stableReading = stableReading ?: previous?.stableReading,
         )
     }
 
@@ -261,7 +274,6 @@ class PetMeasurementIngestionGate(
     private data class QuarantineEntry(
         val expiresAtNanos: Long,
         val protected: Boolean,
-        val stableReading: StableReadingIdentity? = null,
     )
 
     private data class StableReadingIdentity(
@@ -276,9 +288,12 @@ class PetMeasurementIngestionGate(
 
             fun of(deviceAddress: String, rawWeight: Int) =
                 StableReadingIdentity(
-                    address = deviceAddress.trim().uppercase(Locale.ROOT),
+                    address = normalizeAddress(deviceAddress),
                     rawWeight = rawWeight,
                 )
+
+            fun normalizeAddress(deviceAddress: String): String =
+                deviceAddress.trim().uppercase(Locale.ROOT)
         }
     }
 
@@ -353,9 +368,10 @@ class ScalePacketProcessor(
             val parsed = parse(packet.payload, packet.deviceAddress)
                 ?: return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             if (!parsed.isStableWeight) {
+                petMeasurementGate.observeTransientReading(parsed)
                 return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             }
-            if (petMeasurementGate.isQuarantinedPetReading(parsed)) {
+            if (petMeasurementGate.isProtectedPetReading(parsed)) {
                 return@processPacketWhenInactive MeasurementIngestionResult.IgnoredNotFinal
             }
             ingestion.process(parsed)
