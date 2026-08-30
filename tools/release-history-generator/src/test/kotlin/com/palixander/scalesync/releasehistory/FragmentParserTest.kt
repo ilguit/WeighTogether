@@ -50,6 +50,12 @@ class FragmentParserTest {
         assertThrows(GenerationException::class.java) {
             parser.parse(
                 ".release-notes/25-a.yaml",
+                "issue: 25\nuserVisible: false\nsuppressReleasedChange: null\nreason: x",
+            )
+        }
+        assertThrows(GenerationException::class.java) {
+            parser.parse(
+                ".release-notes/25-a.yaml",
                 "issue: 25\nuserVisible: true\nsuppressReleasedChange: false\ntext: Видимое изменение",
             )
         }

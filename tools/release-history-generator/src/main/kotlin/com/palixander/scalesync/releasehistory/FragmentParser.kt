@@ -44,7 +44,11 @@ class FragmentParser {
         val visible = values["userVisible"] as? Boolean
             ?: fail(path, "required field 'userVisible' must be a boolean")
         val suppressReleasedChange = when (val value = values["suppressReleasedChange"]) {
-            null -> false
+            null -> if (values.containsKey("suppressReleasedChange")) {
+                fail(path, "field 'suppressReleasedChange' must be a boolean")
+            } else {
+                false
+            }
             is Boolean -> value
             else -> fail(path, "field 'suppressReleasedChange' must be a boolean")
         }
