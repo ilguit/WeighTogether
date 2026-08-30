@@ -1,5 +1,7 @@
-# VBO ID<TAB>expected VBO label<TAB>rationale
-VBO:0100262	Mixed Breed (Cat)	Duplicate of application-owned cat mixed-breed choice
-VBO:0100285	Cross Breed (Cat)	Generic cross-breed choice duplicated by application-owned cat mixed-breed choice
-VBO:0200393	Crossbreed (Dog)	Generic cross-breed choice duplicated by application-owned dog mixed-breed choice
-VBO:0200902	Mixed Breed (Dog)	Grouping concept and duplicate of application-owned dog mixed-breed choice; concrete descendant breeds remain selectable
+# VBO ID<TAB>expected species<TAB>expected VBO label<TAB>rationale
+VBO:0100262	cat	Mixed Breed (Cat)	Duplicate of application-owned cat mixed-breed choice
+VBO:0100285	cat	Cross Breed (Cat)	Generic cross-breed choice duplicated by application-owned cat mixed-breed choice
+VBO:0201489	cat	Random-Bred Cat (Cat)	Generic random-bred choice duplicated by application-owned unknown/no-breed choice
+VBO:0200393	dog	Crossbreed (Dog)	Generic cross-breed choice duplicated by application-owned dog mixed-breed choice
+VBO:0200902	dog	Mixed Breed (Dog)	Grouping concept and duplicate of application-owned dog mixed-breed choice; concrete descendant breeds remain selectable
+VBO:0200986	dog	Random-Bred Dog (Dog)	Generic random-bred choice duplicated by application-owned unknown/no-breed choice

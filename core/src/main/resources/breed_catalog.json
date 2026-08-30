@@ -8,7 +8,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "snapshotDate": "2026-08-30",
     "sourceSha256": "4ada4d18dcc2ea421f1ee630dfee29042ae2a45a34b0928419475377ee3304bd",
-    "catalogSha256": "fcfea23e8037f111e8421e3bfe7da63c4618e9bd30e366f8c263728084544343"
+    "catalogSha256": "887abcc9f41dd30f275a4ce9b2da26aff69d6ade077cc599565269b7f9db2338"
   },
   "breeds": [
     {
@@ -2361,14 +2361,6 @@
       "canonicalName": "Australian Tundra",
       "displayNameRu": "Australian Tundra",
       "aliases": [],
-      "kind": "vbo"
-    },
-    {
-      "id": "VBO:0201489",
-      "species": "cat",
-      "canonicalName": "Random-Bred Cat",
-      "displayNameRu": "Random-Bred Cat",
-      "aliases": ["Companion Cat", "Domestic Cat", "Domestic cat (hair length unspecified)", "House Cat", "Household Pet", "Household Pet Kitten", "Moggie"],
       "kind": "vbo"
     },
     {
@@ -11049,14 +11041,6 @@
       "canonicalName": "Papillon",
       "displayNameRu": "Papillon",
       "aliases": ["Butterfly Dog", "Continental Toy Spaniel", "Epagneul Nain Continental", "Phalene (drop ear type)", "Squirrel Dog (due to tail carriage)"],
-      "kind": "vbo"
-    },
-    {
-      "id": "VBO:0200986",
-      "species": "dog",
-      "canonicalName": "Random-Bred Dog",
-      "displayNameRu": "Random-Bred Dog",
-      "aliases": ["Mongrel", "Mutt", "Native Dog", "Pariah Dog", "Street Dog", "Village Dog"],
       "kind": "vbo"
     },
     {

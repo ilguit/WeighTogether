@@ -246,7 +246,7 @@ public final class CatalogGenerator {
         return result;
     }
 
-    private record Exclusion(String expectedLabel, String rationale) {}
+    private record Exclusion(String expectedSpecies, String expectedLabel, String rationale) {}
 
     private static Map<String, Exclusion> parseExclusions(Path path) throws IOException {
         Map<String, Exclusion> result = new TreeMap<>();
@@ -256,11 +256,12 @@ public final class CatalogGenerator {
             String line = rawLine.strip();
             if (line.isEmpty() || line.startsWith("#")) continue;
             String[] columns = line.split("\\t", -1);
-            if (columns.length != 3 || !CANONICAL_ID.matcher(columns[0]).matches()
-                    || columns[1].isBlank() || columns[2].isBlank()) {
+            if (columns.length != 4 || !CANONICAL_ID.matcher(columns[0]).matches()
+                    || (!columns[1].equals("cat") && !columns[1].equals("dog"))
+                    || columns[2].isBlank() || columns[3].isBlank()) {
                 throw new IllegalArgumentException("Invalid VBO exclusion at " + path + ":" + lineNumber);
             }
-            if (result.put(columns[0], new Exclusion(columns[1].strip(), columns[2].strip())) != null) {
+            if (result.put(columns[0], new Exclusion(columns[1], columns[2].strip(), columns[3].strip())) != null) {
                 throw new IllegalArgumentException("Duplicate VBO exclusion for " + columns[0]);
             }
         }
@@ -273,12 +274,12 @@ public final class CatalogGenerator {
             Map<String, Exclusion> exclusions) {
         requireRoot(terms, CAT_ROOT, "Cat breed");
         requireRoot(terms, DOG_ROOT, "Dog breed");
-        validateExclusions(terms, exclusions);
         Map<String, List<String>> children = new HashMap<>();
         for (Term term : terms.values()) {
             if (term.obsolete()) continue;
             for (String parent : term.parents()) children.computeIfAbsent(parent, ignored -> new ArrayList<>()).add(term.id());
         }
+        validateExclusions(terms, children, exclusions);
 
         List<Breed> result = new ArrayList<>();
         Set<String> included = new HashSet<>();
@@ -292,7 +293,12 @@ public final class CatalogGenerator {
         return result;
     }
 
-    private static void validateExclusions(Map<String, Term> terms, Map<String, Exclusion> exclusions) {
+    private static void validateExclusions(
+            Map<String, Term> terms,
+            Map<String, List<String>> children,
+            Map<String, Exclusion> exclusions) {
+        Set<String> catDescendants = descendants(CAT_ROOT, children);
+        Set<String> dogDescendants = descendants(DOG_ROOT, children);
         for (Map.Entry<String, Exclusion> entry : exclusions.entrySet()) {
             Term term = terms.get(entry.getKey());
             if (term == null || term.obsolete()) {
@@ -301,6 +307,17 @@ public final class CatalogGenerator {
             if (!entry.getValue().expectedLabel().equals(term.label())) {
                 throw new IllegalArgumentException("Excluded VBO term label changed: " + entry.getKey()
                         + " (expected '" + entry.getValue().expectedLabel() + "', got '" + term.label() + "')");
+            }
+            boolean isCat = catDescendants.contains(entry.getKey());
+            boolean isDog = dogDescendants.contains(entry.getKey());
+            if (isCat == isDog) {
+                throw new IllegalArgumentException("Excluded VBO term must belong to exactly one cat/dog hierarchy: "
+                        + entry.getKey());
+            }
+            String actualSpecies = isCat ? "cat" : "dog";
+            if (!entry.getValue().expectedSpecies().equals(actualSpecies)) {
+                throw new IllegalArgumentException("Excluded VBO term species changed: " + entry.getKey()
+                        + " (expected '" + entry.getValue().expectedSpecies() + "', got '" + actualSpecies + "')");
             }
         }
     }

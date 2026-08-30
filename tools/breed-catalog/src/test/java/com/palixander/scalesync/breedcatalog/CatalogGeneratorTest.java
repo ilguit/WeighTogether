@@ -82,7 +82,7 @@ class CatalogGeneratorTest {
     void rejectsExclusionWhenThePinnedVboLabelDrifts() throws Exception {
         Path source = resource("vbo-fixture.obo");
         Path exclusions = tempDir.resolve("exclusions.tsv");
-        Files.writeString(exclusions, "VBO:0100004\tRenamed Mixed Breed (Cat)\tFixture rationale\n");
+        Files.writeString(exclusions, "VBO:0100004\tcat\tRenamed Mixed Breed (Cat)\tFixture rationale\n");
         CatalogGenerator.Request base = request(
                 source,
                 tempDir.resolve("catalog.json"),
@@ -96,6 +96,57 @@ class CatalogGeneratorTest {
                 () -> new CatalogGenerator().generate(request));
 
         assertTrue(error.getMessage().contains("Excluded VBO term label changed: VBO:0100004"));
+    }
+
+    @Test
+    void rejectsExclusionWhenTermBelongsToTheOppositeSpecies() throws Exception {
+        IllegalArgumentException error = generateWithExclusion(
+                "VBO:0100004\tdog\tMixed Breed (Cat)\tFixture rationale\n");
+
+        assertTrue(error.getMessage().contains("Excluded VBO term species changed: VBO:0100004"));
+    }
+
+    @Test
+    void rejectsExclusionOutsideCatAndDogHierarchies() throws Exception {
+        IllegalArgumentException error = generateWithExclusion(
+                "VBO:0999999\tcat\tOther Animal\tFixture rationale\n");
+
+        assertTrue(error.getMessage().contains("must belong to exactly one cat/dog hierarchy: VBO:0999999"));
+    }
+
+    @Test
+    void rejectsExclusionInBothCatAndDogHierarchies() throws Exception {
+        Path source = tempDir.resolve("ambiguous-vbo-fixture.obo");
+        Files.writeString(source, Files.readString(resource("vbo-fixture.obo")) + """
+
+                [Term]
+                id: VBO:0999998
+                name: Ambiguous Breed
+                is_a: VBO:0400018 ! Cat breed
+                is_a: VBO:0400024 ! Dog breed
+                """);
+        IllegalArgumentException error = generateWithExclusion(
+                source,
+                "VBO:0999998\tcat\tAmbiguous Breed\tFixture rationale\n");
+
+        assertTrue(error.getMessage().contains("must belong to exactly one cat/dog hierarchy: VBO:0999998"));
+    }
+
+    private IllegalArgumentException generateWithExclusion(String line) throws Exception {
+        return generateWithExclusion(resource("vbo-fixture.obo"), line);
+    }
+
+    private IllegalArgumentException generateWithExclusion(Path source, String line) throws Exception {
+        Path exclusions = tempDir.resolve("exclusions-" + Math.abs(line.hashCode()) + ".tsv");
+        Files.writeString(exclusions, line);
+        CatalogGenerator.Request base = request(
+                source,
+                tempDir.resolve("catalog-" + Math.abs(line.hashCode()) + ".json"),
+                CatalogGenerator.sha256(Files.readAllBytes(source)));
+        CatalogGenerator.Request request = new CatalogGenerator.Request(
+                base.source(), base.sourceVersion(), base.sourceUrl(), base.sourceSha256(), base.snapshotDate(),
+                base.overrides(), exclusions, base.output());
+        return assertThrows(IllegalArgumentException.class, () -> new CatalogGenerator().generate(request));
     }
 
     private CatalogGenerator.Request request(Path source, Path output, String sha256) {

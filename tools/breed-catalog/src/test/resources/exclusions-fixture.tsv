@@ -1,2 +1,2 @@
-# VBO ID<TAB>expected VBO label<TAB>rationale
-VBO:0100004	Mixed Breed (Cat)	Duplicate of application-owned mixed-breed choice
+# VBO ID<TAB>expected species<TAB>expected VBO label<TAB>rationale
+VBO:0100004	cat	Mixed Breed (Cat)	Duplicate of application-owned mixed-breed choice
