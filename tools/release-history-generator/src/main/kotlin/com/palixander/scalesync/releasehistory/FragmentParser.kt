@@ -43,11 +43,19 @@ class FragmentParser {
         if (issue != fileIssue) fail(path, "field 'issue' ($issue) must match filename issue ($fileIssue)")
         val visible = values["userVisible"] as? Boolean
             ?: fail(path, "required field 'userVisible' must be a boolean")
+        val suppressReleasedChange = when (val value = values["suppressReleasedChange"]) {
+            null -> false
+            is Boolean -> value
+            else -> fail(path, "field 'suppressReleasedChange' must be a boolean")
+        }
         val text = values["text"] as? String
         val reason = values["reason"] as? String
         if (visible) {
             if (text.isNullOrBlank()) fail(path, "field 'text' is required for a user-visible fragment")
             if (values.containsKey("reason")) fail(path, "field 'reason' is forbidden when 'userVisible' is true")
+            if (values.containsKey("suppressReleasedChange")) {
+                fail(path, "field 'suppressReleasedChange' is forbidden when 'userVisible' is true")
+            }
         } else {
             if (reason.isNullOrBlank()) fail(path, "field 'reason' is required for a technical fragment")
             if (values.containsKey("text")) fail(path, "field 'text' is forbidden when 'userVisible' is false")
@@ -64,7 +72,7 @@ class FragmentParser {
             }
             else -> fail(path, "field 'flavors' must be a non-empty string list")
         }
-        return ReleaseNoteFragment(path, issue, visible, text, reason, flavors)
+        return ReleaseNoteFragment(path, issue, visible, text, reason, flavors, suppressReleasedChange)
     }
 
     private fun fail(path: String, message: String, cause: Throwable? = null): Nothing =
@@ -72,6 +80,13 @@ class FragmentParser {
 
     private companion object {
         val FILE_NAME = Regex("([1-9][0-9]*)-[a-z0-9]+(?:-[a-z0-9]+)*\\.yaml")
-        val ALLOWED_KEYS = setOf("issue", "userVisible", "text", "reason", "flavors")
+        val ALLOWED_KEYS = setOf(
+            "issue",
+            "userVisible",
+            "text",
+            "reason",
+            "flavors",
+            "suppressReleasedChange",
+        )
     }
 }

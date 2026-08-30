@@ -562,13 +562,19 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
-    fun `build suppresses a released change when a technical carryover fragment replaces it`() {
+    fun `build suppresses a released change when explicitly requested by a technical carryover fragment`() {
         val git = TestGit(directory)
         git.init()
         git.fragment(1, "released", true, "Выпущенное изменение")
         git.commit("Released task (#1)")
         git.annotatedTag("apk/0.1.0")
-        git.fragment(1, "released", false, "Изменение уже вошло в выпущенную версию")
+        git.fragment(
+            1,
+            "released",
+            false,
+            "Изменение уже вошло в выпущенную версию",
+            suppressReleasedChange = true,
+        )
         git.fragment(2, "current", true, "Текущее изменение")
         git.commit("Current task (#2)")
 
@@ -580,13 +586,19 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
-    fun `release suppresses a carried over issue from every generated release`() {
+    fun `release explicitly suppresses a carried over issue from every generated release`() {
         val git = TestGit(directory)
         git.init()
         git.fragment(1, "released", true, "Выпущенное изменение")
         git.commit("Released task (#1)")
         git.annotatedTag("apk/0.1.0")
-        git.fragment(1, "released", false, "Изменение уже вошло в выпущенную версию")
+        git.fragment(
+            1,
+            "released",
+            false,
+            "Изменение уже вошло в выпущенную версию",
+            suppressReleasedChange = true,
+        )
         git.fragment(2, "candidate", true, "Новое изменение")
         git.commit("Candidate task (#2)")
 
@@ -596,6 +608,24 @@ class ReleaseHistoryGeneratorTest {
         assertEquals(listOf("0.1.1", "0.1.0"), history.releases.map { it.version })
         assertEquals(listOf(2), history.releases.flatMap { release -> release.changes.map { it.issue } })
         assertTrue(history.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `ordinary technical carryover keeps the released change`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Обычный технический перенос")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+        assertEquals(listOf(1), history.releases.single().changes.map { it.issue })
     }
 
     @Test
@@ -716,10 +746,21 @@ class ReleaseHistoryGeneratorTest {
             run("config", "user.email", "test@example.com")
         }
 
-        fun fragment(issue: Int, slug: String, visible: Boolean, message: String, flavors: List<String> = emptyList()) {
+        fun fragment(
+            issue: Int,
+            slug: String,
+            visible: Boolean,
+            message: String,
+            flavors: List<String> = emptyList(),
+            suppressReleasedChange: Boolean = false,
+        ) {
             val typeLine = if (visible) "text: $message" else "reason: $message"
             val flavorLines = if (flavors.isEmpty()) "" else "flavors:\n" + flavors.joinToString("") { "  - $it\n" }
-            file(".release-notes/$issue-$slug.yaml", "issue: $issue\nuserVisible: $visible\n$typeLine\n$flavorLines")
+            val suppressionLine = if (suppressReleasedChange) "suppressReleasedChange: true\n" else ""
+            file(
+                ".release-notes/$issue-$slug.yaml",
+                "issue: $issue\nuserVisible: $visible\n$suppressionLine$typeLine\n$flavorLines",
+            )
         }
 
         fun file(path: String, contents: String) {

@@ -31,6 +31,7 @@ data class ReleaseNoteFragment(
     val text: String?,
     val reason: String?,
     val flavors: Set<ReleaseFlavor>,
+    val suppressReleasedChange: Boolean,
 ) {
     fun appliesTo(flavor: ReleaseFlavor): Boolean = flavors.isEmpty() || flavor in flavors
 }

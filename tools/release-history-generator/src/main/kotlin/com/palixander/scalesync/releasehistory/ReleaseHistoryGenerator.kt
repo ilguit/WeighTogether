@@ -129,22 +129,24 @@ class ReleaseHistoryGenerator(
         } else {
             null
         }
-        val carryoverIssues = (ranges.asSequence() + listOfNotNull(latestRange).asSequence())
+        val suppressedReleasedIssues = (ranges.asSequence() + listOfNotNull(latestRange).asSequence())
             .flatMap { range ->
                 range.fragments.asSequence()
                     .filter { fragment ->
-                        !fragment.userVisible && fragment.issue !in range.issues && fragment.appliesTo(flavor)
+                        fragment.suppressReleasedChange &&
+                            fragment.issue !in range.issues &&
+                            fragment.appliesTo(flavor)
                     }
                     .map { it.issue }
             }
             .toSet()
         val history = GeneratedHistory(
             releases = (releases + baselineHistory).map { release ->
-                release.copy(changes = release.changes.filterNot { it.issue in carryoverIssues })
+                release.copy(changes = release.changes.filterNot { it.issue in suppressedReleasedIssues })
             },
             latestChanges = latestRange?.let { generateChanges(it, flavor) }
                 .orEmpty()
-                .filterNot { it.issue in carryoverIssues },
+                .filterNot { it.issue in suppressedReleasedIssues },
         )
         if (mode == ReleaseHistoryMode.RELEASE && history.releases.firstOrNull()?.version != currentVersion) {
             throw GenerationException(
