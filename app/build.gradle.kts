@@ -15,7 +15,7 @@ android {
         applicationId = "com.palixander.scalesync"
         minSdk = 26
         targetSdk = 36
-        versionCode = 72
+        versionCode = 73
         versionName = "0.1.21"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
