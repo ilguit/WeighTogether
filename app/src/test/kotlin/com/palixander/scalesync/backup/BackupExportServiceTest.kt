@@ -9,6 +9,7 @@ import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.toPortableSnapshot
 import com.palixander.scalesync.domain.ExternalSyncPolicy
@@ -43,10 +44,13 @@ class BackupExportServiceTest {
         val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
 
         assertEquals(document, decoded)
+        assertEquals(BACKUP_SCHEMA_VERSION, document.schemaVersion)
         assertEquals("2026-08-25T12:00:00Z", document.exportedAt)
         assertEquals(Sex.MALE, document.accounts.single().profile.sex)
         assertEquals(SyncStatus.SYNCED, document.measurements.single().huaweiStatus)
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
+        assertEquals(179.5, document.measurements.single().ratingHeightCm)
+        assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, document.measurements.single().ratingHeightOrigin)
         assertEquals(PetSpecies.CAT, document.pets.single().species)
         assertEquals(4.0, document.petMeasurements.single().petWeightKg, 0.0)
         assertEquals(listOf("bmi", "weight"), document.settings.selectedChartMetricKeys)
@@ -135,5 +139,7 @@ class BackupExportServiceTest {
         huaweiStatus = SyncStatus.SYNCED.name, healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         accountId = "account", externalSyncPolicy = ExternalSyncPolicy.AUTO.name,
         deduplicationHash = "dedupe",
+        ratingHeightCm = 179.5,
+        ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
     )
 }

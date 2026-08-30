@@ -38,7 +38,7 @@ class BackupJsonCodec(
         val version = versionElement?.takeIf {
             it.isJsonPrimitive && it.asJsonPrimitive.isNumber
         }?.let { runCatching { it.asInt }.getOrNull() }
-        if (version !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
+        if (version !in SUPPORTED_VERSIONS) {
             throw BackupException.UnsupportedVersion(version)
         }
         val supportedVersion = requireNotNull(version)
@@ -48,10 +48,21 @@ class BackupJsonCodec(
             root.add("pets", com.google.gson.JsonArray())
             root.add("petMeasurements", com.google.gson.JsonArray())
         }
-        val document = try {
+        var document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
         } catch (error: JsonParseException) {
             throw BackupException.Invalid("$", error.message ?: "type mismatch")
+        }
+        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+            val importedAccountsById = document.accounts.associateBy { it.id }
+            document = document.copy(
+                measurements = document.measurements.map { measurement ->
+                    measurement.copy(
+                        ratingHeightCm = importedAccountsById[measurement.accountId]?.profile?.heightCm,
+                        ratingHeightOrigin = com.palixander.scalesync.data.RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+                    )
+                },
+            )
         }
         validate(document)
         return document
@@ -82,11 +93,22 @@ class BackupJsonCodec(
         root.array("measurements").forEachIndexed { index, element ->
             element.requiredObject("$.measurements[$index]").apply {
                 val path = "$.measurements[$index]"
-                requireKeys(path, MEASUREMENT_KEYS)
+                requireKeys(path, if (version == BACKUP_SCHEMA_VERSION) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
                 requireStrings(path, MEASUREMENT_STRING_KEYS)
-                requireNullableStrings(path, MEASUREMENT_NULLABLE_STRING_KEYS)
+                requireNullableStrings(
+                    path,
+                    MEASUREMENT_NULLABLE_STRING_KEYS,
+                )
+                if (version == BACKUP_SCHEMA_VERSION) requireStrings(path, setOf("ratingHeightOrigin"))
                 requireNumbers(path, MEASUREMENT_NUMBER_KEYS)
-                requireNullableNumbers(path, MEASUREMENT_NULLABLE_NUMBER_KEYS)
+                requireNullableNumbers(
+                    path,
+                    if (version == BACKUP_SCHEMA_VERSION) {
+                        MEASUREMENT_NULLABLE_NUMBER_KEYS + "ratingHeightCm"
+                    } else {
+                        MEASUREMENT_NULLABLE_NUMBER_KEYS
+                    },
+                )
                 requireBooleans(path, MEASUREMENT_BOOLEAN_KEYS)
             }
         }
@@ -96,7 +118,7 @@ class BackupJsonCodec(
             requireBooleans("$.settings", setOf("reliabilityMode"))
             requireNullableStringArrays("$.settings", setOf("selectedChartMetricKeys", "homeKgChartSeriesKeys"))
         }
-        if (version == BACKUP_SCHEMA_VERSION) {
+        if (version >= BACKUP_SCHEMA_VERSION_V2) {
             root.array("pets").forEachIndexed { index, element ->
                 val path = "$.pets[$index]"
                 element.requiredObject(path).apply {
@@ -118,7 +140,7 @@ class BackupJsonCodec(
 
     private fun validate(document: BackupDocumentV1) {
         invalidUnless(document.format == BACKUP_FORMAT_ID, "$.format", "unexpected format")
-        if (document.schemaVersion !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
+        if (document.schemaVersion !in SUPPORTED_VERSIONS) {
             throw BackupException.UnsupportedVersion(document.schemaVersion)
         }
         invalidUnless(runCatching { Instant.parse(document.exportedAt) }.isSuccess, "$.exportedAt", "expected ISO-8601 instant")
@@ -189,6 +211,16 @@ class BackupJsonCodec(
                 measurement.leanBodyMassKg,
             )
             invalidUnless(calculated.all { it == null || it.isFinite() }, path, "calculated values must be finite")
+            if (document.schemaVersion == BACKUP_SCHEMA_VERSION) {
+                measurement.ratingHeightCm?.let {
+                    invalidUnless(it.isFinite() && it > 0.0, "$path.ratingHeightCm", "must be positive and finite")
+                }
+                invalidUnless(
+                    measurement.ratingHeightOrigin != null,
+                    "$path.ratingHeightOrigin",
+                    "must be a known origin",
+                )
+            }
             if (measurement.measurementType == MeasurementType.FULL) {
                 invalidUnless(measurement.impedanceOhm != null && measurement.algorithmVersion != null && calculated.all { it != null } && measurement.metabolicAge != null, path, "full measurement has missing calculated fields")
             }
@@ -304,7 +336,7 @@ class BackupJsonCodec(
         val PROFILE_KEYS = setOf("heightCm", "birthDateEpochDay", "sex", "complete")
         val APP_STATE_KEYS = setOf("primaryAccountId", "weightDeltaKg", "ignoreUnknownMeasurements")
         val SETTINGS_KEYS = setOf("scaleAddress", "scaleName", "reliabilityMode", "selectedChartMetricKeys", "homeKgChartSeriesKeys")
-        val MEASUREMENT_KEYS = setOf(
+        val MEASUREMENT_KEYS_V1_V2 = setOf(
             "id", "fingerprint", "measurementType", "deviceAddress", "measuredAtEpochSecond", "rawPayloadHex", "weightKg", "rawWeight",
             "impedanceOhm", "bmi", "bodyFatPercent", "bodyFatMassKg", "waterPercent", "waterMassKg", "muscleMassKg", "skeletalMuscleMassKg",
             "boneMassKg", "proteinPercent", "proteinMassKg", "visceralFatLevel", "basalMetabolicRateKcal", "metabolicAge", "leanBodyMassKg",
@@ -312,10 +344,12 @@ class BackupJsonCodec(
             "healthConnectWeightSynced", "createdAtEpochMillis", "accountId", "externalSyncPolicy", "sourcePendingId", "deduplicationHash",
             "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues",
         )
+        val MEASUREMENT_KEYS_V3 = MEASUREMENT_KEYS_V1_V2 + setOf("ratingHeightCm", "ratingHeightOrigin")
         val MEASUREMENT_STRING_KEYS = setOf("id", "fingerprint", "measurementType", "deviceAddress", "rawPayloadHex", "huaweiStatus", "healthConnectStatus", "accountId", "externalSyncPolicy")
         val MEASUREMENT_NULLABLE_STRING_KEYS = setOf("algorithmVersion", "huaweiError", "healthConnectError", "sourcePendingId", "deduplicationHash", "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues")
         val MEASUREMENT_NUMBER_KEYS = setOf("measuredAtEpochSecond", "weightKg", "rawWeight", "createdAtEpochMillis")
         val MEASUREMENT_NULLABLE_NUMBER_KEYS = setOf("impedanceOhm", "bmi", "bodyFatPercent", "bodyFatMassKg", "waterPercent", "waterMassKg", "muscleMassKg", "skeletalMuscleMassKg", "boneMassKg", "proteinPercent", "proteinMassKg", "visceralFatLevel", "basalMetabolicRateKcal", "metabolicAge", "leanBodyMassKg")
         val MEASUREMENT_BOOLEAN_KEYS = setOf("huaweiWeightSynced", "healthConnectWeightSynced")
+        val SUPPORTED_VERSIONS = setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION_V2, BACKUP_SCHEMA_VERSION)
     }
 }

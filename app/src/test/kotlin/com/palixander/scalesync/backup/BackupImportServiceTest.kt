@@ -1,9 +1,11 @@
 package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.recoverBackupImportAtStartup
+import com.palixander.scalesync.data.AccountEntity
 import com.palixander.scalesync.data.AppStateEntity
 import com.palixander.scalesync.data.BackupImportCheckpointEntity
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
@@ -797,5 +799,93 @@ class BackupImportServiceTest {
     private class TrackingInputStream(bytes: ByteArray) : ByteArrayInputStream(bytes) {
         var closed = false
         override fun close() { closed = true; super.close() }
+    }
+
+    @Test
+    fun `legacy import restores nullable heights from imported owners and never local primary`() {
+        val base = document()
+        val ownerWithHeight = base.accounts.single().copy(
+            id = "owner-height",
+            displayName = "Imported A",
+            normalizedName = "imported-a",
+            profile = BackupAccountProfileV1(166.0, null, null, false),
+        )
+        val ownerWithoutHeight = ownerWithHeight.copy(
+            id = "owner-null",
+            displayName = "Imported B",
+            normalizedName = "imported-b",
+            profile = BackupAccountProfileV1(null, null, null, false),
+        )
+        val legacy = base.copy(
+            schemaVersion = BACKUP_SCHEMA_VERSION_V2,
+            accounts = listOf(ownerWithHeight, ownerWithoutHeight),
+            appState = base.appState.copy(primaryAccountId = "owner-null"),
+            measurements = listOf(
+                base.measurements.single().copy(
+                    id = "height-measurement",
+                    fingerprint = "height-fingerprint",
+                    accountId = "owner-height",
+                    deduplicationHash = "height-hash",
+                    ratingHeightCm = null,
+                    ratingHeightOrigin = null,
+                ),
+                base.measurements.single().copy(
+                    id = "null-measurement",
+                    fingerprint = "null-fingerprint",
+                    accountId = "owner-null",
+                    deduplicationHash = "null-hash",
+                    ratingHeightCm = null,
+                    ratingHeightOrigin = null,
+                ),
+            ),
+        )
+        val localPrimary = AccountEntity(
+            "local-primary", "Local", "local", 222.0, null, null, false, 1, 2,
+        )
+        val current = BackupDatabaseSnapshot(
+            accounts = listOf(localPrimary),
+            appState = AppStateEntity(primaryAccountId = localPrimary.id),
+            measurements = emptyList(),
+        )
+
+        val result = service.preview(
+            legacy,
+            current,
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result.measurements.associateBy { it.id }
+
+        assertEquals(166.0, result.getValue("height-measurement").ratingHeightCm)
+        assertEquals(null, result.getValue("null-measurement").ratingHeightCm)
+        assertEquals(
+            RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+            result.getValue("height-measurement").ratingHeightOrigin,
+        )
+        assertEquals(
+            RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+            result.getValue("null-measurement").ratingHeightOrigin,
+        )
+    }
+
+    @Test
+    fun `v3 import preserves captured measurement context exactly`() {
+        val source = document().copy(
+            measurements = listOf(
+                document().measurements.single().copy(
+                    ratingHeightCm = 173.25,
+                    ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
+                ),
+            ),
+        )
+
+        val imported = service.preview(
+            source,
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        ).result.measurements.single()
+
+        assertEquals(173.25, imported.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.CAPTURED, imported.ratingHeightOrigin)
     }
 }
