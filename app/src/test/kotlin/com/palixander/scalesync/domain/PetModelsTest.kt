@@ -143,6 +143,27 @@ class PetModelsTest {
     }
 
     @Test
+    fun petPreservesTheLegacyFullPositionalConstructor() {
+        val createdAt = Instant.ofEpochSecond(100)
+        val updatedAt = Instant.ofEpochSecond(200)
+
+        val pet = Pet(
+            PetId("pet"),
+            "Барсик",
+            PetSpecies.CAT,
+            "барсик",
+            createdAt,
+            updatedAt,
+        )
+
+        assertEquals(createdAt, pet.createdAt)
+        assertEquals(updatedAt, pet.updatedAt)
+        assertNull(pet.sex)
+        assertNull(pet.breedId)
+        assertNull(pet.birthDate)
+    }
+
+    @Test
     fun nameNormalizationIsLocaleIndependentAndRejectsUntrimmedInput() {
         assertEquals("барсик", NewPet("Барсик", PetSpecies.CAT).normalizedName)
         assertThrows(IllegalArgumentException::class.java) {

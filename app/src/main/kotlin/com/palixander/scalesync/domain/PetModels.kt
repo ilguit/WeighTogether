@@ -115,12 +115,12 @@ data class Pet(
     val id: PetId,
     val displayName: String,
     val species: PetSpecies = PetSpecies.UNSPECIFIED,
-    val sex: PetSex? = null,
-    val breedId: BreedId? = null,
-    val birthDate: PartialBirthDate? = null,
     val normalizedName: String = normalizePetName(displayName),
     val createdAt: Instant,
     val updatedAt: Instant,
+    val sex: PetSex? = null,
+    val breedId: BreedId? = null,
+    val birthDate: PartialBirthDate? = null,
 ) {
     init {
         validatePetName(displayName)
