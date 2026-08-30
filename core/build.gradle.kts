@@ -7,6 +7,7 @@ kotlin {
 }
 
 dependencies {
+    implementation("com.google.code.gson:gson:2.13.2")
     testImplementation(kotlin("test"))
     testImplementation("junit:junit:4.13.2")
 }
@@ -14,4 +15,3 @@ dependencies {
 tasks.test {
     useJUnit()
 }
-
