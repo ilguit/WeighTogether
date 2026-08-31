@@ -198,15 +198,28 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `known dog breed without profile falls back to weight category and reports actual basis`() {
-        val result = resolveDog(
-            breedId = BreedId("VBO:0000661"),
-            birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),
-            dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.II),
-        ).available()
+    fun `ordinary VBO dog breeds fall back to weight category and report actual basis`() {
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
+        listOf("VBO:0000661", "VBO:0000663", "VBO:0000664").forEach { breedId ->
+            val result = resolveDog(
+                breedId = BreedId(breedId),
+                birthDate = birthDate,
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.II),
+            ).available()
 
-        assertEquals("dog-male-II", result.profileId)
-        assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
+            assertEquals("dog-male-II", result.profileId)
+            assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
+        }
+    }
+
+    @Test
+    fun `ordinary VBO dog breed without category reports missing adult weight`() {
+        assertReason<WeightReferenceUnavailableReason.MissingDogAdultWeight>(
+            resolveDog(
+                breedId = BreedId("VBO:0000661"),
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),
+            ),
+        )
     }
 
     @Test

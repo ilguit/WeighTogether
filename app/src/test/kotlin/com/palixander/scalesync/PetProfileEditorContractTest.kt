@@ -78,7 +78,7 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun reducerFillsAndClearsEveryNullableFieldWithoutInventingDateParts() {
+    fun reducerFillsAndClearsNullableFieldsWithoutInventingDateParts() {
         var state = PetProfileEditorState(
             PetProfileDraft.create().copy(
                 displayName = "Луна",
@@ -106,12 +106,12 @@ class PetProfileEditorContractTest {
         assertNull(state.draft.sex)
         assertNull(state.draft.breed)
         assertEquals(PetBirthDateInput.Empty, state.draft.birthDate)
-        assertNull(state.draft.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.II, state.draft.dogAdultWeightCategory)
         val saved = validatePetProfileDraft(state.draft, today).newPet
         assertNull(saved?.sex)
         assertNull(saved?.breedId)
         assertNull(saved?.birthDate)
-        assertNull(saved?.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.II, saved?.dogAdultWeightCategory)
     }
 
     @Test
