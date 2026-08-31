@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -29,6 +30,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.charts.MetricChartCard
+import com.palixander.scalesync.PetBreedCatalog
+import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -38,6 +41,8 @@ object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
     fun shell(petId: String) = "$Shell-$petId"
     const val StartMeasurement = "pet-history-start-measurement"
+    const val Summary = "pet-profile-summary"
+    const val Edit = "pet-profile-edit"
     const val PeriodFilter = "pet-history-period-filter"
     const val Chart = "pet-history-chart"
     const val Empty = "pet-history-empty"
@@ -59,6 +64,7 @@ internal fun PetProfileScreen(
     callbacks: PetHistoryCallbacks,
     contentPadding: PaddingValues,
     onStartMeasurement: () -> Unit,
+    onEditPet: (Pet) -> Unit = {},
 ) {
     state.deleteConfirmation?.let { confirmation ->
         PetHistoryDeleteDialog(
@@ -82,6 +88,15 @@ internal fun PetProfileScreen(
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.StartMeasurement)
                     .semantics { contentDescription = "Взвесить питомца ${state.pet?.displayName.orEmpty()}" },
             ) { Text("Взвесить питомца") }
+        }
+        state.pet?.takeUnless { state.isNotFound }?.let { pet ->
+            item {
+                PetProfileSummaryCard(
+                    pet = pet,
+                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog),
+                    onEdit = { onEditPet(pet) },
+                )
+            }
         }
         item {
             Row(
@@ -175,6 +190,66 @@ internal fun PetProfileScreen(
 }
 
 @Composable
+private fun PetProfileSummaryCard(
+    pet: Pet,
+    summary: PetProfileSummary,
+    onEdit: () -> Unit,
+) {
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(PetProfileScreenTestTags.Summary)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Данные питомца. ${summary.contentDescription}"
+            },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Данные питомца",
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(PetProfileScreenTestTags.Edit)
+                        .semantics {
+                            contentDescription = "Изменить данные питомца ${pet.displayName}"
+                        },
+                ) { Text("Изменить") }
+            }
+            if (summary.isEmpty) {
+                Text(
+                    text = EmptyPetProfileSummary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                summary.items.forEach { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = item.label,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(
+                            text = item.value,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun PetHistoryDeleteDialog(
     confirmation: PetHistoryDeleteConfirmation,
     actionErrorMessage: String?,
@@ -230,3 +305,5 @@ private fun ChartRangePreset.petTitle() = when (this) {
     ChartRangePreset.YEAR_TO_DATE -> "Год"
     ChartRangePreset.CUSTOM -> "Даты"
 }
+
+private val FallbackBreedCatalog by lazy(::PetBreedCatalog)

@@ -559,6 +559,7 @@ internal fun ScaleSyncScaffold(
                         callbacks = petHistoryCallbacks ?: PetHistoryCallbacks({}, { _, _ -> }),
                         contentPadding = padding,
                         onStartMeasurement = { petMeasurementCallbacks.onStart(petDestination.petId) },
+                        onEditPet = settingsCallbacks.onEditPet,
                     )
 
                     profileEditorOpen -> ProfileEditorScreen(

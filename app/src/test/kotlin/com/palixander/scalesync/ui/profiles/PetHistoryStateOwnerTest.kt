@@ -159,6 +159,114 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
+    fun `pet repository emission refreshes selected pet and summary without reopening`() = runBlocking {
+        val pets = MutableStateFlow(listOf(PetWithLatestWeight(luna, null)))
+        val history = MutableStateFlow(emptyList<PetMeasurement>())
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(
+                pets = mapOf(luna.id to luna),
+                histories = mapOf(luna.id to history),
+                observedPets = pets,
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        val updated = pet("luna", "Луна новая").copy(
+            sex = com.palixander.scalesync.domain.PetSex.FEMALE,
+        )
+        pets.value = listOf(PetWithLatestWeight(updated, null))
+        yield()
+
+        assertEquals(updated, owner.uiState.value.pet)
+        assertEquals(
+            listOf(PetProfileSummaryItem("Пол", "Самка")),
+            owner.uiState.value.profileSummary?.items,
+        )
+        assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)
+        scope.cancel()
+    }
+
+    @Test
+    fun `removing selected pet becomes not found and clears stale profile`() = runBlocking {
+        val pets = MutableStateFlow(listOf(PetWithLatestWeight(luna, null)))
+        val history = MutableStateFlow(emptyList<PetMeasurement>())
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(
+                pets = mapOf(luna.id to luna),
+                histories = mapOf(luna.id to history),
+                observedPets = pets,
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        pets.value = emptyList()
+        yield()
+
+        assertTrue(owner.uiState.value.isNotFound)
+        assertFalse(owner.uiState.value.isLoading)
+        assertNull(owner.uiState.value.pet)
+        assertNull(owner.uiState.value.profileSummary)
+        assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)
+        scope.cancel()
+    }
+
+    @Test
+    fun `pet observation is isolated to current selection while measurements remain`() = runBlocking {
+        val second = pet("second", "Бим")
+        val pets = MutableStateFlow(
+            listOf(PetWithLatestWeight(luna, null), PetWithLatestWeight(second, null)),
+        )
+        val lunaHistory = MutableStateFlow(
+            listOf(measurement("luna-row", luna.id, "2026-03-20T10:00:00Z", 4.25)),
+        )
+        val secondHistory = MutableStateFlow(
+            listOf(measurement("second-row", second.id, "2026-03-21T10:00:00Z", 5.0)),
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(
+                pets = mapOf(luna.id to luna, second.id to second),
+                histories = mapOf(luna.id to lunaHistory, second.id to secondHistory),
+                observedPets = pets,
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.selectPet(second.id)
+        yield()
+        pets.value = listOf(
+            PetWithLatestWeight(pet("luna", "Чужое обновление"), null),
+            PetWithLatestWeight(pet("second", "Бим новый"), null),
+        )
+        yield()
+
+        assertEquals(second.id, owner.uiState.value.petId)
+        assertEquals("Бим новый", owner.uiState.value.pet?.displayName)
+        assertEquals(listOf("second-row"), owner.uiState.value.measurements.map { it.id })
+        scope.cancel()
+    }
+
+    @Test
     fun `delete request can be dismissed without changing history`() = runBlocking {
         val history = MutableStateFlow(listOf(measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.25)))
         val scope = testScope()
@@ -485,11 +593,12 @@ class PetHistoryStateOwnerTest {
 private class FakeRepository(
     private val pets: Map<PetId, Pet> = emptyMap(),
     private val histories: Map<PetId, Flow<List<PetMeasurement>>> = emptyMap(),
+    private val observedPets: Flow<List<PetWithLatestWeight>> = emptyFlow(),
     private val getPetBlock: (suspend (PetId) -> Pet?)? = null,
     private val deleteBlock: suspend (PetId, String) -> Unit = { _, _ -> error("unused") },
 ) : PetRepository {
     val deleteCalls = mutableListOf<Pair<PetId, String>>()
-    override fun observePets(): Flow<List<PetWithLatestWeight>> = emptyFlow()
+    override fun observePets(): Flow<List<PetWithLatestWeight>> = observedPets
     override fun observeMeasurements(petId: PetId): Flow<List<PetMeasurement>> =
         histories[petId] ?: emptyFlow()
 
