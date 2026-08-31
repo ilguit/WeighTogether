@@ -39,11 +39,16 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -63,6 +68,13 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
+import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiRowIcon
@@ -74,6 +86,13 @@ import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.reference.CompactMetricStatus
+import com.palixander.scalesync.ui.reference.ExpandedMetricReference
+import com.palixander.scalesync.ui.reference.MetricHelpDialog
+import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
+import com.palixander.scalesync.ui.reference.ReferenceComponentTestTags
+import com.palixander.scalesync.ui.reference.ReferenceMetricGroup
+import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -103,8 +122,44 @@ fun MeasurementsScreen(
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
     var syncMeasurementId by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpMeasurementKey by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpMetricName by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpAccountId by rememberSaveable { mutableStateOf<String?>(null) }
+    var helpDestinationName by rememberSaveable { mutableStateOf<String?>(null) }
+    var restoreFocusKey by rememberSaveable { mutableStateOf<String?>(null) }
+    val helpFocusRequesters = remember { mutableMapOf<String, FocusRequester>() }
+    val referenceSnackbarHostState = remember { SnackbarHostState() }
     val syncItem = state.measurements.firstOrNull {
         it.finalMeasurementId == syncMeasurementId && it.hasSyncPresentation
+    }
+    val helpItem = state.measurements.firstOrNull { it.presentationKey == helpMeasurementKey }
+    val helpMetric = helpItem?.referenceMetrics?.firstOrNull {
+        it.definition.metric.name == helpMetricName
+    }
+    fun helpKey(item: MeasurementUiItem, metric: ReferenceMetricPresentation): String =
+        "${item.presentationKey}:${metric.definition.metric.name}"
+    val onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit = { item, metric ->
+        helpMeasurementKey = item.presentationKey
+        helpMetricName = metric.definition.metric.name
+        helpAccountId = state.accountSelector.selectedAccountId?.value
+        helpDestinationName = state.destination.name
+    }
+
+    LaunchedEffect(helpMetric, state.destination, state.accountSelector.selectedAccountId) {
+        if (helpMeasurementKey != null && (
+            helpMetric == null || helpDestinationName != state.destination.name ||
+            helpAccountId != state.accountSelector.selectedAccountId?.value
+        )) {
+            helpMeasurementKey = null
+            helpMetricName = null
+            helpAccountId = null
+            helpDestinationName = null
+        }
+    }
+    LaunchedEffect(restoreFocusKey) {
+        val key = restoreFocusKey ?: return@LaunchedEffect
+        runCatching { helpFocusRequesters[key]?.requestFocus() }
+        restoreFocusKey = null
     }
 
     Column(modifier = modifier.fillMaxSize()) {
@@ -130,6 +185,8 @@ fun MeasurementsScreen(
                     onMetricsExpandedChange = { summaryMetricsExpanded = it },
                     onSyncRequested = { syncMeasurementId = it.finalMeasurementId },
                     callbacks = callbacks,
+                    onReferenceInfoClick = onReferenceInfoClick,
+                    helpFocusRequesters = helpFocusRequesters,
                 )
 
                 MeasurementsDestination.PENDING_QUEUE -> PendingQueueDestination(
@@ -152,6 +209,8 @@ fun MeasurementsScreen(
                     },
                     onSyncRequested = { syncMeasurementId = it.finalMeasurementId },
                     callbacks = callbacks,
+                    onReferenceInfoClick = onReferenceInfoClick,
+                    helpFocusRequesters = helpFocusRequesters,
                 )
 
                 MeasurementsDestination.EDITOR -> state.editor?.let { editor ->
@@ -166,6 +225,10 @@ fun MeasurementsScreen(
                     onDismiss = callbacks.onDeleteDismissed,
                 )
             }
+            SnackbarHost(
+                hostState = referenceSnackbarHostState,
+                modifier = Modifier.align(Alignment.BottomCenter),
+            )
         }
     }
 
@@ -177,6 +240,23 @@ fun MeasurementsScreen(
                 syncMeasurementId = null
             },
             onDismiss = { syncMeasurementId = null },
+        )
+    }
+
+    if (helpItem != null && helpMetric != null) {
+        MetricHelpDialog(
+            presentation = helpMetric,
+            snackbarHostState = referenceSnackbarHostState,
+            onDismissRequest = {
+                restoreFocusKey = helpKey(helpItem, helpMetric)
+                helpMeasurementKey = null
+                helpMetricName = null
+                helpAccountId = null
+                helpDestinationName = null
+            },
+            manualWarning = helpItem.isManuallyEdited,
+            legacyHeightWarning = helpItem.hasRestoredRatingHeight,
+            usedDataText = referenceUsedDataText(helpItem),
         )
     }
 }
@@ -376,6 +456,8 @@ private fun MeasurementSummaryScreen(
     onMetricsExpandedChange: (Boolean) -> Unit,
     onSyncRequested: (MeasurementUiItem) -> Unit,
     callbacks: MeasurementsCallbacks,
+    onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
     Column(Modifier.fillMaxSize()) {
         Box(Modifier.fillMaxWidth().weight(1f)) {
@@ -414,6 +496,8 @@ private fun MeasurementSummaryScreen(
                             onDeleteRequested = {
                                 callbacks.onDeleteRequested(state.summary.latest.id)
                             },
+                            onReferenceInfoClick = onReferenceInfoClick,
+                            helpFocusRequesters = helpFocusRequesters,
                         )
                     }
                     state.homeKgChart?.let { homeKgChart ->
@@ -440,6 +524,8 @@ private fun MeasurementSummaryCard(
     onSyncRequested: () -> Unit,
     onEditRequested: () -> Unit,
     onDeleteRequested: () -> Unit,
+    onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
     var menuExpanded by rememberSaveable(summary.latest.presentationKey) { mutableStateOf(false) }
 
@@ -528,26 +614,39 @@ private fun MeasurementSummaryCard(
                 }
             }
 
-            Row(
-                modifier = Modifier.padding(top = 4.dp),
-                verticalAlignment = Alignment.Bottom,
-            ) {
-                Text(
-                    text = formatDisplayValue(
-                        MeasurementField.WEIGHT_KG,
-                        summary.latest.values.weightKg,
-                    ),
-                    fontSize = 32.sp,
-                    lineHeight = 36.sp,
-                    fontWeight = FontWeight.Medium,
-                    letterSpacing = (-1).sp,
+            val referenceMetrics = summary.latest.referenceMetrics.takeUnless {
+                summary.latest.isPreliminary
+            }.orEmpty()
+            val weightReference = referenceMetrics.firstOrNull {
+                it.definition.metric == BodyMetric.WEIGHT
+            }
+            if (!expanded && weightReference != null) {
+                CompactMetricStatus(
+                    presentation = weightReference,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
-                Text(
-                    text = " кг",
-                    modifier = Modifier.padding(bottom = 4.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
+            } else if (weightReference == null) {
+                Row(
+                    modifier = Modifier.padding(top = 4.dp),
+                    verticalAlignment = Alignment.Bottom,
+                ) {
+                    Text(
+                        text = formatDisplayValue(
+                            MeasurementField.WEIGHT_KG,
+                            summary.latest.values.weightKg,
+                        ),
+                        fontSize = 32.sp,
+                        lineHeight = 36.sp,
+                        fontWeight = FontWeight.Medium,
+                        letterSpacing = (-1).sp,
+                    )
+                    Text(
+                        text = " кг",
+                        modifier = Modifier.padding(bottom = 4.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
             }
             if (summary.latest.isWeightOnly) {
                 Text(
@@ -566,10 +665,19 @@ private fun MeasurementSummaryCard(
                 style = MaterialTheme.typography.bodyMedium,
             )
 
-            MetricDetailsGrid(
-                metrics = summary.keyMetrics,
-                modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
-            )
+            if (!expanded) {
+                if (referenceMetrics.isNotEmpty()) {
+                    CompactReferenceGrid(
+                        metrics = summaryKeyReferenceMetrics(referenceMetrics),
+                        modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
+                    )
+                } else {
+                    MetricDetailsGrid(
+                        metrics = summary.keyMetrics,
+                        modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
+                    )
+                }
+            }
 
             TextButton(
                 onClick = { onExpandedChange(!expanded) },
@@ -591,10 +699,32 @@ private fun MeasurementSummaryCard(
 
             if (expanded) {
                 HorizontalDivider(color = HuaweiColors.PrimaryContainerDim)
-                MetricDetailsGrid(
-                    metrics = summary.additionalMetrics,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
+                if (referenceMetrics.isNotEmpty() && weightReference != null) {
+                    Column(
+                        modifier = Modifier.padding(top = 8.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        MeasurementReferenceMetric(
+                            item = summary.latest,
+                            metric = weightReference,
+                            onInfoClick = onReferenceInfoClick,
+                            focusRequesters = helpFocusRequesters,
+                        )
+                        MeasurementReferenceGroups(
+                            item = summary.latest,
+                            metrics = referenceMetrics.filterNot {
+                                it.definition.metric == BodyMetric.WEIGHT
+                            },
+                            onInfoClick = onReferenceInfoClick,
+                            focusRequesters = helpFocusRequesters,
+                        )
+                    }
+                } else {
+                    MetricDetailsGrid(
+                        metrics = summary.additionalMetrics,
+                        modifier = Modifier.padding(top = 4.dp),
+                    )
+                }
             }
         }
     }
@@ -640,6 +770,140 @@ private fun MetricDetail(
     }
 }
 
+private fun summaryKeyReferenceMetrics(
+    metrics: List<ReferenceMetricPresentation>,
+): List<ReferenceMetricPresentation> {
+    val order = listOf(
+        BodyMetric.BODY_FAT_PERCENT,
+        BodyMetric.MUSCLE_MASS,
+        BodyMetric.WATER_PERCENT,
+        BodyMetric.BMI,
+    )
+    val byMetric = metrics.associateBy { it.definition.metric }
+    return order.mapNotNull(byMetric::get)
+}
+
+@Composable
+private fun CompactReferenceGrid(
+    metrics: List<ReferenceMetricPresentation>,
+    modifier: Modifier = Modifier,
+) {
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val columnCount = if (maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f) 2 else 1
+        Column(
+            modifier = Modifier.testTag(
+                if (columnCount == 2) ReferenceComponentTestTags.GridTwoColumns
+                else ReferenceComponentTestTags.GridOneColumn,
+            ),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            metrics.chunked(columnCount).forEach { rowMetrics ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    rowMetrics.forEach { metric ->
+                        CompactMetricStatus(metric, Modifier.weight(1f))
+                    }
+                    repeat(columnCount - rowMetrics.size) { Spacer(Modifier.weight(1f)) }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MeasurementReferenceGroups(
+    item: MeasurementUiItem,
+    metrics: List<ReferenceMetricPresentation>,
+    onInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    focusRequesters: MutableMap<String, FocusRequester>,
+    modifier: Modifier = Modifier,
+) {
+    val groups = ReferenceMetricGroup.entries.mapNotNull { group ->
+        metrics.filter { it.definition.group == group }
+            .takeIf(List<ReferenceMetricPresentation>::isNotEmpty)
+            ?.let { ReferenceGroupPresentation(group, group.titleRes?.let { stringResource(it) }, it) }
+    }
+    BoxWithConstraints(modifier.fillMaxWidth()) {
+        val columnCount = if (maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f) 2 else 1
+        Column(
+            modifier = Modifier.testTag(
+                if (columnCount == 2) ReferenceComponentTestTags.GridTwoColumns
+                else ReferenceComponentTestTags.GridOneColumn,
+            ),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            groups.forEach { group ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    group.title?.let { title ->
+                        Text(
+                            title,
+                            modifier = Modifier.semantics { heading() },
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                    group.metrics.chunked(columnCount).forEach { rowMetrics ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            rowMetrics.forEach { metric ->
+                                MeasurementReferenceMetric(
+                                    item = item,
+                                    metric = metric,
+                                    onInfoClick = onInfoClick,
+                                    focusRequesters = focusRequesters,
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            repeat(columnCount - rowMetrics.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MeasurementReferenceMetric(
+    item: MeasurementUiItem,
+    metric: ReferenceMetricPresentation,
+    onInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    focusRequesters: MutableMap<String, FocusRequester>,
+    modifier: Modifier = Modifier,
+) {
+    val key = "${item.presentationKey}:${metric.definition.metric.name}"
+    val focusRequester = remember(key) { FocusRequester() }
+    DisposableEffect(key, focusRequester) {
+        focusRequesters[key] = focusRequester
+        onDispose {
+            if (focusRequesters[key] === focusRequester) focusRequesters.remove(key)
+        }
+    }
+    ExpandedMetricReference(
+        presentation = metric,
+        onInfoClick = { onInfoClick(item, metric) },
+        modifier = modifier.testTag(
+            "reference-metric-${item.presentationKey}-${metric.definition.metric.name}",
+        ),
+        infoButtonModifier = Modifier.focusRequester(focusRequester),
+    )
+}
+
+@Composable
+private fun referenceUsedDataText(item: MeasurementUiItem): String? {
+    val height = item.ratingHeightCm ?: return null
+    val age = item.referenceAge ?: return null
+    val locale = LocalConfiguration.current.locales[0]
+    val formattedHeight = NumberFormat.getNumberInstance(locale).apply {
+        maximumFractionDigits = 2
+        minimumFractionDigits = 0
+    }.format(height)
+    return stringResource(R.string.reference_used_data, formattedHeight, age)
+}
+
 @Composable
 private fun MeasurementHistoryScreen(
     state: MeasurementsUiState,
@@ -647,6 +911,8 @@ private fun MeasurementHistoryScreen(
     onExpandedChange: (String, Boolean) -> Unit,
     onSyncRequested: (MeasurementUiItem) -> Unit,
     callbacks: MeasurementsCallbacks,
+    onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
     LazyColumn(
         modifier = Modifier
@@ -686,6 +952,8 @@ private fun MeasurementHistoryScreen(
                     onExpandedChange = { onExpandedChange(item.presentationKey, it) },
                     onSyncRequested = { onSyncRequested(item) },
                     callbacks = callbacks,
+                    onReferenceInfoClick = onReferenceInfoClick,
+                    helpFocusRequesters = helpFocusRequesters,
                 )
             }
         }
@@ -700,6 +968,8 @@ private fun MeasurementHistoryCard(
     onExpandedChange: (Boolean) -> Unit,
     onSyncRequested: () -> Unit,
     callbacks: MeasurementsCallbacks,
+    onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
+    helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
     HuaweiSurface(
         modifier = Modifier
@@ -737,10 +1007,13 @@ private fun MeasurementHistoryCard(
                             text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        Text(
-                            text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        if (!expanded || item.isWeightOnly) {
+                            Text(
+                                text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
+                                modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
                         if (item.isWeightOnly) {
                             Text(
                                 text = "Только вес",
@@ -787,12 +1060,22 @@ private fun MeasurementHistoryCard(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    MetricDetailsGrid(
-                        metrics = historyAdditionalFields.map { field ->
-                            MeasurementMetricPresentation(field, item.values[field])
-                        },
-                        modifier = Modifier.padding(top = 4.dp),
-                    )
+                    if (item.referenceMetrics.isNotEmpty() && !item.isPreliminary) {
+                        MeasurementReferenceGroups(
+                            item = item,
+                            metrics = item.referenceMetrics,
+                            onInfoClick = onReferenceInfoClick,
+                            focusRequesters = helpFocusRequesters,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    } else {
+                        MetricDetailsGrid(
+                            metrics = historyAdditionalFields.map { field ->
+                                MeasurementMetricPresentation(field, item.values[field])
+                            },
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    }
                     if (item.isManuallyEdited) {
                         HuaweiSurface(
                             modifier = Modifier

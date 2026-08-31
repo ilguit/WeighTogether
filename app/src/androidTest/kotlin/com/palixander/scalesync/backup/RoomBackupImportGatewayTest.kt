@@ -14,6 +14,7 @@ import com.palixander.scalesync.data.PendingMeasurementEntity
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
 import com.palixander.scalesync.domain.ExternalSyncPolicy
@@ -67,6 +68,21 @@ class RoomBackupImportGatewayTest {
         assertEquals(2, rows.size)
         assertEquals(SyncStatus.SYNCED.name, rows.single { it.id == "m" }.huaweiStatus)
         assertEquals(SyncStatus.FAILED.name, rows.single { it.id == "n" }.huaweiStatus)
+    }
+
+    @Test
+    fun v3MeasurementContextPersistsExactlyThroughRoomGateway() = runBlocking {
+        val owner = account("owner").copy(heightCm = 190.0)
+        val imported = measurement("context", owner.id, SyncStatus.LOCAL_ONLY).copy(
+            ratingHeightCm = 172.75,
+            ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+        )
+
+        apply(preview(BackupImportMode.MERGE, listOf(owner), listOf(imported)))
+
+        val stored = database.measurementDao().getAllForBackup().single()
+        assertEquals(172.75, stored.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, stored.ratingHeightOrigin)
     }
 
     @Test

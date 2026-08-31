@@ -57,6 +57,7 @@ import com.palixander.scalesync.ui.routing.ResolverQueueState
 import com.palixander.scalesync.ui.routing.UnsavedPreviewMemoryState
 import com.palixander.scalesync.ui.routing.UnsavedMeasurementPreviewState
 import com.palixander.scalesync.ui.routing.UnsavedPreviewSessionCoordinator
+import com.palixander.scalesync.ui.routing.calculateUnsavedPreview as calculateUnsavedPreviewResult
 import com.palixander.scalesync.ui.routing.activeCompletionFor
 import com.palixander.scalesync.ui.routing.buildResolverAccountOptions
 import com.palixander.scalesync.ui.routing.isActivePendingResolverTarget
@@ -68,6 +69,8 @@ import com.palixander.scalesync.worker.MeasurementWorkSweep
 import com.palixander.scalesync.worker.PendingDecisionFallback
 import com.palixander.scalesync.sync.SyncResult
 import java.time.Instant
+import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -300,6 +303,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
     private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
+    private val unsavedPreviewCalculationIds = AtomicLong(0L)
     private val externalSyncPaused = container.profileStore.settings
         .map { it.externalSyncPaused }
         .distinctUntilChanged()
@@ -910,6 +914,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun updateUnsavedPreview(state: UnsavedMeasurementPreviewState) {
         unsavedPreviewSession.update(state)
+    }
+
+    fun calculateUnsavedPreview(pendingId: PendingMeasurementId) {
+        val zoneId = ZoneId.systemDefault()
+        val request = unsavedPreviewSession.startCalculation(
+            pendingId = pendingId,
+            requestId = unsavedPreviewCalculationIds.incrementAndGet(),
+            zoneId = zoneId,
+        ) ?: return
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val result = calculateUnsavedPreviewResult(
+                    pending = request.pending,
+                    draft = request.profileDraft,
+                    zoneId = zoneId,
+                )
+                if (result == null) {
+                    unsavedPreviewSession.failCalculation(pendingId, request.requestId)
+                } else {
+                    unsavedPreviewSession.completeCalculation(pendingId, request.requestId, result)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                unsavedPreviewSession.failCalculation(pendingId, request.requestId)
+            }
+        }
     }
 
     fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {

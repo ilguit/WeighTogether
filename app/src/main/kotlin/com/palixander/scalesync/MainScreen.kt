@@ -361,6 +361,7 @@ fun ScaleSyncApp(
         ),
         unsavedPreviewCallbacks = UnsavedPreviewCallbacks(
             onStateChange = viewModel::updateUnsavedPreview,
+            onCalculate = viewModel::calculateUnsavedPreview,
             onCloseAndDiscard = viewModel::closeUnsavedPreviewAndDiscard,
         ),
         onOpenResolver = viewModel::openResolver,
@@ -665,6 +666,7 @@ internal fun ScaleSyncScaffold(
                 UnsavedMeasurementPreviewDialog(
                     state = preview,
                     callbacks = unsavedPreviewCallbacks,
+                    snackbarHostState = snackbarHostState,
                 )
             }
             PetMeasurementDialog(

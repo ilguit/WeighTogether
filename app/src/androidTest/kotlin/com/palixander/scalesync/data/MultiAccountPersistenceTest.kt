@@ -77,6 +77,8 @@ class MultiAccountPersistenceTest {
         )!!
         assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, stored.healthConnectStatus)
+        assertEquals(completeProfile().heightCm, stored.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.CAPTURED, stored.ratingHeightOrigin)
 
         val userLocalPending = persistence.enqueue(raw("2026-08-15T10:01:00Z", 83.0))
             as PendingPersistenceResult.Inserted
@@ -789,14 +791,19 @@ class MultiAccountPersistenceTest {
         val pending = persistence.enqueue(weightOnly) as PendingPersistenceResult.Inserted
         val finalized = persistence.finalizePending(pending.pending.id, account.id)
             as FinalizePendingResult.Finalized
-        val original = database.multiAccountMeasurementDao().get(
+        val captured = database.multiAccountMeasurementDao().get(
             finalized.measurement.measurementId,
-        )!!.copy(
+        )!!
+        assertEquals(completeProfile().heightCm, captured.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.CAPTURED, captured.ratingHeightOrigin)
+        val original = captured.copy(
             huaweiStatus = SyncStatus.DISABLED.name,
             huaweiError = "adapter disabled",
             healthConnectStatus = SyncStatus.SYNCED.name,
             healthConnectWeightSynced = true,
             healthConnectSyncedCalculatedValues = "old-snapshot",
+            ratingHeightCm = 169.0,
+            ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
         )
         assertEquals(1, database.multiAccountMeasurementDao().update(original))
 
@@ -825,6 +832,8 @@ class MultiAccountPersistenceTest {
         assertNull(stored.healthConnectError)
         assertTrue(stored.healthConnectWeightSynced)
         assertEquals("old-snapshot", stored.healthConnectSyncedCalculatedValues)
+        assertEquals(original.ratingHeightCm, stored.ratingHeightCm)
+        assertEquals(original.ratingHeightOrigin, stored.ratingHeightOrigin)
         assertTrue(database.pendingMeasurementDao().getAll().isEmpty())
         assertEquals(
             1,

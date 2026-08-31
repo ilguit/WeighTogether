@@ -181,7 +181,7 @@ class ProfileHistoryRecalculationTest {
     }
 
     @Test
-    fun candidateReadIgnoresManualWeightOnlyAndOtherAccountHistory() = runBlocking {
+    fun candidateReadIncludesAutomaticWeightOnlyButIgnoresManualAndOtherAccountHistory() = runBlocking {
         val repository = repository()
         val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
         val other = repository.createAccount(NewAccount("Bob", ORIGINAL_PROFILE))
@@ -202,12 +202,12 @@ class ProfileHistoryRecalculationTest {
             assertTrue(database.multiAccountMeasurementDao().insert(it) != -1L)
         }
 
-        assertFalse(repository.hasProfileRecalculationCandidates(account.id))
+        assertTrue(repository.hasProfileRecalculationCandidates(account.id))
         assertTrue(repository.hasProfileRecalculationCandidates(other.id))
     }
 
     @Test
-    fun recalculationPreservesSourceQueueAndSnapshotsAndSkipsManualAndWeightOnly() = runBlocking {
+    fun recalculationUpdatesFullAndWeightOnlyContextButPreservesManualAndOtherAccount() = runBlocking {
         val repository = repository()
         val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
         val other = repository.createAccount(NewAccount("Bob", ORIGINAL_PROFILE))
@@ -243,7 +243,10 @@ class ProfileHistoryRecalculationTest {
         )
         val weightOnly = raw("2026-08-15T10:03:00Z", 75.0, 0).copy(
             hasImpedance = false,
-        ).toWeightOnlyEntity(accountId = account.id)
+        ).toWeightOnlyEntity(
+            accountId = account.id,
+            ratingHeightCm = ORIGINAL_PROFILE.heightCm,
+        )
         val otherPacket = raw("2026-08-15T10:04:00Z", 76.0, 550)
         val otherAccount = entity(otherPacket, other.id, ORIGINAL_PROFILE)
         listOf(auto, accountLocal, manual, weightOnly, otherAccount).forEach {
@@ -267,13 +270,29 @@ class ProfileHistoryRecalculationTest {
             expectedValues(accountLocalPacket, updatedProfile),
             recalculatedAccountLocal.fullValues,
         )
-        assertEquals(auto.withoutCalculatedValues(), recalculatedAuto.withoutCalculatedValues())
         assertEquals(
-            accountLocal.withoutCalculatedValues(),
-            recalculatedAccountLocal.withoutCalculatedValues(),
+            auto.withoutProfileDependentValues(),
+            recalculatedAuto.withoutProfileDependentValues(),
+        )
+        assertEquals(
+            accountLocal.withoutProfileDependentValues(),
+            recalculatedAccountLocal.withoutProfileDependentValues(),
         )
         assertEquals(manual, database.measurementDao().get(manual.id))
-        assertEquals(weightOnly, database.measurementDao().get(weightOnly.id))
+        val recalculatedWeightOnly = requireNotNull(database.measurementDao().get(weightOnly.id))
+        assertEquals(
+            updatedProfile.heightCm,
+            requireNotNull(recalculatedWeightOnly.ratingHeightCm),
+            0.0,
+        )
+        assertEquals(RatingHeightOrigin.CAPTURED, recalculatedWeightOnly.ratingHeightOrigin)
+        assertEquals(
+            weightOnly.copy(
+                ratingHeightCm = updatedProfile.heightCm,
+                ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
+            ),
+            recalculatedWeightOnly,
+        )
         assertEquals(otherAccount, database.measurementDao().get(otherAccount.id))
 
         assertTrue(recalculatedAuto.hasProfileSyncMismatch)
@@ -373,6 +392,7 @@ class ProfileHistoryRecalculationTest {
         rawPayload = raw.rawPayload,
         fingerprint = measurementFingerprint(raw),
         accountId = accountId,
+        ratingHeightCm = profile.heightCm,
     )
 
     private fun expectedValues(
@@ -398,7 +418,7 @@ class ProfileHistoryRecalculationTest {
         sex = sex,
     )
 
-    private fun MeasurementEntity.withoutCalculatedValues(): MeasurementEntity = copy(
+    private fun MeasurementEntity.withoutProfileDependentValues(): MeasurementEntity = copy(
         bmi = null,
         bodyFatPercent = null,
         bodyFatMassKg = null,
@@ -414,6 +434,8 @@ class ProfileHistoryRecalculationTest {
         metabolicAge = null,
         leanBodyMassKg = null,
         algorithmVersion = null,
+        ratingHeightCm = null,
+        ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
     )
 
     private companion object {

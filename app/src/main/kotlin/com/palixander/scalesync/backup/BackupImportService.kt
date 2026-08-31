@@ -10,6 +10,7 @@ import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.ProfileStore
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
@@ -548,7 +549,9 @@ class BackupImportService(
     }
 }
 
-private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
+private fun BackupDocumentV1.toSnapshot(): BackupDatabaseSnapshot {
+    val importedAccountsById = accounts.associateBy { it.id }
+    return BackupDatabaseSnapshot(
     accounts = accounts.map { account ->
         AccountEntity(account.id, account.displayName, account.normalizedName, account.profile.heightCm,
             account.profile.birthDateEpochDay, account.profile.sex?.name, account.profile.complete,
@@ -556,23 +559,75 @@ private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
     },
     appState = AppStateEntity(primaryAccountId = appState.primaryAccountId,
         weightDeltaKg = appState.weightDeltaKg, ignoreUnknownMeasurements = appState.ignoreUnknownMeasurements),
-    measurements = measurements.map { it.toEntity() },
+    measurements = measurements.map { measurement ->
+        val legacyOwnerHeight = if (schemaVersion < BACKUP_SCHEMA_VERSION) {
+            val owner = importedAccountsById[measurement.accountId]
+                ?: throw BackupException.MissingAccount(measurement.accountId)
+            owner.profile.heightCm
+        } else {
+            null
+        }
+        measurement.toEntity(
+            ratingHeightCm = if (schemaVersion < BACKUP_SCHEMA_VERSION) legacyOwnerHeight else measurement.ratingHeightCm,
+            ratingHeightOrigin = if (schemaVersion < BACKUP_SCHEMA_VERSION) {
+                RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT
+            } else {
+                requireNotNull(measurement.ratingHeightOrigin)
+            },
+        )
+    },
     pets = pets.map { PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis) },
     petMeasurements = petMeasurements.map {
         PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
     },
-)
+    )
+}
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(
     scaleAddress, scaleName, reliabilityMode, selectedChartMetricKeys?.toSet(), homeKgChartSeriesKeys?.toSet(),
 )
 
-private fun BackupMeasurementV1.toEntity() = MeasurementEntity(
-    id, fingerprint, measurementType, deviceAddress, measuredAtEpochSecond, rawPayloadHex, weightKg,
-    rawWeight, impedanceOhm, bmi, bodyFatPercent, bodyFatMassKg, waterPercent, waterMassKg,
-    muscleMassKg, skeletalMuscleMassKg, boneMassKg, proteinPercent, proteinMassKg, visceralFatLevel,
-    basalMetabolicRateKcal, metabolicAge, leanBodyMassKg, algorithmVersion, huaweiStatus.name,
-    healthConnectStatus.name, huaweiError, healthConnectError, huaweiWeightSynced,
-    healthConnectWeightSynced, createdAtEpochMillis, accountId, externalSyncPolicy.name,
-    sourcePendingId, deduplicationHash, huaweiSyncedCalculatedValues, healthConnectSyncedCalculatedValues,
+private fun BackupMeasurementV1.toEntity(
+    ratingHeightCm: Double?,
+    ratingHeightOrigin: RatingHeightOrigin,
+) = MeasurementEntity(
+    id = id,
+    fingerprint = fingerprint,
+    measurementType = measurementType,
+    deviceAddress = deviceAddress,
+    measuredAtEpochSecond = measuredAtEpochSecond,
+    rawPayloadHex = rawPayloadHex,
+    weightKg = weightKg,
+    rawWeight = rawWeight,
+    impedanceOhm = impedanceOhm,
+    bmi = bmi,
+    bodyFatPercent = bodyFatPercent,
+    bodyFatMassKg = bodyFatMassKg,
+    waterPercent = waterPercent,
+    waterMassKg = waterMassKg,
+    muscleMassKg = muscleMassKg,
+    skeletalMuscleMassKg = skeletalMuscleMassKg,
+    boneMassKg = boneMassKg,
+    proteinPercent = proteinPercent,
+    proteinMassKg = proteinMassKg,
+    visceralFatLevel = visceralFatLevel,
+    basalMetabolicRateKcal = basalMetabolicRateKcal,
+    metabolicAge = metabolicAge,
+    leanBodyMassKg = leanBodyMassKg,
+    algorithmVersion = algorithmVersion,
+    huaweiStatus = huaweiStatus.name,
+    healthConnectStatus = healthConnectStatus.name,
+    huaweiError = huaweiError,
+    healthConnectError = healthConnectError,
+    huaweiWeightSynced = huaweiWeightSynced,
+    healthConnectWeightSynced = healthConnectWeightSynced,
+    createdAtEpochMillis = createdAtEpochMillis,
+    accountId = accountId,
+    externalSyncPolicy = externalSyncPolicy.name,
+    sourcePendingId = sourcePendingId,
+    deduplicationHash = deduplicationHash,
+    huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues,
+    healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
 )

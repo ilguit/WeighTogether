@@ -38,6 +38,7 @@ class ProfileHistoryRecalculationContractTest {
             externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL,
             sourcePendingId = "pending",
             deduplicationHash = "dedup",
+            ratingHeightCm = oldProfile.heightCm,
         ).copy(
             huaweiStatus = SyncStatus.SYNCED.name,
             healthConnectStatus = SyncStatus.FAILED.name,
@@ -56,11 +57,16 @@ class ProfileHistoryRecalculationContractTest {
         assertNotEquals(original.fullValues, recalculated.fullValues)
         assertEquals(expected.fullValues, recalculated.fullValues)
         assertEquals(expected.algorithmVersion, recalculated.algorithmVersion)
-        assertEquals(original.withoutCalculatedValues(), recalculated.withoutCalculatedValues())
+        assertEquals(newProfile.heightCm, requireNotNull(recalculated.ratingHeightCm), 0.0)
+        assertEquals(RatingHeightOrigin.CAPTURED, recalculated.ratingHeightOrigin)
+        assertEquals(
+            original.withoutProfileDependentValues(),
+            recalculated.withoutProfileDependentValues(),
+        )
     }
 
     @Test
-    fun weightOnlyRowsCannotEnterTheRecalculationOperation() {
+    fun weightOnlyRecalculationUpdatesOnlyReferenceHeightContext() {
         val weightOnly = RawScaleMeasurement(
             deviceAddress = "AA:BB:CC:DD:EE:FF",
             measuredAt = Instant.parse("2026-08-15T10:00:00Z"),
@@ -69,19 +75,27 @@ class ProfileHistoryRecalculationContractTest {
             isStable = true,
             hasImpedance = false,
             rawPayload = byteArrayOf(1, 2, 3, 4),
-        ).toWeightOnlyEntity(accountId = AccountId("account"))
+        ).toWeightOnlyEntity(
+            accountId = AccountId("account"),
+            ratingHeightCm = 170.0,
+            ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+        )
 
-        val failure = runCatching {
-            weightOnly.recalculate(
-                calculator,
-                UserProfile(175.0, LocalDate.of(1990, 1, 1), Sex.MALE),
-            )
-        }.exceptionOrNull()
+        val recalculated = weightOnly.recalculate(
+            calculator,
+            UserProfile(175.0, LocalDate.of(1990, 1, 1), Sex.MALE),
+        )
 
-        assertTrue(failure is IllegalArgumentException)
+        assertEquals(
+            weightOnly.copy(
+                ratingHeightCm = 175.0,
+                ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
+            ),
+            recalculated,
+        )
     }
 
-    private fun MeasurementEntity.withoutCalculatedValues(): MeasurementEntity = copy(
+    private fun MeasurementEntity.withoutProfileDependentValues(): MeasurementEntity = copy(
         bmi = null,
         bodyFatPercent = null,
         bodyFatMassKg = null,
@@ -97,5 +111,7 @@ class ProfileHistoryRecalculationContractTest {
         metabolicAge = null,
         leanBodyMassKg = null,
         algorithmVersion = null,
+        ratingHeightCm = null,
+        ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
     )
 }

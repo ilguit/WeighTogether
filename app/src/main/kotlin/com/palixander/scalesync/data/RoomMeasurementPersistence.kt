@@ -448,6 +448,8 @@ class RoomMeasurementPersistence(
             externalSyncPolicy = ExternalSyncPolicy.valueOf(candidate.externalSyncPolicy),
             sourcePendingId = candidate.sourcePendingId,
             deduplicationHash = candidate.deduplicationHash,
+            ratingHeightCm = candidate.ratingHeightCm,
+            ratingHeightOrigin = candidate.ratingHeightOrigin,
         )
         val upgraded = calculated.copy(
             id = candidate.id,
@@ -466,6 +468,8 @@ class RoomMeasurementPersistence(
             deduplicationHash = candidate.deduplicationHash,
             huaweiSyncedCalculatedValues = candidate.huaweiSyncedCalculatedValues,
             healthConnectSyncedCalculatedValues = candidate.healthConnectSyncedCalculatedValues,
+            ratingHeightCm = candidate.ratingHeightCm,
+            ratingHeightOrigin = candidate.ratingHeightOrigin,
         )
         check(measurementDao.update(upgraded) == 1) {
             "Finalized measurement disappeared during enrichment"
@@ -780,6 +784,7 @@ class RoomMeasurementPersistence(
                 externalSyncPolicy = policy,
                 sourcePendingId = pending.id,
                 deduplicationHash = pending.deduplicationHash,
+                ratingHeightCm = profile.heightCm,
             )
         } else {
             raw.toWeightOnlyEntity(
@@ -788,6 +793,7 @@ class RoomMeasurementPersistence(
                 externalSyncPolicy = policy,
                 sourcePendingId = pending.id,
                 deduplicationHash = pending.deduplicationHash,
+                ratingHeightCm = profile.heightCm,
             )
         }.copy(createdAtEpochMillis = now().toEpochMilli())
         if (policy == ExternalSyncPolicy.ACCOUNT_LOCAL) {

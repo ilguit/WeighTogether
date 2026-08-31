@@ -149,4 +149,6 @@ private fun MeasurementEntity.toBackup() = BackupMeasurementV1(
     deduplicationHash = deduplicationHash,
     huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues,
     healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
 )

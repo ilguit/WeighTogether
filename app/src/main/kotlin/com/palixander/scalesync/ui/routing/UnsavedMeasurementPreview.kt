@@ -1,9 +1,9 @@
 package com.palixander.scalesync.ui.routing
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -11,30 +11,49 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.core.BodyComposition
+import com.palixander.scalesync.R
+import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.core.Sex
+import com.palixander.scalesync.core.chronologicalAge
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
+import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
+import com.palixander.scalesync.ui.reference.GroupedMetricReferences
+import com.palixander.scalesync.ui.reference.MetricHelpDialog
+import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
+import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
+import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.time.ZoneId
@@ -47,6 +66,8 @@ object UnsavedPreviewTestTags {
     const val BirthDate = "unsaved-preview-birth-date"
     const val Calculate = "unsaved-preview-calculate"
     const val Result = "unsaved-preview-result"
+    const val CalculationError = "unsaved-preview-calculation-error"
+    const val Calculating = "unsaved-preview-calculating"
     const val Close = "unsaved-preview-close"
 }
 
@@ -56,8 +77,63 @@ fun UnsavedMeasurementPreviewDialog(
     callbacks: UnsavedPreviewCallbacks,
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
+    snackbarHostState: SnackbarHostState? = null,
+    sourceLauncher: ReferenceSourceLauncher = AndroidReferenceSourceLauncher(LocalContext.current),
 ) {
+    val effectiveSnackbarHostState = snackbarHostState ?: remember { SnackbarHostState() }
     val closeRequested = remember(state.pending.id) { mutableStateOf(false) }
+    val resultScrollState = rememberScrollState()
+    val errorFocusRequester = remember(state.pending.id) { FocusRequester() }
+    val infoFocusRequesters = remember(state.pending.id) {
+        BodyMetric.entries.associateWith { FocusRequester() }
+    }
+    var helpMetricName by rememberSaveable(state.pending.id) { mutableStateOf<String?>(null) }
+    var focusAfterHelp by remember(state.pending.id) { mutableStateOf<BodyMetric?>(null) }
+    val context = LocalContext.current
+    val resultPresentations = state.result?.let { result ->
+        ReferencePresentationFactory(context.resources).createAll(
+            readings = result.readings,
+            interpretations = result.interpretations,
+            preliminary = true,
+        )
+    }.orEmpty()
+    val helpMetric = helpMetricName?.let { name ->
+        BodyMetric.entries.firstOrNull { it.name == name }
+    }
+    val selectedHelp = helpMetric?.let { metric ->
+        resultPresentations.singleOrNull { it.definition.metric == metric }
+    }
+
+    LaunchedEffect(state.calculationError) {
+        if (state.calculationError != null) errorFocusRequester.requestFocus()
+    }
+    LaunchedEffect(focusAfterHelp, helpMetricName) {
+        val metric = focusAfterHelp
+        if (metric != null && helpMetricName == null) {
+            infoFocusRequesters.getValue(metric).requestFocus()
+            focusAfterHelp = null
+        }
+    }
+
+    if (selectedHelp != null) {
+        val result = requireNotNull(state.result)
+        val measurementDate = state.pending.measuredAt.atZone(zoneId).toLocalDate()
+        MetricHelpDialog(
+            presentation = selectedHelp,
+            snackbarHostState = effectiveSnackbarHostState,
+            onDismissRequest = {
+                focusAfterHelp = selectedHelp.definition.metric
+                helpMetricName = null
+            },
+            sourceLauncher = sourceLauncher,
+            usedDataText = stringResource(
+                R.string.reference_used_data,
+                formatLocalizedDecimal(result.profile.heightCm, 1),
+                chronologicalAge(result.profile.birthDate, measurementDate),
+            ),
+        )
+        return
+    }
     val requestClose = {
         if (!state.isCalculating && !closeRequested.value) {
             closeRequested.value = true
@@ -71,8 +147,20 @@ fun UnsavedMeasurementPreviewDialog(
         text = {
             when (state.step) {
                 UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state, zoneId)
-                UnsavedPreviewStep.PROFILE_EDITOR -> PreviewProfileEditor(state, callbacks, zoneId)
-                UnsavedPreviewStep.RESULT -> UnsavedResult(requireNotNull(state.result).composition)
+                UnsavedPreviewStep.PROFILE_EDITOR -> PreviewProfileEditor(
+                    state,
+                    callbacks,
+                    zoneId,
+                    errorFocusRequester,
+                )
+                UnsavedPreviewStep.RESULT -> UnsavedResult(
+                    presentations = resultPresentations,
+                    scrollState = resultScrollState,
+                    onInfoClick = { helpMetricName = it.definition.metric.name },
+                    infoButtonModifier = { presentation ->
+                        Modifier.focusRequester(infoFocusRequesters.getValue(presentation.definition.metric))
+                    },
+                )
             }
         },
         confirmButton = {
@@ -89,22 +177,21 @@ fun UnsavedMeasurementPreviewDialog(
                     val validation = validateUnsavedPreviewProfile(state.profileDraft, measurementDate)
                     Button(
                         onClick = {
-                            val calculatingState = reduceUnsavedPreview(
-                                state,
-                                UnsavedPreviewAction.CalculationStarted,
-                            )
-                            calculateUnsavedPreview(state.pending, state.profileDraft, zoneId)?.let {
-                                callbacks.onStateChange(
-                                    reduceUnsavedPreview(
-                                        calculatingState,
-                                        UnsavedPreviewAction.CalculationCompleted(it),
-                                    ),
-                                )
-                            }
+                            callbacks.onCalculate(state.pending.id)
                         },
                         enabled = validation.isValid && !state.isCalculating,
                         modifier = Modifier.testTag(UnsavedPreviewTestTags.Calculate),
-                    ) { Text("Рассчитать") }
+                    ) {
+                        if (state.isCalculating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier
+                                    .padding(end = 8.dp)
+                                    .testTag(UnsavedPreviewTestTags.Calculating),
+                                strokeWidth = 2.dp,
+                            )
+                        }
+                        Text("Рассчитать")
+                    }
                 }
                 UnsavedPreviewStep.RESULT -> Button(
                     onClick = requestClose,
@@ -196,6 +283,7 @@ private fun PreviewProfileEditor(
     state: UnsavedMeasurementPreviewState,
     callbacks: UnsavedPreviewCallbacks,
     zoneId: ZoneId,
+    errorFocusRequester: FocusRequester,
 ) {
     val draft = state.profileDraft
     val measurementDate = state.pending.measuredAt.atZone(zoneId).toLocalDate()
@@ -267,6 +355,24 @@ private fun PreviewProfileEditor(
         validation.sexError?.let {
             Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
+        if (state.calculationError == UnsavedPreviewCalculationError.CALCULATION_FAILED) {
+            Surface(
+                color = MaterialTheme.colorScheme.errorContainer,
+                contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                shape = MaterialTheme.shapes.small,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .focusRequester(errorFocusRequester)
+                    .focusable()
+                    .semantics { heading() }
+                    .testTag(UnsavedPreviewTestTags.CalculationError),
+            ) {
+                Text(
+                    text = stringResource(R.string.unsaved_preview_calculation_error),
+                    modifier = Modifier.padding(12.dp),
+                )
+            }
+        }
     }
 }
 
@@ -293,32 +399,28 @@ private fun PreviewSexChoice(
 }
 
 @Composable
-private fun UnsavedResult(composition: BodyComposition) {
+private fun UnsavedResult(
+    presentations: List<ReferenceMetricPresentation>,
+    scrollState: androidx.compose.foundation.ScrollState,
+    onInfoClick: (ReferenceMetricPresentation) -> Unit,
+    infoButtonModifier: (ReferenceMetricPresentation) -> Modifier,
+) {
     Column(
         modifier = Modifier
             .testTag(UnsavedPreviewTestTags.Result)
-            .verticalScroll(rememberScrollState()),
+            .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text("Результат только для просмотра", style = MaterialTheme.typography.titleMedium)
-        PreviewMetric("Вес", composition.weightKg, "кг")
-        PreviewMetric("Индекс массы тела", composition.bmi, "")
-        PreviewMetric("Жир", composition.bodyFatPercent, "%")
-        PreviewMetric("Вода", composition.waterPercent, "%")
-        PreviewMetric("Мышечная масса", composition.muscleMassKg, "кг")
-        PreviewMetric("Основной обмен", composition.basalMetabolicRateKcal, "ккал", 0)
+        GroupedMetricReferences(
+            groups = ReferencePresentationFactory(LocalContext.current.resources).group(presentations),
+            onInfoClick = onInfoClick,
+            infoButtonModifier = infoButtonModifier,
+        )
         Text(
             "Эти данные не сохранены и не будут отправлены во внешние сервисы.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
-    }
-}
-
-@Composable
-private fun PreviewMetric(label: String, value: Double, unit: String, decimals: Int = 1) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        Text("${formatLocalizedDecimal(value, decimals)} $unit".trim())
     }
 }

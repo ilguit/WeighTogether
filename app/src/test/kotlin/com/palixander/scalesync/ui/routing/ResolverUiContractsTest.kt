@@ -497,6 +497,86 @@ class ResolverUiContractsTest {
         assertEquals(pending.weightKg, result!!.composition.weightKg, 0.0)
         assertFalse(result.isPersisted)
         assertFalse(result.canSyncExternally)
+        assertEquals(16, result.readings.size)
+        assertEquals(16, result.readings.map { it.metric }.toSet().size)
+        assertEquals(result.readings.map { it.metric }.toSet(), result.interpretations.keys)
+    }
+
+    @Test
+    fun `calculation failure preserves draft and pending then field change clears error for retry`() {
+        val pending = pending("preview", "2026-08-15T10:00:00Z")
+        val draft = UnsavedPreviewProfileDraft(
+            heightCm = "170",
+            birthDate = LocalDate.of(1990, 1, 1),
+            sex = Sex.FEMALE,
+        )
+        val editing = UnsavedMeasurementPreviewState(
+            pending = pending,
+            step = UnsavedPreviewStep.PROFILE_EDITOR,
+            profileDraft = draft,
+        )
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted(41L))
+        val failed = reduceUnsavedPreview(
+            calculating,
+            UnsavedPreviewAction.CalculationFailed(
+                41L,
+                UnsavedPreviewCalculationError.CALCULATION_FAILED,
+            ),
+        )
+
+        assertEquals(UnsavedPreviewStep.PROFILE_EDITOR, failed.step)
+        assertFalse(failed.isCalculating)
+        assertEquals(pending, failed.pending)
+        assertEquals(draft, failed.profileDraft)
+        assertEquals(UnsavedPreviewCalculationError.CALCULATION_FAILED, failed.calculationError)
+
+        val changed = reduceUnsavedPreview(
+            failed,
+            UnsavedPreviewAction.ProfileChanged(draft.copy(heightCm = "171")),
+        )
+        val retrying = reduceUnsavedPreview(changed, UnsavedPreviewAction.CalculationStarted(42L))
+
+        assertNull(changed.calculationError)
+        assertTrue(retrying.isCalculating)
+        assertEquals(42L, retrying.calculationRequestId)
+    }
+
+    @Test
+    fun `stale request and terminal from another preview session are ignored`() {
+        val first = pending("first", "2026-08-15T10:00:00Z")
+        val second = pending("second", "2026-08-15T10:01:00Z")
+        val draft = UnsavedPreviewProfileDraft(
+            heightCm = "170",
+            birthDate = LocalDate.of(1990, 1, 1),
+            sex = Sex.FEMALE,
+        )
+        val coordinator = UnsavedPreviewSessionCoordinator()
+        coordinator.show(
+            UnsavedMeasurementPreviewState(first, UnsavedPreviewStep.PROFILE_EDITOR, draft),
+            PendingResolverSession(first.id, PendingResolverSource.PENDING_QUEUE),
+        )
+        val request = requireNotNull(coordinator.startCalculation(first.id, 1L, ZoneOffset.UTC))
+        val firstResult = requireNotNull(calculateUnsavedPreview(first, request.profileDraft, ZoneOffset.UTC))
+        coordinator.update(
+            coordinator.active.value!!.state.copy(
+                isCalculating = false,
+                calculationRequestId = null,
+                profileDraft = draft.copy(heightCm = "180"),
+            ),
+        )
+        assertEquals(draft, coordinator.active.value?.state?.profileDraft)
+        assertTrue(coordinator.active.value?.state?.isCalculating == true)
+        assertFalse(coordinator.completeCalculation(first.id, 2L, firstResult))
+        assertTrue(coordinator.active.value?.state?.isCalculating == true)
+
+        coordinator.show(
+            UnsavedMeasurementPreviewState(second, UnsavedPreviewStep.PROFILE_EDITOR, draft),
+            PendingResolverSession(second.id, PendingResolverSource.PENDING_QUEUE),
+        )
+
+        assertFalse(coordinator.completeCalculation(first.id, 1L, firstResult))
+        assertEquals(second.id, coordinator.active.value?.state?.pending?.id)
+        assertEquals(UnsavedPreviewStep.PROFILE_EDITOR, coordinator.active.value?.state?.step)
     }
 
     @Test
@@ -514,14 +594,14 @@ class ResolverUiContractsTest {
                 sex = Sex.FEMALE,
             ),
         )
-        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted)
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted(1L))
         val result = requireNotNull(
             calculateUnsavedPreview(pending, calculating.profileDraft, ZoneOffset.UTC),
         )
         owner.update(
             reduceUnsavedPreview(
                 calculating,
-                UnsavedPreviewAction.CalculationCompleted(result),
+                UnsavedPreviewAction.CalculationCompleted(1L, result),
             ),
         )
 
@@ -640,7 +720,7 @@ class ResolverUiContractsTest {
     fun `late calculation result cannot revive a preview after navigating back`() {
         val initial = UnsavedMeasurementPreviewState(pending("preview", "2026-08-15T10:00:00Z"))
         val editing = reduceUnsavedPreview(initial, UnsavedPreviewAction.EnterProfileRequested)
-        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted)
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted(1L))
         val backAtRaw = reduceUnsavedPreview(calculating, UnsavedPreviewAction.BackRequested)
         val result = requireNotNull(
             calculateUnsavedPreview(
@@ -656,7 +736,7 @@ class ResolverUiContractsTest {
 
         val afterLateResult = reduceUnsavedPreview(
             backAtRaw,
-            UnsavedPreviewAction.CalculationCompleted(result),
+            UnsavedPreviewAction.CalculationCompleted(1L, result),
         )
 
         assertSame(backAtRaw, afterLateResult)
@@ -666,7 +746,7 @@ class ResolverUiContractsTest {
         val editingAgain = reduceUnsavedPreview(backAtRaw, UnsavedPreviewAction.EnterProfileRequested)
         val afterDuplicateResult = reduceUnsavedPreview(
             editingAgain,
-            UnsavedPreviewAction.CalculationCompleted(result),
+            UnsavedPreviewAction.CalculationCompleted(1L, result),
         )
         assertSame(editingAgain, afterDuplicateResult)
         assertNull(afterDuplicateResult.result)

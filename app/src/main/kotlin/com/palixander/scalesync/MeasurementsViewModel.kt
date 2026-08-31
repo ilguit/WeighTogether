@@ -7,6 +7,7 @@ import com.palixander.scalesync.data.MeasurementEntity
 import com.palixander.scalesync.data.MeasurementMutationResult
 import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.MeasurementValues
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.measurements.MeasurementDeleteConfirmation
@@ -35,9 +36,15 @@ import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PendingMeasurementReadinessSnapshot
 import com.palixander.scalesync.domain.withPendingMeasurementReadiness
+import com.palixander.scalesync.core.ReferenceClassifier
+import com.palixander.scalesync.core.ReferenceContext
+import com.palixander.scalesync.core.chronologicalAge
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.accounts.reconcileAccountSelection
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
+import com.palixander.scalesync.ui.reference.toReferenceContext
+import com.palixander.scalesync.ui.reference.toReferenceReadings
 import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
@@ -65,6 +72,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private val repository = container.repository
     private val profileStore = container.profileStore
     private val homeChartZoneId = ZoneId.systemDefault()
+    private val referenceClassifier = ReferenceClassifier()
+    private val referencePresentationFactory = ReferencePresentationFactory(application.resources)
     private val interaction = MutableStateFlow(MeasurementsInteractionState())
     private var nextOperationSequence = 0L
     private val eventChannel = Channel<MeasurementsUiEvent>(Channel.BUFFERED)
@@ -156,6 +165,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             val items = buildMeasurementPresentationItems(
                 source = source,
                 now = Instant.now(),
+                zoneId = homeChartZoneId,
+                referenceClassifier = referenceClassifier,
+                referencePresentationFactory = referencePresentationFactory,
                 preliminaryComposition = { preliminary, account ->
                     repository.preliminaryComposition(preliminary, account.profile)
                 },
@@ -569,6 +581,10 @@ internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): 
 
 internal fun MeasurementEntity.toMeasurementUiItem(
     isOperationInProgress: Boolean,
+    account: Account? = null,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    referenceClassifier: ReferenceClassifier? = null,
+    referencePresentationFactory: ReferencePresentationFactory? = null,
 ): MeasurementUiItem =
     MeasurementUiItem(
         id = id,
@@ -587,7 +603,67 @@ internal fun MeasurementEntity.toMeasurementUiItem(
         isManuallyEdited = isManuallyEdited,
         hasProfileSyncMismatch = hasProfileSyncMismatch,
         isOperationInProgress = isOperationInProgress,
+    ).withReferencePresentation(
+        entity = this,
+        account = account,
+        zoneId = zoneId,
+        classifier = referenceClassifier,
+        factory = referencePresentationFactory,
     )
+
+private fun MeasurementUiItem.withReferencePresentation(
+    entity: MeasurementEntity,
+    account: Account?,
+    zoneId: ZoneId,
+    classifier: ReferenceClassifier?,
+    factory: ReferencePresentationFactory?,
+): MeasurementUiItem {
+    if (account == null || classifier == null || factory == null || isPreliminary) return this
+    val referenceContext = measurementReferenceContext(
+        values = values,
+        measuredAt = measuredAt,
+        ratingHeightCm = entity.ratingHeightCm,
+        account = account,
+        zoneId = zoneId,
+    )
+    val readings = values.toReferenceReadings()
+    val metrics = factory.createAll(
+        readings = readings,
+        interpretations = classifier.classifyAll(readings, referenceContext.context),
+    )
+    return copy(
+        referenceMetrics = metrics,
+        ratingHeightCm = entity.ratingHeightCm,
+        referenceAge = referenceContext.age,
+        hasRestoredRatingHeight = entity.ratingHeightOrigin == RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+    )
+}
+
+internal data class MeasurementReferenceContext(
+    val context: ReferenceContext,
+    val age: Int?,
+)
+
+internal fun measurementReferenceContext(
+    values: MeasurementUiValues,
+    measuredAt: Instant,
+    ratingHeightCm: Double?,
+    account: Account,
+    zoneId: ZoneId,
+): MeasurementReferenceContext {
+    val measurementDate = measuredAt.atZone(zoneId).toLocalDate()
+    val birthDate = account.profile.birthDate?.takeUnless { it.isAfter(measurementDate) }
+    val sex = account.profile.sex
+    return MeasurementReferenceContext(
+        context = values.toReferenceContext(
+            measurementDate = measurementDate,
+            birthDate = birthDate,
+            sex = sex,
+            ratingHeightCm = ratingHeightCm,
+        ),
+        age = if (birthDate != null && sex != null) chronologicalAge(birthDate, measurementDate) else null,
+    )
+}
 
 private fun MeasurementEntity.toUiValues(): MeasurementUiValues = MeasurementUiValues(
     weightKg = weightKg,
@@ -713,6 +789,9 @@ internal fun <S> kotlinx.coroutines.flow.Flow<
 internal fun buildMeasurementPresentationItems(
     source: AccountMeasurementPresentationSource,
     now: Instant,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+    referenceClassifier: ReferenceClassifier? = null,
+    referencePresentationFactory: ReferencePresentationFactory? = null,
     preliminaryComposition: (PendingMeasurement, Account) ->
         com.palixander.scalesync.core.BodyComposition?,
 ): List<MeasurementUiItem> {
@@ -720,6 +799,10 @@ internal fun buildMeasurementPresentationItems(
     val finalizedItems = source.finalized.map { value ->
         value.toMeasurementUiItem(
             isOperationInProgress = false,
+            account = source.account,
+            zoneId = zoneId,
+            referenceClassifier = referenceClassifier,
+            referencePresentationFactory = referencePresentationFactory,
         )
     }
     val preliminaryItems = source.preliminary
