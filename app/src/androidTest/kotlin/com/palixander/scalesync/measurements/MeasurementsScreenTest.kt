@@ -930,7 +930,32 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun compactSummaryUsesTwoColumnsAtLargeFontWhenWidthAllows() {
+    fun compactSummaryUsesTwoByTwoGridAtLargeFontAtExactThreshold() {
+        setCompactSummaryAtEffectiveGridWidth(300)
+
+        val bounds = compactSummaryReferenceBounds()
+        val tolerance = 1f
+        assertEquals(bounds[0].top.value, bounds[1].top.value, tolerance)
+        assertEquals(bounds[2].top.value, bounds[3].top.value, tolerance)
+        assertTrue(bounds[2].top > bounds[0].top)
+        assertEquals(bounds[0].left.value, bounds[2].left.value, tolerance)
+        assertEquals(bounds[1].left.value, bounds[3].left.value, tolerance)
+        assertTrue(bounds[1].left > bounds[0].left)
+    }
+
+    @Test
+    fun compactSummaryUsesFourRowsAtLargeFontOneDpBelowThreshold() {
+        setCompactSummaryAtEffectiveGridWidth(299)
+
+        val bounds = compactSummaryReferenceBounds()
+        val tolerance = 1f
+        bounds.zipWithNext().forEach { (previous, next) ->
+            assertEquals(previous.left.value, next.left.value, tolerance)
+            assertTrue(next.top > previous.top)
+        }
+    }
+
+    private fun setCompactSummaryAtEffectiveGridWidth(gridWidthDp: Int) {
         val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
         val state = MeasurementsUiState(
             isLoading = false,
@@ -941,32 +966,31 @@ class MeasurementsScreenTest {
         composeRule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
                 ScaleSyncTheme {
-                    Box(Modifier.width(400.dp)) {
+                    // LazyColumn and summary card each consume 16.dp on both horizontal edges.
+                    Box(Modifier.width((gridWidthDp + 64).dp)) {
                         MeasurementsScreen(state, MeasurementsCallbacks.None)
                     }
                 }
             }
         }
-        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridTwoColumns).assertExists()
+        val expectedGridTag = if (gridWidthDp >= 300) {
+            ReferenceComponentTestTags.GridTwoColumns
+        } else {
+            ReferenceComponentTestTags.GridOneColumn
+        }
+        val gridBounds = composeRule.onNodeWithTag(expectedGridTag).getUnclippedBoundsInRoot()
+        val gridWidth = (gridBounds.right - gridBounds.left).value
+        assertEquals(gridWidthDp.toFloat(), gridWidth, 1f)
     }
 
-    @Test
-    fun compactSummaryUsesOneColumnBelowLegacyWidthThreshold() {
-        val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
-        val state = MeasurementsUiState(
-            isLoading = false,
-            measurements = listOf(latest),
-            summary = buildMeasurementSummary(listOf(latest)),
-        )
-
-        composeRule.setContent {
-            ScaleSyncTheme {
-                Box(Modifier.width(299.dp)) {
-                    MeasurementsScreen(state, MeasurementsCallbacks.None)
-                }
-            }
-        }
-        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+    private fun compactSummaryReferenceBounds() = listOf(
+        "BODY_FAT_PERCENT",
+        "MUSCLE_MASS",
+        "WATER_PERCENT",
+        "BMI",
+    ).map { metric ->
+        composeRule.onNodeWithTag("summary-reference-$metric")
+            .getUnclippedBoundsInRoot()
     }
 
     @Test
