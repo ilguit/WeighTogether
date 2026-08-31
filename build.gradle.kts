@@ -11,3 +11,9 @@ tasks.register("verifyBreedCatalogSnapshot") {
     description = "Regenerates and verifies the offline breed catalog snapshot."
     dependsOn(gradle.includedBuild("breed-catalog").task(":verifySnapshot"))
 }
+
+tasks.register("verifyWeightReferenceSnapshot") {
+    group = "verification"
+    description = "Regenerates and verifies the evidence-based weight-reference snapshot."
+    dependsOn(gradle.includedBuild("weight-references").task(":verifySnapshot"))
+}

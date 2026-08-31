@@ -1,0 +1,47 @@
+{
+  "manifest": {
+    "schemaVersion": 1,
+    "snapshotVersion": "2026-08-31.1",
+    "snapshotDate": "2026-08-31",
+    "numericalDataSha256": "generated",
+    "sources": [
+      {
+        "id": "salt-dog-2017-erratum-2024",
+        "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
+        "publicationDoi": "10.1371/journal.pone.0182064",
+        "dataDoi": "10.17638/datacat.liverpool.ac.uk/377",
+        "dataUrl": "https://datacat.liverpool.ac.uk/377/5/Final_Data_PLOS.zip",
+        "upstreamArtifactSha256": "a494c1c1bc6841ab3840d5757f34a20892e025a8f9da7e9cbb3b9d6086b07ff7",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
+        "correctionDoi": "10.1371/journal.pone.0314711"
+      },
+      {
+        "id": "salt-dsh-kitten-2022",
+        "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+        "publicationDoi": "10.1371/journal.pone.0277531",
+        "dataDoi": "10.17638/datacat.liverpool.ac.uk/1456",
+        "dataUrl": "https://datacat.liverpool.ac.uk/1456/1/KGC1_dataset.csv",
+        "upstreamArtifactSha256": "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094",
+        "license": "CC BY 3.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "correctionDoi": null
+      }
+    ],
+    "scopes": [
+      {"id":"dog-female-I","species":"dog","sex":"female","basis":"weight_category","weightCategory":"I","breedId":null,"minimumAdultWeightKg":null,"maximumAdultWeightKg":6.5,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight below 6.5 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-male-I","species":"dog","sex":"male","basis":"weight_category","weightCategory":"I","breedId":null,"minimumAdultWeightKg":null,"maximumAdultWeightKg":6.5,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight below 6.5 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-female-II","species":"dog","sex":"female","basis":"weight_category","weightCategory":"II","breedId":null,"minimumAdultWeightKg":6.5,"maximumAdultWeightKg":9.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 6.5 to 9 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-male-II","species":"dog","sex":"male","basis":"weight_category","weightCategory":"II","breedId":null,"minimumAdultWeightKg":6.5,"maximumAdultWeightKg":9.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 6.5 to 9 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-female-III","species":"dog","sex":"female","basis":"weight_category","weightCategory":"III","breedId":null,"minimumAdultWeightKg":9.0,"maximumAdultWeightKg":15.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 9 to 15 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-male-III","species":"dog","sex":"male","basis":"weight_category","weightCategory":"III","breedId":null,"minimumAdultWeightKg":9.0,"maximumAdultWeightKg":15.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 9 to 15 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-female-IV","species":"dog","sex":"female","basis":"weight_category","weightCategory":"IV","breedId":null,"minimumAdultWeightKg":15.0,"maximumAdultWeightKg":30.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 15 to 30 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-male-IV","species":"dog","sex":"male","basis":"weight_category","weightCategory":"IV","breedId":null,"minimumAdultWeightKg":15.0,"maximumAdultWeightKg":30.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 15 to 30 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-female-V","species":"dog","sex":"female","basis":"weight_category","weightCategory":"V","breedId":null,"minimumAdultWeightKg":30.0,"maximumAdultWeightKg":40.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 30 to 40 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"dog-male-V","species":"dog","sex":"male","basis":"weight_category","weightCategory":"V","breedId":null,"minimumAdultWeightKg":30.0,"maximumAdultWeightKg":40.0,"minimumAgeDays":84,"maximumAgeDays":730,"constraints":["Expected adult weight 30 to 40 kg","Source excludes dogs above 40 kg"],"sourceId":"salt-dog-2017-erratum-2024","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"cat-dsh-female","species":"cat","sex":"female","basis":"breed","weightCategory":null,"breedId":"VBO:0100119","minimumAdultWeightKg":null,"maximumAdultWeightKg":null,"minimumAgeDays":56,"maximumAgeDays":546,"constraints":["Domestic Shorthair only","Sexually intact kittens from the USA","Age 8 to 78 weeks"],"sourceId":"salt-dsh-kitten-2022","numericalAvailability":"not_reproducible_from_published_artifacts"},
+      {"id":"cat-dsh-male","species":"cat","sex":"male","basis":"breed","weightCategory":null,"breedId":"VBO:0100119","minimumAdultWeightKg":null,"maximumAdultWeightKg":null,"minimumAgeDays":56,"maximumAgeDays":546,"constraints":["Domestic Shorthair only","Sexually intact kittens from the USA","Age 8 to 78 weeks"],"sourceId":"salt-dsh-kitten-2022","numericalAvailability":"not_reproducible_from_published_artifacts"}
+    ]
+  },
+  "profiles": []
+}
