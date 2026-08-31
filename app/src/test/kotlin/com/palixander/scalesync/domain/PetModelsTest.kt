@@ -1,5 +1,6 @@
 package com.palixander.scalesync.domain
 
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Year
@@ -140,6 +141,21 @@ class PetModelsTest {
         assertNull(pet.sex)
         assertNull(pet.breedId)
         assertNull(pet.birthDate)
+        assertNull(pet.dogAdultWeightCategory)
+    }
+
+    @Test
+    fun petContractsPreserveDogAdultWeightCategoryAtTheEnd() {
+        val newPet = NewPet("Луна", PetSpecies.DOG, dogAdultWeightCategory = DogAdultWeightCategory.III)
+        val update = PetUpdate(
+            PetId("pet"),
+            "Луна",
+            PetSpecies.DOG,
+            dogAdultWeightCategory = DogAdultWeightCategory.IV,
+        )
+
+        assertEquals(DogAdultWeightCategory.III, newPet.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.IV, update.dogAdultWeightCategory)
     }
 
     @Test

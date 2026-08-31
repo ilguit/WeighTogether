@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import kotlin.math.abs
 
 @JvmInline
@@ -121,6 +122,7 @@ data class Pet(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -137,6 +139,7 @@ data class NewPet(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -153,6 +156,7 @@ data class PetUpdate(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
