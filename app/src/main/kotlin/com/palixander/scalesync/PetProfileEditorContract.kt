@@ -107,10 +107,28 @@ class PetBreedCatalog(
         .filter { profile -> profile.basis == ReferenceBasis.BREED }
         .mapNotNull { profile -> profile.breedId }
         .toSet()
+    private val speciesWithWeightReference = breedsWithWeightReference.asSequence()
+        .mapNotNull(catalog::findById)
+        .map(BreedRecord::species)
+        .toSet()
 
-    fun search(query: String, species: PetSpecies): List<PetBreedOption> {
+    fun hasWeightReferenceProfiles(species: PetSpecies): Boolean =
+        species.toBreedSpecies() in speciesWithWeightReference
+
+    /**
+     * Searches the bundled breed catalog for one species. When [onlyWithWeightReference] is true,
+     * the result contains only breeds backed by their own numerical BREED profile. In particular,
+     * dog WEIGHT_CATEGORY profiles are not treated as breed profiles.
+     */
+    fun search(
+        query: String,
+        species: PetSpecies,
+        onlyWithWeightReference: Boolean = false,
+    ): List<PetBreedOption> {
         val catalogSpecies = species.toBreedSpecies() ?: return emptyList()
-        return catalog.search(query, catalogSpecies).map(::toPetBreedOption)
+        return catalog.search(query, catalogSpecies)
+            .map(::toPetBreedOption)
+            .filter { option -> !onlyWithWeightReference || option.hasWeightReference }
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
@@ -472,8 +490,9 @@ fun validatePetBirthDateInput(
 
 fun isDogAdultWeightCategoryApplicable(
     species: PetSpecies?,
-    @Suppress("UNUSED_PARAMETER") breed: PetBreedSelection?,
-): Boolean = species == PetSpecies.DOG
+    breed: PetBreedSelection?,
+): Boolean = species == PetSpecies.DOG &&
+    (breed as? PetBreedSelection.Available)?.option?.hasWeightReference != true
 
 fun petSexLabel(sex: PetSex?): String = when (sex) {
     PetSex.MALE -> "Самец"

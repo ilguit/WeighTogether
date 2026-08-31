@@ -14,12 +14,14 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -67,6 +69,8 @@ internal object PetProfileEditorTestTags {
     const val BreedPicker = "pet-profile-editor-breed-picker"
     const val BreedQuery = "pet-profile-editor-breed-query"
     const val BreedNoResults = "pet-profile-editor-breed-no-results"
+    const val BreedProfileFilter = "pet-profile-editor-breed-profile-filter"
+    const val BreedNoProfiles = "pet-profile-editor-breed-no-profiles"
     const val BirthPrecisionYear = "pet-profile-editor-birth-precision-year"
     const val BirthPrecisionMonth = "pet-profile-editor-birth-precision-month"
     const val BirthPrecisionDay = "pet-profile-editor-birth-precision-day"
@@ -538,6 +542,11 @@ private fun DogCategoryEditor(
     onChange: (DogAdultWeightCategory?) -> Unit,
 ) {
     EditorSection("Весовая категория взрослой собаки (необязательно)") {
+        Text(
+            "Используется, когда у выбранной породы нет собственного весового профиля.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         if (showChoices) {
             DogAdultWeightCategory.entries.forEach { category ->
                 SelectionRow(
@@ -576,8 +585,12 @@ private fun BreedPickerDialog(
     onDismiss: () -> Unit,
 ) {
     var query by rememberSaveable(species) { mutableStateOf("") }
-    val options = remember(query, species, breedCatalog) {
-        breedCatalog.search(query, species)
+    var onlyWithWeightReference by rememberSaveable(species) { mutableStateOf(false) }
+    val options = remember(query, species, onlyWithWeightReference, breedCatalog) {
+        breedCatalog.search(query, species, onlyWithWeightReference)
+    }
+    val speciesHasWeightReferenceProfiles = remember(species, breedCatalog) {
+        breedCatalog.hasWeightReferenceProfiles(species)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -599,6 +612,25 @@ private fun BreedPickerDialog(
                         .fillMaxWidth()
                         .testTag(PetProfileEditorTestTags.BreedQuery),
                 )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 48.dp)
+                        .testTag(PetProfileEditorTestTags.BreedProfileFilter)
+                        .toggleable(
+                            value = onlyWithWeightReference,
+                            role = Role.Checkbox,
+                            onValueChange = { onlyWithWeightReference = it },
+                        )
+                        .semantics(mergeDescendants = true) {},
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Checkbox(
+                        checked = onlyWithWeightReference,
+                        onCheckedChange = null,
+                    )
+                    Text("Только с весовым профилем")
+                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -608,9 +640,17 @@ private fun BreedPickerDialog(
                     if (options.isEmpty()) {
                         item {
                             Text(
-                                "Породы не найдены",
+                                if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
+                                    "Для выбранного вида нет пород с весовым профилем"
+                                } else {
+                                    "Породы не найдены"
+                                },
                                 modifier = Modifier.testTag(
-                                    PetProfileEditorTestTags.BreedNoResults,
+                                    if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
+                                        PetProfileEditorTestTags.BreedNoProfiles
+                                    } else {
+                                        PetProfileEditorTestTags.BreedNoResults
+                                    },
                                 ),
                             )
                         }
@@ -621,7 +661,6 @@ private fun BreedPickerDialog(
                         ) { option ->
                             SelectionRow(
                                 label = option.displayName,
-                                badgeLabel = "Есть эталон".takeIf { option.hasWeightReference },
                                 selected = selected?.id == option.id,
                                 enabled = true,
                                 tag = PetProfileEditorTestTags.breedOption(option.id.value),
@@ -642,7 +681,6 @@ private fun BreedPickerDialog(
 @Composable
 private fun SelectionRow(
     label: String,
-    badgeLabel: String? = null,
     selected: Boolean,
     enabled: Boolean,
     tag: String,
@@ -668,7 +706,6 @@ private fun SelectionRow(
             .semantics {
                 role = Role.RadioButton
                 this.selected = selected
-                badgeLabel?.let { stateDescription = it }
             },
     ) {
         Row(
@@ -682,19 +719,6 @@ private fun SelectionRow(
                     .weight(1f)
                     .padding(start = 8.dp),
             )
-            badgeLabel?.let { badge ->
-                Surface(
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                ) {
-                    Text(
-                        text = badge,
-                        style = MaterialTheme.typography.labelSmall,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                    )
-                }
-            }
         }
     }
 }

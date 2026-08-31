@@ -175,6 +175,61 @@ class PetProfileEditorContractTest {
         assertTrue(catOptions.single { it.id == BreedId("VBO:0100119") }.hasWeightReference)
         assertTrue(catOptions.filter { it.hasWeightReference }.all { it.id == BreedId("VBO:0100119") })
         assertTrue(dogOptions.none { it.hasWeightReference })
+        assertTrue(breedCatalog.hasWeightReferenceProfiles(PetSpecies.CAT))
+        assertFalse(breedCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
+    }
+
+    @Test
+    fun `catalog filter keeps only cat breed with its own numerical profile`() {
+        val options = breedCatalog.search(
+            query = "",
+            species = PetSpecies.CAT,
+            onlyWithWeightReference = true,
+        )
+
+        assertEquals(listOf(BreedId("VBO:0100119")), options.map(PetBreedOption::id))
+        assertTrue(options.all(PetBreedOption::hasWeightReference))
+    }
+
+    @Test
+    fun `catalog filter excludes dogs despite weight category fallback`() {
+        val options = breedCatalog.search(
+            query = "",
+            species = PetSpecies.DOG,
+            onlyWithWeightReference = true,
+        )
+
+        assertTrue(options.isEmpty())
+    }
+
+    @Test
+    fun `catalog applies query and numerical profile filter together`() {
+        val matching = breedCatalog.search(
+            query = "Domestic Short Hair",
+            species = PetSpecies.CAT,
+            onlyWithWeightReference = true,
+        )
+        val ordinaryBreed = breedCatalog.search(
+            query = "Абиссинская",
+            species = PetSpecies.CAT,
+            onlyWithWeightReference = true,
+        )
+
+        assertEquals(listOf(BreedId("VBO:0100119")), matching.map(PetBreedOption::id))
+        assertTrue(ordinaryBreed.isEmpty())
+    }
+
+    @Test
+    fun `catalog search without filter preserves unknown first and unprofiled breeds`() {
+        val options = breedCatalog.search(
+            query = "",
+            species = PetSpecies.CAT,
+            onlyWithWeightReference = false,
+        )
+
+        assertEquals(BreedKind.UNKNOWN, options.first().kind)
+        assertTrue(options.any { it.kind == BreedKind.MIXED && !it.hasWeightReference })
+        assertTrue(options.any { it.id == BreedId("VBO:0100000") && !it.hasWeightReference })
     }
 
     @Test
@@ -322,6 +377,35 @@ class PetProfileEditorContractTest {
             PetProfileAction.BreedChanged(PetBreedSelection.Available(catBreed)),
         )
         assertEquals(state, unchanged)
+    }
+
+    @Test
+    fun `breed profile replaces dog category fallback and clears existing category`() {
+        val profiledDog = PetBreedSelection.Available(
+            PetBreedOption(
+                id = BreedId("test:profiled-dog"),
+                species = PetSpecies.DOG,
+                displayName = "Порода с профилем",
+                canonicalName = "Profiled Dog",
+                aliases = emptyList(),
+                kind = BreedKind.VBO,
+                hasWeightReference = true,
+            ),
+        )
+        val initial = PetProfileEditorState(
+            PetProfileDraft.create().copy(
+                species = PetSpecies.DOG,
+                dogAdultWeightCategory = DogAdultWeightCategory.III,
+            ),
+        )
+
+        val selected = reduce(initial, PetProfileAction.BreedChanged(profiledDog))
+
+        assertEquals(profiledDog, selected.draft.breed)
+        assertNull(selected.draft.dogAdultWeightCategory)
+        assertFalse(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, profiledDog))
+        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, null))
+        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, dogMixed))
     }
 
     @Test
