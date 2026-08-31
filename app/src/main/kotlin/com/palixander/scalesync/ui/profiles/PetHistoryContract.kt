@@ -10,6 +10,14 @@ import com.palixander.scalesync.charts.inclusiveDateRangeToEpochRange
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
+import com.palixander.scalesync.domain.reference.DogAdultWeight
+import com.palixander.scalesync.domain.reference.IntactStatus
+import com.palixander.scalesync.domain.reference.PetWeightReferenceResolution
+import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
+import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceProfileMetadata
+import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.time.Clock
 import java.time.LocalDate
@@ -52,6 +60,10 @@ data class PetHistoryUiState(
     val rangePreset: ChartRangePreset,
     val content: PetHistoryContent = PetHistoryContent.Empty,
     val series: ChartSeries = ChartSeries(PetWeightChartMetric, emptyList()),
+    val weightReference: PetHistoryWeightReference = PetHistoryWeightReference.Unavailable(
+        WeightReferenceUnavailableReason.UnsupportedSpecies,
+        "Эталон недоступен: вид питомца не указан.",
+    ),
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
     val errorMessage: String? = null,
@@ -84,6 +96,136 @@ data class PetHistoryUiState(
             )
         }
     }
+}
+
+sealed interface PetHistoryWeightReference {
+    data class Available(
+        val basis: ReferenceBasis,
+        /** Separate segments must be drawn separately; gaps must never be connected. */
+        val segments: List<List<PetHistoryReferencePoint>>,
+        val approximate: Boolean,
+        val ageLabel: String,
+        val basisLabel: String,
+        val sourceLabel: String,
+        val citation: String,
+        val license: String,
+        val constraints: List<String>,
+        val accessibilityLabel: String,
+    ) : PetHistoryWeightReference
+
+    data class Unavailable(
+        val reason: WeightReferenceUnavailableReason,
+        val explanation: String,
+    ) : PetHistoryWeightReference
+}
+
+data class PetHistoryReferencePoint(
+    val date: LocalDate,
+    val lowerKg: Double,
+    val medianLowerKg: Double,
+    val medianUpperKg: Double,
+    val upperKg: Double,
+)
+
+class PetHistoryReferencePresenter(
+    private val resolver: PetWeightReferenceResolver = PetWeightReferenceResolver(),
+    private val snapshot: WeightReferenceSnapshot = WeightReferenceSnapshot.bundled(),
+) {
+    fun present(pet: Pet, range: ChartDateRange): PetHistoryWeightReference {
+        val dated = generateSequence(range.startDate) { previous ->
+            previous.plusDays(1).takeUnless { it.isAfter(range.endDateInclusive) }
+        }.map { date -> date to resolve(pet, date) }.toList()
+
+        val available = dated.mapNotNull { (date, result) ->
+            (result as? PetWeightReferenceResolution.Available)?.reference?.let { date to it }
+        }
+        if (available.isEmpty()) {
+            val reason = (dated.firstOrNull()?.second as? PetWeightReferenceResolution.Unavailable)?.reason
+                ?: WeightReferenceUnavailableReason.ReferenceDataGap("unknown", LongRange.EMPTY)
+            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
+        }
+        val metadata = snapshot.metadataFor(available.first().second.profileId)
+            ?: return PetHistoryWeightReference.Unavailable(
+                WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId),
+                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId)),
+            )
+        val segments = mutableListOf<MutableList<PetHistoryReferencePoint>>()
+        var previousDate: LocalDate? = null
+        var previousProfileId: String? = null
+        available.forEach { (date, reference) ->
+            if (previousDate?.plusDays(1) != date || previousProfileId != reference.profileId) {
+                segments.add(mutableListOf())
+            }
+            segments.last() += PetHistoryReferencePoint(
+                date,
+                reference.bounds.lowerKg,
+                reference.bounds.medianLowerKg,
+                reference.bounds.medianUpperKg,
+                reference.bounds.upperKg,
+            )
+            previousDate = date
+            previousProfileId = reference.profileId
+        }
+        val approximate = available.any { it.second.approximate }
+        val minAge = available.minOf { it.second.ageDays.first }
+        val maxAge = available.maxOf { it.second.ageDays.last }
+        return availablePresentation(metadata, segments.map(List<PetHistoryReferencePoint>::toList), approximate, minAge, maxAge)
+    }
+
+    private fun resolve(pet: Pet, date: LocalDate) = resolver.resolve(
+        species = pet.species,
+        sex = pet.sex,
+        breedId = pet.breedId,
+        birthDate = pet.birthDate,
+        referenceDate = date,
+        dogAdultWeight = pet.dogAdultWeightCategory?.let(DogAdultWeight::Category),
+        intactStatus = IntactStatus.UNKNOWN,
+    )
+
+    private fun availablePresentation(
+        metadata: ReferenceProfileMetadata,
+        segments: List<List<PetHistoryReferencePoint>>,
+        approximate: Boolean,
+        minAge: Long,
+        maxAge: Long,
+    ): PetHistoryWeightReference.Available {
+        val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
+        val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
+        val basisLabel = when (metadata.basis) {
+            ReferenceBasis.BREED -> "Эталон по породе"
+            ReferenceBasis.WEIGHT_CATEGORY -> "Эталон по весовой категории"
+        }
+        return PetHistoryWeightReference.Available(
+            metadata.basis,
+            segments,
+            approximate,
+            ageLabel,
+            basisLabel,
+            "Источник: ${metadata.source.citation}",
+            metadata.source.citation,
+            metadata.source.license,
+            metadata.constraints,
+            "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
+        )
+    }
+}
+
+fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReason): String = when (reason) {
+    WeightReferenceUnavailableReason.MissingSex -> "Эталон недоступен: укажите пол питомца."
+    WeightReferenceUnavailableReason.MissingBirthDate -> "Эталон недоступен: укажите дату рождения питомца."
+    WeightReferenceUnavailableReason.MissingBreed -> "Эталон недоступен: укажите породу кошки."
+    WeightReferenceUnavailableReason.MissingDogAdultWeight -> "Эталон недоступен: укажите ожидаемую весовую категорию взрослой собаки."
+    WeightReferenceUnavailableReason.UnsupportedSpecies -> "Эталон недоступен: вид питомца не указан."
+    is WeightReferenceUnavailableReason.UnknownBreed -> "Эталон недоступен: порода ${reason.breedId} не найдена."
+    is WeightReferenceUnavailableReason.BreedSpeciesMismatch -> "Эталон недоступен: порода ${reason.breedId} не соответствует виду питомца."
+    is WeightReferenceUnavailableReason.UnsupportedBreed -> "Эталон недоступен: для породы ${reason.breedId} нет опубликованных данных."
+    WeightReferenceUnavailableReason.DshIntactStatusUnknown -> "Эталон недоступен: для домашней короткошёрстной кошки нужны подтверждённые данные о стерилизации."
+    WeightReferenceUnavailableReason.DshNotIntact -> "Эталон недоступен: опубликованные данные относятся только к нестерилизованным животным."
+    WeightReferenceUnavailableReason.InvalidBirthDate -> "Эталон недоступен: дата рождения позже выбранного периода."
+    is WeightReferenceUnavailableReason.ProfileUnavailable -> "Эталон недоступен: профиль ${reason.profileId} не содержит воспроизводимых числовых данных."
+    is WeightReferenceUnavailableReason.ReferenceDataGap -> "Эталон недоступен: в опубликованных данных профиля ${reason.profileId} есть пробел для этого возраста."
+    is WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum -> "Эталон недоступен: вес ${reason.weightKg} кг выше поддерживаемого источником максимума."
+    is WeightReferenceUnavailableReason.AgeOutOfRange -> "Эталон недоступен: возраст вне опубликованного диапазона ${reason.supportedMinimumDays}–${reason.supportedMaximumDays} дней."
 }
 
 data class PetHistoryCallbacks(
