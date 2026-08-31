@@ -1007,7 +1007,7 @@ private fun MeasurementHistoryCard(
                             text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        if (!expanded) {
+                        if (!expanded || item.isWeightOnly) {
                             Text(
                                 text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
                                 modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),

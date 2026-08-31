@@ -759,6 +759,45 @@ class MeasurementsScreenTest {
     }
 
     @Test
+    fun weightOnlyHistoryKeepsItsSinglePlainWeightWhenExpanded() {
+        val item = sampleItem(
+            id = "weight-only-history",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = localOnlySync(),
+        ).copy(
+            type = MeasurementUiType.WEIGHT_ONLY,
+            values = weightOnlyValues(72.4),
+            referenceMetrics = emptyList(),
+        )
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.HISTORY,
+            isLoading = false,
+            measurements = listOf(item),
+            summary = buildMeasurementSummary(listOf(item)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onAllNodesWithTag("history-header-weight-weight-only-history")
+            .assertCountEquals(1)
+        composeRule.onNodeWithTag("history-weight-only-label-weight-only-history").assertIsDisplayed()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(0)
+
+        composeRule.onNodeWithTag("history-toggle-weight-only-history").performClick()
+
+        composeRule.onAllNodesWithTag("history-header-weight-weight-only-history")
+            .assertCountEquals(1)
+        composeRule.onNodeWithTag("history-weight-only-label-weight-only-history").assertIsDisplayed()
+        composeRule.onNodeWithTag("reference-metric-weight-only-history-WEIGHT").assertDoesNotExist()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(0)
+    }
+
+    @Test
     fun processingMeasurementNeverExposesReferenceRangesOrHelp() {
         val preliminary = preliminaryItem("processing", "2026-08-15T12:42:00Z", 72.4)
             .copy(referenceMetrics = referencePresentations(sampleValues(72.4)))
