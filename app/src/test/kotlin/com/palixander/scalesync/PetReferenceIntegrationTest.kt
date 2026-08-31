@@ -15,12 +15,13 @@ import com.palixander.scalesync.data.MeasurementEntity
 import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.PetEntity
+import com.palixander.scalesync.data.toPetEntity
+import com.palixander.scalesync.data.withUpdate
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
-import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.ui.profiles.PetHistoryReferencePresenter
@@ -33,6 +34,8 @@ import java.io.ByteArrayOutputStream
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Year
+import java.time.YearMonth
 import java.time.ZoneOffset
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -70,23 +73,29 @@ class PetReferenceIntegrationTest {
             today = referenceDate,
         )
         assertTrue(validated.isValid)
-        val knownEntity = requireNotNull(validated.newPet).toEntity("known-pet")
+        val birthDate = referenceDate.minusDays(100)
+        val knownEntity = requireNotNull(validated.newPet).toPetEntity("known-pet", timestamp)
         assertEquals(stableBreedId, knownEntity.toDomain().breedId)
+        assertEquals(birthDate.year, knownEntity.birthYear)
+        assertEquals(birthDate.monthValue, knownEntity.birthMonth)
+        assertEquals(birthDate.dayOfMonth, knownEntity.birthDay)
+        assertEquals(PartialBirthDate.Day(birthDate), knownEntity.toDomain().birthDate)
 
         val unknownBreedId = BreedId("external:dog:retired-breed")
-        val unknownOriginal = knownEntity.copy(
+        val unknownExisting = knownEntity.copy(
             id = "unknown-pet",
             displayName = "Рекс",
             normalizedName = "рекс",
             breedId = unknownBreedId.value,
             dogAdultWeightCategory = null,
-        ).toDomain()
+        )
+        val unknownOriginal = unknownExisting.toDomain()
         val unknownDraft = PetProfileDraft.edit(unknownOriginal, catalog)
         assertTrue(unknownDraft.breed is PetBreedSelection.Unavailable)
         val unknownUpdate = requireNotNull(
             validatePetProfileDraft(unknownDraft, referenceDate, listOf(unknownOriginal)).petUpdate,
         )
-        val unknownEntity = unknownUpdate.toEntity(knownEntity)
+        val unknownEntity = unknownExisting.withUpdate(unknownUpdate, timestamp)
 
         val humanAccount = humanAccount()
         val humanMeasurement = humanMeasurement()
@@ -103,6 +112,10 @@ class PetReferenceIntegrationTest {
             clock = Clock.fixed(timestamp, ZoneOffset.UTC),
         ).writeTo(output)
         assertEquals(BACKUP_SCHEMA_VERSION, exported.schemaVersion)
+        val backedUpKnown = exported.pets.single { it.id == knownEntity.id }
+        assertEquals(birthDate.year, backedUpKnown.birthYear)
+        assertEquals(birthDate.monthValue, backedUpKnown.birthMonth)
+        assertEquals(birthDate.dayOfMonth, backedUpKnown.birthDay)
 
         val importedDocument = BackupImportService().read(
             ByteArrayInputStream(output.toByteArray()),
@@ -120,8 +133,12 @@ class PetReferenceIntegrationTest {
         val restoredUnknown = imported.pets.single { it.id == unknownEntity.id }
         assertEquals(knownEntity, restoredKnown)
         assertEquals(unknownEntity, restoredUnknown)
+        assertEquals(birthDate.year, restoredKnown.birthYear)
+        assertEquals(birthDate.monthValue, restoredKnown.birthMonth)
+        assertEquals(birthDate.dayOfMonth, restoredKnown.birthDay)
 
         val knownPet = restoredKnown.toDomain()
+        assertEquals(PartialBirthDate.Day(birthDate), knownPet.birthDate)
         val reference = PetHistoryReferencePresenter().present(
             knownPet,
             ChartDateRange(referenceDate, referenceDate.plusDays(2)),
@@ -160,6 +177,72 @@ class PetReferenceIntegrationTest {
     }
 
     @Test
+    fun `year and month birth date precision survives entity and backup round trip`() = runBlocking {
+        val yearBirthDate = PartialBirthDate.Year(Year.of(2020))
+        val monthBirthDate = PartialBirthDate.Month(YearMonth.of(2021, 4))
+        val yearEntity = NewPet(
+            displayName = "Год",
+            species = PetSpecies.CAT,
+            birthDate = yearBirthDate,
+        ).toPetEntity("year-pet", timestamp)
+        val monthEntity = NewPet(
+            displayName = "Месяц",
+            species = PetSpecies.DOG,
+            birthDate = monthBirthDate,
+        ).toPetEntity("month-pet", timestamp)
+
+        assertEquals(2020, yearEntity.birthYear)
+        assertNull(yearEntity.birthMonth)
+        assertNull(yearEntity.birthDay)
+        assertEquals(yearBirthDate, yearEntity.toDomain().birthDate)
+        assertEquals(2021, monthEntity.birthYear)
+        assertEquals(4, monthEntity.birthMonth)
+        assertNull(monthEntity.birthDay)
+        assertEquals(monthBirthDate, monthEntity.toDomain().birthDate)
+
+        val output = ByteArrayOutputStream()
+        val exported = BackupExportService(
+            snapshotSource = BackupSnapshotSource {
+                BackupDatabaseSnapshot(
+                    accounts = emptyList(),
+                    appState = AppStateEntity(),
+                    measurements = emptyList(),
+                    pets = listOf(yearEntity, monthEntity),
+                )
+            },
+            settingsSnapshot = { emptySettings() },
+            clock = Clock.fixed(timestamp, ZoneOffset.UTC),
+        ).writeTo(output)
+        val backedUpYear = exported.pets.single { it.id == yearEntity.id }
+        val backedUpMonth = exported.pets.single { it.id == monthEntity.id }
+
+        assertEquals(2020, backedUpYear.birthYear)
+        assertNull(backedUpYear.birthMonth)
+        assertNull(backedUpYear.birthDay)
+        assertEquals(2021, backedUpMonth.birthYear)
+        assertEquals(4, backedUpMonth.birthMonth)
+        assertNull(backedUpMonth.birthDay)
+
+        val restored = BackupImportService().preview(
+            document = BackupImportService().read(ByteArrayInputStream(output.toByteArray())),
+            current = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList()),
+            currentSettings = emptySettings(),
+            mode = BackupImportMode.REPLACE,
+        ).result.pets.associateBy(PetEntity::id)
+        val restoredYear = requireNotNull(restored[yearEntity.id])
+        val restoredMonth = requireNotNull(restored[monthEntity.id])
+
+        assertEquals(2020, restoredYear.birthYear)
+        assertNull(restoredYear.birthMonth)
+        assertNull(restoredYear.birthDay)
+        assertEquals(yearBirthDate, restoredYear.toDomain().birthDate)
+        assertEquals(2021, restoredMonth.birthYear)
+        assertEquals(4, restoredMonth.birthMonth)
+        assertNull(restoredMonth.birthDay)
+        assertEquals(monthBirthDate, restoredMonth.toDomain().birthDate)
+    }
+
+    @Test
     fun `missing required pet data cannot produce reference chart bounds`() {
         val incomplete = NewPet(
             displayName = "Бим",
@@ -167,7 +250,7 @@ class PetReferenceIntegrationTest {
             sex = null,
             birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),
             dogAdultWeightCategory = DogAdultWeightCategory.II,
-        ).toEntity("incomplete-pet").toDomain()
+        ).toPetEntity("incomplete-pet", timestamp).toDomain()
 
         val reference = PetHistoryReferencePresenter().present(
             incomplete,
@@ -178,51 +261,6 @@ class PetReferenceIntegrationTest {
         assertFalse(reference.explanation.isBlank())
         assertNull(petWeightChartRange(emptyList(), reference))
     }
-
-    private fun NewPet.toEntity(id: String) = PetEntity(
-        id = id,
-        displayName = displayName,
-        normalizedName = normalizedName,
-        species = species,
-        createdAtEpochMillis = timestamp.toEpochMilli(),
-        updatedAtEpochMillis = timestamp.toEpochMilli(),
-        sex = sex,
-        breedId = breedId?.value,
-        birthYear = birthDate?.year,
-        birthMonth = birthDate?.month,
-        birthDay = birthDate?.day,
-        dogAdultWeightCategory = dogAdultWeightCategory,
-    )
-
-    private fun PetUpdate.toEntity(existing: PetEntity) = existing.copy(
-        id = id.value,
-        displayName = displayName,
-        normalizedName = normalizedName,
-        species = species,
-        sex = sex,
-        breedId = breedId?.value,
-        birthYear = birthDate?.year,
-        birthMonth = birthDate?.month,
-        birthDay = birthDate?.day,
-        dogAdultWeightCategory = dogAdultWeightCategory,
-    )
-
-    private val PartialBirthDate.year: Int
-        get() = when (this) {
-            is PartialBirthDate.Year -> value.value
-            is PartialBirthDate.Month -> value.year
-            is PartialBirthDate.Day -> value.year
-        }
-
-    private val PartialBirthDate.month: Int?
-        get() = when (this) {
-            is PartialBirthDate.Year -> null
-            is PartialBirthDate.Month -> value.monthValue
-            is PartialBirthDate.Day -> value.monthValue
-        }
-
-    private val PartialBirthDate.day: Int?
-        get() = (this as? PartialBirthDate.Day)?.value?.dayOfMonth
 
     private fun humanAccount() = AccountEntity(
         id = "human-account",

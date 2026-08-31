@@ -49,21 +49,7 @@ class RoomPetRepository(
         dao.getPetByNormalizedName(pet.normalizedName)?.let {
             throw PetNameConflictException(pet.normalizedName)
         }
-        val timestamp = now()
-        val entity = PetEntity(
-            id = newId(),
-            displayName = pet.displayName,
-            normalizedName = pet.normalizedName,
-            species = pet.species,
-            createdAtEpochMillis = timestamp.toEpochMilli(),
-            updatedAtEpochMillis = timestamp.toEpochMilli(),
-            sex = pet.sex,
-            breedId = pet.breedId?.value,
-            birthYear = pet.birthDate?.yearValue,
-            birthMonth = pet.birthDate?.monthValue,
-            birthDay = pet.birthDate?.dayValue,
-            dogAdultWeightCategory = pet.dogAdultWeightCategory,
-        )
+        val entity = pet.toPetEntity(id = newId(), timestamp = now())
         if (dao.insertPet(entity) == -1L) {
             throw PetNameConflictException(pet.normalizedName)
         }
@@ -77,34 +63,23 @@ class RoomPetRepository(
         if (conflicting != null && conflicting.id != existing.id) {
             throw PetNameConflictException(pet.normalizedName)
         }
-        val updatedAt = now().toEpochMilli()
+        val updated = existing.withUpdate(pet, updatedAt = now())
         check(
             dao.updatePet(
-                id = existing.id,
-                displayName = pet.displayName,
-                normalizedName = pet.normalizedName,
-                species = pet.species,
-                sex = pet.sex,
-                breedId = pet.breedId?.value,
-                birthYear = pet.birthDate?.yearValue,
-                birthMonth = pet.birthDate?.monthValue,
-                birthDay = pet.birthDate?.dayValue,
-                dogAdultWeightCategory = pet.dogAdultWeightCategory,
-                updatedAtEpochMillis = updatedAt,
+                id = updated.id,
+                displayName = updated.displayName,
+                normalizedName = updated.normalizedName,
+                species = updated.species,
+                sex = updated.sex,
+                breedId = updated.breedId,
+                birthYear = updated.birthYear,
+                birthMonth = updated.birthMonth,
+                birthDay = updated.birthDay,
+                dogAdultWeightCategory = updated.dogAdultWeightCategory,
+                updatedAtEpochMillis = updated.updatedAtEpochMillis,
             ) == 1,
         ) { "Pet ${existing.id} disappeared while updating" }
-        existing.copy(
-            displayName = pet.displayName,
-            normalizedName = pet.normalizedName,
-            species = pet.species,
-            sex = pet.sex,
-            breedId = pet.breedId?.value,
-            birthYear = pet.birthDate?.yearValue,
-            birthMonth = pet.birthDate?.monthValue,
-            birthDay = pet.birthDate?.dayValue,
-            dogAdultWeightCategory = pet.dogAdultWeightCategory,
-            updatedAtEpochMillis = updatedAt,
-        ).toDomain()
+        updated.toDomain()
     }
 
     override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview =
@@ -167,6 +142,34 @@ class PetNameConflictException(val normalizedName: String) :
 
 class PetNotFoundException(val petId: PetId) :
     NoSuchElementException("Pet ${petId.value} does not exist")
+
+internal fun NewPet.toPetEntity(id: String, timestamp: Instant): PetEntity = PetEntity(
+    id = id,
+    displayName = displayName,
+    normalizedName = normalizedName,
+    species = species,
+    createdAtEpochMillis = timestamp.toEpochMilli(),
+    updatedAtEpochMillis = timestamp.toEpochMilli(),
+    sex = sex,
+    breedId = breedId?.value,
+    birthYear = birthDate?.yearValue,
+    birthMonth = birthDate?.monthValue,
+    birthDay = birthDate?.dayValue,
+    dogAdultWeightCategory = dogAdultWeightCategory,
+)
+
+internal fun PetEntity.withUpdate(pet: PetUpdate, updatedAt: Instant): PetEntity = copy(
+    displayName = pet.displayName,
+    normalizedName = pet.normalizedName,
+    species = pet.species,
+    sex = pet.sex,
+    breedId = pet.breedId?.value,
+    birthYear = pet.birthDate?.yearValue,
+    birthMonth = pet.birthDate?.monthValue,
+    birthDay = pet.birthDate?.dayValue,
+    dogAdultWeightCategory = pet.dogAdultWeightCategory,
+    updatedAtEpochMillis = updatedAt.toEpochMilli(),
+)
 
 private fun PetMeasurement.toEntity(): PetMeasurementEntity = PetMeasurementEntity(
     id = id,
