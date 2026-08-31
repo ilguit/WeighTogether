@@ -5,6 +5,7 @@ import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PreliminaryDecisionReadiness
 import com.palixander.scalesync.domain.lifecycleAt
+import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import java.time.Instant
@@ -237,6 +238,11 @@ data class MeasurementUiItem(
     val sourcePendingId: PendingMeasurementId? = null,
     val isPreliminary: Boolean = false,
     val preliminaryDecisionReadiness: PreliminaryDecisionReadiness? = null,
+    /** Finalized-only ScaleSync 1 presentation. Preliminary rows intentionally keep this empty. */
+    val referenceMetrics: List<ReferenceMetricPresentation> = emptyList(),
+    val ratingHeightCm: Double? = null,
+    val referenceAge: Int? = null,
+    val hasRestoredRatingHeight: Boolean = false,
 ) {
     init {
         require(presentationKey.isNotBlank()) { "Presentation key must not be blank" }

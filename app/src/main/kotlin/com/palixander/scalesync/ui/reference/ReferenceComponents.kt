@@ -106,6 +106,7 @@ fun ExpandedMetricReference(
     presentation: ReferenceMetricPresentation,
     onInfoClick: () -> Unit,
     modifier: Modifier = Modifier,
+    infoButtonModifier: Modifier = Modifier,
 ) {
     val infoContentDescription = stringResource(
         R.string.reference_info_action,
@@ -162,7 +163,7 @@ fun ExpandedMetricReference(
             }
             IconButton(
                 onClick = onInfoClick,
-                modifier = Modifier
+                modifier = infoButtonModifier
                     .size(48.dp)
                     .testTag(ReferenceComponentTestTags.InfoButton)
                     .semantics {
