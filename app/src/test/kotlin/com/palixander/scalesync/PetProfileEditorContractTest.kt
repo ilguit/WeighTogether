@@ -378,6 +378,35 @@ class PetProfileEditorContractTest {
     }
 
     @Test
+    fun `breed profile replaces dog category fallback and clears existing category`() {
+        val profiledDog = PetBreedSelection.Available(
+            PetBreedOption(
+                id = BreedId("test:profiled-dog"),
+                species = PetSpecies.DOG,
+                displayName = "Порода с профилем",
+                canonicalName = "Profiled Dog",
+                aliases = emptyList(),
+                kind = BreedKind.VBO,
+                hasWeightReference = true,
+            ),
+        )
+        val initial = PetProfileEditorState(
+            PetProfileDraft.create().copy(
+                species = PetSpecies.DOG,
+                dogAdultWeightCategory = DogAdultWeightCategory.III,
+            ),
+        )
+
+        val selected = reduce(initial, PetProfileAction.BreedChanged(profiledDog))
+
+        assertEquals(profiledDog, selected.draft.breed)
+        assertNull(selected.draft.dogAdultWeightCategory)
+        assertFalse(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, profiledDog))
+        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, null))
+        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, dogMixed))
+    }
+
+    @Test
     fun presentationFunctionsExposeStableRussianLabelsAndCategoryRanges() {
         assertEquals("Самец", petSexLabel(PetSex.MALE))
         assertEquals("Самка", petSexLabel(PetSex.FEMALE))

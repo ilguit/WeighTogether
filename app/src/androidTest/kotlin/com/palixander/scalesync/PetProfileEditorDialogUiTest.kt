@@ -16,6 +16,8 @@ import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -35,6 +37,7 @@ import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -143,7 +146,7 @@ class PetProfileEditorDialogUiTest {
     }
 
     @Test
-    fun breedPickerMarksOnlyBreedsWithPublishedWeightReference() {
+    fun breedPickerFiltersToPublishedWeightProfilesAndExposesCheckboxSemantics() {
         val state = mutableStateOf(
             PetProfileEditorState(
                 PetProfileDraft.create().copy(
@@ -153,33 +156,47 @@ class PetProfileEditorDialogUiTest {
             ),
         )
         val domesticShorthair = catalog.search("Domestic Shorthair", PetSpecies.CAT).single()
-        val abyssinian = catalog.search("Абиссинская", PetSpecies.CAT).single()
         setEditor(state)
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
-            .performTextInput(domesticShorthair.displayName)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedProfileFilter)
+            .assertIsOff()
+            .assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox),
+            )
+            .performClick()
+            .assertIsOn()
         composeRule.onNodeWithTag(
             PetProfileEditorTestTags.breedOption(BreedId("VBO:0100119").value),
         )
             .assertIsDisplayed()
-            .assert(
-                SemanticsMatcher.expectValue(
-                    SemanticsProperties.StateDescription,
-                    "Есть эталон",
-                ),
-            )
-        composeRule.onNodeWithText("Есть эталон").assertIsDisplayed()
-
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput(domesticShorthair.displayName)
+        composeRule.onNodeWithTag(
+            PetProfileEditorTestTags.breedOption(domesticShorthair.id.value),
+        ).assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery).performTextClearance()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
-            .performTextInput(abyssinian.displayName)
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(abyssinian.id.value))
+            .performTextInput("Абиссинская")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoResults).assertIsDisplayed()
+    }
+
+    @Test
+    fun breedProfileFilterShowsSpeciesSpecificEmptyStateForDogs() {
+        val state = mutableStateOf(
+            PetProfileEditorState(
+                PetProfileDraft.create().copy(displayName = "Бим", species = PetSpecies.DOG),
+            ),
+        )
+        setEditor(state)
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedProfileFilter).performClick()
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoProfiles)
             .assertIsDisplayed()
-            .assert(
-                SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription),
-            )
-        composeRule.onNodeWithText("Есть эталон").assertDoesNotExist()
+            .assertTextContains("нет пород с весовым профилем")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoResults).assertDoesNotExist()
     }
 
     @Test
@@ -225,7 +242,7 @@ class PetProfileEditorDialogUiTest {
     }
 
     @Test
-    fun mixedAndUnknownDogShowAllWeightCategoriesAndOrdinaryBreedHidesThem() {
+    fun mixedUnknownAndUnsupportedDogShowAllWeightCategories() {
         val state = mutableStateOf(
             PetProfileEditorState(
                 PetProfileDraft.create().copy(
@@ -236,6 +253,10 @@ class PetProfileEditorDialogUiTest {
             ),
         )
         setEditor(state)
+
+        composeRule.onNodeWithText(
+            "Используется, когда у выбранной породы нет собственного весового профиля.",
+        ).assertIsDisplayed()
 
         DogAdultWeightCategory.entries.forEach { category ->
             composeRule.onNodeWithTag(PetProfileEditorTestTags.category(category)).assertExists()
@@ -267,14 +288,24 @@ class PetProfileEditorDialogUiTest {
         }
         composeRule.onNodeWithTag(
             PetProfileEditorTestTags.category(DogAdultWeightCategory.I),
-        ).assertDoesNotExist()
-        composeRule.runOnIdle { assertNull(state.value.draft.dogAdultWeightCategory) }
+        ).assertExists()
+        composeRule.runOnIdle {
+            assertEquals(DogAdultWeightCategory.V, state.value.draft.dogAdultWeightCategory)
+        }
     }
 
     @Test
     fun inapplicablePersistedCategoryShowsValidationAndCanBeClearedWithoutChoices() {
         val ordinary = PetBreedSelection.Available(
-            catalog.search("Broholmer", PetSpecies.DOG).first(),
+            PetBreedOption(
+                id = BreedId("test:profiled-dog"),
+                species = PetSpecies.DOG,
+                displayName = "Порода с профилем",
+                canonicalName = "Profiled Dog",
+                aliases = emptyList(),
+                kind = BreedKind.VBO,
+                hasWeightReference = true,
+            ),
         )
         val state = mutableStateOf(
             PetProfileEditorState(
