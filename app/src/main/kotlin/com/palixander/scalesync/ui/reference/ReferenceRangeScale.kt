@@ -21,20 +21,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.ui.theme.ReferencePalette
 
 internal object ReferenceRangeScaleTestTags {
     const val Scale = "reference-range-scale"
-    const val SingleRowBoundaries = "reference-range-scale-boundaries-single-row"
-    const val AlternateRowBoundaries = "reference-range-scale-boundaries-alternate-row"
+    const val Boundaries = "reference-range-scale-boundaries"
     const val Marker = "reference-range-scale-marker"
 
     fun segment(index: Int) = "reference-range-scale-segment-$index"
@@ -42,9 +39,6 @@ internal object ReferenceRangeScaleTestTags {
     fun zone(index: Int) = "reference-range-scale-zone-$index"
     fun currentZone(category: String) = "reference-range-scale-current-zone-$category"
 }
-
-internal fun referenceScaleUsesAlternateBoundaryRows(width: Dp, fontScale: Float): Boolean =
-    width < 320.dp || fontScale >= 1.3f
 
 /**
  * Read-only visualization of a rated metric. Its meaning is deliberately supplied by the
@@ -71,15 +65,8 @@ fun ReferenceRangeScale(
             .testTag(ReferenceRangeScaleTestTags.Scale),
     ) {
         val scaleWidth = maxWidth
-        val alternateBoundaries = referenceScaleUsesAlternateBoundaryRows(
-            width = scaleWidth,
-            fontScale = LocalDensity.current.fontScale,
-        )
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            BoundaryLabels(
-                labels = boundaries,
-                alternateRows = alternateBoundaries,
-            )
+            BoundaryLabelRow(labels = boundaries)
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -152,47 +139,29 @@ fun ReferenceRangeScale(
 }
 
 @Composable
-private fun BoundaryLabels(
-    labels: List<String>,
-    alternateRows: Boolean,
-) {
-    val tag = if (alternateRows) {
-        ReferenceRangeScaleTestTags.AlternateRowBoundaries
-    } else {
-        ReferenceRangeScaleTestTags.SingleRowBoundaries
-    }
-    Column(
-        modifier = Modifier.testTag(tag),
-        verticalArrangement = Arrangement.spacedBy(0.dp),
-    ) {
-        BoundaryLabelRow(labels, visibleParity = if (alternateRows) 0 else null)
-        if (alternateRows) BoundaryLabelRow(labels, visibleParity = 1)
-    }
-}
-
-@Composable
 private fun BoundaryLabelRow(
     labels: List<String>,
-    visibleParity: Int?,
 ) {
-    Row(modifier = Modifier.fillMaxWidth()) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(ReferenceRangeScaleTestTags.Boundaries),
+    ) {
         Spacer(Modifier.weight(0.5f))
         labels.forEachIndexed { index, label ->
             Box(
                 modifier = Modifier.weight(1f),
                 contentAlignment = Alignment.Center,
             ) {
-                if (visibleParity == null || index % 2 == visibleParity) {
-                    Text(
-                        text = label,
-                        modifier = Modifier.testTag(ReferenceRangeScaleTestTags.boundary(index)),
-                        maxLines = 1,
-                        overflow = TextOverflow.Clip,
-                        textAlign = TextAlign.Center,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                Text(
+                    text = label,
+                    modifier = Modifier.testTag(ReferenceRangeScaleTestTags.boundary(index)),
+                    maxLines = 1,
+                    overflow = TextOverflow.Clip,
+                    textAlign = TextAlign.Center,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
         Spacer(Modifier.weight(0.5f))

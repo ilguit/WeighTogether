@@ -221,30 +221,35 @@ class ReferencePresentationComponentsTest {
     }
 
     @Test
-    fun boundaryRowsSwitchBelow320DpAndAt13FontScale() {
+    fun boundariesStayOnOneRowAndCenteredAtSegmentJunctionsOnNarrowLargeTextScale() {
         val presentation = presentation()
+        listOf(319 to 1.0f, 320 to 1.3f).forEach { (width, fontScale) ->
+            setScale(presentation, width = width, fontScale = fontScale)
 
-        setScale(presentation, width = 320, fontScale = 1.29f)
-        composeRule.onNodeWithTag(
-            ReferenceRangeScaleTestTags.SingleRowBoundaries,
-            useUnmergedTree = true,
-        ).assertExists()
-        composeRule.onNodeWithTag(
-            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
-            useUnmergedTree = true,
-        ).assertDoesNotExist()
+            composeRule.onAllNodesWithTag(
+                ReferenceRangeScaleTestTags.Boundaries,
+                useUnmergedTree = true,
+            ).assertCountEquals(1)
 
-        setScale(presentation, width = 319, fontScale = 1.0f)
-        composeRule.onNodeWithTag(
-            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
-            useUnmergedTree = true,
-        ).assertExists()
+            val scaleBounds = composeRule.onNodeWithTag(
+                ReferenceRangeScaleTestTags.Scale,
+                useUnmergedTree = true,
+            ).fetchSemanticsNode().boundsInRoot
+            val boundaryBounds = presentation.zones.dropLast(1).indices.map { index ->
+                val nodes = composeRule.onAllNodesWithTag(
+                    ReferenceRangeScaleTestTags.boundary(index),
+                    useUnmergedTree = true,
+                )
+                nodes.assertCountEquals(1)
+                nodes[0].fetchSemanticsNode().boundsInRoot
+            }
 
-        setScale(presentation, width = 320, fontScale = 1.3f)
-        composeRule.onNodeWithTag(
-            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
-            useUnmergedTree = true,
-        ).assertExists()
+            boundaryBounds.forEachIndexed { index, bounds ->
+                val expectedCenterX = scaleBounds.left + scaleBounds.width * (index + 1) / presentation.zones.size
+                assertEquals(expectedCenterX, bounds.center.x, 1f)
+                assertEquals(boundaryBounds.first().center.y, bounds.center.y, 1f)
+            }
+        }
     }
 
     @Test
