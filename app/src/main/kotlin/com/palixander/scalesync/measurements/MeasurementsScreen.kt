@@ -794,7 +794,7 @@ private fun CompactReferenceGrid(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columnCount = if (maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f) 2 else 1
+        val columnCount = if (maxWidth >= 300.dp) 2 else 1
         Column(
             modifier = Modifier.testTag(
                 if (columnCount == 2) ReferenceComponentTestTags.GridTwoColumns
