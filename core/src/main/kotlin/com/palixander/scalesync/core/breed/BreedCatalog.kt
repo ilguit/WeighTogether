@@ -77,6 +77,7 @@ class BreedCatalog private constructor(
 
         private val whitespace = Regex("\\s+")
         private val recordComparator = compareBy<BreedRecord>(
+            { if (it.kind == BreedKind.UNKNOWN) 0 else 1 },
             { normalizeSearchText(it.displayNameRu) },
             { normalizeSearchText(it.canonicalName) },
             BreedRecord::id,
