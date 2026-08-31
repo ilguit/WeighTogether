@@ -135,7 +135,7 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun compactSummaryShowsUnavailableReasonButKeepsRatedCategoryHidden() {
+    fun compactSummaryHidesVisualStatusButKeepsUnavailableReasonInSemantics() {
         val values = weightOnlyValues(72.4)
         val latest = referenceItem("latest", "2026-08-15T12:42:00Z", values)
         val state = MeasurementsUiState(
@@ -148,11 +148,8 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
         }
 
-        composeRule.onNodeWithTag(
-            "summary-reference-status-BODY_FAT_PERCENT",
-            useUnmergedTree = true,
-        ).assertIsDisplayed()
-        composeRule.onAllNodesWithText("Нет данных", useUnmergedTree = true).assertCountEquals(4)
+        composeRule.onAllNodesWithText("Нет данных", useUnmergedTree = true).assertCountEquals(0)
+        composeRule.onAllNodesWithText("—", useUnmergedTree = true).assertCountEquals(4)
         composeRule.onNodeWithText("Норма", useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Жир. Нет данных.")
             .assertIsDisplayed()
