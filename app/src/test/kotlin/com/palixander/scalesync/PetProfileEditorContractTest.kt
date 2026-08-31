@@ -78,7 +78,7 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun reducerFillsAndClearsEveryNullableFieldWithoutInventingDateParts() {
+    fun reducerFillsAndClearsNullableFieldsWithoutInventingDateParts() {
         var state = PetProfileEditorState(
             PetProfileDraft.create().copy(
                 displayName = "Луна",
@@ -106,12 +106,12 @@ class PetProfileEditorContractTest {
         assertNull(state.draft.sex)
         assertNull(state.draft.breed)
         assertEquals(PetBirthDateInput.Empty, state.draft.birthDate)
-        assertNull(state.draft.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.II, state.draft.dogAdultWeightCategory)
         val saved = validatePetProfileDraft(state.draft, today).newPet
         assertNull(saved?.sex)
         assertNull(saved?.breedId)
         assertNull(saved?.birthDate)
-        assertNull(saved?.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.II, saved?.dogAdultWeightCategory)
     }
 
     @Test
@@ -165,6 +165,16 @@ class PetProfileEditorContractTest {
         assertTrue(alias.all { it.species == PetSpecies.DOG })
         assertTrue(breedCatalog.search("Danish Mastiff", PetSpecies.CAT).isEmpty())
         assertTrue(breedCatalog.search("", PetSpecies.UNSPECIFIED).isEmpty())
+    }
+
+    @Test
+    fun `catalog marks only breeds backed by a numerical breed profile`() {
+        val catOptions = breedCatalog.search("", PetSpecies.CAT)
+        val dogOptions = breedCatalog.search("", PetSpecies.DOG)
+
+        assertTrue(catOptions.single { it.id == BreedId("VBO:0100119") }.hasWeightReference)
+        assertTrue(catOptions.filter { it.hasWeightReference }.all { it.id == BreedId("VBO:0100119") })
+        assertTrue(dogOptions.none { it.hasWeightReference })
     }
 
     @Test
@@ -287,7 +297,7 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun compatibleSpeciesAndBreedChangesNeedNoConfirmationAndKeepCategoryConsistent() {
+    fun compatibleSpeciesAndBreedChangesNeedNoConfirmationAndKeepDogCategory() {
         var state = PetProfileEditorState(
             PetProfileDraft.create().copy(displayName = "Луна"),
         )
@@ -303,7 +313,10 @@ class PetProfileEditorContractTest {
         assertNull(state.pendingSpeciesChange)
         assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
         state = reduce(state, PetProfileAction.BreedChanged(PetBreedSelection.Available(ordinaryDog)))
-        assertNull(state.draft.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
+        val saved = validatePetProfileDraft(state.draft, today).newPet
+        assertEquals(ordinaryDog.id, saved?.breedId)
+        assertEquals(DogAdultWeightCategory.V, saved?.dogAdultWeightCategory)
         val unchanged = reduce(
             state,
             PetProfileAction.BreedChanged(PetBreedSelection.Available(catBreed)),

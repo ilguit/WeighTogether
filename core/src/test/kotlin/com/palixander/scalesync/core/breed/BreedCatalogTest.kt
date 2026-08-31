@@ -63,10 +63,30 @@ class BreedCatalogTest {
     fun speciesFilterAndEmptyQueryReturnDeterministicallySortedRecords() {
         val catalog = loadFixture()
 
-        assertEquals(listOf("alias", "russian", "canonical"), catalog.search("").map { it.id })
-        assertEquals(listOf("alias", "canonical"), catalog.search(" \n ", BreedSpecies.DOG).map { it.id })
+        assertEquals(
+            listOf("unknown-cat", "unknown-dog", "alias", "russian", "canonical"),
+            catalog.search("").map { it.id },
+        )
+        assertEquals(
+            listOf("unknown-dog", "alias", "canonical"),
+            catalog.search(" \n ", BreedSpecies.DOG).map { it.id },
+        )
         assertEquals(catalog.all(), catalog.search(""))
         assertEquals(catalog.all(BreedSpecies.CAT), catalog.search("", BreedSpecies.CAT))
+    }
+
+    @Test
+    fun emptySearchPlacesUnknownFirstForEachSpeciesAndKeepsOtherRecordsAlphabetical() {
+        val catalog = loadFixture()
+
+        assertEquals(
+            listOf("unknown-cat", "russian"),
+            catalog.search("", BreedSpecies.CAT).map { it.id },
+        )
+        assertEquals(
+            listOf("unknown-dog", "alias", "canonical"),
+            catalog.search("", BreedSpecies.DOG).map { it.id },
+        )
     }
 
     @Test
@@ -111,7 +131,9 @@ class BreedCatalogTest {
               "breeds": [
                 {"id":"canonical","species":"dog","canonicalName":"Strasse Hound","displayNameRu":"Я-порода","aliases":[],"kind":"vbo"},
                 {"id":"russian","species":"cat","canonicalName":"Second","displayNameRu":"Русская порода","aliases":[],"kind":"vbo"},
-                {"id":"alias","species":"dog","canonicalName":"First","displayNameRu":"А-порода","aliases":["Alias name"],"kind":"mixed"}
+                {"id":"alias","species":"dog","canonicalName":"First","displayNameRu":"А-порода","aliases":["Alias name"],"kind":"mixed"},
+                {"id":"unknown-cat","species":"cat","canonicalName":"No breed","displayNameRu":"Без породы","aliases":[],"kind":"unknown"},
+                {"id":"unknown-dog","species":"dog","canonicalName":"No breed","displayNameRu":"Без породы","aliases":[],"kind":"unknown"}
               ]
             }
         """.trimIndent()
