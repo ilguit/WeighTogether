@@ -59,6 +59,9 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
@@ -86,7 +89,8 @@ import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
-import com.palixander.scalesync.ui.reference.CompactMetricStatus
+import com.palixander.scalesync.ui.theme.ReferencePalette
+import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.reference.ExpandedMetricReference
 import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
@@ -621,8 +625,9 @@ private fun MeasurementSummaryCard(
                 it.definition.metric == BodyMetric.WEIGHT
             }
             if (!expanded && weightReference != null) {
-                CompactMetricStatus(
+                CompactSummaryReferenceMetric(
                     presentation = weightReference,
+                    primary = true,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             } else if (weightReference == null) {
@@ -803,7 +808,7 @@ private fun CompactReferenceGrid(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     rowMetrics.forEach { metric ->
-                        CompactMetricStatus(metric, Modifier.weight(1f))
+                        CompactSummaryReferenceMetric(metric, modifier = Modifier.weight(1f))
                     }
                     repeat(columnCount - rowMetrics.size) { Spacer(Modifier.weight(1f)) }
                 }
@@ -811,6 +816,83 @@ private fun CompactReferenceGrid(
         }
     }
 }
+
+@Composable
+private fun CompactSummaryReferenceMetric(
+    presentation: ReferenceMetricPresentation,
+    modifier: Modifier = Modifier,
+    primary: Boolean = false,
+) {
+    val referenceContent = ReferencePalette.colors(presentation.tone).content
+    val showUnavailableStatus = presentation.tone == ReferenceTone.UNAVAILABLE ||
+        presentation.visualNumber == null
+    Column(
+        modifier = modifier
+            .clearAndSetSemantics {
+                contentDescription = presentation.compactAccessibilityDescription
+            }
+            .padding(vertical = if (primary) 2.dp else 6.dp)
+            .testTag("summary-reference-${presentation.definition.metric.name}"),
+        verticalArrangement = Arrangement.spacedBy(if (primary) 0.dp else 2.dp),
+    ) {
+        if (!primary) {
+            Text(
+                text = presentation.title,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(
+                text = presentation.visualNumber
+                    ?: stringResource(R.string.reference_missing_value_symbol),
+                color = referenceContent,
+                fontSize = if (primary) 40.sp else MaterialTheme.typography.titleMedium.fontSize,
+                lineHeight = if (primary) 44.sp else MaterialTheme.typography.titleMedium.lineHeight,
+                fontWeight = if (primary) FontWeight.Medium else FontWeight.Normal,
+                letterSpacing = if (primary) (-1).sp else MaterialTheme.typography.titleMedium.letterSpacing,
+                modifier = Modifier
+                    .semantics {
+                        compactSummaryReferenceContentColor = referenceContent.value.toLong()
+                    }
+                    .testTag("summary-reference-value-${presentation.definition.metric.name}"),
+            )
+            if (presentation.visualNumber != null) {
+                Text(
+                    text = " ${presentation.visibleUnit}",
+                    modifier = Modifier
+                        .then(if (primary) Modifier.padding(bottom = 5.dp) else Modifier)
+                        .semantics {
+                            compactSummaryReferenceContentColor = referenceContent.value.toLong()
+                        }
+                        .testTag("summary-reference-unit-${presentation.definition.metric.name}"),
+                    color = referenceContent,
+                    style = if (primary) {
+                        MaterialTheme.typography.bodyLarge
+                    } else {
+                        MaterialTheme.typography.bodySmall
+                    },
+                )
+            }
+        }
+        if (showUnavailableStatus) {
+            Text(
+                text = presentation.status,
+                color = referenceContent,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag(
+                    "summary-reference-status-${presentation.definition.metric.name}",
+                ),
+            )
+        }
+    }
+}
+
+internal val CompactSummaryReferenceContentColorKey =
+    SemanticsPropertyKey<Long>("CompactSummaryReferenceContentColor")
+
+internal var SemanticsPropertyReceiver.compactSummaryReferenceContentColor by
+    CompactSummaryReferenceContentColorKey
 
 @Composable
 private fun MeasurementReferenceGroups(
@@ -1689,11 +1771,11 @@ private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.g
 
 private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault()): String = when {
     delta == null -> "Первое измерение"
-    kotlin.math.abs(delta) < 0.000_001 -> "Без изменений с прошлого измерения"
+    kotlin.math.abs(delta) < 0.000_001 -> "Без изменений"
     else -> {
         val prefix = if (delta > 0) "+" else "−"
         val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        "$prefix$value кг с прошлого измерения"
+        "$prefix$value кг"
     }
 }
 
