@@ -29,7 +29,6 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
-import com.palixander.scalesync.charts.MetricChartCard
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.ui.components.HuaweiSurface
@@ -152,7 +151,13 @@ internal fun PetProfileScreen(
                 }
                 item {
                     Column(Modifier.testTag(PetProfileScreenTestTags.Chart)) {
-                        MetricChartCard(state.series, state.startDate, state.endDateInclusive, java.time.ZoneId.systemDefault())
+                        PetWeightReferenceChartCard(
+                            series = state.series,
+                            reference = state.weightReference,
+                            startDate = state.startDate,
+                            endDateInclusive = state.endDateInclusive,
+                            zoneId = java.time.ZoneId.systemDefault(),
+                        )
                     }
                 }
                 if (state.measurements.isEmpty()) item {

@@ -27,7 +27,6 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
-import com.palixander.scalesync.charts.MetricChartTestTags
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
@@ -38,6 +37,7 @@ import com.palixander.scalesync.ui.profiles.PetHistoryMeasurementUi
 import com.palixander.scalesync.ui.profiles.PetHistoryUiState
 import com.palixander.scalesync.ui.profiles.PetProfileScreen
 import com.palixander.scalesync.ui.profiles.PetProfileScreenTestTags
+import com.palixander.scalesync.ui.profiles.PetWeightChartTestTags
 import com.palixander.scalesync.ui.profiles.PetProfileSummary
 import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
@@ -156,7 +156,7 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("two")).assertIsDisplayed()
     }
 
-    @Test fun chartAppearsWhenSingletonHistoryReceivesSecondDistinctMeasurement() {
+    @Test fun dedicatedPetChartShowsSingletonAsPointAndRemainsForMultipleMeasurements() {
         val first = row("one")
         val second = row("two")
         var screenState by mutableStateOf(
@@ -175,8 +175,8 @@ class PetHistoryScreenUiTest {
 
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
-        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertIsDisplayed()
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Unavailable).assertIsDisplayed()
 
         composeRule.runOnIdle {
             screenState = state(PetHistoryContent.Multiple(listOf(first, second))).copy(
@@ -187,8 +187,7 @@ class PetHistoryScreenUiTest {
             )
         }
 
-        composeRule.onNodeWithTag(MetricChartTestTags.InsufficientInterval).assertDoesNotExist()
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart).assertIsDisplayed()
     }
 
     @Test fun deleteActionOpensDialogForExactRowAndCancelDoesNotConfirm() {
