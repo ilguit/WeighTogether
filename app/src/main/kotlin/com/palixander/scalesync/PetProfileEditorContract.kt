@@ -108,9 +108,20 @@ class PetBreedCatalog(
         .mapNotNull { profile -> profile.breedId }
         .toSet()
 
-    fun search(query: String, species: PetSpecies): List<PetBreedOption> {
+    /**
+     * Searches the bundled breed catalog for one species. When [onlyWithWeightReference] is true,
+     * the result contains only breeds backed by their own numerical BREED profile. In particular,
+     * dog WEIGHT_CATEGORY profiles are not treated as breed profiles.
+     */
+    fun search(
+        query: String,
+        species: PetSpecies,
+        onlyWithWeightReference: Boolean = false,
+    ): List<PetBreedOption> {
         val catalogSpecies = species.toBreedSpecies() ?: return emptyList()
-        return catalog.search(query, catalogSpecies).map(::toPetBreedOption)
+        return catalog.search(query, catalogSpecies)
+            .map(::toPetBreedOption)
+            .filter { option -> !onlyWithWeightReference || option.hasWeightReference }
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
