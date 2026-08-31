@@ -114,13 +114,19 @@ class MeasurementsScreenTest {
             substring = true,
         ).assertIsDisplayed()
         composeRule.onNodeWithText(
-            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг с прошлого измерения",
+            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг к прошлому",
         ).assertIsDisplayed()
         listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
             composeRule.onNodeWithText(label).assertIsDisplayed()
         }
         composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
         composeRule.onNodeWithTag("summary-more-actions").assertIsDisplayed()
+        listOf("WEIGHT", "BODY_FAT_PERCENT", "MUSCLE_MASS", "WATER_PERCENT", "BMI").forEach { metric ->
+            composeRule.onNodeWithTag("summary-reference-$metric").assertIsDisplayed()
+        }
+        composeRule.onNodeWithText("Норма").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Вес, 72,4 килограмма. Норма.")
+            .assertIsDisplayed()
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
     }
 
