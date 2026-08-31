@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
 import com.palixander.scalesync.domain.PetSpecies
@@ -155,3 +156,9 @@ internal fun petSpeciesLabel(species: PetSpecies): String = when (species) {
     PetSpecies.DOG -> "Собака"
     PetSpecies.UNSPECIFIED -> "Вид не указан"
 }
+
+/** Keeps the measurement-first creation path intentionally limited to name and species. */
+internal fun newPetForQuickMeasurement(
+    displayName: String,
+    species: PetSpecies,
+): NewPet = NewPet(displayName.trim(), species)

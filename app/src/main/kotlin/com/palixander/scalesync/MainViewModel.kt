@@ -29,7 +29,6 @@ import com.palixander.scalesync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.palixander.scalesync.domain.DiscardPendingResult
 import com.palixander.scalesync.domain.FinalizePendingResult
 import com.palixander.scalesync.domain.NewAccount
-import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetUpdate
@@ -1268,9 +1267,8 @@ class MainViewModel @JvmOverloads constructor(
         if (petCreationInProgress || petMeasurementCoordinator.isActive) return
         petCreationInProgress = true
         viewModelScope.launch {
-            val name = displayName.trim()
             val pet = try {
-                container.pets.createPet(NewPet(name, species))
+                container.pets.createPet(newPetForQuickMeasurement(displayName, species))
             } catch (cancelled: CancellationException) {
                 petCreationInProgress = false
                 throw cancelled

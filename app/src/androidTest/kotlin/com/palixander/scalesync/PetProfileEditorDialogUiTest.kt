@@ -8,6 +8,7 @@ import androidx.compose.runtime.State
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -69,7 +70,14 @@ class PetProfileEditorDialogUiTest {
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField)
             .assertTextContains("Луна")
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog).assertIsSelected()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog)
+            .assertIsSelected()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.Role,
+                    Role.RadioButton,
+                ),
+            )
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale).assertIsSelected()
         composeRule.onNodeWithText("Метис").assertExists()
 
@@ -465,7 +473,15 @@ class PetProfileEditorDialogUiTest {
             .assertIsDisplayed()
         composeRule.onNodeWithTag(
             PetProfileEditorTestTags.category(DogAdultWeightCategory.IV),
-        ).performScrollTo().assertIsSelected().assertIsDisplayed()
+        ).performScrollTo()
+            .assertIsSelected()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.Role,
+                    Role.RadioButton,
+                ),
+            )
+            .assertIsDisplayed()
     }
 
     private fun setEditor(

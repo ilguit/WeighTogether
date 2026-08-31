@@ -36,6 +36,18 @@ class PetManagementContractTest {
     }
 
     @Test
+    fun quickMeasurementCreationKeepsOnlyTrimmedNameAndSpecies() {
+        val pet = newPetForQuickMeasurement("  Рыжик  ", PetSpecies.CAT)
+
+        assertEquals("Рыжик", pet.displayName)
+        assertEquals(PetSpecies.CAT, pet.species)
+        assertNull(pet.sex)
+        assertNull(pet.breedId)
+        assertNull(pet.birthDate)
+        assertNull(pet.dogAdultWeightCategory)
+    }
+
+    @Test
     fun openingEditCopiesTheWholePersistedProfileIntoTheOwnedDraft() {
         val pet = pet(
             id = "luna",

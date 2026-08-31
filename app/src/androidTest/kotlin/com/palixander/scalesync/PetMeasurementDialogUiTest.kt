@@ -13,6 +13,7 @@ import androidx.compose.ui.test.performTextInput
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.Instant
@@ -48,10 +49,10 @@ class PetMeasurementDialogUiTest {
     @Test
     fun creationValidatesEmptyAndDuplicateNameBeforeSubmitting() {
         val state = mutableStateOf<PetMeasurementUiState>(PetMeasurementUiState.SelectingPet)
-        val submitted = mutableListOf<String>()
+        val submitted = mutableListOf<Pair<String, PetSpecies>>()
         val callbacks = callbacks(
             onShowCreate = { state.value = PetMeasurementUiState.CreatingPet },
-            onCreate = submitted::add,
+            onCreate = { name, species -> submitted += name to species },
         )
         val pets = listOf(PetWithLatestWeight(pet("cat", "Барсик"), null))
         composeRule.setContent {
@@ -59,6 +60,9 @@ class PetMeasurementDialogUiTest {
         }
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateAction).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.onNodeWithText("Введите имя питомца").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput(" барсик ")
@@ -68,7 +72,9 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput("Рыжик")
         composeRule.onNodeWithTag(PetMeasurementTestTags.SpeciesCat).performClick()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
-        composeRule.runOnIdle { assertEquals(listOf("Рыжик"), submitted) }
+        composeRule.runOnIdle {
+            assertEquals(listOf("Рыжик" to PetSpecies.CAT), submitted)
+        }
     }
 
     @Test
@@ -185,13 +191,13 @@ class PetMeasurementDialogUiTest {
     private fun callbacks(
         onOpen: () -> Unit = {},
         onShowCreate: () -> Unit = {},
-        onCreate: (String) -> Unit = {},
+        onCreate: (String, PetSpecies) -> Unit = { _, _ -> },
         onStart: (PetId) -> Unit = {},
         onCancel: () -> Unit = {},
     ) = PetMeasurementCallbacks(
         onOpen,
         onShowCreate,
-        { name, _ -> onCreate(name) },
+        onCreate,
         onStart,
         onCancel,
     )
