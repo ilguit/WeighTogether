@@ -157,8 +157,9 @@ class PetWeightReferenceResolver(
         } catch (_: IllegalArgumentException) {
             return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
         }
-        val supportedMinimum = profile.points.first().ageDays
-        val supportedMaximum = profile.points.last().ageDays
+        val scope = snapshot.manifest.scopes.single { it.id == profile.id }
+        val supportedMinimum = scope.minimumAgeDays
+        val supportedMaximum = scope.maximumAgeDays
         if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
             return unavailable(
                 WeightReferenceUnavailableReason.AgeOutOfRange(
@@ -170,9 +171,11 @@ class PetWeightReferenceResolver(
             )
         }
         val points = buildList {
-            snapshot.interpolate(profile.id, age.minimumDays.toInt())?.let(::add)
+            pointAtAge(profile, supportedMaximum, age.minimumDays.toInt())?.let(::add)
             profile.points.filterTo(this) { it.ageDays.toLong() in age.minimumDays..age.maximumDays }
-            if (age.maximumDays != age.minimumDays) snapshot.interpolate(profile.id, age.maximumDays.toInt())?.let(::add)
+            if (age.maximumDays != age.minimumDays) {
+                pointAtAge(profile, supportedMaximum, age.maximumDays.toInt())?.let(::add)
+            }
         }
         if (points.isEmpty() || !isContinuouslyCovered(profile, age.minimumDays..age.maximumDays)) {
             return unavailable(WeightReferenceUnavailableReason.ReferenceDataGap(profile.id, age.minimumDays..age.maximumDays))
@@ -196,6 +199,15 @@ class PetWeightReferenceResolver(
         weightKg <= 40.0 -> DogAdultWeightCategory.V
         else -> null
     }
+
+    private fun pointAtAge(
+        profile: ReferenceProfile,
+        supportedMaximum: Int,
+        ageDays: Int,
+    ): ReferencePoint? = snapshot.interpolate(profile.id, ageDays)
+        ?: profile.points.last().takeIf {
+            profile.species == ReferenceSpecies.DOG && ageDays in it.ageDays..supportedMaximum
+        }?.copy(ageDays = ageDays)
 
     private fun isContinuouslyCovered(profile: ReferenceProfile, range: LongRange): Boolean {
         val relevant = profile.points.filter { it.ageDays.toLong() in range }

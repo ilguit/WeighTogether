@@ -48,6 +48,56 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `dog reference carries the last published point through declared scope only`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val last = snapshot.profiles.single { it.id == "dog-male-I" }.points.last()
+
+        for (ageDays in 728L..730L) {
+            val result = resolveDog(
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(ageDays)),
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+            ).available()
+
+            assertEquals(ageDays..ageDays, result.ageDays)
+            assertEquals(last.lowerKg, result.bounds.lowerKg, 1e-12)
+            assertEquals(last.medianKg, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(last.medianKg, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(last.upperKg, result.bounds.upperKg, 1e-12)
+        }
+
+        val outside = resolveDog(
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(731)),
+            dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
+        assertEquals(730, outside.supportedMaximumDays)
+        assertEquals(731, outside.actualMaximumDays)
+    }
+
+    @Test
+    fun `partial dog birth date may end exactly at declared upper boundary`() {
+        val boundaryDate = LocalDate.of(2025, 1, 31)
+        val result = resolver.resolve(
+            PetSpecies.DOG,
+            PetSex.MALE,
+            null,
+            PartialBirthDate.Month(YearMonth.of(2023, 2)),
+            boundaryDate,
+            DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).available()
+
+        assertEquals(703L..730L, result.ageDays)
+        assertTrue(result.approximate)
+
+        val crossing = resolveDog(
+            birthDate = PartialBirthDate.Month(YearMonth.of(2023, 1)),
+            dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
+        assertEquals(715, crossing.actualMinimumDays)
+        assertEquals(745, crossing.actualMaximumDays)
+        assertEquals(730, crossing.supportedMaximumDays)
+    }
+
+    @Test
     fun `partial date evaluates both age endpoints and aggregates conservative bounds`() {
         val birthDate = PartialBirthDate.Month(YearMonth.of(2024, 8))
         val snapshot = WeightReferenceSnapshot.bundled()
