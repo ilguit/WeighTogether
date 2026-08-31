@@ -3,6 +3,8 @@ package com.palixander.scalesync.ui.profiles
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import java.time.LocalDate
+import java.time.ZoneOffset
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -38,6 +40,40 @@ class PetWeightReferenceChartTest {
                     "missing",
                 ),
             ),
+        )
+    }
+
+    @Test fun `marker maps measurement and singleton reference by local date`() {
+        val date = LocalDate.of(2026, 8, 1)
+        val referencePoint = PetHistoryReferencePoint(date, 2.0, 3.0, 4.0, 5.0)
+        val epochSecond = date.atTime(14, 30).toEpochSecond(ZoneOffset.UTC)
+
+        val selection = petWeightMarkerSelection(
+            targetXEpochMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            factual = listOf(ChartPoint(epochSecond, 4.25)),
+            reference = available(listOf(referencePoint)),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(date, selection.date)
+        assertEquals(4.25, selection.measurementKg!!, 0.0)
+        assertEquals(referencePoint, selection.reference)
+        assertEquals(
+            "01.08.2026\n" +
+                "Измерение: 4.25 кг\n" +
+                "Нижняя граница: 2.00 кг\n" +
+                "Медиана: 3.00 кг–4.00 кг\n" +
+                "Верхняя граница: 5.00 кг",
+            formatPetWeightMarker(selection, Locale.US),
+        )
+    }
+
+    @Test fun `marker keeps distinct unavailable values explicit`() {
+        val selection = PetWeightMarkerSelection(LocalDate.of(2026, 8, 2), null, null)
+
+        assertEquals(
+            "02.08.2026\nИзмерение: —\nНижняя граница: —\nМедиана: —\nВерхняя граница: —",
+            formatPetWeightMarker(selection, Locale.US),
         )
     }
 

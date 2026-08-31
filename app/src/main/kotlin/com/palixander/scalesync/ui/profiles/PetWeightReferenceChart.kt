@@ -2,18 +2,20 @@ package com.palixander.scalesync.ui.profiles
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -21,11 +23,33 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.ChartSeries
+import com.palixander.scalesync.charts.chartXRange
+import com.palixander.scalesync.charts.rememberChartBottomAxis
+import com.palixander.scalesync.charts.rememberChartMarker
+import com.palixander.scalesync.charts.rememberChartStartAxis
+import com.palixander.scalesync.charts.rememberSmoothChartLine
+import com.palixander.scalesync.charts.rememberSmoothLineLayer
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.Zoom
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
+import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
+import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
+import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
+import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
+import com.patrykandpatrick.vico.compose.common.data.ExtraStore
+import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+import kotlin.math.abs
 
 internal object PetWeightChartTestTags {
     const val Chart = "pet-weight-reference-chart"
@@ -34,6 +58,48 @@ internal object PetWeightChartTestTags {
 }
 
 internal data class PetWeightChartRange(val min: Double, val max: Double)
+
+internal data class PetWeightMarkerSelection(
+    val date: LocalDate,
+    val measurementKg: Double?,
+    val reference: PetHistoryReferencePoint?,
+)
+
+internal fun petWeightMarkerSelection(
+    targetXEpochMillis: Long,
+    factual: List<ChartPoint>,
+    reference: PetHistoryWeightReference,
+    zoneId: ZoneId,
+): PetWeightMarkerSelection {
+    val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
+    val measurement = factual
+        .filter { it.measuredAt.atZone(zoneId).toLocalDate() == targetDate }
+        .minByOrNull { abs(it.xEpochMillis!! - targetXEpochMillis) }
+    val referencePoint = (reference as? PetHistoryWeightReference.Available)
+        ?.segments
+        ?.asSequence()
+        ?.flatten()
+        ?.firstOrNull { it.date == targetDate }
+    return PetWeightMarkerSelection(targetDate, measurement?.value, referencePoint)
+}
+
+internal fun formatPetWeightMarker(
+    selection: PetWeightMarkerSelection,
+    locale: Locale = Locale.getDefault(),
+): String {
+    val number = NumberFormat.getNumberInstance(locale).apply {
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
+    }
+    fun kg(value: Double?) = value?.let { "${number.format(it)} кг" } ?: "—"
+    return buildString {
+        append(PetMarkerDateFormatter.format(selection.date))
+        append("\nИзмерение: ${kg(selection.measurementKg)}")
+        append("\nНижняя граница: ${kg(selection.reference?.lowerKg)}")
+        append("\nМедиана: ${selection.reference?.let { "${kg(it.medianLowerKg)}–${kg(it.medianUpperKg)}" } ?: "—"}")
+        append("\nВерхняя граница: ${kg(selection.reference?.upperKg)}")
+    }
+}
 
 internal fun petWeightChartRange(
     factual: List<ChartPoint>,
@@ -63,7 +129,10 @@ internal fun PetWeightReferenceChartCard(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
 ) {
-    val factual = remember(series.points) { series.points.sortedBy(ChartPoint::measuredAtEpochSecond) }
+    val factual = remember(series.points) {
+        series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
+            .sortedBy(ChartPoint::measuredAtEpochSecond)
+    }
     val yRange = remember(factual, reference) { petWeightChartRange(factual, reference) }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
@@ -84,59 +153,18 @@ internal fun PetWeightReferenceChartCard(
                 modifier = Modifier.semantics { heading() },
             )
             if (yRange != null) {
-                Canvas(
-                    Modifier
-                        .fillMaxWidth()
-                        .height(250.dp)
-                        .testTag(PetWeightChartTestTags.Chart)
-                        .semantics { contentDescription = description },
-                ) {
-                    val left = 8.dp.toPx()
-                    val right = size.width - 8.dp.toPx()
-                    val top = 8.dp.toPx()
-                    val bottom = size.height - 8.dp.toPx()
-                    val dayCount = (endDateInclusive.toEpochDay() - startDate.toEpochDay()).coerceAtLeast(1)
-                    fun x(date: LocalDate) = left + (date.toEpochDay() - startDate.toEpochDay()).toFloat() / dayCount * (right - left)
-                    fun y(value: Double) = bottom - ((value - yRange.min) / (yRange.max - yRange.min)).toFloat() * (bottom - top)
-                    drawLine(outlineColor.copy(alpha = .35f), Offset(left, bottom), Offset(right, bottom), 1.dp.toPx())
-                    available?.segments?.forEach { segment ->
-                        if (segment.isNotEmpty()) {
-                            val band = Path().apply {
-                                moveTo(x(segment.first().date), y(segment.first().upperKg))
-                                segment.drop(1).forEach { lineTo(x(it.date), y(it.upperKg)) }
-                                segment.asReversed().forEach { lineTo(x(it.date), y(it.lowerKg)) }
-                                close()
-                            }
-                            drawPath(band, referenceColor.copy(alpha = .16f))
-                            fun lineOf(value: (PetHistoryReferencePoint) -> Double, width: Float, alpha: Float) {
-                                val path = Path()
-                                segment.forEachIndexed { index, point ->
-                                    val offset = Offset(x(point.date), y(value(point)))
-                                    if (index == 0) path.moveTo(offset.x, offset.y) else path.lineTo(offset.x, offset.y)
-                                }
-                                drawPath(path, referenceColor.copy(alpha = alpha), style = Stroke(width))
-                            }
-                            lineOf(PetHistoryReferencePoint::lowerKg, 1.dp.toPx(), .7f)
-                            lineOf(PetHistoryReferencePoint::upperKg, 1.dp.toPx(), .7f)
-                            lineOf(PetHistoryReferencePoint::medianLowerKg, 2.dp.toPx(), 1f)
-                            lineOf(PetHistoryReferencePoint::medianUpperKg, 2.dp.toPx(), 1f)
-                            if (segment.size == 1) {
-                                val point = segment.single()
-                                drawCircle(referenceColor, 3.dp.toPx(), Offset(x(point.date), y(point.medianLowerKg)))
-                                drawCircle(referenceColor, 3.dp.toPx(), Offset(x(point.date), y(point.medianUpperKg)))
-                            }
-                        }
-                    }
-                    val factualOffsets = factual.map { point ->
-                        val date = Instant.ofEpochSecond(point.measuredAtEpochSecond).atZone(zoneId).toLocalDate()
-                        Offset(x(date), y(point.value))
-                    }
-                    factualOffsets.zipWithNext().forEach { (a, b) -> drawLine(factualColor, a, b, 2.dp.toPx()) }
-                    factualOffsets.forEach { point ->
-                        drawCircle(Color.White, 5.dp.toPx(), point)
-                        drawCircle(factualColor, 4.dp.toPx(), point)
-                    }
-                }
+                PetWeightVicoChart(
+                    factual = factual,
+                    reference = reference,
+                    startDate = startDate,
+                    endDateInclusive = endDateInclusive,
+                    zoneId = zoneId,
+                    yRange = yRange,
+                    factualColor = factualColor,
+                    referenceColor = referenceColor,
+                    outlineColor = outlineColor,
+                    contentDescription = description,
+                )
                 if (available != null) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         ChartLegend("● Фактический вес", factualColor)
@@ -149,6 +177,139 @@ internal fun PetWeightReferenceChartCard(
                 Text("Нет данных за выбранный период", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             ReferenceExplanation(reference)
+        }
+    }
+}
+
+@Composable
+private fun PetWeightVicoChart(
+    factual: List<ChartPoint>,
+    reference: PetHistoryWeightReference,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    zoneId: ZoneId,
+    yRange: PetWeightChartRange,
+    factualColor: Color,
+    referenceColor: Color,
+    outlineColor: Color,
+    contentDescription: String,
+) {
+    val available = reference as? PetHistoryWeightReference.Available
+    val referenceSeries = remember(available) {
+        available?.segments.orEmpty().flatMap { segment ->
+            listOf(
+                segment.map { it.date to it.lowerKg },
+                segment.map { it.date to it.medianLowerKg },
+                segment.map { it.date to it.medianUpperKg },
+                segment.map { it.date to it.upperKg },
+            )
+        }
+    }
+    val xRange = remember(startDate, endDateInclusive, zoneId) {
+        chartXRange(startDate, endDateInclusive, zoneId)
+    }
+    val rangeProvider = remember(xRange, yRange) {
+        object : CartesianLayerRangeProvider {
+            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.minX
+            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.maxX
+            override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange.min
+            override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange.max
+        }
+    }
+    val lines = buildList {
+        if (factual.isNotEmpty()) add(rememberSmoothChartLine(factualColor, factual.size))
+        referenceSeries.forEach { points ->
+            add(rememberSmoothChartLine(referenceColor, points.size))
+        }
+    }
+    val modelProducer = remember { CartesianChartModelProducer() }
+    val bottomFormatter = remember(zoneId) {
+        CartesianValueFormatter { _, value, _ ->
+            PetAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
+        }
+    }
+    val markerFormatter = remember(factual, reference, zoneId) {
+        DefaultCartesianMarker.ValueFormatter { _, targets ->
+            val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
+                ?: return@ValueFormatter ""
+            formatPetWeightMarker(petWeightMarkerSelection(target.x.toLong(), factual, reference, zoneId))
+        }
+    }
+    val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
+        rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
+    }
+
+    LaunchedEffect(factual, referenceSeries, zoneId) {
+        modelProducer.runTransaction {
+            lineModel {
+                if (factual.isNotEmpty()) {
+                    series(
+                        x = factual.map { requireNotNull(it.xEpochMillis) },
+                        y = factual.map(ChartPoint::value),
+                    )
+                }
+                referenceSeries.forEach { points ->
+                    series(
+                        x = points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                        y = points.map { it.second },
+                    )
+                }
+            }
+        }
+    }
+    Box(Modifier.fillMaxWidth().height(250.dp)) {
+        PetWeightReferenceBand(available, startDate, endDateInclusive, yRange, referenceColor, outlineColor)
+        CartesianChartHost(
+            chart = rememberCartesianChart(
+                rememberSmoothLineLayer(lines, rangeProvider),
+                startAxis = rememberChartStartAxis(
+                    CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
+                ),
+                bottomAxis = rememberChartBottomAxis(bottomFormatter),
+                marker = rememberChartMarker(markerFormatter, lineCount = 5),
+            ),
+            modelProducer = modelProducer,
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .testTag(PetWeightChartTestTags.Chart)
+                .semantics {
+                    this.contentDescription = "$contentDescription Коснитесь графика, чтобы увидеть дату, измерение и границы эталона."
+                },
+            scrollState = rememberVicoScrollState(scrollEnabled = true),
+            zoomState = zoomState,
+        )
+    }
+}
+
+@Composable
+private fun PetWeightReferenceBand(
+    reference: PetHistoryWeightReference.Available?,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    yRange: PetWeightChartRange,
+    referenceColor: Color,
+    outlineColor: Color,
+) {
+    Canvas(Modifier.fillMaxWidth().height(250.dp)) {
+        val left = 48.dp.toPx()
+        val right = size.width - 12.dp.toPx()
+        val top = 8.dp.toPx()
+        val bottom = size.height - 42.dp.toPx()
+        val dayCount = (endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1).coerceAtLeast(1)
+        fun x(date: LocalDate) = left + (date.toEpochDay() - startDate.toEpochDay()).toFloat() / dayCount * (right - left)
+        fun y(value: Double) = bottom - ((value - yRange.min) / (yRange.max - yRange.min)).toFloat() * (bottom - top)
+        drawLine(outlineColor.copy(alpha = .2f), Offset(left, bottom), Offset(right, bottom), 1.dp.toPx())
+        reference?.segments?.forEach { segment ->
+            if (segment.size > 1) {
+                val band = Path().apply {
+                    moveTo(x(segment.first().date), y(segment.first().upperKg))
+                    segment.drop(1).forEach { lineTo(x(it.date), y(it.upperKg)) }
+                    segment.asReversed().forEach { lineTo(x(it.date), y(it.lowerKg)) }
+                    close()
+                }
+                drawPath(band, referenceColor.copy(alpha = .12f))
+            }
         }
     }
 }
@@ -193,3 +354,6 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference) {
         }
     }
 }
+
+private val PetAxisDateFormatter = DateTimeFormatter.ofPattern("dd.MM")
+private val PetMarkerDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")

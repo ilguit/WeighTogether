@@ -210,6 +210,20 @@ class PetHistoryScreenUiTest {
             .assert(hasContentDescription("не ставит диагноз", substring = true))
     }
 
+    @Test fun singletonReferenceUsesInteractiveChartHostAndExposesMarkerGuidance() {
+        val reference = availableReference("Эталон по породе").copy(
+            segments = listOf(
+                listOf(PetHistoryReferencePoint(LocalDate.of(2026, 8, 29), 2.0, 3.0, 4.0, 5.0)),
+            ),
+        )
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasContentDescription("Коснитесь графика", substring = true))
+            .assert(hasContentDescription("границы эталона", substring = true))
+    }
+
     @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {
         val first = row("one")
         val second = row("two")
