@@ -108,6 +108,7 @@ class ReferencePresentationFactory(
                 interpretation = requireNotNull(interpretations[definition.metric]) {
                     "Missing interpretation for ${definition.metric}"
                 },
+                weightKg = values[BodyMetric.WEIGHT],
                 preliminary = preliminary,
             )
         }
@@ -117,6 +118,7 @@ class ReferencePresentationFactory(
         definition: ReferenceMetricDefinition,
         value: Double?,
         interpretation: MetricInterpretation,
+        weightKg: Double? = null,
         preliminary: Boolean = false,
     ): ReferenceMetricPresentation {
         require(definition.metric == interpretation.metric)
@@ -138,7 +140,7 @@ class ReferencePresentationFactory(
             is MetricInterpretation.Rated -> {
                 status = categoryLabel(interpretation.category)
                 tone = interpretation.category.referenceTone()
-                zones = interpretation.zones.map { zone ->
+                zones = presentationZones(interpretation, weightKg).map { zone ->
                     zonePresentation(definition, interpretation, zone)
                 }
             }
@@ -202,8 +204,8 @@ class ReferencePresentationFactory(
         zone: ReferenceZone,
     ): ReferenceZonePresentation {
         val decimals = when (interpretation.basis) {
-            ZoneBasis.SKELETAL_MUSCLE_PERCENT -> 1
             ZoneBasis.CHRONOLOGICAL_AGE -> 0
+            ZoneBasis.SKELETAL_MUSCLE_PERCENT,
             ZoneBasis.METRIC_VALUE,
             ZoneBasis.BMI_DERIVED_WEIGHT,
             ZoneBasis.FAT_MASS_INDEX,
@@ -319,6 +321,20 @@ class ReferencePresentationFactory(
             last in 2..4 -> few
             else -> many
         }
+    }
+}
+
+internal fun presentationZones(
+    interpretation: MetricInterpretation.Rated,
+    weightKg: Double?,
+): List<ReferenceZone> {
+    if (interpretation.basis != ZoneBasis.SKELETAL_MUSCLE_PERCENT) return interpretation.zones
+    val validWeightKg = weightKg?.takeIf { it.isFinite() && it > 0.0 } ?: return emptyList()
+    return interpretation.zones.map { zone ->
+        zone.copy(
+            lowerInclusive = zone.lowerInclusive?.let { it * validWeightKg / 100.0 },
+            upperExclusive = zone.upperExclusive?.let { it * validWeightKg / 100.0 },
+        )
     }
 }
 
