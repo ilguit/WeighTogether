@@ -98,7 +98,9 @@ class BackupJsonCodecTest {
 
         assertEquals(source, codec.decode(codec.encode(source)))
 
-        val v2 = codec.decode(codec.encode(source.copy(schemaVersion = BACKUP_SCHEMA_VERSION_V2)))
+        val v2Source = source.copy(schemaVersion = BACKUP_SCHEMA_VERSION_V2)
+        val v2 = codec.decode(codec.encode(v2Source))
+        assertEquals(v2Source, v2)
         assertEquals(null, v2.pets.single().sex)
         assertEquals(null, v2.pets.single().breedId)
         val v1Json = codec.encode(document().copy(schemaVersion = BACKUP_SCHEMA_VERSION_V1))
@@ -114,6 +116,30 @@ class BackupJsonCodecTest {
             "scalesync:dog:mixed-breed", 2020, 2, 29, DogAdultWeightCategory.III)
         val source = document().copy(pets = listOf(pet))
         assertEquals(source, codec.decode(codec.encode(source)))
+    }
+
+    @Test
+    fun v2EncodeRejectsEveryV3PetProfileField() {
+        val base = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11)
+
+        fun assertRejected(field: String, pet: BackupPetV2) {
+            val error = assertThrows(BackupException.Invalid::class.java) {
+                codec.encode(
+                    document().copy(
+                        schemaVersion = BACKUP_SCHEMA_VERSION_V2,
+                        pets = listOf(pet),
+                    ),
+                )
+            }
+            assertEquals("$.pets[0].$field", error.path)
+        }
+
+        assertRejected("sex", base.copy(sex = PetSex.MALE))
+        assertRejected("breedId", base.copy(breedId = "scalesync:dog:mixed-breed"))
+        assertRejected("birthYear", base.copy(birthYear = 2020))
+        assertRejected("birthMonth", base.copy(birthMonth = 2))
+        assertRejected("birthDay", base.copy(birthDay = 29))
+        assertRejected("dogAdultWeightCategory", base.copy(dogAdultWeightCategory = DogAdultWeightCategory.III))
     }
 
     @Test

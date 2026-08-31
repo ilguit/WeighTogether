@@ -218,6 +218,17 @@ class BackupJsonCodec(
         ) {
             throw BackupException.Invalid("$", "schema v1 cannot contain pet data")
         }
+        if (document.schemaVersion == BACKUP_SCHEMA_VERSION_V2) {
+            document.pets.forEachIndexed { index, pet ->
+                val path = "$.pets[$index]"
+                invalidUnless(pet.sex == null, "$path.sex", "requires schema v3")
+                invalidUnless(pet.breedId == null, "$path.breedId", "requires schema v3")
+                invalidUnless(pet.birthYear == null, "$path.birthYear", "requires schema v3")
+                invalidUnless(pet.birthMonth == null, "$path.birthMonth", "requires schema v3")
+                invalidUnless(pet.birthDay == null, "$path.birthDay", "requires schema v3")
+                invalidUnless(pet.dogAdultWeightCategory == null, "$path.dogAdultWeightCategory", "requires schema v3")
+            }
+        }
         unique(document.pets.map { it.id }, "pet id")
         unique(document.pets.map { it.normalizedName }, "pet normalized name")
         document.pets.forEachIndexed { index, pet ->
