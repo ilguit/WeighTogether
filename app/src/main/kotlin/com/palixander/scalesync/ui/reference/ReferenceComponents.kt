@@ -218,6 +218,7 @@ fun GroupedMetricReferences(
     groups: List<ReferenceGroupPresentation>,
     onInfoClick: (ReferenceMetricPresentation) -> Unit,
     modifier: Modifier = Modifier,
+    infoButtonModifier: (ReferenceMetricPresentation) -> Modifier = { Modifier },
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
         val twoColumns = maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f
@@ -248,6 +249,7 @@ fun GroupedMetricReferences(
                                     presentation = metric,
                                     onInfoClick = { onInfoClick(metric) },
                                     modifier = Modifier.weight(1f),
+                                    infoButtonModifier = infoButtonModifier(metric),
                                 )
                             }
                             repeat(columnCount - rowMetrics.size) { Spacer(Modifier.weight(1f)) }
