@@ -162,8 +162,8 @@ class ReferencePresentationComponentsTest {
             }
         }
 
-        val contentBounds = composeRule.onNodeWithTag(
-            ReferenceComponentTestTags.Information,
+        val innerContainerBounds = composeRule.onNodeWithTag(
+            ReferenceComponentTestTags.InnerContainer,
             useUnmergedTree = true,
         ).fetchSemanticsNode().boundsInRoot
         val scaleBounds = composeRule.onNodeWithTag(
@@ -179,10 +179,10 @@ class ReferencePresentationComponentsTest {
             useUnmergedTree = true,
         ).fetchSemanticsNode().boundsInRoot
 
-        assertEquals(contentBounds.left, scaleBounds.left, 1f)
-        assertEquals(contentBounds.right, scaleBounds.right, 1f)
-        assertEquals(contentBounds.right, infoBounds.right, 1f)
-        assertEquals(contentBounds.top, infoBounds.top, 1f)
+        assertEquals(innerContainerBounds.left, scaleBounds.left, 1f)
+        assertEquals(innerContainerBounds.right, scaleBounds.right, 1f)
+        assertEquals(innerContainerBounds.right, infoBounds.right, 1f)
+        assertEquals(innerContainerBounds.top, infoBounds.top, 1f)
         assertTrue(infoBounds.width >= with(composeRule.density) { 48.dp.toPx() })
         assertTrue(infoBounds.height >= with(composeRule.density) { 48.dp.toPx() })
         assertTrue(headerBounds.right <= infoBounds.left)

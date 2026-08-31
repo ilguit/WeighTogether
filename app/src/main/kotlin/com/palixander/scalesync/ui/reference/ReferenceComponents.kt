@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 object ReferenceComponentTestTags {
     const val GridOneColumn = "reference-grid-one-column"
     const val GridTwoColumns = "reference-grid-two-columns"
+    const val InnerContainer = "reference-inner-container"
     const val Information = "reference-information"
     const val Header = "reference-header"
     const val InfoButton = "reference-info-button"
@@ -121,7 +122,9 @@ fun ExpandedMetricReference(
         tonalElevation = 1.dp,
     ) {
         Box(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .padding(12.dp)
+                .testTag(ReferenceComponentTestTags.InnerContainer),
         ) {
             Column(
                 modifier = Modifier
