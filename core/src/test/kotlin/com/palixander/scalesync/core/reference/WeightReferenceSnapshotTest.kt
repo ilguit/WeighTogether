@@ -12,6 +12,21 @@ import kotlin.test.assertNull
 
 class WeightReferenceSnapshotTest {
     @Test
+    fun `profile metadata lookup exposes provenance without mutable constraints`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val profile = snapshot.profiles.first()
+
+        val metadata = snapshot.metadataFor(profile.id)!!
+
+        assertEquals(profile.id, metadata.profileId)
+        assertEquals(profile.sourceId, metadata.source.id)
+        assertEquals(profile.constraints, metadata.constraints)
+        org.junit.Assert.assertThrows(UnsupportedOperationException::class.java) {
+            (metadata.constraints as MutableList<String>).add("changed")
+        }
+        assertNull(snapshot.metadataFor("missing"))
+    }
+    @Test
     fun `bundled snapshot contains empirical dog I-V profiles without claiming fitted centiles`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val dogScopes = snapshot.manifest.scopes.filter { it.species == ReferenceSpecies.DOG }

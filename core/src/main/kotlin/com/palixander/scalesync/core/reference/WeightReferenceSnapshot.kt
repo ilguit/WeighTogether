@@ -7,6 +7,7 @@ import com.palixander.scalesync.core.breed.BreedSpecies
 import java.io.InputStream
 import java.security.MessageDigest
 import java.util.Locale
+import java.util.Collections
 
 enum class ReferenceSpecies { CAT, DOG }
 enum class ReferenceSex { FEMALE, MALE }
@@ -64,12 +65,39 @@ data class WeightReferenceManifest(
     val scopes: List<ReferenceScope>,
 )
 
+/** Immutable presentation-safe metadata for one resolved reference profile. */
+data class ReferenceProfileMetadata(
+    val profileId: String,
+    val basis: ReferenceBasis,
+    val source: ReferenceSource,
+    val constraints: List<String>,
+    val referenceKind: String,
+    val minimumBinN: Int,
+)
+
 class WeightReferenceSnapshot private constructor(
     val manifest: WeightReferenceManifest,
     val profiles: List<ReferenceProfile>,
 ) {
     /** Maximum distance supported by the weekly-bin derivation. Larger holes are missing data. */
     val maxInterpolationGapDays: Int = 7
+
+    /**
+     * Looks up provenance and constraints after a profile has been resolved. The returned list is
+     * detached and unmodifiable so presentation code cannot mutate the validated snapshot.
+     */
+    fun metadataFor(profileId: String): ReferenceProfileMetadata? {
+        val profile = profiles.singleOrNull { it.id == profileId } ?: return null
+        val source = manifest.sources.singleOrNull { it.id == profile.sourceId } ?: return null
+        return ReferenceProfileMetadata(
+            profileId = profile.id,
+            basis = profile.basis,
+            source = source.copy(),
+            constraints = Collections.unmodifiableList(profile.constraints.toList()),
+            referenceKind = profile.referenceKind,
+            minimumBinN = profile.minimumBinN,
+        )
+    }
 
     /** Returns an exact or linearly interpolated point within one profile only. Never extrapolates. */
     fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
