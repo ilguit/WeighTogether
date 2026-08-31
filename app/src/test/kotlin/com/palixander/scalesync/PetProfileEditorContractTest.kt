@@ -175,6 +175,8 @@ class PetProfileEditorContractTest {
         assertTrue(catOptions.single { it.id == BreedId("VBO:0100119") }.hasWeightReference)
         assertTrue(catOptions.filter { it.hasWeightReference }.all { it.id == BreedId("VBO:0100119") })
         assertTrue(dogOptions.none { it.hasWeightReference })
+        assertTrue(breedCatalog.hasWeightReferenceProfiles(PetSpecies.CAT))
+        assertFalse(breedCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
     }
 
     @Test

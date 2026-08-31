@@ -107,6 +107,13 @@ class PetBreedCatalog(
         .filter { profile -> profile.basis == ReferenceBasis.BREED }
         .mapNotNull { profile -> profile.breedId }
         .toSet()
+    private val speciesWithWeightReference = breedsWithWeightReference.asSequence()
+        .mapNotNull(catalog::findById)
+        .map(BreedRecord::species)
+        .toSet()
+
+    fun hasWeightReferenceProfiles(species: PetSpecies): Boolean =
+        species.toBreedSpecies() in speciesWithWeightReference
 
     /**
      * Searches the bundled breed catalog for one species. When [onlyWithWeightReference] is true,

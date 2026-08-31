@@ -161,6 +161,7 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedProfileFilter)
             .assertIsOff()
+            .assertTextContains("Только с весовым профилем")
             .assert(
                 SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox),
             )
@@ -193,6 +194,13 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedProfileFilter).performClick()
 
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoProfiles)
+            .assertIsDisplayed()
+            .assertTextContains("нет пород с весовым профилем")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoResults).assertDoesNotExist()
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput("несуществующая порода")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoProfiles)
             .assertIsDisplayed()
             .assertTextContains("нет пород с весовым профилем")

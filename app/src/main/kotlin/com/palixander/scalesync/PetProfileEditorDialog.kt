@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -588,6 +589,9 @@ private fun BreedPickerDialog(
     val options = remember(query, species, onlyWithWeightReference, breedCatalog) {
         breedCatalog.search(query, species, onlyWithWeightReference)
     }
+    val speciesHasWeightReferenceProfiles = remember(species, breedCatalog) {
+        breedCatalog.hasWeightReferenceProfiles(species)
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(PetProfileEditorTestTags.BreedPicker),
@@ -611,13 +615,19 @@ private fun BreedPickerDialog(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 48.dp),
+                        .heightIn(min = 48.dp)
+                        .testTag(PetProfileEditorTestTags.BreedProfileFilter)
+                        .toggleable(
+                            value = onlyWithWeightReference,
+                            role = Role.Checkbox,
+                            onValueChange = { onlyWithWeightReference = it },
+                        )
+                        .semantics(mergeDescendants = true) {},
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Checkbox(
                         checked = onlyWithWeightReference,
-                        onCheckedChange = { onlyWithWeightReference = it },
-                        modifier = Modifier.testTag(PetProfileEditorTestTags.BreedProfileFilter),
+                        onCheckedChange = null,
                     )
                     Text("Только с весовым профилем")
                 }
@@ -630,13 +640,13 @@ private fun BreedPickerDialog(
                     if (options.isEmpty()) {
                         item {
                             Text(
-                                if (onlyWithWeightReference && query.isBlank()) {
+                                if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
                                     "Для выбранного вида нет пород с весовым профилем"
                                 } else {
                                     "Породы не найдены"
                                 },
                                 modifier = Modifier.testTag(
-                                    if (onlyWithWeightReference && query.isBlank()) {
+                                    if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
                                         PetProfileEditorTestTags.BreedNoProfiles
                                     } else {
                                         PetProfileEditorTestTags.BreedNoResults
