@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -40,6 +42,8 @@ import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PreliminaryDecisionReadiness
 import com.palixander.scalesync.ui.accounts.AccountSelectorTestTags
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.theme.ReferencePalette
+import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.reference.ReferenceComponentTestTags
 import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
 import com.palixander.scalesync.ui.reference.toReferenceContext
@@ -117,7 +121,7 @@ class MeasurementsScreenTest {
             "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг",
         ).assertIsDisplayed()
         listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
-            composeRule.onNodeWithText(label).assertIsDisplayed()
+            composeRule.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
         }
         composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
         composeRule.onNodeWithTag("summary-more-actions").assertIsDisplayed()
@@ -128,6 +132,67 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithContentDescription("Вес, 72,4 килограмма. Норма.")
             .assertIsDisplayed()
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+    }
+
+    @Test
+    fun compactSummaryShowsUnavailableReasonButKeepsRatedCategoryHidden() {
+        val values = weightOnlyValues(72.4)
+        val latest = referenceItem("latest", "2026-08-15T12:42:00Z", values)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag(
+            "summary-reference-status-BODY_FAT_PERCENT",
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Нет данных", useUnmergedTree = true).assertCountEquals(4)
+        composeRule.onNodeWithText("Норма", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Жир. Нет данных.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun compactSummaryPublishesTheColorAppliedToNumberAndUnitForDifferentTones() {
+        val metrics = referencePresentations(sampleValues(72.4)).map { presentation ->
+            when (presentation.definition.metric.name) {
+                "BODY_FAT_PERCENT" -> presentation.copy(tone = ReferenceTone.NORMAL)
+                "BMI" -> presentation.copy(tone = ReferenceTone.VERY_HIGH)
+                else -> presentation
+            }
+        }
+        val latest = sampleItem(
+            id = "latest",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = localOnlySync(),
+        ).copy(referenceMetrics = metrics, ratingHeightCm = 175.0, referenceAge = 36)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("summary-reference-BODY_FAT_PERCENT")
+            .assert(SemanticsMatcher.expectValue(
+                CompactSummaryReferenceContentColorKey,
+                ReferencePalette.Normal.content.value.toLong(),
+            ))
+        composeRule.onNodeWithTag("summary-reference-BMI")
+            .assert(SemanticsMatcher.expectValue(
+                CompactSummaryReferenceContentColorKey,
+                ReferencePalette.VeryHigh.content.value.toLong(),
+            ))
     }
 
     @Test
@@ -924,13 +989,18 @@ class MeasurementsScreenTest {
         onRetryRequested = onRetryRequested,
     )
 
-    private fun referenceItem(id: String, instant: String): MeasurementUiItem = sampleItem(
+    private fun referenceItem(
+        id: String,
+        instant: String,
+        values: MeasurementUiValues = sampleValues(72.4),
+    ): MeasurementUiItem = sampleItem(
         id = id,
         instant = instant,
-        weight = 72.4,
+        weight = values.weightKg,
         sync = localOnlySync(),
+        values = values,
     ).copy(
-        referenceMetrics = referencePresentations(sampleValues(72.4)),
+        referenceMetrics = referencePresentations(values),
         ratingHeightCm = 175.0,
         referenceAge = 36,
     )
@@ -975,12 +1045,7 @@ class MeasurementsScreenTest {
     private fun sampleState(
         sync: MeasurementSyncPresentation = syncedSync(),
     ): MeasurementsUiState {
-        val latest = sampleItem(
-            id = "latest",
-            instant = "2026-08-15T12:42:00Z",
-            weight = 72.4,
-            sync = sync,
-        )
+        val latest = referenceItem("latest", "2026-08-15T12:42:00Z").copy(sync = sync)
         val previous = sampleItem("previous", "2026-08-13T11:58:00Z", 72.8, syncedSync())
         val measurements = listOf(latest, previous)
         return MeasurementsUiState(

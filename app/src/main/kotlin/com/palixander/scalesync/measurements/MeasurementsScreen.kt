@@ -59,6 +59,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.SemanticsPropertyKey
+import androidx.compose.ui.semantics.SemanticsPropertyReceiver
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -88,6 +90,7 @@ import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ReferencePalette
+import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.reference.ExpandedMetricReference
 import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
@@ -821,10 +824,13 @@ private fun CompactSummaryReferenceMetric(
     primary: Boolean = false,
 ) {
     val referenceContent = ReferencePalette.colors(presentation.tone).content
+    val showUnavailableStatus = presentation.tone == ReferenceTone.UNAVAILABLE ||
+        presentation.visualNumber == null
     Column(
         modifier = modifier
             .clearAndSetSemantics {
                 contentDescription = presentation.compactAccessibilityDescription
+                compactSummaryReferenceContentColor = referenceContent.value.toLong()
             }
             .padding(vertical = if (primary) 2.dp else 6.dp)
             .testTag("summary-reference-${presentation.definition.metric.name}"),
@@ -863,8 +869,24 @@ private fun CompactSummaryReferenceMetric(
                 )
             }
         }
+        if (showUnavailableStatus) {
+            Text(
+                text = presentation.status,
+                color = referenceContent,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.testTag(
+                    "summary-reference-status-${presentation.definition.metric.name}",
+                ),
+            )
+        }
     }
 }
+
+internal val CompactSummaryReferenceContentColorKey =
+    SemanticsPropertyKey<Long>("CompactSummaryReferenceContentColor")
+
+internal var SemanticsPropertyReceiver.compactSummaryReferenceContentColor by
+    CompactSummaryReferenceContentColorKey
 
 @Composable
 private fun MeasurementReferenceGroups(
