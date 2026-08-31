@@ -18,4 +18,5 @@ tasks.test {
 
 tasks.named("check") {
     dependsOn(gradle.includedBuild("breed-catalog").task(":verifySnapshot"))
+    dependsOn(gradle.includedBuild("weight-references").task(":verifySnapshot"))
 }
