@@ -8,6 +8,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -166,6 +167,28 @@ class ReferencePresentationComponentsTest {
 
         setGrid(groups, width = 400, fontScale = 1.3f)
         composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+    }
+
+    @Test
+    fun groupedReferencesPassTheMetricSpecificModifierToTheInfoButton() {
+        val presentation = presentation()
+        composeRule.setContent {
+            ScaleSyncTheme {
+                GroupedMetricReferences(
+                    groups = listOf(
+                        ReferenceGroupPresentation(
+                            ReferenceMetricGroup.MAIN,
+                            "Основное",
+                            listOf(presentation),
+                        ),
+                    ),
+                    onInfoClick = {},
+                    infoButtonModifier = { Modifier.testTag("metric-specific-info-button") },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag("metric-specific-info-button").assertExists()
     }
 
     @Test
