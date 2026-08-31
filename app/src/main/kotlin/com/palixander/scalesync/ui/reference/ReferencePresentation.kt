@@ -30,6 +30,10 @@ data class ReferenceZonePresentation(
     val spokenRange: String,
     val isCurrent: Boolean,
     val tone: ReferenceTone,
+    val lowerInclusive: Double? = null,
+    val upperExclusive: Double? = null,
+    val lowerBoundaryLabel: String? = null,
+    val upperBoundaryLabel: String? = null,
 )
 
 data class ReferenceMetricPresentation(
@@ -45,7 +49,30 @@ data class ReferenceMetricPresentation(
     val isPreliminary: Boolean,
     val compactAccessibilityDescription: String,
     val accessibilityDescription: String,
+    val scaleValue: Double? = null,
 )
+
+/** Position on an equal-width segmented scale, expressed in the 0..1 range. */
+internal fun referenceScaleMarkerFraction(
+    value: Double,
+    zones: List<ReferenceZonePresentation>,
+): Double? {
+    if (!value.isFinite() || zones.isEmpty()) return null
+    val currentIndex = zones.indexOfFirst(ReferenceZonePresentation::isCurrent)
+    if (currentIndex < 0) return null
+    val zone = zones[currentIndex]
+    val withinSegment = when {
+        zone.lowerInclusive != null && zone.upperExclusive != null -> {
+            val width = zone.upperExclusive - zone.lowerInclusive
+            if (!width.isFinite() || width <= 0.0) return null
+            ((value - zone.lowerInclusive) / width).coerceIn(0.0, 1.0)
+        }
+        zone.lowerInclusive == null && zone.upperExclusive != null -> 0.75
+        zone.lowerInclusive != null && zone.upperExclusive == null -> 0.25
+        else -> 0.5
+    }
+    return ((currentIndex + withinSegment) / zones.size).coerceIn(0.0, 1.0)
+}
 
 data class ReferenceGroupPresentation(
     val group: ReferenceMetricGroup,
@@ -182,6 +209,13 @@ class ReferencePresentationFactory(
             isPreliminary = preliminary,
             compactAccessibilityDescription = compactAccessibility,
             accessibilityDescription = accessibility,
+            scaleValue = when (interpretation) {
+                is MetricInterpretation.Rated -> interpretation.classifiedValue.toPresentationScaleValue(
+                    interpretation.basis,
+                    weightKg,
+                )
+                is MetricInterpretation.Unavailable -> null
+            },
         )
     }
 
@@ -220,6 +254,10 @@ class ReferencePresentationFactory(
             spokenRange = rangeText(lower, upper, spoken = true),
             isCurrent = zone.category == interpretation.category,
             tone = zone.category.referenceTone(),
+            lowerInclusive = zone.lowerInclusive,
+            upperExclusive = zone.upperExclusive,
+            lowerBoundaryLabel = lower,
+            upperBoundaryLabel = upper,
         )
     }
 
@@ -323,6 +361,13 @@ class ReferencePresentationFactory(
         }
     }
 }
+
+private fun Double.toPresentationScaleValue(basis: ZoneBasis, weightKg: Double?): Double? = when (basis) {
+    ZoneBasis.SKELETAL_MUSCLE_PERCENT -> weightKg
+        ?.takeIf { it.isFinite() && it > 0.0 }
+        ?.let { this * it / 100.0 }
+    else -> this
+}.takeIf { it?.isFinite() == true }
 
 internal fun presentationZones(
     interpretation: MetricInterpretation.Rated,
