@@ -141,6 +141,32 @@ class ReferencePresentationComponentsTest {
     }
 
     @Test
+    fun rangeScaleIsDecorativeAndAbsentWithoutRatedZones() {
+        val presentation = presentation()
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Box(Modifier.width(320.dp)) {
+                    ReferenceRangeScale(presentation)
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(ReferenceRangeScaleTestTags.Scale).assertExists()
+        composeRule.onNodeWithText(presentation.zones.first().label).assertDoesNotExist()
+        composeRule.onNodeWithText(requireNotNull(presentation.zones.first().upperBoundaryLabel))
+            .assertDoesNotExist()
+
+        composeRule.setContent {
+            ScaleSyncTheme {
+                ReferenceRangeScale(
+                    presentation.copy(zones = emptyList(), scaleValue = null),
+                )
+            }
+        }
+        composeRule.onNodeWithTag(ReferenceRangeScaleTestTags.Scale).assertDoesNotExist()
+    }
+
+    @Test
     fun compactCardExcludesBoundariesAndInfoActionFromItsSemantics() {
         val presentation = presentation()
         composeRule.setContent {

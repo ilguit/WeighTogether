@@ -2,6 +2,7 @@ package com.palixander.scalesync.ui.reference
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.core.MetricInterpretation
@@ -23,6 +24,13 @@ import java.util.Locale
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class ReferencePresentationTest {
+    @Test
+    fun `scale alternates boundary rows at narrow width or increased font scale`() {
+        assertTrue(referenceScaleUsesAlternateBoundaryRows(319.dp, 1f))
+        assertTrue(referenceScaleUsesAlternateBoundaryRows(320.dp, 1.3f))
+        assertEquals(false, referenceScaleUsesAlternateBoundaryRows(320.dp, 1.29f))
+    }
+
     @Test
     fun `createAll passes weight to skeletal muscle kilogram zone presentation`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
