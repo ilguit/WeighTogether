@@ -930,7 +930,7 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun referenceLayoutUsesOneColumnAtNarrowWidthAndAtLargeFont() {
+    fun compactSummaryUsesTwoColumnsAtLargeFontWhenWidthAllows() {
         val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
         val state = MeasurementsUiState(
             isLoading = false,
@@ -944,6 +944,25 @@ class MeasurementsScreenTest {
                     Box(Modifier.width(400.dp)) {
                         MeasurementsScreen(state, MeasurementsCallbacks.None)
                     }
+                }
+            }
+        }
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridTwoColumns).assertExists()
+    }
+
+    @Test
+    fun compactSummaryUsesOneColumnBelowLegacyWidthThreshold() {
+        val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Box(Modifier.width(299.dp)) {
+                    MeasurementsScreen(state, MeasurementsCallbacks.None)
                 }
             }
         }
