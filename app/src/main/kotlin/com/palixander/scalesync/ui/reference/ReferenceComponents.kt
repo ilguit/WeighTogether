@@ -49,7 +49,9 @@ import kotlinx.coroutines.launch
 object ReferenceComponentTestTags {
     const val GridOneColumn = "reference-grid-one-column"
     const val GridTwoColumns = "reference-grid-two-columns"
+    const val InnerContainer = "reference-inner-container"
     const val Information = "reference-information"
+    const val Header = "reference-header"
     const val InfoButton = "reference-info-button"
     const val HelpDialog = "reference-help-dialog"
     const val SourceAction = "reference-source-action"
@@ -119,33 +121,41 @@ fun ExpandedMetricReference(
         shape = MaterialTheme.shapes.medium,
         tonalElevation = 1.dp,
     ) {
-        Row(
-            modifier = Modifier.padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.Top,
+        Box(
+            modifier = Modifier
+                .padding(12.dp)
+                .testTag(ReferenceComponentTestTags.InnerContainer),
         ) {
             Column(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
                     .testTag(ReferenceComponentTestTags.Information)
                     .clearAndSetSemantics {
                         contentDescription = presentation.accessibilityDescription
                     },
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
-                Text(presentation.title, style = MaterialTheme.typography.titleSmall)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(
-                        text = presentation.visualNumber ?: stringResource(R.string.reference_missing_value_symbol),
-                        color = MaterialTheme.colorScheme.onSurface,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    if (presentation.visualNumber != null) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 56.dp)
+                        .testTag(ReferenceComponentTestTags.Header),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(presentation.title, style = MaterialTheme.typography.titleSmall)
+                    Row(verticalAlignment = Alignment.Bottom) {
                         Text(
-                            text = " ${presentation.visibleUnit}",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
+                            text = presentation.visualNumber ?: stringResource(R.string.reference_missing_value_symbol),
+                            color = MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.titleMedium,
                         )
+                        if (presentation.visualNumber != null) {
+                            Text(
+                                text = " ${presentation.visibleUnit}",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                        }
                     }
                 }
                 ReferenceRangeScale(presentation)
@@ -154,6 +164,7 @@ fun ExpandedMetricReference(
                 onClick = onInfoClick,
                 modifier = infoButtonModifier
                     .size(48.dp)
+                    .align(Alignment.TopEnd)
                     .testTag(ReferenceComponentTestTags.InfoButton)
                     .semantics {
                         contentDescription = infoContentDescription
