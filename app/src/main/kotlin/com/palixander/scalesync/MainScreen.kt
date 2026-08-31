@@ -339,6 +339,7 @@ fun ScaleSyncApp(
             onIgnoreUnknownMeasurementsChanged = viewModel::setIgnoreUnknownMeasurements,
             onCreatePet = viewModel::showCreatePetManagement,
             onEditPet = viewModel::showEditPetManagement,
+            onPetProfileAction = viewModel::onPetProfileAction,
             onSavePet = viewModel::savePetManagement,
             onRequestDeletePet = viewModel::requestDeletePet,
             onConfirmDeletePet = viewModel::confirmDeletePet,
@@ -558,6 +559,7 @@ internal fun ScaleSyncScaffold(
                         callbacks = petHistoryCallbacks ?: PetHistoryCallbacks({}, { _, _ -> }),
                         contentPadding = padding,
                         onStartMeasurement = { petMeasurementCallbacks.onStart(petDestination.petId) },
+                        onEditPet = settingsCallbacks.onEditPet,
                     )
 
                     profileEditorOpen -> ProfileEditorScreen(
@@ -674,6 +676,17 @@ internal fun ScaleSyncScaffold(
                 pets = state.pets,
                 callbacks = petMeasurementCallbacks,
             )
+            state.petManagement.editor?.let { editor ->
+                PetProfileEditorDialog(
+                    state = editor,
+                    fieldErrors = state.petManagement.fieldErrors,
+                    repositoryError = state.petManagement.error,
+                    busy = state.petManagement.busy,
+                    onAction = settingsCallbacks.onPetProfileAction,
+                    onSave = settingsCallbacks.onSavePet,
+                    onDismiss = settingsCallbacks.onDismissPetManagement,
+                )
+            }
             HuaweiSystemBarBackgrounds()
         }
     }

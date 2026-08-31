@@ -3,8 +3,8 @@ package com.palixander.scalesync
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.data.AppSettings
-import java.time.LocalDate
 import com.palixander.scalesync.domain.PetSpecies
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -54,15 +54,6 @@ class SettingsScreenContractTest {
             presentation,
             presentation.withHealthConnectManagementFallback(systemManagementAvailable = true),
         )
-    }
-
-    @Test
-    fun `pet editor requires a nonblank name and explicit supported species`() {
-        assertFalse(isPetEditorValid("Барсик", null))
-        assertFalse(isPetEditorValid("Барсик", PetSpecies.UNSPECIFIED))
-        assertFalse(isPetEditorValid("   ", PetSpecies.CAT))
-        assertTrue(isPetEditorValid(" Барсик ", PetSpecies.CAT))
-        assertTrue(isPetEditorValid("Шарик", PetSpecies.DOG))
     }
 
     @Test

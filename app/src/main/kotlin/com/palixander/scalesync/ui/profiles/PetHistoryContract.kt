@@ -46,6 +46,7 @@ data class PetHistoryDeleteConfirmation(
 data class PetHistoryUiState(
     val petId: PetId,
     val pet: Pet? = null,
+    val profileSummary: PetProfileSummary? = null,
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
     val rangePreset: ChartRangePreset,

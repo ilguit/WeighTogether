@@ -1,23 +1,36 @@
 package com.palixander.scalesync
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.hasContentDescription
+import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.MetricChartTestTags
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.ui.profiles.PetHistoryCallbacks
 import com.palixander.scalesync.ui.profiles.PetHistoryContent
 import com.palixander.scalesync.ui.profiles.PetHistoryDeleteConfirmation
@@ -25,6 +38,8 @@ import com.palixander.scalesync.ui.profiles.PetHistoryMeasurementUi
 import com.palixander.scalesync.ui.profiles.PetHistoryUiState
 import com.palixander.scalesync.ui.profiles.PetProfileScreen
 import com.palixander.scalesync.ui.profiles.PetProfileScreenTestTags
+import com.palixander.scalesync.ui.profiles.PetProfileSummary
+import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
 import java.time.Instant
 import java.time.LocalDate
@@ -49,6 +64,87 @@ class PetHistoryScreenUiTest {
         }
     }
 
+    @Test fun emptyProfileSummaryIsExplicitAndEditTargetsExactPetAccessibly() {
+        var edited: Pet? = null
+        val screenState = state(PetHistoryContent.Empty)
+        composeRule.setContent {
+            PetProfileScreen(
+                state = screenState,
+                callbacks = callbacks(),
+                contentPadding = PaddingValues(),
+                onStartMeasurement = {},
+                onEditPet = { edited = it },
+            )
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Summary).assertIsDisplayed()
+        composeRule.onNodeWithText("Дополнительные данные не заполнены").assertIsDisplayed()
+        composeRule.onNode(
+            hasContentDescription("Дополнительные данные не заполнены", substring = true),
+        ).assertExists()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Edit)
+            .assertIsDisplayed()
+            .assertHeightIsAtLeast(48.dp)
+            .assertContentDescriptionEquals("Изменить данные питомца Барсик")
+            .performClick()
+
+        composeRule.runOnIdle { assertEquals(screenState.pet, edited) }
+    }
+
+    @Test fun filledSummaryListsLabeledValuesAndActualSemantics() {
+        val summary = PetProfileSummary(
+            listOf(
+                PetProfileSummaryItem("Пол", "Самка"),
+                PetProfileSummaryItem("Порода", "Метис"),
+                PetProfileSummaryItem("Дата рождения", "02.2020 (месяц)"),
+                PetProfileSummaryItem("Весовая категория", "IV — 15–30 кг"),
+            ),
+        )
+        setScreen(
+            state(PetHistoryContent.Empty).copy(
+                pet = state(PetHistoryContent.Empty).pet?.copy(sex = PetSex.FEMALE),
+                profileSummary = summary,
+            ),
+        )
+
+        summary.items.forEach { item ->
+            composeRule.onNodeWithText(item.label).assertExists()
+            composeRule.onNodeWithText(item.value).assertExists()
+        }
+        composeRule.onNode(
+            hasContentDescription("Дата рождения: 02.2020 (месяц)", substring = true),
+        ).assertExists()
+    }
+
+    @Test fun unknownLongBreedWrapsAtNarrowWidthLargeFontAndRemainsScrollable() {
+        val unavailable = "Недоступна: retired:cat:" + "очень-длинный-идентификатор-".repeat(5)
+        val screenState = state(PetHistoryContent.Empty).copy(
+            profileSummary = PetProfileSummary(
+                listOf(PetProfileSummaryItem("Порода", unavailable)),
+            ),
+        )
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale = 2f),
+            ) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.shell(screenState.petId.value))
+            .assert(hasScrollAction())
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Summary).assertIsDisplayed()
+        composeRule.onNode(
+            hasContentDescription(unavailable, substring = true),
+        ).assertExists()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Edit)
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsDisplayed()
+    }
+
     @Test fun oneAndMultipleMeasurementsRenderStableRows() {
         val first = row("one")
         val second = row("two")
@@ -69,7 +165,12 @@ class PetHistoryScreenUiTest {
             ),
         )
         composeRule.setContent {
-            PetProfileScreen(screenState, callbacks(), PaddingValues()) {}
+            PetProfileScreen(
+                screenState,
+                callbacks(),
+                PaddingValues(),
+                onStartMeasurement = {},
+            )
         }
 
         composeRule.waitForIdle()
@@ -137,7 +238,14 @@ class PetHistoryScreenUiTest {
                 deleteConfirmation = screenState.deleteConfirmation?.copy(isDeleting = true),
             )
         })
-        composeRule.setContent { PetProfileScreen(screenState, callbacks, PaddingValues()) {} }
+        composeRule.setContent {
+            PetProfileScreen(
+                screenState,
+                callbacks,
+                PaddingValues(),
+                onStartMeasurement = {},
+            )
+        }
         composeRule.onNodeWithTag(PetProfileScreenTestTags.DeleteConfirm).performClick()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.DeleteConfirm).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.DeleteCancel).assertIsNotEnabled()
@@ -177,7 +285,12 @@ class PetHistoryScreenUiTest {
         val selected = row("one")
         var screenState by mutableStateOf(state(PetHistoryContent.Single(selected)))
         composeRule.setContent {
-            PetProfileScreen(screenState, callbacks(), PaddingValues()) {}
+            PetProfileScreen(
+                screenState,
+                callbacks(),
+                PaddingValues(),
+                onStartMeasurement = {},
+            )
         }
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
 
@@ -192,6 +305,20 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertDoesNotExist()
     }
 
+    @Test fun loadingNotFoundAndErrorWithoutPetNeverExposeSummaryOrEdit() {
+        val unavailableStates = listOf(
+            state(PetHistoryContent.Empty).copy(pet = null, isLoading = true),
+            state(PetHistoryContent.Empty).copy(pet = null, isNotFound = true),
+            state(PetHistoryContent.Empty).copy(pet = null, errorMessage = "Ошибка загрузки"),
+        )
+
+        unavailableStates.forEach { unavailable ->
+            setScreen(unavailable)
+            composeRule.onNodeWithTag(PetProfileScreenTestTags.Summary).assertDoesNotExist()
+            composeRule.onNodeWithTag(PetProfileScreenTestTags.Edit).assertDoesNotExist()
+        }
+    }
+
     private fun setScreen(
         state: PetHistoryUiState,
         onPreset: (ChartRangePreset) -> Unit = {},
@@ -203,7 +330,14 @@ class PetHistoryScreenUiTest {
     private fun setScreen(
         state: PetHistoryUiState,
         callbacks: PetHistoryCallbacks,
-    ) = composeRule.setContent { PetProfileScreen(state, callbacks, PaddingValues()) {} }
+    ) = composeRule.setContent {
+        PetProfileScreen(
+            state,
+            callbacks,
+            PaddingValues(),
+            onStartMeasurement = {},
+        )
+    }
 
     private fun callbacks(
         requestDelete: (String) -> Unit = {},

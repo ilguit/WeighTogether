@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.domain.PetId
@@ -23,6 +24,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -47,6 +49,7 @@ class PetHistoryStateOwner(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val zoneId: ZoneId = clock.zone,
     private val locale: Locale = Locale.getDefault(),
+    private val breedCatalog: PetBreedCatalog = PetBreedCatalog(),
 ) : AutoCloseable {
     private val ownerJob = SupervisorJob(parentScope.coroutineContext[Job])
     private val ownerScope = CoroutineScope(parentScope.coroutineContext + ownerJob)
@@ -174,19 +177,29 @@ class PetHistoryStateOwner(
             return@flow
         }
         emitAll(
-            repository.observeMeasurements(current.petId).map { measurements ->
-                val (content, series) = petHistoryPresentation(
-                    measurements = measurements,
-                    range = current.range,
-                    zoneId = zoneId,
-                    locale = locale,
-                )
-                current.baseState().copy(
-                    pet = pet,
-                    content = content,
-                    series = series,
-                    isLoading = false,
-                )
+            combine(
+                repository.observePets()
+                    .map { pets -> pets.firstOrNull { it.pet.id == current.petId }?.pet }
+                    .onStart { emit(pet) },
+                repository.observeMeasurements(current.petId),
+            ) { observedPet, measurements ->
+                if (observedPet == null) {
+                    current.notFoundState()
+                } else {
+                    val (content, series) = petHistoryPresentation(
+                        measurements = measurements,
+                        range = current.range,
+                        zoneId = zoneId,
+                        locale = locale,
+                    )
+                    current.baseState().copy(
+                        pet = observedPet,
+                        profileSummary = petProfileSummary(observedPet, breedCatalog),
+                        content = content,
+                        series = series,
+                        isLoading = false,
+                    )
+                }
             },
         )
     }.catch { error ->

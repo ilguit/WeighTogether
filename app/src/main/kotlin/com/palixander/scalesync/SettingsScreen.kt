@@ -68,8 +68,6 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
-import com.palixander.scalesync.domain.PetSpecies
-import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
@@ -106,7 +104,8 @@ internal data class SettingsCallbacks(
     val onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     val onCreatePet: () -> Unit = {},
     val onEditPet: (Pet) -> Unit = {},
-    val onSavePet: (String, PetSpecies) -> Unit = { _, _ -> },
+    val onPetProfileAction: (PetProfileAction) -> Unit = {},
+    val onSavePet: () -> Unit = {},
     val onRequestDeletePet: (PetId) -> Unit = {},
     val onConfirmDeletePet: () -> Unit = {},
     val onDismissPetManagement: () -> Unit = {},
@@ -252,7 +251,6 @@ internal object SettingsScreenTestTags {
     const val BackupDetail = "settings-backup-detail"
     const val DiagnosticsDetail = "settings-diagnostics-detail"
     const val PetsSection = "settings-pets-section"
-    const val PetEditor = "settings-pet-editor"
     const val PetDeleteDialog = "settings-pet-delete-dialog"
     const val DestructiveSection = "settings-destructive-section"
     const val DisableHealthConnect = "settings-disable-health-connect"
@@ -1047,7 +1045,7 @@ private fun SettingsProfilesContent(
             }
         }
     }
-    PetManagementDialogs(state, callbacks)
+    PetDeletionDialog(state, callbacks)
 }
 
 @Composable
@@ -1442,7 +1440,7 @@ private fun LegacySettingsScreen(
             },
         )
     }
-    PetManagementDialogs(state, callbacks)
+    PetDeletionDialog(state, callbacks)
     destructiveConfirmation?.let { action ->
         DestructiveConfirmationDialog(
             action = action,
@@ -1562,61 +1560,7 @@ private fun DestructiveConfirmationDialog(
 }
 
 @Composable
-private fun PetManagementDialogs(state: MainUiState, callbacks: SettingsCallbacks) {
-    state.petManagement.editor?.let { mode ->
-        val existing = (mode as? PetEditorMode.Edit)?.pet
-        var name by rememberSaveable(existing?.id?.value) { mutableStateOf(existing?.displayName.orEmpty()) }
-        var species by rememberSaveable(existing?.id?.value) {
-            mutableStateOf(existing?.species?.takeUnless { it == PetSpecies.UNSPECIFIED })
-        }
-        var submitted by rememberSaveable(existing?.id?.value) { mutableStateOf(false) }
-        val duplicate = state.pets.any {
-            it.pet.id != existing?.id && normalizePetName(it.pet.displayName) == normalizePetName(name)
-        }
-        val valid = isPetEditorValid(name, species) && !duplicate
-        AlertDialog(
-            modifier = Modifier.testTag(SettingsScreenTestTags.PetEditor),
-            onDismissRequest = { if (!state.petManagement.busy) callbacks.onDismissPetManagement() },
-            title = { Text(if (existing == null) "Новый питомец" else "Изменить питомца") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; submitted = false },
-                        label = { Text("Имя питомца") },
-                        singleLine = true,
-                        isError = submitted && !valid,
-                    )
-                    PetSpeciesSelector(species) { species = it; submitted = false }
-                    if (submitted && !valid) Text(
-                        when {
-                            name.trim().isEmpty() -> "Введите имя питомца"
-                            duplicate -> "Питомец с таким именем уже есть"
-                            species == null -> "Выберите вид питомца"
-                            else -> "Имя должно содержать не больше 50 символов"
-                        },
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    state.petManagement.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !state.petManagement.busy,
-                    onClick = {
-                        submitted = true
-                        if (valid) callbacks.onSavePet(name.trim(), requireNotNull(species))
-                    },
-                ) { Text("Сохранить") }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !state.petManagement.busy,
-                    onClick = callbacks.onDismissPetManagement,
-                ) { Text("Отмена") }
-            },
-        )
-    }
+private fun PetDeletionDialog(state: MainUiState, callbacks: SettingsCallbacks) {
     state.petManagement.deletion?.let { preview ->
         AlertDialog(
             modifier = Modifier.testTag(SettingsScreenTestTags.PetDeleteDialog),
