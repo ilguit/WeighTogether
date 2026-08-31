@@ -10,6 +10,68 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `reference series keep segment boundaries and lower to upper order`() {
+        val firstDate = LocalDate.of(2026, 8, 1)
+        val secondDate = LocalDate.of(2026, 8, 2)
+        val separatedDate = LocalDate.of(2026, 8, 4)
+        val reference = availableSegments(
+            listOf(
+                listOf(
+                    PetHistoryReferencePoint(firstDate, 1.0, 2.0, 3.0, 4.0),
+                    PetHistoryReferencePoint(secondDate, 5.0, 6.0, 7.0, 8.0),
+                ),
+                listOf(PetHistoryReferencePoint(separatedDate, 9.0, 10.0, 11.0, 12.0)),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.LOWER,
+                    listOf(firstDate to 1.0, secondDate to 5.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.MEDIAN_LOWER,
+                    listOf(firstDate to 2.0, secondDate to 6.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.MEDIAN_UPPER,
+                    listOf(firstDate to 3.0, secondDate to 7.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.UPPER,
+                    listOf(firstDate to 4.0, secondDate to 8.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.LOWER,
+                    listOf(separatedDate to 9.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.MEDIAN_LOWER,
+                    listOf(separatedDate to 10.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.MEDIAN_UPPER,
+                    listOf(separatedDate to 11.0),
+                ),
+                PetWeightReferenceChartSeries(
+                    PetWeightReferenceSeriesKind.UPPER,
+                    listOf(separatedDate to 12.0),
+                ),
+            ),
+            petWeightReferenceChartSeries(reference),
+        )
+    }
+
+    @Test fun `unavailable reference produces no chart series`() {
+        val unavailable = PetHistoryWeightReference.Unavailable(
+            com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingSex,
+            "missing",
+        )
+
+        assertTrue(petWeightReferenceChartSeries(unavailable).isEmpty())
+    }
+
     @Test fun `range combines factual and reference extremes`() {
         val date = LocalDate.of(2026, 8, 1)
         val reference = available(listOf(PetHistoryReferencePoint(date, 2.0, 3.0, 4.0, 5.0)))
@@ -77,9 +139,13 @@ class PetWeightReferenceChartTest {
         )
     }
 
-    private fun available(points: List<PetHistoryReferencePoint>) = PetHistoryWeightReference.Available(
+    private fun available(points: List<PetHistoryReferencePoint>) = availableSegments(listOf(points))
+
+    private fun availableSegments(
+        segments: List<List<PetHistoryReferencePoint>>,
+    ) = PetHistoryWeightReference.Available(
         basis = ReferenceBasis.BREED,
-        segments = listOf(points),
+        segments = segments,
         approximate = false,
         ageLabel = "Возраст: 1 год",
         basisLabel = "Эталон по породе",

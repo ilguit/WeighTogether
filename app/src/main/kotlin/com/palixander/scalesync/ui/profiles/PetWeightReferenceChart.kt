@@ -64,6 +64,18 @@ internal object PetWeightChartTestTags {
 
 internal data class PetWeightChartRange(val min: Double, val max: Double)
 
+internal enum class PetWeightReferenceSeriesKind {
+    LOWER,
+    MEDIAN_LOWER,
+    MEDIAN_UPPER,
+    UPPER,
+}
+
+internal data class PetWeightReferenceChartSeries(
+    val kind: PetWeightReferenceSeriesKind,
+    val points: List<Pair<LocalDate, Double>>,
+)
+
 internal data class PetWeightMarkerSelection(
     val date: LocalDate,
     val measurementKg: Double?,
@@ -124,6 +136,32 @@ internal fun petWeightChartRange(
     val max = values.max()
     val padding = ((max - min) * 0.08).coerceAtLeast(0.1)
     return PetWeightChartRange((min - padding).coerceAtLeast(0.0), max + padding)
+}
+
+internal fun petWeightReferenceChartSeries(
+    reference: PetHistoryWeightReference,
+): List<PetWeightReferenceChartSeries> {
+    val available = reference as? PetHistoryWeightReference.Available ?: return emptyList()
+    return available.segments.flatMap { segment ->
+        listOf(
+            PetWeightReferenceChartSeries(
+                PetWeightReferenceSeriesKind.LOWER,
+                segment.map { it.date to it.lowerKg },
+            ),
+            PetWeightReferenceChartSeries(
+                PetWeightReferenceSeriesKind.MEDIAN_LOWER,
+                segment.map { it.date to it.medianLowerKg },
+            ),
+            PetWeightReferenceChartSeries(
+                PetWeightReferenceSeriesKind.MEDIAN_UPPER,
+                segment.map { it.date to it.medianUpperKg },
+            ),
+            PetWeightReferenceChartSeries(
+                PetWeightReferenceSeriesKind.UPPER,
+                segment.map { it.date to it.upperKg },
+            ),
+        )
+    }
 }
 
 @Composable
@@ -197,16 +235,7 @@ private fun PetWeightVicoChart(
     contentDescription: String,
 ) {
     val available = reference as? PetHistoryWeightReference.Available
-    val referenceSeries = remember(available) {
-        available?.segments.orEmpty().flatMap { segment ->
-            listOf(
-                segment.map { it.date to it.lowerKg },
-                segment.map { it.date to it.medianLowerKg },
-                segment.map { it.date to it.medianUpperKg },
-                segment.map { it.date to it.upperKg },
-            )
-        }
-    }
+    val referenceSeries = remember(reference) { petWeightReferenceChartSeries(reference) }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
     }
@@ -220,8 +249,8 @@ private fun PetWeightVicoChart(
     }
     val lines = buildList {
         if (factual.isNotEmpty()) add(rememberSmoothChartLine(factualColor, factual.size))
-        referenceSeries.forEach { points ->
-            add(rememberSmoothChartLine(referenceColor, points.size))
+        referenceSeries.forEach { series ->
+            add(rememberSmoothChartLine(referenceColor, series.points.size))
         }
     }
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -270,7 +299,8 @@ private fun PetWeightVicoChart(
                         y = factual.map(ChartPoint::value),
                     )
                 }
-                referenceSeries.forEach { points ->
+                referenceSeries.forEach { referenceChartSeries ->
+                    val points = referenceChartSeries.points
                     series(
                         x = points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                         y = points.map { it.second },
