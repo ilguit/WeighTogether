@@ -152,6 +152,43 @@ class ReferencePresentationComponentsTest {
     }
 
     @Test
+    fun expandedCardKeepsScaleFullWidthAndInfoButtonClearOfHeader() {
+        val presentation = presentation()
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Box(Modifier.width(240.dp)) {
+                    ExpandedMetricReference(presentation, onInfoClick = {})
+                }
+            }
+        }
+
+        val contentBounds = composeRule.onNodeWithTag(
+            ReferenceComponentTestTags.Information,
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
+        val scaleBounds = composeRule.onNodeWithTag(
+            ReferenceRangeScaleTestTags.Scale,
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
+        val headerBounds = composeRule.onNodeWithTag(
+            ReferenceComponentTestTags.Header,
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
+        val infoBounds = composeRule.onNodeWithTag(
+            ReferenceComponentTestTags.InfoButton,
+            useUnmergedTree = true,
+        ).fetchSemanticsNode().boundsInRoot
+
+        assertEquals(contentBounds.left, scaleBounds.left, 1f)
+        assertEquals(contentBounds.right, scaleBounds.right, 1f)
+        assertEquals(contentBounds.right, infoBounds.right, 1f)
+        assertEquals(contentBounds.top, infoBounds.top, 1f)
+        assertTrue(infoBounds.width >= with(composeRule.density) { 48.dp.toPx() })
+        assertTrue(infoBounds.height >= with(composeRule.density) { 48.dp.toPx() })
+        assertTrue(headerBounds.right <= infoBounds.left)
+    }
+
+    @Test
     fun rangeScaleIsDecorativeAndAbsentWithoutRatedZones() {
         val presentation = presentation()
         composeRule.setContent {
