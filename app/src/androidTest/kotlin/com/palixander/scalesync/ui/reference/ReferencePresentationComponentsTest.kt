@@ -9,9 +9,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -175,6 +177,76 @@ class ReferencePresentationComponentsTest {
     }
 
     @Test
+    fun fiveZoneScaleRendersEverySegmentBoundaryLabelMarkerAndCurrentCategoryOnce() {
+        val presentation = presentation()
+        assertEquals(5, presentation.zones.size)
+        val current = presentation.zones.single { it.isCurrent }
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Box(Modifier.width(320.dp)) {
+                    ReferenceRangeScale(presentation)
+                }
+            }
+        }
+
+        presentation.zones.indices.forEach { index ->
+            composeRule.onAllNodesWithTag(
+                ReferenceRangeScaleTestTags.segment(index),
+                useUnmergedTree = true,
+            ).assertCountEquals(1)
+        }
+        presentation.zones.dropLast(1).indices.forEach { index ->
+            composeRule.onAllNodesWithTag(
+                ReferenceRangeScaleTestTags.boundary(index),
+                useUnmergedTree = true,
+            ).assertCountEquals(1)
+        }
+        presentation.zones.forEachIndexed { index, zone ->
+            val tag = if (zone.isCurrent) {
+                ReferenceRangeScaleTestTags.currentZone(zone.category.name)
+            } else {
+                ReferenceRangeScaleTestTags.zone(index)
+            }
+            composeRule.onAllNodesWithTag(tag, useUnmergedTree = true).assertCountEquals(1)
+        }
+        composeRule.onAllNodesWithTag(
+            ReferenceRangeScaleTestTags.Marker,
+            useUnmergedTree = true,
+        ).assertCountEquals(1)
+        composeRule.onAllNodesWithTag(
+            ReferenceRangeScaleTestTags.currentZone(current.category.name),
+            useUnmergedTree = true,
+        ).assertCountEquals(1)
+    }
+
+    @Test
+    fun boundaryRowsSwitchBelow320DpAndAt13FontScale() {
+        val presentation = presentation()
+
+        setScale(presentation, width = 320, fontScale = 1.29f)
+        composeRule.onNodeWithTag(
+            ReferenceRangeScaleTestTags.SingleRowBoundaries,
+            useUnmergedTree = true,
+        ).assertExists()
+        composeRule.onNodeWithTag(
+            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
+            useUnmergedTree = true,
+        ).assertDoesNotExist()
+
+        setScale(presentation, width = 319, fontScale = 1.0f)
+        composeRule.onNodeWithTag(
+            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
+            useUnmergedTree = true,
+        ).assertExists()
+
+        setScale(presentation, width = 320, fontScale = 1.3f)
+        composeRule.onNodeWithTag(
+            ReferenceRangeScaleTestTags.AlternateRowBoundaries,
+            useUnmergedTree = true,
+        ).assertExists()
+    }
+
+    @Test
     fun compactCardExcludesBoundariesAndInfoActionFromItsSemantics() {
         val presentation = presentation()
         composeRule.setContent {
@@ -277,6 +349,19 @@ class ReferencePresentationComponentsTest {
                 ScaleSyncTheme {
                     Box(Modifier.width(width.dp)) {
                         GroupedMetricReferences(groups, onInfoClick = {})
+                    }
+                }
+            }
+        }
+    }
+
+    private fun setScale(presentation: ReferenceMetricPresentation, width: Int, fontScale: Float) {
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale)) {
+                ScaleSyncTheme {
+                    Box(Modifier.width(width.dp)) {
+                        ReferenceRangeScale(presentation)
                     }
                 }
             }

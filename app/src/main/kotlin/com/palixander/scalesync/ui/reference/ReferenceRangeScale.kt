@@ -35,6 +35,12 @@ internal object ReferenceRangeScaleTestTags {
     const val Scale = "reference-range-scale"
     const val SingleRowBoundaries = "reference-range-scale-boundaries-single-row"
     const val AlternateRowBoundaries = "reference-range-scale-boundaries-alternate-row"
+    const val Marker = "reference-range-scale-marker"
+
+    fun segment(index: Int) = "reference-range-scale-segment-$index"
+    fun boundary(index: Int) = "reference-range-scale-boundary-$index"
+    fun zone(index: Int) = "reference-range-scale-zone-$index"
+    fun currentZone(category: String) = "reference-range-scale-current-zone-$category"
 }
 
 internal fun referenceScaleUsesAlternateBoundaryRows(width: Dp, fontScale: Float): Boolean =
@@ -86,11 +92,12 @@ fun ReferenceRangeScale(
                         .height(8.dp)
                         .clip(RoundedCornerShape(4.dp)),
                 ) {
-                    presentation.zones.forEach { zone ->
+                    presentation.zones.forEachIndexed { index, zone ->
                         Box(
                             Modifier
                                 .weight(1f)
                                 .height(8.dp)
+                                .testTag(ReferenceRangeScaleTestTags.segment(index))
                                 .background(ReferencePalette.colors(zone.tone).container),
                         )
                     }
@@ -101,7 +108,8 @@ fun ReferenceRangeScale(
                     modifier = Modifier
                         .offset(x = scaleWidth * markerFraction.toFloat() - 8.dp)
                         .width(16.dp)
-                        .height(16.dp),
+                        .height(16.dp)
+                        .testTag(ReferenceRangeScaleTestTags.Marker),
                 ) {
                     drawCircle(color = markerColor, radius = size.minDimension / 2f)
                     drawCircle(
@@ -116,13 +124,20 @@ fun ReferenceRangeScale(
                 }
             }
             Row(modifier = Modifier.fillMaxWidth()) {
-                presentation.zones.forEach { zone ->
+                presentation.zones.forEachIndexed { index, zone ->
                     val zoneColor = ReferencePalette.colors(zone.tone).content
                     Text(
                         text = zone.label,
                         modifier = Modifier
                             .weight(1f)
-                            .padding(horizontal = 2.dp),
+                            .padding(horizontal = 2.dp)
+                            .testTag(
+                                if (zone.isCurrent) {
+                                    ReferenceRangeScaleTestTags.currentZone(zone.category.name)
+                                } else {
+                                    ReferenceRangeScaleTestTags.zone(index)
+                                },
+                            ),
                         color = if (zone.isCurrent) zoneColor else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (zone.isCurrent) FontWeight.Medium else FontWeight.Normal,
                         maxLines = 2,
@@ -170,6 +185,7 @@ private fun BoundaryLabelRow(
                 if (visibleParity == null || index % 2 == visibleParity) {
                     Text(
                         text = label,
+                        modifier = Modifier.testTag(ReferenceRangeScaleTestTags.boundary(index)),
                         maxLines = 1,
                         overflow = TextOverflow.Clip,
                         textAlign = TextAlign.Center,
