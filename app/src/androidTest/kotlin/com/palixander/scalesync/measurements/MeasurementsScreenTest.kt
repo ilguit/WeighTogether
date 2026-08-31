@@ -114,7 +114,7 @@ class MeasurementsScreenTest {
             substring = true,
         ).assertIsDisplayed()
         composeRule.onNodeWithText(
-            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг к прошлому",
+            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг",
         ).assertIsDisplayed()
         listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
             composeRule.onNodeWithText(label).assertIsDisplayed()

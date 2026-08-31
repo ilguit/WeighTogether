@@ -1747,7 +1747,7 @@ private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault
     else -> {
         val prefix = if (delta > 0) "+" else "−"
         val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        "$prefix$value кг к прошлому"
+        "$prefix$value кг"
     }
 }
 
