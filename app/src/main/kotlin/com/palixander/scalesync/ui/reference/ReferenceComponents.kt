@@ -38,6 +38,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
@@ -159,7 +160,7 @@ fun ExpandedMetricReference(
                         style = MaterialTheme.typography.labelMedium,
                     )
                 }
-                presentation.zones.forEach { ReferenceZoneRow(it) }
+                ReferenceRangeScale(presentation)
             }
             IconButton(
                 onClick = onInfoClick,
@@ -221,8 +222,11 @@ fun GroupedMetricReferences(
     infoButtonModifier: (ReferenceMetricPresentation) -> Modifier = { Modifier },
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val twoColumns = maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f
-        val columnCount = if (twoColumns) 2 else 1
+        val width = maxWidth
+        val fontScale = LocalDensity.current.fontScale
+        val twoColumns = groups.any { group ->
+            referenceGroupColumnCount(group.metrics, width, fontScale) == 2
+        }
         Column(
             modifier = Modifier.testTag(
                 if (twoColumns) ReferenceComponentTestTags.GridTwoColumns
@@ -231,6 +235,7 @@ fun GroupedMetricReferences(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             groups.forEach { group ->
+                val columnCount = referenceGroupColumnCount(group.metrics, width, fontScale)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     group.title?.let {
                         Text(
@@ -259,6 +264,20 @@ fun GroupedMetricReferences(
             }
         }
     }
+}
+
+internal fun referenceGroupColumnCount(
+    metrics: List<ReferenceMetricPresentation>,
+    width: Dp,
+    fontScale: Float,
+): Int = if (
+    metrics.none { it.zones.size >= 4 } &&
+    width >= 360.dp &&
+    fontScale < 1.3f
+) {
+    2
+} else {
+    1
 }
 
 @Composable

@@ -97,6 +97,7 @@ import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
 import com.palixander.scalesync.ui.reference.ReferenceComponentTestTags
 import com.palixander.scalesync.ui.reference.ReferenceMetricGroup
 import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
+import com.palixander.scalesync.ui.reference.referenceGroupColumnCount
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -908,15 +909,20 @@ private fun MeasurementReferenceGroups(
             ?.let { ReferenceGroupPresentation(group, group.titleRes?.let { stringResource(it) }, it) }
     }
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columnCount = if (maxWidth >= 360.dp && LocalDensity.current.fontScale < 1.3f) 2 else 1
+        val width = maxWidth
+        val fontScale = LocalDensity.current.fontScale
+        val twoColumns = groups.any { group ->
+            referenceGroupColumnCount(group.metrics, width, fontScale) == 2
+        }
         Column(
             modifier = Modifier.testTag(
-                if (columnCount == 2) ReferenceComponentTestTags.GridTwoColumns
+                if (twoColumns) ReferenceComponentTestTags.GridTwoColumns
                 else ReferenceComponentTestTags.GridOneColumn,
             ),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             groups.forEach { group ->
+                val columnCount = referenceGroupColumnCount(group.metrics, width, fontScale)
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     group.title?.let { title ->
                         Text(

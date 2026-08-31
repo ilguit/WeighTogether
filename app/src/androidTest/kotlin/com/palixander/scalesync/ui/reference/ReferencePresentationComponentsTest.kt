@@ -138,6 +138,14 @@ class ReferencePresentationComponentsTest {
         composeRule.onNodeWithContentDescription("Подробнее о показателе: BMI")
             .assertExists()
             .assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithTag(ReferenceRangeScaleTestTags.Scale).assertExists()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(
+                R.string.reference_zone_visual,
+                presentation.zones.first().label,
+                presentation.zones.first().range,
+            ),
+        ).assertDoesNotExist()
     }
 
     @Test
@@ -182,7 +190,7 @@ class ReferencePresentationComponentsTest {
 
     @Test
     fun gridUsesTwoColumnsOnlyAtApprovedWidthAndFontScale() {
-        val presentation = presentation()
+        val presentation = presentation().copy(zones = emptyList(), scaleValue = null)
         val groups = listOf(ReferenceGroupPresentation(ReferenceMetricGroup.MAIN, "Основное", listOf(presentation, presentation)))
 
         setGrid(groups, width = 360, fontScale = 1.29f)
@@ -193,6 +201,24 @@ class ReferencePresentationComponentsTest {
 
         setGrid(groups, width = 400, fontScale = 1.3f)
         composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+    }
+
+    @Test
+    fun groupWithFourOrMoreZonesAlwaysUsesOneColumn() {
+        val ratedPresentation = presentation()
+        val groups = listOf(
+            ReferenceGroupPresentation(
+                ReferenceMetricGroup.MAIN,
+                "Основное",
+                listOf(ratedPresentation, ratedPresentation),
+            ),
+        )
+
+        setGrid(groups, width = 400, fontScale = 1.0f)
+
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridTwoColumns).assertDoesNotExist()
+        assertEquals(1, referenceGroupColumnCount(groups.single().metrics, 400.dp, 1.0f))
     }
 
     @Test
