@@ -12,6 +12,7 @@ import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -99,6 +100,19 @@ class BackupImportServiceTest {
         assertThrows(BackupImportConflicts::class.java) {
             service.preview(
                 petDocument.copy(pets = listOf(petDocument.pets.single().copy(species = PetSpecies.DOG))),
+                imported.result,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p"))) }
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                petDocument.copy(pets = listOf(petDocument.pets.single().copy(
+                    sex = PetSex.FEMALE,
+                    breedId = "external:cat:future",
+                    birthYear = 2020,
+                ))),
                 imported.result,
                 emptySettings,
                 BackupImportMode.MERGE,
@@ -838,6 +852,16 @@ class BackupImportServiceTest {
                     ratingHeightOrigin = null,
                 ),
             ),
+            pets = base.pets.map {
+                it.copy(
+                    sex = null,
+                    breedId = null,
+                    birthYear = null,
+                    birthMonth = null,
+                    birthDay = null,
+                    dogAdultWeightCategory = null,
+                )
+            },
         )
         val localPrimary = AccountEntity(
             "local-primary", "Local", "local", 222.0, null, null, false, 1, 2,

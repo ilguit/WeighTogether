@@ -6,11 +6,14 @@ import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 3
+const val BACKUP_SCHEMA_VERSION: Int = 4
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
+const val BACKUP_SCHEMA_VERSION_V3: Int = 3
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -36,6 +39,12 @@ data class BackupPetV2(
     val species: PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val sex: PetSex? = null,
+    val breedId: String? = null,
+    val birthYear: Int? = null,
+    val birthMonth: Int? = null,
+    val birthDay: Int? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 )
 
 data class BackupPetMeasurementV2(

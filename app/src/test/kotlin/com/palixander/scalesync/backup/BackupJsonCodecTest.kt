@@ -5,6 +5,8 @@ import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -36,7 +38,7 @@ class BackupJsonCodecTest {
 
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":3", "\"schemaVersion\":4").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document()).replace("\"schemaVersion\":4", "\"schemaVersion\":5").replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -89,7 +91,7 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v3RoundTripPreservesMeasurementContextAndPets() {
+    fun v4RoundTripPreservesMeasurementContextAndPets() {
         val source = document().copy(
             measurements = listOf(
                 document().measurements.single().copy(
@@ -122,7 +124,7 @@ class BackupJsonCodecTest {
 
         listOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION_V2).forEach { version ->
             var legacyJson = encoded
-                .replace("\"schemaVersion\":3", "\"schemaVersion\":$version")
+                .replace("\"schemaVersion\":4", "\"schemaVersion\":$version")
                 .replace(legacyMeasurementFields, "")
             if (version == BACKUP_SCHEMA_VERSION_V1) {
                 legacyJson = legacyJson.replace(",\"pets\":[],\"petMeasurements\":[]", "")
@@ -136,7 +138,7 @@ class BackupJsonCodecTest {
     @Test
     fun schemaShapesAndMeasurementContextValuesAreStrict() {
         val encoded = codec.encode(document())
-        val v2WithV3Fields = encoded.replace("\"schemaVersion\":3", "\"schemaVersion\":2")
+        val v2WithV3Fields = encoded.replace("\"schemaVersion\":4", "\"schemaVersion\":2")
         assertThrows(BackupException.Invalid::class.java) { codec.decode(v2WithV3Fields) }
         assertThrows(BackupException.Invalid::class.java) {
             codec.decode(encoded.replace(",\"ratingHeightCm\":null", ""))
@@ -151,13 +153,74 @@ class BackupJsonCodecTest {
             codec.encode(document().copy(measurements = listOf(document().measurements.single().copy(ratingHeightCm = Double.NaN))))
         }
 
-        val v1Json = encoded.replace("\"schemaVersion\":3", "\"schemaVersion\":1")
+        val v1Json = encoded.replace("\"schemaVersion\":4", "\"schemaVersion\":1")
             .replace(",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\"", "")
             .replace(",\"pets\":[],\"petMeasurements\":[]", "")
         val legacy = codec.decode(v1Json)
         assertEquals(1, legacy.schemaVersion)
         assertTrue(legacy.pets.isEmpty())
         assertTrue(legacy.petMeasurements.isEmpty())
+    }
+
+    @Test
+    fun v4RoundTripPreservesCompletePetProfile() {
+        val pet = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11, PetSex.MALE,
+            "scalesync:dog:mixed-breed", 2020, 2, 29, DogAdultWeightCategory.III)
+        val source = document().copy(pets = listOf(pet))
+        assertEquals(source, codec.decode(codec.encode(source)))
+    }
+
+    @Test
+    fun v2AndV3EncodeRejectEveryV4PetProfileField() {
+        val base = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11)
+
+        fun assertRejected(field: String, pet: BackupPetV2) {
+            listOf(BACKUP_SCHEMA_VERSION_V2, BACKUP_SCHEMA_VERSION_V3).forEach { version ->
+                val error = assertThrows(BackupException.Invalid::class.java) {
+                    codec.encode(
+                        document().copy(
+                            schemaVersion = version,
+                            pets = listOf(pet),
+                        ),
+                    )
+                }
+                assertEquals("$.pets[0].$field", error.path)
+            }
+        }
+
+        assertRejected("sex", base.copy(sex = PetSex.MALE))
+        assertRejected("breedId", base.copy(breedId = "scalesync:dog:mixed-breed"))
+        assertRejected("birthYear", base.copy(birthYear = 2020))
+        assertRejected("birthMonth", base.copy(birthMonth = 2))
+        assertRejected("birthDay", base.copy(birthDay = 29))
+        assertRejected("dogAdultWeightCategory", base.copy(dogAdultWeightCategory = DogAdultWeightCategory.III))
+    }
+
+    @Test
+    fun v4RejectsInvalidPetProfileValues() {
+        fun json(pet: BackupPetV2) = codec.encode(document().copy(pets = listOf(pet)))
+        val base = BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthYear\":null", "\"birthYear\":2021")
+                .replace("\"birthMonth\":null", "\"birthMonth\":2").replace("\"birthDay\":null", "\"birthDay\":29"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"sex\":null", "\"sex\":\"FUTURE\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(breedId = "scalesync:dog:mixed-breed"))))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(dogAdultWeightCategory = DogAdultWeightCategory.I))))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthMonth\":null", "\"birthMonth\":2"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthDay\":null", "\"birthDay\":1"))
+        }
+        val unknown = base.copy(breedId = "external:cat:future")
+        assertEquals(unknown, codec.decode(json(unknown)).pets.single())
     }
 
     @Test

@@ -1,6 +1,8 @@
 package com.palixander.scalesync.data
 
 import androidx.room.withTransaction
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
@@ -12,6 +14,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.PetWithMeasurementCount
 import com.palixander.scalesync.domain.PetWithLatestWeight
+import com.palixander.scalesync.domain.PartialBirthDate
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +25,7 @@ class RoomPetRepository(
     private val dao: PetDao = database.petDao(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val breedCatalog: BreedCatalog = BreedCatalog.bundled(),
 ) : PetRepository {
     override fun observePets(): Flow<List<PetWithLatestWeight>> =
         dao.observePetsWithLatestMeasurement().map { rows -> rows.map { it.toDomain() } }
@@ -41,6 +45,7 @@ class RoomPetRepository(
         require(pet.species != PetSpecies.UNSPECIFIED) {
             "A species is required when creating a pet"
         }
+        validateBreedSpecies(pet.breedId?.value, pet.species)
         dao.getPetByNormalizedName(pet.normalizedName)?.let {
             throw PetNameConflictException(pet.normalizedName)
         }
@@ -52,6 +57,12 @@ class RoomPetRepository(
             species = pet.species,
             createdAtEpochMillis = timestamp.toEpochMilli(),
             updatedAtEpochMillis = timestamp.toEpochMilli(),
+            sex = pet.sex,
+            breedId = pet.breedId?.value,
+            birthYear = pet.birthDate?.yearValue,
+            birthMonth = pet.birthDate?.monthValue,
+            birthDay = pet.birthDate?.dayValue,
+            dogAdultWeightCategory = pet.dogAdultWeightCategory,
         )
         if (dao.insertPet(entity) == -1L) {
             throw PetNameConflictException(pet.normalizedName)
@@ -61,6 +72,7 @@ class RoomPetRepository(
 
     override suspend fun updatePet(pet: PetUpdate): Pet = database.withTransaction {
         val existing = dao.getPet(pet.id.value) ?: throw PetNotFoundException(pet.id)
+        validateBreedSpecies(pet.breedId?.value, pet.species)
         val conflicting = dao.getPetByNormalizedName(pet.normalizedName)
         if (conflicting != null && conflicting.id != existing.id) {
             throw PetNameConflictException(pet.normalizedName)
@@ -72,6 +84,12 @@ class RoomPetRepository(
                 displayName = pet.displayName,
                 normalizedName = pet.normalizedName,
                 species = pet.species,
+                sex = pet.sex,
+                breedId = pet.breedId?.value,
+                birthYear = pet.birthDate?.yearValue,
+                birthMonth = pet.birthDate?.monthValue,
+                birthDay = pet.birthDate?.dayValue,
+                dogAdultWeightCategory = pet.dogAdultWeightCategory,
                 updatedAtEpochMillis = updatedAt,
             ) == 1,
         ) { "Pet ${existing.id} disappeared while updating" }
@@ -79,6 +97,12 @@ class RoomPetRepository(
             displayName = pet.displayName,
             normalizedName = pet.normalizedName,
             species = pet.species,
+            sex = pet.sex,
+            breedId = pet.breedId?.value,
+            birthYear = pet.birthDate?.yearValue,
+            birthMonth = pet.birthDate?.monthValue,
+            birthDay = pet.birthDate?.dayValue,
+            dogAdultWeightCategory = pet.dogAdultWeightCategory,
             updatedAtEpochMillis = updatedAt,
         ).toDomain()
     }
@@ -124,6 +148,18 @@ class RoomPetRepository(
         }
         domain
     }
+
+    private fun validateBreedSpecies(breedId: String?, species: PetSpecies) {
+        val breed = breedId?.let(breedCatalog::findById) ?: return
+        val expectedSpecies = when (species) {
+            PetSpecies.CAT -> BreedSpecies.CAT
+            PetSpecies.DOG -> BreedSpecies.DOG
+            PetSpecies.UNSPECIFIED -> return
+        }
+        require(breed.species == expectedSpecies) {
+            "Breed $breedId does not belong to ${species.name.lowercase()} species"
+        }
+    }
 }
 
 class PetNameConflictException(val normalizedName: String) :
@@ -149,6 +185,12 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
         species = species,
         createdAtEpochMillis = createdAtEpochMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
+        sex = sex,
+        breedId = breedId,
+        birthYear = birthYear,
+        birthMonth = birthMonth,
+        birthDay = birthDay,
+        dogAdultWeightCategory = dogAdultWeightCategory,
     ).toDomain()
     val latest = latestMeasurementId?.let { measurementId ->
         PetMeasurementEntity(
@@ -162,3 +204,20 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
     }
     return PetWithLatestWeight(pet = pet, latestMeasurement = latest)
 }
+
+private val PartialBirthDate.yearValue: Int
+    get() = when (this) {
+        is PartialBirthDate.Year -> value.value
+        is PartialBirthDate.Month -> value.year
+        is PartialBirthDate.Day -> value.year
+    }
+
+private val PartialBirthDate.monthValue: Int?
+    get() = when (this) {
+        is PartialBirthDate.Year -> null
+        is PartialBirthDate.Month -> value.monthValue
+        is PartialBirthDate.Day -> value.monthValue
+    }
+
+private val PartialBirthDate.dayValue: Int?
+    get() = (this as? PartialBirthDate.Day)?.value?.dayOfMonth

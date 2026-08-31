@@ -5,6 +5,7 @@ import java.time.LocalDate
 import java.time.YearMonth
 import java.time.temporal.ChronoUnit
 import java.util.Locale
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import kotlin.math.abs
 
 @JvmInline
@@ -121,6 +122,7 @@ data class Pet(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -128,6 +130,7 @@ data class Pet(
             "Normalized name must match the display name"
         }
         require(!updatedAt.isBefore(createdAt)) { "Updated time cannot precede created time" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 }
 
@@ -137,10 +140,12 @@ data class NewPet(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 
     val normalizedName: String = normalizePetName(displayName)
@@ -153,10 +158,12 @@ data class PetUpdate(
     val sex: PetSex? = null,
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 
     val normalizedName: String = normalizePetName(displayName)

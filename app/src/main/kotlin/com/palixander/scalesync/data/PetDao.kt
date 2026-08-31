@@ -13,6 +13,12 @@ data class PetWithLatestMeasurementRow(
     val species: com.palixander.scalesync.domain.PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val sex: com.palixander.scalesync.domain.PetSex?,
+    val breedId: String?,
+    val birthYear: Int?,
+    val birthMonth: Int?,
+    val birthDay: Int?,
+    val dogAdultWeightCategory: com.palixander.scalesync.domain.reference.DogAdultWeightCategory?,
     val latestMeasurementId: String?,
     val latestMeasuredAtEpochSecond: Long?,
     val latestFirstWeightKg: Double?,
@@ -31,7 +37,8 @@ interface PetDao {
     @Query(
         """
         SELECT p.id, p.displayName, p.normalizedName, p.species, p.createdAtEpochMillis,
-            p.updatedAtEpochMillis, m.id AS latestMeasurementId,
+            p.updatedAtEpochMillis, p.sex, p.breedId, p.birthYear, p.birthMonth, p.birthDay,
+            p.dogAdultWeightCategory, m.id AS latestMeasurementId,
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
             m.secondWeightKg AS latestSecondWeightKg,
@@ -75,7 +82,10 @@ interface PetDao {
     @Query(
         """
         UPDATE pets SET displayName = :displayName, normalizedName = :normalizedName,
-            species = :species, updatedAtEpochMillis = :updatedAtEpochMillis
+            species = :species, sex = :sex, breedId = :breedId, birthYear = :birthYear,
+            birthMonth = :birthMonth, birthDay = :birthDay,
+            dogAdultWeightCategory = :dogAdultWeightCategory,
+            updatedAtEpochMillis = :updatedAtEpochMillis
         WHERE id = :id
         """,
     )
@@ -84,6 +94,12 @@ interface PetDao {
         displayName: String,
         normalizedName: String,
         species: com.palixander.scalesync.domain.PetSpecies,
+        sex: com.palixander.scalesync.domain.PetSex?,
+        breedId: String?,
+        birthYear: Int?,
+        birthMonth: Int?,
+        birthDay: Int?,
+        dogAdultWeightCategory: com.palixander.scalesync.domain.reference.DogAdultWeightCategory?,
         updatedAtEpochMillis: Long,
     ): Int
 
