@@ -8,6 +8,11 @@ BodyMiScale is licensed under the Apache License, Version 2.0.
 This project contains an independent Kotlin implementation and records its own
 algorithm version with every measurement.
 
+The bundled breed catalog contains data derived from the Vertebrate Breed
+Ontology (VBO), copyright its contributors, licensed under CC BY 4.0:
+https://github.com/monarch-initiative/vertebrate-breed-ontology
+https://creativecommons.org/licenses/by/4.0/
+
 Xiaomi, Huawei, vivo, Android, Health Connect, Zepp Life, and related product
 names are trademarks of their respective owners. This project is not affiliated
 with or endorsed by those companies.
