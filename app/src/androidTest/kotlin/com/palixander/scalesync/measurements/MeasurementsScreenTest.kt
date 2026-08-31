@@ -7,15 +7,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
@@ -24,14 +27,25 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import com.palixander.scalesync.MeasurementsViewModel
+import com.palixander.scalesync.core.ReferenceClassifier
+import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PreliminaryDecisionReadiness
 import com.palixander.scalesync.ui.accounts.AccountSelectorTestTags
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.reference.ReferenceComponentTestTags
+import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
+import com.palixander.scalesync.ui.reference.toReferenceContext
+import com.palixander.scalesync.ui.reference.toReferenceReadings
+import androidx.test.platform.app.InstrumentationRegistry
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Locale
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -660,6 +674,161 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithText("Состав тела").assertDoesNotExist()
     }
 
+    @Test
+    fun referenceSummaryIsCompactWithoutBoundsOrInfoAndExpandedContainsExactlySixteen() {
+        val latest = referenceItem("latest", "2026-08-15T12:42:00Z")
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton).assertCountEquals(0)
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.Information).assertCountEquals(0)
+        composeRule.onNodeWithText("Жир").assertIsDisplayed()
+        composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+
+        composeRule.onNodeWithTag("summary-expand-metrics").performClick()
+
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(16)
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.Information, useUnmergedTree = true)
+            .assertCountEquals(16)
+    }
+
+    @Test
+    fun expandedHistoryKeepsMultipleCardsOpenWithSixteenMetricsEach() {
+        val first = referenceItem("first", "2026-08-15T12:42:00Z")
+        val second = referenceItem("second", "2026-08-14T12:42:00Z")
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.HISTORY,
+            isLoading = false,
+            measurements = listOf(first, second),
+            summary = buildMeasurementSummary(listOf(first, second)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("history-toggle-first").performClick()
+        composeRule.onNodeWithTag("history-toggle-second").performScrollTo().performClick()
+
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(32)
+    }
+
+    @Test
+    fun processingMeasurementNeverExposesReferenceRangesOrHelp() {
+        val preliminary = preliminaryItem("processing", "2026-08-15T12:42:00Z", 72.4)
+            .copy(referenceMetrics = referencePresentations(sampleValues(72.4)))
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(preliminary),
+            summary = buildMeasurementSummary(listOf(preliminary)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton).assertCountEquals(0)
+        composeRule.onNodeWithTag("summary-processing-status").assertIsDisplayed()
+    }
+
+    @Test
+    fun helpShowsManualAndRestoredWarningsClosesWhenMeasurementDisappearsAndRestoresFocus() {
+        var state by mutableStateOf(
+            referenceItem("legacy", "2026-08-15T12:42:00Z").copy(
+                isManuallyEdited = true,
+                hasRestoredRatingHeight = true,
+            ).let { item ->
+                MeasurementsUiState(
+                    destination = MeasurementsDestination.HISTORY,
+                    isLoading = false,
+                    measurements = listOf(item),
+                    summary = buildMeasurementSummary(listOf(item)),
+                )
+            },
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("history-toggle-legacy").performClick()
+        val action = composeRule.onNodeWithContentDescription("Подробнее о показателе Вес")
+        action.performScrollTo().performClick()
+        composeRule.onNodeWithText(
+            "Измерение изменено вручную; связанные показатели могли не пересчитаться.",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Рост для старого измерения восстановлен из профиля аккаунта-владельца.",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithText("Закрыть").performClick()
+        action.assertIsFocused()
+
+        action.performClick()
+        composeRule.runOnIdle {
+            state = state.copy(measurements = emptyList(), summary = null)
+        }
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.HelpDialog).assertDoesNotExist()
+    }
+
+    @Test
+    fun referenceLayoutUsesOneColumnAtNarrowWidthAndAtLargeFont() {
+        val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
+                ScaleSyncTheme {
+                    Box(Modifier.width(400.dp)) {
+                        MeasurementsScreen(state, MeasurementsCallbacks.None)
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+    }
+
+    @Test
+    fun summaryAndMultipleHistoryExpansionSurviveSavedStateRestoration() {
+        val first = referenceItem("first", "2026-08-15T12:42:00Z")
+        val second = referenceItem("second", "2026-08-14T12:42:00Z")
+        var state by mutableStateOf(
+            MeasurementsUiState(
+                isLoading = false,
+                measurements = listOf(first, second),
+                summary = buildMeasurementSummary(listOf(first, second)),
+            ),
+        )
+        val restoration = StateRestorationTester(composeRule)
+        restoration.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("summary-expand-metrics").performClick()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(16)
+
+        composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
+        composeRule.onNodeWithTag("history-toggle-first").performClick()
+        composeRule.onNodeWithTag("history-toggle-second").performScrollTo().performClick()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(32)
+    }
+
     private fun callbacks(
         onPendingQueueRequested: () -> Unit = {},
         onEditRequested: (String, MeasurementEditorOrigin) -> Unit = { _, _ -> },
@@ -673,6 +842,32 @@ class MeasurementsScreenTest {
         onDeleteConfirmed = onDeleteConfirmed,
         onRetryRequested = onRetryRequested,
     )
+
+    private fun referenceItem(id: String, instant: String): MeasurementUiItem = sampleItem(
+        id = id,
+        instant = instant,
+        weight = 72.4,
+        sync = localOnlySync(),
+    ).copy(
+        referenceMetrics = referencePresentations(sampleValues(72.4)),
+        ratingHeightCm = 175.0,
+        referenceAge = 36,
+    )
+
+    private fun referencePresentations(values: MeasurementUiValues) =
+        ReferencePresentationFactory(
+            InstrumentationRegistry.getInstrumentation().targetContext.resources,
+            Locale.forLanguageTag("ru-RU"),
+        ).let { factory ->
+            val readings = values.toReferenceReadings()
+            val context = values.toReferenceContext(
+                measurementDate = LocalDate.of(2026, 8, 15),
+                birthDate = LocalDate.of(1990, 6, 12),
+                sex = Sex.MALE,
+                ratingHeightCm = 175.0,
+            )
+            factory.createAll(readings, ReferenceClassifier().classifyAll(readings, context))
+        }
 
     private fun setContentWithSnackbar(
         state: MeasurementsUiState,

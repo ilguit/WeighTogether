@@ -16,12 +16,14 @@ import com.palixander.scalesync.measurements.MeasurementEditorDraft
 import com.palixander.scalesync.measurements.MeasurementEditorOrigin
 import com.palixander.scalesync.measurements.MeasurementEditorState
 import com.palixander.scalesync.measurements.MeasurementUiType
+import com.palixander.scalesync.measurements.MeasurementUiValues
 import com.palixander.scalesync.measurements.MeasurementsDestination
 import com.palixander.scalesync.measurements.MeasurementsNavigationState
 import com.palixander.scalesync.measurements.buildHomeKgChartUiState
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -599,6 +601,44 @@ class MeasurementsViewModelTest {
             unassignedPendingMeasurements(listOf(assigned, unassigned)),
         )
     }
+
+    @Test
+    fun referenceContextUsesSavedHeightAndCurrentOwnerSexAndBirthDate() {
+        val owner = account("owner").copy(
+            profile = AccountProfile.Complete(
+                heightCm = 190.0,
+                birthDate = LocalDate.of(1990, 6, 12),
+                sex = Sex.FEMALE,
+            ),
+        )
+        val result = measurementReferenceContext(
+            values = measurementValues(),
+            measuredAt = Instant.parse("2026-08-15T12:42:00Z"),
+            ratingHeightCm = 168.5,
+            account = owner,
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(168.5, result.context.heightCm)
+        assertEquals(Sex.FEMALE, result.context.sex)
+        assertEquals(LocalDate.of(1990, 6, 12), result.context.birthDate)
+        assertEquals(36, result.age)
+    }
+
+    @Test
+    fun referenceContextTreatsBirthDateAfterHistoricalMeasurementAsMissing() {
+        val result = measurementReferenceContext(
+            values = measurementValues(),
+            measuredAt = Instant.parse("1980-08-15T12:42:00Z"),
+            ratingHeightCm = 168.5,
+            account = account("owner"),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(null, result.context.birthDate)
+        assertEquals(null, result.age)
+        assertEquals(168.5, result.context.heightCm)
+    }
 }
 
 private fun editor(id: String) = MeasurementEditorState(
@@ -680,4 +720,23 @@ private fun measurement(id: String) = MeasurementEntity(
     metabolicAge = 35,
     leanBodyMassKg = 56.0,
     algorithmVersion = "test-v1",
+)
+
+private fun measurementValues() = MeasurementUiValues(
+    weightKg = 70.0,
+    impedanceOhm = 500,
+    bmi = 22.9,
+    bodyFatPercent = 20.0,
+    bodyFatMassKg = 14.0,
+    waterPercent = 55.0,
+    waterMassKg = 38.5,
+    muscleMassKg = 40.0,
+    skeletalMuscleMassKg = 20.0,
+    boneMassKg = 3.0,
+    proteinPercent = 18.0,
+    proteinMassKg = 12.6,
+    visceralFatLevel = 7.0,
+    basalMetabolicRateKcal = 1_500.0,
+    metabolicAge = 35,
+    leanBodyMassKg = 56.0,
 )
