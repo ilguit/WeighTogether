@@ -885,7 +885,9 @@ private fun MeasurementReferenceMetric(
     ExpandedMetricReference(
         presentation = metric,
         onInfoClick = { onInfoClick(item, metric) },
-        modifier = modifier,
+        modifier = modifier.testTag(
+            "reference-metric-${item.presentationKey}-${metric.definition.metric.name}",
+        ),
         infoButtonModifier = Modifier.focusRequester(focusRequester),
     )
 }
@@ -1005,10 +1007,13 @@ private fun MeasurementHistoryCard(
                             text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        Text(
-                            text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
-                            style = MaterialTheme.typography.titleMedium,
-                        )
+                        if (!expanded || item.isWeightOnly) {
+                            Text(
+                                text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
+                                modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                        }
                         if (item.isWeightOnly) {
                             Text(
                                 text = "Только вес",

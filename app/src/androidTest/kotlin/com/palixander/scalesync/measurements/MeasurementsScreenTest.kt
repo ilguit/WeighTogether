@@ -20,6 +20,8 @@ import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.hasAnyDescendant
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -701,7 +703,7 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun expandedHistoryKeepsMultipleCardsOpenWithSixteenMetricsEach() {
+    fun historyShowsWeightOnceAndKeepsMultipleExpandedCardsOpenWithSixteenMetricsEach() {
         val first = referenceItem("first", "2026-08-15T12:42:00Z")
         val second = referenceItem("second", "2026-08-14T12:42:00Z")
         val state = MeasurementsUiState(
@@ -715,11 +717,84 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
         }
 
+        composeRule.onNodeWithTag("history-header-weight-first").assertIsDisplayed()
+        composeRule.onNodeWithTag("reference-metric-first-WEIGHT").assertDoesNotExist()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(0)
+
         composeRule.onNodeWithTag("history-toggle-first").performClick()
+
+        composeRule.onNodeWithTag("history-header-weight-first").assertDoesNotExist()
+        composeRule.onNodeWithTag("reference-metric-first-WEIGHT").assertIsDisplayed()
+        assertEquals(16, first.referenceMetrics.size)
+        first.referenceMetrics.forEach { metric ->
+            composeRule.onNode(
+                hasTestTag("reference-metric-first-${metric.definition.metric.name}") and
+                    hasAnyDescendant(hasTestTag(ReferenceComponentTestTags.InfoButton)),
+                useUnmergedTree = true,
+            ).assertExists()
+        }
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.Information, useUnmergedTree = true)
+            .assertCountEquals(16)
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(16)
+
         composeRule.onNodeWithTag("history-toggle-second").performScrollTo().performClick()
 
+        composeRule.onNodeWithTag("history-header-weight-second").assertDoesNotExist()
+        composeRule.onNodeWithTag("reference-metric-second-WEIGHT").assertIsDisplayed()
+        assertEquals(16, second.referenceMetrics.size)
+        second.referenceMetrics.forEach { metric ->
+            composeRule.onNode(
+                hasTestTag("reference-metric-second-${metric.definition.metric.name}") and
+                    hasAnyDescendant(hasTestTag(ReferenceComponentTestTags.InfoButton)),
+                useUnmergedTree = true,
+            ).assertExists()
+        }
+
+        composeRule.onNodeWithTag("history-toggle-first").performScrollTo()
+        composeRule.onNodeWithTag("reference-metric-first-WEIGHT").assertIsDisplayed()
+        composeRule.onNodeWithTag("history-toggle-second").performScrollTo()
+        composeRule.onNodeWithTag("reference-metric-second-WEIGHT").assertIsDisplayed()
+    }
+
+    @Test
+    fun weightOnlyHistoryKeepsItsSinglePlainWeightWhenExpanded() {
+        val item = sampleItem(
+            id = "weight-only-history",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = localOnlySync(),
+        ).copy(
+            type = MeasurementUiType.WEIGHT_ONLY,
+            values = weightOnlyValues(72.4),
+            referenceMetrics = emptyList(),
+        )
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.HISTORY,
+            isLoading = false,
+            measurements = listOf(item),
+            summary = buildMeasurementSummary(listOf(item)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onAllNodesWithTag("history-header-weight-weight-only-history")
+            .assertCountEquals(1)
+        composeRule.onNodeWithTag("history-weight-only-label-weight-only-history").assertIsDisplayed()
         composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
-            .assertCountEquals(32)
+            .assertCountEquals(0)
+
+        composeRule.onNodeWithTag("history-toggle-weight-only-history").performClick()
+
+        composeRule.onAllNodesWithTag("history-header-weight-weight-only-history")
+            .assertCountEquals(1)
+        composeRule.onNodeWithTag("history-weight-only-label-weight-only-history").assertIsDisplayed()
+        composeRule.onNodeWithTag("reference-metric-weight-only-history-WEIGHT").assertDoesNotExist()
+        composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton, useUnmergedTree = true)
+            .assertCountEquals(0)
     }
 
     @Test
