@@ -830,7 +830,6 @@ private fun CompactSummaryReferenceMetric(
         modifier = modifier
             .clearAndSetSemantics {
                 contentDescription = presentation.compactAccessibilityDescription
-                compactSummaryReferenceContentColor = referenceContent.value.toLong()
             }
             .padding(vertical = if (primary) 2.dp else 6.dp)
             .testTag("summary-reference-${presentation.definition.metric.name}"),
@@ -852,14 +851,21 @@ private fun CompactSummaryReferenceMetric(
                 lineHeight = if (primary) 44.sp else MaterialTheme.typography.titleMedium.lineHeight,
                 fontWeight = if (primary) FontWeight.Medium else FontWeight.Normal,
                 letterSpacing = if (primary) (-1).sp else MaterialTheme.typography.titleMedium.letterSpacing,
-                modifier = Modifier.testTag(
-                    "summary-reference-value-${presentation.definition.metric.name}",
-                ),
+                modifier = Modifier
+                    .semantics {
+                        compactSummaryReferenceContentColor = referenceContent.value.toLong()
+                    }
+                    .testTag("summary-reference-value-${presentation.definition.metric.name}"),
             )
             if (presentation.visualNumber != null) {
                 Text(
                     text = " ${presentation.visibleUnit}",
-                    modifier = if (primary) Modifier.padding(bottom = 5.dp) else Modifier,
+                    modifier = Modifier
+                        .then(if (primary) Modifier.padding(bottom = 5.dp) else Modifier)
+                        .semantics {
+                            compactSummaryReferenceContentColor = referenceContent.value.toLong()
+                        }
+                        .testTag("summary-reference-unit-${presentation.definition.metric.name}"),
                     color = referenceContent,
                     style = if (primary) {
                         MaterialTheme.typography.bodyLarge

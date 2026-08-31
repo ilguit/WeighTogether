@@ -183,16 +183,20 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
         }
 
-        composeRule.onNodeWithTag("summary-reference-BODY_FAT_PERCENT")
-            .assert(SemanticsMatcher.expectValue(
-                CompactSummaryReferenceContentColorKey,
-                ReferencePalette.Normal.content.value.toLong(),
-            ))
-        composeRule.onNodeWithTag("summary-reference-BMI")
-            .assert(SemanticsMatcher.expectValue(
-                CompactSummaryReferenceContentColorKey,
-                ReferencePalette.VeryHigh.content.value.toLong(),
-            ))
+        listOf(
+            "BODY_FAT_PERCENT" to ReferencePalette.Normal.content,
+            "BMI" to ReferencePalette.VeryHigh.content,
+        ).forEach { (metric, expectedColor) ->
+            listOf("value", "unit").forEach { part ->
+                composeRule.onNodeWithTag(
+                    "summary-reference-$part-$metric",
+                    useUnmergedTree = true,
+                ).assert(SemanticsMatcher.expectValue(
+                    CompactSummaryReferenceContentColorKey,
+                    expectedColor.value.toLong(),
+                ))
+            }
+        }
     }
 
     @Test
