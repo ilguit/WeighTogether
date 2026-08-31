@@ -170,7 +170,13 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference) {
             modifier = Modifier
                 .fillMaxWidth()
                 .testTag(PetWeightChartTestTags.ReferenceDetails)
-                .semantics(mergeDescendants = true) { contentDescription = reference.accessibilityLabel },
+                .semantics(mergeDescendants = true) {
+                    contentDescription = buildString {
+                        append(reference.accessibilityLabel)
+                        reference.constraints.forEach { append(" Ограничение: $it.") }
+                        append(" Эталон не ставит диагноз.")
+                    }
+                },
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text("Как читать эталон", style = MaterialTheme.typography.titleSmall)

@@ -27,9 +27,11 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
+import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.ui.profiles.PetHistoryCallbacks
 import com.palixander.scalesync.ui.profiles.PetHistoryContent
 import com.palixander.scalesync.ui.profiles.PetHistoryDeleteConfirmation
@@ -41,6 +43,8 @@ import com.palixander.scalesync.ui.profiles.PetWeightChartTestTags
 import com.palixander.scalesync.ui.profiles.PetProfileSummary
 import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
+import com.palixander.scalesync.ui.profiles.PetHistoryReferencePoint
+import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -188,6 +192,69 @@ class PetHistoryScreenUiTest {
         }
 
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart).assertIsDisplayed()
+    }
+
+    @Test fun availableReferenceRendersWithoutMeasurementsAndExplainsBreedSourceAndLimits() {
+        val reference = availableReference("Эталон по породе")
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasContentDescription("Измерений нет", substring = true))
+        composeRule.onNodeWithText("Эталон по породе · Возраст: 100–102 дн.").assertIsDisplayed()
+        composeRule.onNodeWithText("Источник: Test veterinary source").assertIsDisplayed()
+        composeRule.onNodeWithText("Ограничение: Только здоровые животные").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.ReferenceDetails)
+            .assert(hasContentDescription("Источник: Test veterinary source", substring = true))
+            .assert(hasContentDescription("Ограничение: Только здоровые животные", substring = true))
+            .assert(hasContentDescription("не ставит диагноз", substring = true))
+    }
+
+    @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {
+        val first = row("one")
+        val second = row("two")
+        val reference = availableReference("Эталон по весовой категории")
+
+        setScreen(state(PetHistoryContent.Single(first)).copy(
+            series = ChartSeries(PetWeightChartMetric, listOf(ChartPoint(1_000L, 4.2))),
+            weightReference = reference,
+        ))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assert(hasContentDescription("Измерений: 1", substring = true))
+            .assert(hasContentDescription("Эталон по весовой категории", substring = true))
+
+        setScreen(state(PetHistoryContent.Multiple(listOf(first, second))).copy(
+            series = ChartSeries(
+                PetWeightChartMetric,
+                listOf(ChartPoint(1_000L, 4.2), ChartPoint(2_000L, 4.3)),
+            ),
+            weightReference = reference,
+        ))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assert(hasContentDescription("Измерений: 2", substring = true))
+    }
+
+    @Test fun unavailableReferenceShowsConcreteReasonAndRemainsReadableAtNarrowLargeText() {
+        val explanation = "Эталон недоступен: укажите ожидаемую весовую категорию взрослой собаки."
+        val screenState = state(PetHistoryContent.Empty).copy(
+            weightReference = PetHistoryWeightReference.Unavailable(
+                WeightReferenceUnavailableReason.MissingDogAdultWeight,
+                explanation,
+            ),
+        )
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.shell(screenState.petId.value))
+            .assert(hasScrollAction())
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Unavailable).assertIsDisplayed()
+        composeRule.onNodeWithText(explanation).assertIsDisplayed()
     }
 
     @Test fun deleteActionOpensDialogForExactRowAndCancelDoesNotConfirm() {
@@ -368,4 +435,22 @@ class PetHistoryScreenUiTest {
     }
 
     private fun row(id: String) = PetHistoryMeasurementUi(id, 1, "27.08.2026 15:00", 4.2, "4,20 кг")
+
+    private fun availableReference(basisLabel: String) = PetHistoryWeightReference.Available(
+        basis = if (basisLabel.contains("породе")) ReferenceBasis.BREED else ReferenceBasis.WEIGHT_CATEGORY,
+        segments = listOf(
+            listOf(
+                PetHistoryReferencePoint(LocalDate.of(2026, 8, 1), 3.0, 3.5, 4.0, 4.5),
+                PetHistoryReferencePoint(LocalDate.of(2026, 8, 27), 3.2, 3.7, 4.2, 4.7),
+            ),
+        ),
+        approximate = false,
+        ageLabel = "Возраст: 100–102 дн.",
+        basisLabel = basisLabel,
+        sourceLabel = "Источник: Test veterinary source",
+        citation = "Test veterinary source",
+        license = "CC BY 4.0",
+        constraints = listOf("Только здоровые животные"),
+        accessibilityLabel = "$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0.",
+    )
 }
