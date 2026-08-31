@@ -2,6 +2,7 @@ package com.palixander.scalesync.ui.reference
 
 import android.app.Application
 import android.content.Context
+import androidx.compose.ui.unit.dp
 import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.core.MetricInterpretation
@@ -11,6 +12,7 @@ import com.palixander.scalesync.core.ReferenceVersion
 import com.palixander.scalesync.core.ReferenceZone
 import com.palixander.scalesync.core.UnavailableReason
 import com.palixander.scalesync.core.ZoneBasis
+import com.palixander.scalesync.ui.theme.referenceTone
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -22,6 +24,13 @@ import java.util.Locale
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class ReferencePresentationTest {
+    @Test
+    fun `scale alternates boundary rows at narrow width or increased font scale`() {
+        assertTrue(referenceScaleUsesAlternateBoundaryRows(319.dp, 1f))
+        assertTrue(referenceScaleUsesAlternateBoundaryRows(320.dp, 1.3f))
+        assertEquals(false, referenceScaleUsesAlternateBoundaryRows(320.dp, 1.29f))
+    }
+
     @Test
     fun `createAll passes weight to skeletal muscle kilogram zone presentation`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
@@ -60,6 +69,40 @@ class ReferencePresentationTest {
         )
         assertEquals(ReferenceCategory.NORMAL, presentation.zones.single { it.isCurrent }.category)
         assertEquals(1, presentation.zones.count { it.isCurrent })
+        assertEquals(26.95, presentation.scaleValue!!, 0.000_001)
+        assertEquals(23.31, presentation.zones[1].lowerInclusive!!, 0.000_001)
+        assertEquals("23,31", presentation.zones[1].lowerBoundaryLabel)
+        assertEquals("27,58", presentation.zones[1].upperBoundaryLabel)
+    }
+
+    @Test
+    fun `marker uses equal segment widths and proportional position in finite zone`() {
+        val zones = markerZones(currentIndex = 1)
+
+        assertEquals(0.375, referenceScaleMarkerFraction(15.0, zones)!!, 0.000_001)
+    }
+
+    @Test
+    fun `marker uses stable inward positions for open edge zones`() {
+        assertEquals(0.1875, referenceScaleMarkerFraction(2.0, markerZones(currentIndex = 0))!!, 0.000_001)
+        assertEquals(0.8125, referenceScaleMarkerFraction(99.0, markerZones(currentIndex = 3))!!, 0.000_001)
+    }
+
+    @Test
+    fun `marker follows classifier category at a shared boundary`() {
+        val zones = markerZones(currentIndex = 2)
+
+        assertEquals(0.5, referenceScaleMarkerFraction(20.0, zones)!!, 0.000_001)
+    }
+
+    @Test
+    fun `marker clamps finite zone values and rejects unusable input`() {
+        val zones = markerZones(currentIndex = 1)
+
+        assertEquals(0.25, referenceScaleMarkerFraction(-100.0, zones)!!, 0.000_001)
+        assertEquals(0.5, referenceScaleMarkerFraction(100.0, zones)!!, 0.000_001)
+        assertEquals(null, referenceScaleMarkerFraction(Double.NaN, zones))
+        assertEquals(null, referenceScaleMarkerFraction(15.0, zones.map { it.copy(isCurrent = false) }))
     }
 
     @Test
@@ -122,4 +165,26 @@ class ReferencePresentationTest {
         basis = ZoneBasis.SKELETAL_MUSCLE_PERCENT,
         classifiedValue = 38.5,
     )
+
+    private fun markerZones(currentIndex: Int): List<ReferenceZonePresentation> {
+        val bounds = listOf(null to 10.0, 10.0 to 20.0, 20.0 to 30.0, 30.0 to null)
+        val categories = listOf(
+            ReferenceCategory.VERY_LOW,
+            ReferenceCategory.LOW,
+            ReferenceCategory.NORMAL,
+            ReferenceCategory.HIGH,
+        )
+        return bounds.mapIndexed { index, (lower, upper) ->
+            ReferenceZonePresentation(
+                category = categories[index],
+                label = categories[index].name,
+                range = "",
+                spokenRange = "",
+                isCurrent = index == currentIndex,
+                tone = categories[index].referenceTone(),
+                lowerInclusive = lower,
+                upperExclusive = upper,
+            )
+        }
+    }
 }
