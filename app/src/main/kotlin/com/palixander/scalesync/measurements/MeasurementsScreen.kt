@@ -70,6 +70,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
@@ -893,7 +894,8 @@ private fun MeasurementReferenceMetric(
 private fun referenceUsedDataText(item: MeasurementUiItem): String? {
     val height = item.ratingHeightCm ?: return null
     val age = item.referenceAge ?: return null
-    val formattedHeight = NumberFormat.getNumberInstance(Locale.getDefault()).apply {
+    val locale = LocalConfiguration.current.locales[0]
+    val formattedHeight = NumberFormat.getNumberInstance(locale).apply {
         maximumFractionDigits = 2
         minimumFractionDigits = 0
     }.format(height)
