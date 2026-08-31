@@ -450,18 +450,8 @@ fun validatePetBirthDateInput(
 
 fun isDogAdultWeightCategoryApplicable(
     species: PetSpecies?,
-    breed: PetBreedSelection?,
-): Boolean {
-    if (species != PetSpecies.DOG) return false
-    return when ((breed as? PetBreedSelection.Available)?.option?.kind) {
-        BreedKind.MIXED,
-        BreedKind.UNKNOWN,
-        -> true
-        BreedKind.VBO,
-        null,
-        -> false
-    }
-}
+    @Suppress("UNUSED_PARAMETER") breed: PetBreedSelection?,
+): Boolean = species == PetSpecies.DOG
 
 fun petSexLabel(sex: PetSex?): String = when (sex) {
     PetSex.MALE -> "Самец"

@@ -287,7 +287,7 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun compatibleSpeciesAndBreedChangesNeedNoConfirmationAndKeepCategoryConsistent() {
+    fun compatibleSpeciesAndBreedChangesNeedNoConfirmationAndKeepDogCategory() {
         var state = PetProfileEditorState(
             PetProfileDraft.create().copy(displayName = "Луна"),
         )
@@ -303,7 +303,10 @@ class PetProfileEditorContractTest {
         assertNull(state.pendingSpeciesChange)
         assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
         state = reduce(state, PetProfileAction.BreedChanged(PetBreedSelection.Available(ordinaryDog)))
-        assertNull(state.draft.dogAdultWeightCategory)
+        assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
+        val saved = validatePetProfileDraft(state.draft, today).newPet
+        assertEquals(ordinaryDog.id, saved?.breedId)
+        assertEquals(DogAdultWeightCategory.V, saved?.dogAdultWeightCategory)
         val unchanged = reduce(
             state,
             PetProfileAction.BreedChanged(PetBreedSelection.Available(catBreed)),

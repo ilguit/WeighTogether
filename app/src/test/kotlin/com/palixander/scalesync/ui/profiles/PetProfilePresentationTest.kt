@@ -88,7 +88,7 @@ class PetProfilePresentationTest {
     }
 
     @Test
-    fun `saved category is hidden for an ordinary dog breed`() {
+    fun `saved category is shown for a dog with a specific breed`() {
         val breed = catalog.search("Бигль", PetSpecies.DOG).single()
         val summary = petProfileSummary(
             pet(
@@ -100,14 +100,20 @@ class PetProfilePresentationTest {
         )
 
         assertEquals(
-            listOf(PetProfileSummaryItem("Порода", "Бигль")),
+            listOf(
+                PetProfileSummaryItem("Порода", "Бигль"),
+                PetProfileSummaryItem("Весовая категория", "II — 6,5–9 кг"),
+            ),
             summary.items,
         )
-        assertEquals("Порода: Бигль", summary.contentDescription)
+        assertEquals(
+            "Порода: Бигль. Весовая категория: II — 6,5–9 кг",
+            summary.contentDescription,
+        )
     }
 
     @Test
-    fun `saved category is hidden while unavailable dog breed id stays visible`() {
+    fun `saved category and unavailable dog breed id stay visible`() {
         val unavailableBreedId = BreedId("retired:dog:very-long-id")
         val summary = petProfileSummary(
             pet(
@@ -124,11 +130,12 @@ class PetProfilePresentationTest {
                     "Порода",
                     "Недоступна: retired:dog:very-long-id",
                 ),
+                PetProfileSummaryItem("Весовая категория", "IV — 15–30 кг"),
             ),
             summary.items,
         )
         assertEquals(
-            "Порода: Недоступна: retired:dog:very-long-id",
+            "Порода: Недоступна: retired:dog:very-long-id. Весовая категория: IV — 15–30 кг",
             summary.contentDescription,
         )
     }
