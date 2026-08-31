@@ -61,6 +61,11 @@ class ReferencePresentationComponentsTest {
             assertTrue(help.sourceUrl.startsWith("https://"))
         }
         assertEquals("Набор норм: ScaleSync 1", resources.getString(R.string.reference_set_label))
+        assertEquals(
+            "Поле не совпадает строго с клинической fat-free mass. " +
+                "Внешние FFMI-пороги к нему не применяются; технический clamp не является нормой.",
+            resources.getString(R.string.reference_help_lean_body_mass_limitations),
+        )
     }
 
     @Test

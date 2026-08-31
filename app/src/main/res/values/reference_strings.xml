@@ -176,5 +176,5 @@
     <string name="reference_help_lean_body_mass_meaning">Внутреннее расчётное значение Xiaomi Legacy, используемое формулой состава тела.</string>
     <string name="reference_help_lean_body_mass_calculation">Регрессия использует рост, вес, импеданс и возраст, затем ограничивается техническим пределом алгоритма.</string>
     <string name="reference_help_lean_body_mass_dependencies">Текущего возраста, сохранённого роста, веса и импеданса.</string>
-    <string name="reference_help_lean_body_mass_limitations">Поле не совпадает строго с клинической fat-free mass. Внешние FFMI-пороги к нему не применяются; технический предел не является нормой.</string>
+    <string name="reference_help_lean_body_mass_limitations">Поле не совпадает строго с клинической fat-free mass. Внешние FFMI-пороги к нему не применяются; технический clamp не является нормой.</string>
 </resources>
