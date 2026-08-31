@@ -25,6 +25,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -86,7 +87,7 @@ fun UnsavedMeasurementPreviewDialog(
     val infoFocusRequesters = remember(state.pending.id) {
         BodyMetric.entries.associateWith { FocusRequester() }
     }
-    var helpMetric by remember(state.pending.id) { mutableStateOf<BodyMetric?>(null) }
+    var helpMetricName by rememberSaveable(state.pending.id) { mutableStateOf<String?>(null) }
     var focusAfterHelp by remember(state.pending.id) { mutableStateOf<BodyMetric?>(null) }
     val context = LocalContext.current
     val resultPresentations = state.result?.let { result ->
@@ -96,6 +97,9 @@ fun UnsavedMeasurementPreviewDialog(
             preliminary = true,
         )
     }.orEmpty()
+    val helpMetric = helpMetricName?.let { name ->
+        BodyMetric.entries.firstOrNull { it.name == name }
+    }
     val selectedHelp = helpMetric?.let { metric ->
         resultPresentations.singleOrNull { it.definition.metric == metric }
     }
@@ -103,9 +107,9 @@ fun UnsavedMeasurementPreviewDialog(
     LaunchedEffect(state.calculationError) {
         if (state.calculationError != null) errorFocusRequester.requestFocus()
     }
-    LaunchedEffect(focusAfterHelp, helpMetric) {
+    LaunchedEffect(focusAfterHelp, helpMetricName) {
         val metric = focusAfterHelp
-        if (metric != null && helpMetric == null) {
+        if (metric != null && helpMetricName == null) {
             infoFocusRequesters.getValue(metric).requestFocus()
             focusAfterHelp = null
         }
@@ -119,7 +123,7 @@ fun UnsavedMeasurementPreviewDialog(
             snackbarHostState = effectiveSnackbarHostState,
             onDismissRequest = {
                 focusAfterHelp = selectedHelp.definition.metric
-                helpMetric = null
+                helpMetricName = null
             },
             sourceLauncher = sourceLauncher,
             usedDataText = stringResource(
@@ -152,7 +156,7 @@ fun UnsavedMeasurementPreviewDialog(
                 UnsavedPreviewStep.RESULT -> UnsavedResult(
                     presentations = resultPresentations,
                     scrollState = resultScrollState,
-                    onInfoClick = { helpMetric = it.definition.metric },
+                    onInfoClick = { helpMetricName = it.definition.metric.name },
                     infoButtonModifier = { presentation ->
                         Modifier.focusRequester(infoFocusRequesters.getValue(presentation.definition.metric))
                     },

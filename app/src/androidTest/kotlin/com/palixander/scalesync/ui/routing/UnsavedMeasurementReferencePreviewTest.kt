@@ -14,6 +14,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onAllNodesWithText
@@ -118,6 +119,37 @@ class UnsavedMeasurementReferencePreviewTest {
         composeRule.onNodeWithText("Закрыть").performClick()
         composeRule.onNodeWithTag(UnsavedPreviewTestTags.Result).assertIsDisplayed()
         composeRule.onNodeWithContentDescription(weightInfo).assertIsFocused()
+    }
+
+    @Test
+    fun selectedHelpSurvivesSavedStateRestorationAndCloseRestoresInfoFocus() {
+        val restoration = StateRestorationTester(composeRule)
+        val state = resultState()
+        restoration.setContent {
+            ScaleSyncTheme {
+                UnsavedMeasurementPreviewDialog(
+                    state = state,
+                    callbacks = UnsavedPreviewCallbacks.None,
+                    zoneId = ZoneOffset.UTC,
+                )
+            }
+        }
+
+        val bodyFatInfo = "Подробнее о показателе: Жир"
+        val bodyFatMeaning = "Расчётная доля жировой ткани в общей массе тела."
+        composeRule.onNodeWithContentDescription(bodyFatInfo).performClick()
+        composeRule.onNodeWithText(bodyFatMeaning).assertIsDisplayed()
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.HelpDialog).assertIsDisplayed()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Dialog).assertDoesNotExist()
+
+        restoration.emulateSavedInstanceStateRestore()
+
+        composeRule.onNodeWithText(bodyFatMeaning).assertIsDisplayed()
+        composeRule.onNodeWithTag(ReferenceComponentTestTags.HelpDialog).assertIsDisplayed()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Dialog).assertDoesNotExist()
+        composeRule.onNodeWithText("Закрыть").performClick()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Result).assertIsDisplayed()
+        composeRule.onNodeWithContentDescription(bodyFatInfo).assertIsFocused()
     }
 
     @Test
