@@ -2,11 +2,11 @@ package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.dogAdultWeightCategoryLabel
+import com.palixander.scalesync.isDogAdultWeightCategoryApplicable
 import com.palixander.scalesync.partialBirthDateLabel
 import com.palixander.scalesync.petBreedLabel
 import com.palixander.scalesync.petSexLabel
 import com.palixander.scalesync.domain.Pet
-import com.palixander.scalesync.domain.PetSpecies
 
 const val EmptyPetProfileSummary = "Дополнительные данные не заполнены"
 
@@ -42,7 +42,7 @@ fun petProfileSummary(
                 add(PetProfileSummaryItem("Дата рождения", partialBirthDateLabel(it)))
             }
             pet.dogAdultWeightCategory
-                ?.takeIf { pet.species == PetSpecies.DOG }
+                ?.takeIf { isDogAdultWeightCategoryApplicable(pet.species, resolvedBreed) }
                 ?.let {
                     add(
                         PetProfileSummaryItem(
