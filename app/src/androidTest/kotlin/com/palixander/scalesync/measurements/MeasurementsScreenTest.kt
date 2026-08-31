@@ -14,6 +14,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -40,6 +42,8 @@ import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PreliminaryDecisionReadiness
 import com.palixander.scalesync.ui.accounts.AccountSelectorTestTags
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.theme.ReferencePalette
+import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.reference.ReferenceComponentTestTags
 import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
 import com.palixander.scalesync.ui.reference.toReferenceContext
@@ -114,14 +118,85 @@ class MeasurementsScreenTest {
             substring = true,
         ).assertIsDisplayed()
         composeRule.onNodeWithText(
-            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг с прошлого измерения",
+            "−${formatMeasurementValue(MeasurementField.WEIGHT_KG, 0.4)} кг",
         ).assertIsDisplayed()
         listOf("Жир", "Мышечная масса", "Вода", "Индекс массы тела").forEach { label ->
-            composeRule.onNodeWithText(label).assertIsDisplayed()
+            composeRule.onNodeWithText(label, useUnmergedTree = true).assertIsDisplayed()
         }
         composeRule.onNodeWithTag("summary-sync-status").assertIsDisplayed()
         composeRule.onNodeWithTag("summary-more-actions").assertIsDisplayed()
+        listOf("WEIGHT", "BODY_FAT_PERCENT", "MUSCLE_MASS", "WATER_PERCENT", "BMI").forEach { metric ->
+            composeRule.onNodeWithTag("summary-reference-$metric").assertIsDisplayed()
+        }
+        composeRule.onNodeWithText("Норма").assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Вес, 72,4 килограмма. Норма.")
+            .assertIsDisplayed()
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
+    }
+
+    @Test
+    fun compactSummaryShowsUnavailableReasonButKeepsRatedCategoryHidden() {
+        val values = weightOnlyValues(72.4)
+        val latest = referenceItem("latest", "2026-08-15T12:42:00Z", values)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag(
+            "summary-reference-status-BODY_FAT_PERCENT",
+            useUnmergedTree = true,
+        ).assertIsDisplayed()
+        composeRule.onAllNodesWithText("Нет данных", useUnmergedTree = true).assertCountEquals(4)
+        composeRule.onNodeWithText("Норма", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Жир. Нет данных.")
+            .assertIsDisplayed()
+    }
+
+    @Test
+    fun compactSummaryPublishesTheColorAppliedToNumberAndUnitForDifferentTones() {
+        val metrics = referencePresentations(sampleValues(72.4)).map { presentation ->
+            when (presentation.definition.metric.name) {
+                "BODY_FAT_PERCENT" -> presentation.copy(tone = ReferenceTone.NORMAL)
+                "BMI" -> presentation.copy(tone = ReferenceTone.VERY_HIGH)
+                else -> presentation
+            }
+        }
+        val latest = sampleItem(
+            id = "latest",
+            instant = "2026-08-15T12:42:00Z",
+            weight = 72.4,
+            sync = localOnlySync(),
+        ).copy(referenceMetrics = metrics, ratingHeightCm = 175.0, referenceAge = 36)
+        val state = MeasurementsUiState(
+            isLoading = false,
+            measurements = listOf(latest),
+            summary = buildMeasurementSummary(listOf(latest)),
+        )
+
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        listOf(
+            "BODY_FAT_PERCENT" to ReferencePalette.Normal.content,
+            "BMI" to ReferencePalette.VeryHigh.content,
+        ).forEach { (metric, expectedColor) ->
+            listOf("value", "unit").forEach { part ->
+                composeRule.onNodeWithTag(
+                    "summary-reference-$part-$metric",
+                    useUnmergedTree = true,
+                ).assert(SemanticsMatcher.expectValue(
+                    CompactSummaryReferenceContentColorKey,
+                    expectedColor.value.toLong(),
+                ))
+            }
+        }
     }
 
     @Test
@@ -855,7 +930,32 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun referenceLayoutUsesOneColumnAtNarrowWidthAndAtLargeFont() {
+    fun compactSummaryUsesTwoByTwoGridAtLargeFontAtExactThreshold() {
+        setCompactSummaryAtEffectiveGridWidth(300)
+
+        val bounds = compactSummaryReferenceBounds()
+        val tolerance = 1f
+        assertEquals(bounds[0].top.value, bounds[1].top.value, tolerance)
+        assertEquals(bounds[2].top.value, bounds[3].top.value, tolerance)
+        assertTrue(bounds[2].top > bounds[0].top)
+        assertEquals(bounds[0].left.value, bounds[2].left.value, tolerance)
+        assertEquals(bounds[1].left.value, bounds[3].left.value, tolerance)
+        assertTrue(bounds[1].left > bounds[0].left)
+    }
+
+    @Test
+    fun compactSummaryUsesFourRowsAtLargeFontOneDpBelowThreshold() {
+        setCompactSummaryAtEffectiveGridWidth(299)
+
+        val bounds = compactSummaryReferenceBounds()
+        val tolerance = 1f
+        bounds.zipWithNext().forEach { (previous, next) ->
+            assertEquals(previous.left.value, next.left.value, tolerance)
+            assertTrue(next.top > previous.top)
+        }
+    }
+
+    private fun setCompactSummaryAtEffectiveGridWidth(gridWidthDp: Int) {
         val latest = referenceItem("responsive", "2026-08-15T12:42:00Z")
         val state = MeasurementsUiState(
             isLoading = false,
@@ -866,13 +966,31 @@ class MeasurementsScreenTest {
         composeRule.setContent {
             CompositionLocalProvider(LocalDensity provides Density(density = 1f, fontScale = 2f)) {
                 ScaleSyncTheme {
-                    Box(Modifier.width(400.dp)) {
+                    // LazyColumn and summary card each consume 16.dp on both horizontal edges.
+                    Box(Modifier.width((gridWidthDp + 64).dp)) {
                         MeasurementsScreen(state, MeasurementsCallbacks.None)
                     }
                 }
             }
         }
-        composeRule.onNodeWithTag(ReferenceComponentTestTags.GridOneColumn).assertExists()
+        val expectedGridTag = if (gridWidthDp >= 300) {
+            ReferenceComponentTestTags.GridTwoColumns
+        } else {
+            ReferenceComponentTestTags.GridOneColumn
+        }
+        val gridBounds = composeRule.onNodeWithTag(expectedGridTag).getUnclippedBoundsInRoot()
+        val gridWidth = (gridBounds.right - gridBounds.left).value
+        assertEquals(gridWidthDp.toFloat(), gridWidth, 1f)
+    }
+
+    private fun compactSummaryReferenceBounds() = listOf(
+        "BODY_FAT_PERCENT",
+        "MUSCLE_MASS",
+        "WATER_PERCENT",
+        "BMI",
+    ).map { metric ->
+        composeRule.onNodeWithTag("summary-reference-$metric")
+            .getUnclippedBoundsInRoot()
     }
 
     @Test
@@ -918,13 +1036,18 @@ class MeasurementsScreenTest {
         onRetryRequested = onRetryRequested,
     )
 
-    private fun referenceItem(id: String, instant: String): MeasurementUiItem = sampleItem(
+    private fun referenceItem(
+        id: String,
+        instant: String,
+        values: MeasurementUiValues = sampleValues(72.4),
+    ): MeasurementUiItem = sampleItem(
         id = id,
         instant = instant,
-        weight = 72.4,
+        weight = values.weightKg,
         sync = localOnlySync(),
+        values = values,
     ).copy(
-        referenceMetrics = referencePresentations(sampleValues(72.4)),
+        referenceMetrics = referencePresentations(values),
         ratingHeightCm = 175.0,
         referenceAge = 36,
     )
@@ -969,12 +1092,7 @@ class MeasurementsScreenTest {
     private fun sampleState(
         sync: MeasurementSyncPresentation = syncedSync(),
     ): MeasurementsUiState {
-        val latest = sampleItem(
-            id = "latest",
-            instant = "2026-08-15T12:42:00Z",
-            weight = 72.4,
-            sync = sync,
-        )
+        val latest = referenceItem("latest", "2026-08-15T12:42:00Z").copy(sync = sync)
         val previous = sampleItem("previous", "2026-08-13T11:58:00Z", 72.8, syncedSync())
         val measurements = listOf(latest, previous)
         return MeasurementsUiState(
