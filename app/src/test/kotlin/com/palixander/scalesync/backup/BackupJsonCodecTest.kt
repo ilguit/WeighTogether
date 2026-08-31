@@ -133,6 +133,12 @@ class BackupJsonCodecTest {
         assertThrows(BackupException.Invalid::class.java) {
             codec.encode(document().copy(pets = listOf(base.copy(dogAdultWeightCategory = DogAdultWeightCategory.I))))
         }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthMonth\":null", "\"birthMonth\":2"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthDay\":null", "\"birthDay\":1"))
+        }
         val unknown = base.copy(breedId = "external:cat:future")
         assertEquals(unknown, codec.decode(json(unknown)).pets.single())
     }

@@ -27,6 +27,13 @@ class Migration10To11Test {
                 ) VALUES ('pet', 'Луна', 'луна', 'DOG', 100, 200)
                 """.trimIndent(),
             )
+            execSQL(
+                """
+                INSERT INTO pet_measurements (
+                    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg
+                ) VALUES ('measurement', 'pet', 300, 70.0, 74.5, 4.5)
+                """.trimIndent(),
+            )
             close()
         }
 
@@ -45,6 +52,15 @@ class Migration10To11Test {
             assertTrue(it.moveToFirst())
             assertEquals("Луна", it.getString(0))
             for (column in 1..6) assertTrue(it.isNull(column))
+        }
+        migrated.query(
+            "SELECT petId, firstWeightKg, secondWeightKg, petWeightKg FROM pet_measurements",
+        ).use {
+            assertTrue(it.moveToFirst())
+            assertEquals("pet", it.getString(0))
+            assertEquals(70.0, it.getDouble(1), 0.0)
+            assertEquals(74.5, it.getDouble(2), 0.0)
+            assertEquals(4.5, it.getDouble(3), 0.0)
         }
         migrated.close()
     }

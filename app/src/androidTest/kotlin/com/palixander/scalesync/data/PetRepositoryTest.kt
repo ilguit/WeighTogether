@@ -15,6 +15,7 @@ import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetUpdate
 import java.time.Instant
 import java.time.LocalDate
+import java.time.Year
 import java.time.YearMonth
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -322,6 +323,81 @@ class PetRepositoryTest {
         assertEquals(BreedId("future-dog-breed"), updated.breedId)
         assertEquals(PartialBirthDate.Day(LocalDate.of(2020, 2, 29)), updated.birthDate)
         assertEquals(DogAdultWeightCategory.V, updated.dogAdultWeightCategory)
+    }
+
+    @Test
+    fun nullableProfileCombinationsSurviveDatabaseReopen() = runBlocking {
+        database.close()
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val databaseName = "pet-profile-reopen-${System.nanoTime()}"
+        context.deleteDatabase(databaseName)
+        try {
+            database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+                .allowMainThreadQueries()
+                .build()
+            val ids = ArrayDeque(listOf("empty", "year", "month", "day"))
+            val repository = RoomPetRepository(
+                database,
+                now = { Instant.EPOCH },
+                newId = { ids.removeFirst() },
+            )
+            repository.createPet(NewPet("Empty", PetSpecies.CAT))
+            repository.createPet(
+                NewPet("Year", PetSpecies.DOG, birthDate = PartialBirthDate.Year(Year.of(2020))),
+            )
+            repository.createPet(
+                NewPet(
+                    "Month",
+                    PetSpecies.CAT,
+                    sex = PetSex.FEMALE,
+                    breedId = BreedId("future-cat-breed"),
+                    birthDate = PartialBirthDate.Month(YearMonth.of(2021, 4)),
+                ),
+            )
+            repository.createPet(
+                NewPet(
+                    "Day",
+                    PetSpecies.DOG,
+                    sex = PetSex.MALE,
+                    birthDate = PartialBirthDate.Day(LocalDate.of(2020, 2, 29)),
+                    dogAdultWeightCategory = DogAdultWeightCategory.III,
+                ),
+            )
+
+            database.close()
+            database = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+                .allowMainThreadQueries()
+                .build()
+            val reopened = RoomPetRepository(database)
+
+            assertNull(reopened.getPet(PetId("empty"))!!.birthDate)
+            assertEquals(
+                PartialBirthDate.Year(Year.of(2020)),
+                reopened.getPet(PetId("year"))!!.birthDate,
+            )
+            assertEquals(
+                PartialBirthDate.Month(YearMonth.of(2021, 4)),
+                reopened.getPet(PetId("month"))!!.birthDate,
+            )
+            assertEquals(
+                BreedId("future-cat-breed"),
+                reopened.getPet(PetId("month"))!!.breedId,
+            )
+            assertEquals(
+                PartialBirthDate.Day(LocalDate.of(2020, 2, 29)),
+                reopened.getPet(PetId("day"))!!.birthDate,
+            )
+            assertEquals(
+                DogAdultWeightCategory.III,
+                reopened.getPet(PetId("day"))!!.dogAdultWeightCategory,
+            )
+        } finally {
+            database.close()
+            context.deleteDatabase(databaseName)
+            database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java)
+                .allowMainThreadQueries()
+                .build()
+        }
     }
 
     @Test
