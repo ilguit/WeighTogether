@@ -1,8 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
-import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -10,15 +8,22 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
@@ -136,13 +141,12 @@ internal fun PetWeightReferenceChartCard(
     val yRange = remember(factual, reference) { petWeightChartRange(factual, reference) }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
-    val outlineColor = MaterialTheme.colorScheme.outline
     val available = reference as? PetHistoryWeightReference.Available
     val description = buildString {
         append("График веса питомца. ")
         append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
         append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
-        if (available != null) append(" Фактический вес отмечен кругами; эталон — линиями и диапазоном.")
+        if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
     }
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
@@ -162,13 +166,12 @@ internal fun PetWeightReferenceChartCard(
                     yRange = yRange,
                     factualColor = factualColor,
                     referenceColor = referenceColor,
-                    outlineColor = outlineColor,
                     contentDescription = description,
                 )
                 if (available != null) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         ChartLegend("● Фактический вес", factualColor)
-                        ChartLegend("▰ Эталонный диапазон", referenceColor)
+                        ChartLegend("— Границы эталона", referenceColor)
                     }
                 } else if (factual.size < 2) {
                     Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
@@ -191,7 +194,6 @@ private fun PetWeightVicoChart(
     yRange: PetWeightChartRange,
     factualColor: Color,
     referenceColor: Color,
-    outlineColor: Color,
     contentDescription: String,
 ) {
     val available = reference as? PetHistoryWeightReference.Available
@@ -238,6 +240,26 @@ private fun PetWeightVicoChart(
     val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
         rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
     }
+    val selectableDates = remember(factual, available, zoneId) {
+        (factual.map { it.measuredAt.atZone(zoneId).toLocalDate() } +
+            available?.segments.orEmpty().flatten().map(PetHistoryReferencePoint::date))
+            .distinct()
+            .sorted()
+    }
+    var selectedDateIndex by remember(selectableDates) { mutableIntStateOf(0) }
+    fun selectRelative(offset: Int): Boolean {
+        if (selectableDates.isEmpty()) return false
+        selectedDateIndex = (selectedDateIndex + offset).mod(selectableDates.size)
+        return true
+    }
+    val accessibleSelection = selectableDates.getOrNull(selectedDateIndex)?.let { date ->
+        petWeightMarkerSelection(
+            date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+            factual,
+            reference,
+            zoneId,
+        )
+    }
 
     LaunchedEffect(factual, referenceSeries, zoneId) {
         modelProducer.runTransaction {
@@ -257,9 +279,7 @@ private fun PetWeightVicoChart(
             }
         }
     }
-    Box(Modifier.fillMaxWidth().height(250.dp)) {
-        PetWeightReferenceBand(available, startDate, endDateInclusive, yRange, referenceColor, outlineColor)
-        CartesianChartHost(
+    CartesianChartHost(
             chart = rememberCartesianChart(
                 rememberSmoothLineLayer(lines, rangeProvider),
                 startAxis = rememberChartStartAxis(
@@ -274,44 +294,19 @@ private fun PetWeightVicoChart(
                 .height(250.dp)
                 .testTag(PetWeightChartTestTags.Chart)
                 .semantics {
-                    this.contentDescription = "$contentDescription Коснитесь графика, чтобы увидеть дату, измерение и границы эталона."
+                    this.contentDescription = contentDescription
+                    role = Role.Button
+                    stateDescription = accessibleSelection?.let(::formatPetWeightMarker)
+                        ?: "Нет доступных дат для выбора"
+                    onClick("Выбрать следующую дату") { selectRelative(1) }
+                    customActions = listOf(
+                        CustomAccessibilityAction("Выбрать предыдущую дату") { selectRelative(-1) },
+                        CustomAccessibilityAction("Выбрать следующую дату") { selectRelative(1) },
+                    )
                 },
             scrollState = rememberVicoScrollState(scrollEnabled = true),
             zoomState = zoomState,
         )
-    }
-}
-
-@Composable
-private fun PetWeightReferenceBand(
-    reference: PetHistoryWeightReference.Available?,
-    startDate: LocalDate,
-    endDateInclusive: LocalDate,
-    yRange: PetWeightChartRange,
-    referenceColor: Color,
-    outlineColor: Color,
-) {
-    Canvas(Modifier.fillMaxWidth().height(250.dp)) {
-        val left = 48.dp.toPx()
-        val right = size.width - 12.dp.toPx()
-        val top = 8.dp.toPx()
-        val bottom = size.height - 42.dp.toPx()
-        val dayCount = (endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1).coerceAtLeast(1)
-        fun x(date: LocalDate) = left + (date.toEpochDay() - startDate.toEpochDay()).toFloat() / dayCount * (right - left)
-        fun y(value: Double) = bottom - ((value - yRange.min) / (yRange.max - yRange.min)).toFloat() * (bottom - top)
-        drawLine(outlineColor.copy(alpha = .2f), Offset(left, bottom), Offset(right, bottom), 1.dp.toPx())
-        reference?.segments?.forEach { segment ->
-            if (segment.size > 1) {
-                val band = Path().apply {
-                    moveTo(x(segment.first().date), y(segment.first().upperKg))
-                    segment.drop(1).forEach { lineTo(x(it.date), y(it.upperKg)) }
-                    segment.asReversed().forEach { lineTo(x(it.date), y(it.lowerKg)) }
-                    close()
-                }
-                drawPath(band, referenceColor.copy(alpha = .12f))
-            }
-        }
-    }
 }
 
 @Composable
@@ -342,7 +337,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference) {
         ) {
             Text("Как читать эталон", style = MaterialTheme.typography.titleSmall)
             Text("${reference.basisLabel} · ${reference.ageLabel}")
-            Text("Светлая область показывает общий диапазон, две линии внутри — медианный диапазон.")
+            Text("Внешние линии показывают общий диапазон, две внутренние — медианный диапазон.")
             Text(reference.sourceLabel, style = MaterialTheme.typography.bodySmall)
             Text("Лицензия: ${reference.license}", style = MaterialTheme.typography.bodySmall)
             reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }

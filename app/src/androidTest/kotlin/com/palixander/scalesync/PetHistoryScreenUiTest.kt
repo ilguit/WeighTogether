@@ -10,6 +10,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -210,18 +212,40 @@ class PetHistoryScreenUiTest {
             .assert(hasContentDescription("не ставит диагноз", substring = true))
     }
 
-    @Test fun singletonReferenceUsesInteractiveChartHostAndExposesMarkerGuidance() {
+    @Test fun singletonReferenceExposesAllBoundsAsAccessibleSelectedState() {
         val reference = availableReference("Эталон по породе").copy(
             segments = listOf(
                 listOf(PetHistoryReferencePoint(LocalDate.of(2026, 8, 29), 2.0, 3.0, 4.0, 5.0)),
             ),
         )
-        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+        val screenState = state(PetHistoryContent.Empty).copy(weightReference = reference)
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+                }
+            }
+        }
 
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assertIsDisplayed()
-            .assert(hasContentDescription("Коснитесь графика", substring = true))
-            .assert(hasContentDescription("границы эталона", substring = true))
+            .assert(hasStateDescriptionContaining("29.08.2026"))
+            .assert(hasStateDescriptionContaining("Нижняя граница: 2,00 кг"))
+            .assert(hasStateDescriptionContaining("Медиана: 3,00 кг–4,00 кг"))
+            .assert(hasStateDescriptionContaining("Верхняя граница: 5,00 кг"))
+    }
+
+    @Test fun accessibleChartActionSelectsNextReferenceDateAndUpdatesReadableState() {
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = availableReference("Эталон по породе")))
+
+        val chart = composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+        chart.assert(hasStateDescriptionContaining("01.08.2026"))
+        chart.performClick()
+        chart
+            .assert(hasStateDescriptionContaining("27.08.2026"))
+            .assert(hasStateDescriptionContaining("Нижняя граница: 3,20 кг"))
+            .assert(hasStateDescriptionContaining("Верхняя граница: 4,70 кг"))
     }
 
     @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {
@@ -467,4 +491,11 @@ class PetHistoryScreenUiTest {
         constraints = listOf("Только здоровые животные"),
         accessibilityLabel = "$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0.",
     )
+}
+
+private fun hasStateDescriptionContaining(text: String) = SemanticsMatcher(
+    "State description contains '$text'",
+) { node ->
+    SemanticsProperties.StateDescription in node.config &&
+        node.config[SemanticsProperties.StateDescription].contains(text)
 }
