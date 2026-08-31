@@ -825,8 +825,6 @@ private fun CompactSummaryReferenceMetric(
     primary: Boolean = false,
 ) {
     val referenceContent = ReferencePalette.colors(presentation.tone).content
-    val showUnavailableStatus = presentation.tone == ReferenceTone.UNAVAILABLE ||
-        presentation.visualNumber == null
     Column(
         modifier = modifier
             .clearAndSetSemantics {
@@ -875,16 +873,6 @@ private fun CompactSummaryReferenceMetric(
                     },
                 )
             }
-        }
-        if (showUnavailableStatus) {
-            Text(
-                text = presentation.status,
-                color = referenceContent,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.testTag(
-                    "summary-reference-status-${presentation.definition.metric.name}",
-                ),
-            )
         }
     }
 }

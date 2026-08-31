@@ -148,18 +148,6 @@ fun ExpandedMetricReference(
                         )
                     }
                 }
-                val colors = ReferencePalette.colors(presentation.tone)
-                Surface(
-                    color = colors.container,
-                    contentColor = colors.content,
-                    shape = MaterialTheme.shapes.small,
-                ) {
-                    Text(
-                        presentation.status,
-                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
-                        style = MaterialTheme.typography.labelMedium,
-                    )
-                }
                 ReferenceRangeScale(presentation)
             }
             IconButton(

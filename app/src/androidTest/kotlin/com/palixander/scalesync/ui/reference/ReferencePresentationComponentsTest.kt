@@ -137,6 +137,7 @@ class ReferencePresentationComponentsTest {
         }
 
         composeRule.onNodeWithContentDescription(presentation.accessibilityDescription).assertExists()
+        composeRule.onNodeWithText(presentation.status, useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithContentDescription("Подробнее о показателе: BMI")
             .assertExists()
             .assertHeightIsAtLeast(48.dp)
@@ -338,6 +339,13 @@ class ReferencePresentationComponentsTest {
         composeRule.waitUntil { snackbarHostState.currentSnackbarData != null }
         composeRule.onNodeWithText("Не удалось открыть источник.").assertIsDisplayed()
         composeRule.onNodeWithTag(ReferenceComponentTestTags.HelpDialog).assertExists()
+        composeRule.onNodeWithText(
+            composeRule.activity.getString(
+                R.string.reference_help_value_summary,
+                presentation.visualValue,
+                presentation.status,
+            ),
+        ).assertIsDisplayed()
         composeRule.onNodeWithText("Набор норм: ScaleSync 1").assertIsDisplayed()
         composeRule.onNodeWithText("Xiaomi Legacy — реконструкция шкал Mi Fit").assertIsDisplayed()
     }
