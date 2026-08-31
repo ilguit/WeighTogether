@@ -69,6 +69,7 @@ import com.palixander.scalesync.worker.MeasurementWorkSweep
 import com.palixander.scalesync.worker.PendingDecisionFallback
 import com.palixander.scalesync.sync.SyncResult
 import java.time.Instant
+import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -183,7 +184,10 @@ private data class RoutingUiSnapshot(
     val preview: UnsavedMeasurementPreviewState?,
 )
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
+class MainViewModel @JvmOverloads constructor(
+    application: Application,
+    private val currentDate: () -> LocalDate = { LocalDate.now() },
+) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
 
     fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = PetHistoryStateOwner(
@@ -213,6 +217,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val refreshing = MutableStateFlow(false)
     private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
     private val petManagement = MutableStateFlow(PetManagementUiState())
+    private val petManagementSessionIds = AtomicLong(0L)
+    private val petBreedCatalog = PetBreedCatalog()
     private val petMeasurementStartup = PetMeasurementStartupGuard()
     private var petMeasurementStartupJob: Job? = null
     private var petCreationInProgress = false
@@ -1282,33 +1288,54 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun showCreatePetManagement() {
         if (petManagement.value.busy) return
-        petManagement.value = PetManagementUiState(editor = PetEditorMode.Create)
+        petManagement.value = PetManagementController.showCreate(
+            state = petManagement.value,
+            editorSessionId = petManagementSessionIds.incrementAndGet(),
+        )
     }
 
     fun showEditPetManagement(pet: com.palixander.scalesync.domain.Pet) {
         if (petManagement.value.busy) return
-        petManagement.value = PetManagementUiState(editor = PetEditorMode.Edit(pet))
+        petManagement.value = PetManagementController.showEdit(
+            state = petManagement.value,
+            pet = pet,
+            editorSessionId = petManagementSessionIds.incrementAndGet(),
+            breedCatalog = petBreedCatalog,
+        )
     }
 
-    fun savePetManagement(displayName: String, species: PetSpecies) {
-        val snapshot = petManagement.value
-        if (snapshot.busy || snapshot.editor == null) return
-        petManagement.value = snapshot.copy(busy = true, error = null)
+    fun onPetProfileAction(action: PetProfileAction) {
+        petManagement.value = PetManagementController.onAction(petManagement.value, action)
+    }
+
+    fun savePetManagement() {
+        val preparation = PetManagementController.prepareSave(
+            state = petManagement.value,
+            today = currentDate(),
+            existingPets = pets.value.pets.map { it.pet },
+        )
+        petManagement.value = preparation.state
+        val request = (preparation as? PetProfileSavePreparation.Ready)?.request ?: return
         viewModelScope.launch {
-            runCatching {
-                when (val editor = requireNotNull(snapshot.editor)) {
-                    PetEditorMode.Create -> container.pets.createPet(NewPet(displayName.trim(), species))
-                    is PetEditorMode.Edit -> container.pets.updatePet(
-                        PetUpdate(editor.pet.id, displayName.trim(), species),
-                    )
+            try {
+                when (val profile = request.profile) {
+                    is ValidatedPetProfile.Create -> container.pets.createPet(profile.pet)
+                    is ValidatedPetProfile.Edit -> container.pets.updatePet(profile.pet)
                 }
-            }.onSuccess {
-                petManagement.value = PetManagementUiState()
-            }.onFailure { error ->
-                if (error is CancellationException) throw error
-                petManagement.value = snapshot.copy(
-                    busy = false,
-                    error = error.message ?: "Не удалось сохранить питомца",
+                petManagement.value = PetManagementController.finishSave(
+                    state = petManagement.value,
+                    request = request,
+                    result = PetProfilePersistenceResult.Success,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                petManagement.value = PetManagementController.finishSave(
+                    state = petManagement.value,
+                    request = request,
+                    result = PetProfilePersistenceResult.Failure(
+                        error.message ?: "Не удалось сохранить питомца",
+                    ),
                 )
             }
         }
@@ -1347,7 +1374,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissPetManagement() {
-        if (!petManagement.value.busy) petManagement.value = PetManagementUiState()
+        petManagement.value = PetManagementController.dismiss(petManagement.value)
     }
 
     fun startPetMeasurement(petId: PetId) {
