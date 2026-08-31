@@ -1,6 +1,9 @@
 package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.domain.PetSpecies
 import com.google.gson.Gson
 import com.google.gson.GsonBuilder
 import com.google.gson.JsonElement
@@ -11,6 +14,7 @@ import java.time.Instant
 
 class BackupJsonCodec(
     private val gson: Gson = GsonBuilder().disableHtmlEscaping().serializeNulls().create(),
+    private val breedCatalog: BreedCatalog = BreedCatalog.bundled(),
 ) {
     fun encode(document: BackupDocumentV1): String {
         try {
@@ -20,7 +24,16 @@ class BackupJsonCodec(
         } catch (error: RuntimeException) {
             throw BackupException.Invalid("$", error.message ?: "invalid value")
         }
-        return gson.toJson(document)
+        val root = gson.toJsonTree(document).asJsonObject
+        if (document.schemaVersion == BACKUP_SCHEMA_VERSION_V1) {
+            root.remove("pets")
+            root.remove("petMeasurements")
+        } else if (document.schemaVersion == BACKUP_SCHEMA_VERSION_V2) {
+            root.getAsJsonArray("pets").forEach { element ->
+                (PET_KEYS_V3 - PET_KEYS_V2).forEach(element.asJsonObject::remove)
+            }
+        }
+        return gson.toJson(root)
     }
 
     fun decode(json: String): BackupDocumentV1 {
@@ -38,7 +51,7 @@ class BackupJsonCodec(
         val version = versionElement?.takeIf {
             it.isJsonPrimitive && it.asJsonPrimitive.isNumber
         }?.let { runCatching { it.asInt }.getOrNull() }
-        if (version !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
+        if (version !in BACKUP_SCHEMA_VERSION_V1..BACKUP_SCHEMA_VERSION) {
             throw BackupException.UnsupportedVersion(version)
         }
         val supportedVersion = requireNotNull(version)
@@ -96,13 +109,20 @@ class BackupJsonCodec(
             requireBooleans("$.settings", setOf("reliabilityMode"))
             requireNullableStringArrays("$.settings", setOf("selectedChartMetricKeys", "homeKgChartSeriesKeys"))
         }
-        if (version == BACKUP_SCHEMA_VERSION) {
+        if (version >= BACKUP_SCHEMA_VERSION_V2) {
             root.array("pets").forEachIndexed { index, element ->
                 val path = "$.pets[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, PET_KEYS)
+                    requireKeys(path, if (version == BACKUP_SCHEMA_VERSION_V2) PET_KEYS_V2 else PET_KEYS_V3)
                     requireStrings(path, setOf("id", "displayName", "normalizedName", "species"))
+                    requireEnum(path, "species", setOf("CAT", "DOG", "UNSPECIFIED"))
                     requireNumbers(path, setOf("createdAtEpochMillis", "updatedAtEpochMillis"))
+                    if (version == BACKUP_SCHEMA_VERSION) {
+                        requireNullableStrings(path, setOf("sex", "breedId", "dogAdultWeightCategory"))
+                        requireNullableNumbers(path, setOf("birthYear", "birthMonth", "birthDay"))
+                        requireNullableEnum(path, "sex", setOf("MALE", "FEMALE"))
+                        requireNullableEnum(path, "dogAdultWeightCategory", enumValues<com.palixander.scalesync.domain.reference.DogAdultWeightCategory>().map { it.name }.toSet())
+                    }
                 }
             }
             root.array("petMeasurements").forEachIndexed { index, element ->
@@ -118,7 +138,7 @@ class BackupJsonCodec(
 
     private fun validate(document: BackupDocumentV1) {
         invalidUnless(document.format == BACKUP_FORMAT_ID, "$.format", "unexpected format")
-        if (document.schemaVersion !in setOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION)) {
+        if (document.schemaVersion !in BACKUP_SCHEMA_VERSION_V1..BACKUP_SCHEMA_VERSION) {
             throw BackupException.UnsupportedVersion(document.schemaVersion)
         }
         invalidUnless(runCatching { Instant.parse(document.exportedAt) }.isSuccess, "$.exportedAt", "expected ISO-8601 instant")
@@ -207,6 +227,16 @@ class BackupJsonCodec(
             invalidUnless(pet.normalizedName.isNotBlank(), "$path.normalizedName", "must not be blank")
             invalidUnless(pet.species != null, "$path.species", "unknown enum value")
             invalidUnless(pet.updatedAtEpochMillis >= pet.createdAtEpochMillis, "$path.updatedAtEpochMillis", "precedes creation")
+            pet.breedId?.let { breedId ->
+                invalidUnless(breedId.isNotBlank() && breedId == breedId.trim(), "$path.breedId", "must be non-blank and trimmed")
+                breedCatalog.findById(breedId)?.let { breed ->
+                    val expectedSpecies = if (breed.species == BreedSpecies.CAT) PetSpecies.CAT else PetSpecies.DOG
+                    invalidUnless(pet.species == expectedSpecies, "$path.breedId", "breed species does not match pet species")
+                }
+            }
+            invalidUnless(pet.species == PetSpecies.DOG || pet.dogAdultWeightCategory == null,
+                "$path.dogAdultWeightCategory", "requires DOG species")
+            validateBirthDate(pet, path)
         }
         val petIds = document.pets.mapTo(hashSetOf()) { it.id }
         unique(document.petMeasurements.map { it.id }, "pet measurement id")
@@ -219,6 +249,24 @@ class BackupJsonCodec(
             invalidUnless(values.all { it.isFinite() && it >= 0.0 }, path, "weights must be non-negative and finite")
             invalidUnless(kotlin.math.abs(kotlin.math.abs(measurement.secondWeightKg - measurement.firstWeightKg) - measurement.petWeightKg) < 0.000_001,
                 "$path.petWeightKg", "does not match source readings")
+        }
+    }
+
+    private fun validateBirthDate(pet: BackupPetV2, path: String) {
+        val year = pet.birthYear
+        val month = pet.birthMonth
+        val day = pet.birthDay
+        invalidUnless(year != null || month == null, "$path.birthMonth", "requires birthYear")
+        invalidUnless(month != null || day == null, "$path.birthDay", "requires birthMonth")
+        if (year != null) {
+            val valid = runCatching {
+                when {
+                    month == null -> java.time.Year.of(year)
+                    day == null -> java.time.YearMonth.of(year, month)
+                    else -> java.time.LocalDate.of(year, month, day)
+                }
+            }.isSuccess
+            invalidUnless(valid, "$path.birthYear", "invalid partial birth date")
         }
     }
 
@@ -280,6 +328,15 @@ class BackupJsonCodec(
         }
     }
 
+    private fun JsonObject.requireEnum(path: String, name: String, values: Set<String>) {
+        requireStrings(path, setOf(name))
+        if (get(name).asString !in values) throw BackupException.Invalid("$path.$name", "unknown enum value")
+    }
+
+    private fun JsonObject.requireNullableEnum(path: String, name: String, values: Set<String>) {
+        if (!get(name).isJsonNull) requireEnum(path, name, values)
+    }
+
     private fun JsonObject.objectValue(name: String): JsonObject =
         get(name)?.requiredObject("$.$name") ?: throw BackupException.Invalid("$.$name", "missing")
 
@@ -298,7 +355,8 @@ class BackupJsonCodec(
     private companion object {
         val ROOT_KEYS_V1 = setOf("format", "schemaVersion", "exportedAt", "accounts", "appState", "measurements", "settings")
         val ROOT_KEYS_V2 = ROOT_KEYS_V1 + setOf("pets", "petMeasurements")
-        val PET_KEYS = setOf("id", "displayName", "normalizedName", "species", "createdAtEpochMillis", "updatedAtEpochMillis")
+        val PET_KEYS_V2 = setOf("id", "displayName", "normalizedName", "species", "createdAtEpochMillis", "updatedAtEpochMillis")
+        val PET_KEYS_V3 = PET_KEYS_V2 + setOf("sex", "breedId", "birthYear", "birthMonth", "birthDay", "dogAdultWeightCategory")
         val PET_MEASUREMENT_KEYS = setOf("id", "petId", "measuredAtEpochSecond", "firstWeightKg", "secondWeightKg", "petWeightKg")
         val ACCOUNT_KEYS = setOf("id", "displayName", "normalizedName", "profile", "createdAtEpochMillis", "updatedAtEpochMillis")
         val PROFILE_KEYS = setOf("heightCm", "birthDateEpochDay", "sex", "complete")

@@ -46,14 +46,13 @@ data class PetEntity(
         dogAdultWeightCategory = dogAdultWeightCategory,
     )
 
-    private fun toPartialBirthDate(): PartialBirthDate? = try {
+    private fun toPartialBirthDate(): PartialBirthDate? =
         when {
-            birthYear == null -> null
-            birthMonth == null -> if (birthDay == null) PartialBirthDate.Year(Year.of(birthYear)) else null
+            birthYear == null && birthMonth == null && birthDay == null -> null
+            birthYear == null -> throw IllegalArgumentException("Birth month/day requires birth year")
+            birthMonth == null && birthDay != null -> throw IllegalArgumentException("Birth day requires birth month")
+            birthMonth == null -> PartialBirthDate.Year(Year.of(birthYear))
             birthDay == null -> PartialBirthDate.Month(YearMonth.of(birthYear, birthMonth))
             else -> PartialBirthDate.Day(LocalDate.of(birthYear, birthMonth, birthDay))
         }
-    } catch (_: RuntimeException) {
-        null
-    }
 }

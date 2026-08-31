@@ -130,6 +130,7 @@ data class Pet(
             "Normalized name must match the display name"
         }
         require(!updatedAt.isBefore(createdAt)) { "Updated time cannot precede created time" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 }
 
@@ -144,6 +145,7 @@ data class NewPet(
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 
     val normalizedName: String = normalizePetName(displayName)
@@ -161,6 +163,7 @@ data class PetUpdate(
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
+        require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
     }
 
     val normalizedName: String = normalizePetName(displayName)

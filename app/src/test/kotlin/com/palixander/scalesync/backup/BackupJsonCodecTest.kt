@@ -4,6 +4,8 @@ import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -35,7 +37,7 @@ class BackupJsonCodecTest {
 
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":3").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document()).replace("\"schemaVersion\":3", "\"schemaVersion\":4").replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -88,7 +90,7 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v2RoundTripPreservesPetsAndV1DecodesWithEmptyPetCollections() {
+    fun v3RoundTripPreservesPetsAndOlderVersionsDecodeWithEmptyProfileFields() {
         val source = document().copy(
             pets = listOf(BackupPetV2("p", "Мурка", "мурка", PetSpecies.CAT, 10, 11)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 70.0, 74.5, 4.5)),
@@ -96,12 +98,43 @@ class BackupJsonCodecTest {
 
         assertEquals(source, codec.decode(codec.encode(source)))
 
-        val v1Json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":1")
-            .replace(",\"pets\":[],\"petMeasurements\":[]", "")
+        val v2 = codec.decode(codec.encode(source.copy(schemaVersion = BACKUP_SCHEMA_VERSION_V2)))
+        assertEquals(null, v2.pets.single().sex)
+        assertEquals(null, v2.pets.single().breedId)
+        val v1Json = codec.encode(document().copy(schemaVersion = BACKUP_SCHEMA_VERSION_V1))
         val legacy = codec.decode(v1Json)
         assertEquals(1, legacy.schemaVersion)
         assertTrue(legacy.pets.isEmpty())
         assertTrue(legacy.petMeasurements.isEmpty())
+    }
+
+    @Test
+    fun v3RoundTripPreservesCompletePetProfile() {
+        val pet = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11, PetSex.MALE,
+            "scalesync:dog:mixed-breed", 2020, 2, 29, DogAdultWeightCategory.III)
+        val source = document().copy(pets = listOf(pet))
+        assertEquals(source, codec.decode(codec.encode(source)))
+    }
+
+    @Test
+    fun v3RejectsInvalidPetProfileValues() {
+        fun json(pet: BackupPetV2) = codec.encode(document().copy(pets = listOf(pet)))
+        val base = BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthYear\":null", "\"birthYear\":2021")
+                .replace("\"birthMonth\":null", "\"birthMonth\":2").replace("\"birthDay\":null", "\"birthDay\":29"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"sex\":null", "\"sex\":\"FUTURE\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(breedId = "scalesync:dog:mixed-breed"))))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(dogAdultWeightCategory = DogAdultWeightCategory.I))))
+        }
+        val unknown = base.copy(breedId = "external:cat:future")
+        assertEquals(unknown, codec.decode(json(unknown)).pets.single())
     }
 
     @Test

@@ -4,7 +4,7 @@ import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.PetSpecies
 import java.time.YearMonth
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class PetEntityTest {
@@ -16,10 +16,10 @@ class PetEntityTest {
     }
 
     @Test
-    fun mappingTreatsIncompleteOrInvalidStoredBirthDatesAsAbsent() {
-        assertNull(entity(birthMonth = 2, birthDay = 3).toDomain().birthDate)
-        assertNull(entity(birthYear = 2021, birthMonth = 2, birthDay = 29).toDomain().birthDate)
-        assertNull(entity(birthYear = 2021, birthDay = 3).toDomain().birthDate)
+    fun mappingRejectsIncompleteOrInvalidStoredBirthDates() {
+        assertThrows(RuntimeException::class.java) { entity(birthMonth = 2, birthDay = 3).toDomain() }
+        assertThrows(RuntimeException::class.java) { entity(birthYear = 2021, birthMonth = 2, birthDay = 29).toDomain() }
+        assertThrows(RuntimeException::class.java) { entity(birthYear = 2021, birthDay = 3).toDomain() }
     }
 
     private fun entity(

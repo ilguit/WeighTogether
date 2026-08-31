@@ -13,6 +13,8 @@ import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.toPortableSnapshot
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
@@ -33,7 +35,8 @@ class BackupExportServiceTest {
             accounts = listOf(account()),
             appState = AppStateEntity(primaryAccountId = "account", weightDeltaKg = 2.5, ignoreUnknownMeasurements = true),
             measurements = listOf(measurement()),
-            pets = listOf(PetEntity("pet", "Cat", "cat", PetSpecies.CAT, 5, 6)),
+            pets = listOf(PetEntity("pet", "Dog", "dog", PetSpecies.DOG, 5, 6,
+                PetSex.FEMALE, "external:dog:breed", 2020, 2, null, DogAdultWeightCategory.II)),
             petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 70.0, 74.0, 4.0)),
         )
         val service = service(source)
@@ -47,7 +50,12 @@ class BackupExportServiceTest {
         assertEquals(Sex.MALE, document.accounts.single().profile.sex)
         assertEquals(SyncStatus.SYNCED, document.measurements.single().huaweiStatus)
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
-        assertEquals(PetSpecies.CAT, document.pets.single().species)
+        assertEquals(PetSpecies.DOG, document.pets.single().species)
+        assertEquals(PetSex.FEMALE, document.pets.single().sex)
+        assertEquals("external:dog:breed", document.pets.single().breedId)
+        assertEquals(2020, document.pets.single().birthYear)
+        assertEquals(2, document.pets.single().birthMonth)
+        assertEquals(DogAdultWeightCategory.II, document.pets.single().dogAdultWeightCategory)
         assertEquals(4.0, document.petMeasurements.single().petWeightKg, 0.0)
         assertEquals(listOf("bmi", "weight"), document.settings.selectedChartMetricKeys)
         assertEquals(listOf("fat", "weight"), document.settings.homeKgChartSeriesKeys)

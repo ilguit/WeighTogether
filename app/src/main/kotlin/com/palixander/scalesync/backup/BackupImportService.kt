@@ -416,14 +416,17 @@ class BackupImportService(
         currentSettings: VersionedPortableProfileSettings,
         mode: BackupImportMode,
     ): BackupImportPreview {
+        // Callers may supply a model directly instead of going through read(); apply the same
+        // shape-independent semantic validation before constructing a database snapshot.
+        val validatedDocument = codec.decode(codec.encode(document))
         val baseline = BackupImportBaselineToken(
             current,
             currentSettings.settings,
             currentSettings.revision,
         )
         return when (mode) {
-            BackupImportMode.REPLACE -> replace(document, current, baseline)
-            BackupImportMode.MERGE -> merge(document, current, currentSettings.settings, baseline)
+            BackupImportMode.REPLACE -> replace(validatedDocument, current, baseline)
+            BackupImportMode.MERGE -> merge(validatedDocument, current, currentSettings.settings, baseline)
         }
     }
 
@@ -557,7 +560,10 @@ private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
     appState = AppStateEntity(primaryAccountId = appState.primaryAccountId,
         weightDeltaKg = appState.weightDeltaKg, ignoreUnknownMeasurements = appState.ignoreUnknownMeasurements),
     measurements = measurements.map { it.toEntity() },
-    pets = pets.map { PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis) },
+    pets = pets.map {
+        PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis,
+            it.sex, it.breedId, it.birthYear, it.birthMonth, it.birthDay, it.dogAdultWeightCategory)
+    },
     petMeasurements = petMeasurements.map {
         PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
     },

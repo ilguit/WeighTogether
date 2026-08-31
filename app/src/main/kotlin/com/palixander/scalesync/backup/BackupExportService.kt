@@ -77,6 +77,7 @@ class BackupExportService(
 
 private fun PetEntity.toBackup() = BackupPetV2(
     id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis,
+    sex, breedId, birthYear, birthMonth, birthDay, dogAdultWeightCategory,
 )
 
 private fun PetMeasurementEntity.toBackup() = BackupPetMeasurementV2(
