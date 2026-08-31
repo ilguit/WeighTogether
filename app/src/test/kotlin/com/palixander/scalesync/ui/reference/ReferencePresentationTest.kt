@@ -5,9 +5,11 @@ import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.core.MetricInterpretation
+import com.palixander.scalesync.core.MetricReading
 import com.palixander.scalesync.core.ReferenceCategory
 import com.palixander.scalesync.core.ReferenceVersion
 import com.palixander.scalesync.core.ReferenceZone
+import com.palixander.scalesync.core.UnavailableReason
 import com.palixander.scalesync.core.ZoneBasis
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -20,6 +22,46 @@ import java.util.Locale
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class ReferencePresentationTest {
+    @Test
+    fun `createAll passes weight to skeletal muscle kilogram zone presentation`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val factory = ReferencePresentationFactory(context.resources, Locale.forLanguageTag("ru"))
+        val readings = ReferenceMetricCatalog.metrics.map { definition ->
+            MetricReading(
+                metric = definition.metric,
+                value = when (definition.metric) {
+                    BodyMetric.WEIGHT -> 70.0
+                    BodyMetric.SKELETAL_MUSCLE_MASS -> 26.95
+                    else -> null
+                },
+            )
+        }
+        val interpretations = ReferenceMetricCatalog.metrics.associate { definition ->
+            definition.metric to if (definition.metric == BodyMetric.SKELETAL_MUSCLE_MASS) {
+                skeletalMuscleInterpretation()
+            } else {
+                MetricInterpretation.Unavailable(
+                    metric = definition.metric,
+                    version = ReferenceVersion.SCALE_SYNC_1,
+                    reason = UnavailableReason.NO_DATA,
+                )
+            }
+        }
+
+        val presentation = factory.createAll(readings, interpretations).single {
+            it.definition.metric == BodyMetric.SKELETAL_MUSCLE_MASS
+        }
+
+        assertEquals("26,95 кг", presentation.visualValue)
+        assertEquals("Норма", presentation.status)
+        assertEquals(
+            listOf("меньше 23,31", "23,31–<27,58", "27,58–<30,87", "от 30,87"),
+            presentation.zones.map(ReferenceZonePresentation::range),
+        )
+        assertEquals(ReferenceCategory.NORMAL, presentation.zones.single { it.isCurrent }.category)
+        assertEquals(1, presentation.zones.count { it.isCurrent })
+    }
+
     @Test
     fun `factory presents skeletal muscle percent zones in kilograms`() {
         val interpretation = skeletalMuscleInterpretation()
