@@ -51,6 +51,8 @@ data class ReferenceProfile(
     val citation: String,
     val license: String,
     val constraints: List<String>,
+    val referenceKind: String,
+    val minimumBinN: Int,
     val points: List<ReferencePoint>,
 )
 data class WeightReferenceManifest(
@@ -66,6 +68,22 @@ class WeightReferenceSnapshot private constructor(
     val manifest: WeightReferenceManifest,
     val profiles: List<ReferenceProfile>,
 ) {
+    /** Returns an exact or linearly interpolated point within one profile only. Never extrapolates. */
+    fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
+        val profile = profiles.singleOrNull { it.id == profileId } ?: return null
+        val points = profile.points
+        if (ageDays < points.first().ageDays || ageDays > points.last().ageDays) return null
+        points.binarySearch { it.ageDays.compareTo(ageDays) }.let { index ->
+            if (index >= 0) return points[index]
+            val upperIndex = -index - 1
+            val lower = points[upperIndex - 1]
+            val upper = points[upperIndex]
+            val fraction = (ageDays - lower.ageDays).toDouble() / (upper.ageDays - lower.ageDays)
+            fun between(a: Double, b: Double) = a + (b - a) * fraction
+            return ReferencePoint(ageDays, between(lower.lowerKg, upper.lowerKg), between(lower.medianKg, upper.medianKg), between(lower.upperKg, upper.upperKg))
+        }
+    }
+
     companion object {
         const val RESOURCE_PATH = "weight_references.json"
         const val SUPPORTED_SCHEMA_VERSION = 1
@@ -112,7 +130,8 @@ class WeightReferenceSnapshot private constructor(
         require(manifest.scopes.map(ReferenceScope::id).distinct().size == manifest.scopes.size) { "Scope IDs must be unique" }
         manifest.scopes.forEach { scope -> validateScope(scope, sources, breedCatalog) }
         require(profiles.map(ReferenceProfile::id).distinct().size == profiles.size) { "Profile IDs must be unique" }
-        profiles.forEach { profile -> validateProfile(profile, sources, breedCatalog) }
+        val scopes = manifest.scopes.associateBy(ReferenceScope::id)
+        profiles.forEach { profile -> validateProfile(profile, sources, scopes, breedCatalog) }
     }
 
     private fun validateScope(scope: ReferenceScope, sources: Map<String, ReferenceSource>, breeds: BreedCatalog) {
@@ -132,15 +151,20 @@ class WeightReferenceSnapshot private constructor(
         }
     }
 
-    private fun validateProfile(profile: ReferenceProfile, sources: Map<String, ReferenceSource>, breeds: BreedCatalog) {
+    private fun validateProfile(profile: ReferenceProfile, sources: Map<String, ReferenceSource>, scopes: Map<String, ReferenceScope>, breeds: BreedCatalog) {
         require(profile.sourceId in sources) { "Unknown source in profile ${profile.id}" }
         require(profile.citation == sources.getValue(profile.sourceId).citation && profile.license == sources.getValue(profile.sourceId).license) { "Profile ${profile.id} provenance differs from its source" }
         require(profile.constraints.isNotEmpty()) { "Profile ${profile.id} requires constraints" }
-        validateScope(ReferenceScope(profile.id, profile.species, profile.sex, profile.basis, profile.weightCategory, profile.breedId, null, if (profile.basis == ReferenceBasis.WEIGHT_CATEGORY) 40.0 else null, profile.points.firstOrNull()?.ageDays ?: 1, profile.points.lastOrNull()?.ageDays ?: 2, profile.constraints, profile.sourceId, NumericalAvailability.AVAILABLE), sources, breeds)
+        require(profile.referenceKind == "empirical_observation_quartiles" && profile.minimumBinN > 0) { "Profile ${profile.id} must declare its empirical derivation" }
+        val scope = scopes[profile.id] ?: error("Profile ${profile.id} has no declared scope")
+        require(scope.numericalAvailability == NumericalAvailability.AVAILABLE) { "Profile ${profile.id} scope is not numerically available" }
+        require(profile.species == scope.species && profile.sex == scope.sex && profile.basis == scope.basis && profile.weightCategory == scope.weightCategory && profile.breedId == scope.breedId && profile.sourceId == scope.sourceId && profile.constraints == scope.constraints) { "Profile ${profile.id} differs from its declared scope" }
+        validateScope(scope, sources, breeds)
         require(profile.points.isNotEmpty()) { "Profile ${profile.id} contains no points" }
         var previousAge = 0
         profile.points.forEach { point ->
             require(point.ageDays > previousAge) { "Profile ${profile.id} ages must be strictly increasing" }
+            require(point.ageDays in scope.minimumAgeDays..scope.maximumAgeDays) { "Profile ${profile.id} point is outside its declared age range" }
             require(listOf(point.lowerKg, point.medianKg, point.upperKg).all { it.isFinite() && it > 0.0 }) { "Profile ${profile.id} weights must be finite and positive" }
             require(point.lowerKg <= point.medianKg && point.medianKg <= point.upperKg) { "Profile ${profile.id} has unordered bounds" }
             previousAge = point.ageDays
@@ -158,8 +182,8 @@ private data class SourceJson(val id: String, val citation: String, val publicat
 private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String, val numericalAvailability: String) {
     fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability))
 }
-private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val points: List<PointJson>) {
-    fun toModel() = ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, points.map(PointJson::toModel))
+private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val referenceKind: String, val minimumBinN: Int, val points: List<PointJson>) {
+    fun toModel() = ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, referenceKind, minimumBinN, points.map(PointJson::toModel))
 }
 private data class PointJson(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double) { fun toModel() = ReferencePoint(ageDays, lowerKg, medianKg, upperKg) }
 private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value.uppercase(Locale.ROOT))
