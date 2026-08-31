@@ -98,11 +98,11 @@ fun ReferenceRangeScale(
                                 .weight(1f)
                                 .height(8.dp)
                                 .testTag(ReferenceRangeScaleTestTags.segment(index))
-                                .background(ReferencePalette.colors(zone.tone).container),
+                                .background(ReferencePalette.colors(zone.tone).scale),
                         )
                     }
                 }
-                val markerColor = ReferencePalette.colors(currentTone).content
+                val markerColor = ReferencePalette.colors(currentTone).scale
                 val markerCenterColor = MaterialTheme.colorScheme.surface
                 Canvas(
                     modifier = Modifier
