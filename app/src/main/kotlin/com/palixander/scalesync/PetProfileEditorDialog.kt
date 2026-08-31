@@ -621,6 +621,7 @@ private fun BreedPickerDialog(
                         ) { option ->
                             SelectionRow(
                                 label = option.displayName,
+                                badgeLabel = "Есть эталон".takeIf { option.hasWeightReference },
                                 selected = selected?.id == option.id,
                                 enabled = true,
                                 tag = PetProfileEditorTestTags.breedOption(option.id.value),
@@ -641,6 +642,7 @@ private fun BreedPickerDialog(
 @Composable
 private fun SelectionRow(
     label: String,
+    badgeLabel: String? = null,
     selected: Boolean,
     enabled: Boolean,
     tag: String,
@@ -666,6 +668,7 @@ private fun SelectionRow(
             .semantics {
                 role = Role.RadioButton
                 this.selected = selected
+                badgeLabel?.let { stateDescription = it }
             },
     ) {
         Row(
@@ -679,6 +682,19 @@ private fun SelectionRow(
                     .weight(1f)
                     .padding(start = 8.dp),
             )
+            badgeLabel?.let { badge ->
+                Surface(
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Text(
+                        text = badge,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                    )
+                }
+            }
         }
     }
 }

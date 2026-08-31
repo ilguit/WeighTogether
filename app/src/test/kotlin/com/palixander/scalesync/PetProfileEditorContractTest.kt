@@ -168,6 +168,16 @@ class PetProfileEditorContractTest {
     }
 
     @Test
+    fun `catalog marks only breeds backed by a numerical breed profile`() {
+        val catOptions = breedCatalog.search("", PetSpecies.CAT)
+        val dogOptions = breedCatalog.search("", PetSpecies.DOG)
+
+        assertTrue(catOptions.single { it.id == BreedId("VBO:0100119") }.hasWeightReference)
+        assertTrue(catOptions.filter { it.hasWeightReference }.all { it.id == BreedId("VBO:0100119") })
+        assertTrue(dogOptions.none { it.hasWeightReference })
+    }
+
+    @Test
     fun unavailableSavedBreedIdRemainsVisibleAndRoundTripsUntilExplicitlyCleared() {
         val unknownId = BreedId("external:dog:rare-breed")
         val original = pet(

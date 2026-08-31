@@ -4,6 +4,8 @@ import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.core.breed.BreedRecord
 import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.NewPet
@@ -78,6 +80,7 @@ data class PetBreedOption(
     val canonicalName: String,
     val aliases: List<String>,
     val kind: BreedKind,
+    val hasWeightReference: Boolean,
 )
 
 sealed interface PetBreedSelection {
@@ -98,10 +101,16 @@ sealed interface PetBreedSelection {
 
 class PetBreedCatalog(
     private val catalog: BreedCatalog = BreedCatalog.bundled(),
+    snapshot: WeightReferenceSnapshot = WeightReferenceSnapshot.bundled(catalog),
 ) {
+    private val breedsWithWeightReference = snapshot.profiles.asSequence()
+        .filter { profile -> profile.basis == ReferenceBasis.BREED }
+        .mapNotNull { profile -> profile.breedId }
+        .toSet()
+
     fun search(query: String, species: PetSpecies): List<PetBreedOption> {
         val catalogSpecies = species.toBreedSpecies() ?: return emptyList()
-        return catalog.search(query, catalogSpecies).map(BreedRecord::toPetBreedOption)
+        return catalog.search(query, catalogSpecies).map(::toPetBreedOption)
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
@@ -109,9 +118,22 @@ class PetBreedCatalog(
         return if (record == null) {
             PetBreedSelection.Unavailable(id, savedSpecies)
         } else {
-            PetBreedSelection.Available(record.toPetBreedOption())
+            PetBreedSelection.Available(toPetBreedOption(record))
         }
     }
+
+    private fun toPetBreedOption(record: BreedRecord): PetBreedOption = PetBreedOption(
+        id = BreedId(record.id),
+        species = when (record.species) {
+            BreedSpecies.CAT -> PetSpecies.CAT
+            BreedSpecies.DOG -> PetSpecies.DOG
+        },
+        displayName = record.displayNameRu,
+        canonicalName = record.canonicalName,
+        aliases = record.aliases,
+        kind = record.kind,
+        hasWeightReference = record.id in breedsWithWeightReference,
+    )
 }
 
 data class PetProfileDraft(
@@ -496,18 +518,6 @@ private fun PetSpecies.toBreedSpecies(): BreedSpecies? = when (this) {
     PetSpecies.DOG -> BreedSpecies.DOG
     PetSpecies.UNSPECIFIED -> null
 }
-
-private fun BreedRecord.toPetBreedOption(): PetBreedOption = PetBreedOption(
-    id = BreedId(id),
-    species = when (species) {
-        BreedSpecies.CAT -> PetSpecies.CAT
-        BreedSpecies.DOG -> PetSpecies.DOG
-    },
-    displayName = displayNameRu,
-    canonicalName = canonicalName,
-    aliases = aliases,
-    kind = kind,
-)
 
 private fun PetBirthDateInput.hasBlankComponent(): Boolean = when (this) {
     PetBirthDateInput.Empty -> false
