@@ -143,6 +143,46 @@ class PetProfileEditorDialogUiTest {
     }
 
     @Test
+    fun breedPickerMarksOnlyBreedsWithPublishedWeightReference() {
+        val state = mutableStateOf(
+            PetProfileEditorState(
+                PetProfileDraft.create().copy(
+                    displayName = "Барсик",
+                    species = PetSpecies.CAT,
+                ),
+            ),
+        )
+        val domesticShorthair = catalog.search("Domestic Shorthair", PetSpecies.CAT).single()
+        val abyssinian = catalog.search("Абиссинская", PetSpecies.CAT).single()
+        setEditor(state)
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput(domesticShorthair.displayName)
+        composeRule.onNodeWithTag(
+            PetProfileEditorTestTags.breedOption(BreedId("VBO:0100119").value),
+        )
+            .assertIsDisplayed()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.StateDescription,
+                    "Есть эталон",
+                ),
+            )
+        composeRule.onNodeWithText("Есть эталон").assertIsDisplayed()
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery).performTextClearance()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput(abyssinian.displayName)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(abyssinian.id.value))
+            .assertIsDisplayed()
+            .assert(
+                SemanticsMatcher.keyNotDefined(SemanticsProperties.StateDescription),
+            )
+        composeRule.onNodeWithText("Есть эталон").assertDoesNotExist()
+    }
+
+    @Test
     fun yearMonthAndDayInputsDispatchTypedPrecisionWithoutInventingParts() {
         val state = mutableStateOf(
             PetProfileEditorState(
