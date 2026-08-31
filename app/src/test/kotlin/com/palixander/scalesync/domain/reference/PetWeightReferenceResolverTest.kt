@@ -69,6 +69,66 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `partial date includes internal extrema instead of only interval endpoints`() {
+        val date = LocalDate.of(2024, 8, 8)
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val profile = snapshot.profiles.single { it.id == "dog-female-I" }
+        val expected = profile.points.filter { it.ageDays in 161..189 }
+
+        val result = resolver.resolve(
+            PetSpecies.DOG,
+            PetSex.FEMALE,
+            null,
+            PartialBirthDate.Month(YearMonth.of(2024, 2)),
+            date,
+            DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).available()
+
+        assertEquals(161L..189L, result.ageDays)
+        assertEquals(expected.minOf { it.lowerKg }, result.bounds.lowerKg, 1e-12)
+        assertEquals(expected.minOf { it.medianKg }, result.bounds.medianLowerKg, 1e-12)
+        assertEquals(expected.maxOf { it.medianKg }, result.bounds.medianUpperKg, 1e-12)
+        assertEquals(expected.maxOf { it.upperKg }, result.bounds.upperKg, 1e-12)
+    }
+
+    @Test
+    fun `DSH sparse intervals are data gaps while weekly intervals interpolate`() {
+        val breed = BreedId("VBO:0100119")
+        for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+            assertReason<WeightReferenceUnavailableReason.ReferenceDataGap>(
+                resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breed,
+                    PartialBirthDate.Day(referenceDate.minusDays(230)),
+                    referenceDate,
+                    intactStatus = IntactStatus.CONFIRMED_INTACT,
+                ),
+            )
+            assertTrue(
+                resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breed,
+                    PartialBirthDate.Day(referenceDate.minusDays(165)),
+                    referenceDate,
+                    intactStatus = IntactStatus.CONFIRMED_INTACT,
+                ) is PetWeightReferenceResolution.Available,
+            )
+        }
+    }
+
+    @Test
+    fun `future birth date is typed invalid data instead of throwing`() {
+        assertReason<WeightReferenceUnavailableReason.InvalidBirthDate>(
+            resolveDog(
+                birthDate = PartialBirthDate.Day(referenceDate.plusDays(1)),
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+            ),
+        )
+    }
+
+    @Test
     fun `expected dog weights map deterministically at category boundaries`() {
         val cases = listOf(
             6.4999 to "I",

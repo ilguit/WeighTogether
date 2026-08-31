@@ -89,4 +89,40 @@ class WeightReferenceSnapshotTest {
             WeightReferenceSnapshot.load({ ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
         }
     }
+
+    @Test
+    fun `available scope must have exactly one profile`() {
+        val root = bundledJson()
+        root.getAsJsonArray("profiles").remove(0)
+        refreshChecksum(root)
+
+        assertFailsWith<IllegalArgumentException> {
+            WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
+        }
+    }
+
+    @Test
+    fun `unavailable scope must have no profile`() {
+        val root = bundledJson()
+        val id = root.getAsJsonArray("profiles")[0].asJsonObject.get("id").asString
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
+            .addProperty("numericalAvailability", "not_reproducible_from_published_artifacts")
+        refreshChecksum(root)
+
+        assertFailsWith<IllegalArgumentException> {
+            WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
+        }
+    }
+
+    private fun bundledJson() = javaClass.classLoader
+        .getResourceAsStream(WeightReferenceSnapshot.RESOURCE_PATH)!!
+        .bufferedReader().use { JsonParser.parseString(it.readText()).asJsonObject }
+
+    private fun refreshChecksum(root: com.google.gson.JsonObject) {
+        val canonical = root.getAsJsonArray("profiles").toString().toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(canonical)
+            .joinToString("") { "%02x".format(it) }
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
+    }
 }

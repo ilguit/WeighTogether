@@ -8,6 +8,7 @@
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
       "ageConversion": "ageDays = ageYears * 365.25; assign to nearest 7-day centre",
+      "interpolation": "Linear interpolation is permitted only between adjacent weekly centres no more than 7 days apart; larger gaps are unavailable data",
       "quantiles": "25th, 50th and 75th percentiles using linear interpolation at (N - 1) * p; weights rounded to 0.001 kg",
       "dogEligibility": "84-730 days; known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",

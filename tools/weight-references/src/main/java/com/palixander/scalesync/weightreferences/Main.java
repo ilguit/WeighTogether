@@ -58,8 +58,13 @@ public final class Main {
             addProfiles(root, profiles, readKitten(input));
         }
         root.add("profiles", profiles);
+        var generatedIds = new java.util.HashSet<String>();
+        profiles.forEach(value -> generatedIds.add(value.getAsJsonObject().get("id").getAsString()));
         for (var scope : root.getAsJsonObject("manifest").getAsJsonArray("scopes")) {
-            scope.getAsJsonObject().addProperty("numericalAvailability", "available");
+            scope.getAsJsonObject().addProperty(
+                "numericalAvailability",
+                generatedIds.contains(scope.getAsJsonObject().get("id").getAsString()) ? "available" : "not_reproducible_from_published_artifacts"
+            );
         }
         Path derived = Files.createTempFile("weight-reference-derived", ".json");
         Files.writeString(derived, GSON.toJson(root) + "\n", StandardCharsets.UTF_8);
@@ -112,6 +117,7 @@ public final class Main {
         root.getAsJsonObject("manifest").getAsJsonArray("scopes").forEach(value -> scopes.put(value.getAsJsonObject().get("id").getAsString(), value.getAsJsonObject()));
         groups.forEach((id, bins) -> {
             JsonObject scope = scopes.get(id);
+            if (scope == null) throw new IllegalArgumentException("Generated profile has no declared scope: " + id);
             int minimumN = id.startsWith("dog-") ? 100 : 30;
             JsonArray points = new JsonArray();
             bins.forEach((age, values) -> {

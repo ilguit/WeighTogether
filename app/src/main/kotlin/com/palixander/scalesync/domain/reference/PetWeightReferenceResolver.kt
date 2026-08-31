@@ -56,6 +56,9 @@ sealed interface WeightReferenceUnavailableReason {
     data class UnsupportedBreed(val breedId: String) : WeightReferenceUnavailableReason
     data object DshIntactStatusUnknown : WeightReferenceUnavailableReason
     data object DshNotIntact : WeightReferenceUnavailableReason
+    data object InvalidBirthDate : WeightReferenceUnavailableReason
+    data class ProfileUnavailable(val profileId: String) : WeightReferenceUnavailableReason
+    data class ReferenceDataGap(val profileId: String, val ageDays: LongRange) : WeightReferenceUnavailableReason
     data class AdultWeightAboveSupportedMaximum(val weightKg: Double) : WeightReferenceUnavailableReason
     data class AgeOutOfRange(
         val actualMinimumDays: Long,
@@ -131,10 +134,14 @@ class PetWeightReferenceResolver(
                     )
                 null -> return unavailable(WeightReferenceUnavailableReason.MissingDogAdultWeight)
             }
-            snapshot.profiles.single {
+            snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.WEIGHT_CATEGORY && it.species == ReferenceSpecies.DOG &&
                     it.sex == referenceSex && it.weightCategory == category.name
-            }
+            } ?: return unavailable(
+                WeightReferenceUnavailableReason.ProfileUnavailable(
+                    "dog-${referenceSex.name.lowercase()}-${category.name}",
+                ),
+            )
         }
 
         return resolveProfile(profile, birthDate, referenceDate)
@@ -145,7 +152,11 @@ class PetWeightReferenceResolver(
         birthDate: PartialBirthDate,
         referenceDate: LocalDate,
     ): PetWeightReferenceResolution {
-        val age = birthDate.ageAt(referenceDate)
+        val age = try {
+            birthDate.ageAt(referenceDate)
+        } catch (_: IllegalArgumentException) {
+            return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
+        }
         val supportedMinimum = profile.points.first().ageDays
         val supportedMaximum = profile.points.last().ageDays
         if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
@@ -158,14 +169,20 @@ class PetWeightReferenceResolver(
                 ),
             )
         }
-        val younger = snapshot.interpolate(profile.id, age.minimumDays.toInt())!!
-        val older = snapshot.interpolate(profile.id, age.maximumDays.toInt())!!
+        val points = buildList {
+            snapshot.interpolate(profile.id, age.minimumDays.toInt())?.let(::add)
+            profile.points.filterTo(this) { it.ageDays.toLong() in age.minimumDays..age.maximumDays }
+            if (age.maximumDays != age.minimumDays) snapshot.interpolate(profile.id, age.maximumDays.toInt())?.let(::add)
+        }
+        if (points.isEmpty() || !isContinuouslyCovered(profile, age.minimumDays..age.maximumDays)) {
+            return unavailable(WeightReferenceUnavailableReason.ReferenceDataGap(profile.id, age.minimumDays..age.maximumDays))
+        }
         return PetWeightReferenceResolution.Available(
             PetWeightReference(
                 profileId = profile.id,
                 basis = profile.basis,
                 ageDays = age.minimumDays..age.maximumDays,
-                bounds = aggregate(younger, older),
+                bounds = aggregate(points),
                 approximate = birthDate.precision != BirthDatePrecision.DAY,
             ),
         )
@@ -180,11 +197,21 @@ class PetWeightReferenceResolver(
         else -> null
     }
 
-    private fun aggregate(first: ReferencePoint, second: ReferencePoint) = ExpectedWeightBounds(
-        lowerKg = minOf(first.lowerKg, second.lowerKg),
-        medianLowerKg = minOf(first.medianKg, second.medianKg),
-        medianUpperKg = maxOf(first.medianKg, second.medianKg),
-        upperKg = maxOf(first.upperKg, second.upperKg),
+    private fun isContinuouslyCovered(profile: ReferenceProfile, range: LongRange): Boolean {
+        val relevant = profile.points.filter { it.ageDays.toLong() in range }
+        val ages = buildList {
+            add(range.first)
+            relevant.forEach { add(it.ageDays.toLong()) }
+            add(range.last)
+        }.distinct().sorted()
+        return ages.zipWithNext().all { (first, second) -> second - first <= snapshot.maxInterpolationGapDays }
+    }
+
+    private fun aggregate(points: List<ReferencePoint>) = ExpectedWeightBounds(
+        lowerKg = points.minOf(ReferencePoint::lowerKg),
+        medianLowerKg = points.minOf(ReferencePoint::medianKg),
+        medianUpperKg = points.maxOf(ReferencePoint::medianKg),
+        upperKg = points.maxOf(ReferencePoint::upperKg),
     )
 
     private fun unavailable(reason: WeightReferenceUnavailableReason) =

@@ -68,6 +68,9 @@ class WeightReferenceSnapshot private constructor(
     val manifest: WeightReferenceManifest,
     val profiles: List<ReferenceProfile>,
 ) {
+    /** Maximum distance supported by the weekly-bin derivation. Larger holes are missing data. */
+    val maxInterpolationGapDays: Int = 7
+
     /** Returns an exact or linearly interpolated point within one profile only. Never extrapolates. */
     fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
@@ -78,6 +81,7 @@ class WeightReferenceSnapshot private constructor(
             val upperIndex = -index - 1
             val lower = points[upperIndex - 1]
             val upper = points[upperIndex]
+            if (upper.ageDays - lower.ageDays > maxInterpolationGapDays) return null
             val fraction = (ageDays - lower.ageDays).toDouble() / (upper.ageDays - lower.ageDays)
             fun between(a: Double, b: Double) = a + (b - a) * fraction
             return ReferencePoint(ageDays, between(lower.lowerKg, upper.lowerKg), between(lower.medianKg, upper.medianKg), between(lower.upperKg, upper.upperKg))
@@ -132,6 +136,14 @@ class WeightReferenceSnapshot private constructor(
         require(profiles.map(ReferenceProfile::id).distinct().size == profiles.size) { "Profile IDs must be unique" }
         val scopes = manifest.scopes.associateBy(ReferenceScope::id)
         profiles.forEach { profile -> validateProfile(profile, sources, scopes, breedCatalog) }
+        val profilesById = profiles.groupBy(ReferenceProfile::id)
+        manifest.scopes.forEach { scope ->
+            val matching = profilesById[scope.id].orEmpty()
+            val expected = if (scope.numericalAvailability == NumericalAvailability.AVAILABLE) 1 else 0
+            require(matching.size == expected) {
+                "Scope ${scope.id} availability requires $expected matching profile(s), found ${matching.size}"
+            }
+        }
     }
 
     private fun validateScope(scope: ReferenceScope, sources: Map<String, ReferenceSource>, breeds: BreedCatalog) {
