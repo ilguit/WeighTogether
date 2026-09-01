@@ -81,6 +81,8 @@ data class PetHistoryBreedCompanionReference(
 )
 
 sealed interface PetHistoryBreedChartValue {
+    /** Stable identity used to keep chart series from different sources separate. */
+    val seriesId: String
     val statisticLabel: String
     val accessibilityLabel: String
 
@@ -90,12 +92,14 @@ sealed interface PetHistoryBreedChartValue {
         val centerKg: Double?,
         override val statisticLabel: String,
         override val accessibilityLabel: String,
+        override val seriesId: String = statisticLabel,
     ) : PetHistoryBreedChartValue
 
     data class Single(
         val valueKg: Double,
         override val statisticLabel: String,
         override val accessibilityLabel: String,
+        override val seriesId: String = statisticLabel,
     ) : PetHistoryBreedChartValue
 }
 
@@ -146,6 +150,7 @@ class PetHistoryBreedReferencePresenter(
                         resolution.reference.ageScope.label(),
                         resolution.reference.source.kind.label(),
                         locale,
+                        resolution.reference.source.id,
                     )
                 } + resolution.reference.companionGroups.flatMap { group ->
                     group.values.map { value ->
@@ -154,6 +159,7 @@ class PetHistoryBreedReferencePresenter(
                             group.ageScope.label(),
                             group.source.kind.label(),
                             locale,
+                            group.source.id,
                         )
                     }
                 }
@@ -192,7 +198,7 @@ class PetHistoryBreedReferencePresenter(
                     append(". Тип источника: ${companion.sourceKindLabel}.")
                 }
             },
-            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) } +
+            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale, source.id) } +
                 companions.flatMap(PetHistoryBreedCompanionReference::chartValues),
             source = sourcePresentation,
             details = details.map { it.presentation() },
@@ -208,7 +214,7 @@ class PetHistoryBreedReferencePresenter(
             sexLabel = sex.label(),
             valueLabels = values.map { it.label(locale) },
             sourceKindLabel = kind,
-            chartValues = values.map { it.chartValue(breedName, age, kind, locale) },
+            chartValues = values.map { it.chartValue(breedName, age, kind, locale, source.id) },
             source = source.presentation(sampleSize, sampleUnit, limitations),
         )
     }
@@ -262,6 +268,7 @@ private fun BreedWeightValue.chartValue(
     ageLabel: String,
     sourceKind: String,
     locale: Locale,
+    sourceId: String,
 ): PetHistoryBreedChartValue {
     val valueLabel = label(locale)
     val description = "$breedName. Возраст источника: $ageLabel. $valueLabel. Тип источника: $sourceKind."
@@ -270,11 +277,13 @@ private fun BreedWeightValue.chartValue(
             lowerKg = lower,
             upperKg = upper,
             centerKg = center,
+            seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
             statisticLabel = statistic.label(),
             accessibilityLabel = description,
         )
         is BreedWeightValue.Single -> PetHistoryBreedChartValue.Single(
             valueKg = value,
+            seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
             statisticLabel = statistic.label(),
             accessibilityLabel = description,
         )

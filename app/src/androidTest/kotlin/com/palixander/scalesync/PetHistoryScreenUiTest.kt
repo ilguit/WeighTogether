@@ -50,6 +50,7 @@ import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedReference
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedChartValue
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedSource
+import com.palixander.scalesync.ui.profiles.PetHistoryBreedReferenceTimelinePoint
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -246,7 +247,18 @@ class PetHistoryScreenUiTest {
             ),
             details = emptyList(),
         )
-        val screenState = state(PetHistoryContent.Empty).copy(breedReference = breedReference)
+        val firstDate = LocalDate.of(2026, 8, 1)
+        val secondDate = LocalDate.of(2026, 8, 27)
+        val screenState = state(PetHistoryContent.Empty).copy(
+            breedReference = breedReference,
+            breedReferenceTimeline = listOf(firstDate, secondDate).map { date ->
+                PetHistoryBreedReferenceTimelinePoint(
+                    date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+                    date,
+                    breedReference.chartValues,
+                )
+            },
+        )
         composeRule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
@@ -258,9 +270,10 @@ class PetHistoryScreenUiTest {
 
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assertIsDisplayed()
-            .assert(hasContentDescription("Породный диапазон отмечен вертикальным отрезком", substring = true))
-        composeRule.onNodeWithText("│ Породный диапазон · 6 месяцев").assertIsDisplayed()
-        composeRule.onNodeWithText("◆ Породное среднее или медиана · 6 месяцев").assertIsDisplayed()
+            .assert(hasContentDescription("Светло-зелёная зона — породный диапазон", substring = true))
+        composeRule.onNodeWithText("▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы").assertIsDisplayed()
+        composeRule.onNodeWithText("│ Породный диапазон · 6 месяцев").assertDoesNotExist()
+        composeRule.onNodeWithText("◆ Породное среднее или медиана · 6 месяцев").assertDoesNotExist()
     }
 
     @Test fun availableBreedSuppressesUnavailableCategoryExplanationFromUiAndAccessibility() {
