@@ -295,6 +295,32 @@ class PetWeightReferenceChartTest {
         assertEquals(listOf(12.0, 13.0), bands.single().points.map(BreedWeightReferenceBandPoint::upperKg))
     }
 
+    @Test fun `breed bands use stable source identity across reordered values and source gaps`() {
+        fun interval(id: String, lower: Double, upper: Double) = PetHistoryBreedChartValue.Interval(
+            lowerKg = lower,
+            upperKg = upper,
+            centerKg = null,
+            statisticLabel = "Диапазон",
+            accessibilityLabel = id,
+            seriesId = id,
+        )
+        val dates = (1..3).map { LocalDate.of(2026, 8, it) }
+        val timeline = listOf(
+            timelinePoint(dates[0], interval("source-a:range", 8.0, 12.0), interval("source-b:range", 18.0, 22.0)),
+            timelinePoint(dates[1], interval("source-b:range", 19.0, 23.0), interval("source-a:range", 9.0, 13.0)),
+            timelinePoint(dates[2], interval("source-a:range", 10.0, 14.0)),
+        )
+
+        val bands = breedWeightReferenceBands(timeline)
+
+        assertEquals(2, bands.size)
+        assertEquals(listOf(8.0, 9.0, 10.0), bands[0].points.map(BreedWeightReferenceBandPoint::lowerKg))
+        assertEquals(listOf(12.0, 13.0, 14.0), bands[0].points.map(BreedWeightReferenceBandPoint::upperKg))
+        assertEquals(listOf(18.0, 19.0), bands[1].points.map(BreedWeightReferenceBandPoint::lowerKg))
+        assertEquals(listOf(22.0, 23.0), bands[1].points.map(BreedWeightReferenceBandPoint::upperKg))
+        assertTrue(bands.none { band -> band.points.any { it.lowerKg < 15.0 } && band.points.any { it.lowerKg > 15.0 } })
+    }
+
     @Test fun `breed series split at unavailable measurement and keep singleton segments`() {
         val firstDate = LocalDate.of(2026, 7, 1)
         val gapDate = LocalDate.of(2026, 8, 1)

@@ -128,20 +128,21 @@ internal data class BreedWeightReferenceBand(val points: List<BreedWeightReferen
     }
 }
 
-/** Produces one polygon source per value and continuous interval segment. */
+/** Produces one polygon per stable source/statistic identity and continuous interval segment. */
 internal fun breedWeightReferenceBands(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceBand> {
-    val maximumValueCount = timeline.maxOfOrNull { it.values?.size ?: 0 } ?: return emptyList()
+    val seriesIds = timeline.flatMap { point -> point.values.orEmpty().map(PetHistoryBreedChartValue::seriesId) }.distinct()
     return buildList {
-        repeat(maximumValueCount) { valueIndex ->
+        seriesIds.forEach { seriesId ->
             var segment = mutableListOf<BreedWeightReferenceBandPoint>()
             fun finishSegment() {
                 if (segment.size >= 2) add(BreedWeightReferenceBand(segment))
                 segment = mutableListOf()
             }
             timeline.forEach { timelinePoint ->
-                val interval = timelinePoint.values?.getOrNull(valueIndex) as? PetHistoryBreedChartValue.Interval
+                val interval = timelinePoint.values
+                    ?.firstOrNull { it.seriesId == seriesId } as? PetHistoryBreedChartValue.Interval
                 if (interval == null) {
                     finishSegment()
                 } else {
@@ -292,14 +293,14 @@ internal fun petWeightDisplayedMarkerXs(
 internal fun breedWeightReferenceChartSeries(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceChartSeries> {
-    val maximumValueCount = timeline.maxOfOrNull { it.values?.size ?: 0 } ?: return emptyList()
+    val seriesIds = timeline.flatMap { point -> point.values.orEmpty().map(PetHistoryBreedChartValue::seriesId) }.distinct()
     return buildList {
-        repeat(maximumValueCount) { valueIndex ->
+        seriesIds.forEach { seriesId ->
             fun points(selector: (PetHistoryBreedChartValue) -> Double?): List<Pair<List<Pair<LocalDate, Double>>, List<Long>>> {
                 val segments = mutableListOf<MutableList<Pair<LocalDate, Double>>>()
                 val timestamps = mutableListOf<MutableList<Long>>()
                 timeline.forEach { point ->
-                    val value = point.values?.getOrNull(valueIndex)?.let(selector)
+                    val value = point.values?.firstOrNull { it.seriesId == seriesId }?.let(selector)
                     if (value == null) {
                         if (segments.lastOrNull()?.isNotEmpty() == true) {
                             segments.add(mutableListOf())
@@ -481,7 +482,7 @@ internal fun PetWeightReferenceChartCard(
             if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
         }
         if (breedReference is PetHistoryBreedReference.Available) {
-            append(" ${breedReference.accessibilityLabel} Породные ориентиры построены по датам измерений; одиночное значение отмечено ромбом.")
+            append(" ${breedReference.accessibilityLabel} Породный диапазон показан светло-зелёной прозрачной зоной с тонкими границами; среднее или медиана — тонкой приглушённой линией.")
         }
     }
 
@@ -667,17 +668,23 @@ private class BreedWeightReferenceBandDecoration(
         fun y(value: Double): Float = layerBounds.bottom -
             ((value - yRange.minY) / yRange.length).toFloat() * layerBounds.height
 
-        bands.forEach { band ->
-            val path = Path()
-            band.points.forEachIndexed { index, point ->
-                if (index == 0) path.moveTo(x(point.xEpochMillis), y(point.lowerKg))
-                else path.lineTo(x(point.xEpochMillis), y(point.lowerKg))
+        canvas.save()
+        canvas.clipRect(layerBounds.left, layerBounds.top, layerBounds.right, layerBounds.bottom)
+        try {
+            bands.forEach { band ->
+                val path = Path()
+                band.points.forEachIndexed { index, point ->
+                    if (index == 0) path.moveTo(x(point.xEpochMillis), y(point.lowerKg))
+                    else path.lineTo(x(point.xEpochMillis), y(point.lowerKg))
+                }
+                band.points.asReversed().forEach { point ->
+                    path.lineTo(x(point.xEpochMillis), y(point.upperKg))
+                }
+                path.close()
+                canvas.drawPath(path, paint)
             }
-            band.points.asReversed().forEach { point ->
-                path.lineTo(x(point.xEpochMillis), y(point.upperKg))
-            }
-            path.close()
-            canvas.drawPath(path, paint)
+        } finally {
+            canvas.restore()
         }
     }
 }
@@ -686,12 +693,12 @@ private class BreedWeightReferenceBandDecoration(
 private fun BreedChartLegend(reference: PetHistoryBreedReference.Available) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (reference.chartValues.any { it is PetHistoryBreedChartValue.Interval }) {
-            Text("— Границы породного диапазона · возраст на дату измерения", style = MaterialTheme.typography.bodySmall)
+            Text("▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы", style = MaterialTheme.typography.bodySmall)
         }
         if (reference.chartValues.any {
                 it is PetHistoryBreedChartValue.Single || it is PetHistoryBreedChartValue.Interval && it.centerKg != null
             }) {
-            Text("◆ Породное среднее или медиана · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
+            Text("— Тонкая приглушённая линия — породное среднее или медиана · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -707,12 +714,12 @@ private fun DisplayedSeriesLegend(
             val color = when (series.style) {
                 PetWeightDisplayedSeriesStyle.FACTUAL -> factualColor
                 PetWeightDisplayedSeriesStyle.CATEGORY -> referenceColor
-                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> MaterialTheme.colorScheme.secondary
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> Color(0xFF43A047).copy(alpha = 0.36f)
                 PetWeightDisplayedSeriesStyle.BREED_CENTER -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
             }
             val symbol = when (series.style) {
                 PetWeightDisplayedSeriesStyle.FACTUAL -> "●"
-                PetWeightDisplayedSeriesStyle.BREED_CENTER -> "◆"
+                PetWeightDisplayedSeriesStyle.BREED_CENTER -> "—"
                 else -> "—"
             }
             ChartLegend("$symbol ${series.label}", color)

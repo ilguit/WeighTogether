@@ -20,6 +20,7 @@ import java.time.LocalDate
 sealed interface BreedWeightValue {
     val statistic: BreedReferenceStatisticKind
     val unit: String
+    val referenceId: String?
 
     data class Interval(
         override val statistic: BreedReferenceStatisticKind,
@@ -27,6 +28,7 @@ sealed interface BreedWeightValue {
         val lower: Double,
         val upper: Double,
         val center: Double? = null,
+        override val referenceId: String? = null,
     ) : BreedWeightValue
 
     data class Single(
@@ -34,6 +36,7 @@ sealed interface BreedWeightValue {
         override val unit: String,
         val value: Double,
         val spread: Double? = null,
+        override val referenceId: String? = null,
     ) : BreedWeightValue
 }
 
@@ -321,10 +324,28 @@ class BreedWeightReferenceResolver(
 
     private fun toWeightValue(value: BreedReferenceValue): BreedWeightValue? = when (value.statistic) {
         BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.QUANTILES ->
-            BreedWeightValue.Interval(value.statistic, value.unit, value.lower!!, value.upper!!, value.center)
+            BreedWeightValue.Interval(
+                value.statistic,
+                value.unit,
+                value.lower!!,
+                value.upper!!,
+                value.center,
+                referenceId = "${value.sourceId.orEmpty()}:${value.id}",
+            )
         BreedReferenceStatisticKind.MEAN, BreedReferenceStatisticKind.MEDIAN, BreedReferenceStatisticKind.APPROXIMATE_AVERAGE ->
-            BreedWeightValue.Single(value.statistic, value.unit, value.center!!)
-        BreedReferenceStatisticKind.MEAN_SD -> BreedWeightValue.Single(value.statistic, value.unit, value.center!!, value.spread)
+            BreedWeightValue.Single(
+                value.statistic,
+                value.unit,
+                value.center!!,
+                referenceId = "${value.sourceId.orEmpty()}:${value.id}",
+            )
+        BreedReferenceStatisticKind.MEAN_SD -> BreedWeightValue.Single(
+            value.statistic,
+            value.unit,
+            value.center!!,
+            value.spread,
+            referenceId = "${value.sourceId.orEmpty()}:${value.id}",
+        )
         BreedReferenceStatisticKind.DOCUMENTED_GAP -> null
     }
 
