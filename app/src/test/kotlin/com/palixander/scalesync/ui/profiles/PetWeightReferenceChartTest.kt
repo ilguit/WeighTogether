@@ -115,6 +115,48 @@ class PetWeightReferenceChartTest {
         assertTrue(range.max > 12.0)
     }
 
+    @Test fun `breed series keep interval and diamond in chart data coordinates`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val breed = breedAvailable(
+            listOf(
+                PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Диапазон", "range"),
+                PetHistoryBreedChartValue.Single(11.0, "Медиана", "median"),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                BreedWeightReferenceChartSeries(listOf(date to 8.0, date to 12.0), true),
+                BreedWeightReferenceChartSeries(listOf(date to 10.0), false),
+                BreedWeightReferenceChartSeries(listOf(date to 11.0), false),
+            ),
+            breedWeightReferenceChartSeries(breed, date),
+        )
+    }
+
+    @Test fun `breed series remain data coordinates across viewport ranges`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val breed = breedAvailable(
+            listOf(PetHistoryBreedChartValue.Interval(3.25, 47.75, null, "Диапазон", "range")),
+        )
+
+        val series = breedWeightReferenceChartSeries(breed, date).single()
+
+        // Vico receives domain values, not canvas fractions. Its current layer bounds, axes,
+        // scroll, zoom, font scale, and Y range therefore own both coordinate transforms.
+        assertEquals(listOf(date to 3.25, date to 47.75), series.points)
+        assertTrue(series.drawsInterval)
+    }
+
+    @Test fun `hidden breed has no native chart series`() {
+        assertTrue(
+            breedWeightReferenceChartSeries(
+                PetHistoryBreedReference.Hidden,
+                LocalDate.of(2026, 9, 1),
+            ).isEmpty(),
+        )
+    }
+
     @Test fun `no factual or available reference has no range`() {
         assertEquals(
             null,

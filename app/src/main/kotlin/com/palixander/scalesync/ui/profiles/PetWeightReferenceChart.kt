@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,9 +17,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.shape.GenericShape
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -50,10 +47,13 @@ import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
+import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.rememberCartesianChart
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.data.ExtraStore
+import com.patrykandpatrick.vico.compose.common.Fill
+import com.patrykandpatrick.vico.compose.common.component.ShapeComponent
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -82,6 +82,28 @@ internal data class PetWeightReferenceChartSeries(
     val kind: PetWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
 )
+
+internal data class BreedWeightReferenceChartSeries(
+    val points: List<Pair<LocalDate, Double>>,
+    val drawsInterval: Boolean,
+)
+
+internal fun breedWeightReferenceChartSeries(
+    reference: PetHistoryBreedReference,
+    date: LocalDate,
+): List<BreedWeightReferenceChartSeries> {
+    val available = reference as? PetHistoryBreedReference.Available ?: return emptyList()
+    return available.chartValues.flatMap { value ->
+        when (value) {
+            is PetHistoryBreedChartValue.Interval -> buildList {
+                add(BreedWeightReferenceChartSeries(listOf(date to value.lowerKg, date to value.upperKg), true))
+                value.centerKg?.let { add(BreedWeightReferenceChartSeries(listOf(date to it), false)) }
+            }
+            is PetHistoryBreedChartValue.Single ->
+                listOf(BreedWeightReferenceChartSeries(listOf(date to value.valueKg), false))
+        }
+    }
+}
 
 internal data class PetWeightMarkerSelection(
     val date: LocalDate,
@@ -266,6 +288,10 @@ private fun PetWeightVicoChart(
 ) {
     val available = reference as? PetHistoryWeightReference.Available
     val referenceSeries = remember(reference) { petWeightReferenceChartSeries(reference) }
+    val breedDate = LocalDate.now().coerceIn(startDate, endDateInclusive)
+    val breedSeries = remember(breedReference, breedDate) {
+        breedWeightReferenceChartSeries(breedReference, breedDate)
+    }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
     }
@@ -281,6 +307,9 @@ private fun PetWeightVicoChart(
         if (factual.isNotEmpty()) add(rememberSmoothChartLine(factualColor, factual.size))
         referenceSeries.forEach { series ->
             add(rememberSmoothChartLine(referenceColor, series.points.size))
+        }
+        breedSeries.forEach { series ->
+            add(rememberBreedChartLine(MaterialTheme.colorScheme.secondary, series.drawsInterval))
         }
     }
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -336,6 +365,14 @@ private fun PetWeightVicoChart(
                         y = points.map { it.second },
                     )
                 }
+                breedSeries.forEach { breedChartSeries ->
+                    series(
+                        x = breedChartSeries.points.map { (date, _) ->
+                            date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+                        },
+                        y = breedChartSeries.points.map { it.second },
+                    )
+                }
             }
         }
     }
@@ -368,67 +405,53 @@ private fun PetWeightVicoChart(
             scrollState = rememberVicoScrollState(scrollEnabled = true),
             zoomState = zoomState,
         )
-        if (breedReference is PetHistoryBreedReference.Available) {
-            BreedReferenceOverlay(
-                reference = breedReference,
-                startDate = startDate,
-                endDateInclusive = endDateInclusive,
-                yRange = yRange,
-                color = MaterialTheme.colorScheme.secondary,
-            )
-        }
+        if (breedReference is PetHistoryBreedReference.Available) BreedReferenceSemantics(breedReference, breedDate)
     }
 }
 
 @Composable
-private fun BreedReferenceOverlay(
+private fun rememberBreedChartLine(color: Color, drawsInterval: Boolean): LineCartesianLayer.Line {
+    val diamond = remember {
+        GenericShape { size, _ ->
+            moveTo(size.width / 2f, 0f)
+            lineTo(size.width, size.height / 2f)
+            lineTo(size.width / 2f, size.height)
+            lineTo(0f, size.height / 2f)
+            close()
+        }
+    }
+    return remember(color, drawsInterval, diamond) {
+        LineCartesianLayer.Line(
+            fill = LineCartesianLayer.LineFill.single(Fill(color)),
+            stroke = LineCartesianLayer.LineStroke.Continuous(if (drawsInterval) 4.dp else 0.dp),
+            areaFill = null,
+            pointProvider = if (drawsInterval) null else {
+                LineCartesianLayer.PointProvider.single(
+                    LineCartesianLayer.Point(
+                        component = ShapeComponent(fill = Fill(color), shape = diamond),
+                        size = 14.dp,
+                    ),
+                )
+            },
+            interpolator = LineCartesianLayer.Interpolator.Sharp,
+        )
+    }
+}
+
+@Composable
+private fun BreedReferenceSemantics(
     reference: PetHistoryBreedReference.Available,
-    startDate: LocalDate,
-    endDateInclusive: LocalDate,
-    yRange: PetWeightChartRange,
-    color: Color,
+    date: LocalDate,
 ) {
-    val today = LocalDate.now().coerceIn(startDate, endDateInclusive)
-    val surfaceColor = MaterialTheme.colorScheme.surface
-    Canvas(
+    Box(
         Modifier
             .fillMaxSize()
             .testTag(PetWeightChartTestTags.BreedLayer)
             .semantics(mergeDescendants = true) {
                 contentDescription = reference.chartValues.joinToString(" ") { it.accessibilityLabel }
-                stateDescription = "Породный ориентир показан на текущую дату $today"
+                stateDescription = "Породный ориентир показан на текущую дату $date"
             },
-    ) {
-        val left = size.width * 0.14f
-        val right = size.width * 0.96f
-        val days = (endDateInclusive.toEpochDay() - startDate.toEpochDay()).coerceAtLeast(1)
-        val x = left + (right - left) * ((today.toEpochDay() - startDate.toEpochDay()).toFloat() / days)
-        val top = size.height * 0.06f
-        val bottom = size.height * 0.82f
-        fun y(value: Double): Float = bottom - ((value - yRange.min) / (yRange.max - yRange.min)).toFloat() * (bottom - top)
-        fun diamond(value: Double) {
-            val cy = y(value)
-            val radius = 7.dp.toPx()
-            val path = Path().apply {
-                moveTo(x, cy - radius)
-                lineTo(x + radius, cy)
-                lineTo(x, cy + radius)
-                lineTo(x - radius, cy)
-                close()
-            }
-            drawPath(path, color)
-            drawPath(path, surfaceColor, style = Stroke(1.dp.toPx()))
-        }
-        reference.chartValues.forEach { value ->
-            when (value) {
-                is PetHistoryBreedChartValue.Interval -> {
-                    drawLine(color, androidx.compose.ui.geometry.Offset(x, y(value.lowerKg)), androidx.compose.ui.geometry.Offset(x, y(value.upperKg)), 4.dp.toPx(), StrokeCap.Round)
-                    value.centerKg?.let(::diamond)
-                }
-                is PetHistoryBreedChartValue.Single -> diamond(value.valueKg)
-            }
-        }
-    }
+    )
 }
 
 @Composable
