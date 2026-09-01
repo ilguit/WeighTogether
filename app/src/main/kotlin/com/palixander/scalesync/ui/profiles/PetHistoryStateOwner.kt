@@ -51,6 +51,7 @@ class PetHistoryStateOwner(
     private val locale: Locale = Locale.getDefault(),
     private val breedCatalog: PetBreedCatalog = PetBreedCatalog(),
     private val referencePresenter: PetHistoryReferencePresenter = PetHistoryReferencePresenter(),
+    private val breedReferencePresenter: PetHistoryBreedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
 ) : AutoCloseable {
     private val ownerJob = SupervisorJob(parentScope.coroutineContext[Job])
     private val ownerScope = CoroutineScope(parentScope.coroutineContext + ownerJob)
@@ -199,6 +200,7 @@ class PetHistoryStateOwner(
                         content = content,
                         series = series,
                         weightReference = referencePresenter.present(observedPet, current.range),
+                        breedReference = breedReferencePresenter.present(observedPet),
                         isLoading = false,
                     )
                 }
