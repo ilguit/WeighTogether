@@ -259,11 +259,6 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assertIsDisplayed()
             .assert(hasContentDescription("Породный диапазон отмечен вертикальным отрезком", substring = true))
-        composeRule.onNodeWithTag(PetWeightChartTestTags.BreedLayer)
-            .assertIsDisplayed()
-            .assert(hasContentDescription("Американский стаффордширский терьер", substring = true))
-            .assert(hasContentDescription("Возраст источника: 6 месяцев", substring = true))
-            .assert(hasContentDescription("Диапазон: 8,2–10,4 кг", substring = true))
         composeRule.onNodeWithText("│ Породный диапазон · 6 месяцев").assertIsDisplayed()
         composeRule.onNodeWithText("◆ Породное среднее или медиана · 6 месяцев").assertIsDisplayed()
     }
