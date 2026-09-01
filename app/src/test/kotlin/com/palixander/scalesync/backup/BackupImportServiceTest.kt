@@ -129,6 +129,32 @@ class BackupImportServiceTest {
     }
 
     @Test
+    fun `import normalizes breed ids at the backup compatibility boundary`() {
+        val pets = listOf(
+            BackupPetV2("supported", "Supported", "supported", PetSpecies.DOG, 1, 2,
+                breedId = "VBO:0200995"),
+            BackupPetV2("alias", "Alias", "alias", PetSpecies.DOG, 1, 2,
+                breedId = "VBO:0201146"),
+            BackupPetV2("unsupported", "Unsupported", "unsupported", PetSpecies.DOG, 1, 2,
+                breedId = "external:dog:future"),
+            BackupPetV2("cat", "Cat", "cat", PetSpecies.CAT, 1, 2,
+                breedId = "VBO:0100000"),
+        )
+
+        val imported = service.preview(
+            document().copy(pets = pets),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        ).result.pets.associateBy { it.id }
+
+        assertEquals("VBO:0200995", imported.getValue("supported").breedId)
+        assertEquals("VBO:0200174", imported.getValue("alias").breedId)
+        assertEquals(null, imported.getValue("unsupported").breedId)
+        assertEquals(null, imported.getValue("cat").breedId)
+    }
+
+    @Test
     fun `pet measurement id conflict is rejected and replace removes old pet graph`() {
         val current = BackupDatabaseSnapshot(
             emptyList(),

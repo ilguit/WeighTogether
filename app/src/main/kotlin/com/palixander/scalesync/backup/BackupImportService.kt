@@ -12,6 +12,8 @@ import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -581,12 +583,22 @@ private fun BackupDocumentV1.toSnapshot(): BackupDatabaseSnapshot {
     },
     pets = pets.map {
         PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis,
-            it.sex, it.breedId, it.birthYear, it.birthMonth, it.birthDay, it.dogAdultWeightCategory)
+            it.sex, normalizeImportedBreedId(it.species, it.breedId), it.birthYear, it.birthMonth, it.birthDay,
+            it.dogAdultWeightCategory)
     },
     petMeasurements = petMeasurements.map {
         PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
     },
     )
+}
+
+private val importedBreedSnapshot by lazy(LazyThreadSafetyMode.PUBLICATION) {
+    BreedReferenceSnapshot.bundled()
+}
+
+private fun normalizeImportedBreedId(species: PetSpecies, breedId: String?): String? {
+    if (species != PetSpecies.DOG || breedId == null) return null
+    return importedBreedSnapshot.breed(breedId)?.breedId
 }
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(
