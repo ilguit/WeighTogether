@@ -26,7 +26,7 @@ class BreedWeightReferenceResolverTest {
             Case("corgi future second range", "VBO:0200995", 350, BreedWeightAgeScope.Age(365, 699, "12–23 months"), false),
             Case("labrador exact point", "VBO:0200800", 183, BreedWeightAgeScope.Age(183, 183, "6 months"), false),
             Case("labrador nearest future", "VBO:0200800", 184, BreedWeightAgeScope.Age(274, 274, "9 months"), false),
-            Case("labrador after final point", "VBO:0200800", 731, BreedWeightAgeScope.Adult, true),
+            Case("labrador after final point", "VBO:0200800", 731, BreedWeightAgeScope.Age(730, 730, "24 months"), false),
             Case("dobermann future observation", "VBO:0200442", 13, BreedWeightAgeScope.Age(15, 15, "15 days"), false),
             Case("dobermann after observations", "VBO:0200442", 16, BreedWeightAgeScope.Adult, true),
         )
@@ -101,8 +101,31 @@ class BreedWeightReferenceResolverTest {
     @Test
     fun `younger observations are retained only in details`() {
         val result = resolve("VBO:0200800", PetSex.MALE, PartialBirthDate.Day(today.minusDays(731))).available()
-        assertEquals(BreedWeightAgeScope.Adult, result.ageScope)
+        assertEquals(BreedWeightAgeScope.Age(730, 730, "24 months"), result.ageScope)
+        assertTrue(result.companionGroups.single().values.single() is BreedWeightValue.Interval)
         assertTrue(result.details.filter { it.sex == BreedReferenceSex.MALE }.all { it.youngerThanSelectedAge })
+    }
+
+    @Test
+    fun `labrador keeps age median and adult sex range from twelve months`() {
+        listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
+            val elevenMonths = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(334))).available()
+            assertTrue(elevenMonths.values.single() is BreedWeightValue.Single)
+            assertTrue(elevenMonths.companionGroups.isEmpty())
+
+            listOf(365, 457, 730, 800).forEach { age ->
+                val result = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
+                assertTrue("$sex at $age days keeps Dogslife center", result.values.single() is BreedWeightValue.Single)
+                val companion = result.companionGroups.single()
+                assertEquals(BreedWeightAgeScope.Adult, companion.ageScope)
+                assertEquals(if (sex == PetSex.MALE) BreedReferenceSex.MALE else BreedReferenceSex.FEMALE, companion.sex)
+                val range = companion.values.single() as BreedWeightValue.Interval
+                assertEquals(if (sex == PetSex.MALE) 29.5 else 24.9, range.lower, 0.0)
+                assertEquals(if (sex == PetSex.MALE) 36.3 else 31.8, range.upper, 0.0)
+                assertEquals("Labrador Retriever Club", companion.source.title)
+                assertTrue(result.source.title.contains("Dogslife", ignoreCase = true))
+            }
+        }
     }
 
     @Test

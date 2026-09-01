@@ -86,6 +86,17 @@ data class BreedWeightReference(
     val limitations: List<String>,
     val ageDisclosure: BreedWeightAgeDisclosure,
     val details: List<BreedWeightReferenceDetail>,
+    val companionGroups: List<BreedWeightReferenceGroup> = emptyList(),
+)
+
+data class BreedWeightReferenceGroup(
+    val sex: BreedReferenceSex,
+    val ageScope: BreedWeightAgeScope,
+    val values: List<BreedWeightValue>,
+    val source: BreedWeightSourceMetadata,
+    val sampleSize: Int?,
+    val sampleUnit: String?,
+    val limitations: List<String>,
 )
 
 sealed interface BreedWeightReferenceUnavailableReason {
@@ -165,7 +176,18 @@ class BreedWeightReferenceResolver(
         }
         val source = selectedGroup.source ?: return unavailable(BreedWeightReferenceUnavailableReason.NoApplicableValue)
         val actualDisclosure = age.copy(usedAdultFallback = age.selectedAgeDays != null && selectedGroup.adult)
-        val chosenIds = records.mapTo(mutableSetOf(), BreedReferenceValue::id)
+        val companionGroups = selectAdultCompanion(
+            values = selectable,
+            selectedSex = selectedSex,
+            selectedAgeDays = age.selectedAgeDays,
+            primary = selectedGroup,
+            snapshot = snapshot,
+        ).mapNotNull { it.toReferenceGroup() }
+        val chosenIds = (records + companionGroups.flatMap { group ->
+            selectable.filter { value ->
+                value.adult && value.sex == group.sex && value.sourceId == group.source.id
+            }
+        }).mapTo(mutableSetOf(), BreedReferenceValue::id)
         return BreedWeightReferenceResolution.Available(
             BreedWeightReference(
                 breedId = breed.breedId,
@@ -180,6 +202,7 @@ class BreedWeightReferenceResolver(
                 limitations = records.flatMap(BreedReferenceValue::limitations).distinct(),
                 ageDisclosure = actualDisclosure,
                 details = eligible.filter { it.id !in chosenIds }.map { it.toDetail(snapshot, age.selectedAgeDays) },
+                companionGroups = companionGroups,
             ),
         )
     }
@@ -199,7 +222,11 @@ class BreedWeightReferenceResolver(
             if (containing.isNotEmpty()) containing else {
                 val futureMinimum = groups.filter { !it.adult && it.minimumDays!! > selectedAgeDays }
                     .minOfOrNull { it.minimumDays!! }
-                if (futureMinimum != null) groups.filter { it.minimumDays == futureMinimum } else groups.filter(CandidateGroup::adult)
+                if (futureMinimum != null) groups.filter { it.minimumDays == futureMinimum } else {
+                    val latestPast = groups.filter { !it.adult && selectedAgeDays >= 365 }
+                        .maxOfOrNull { it.minimumDays!! }
+                    if (latestPast != null) groups.filter { it.minimumDays == latestPast } else groups.filter(CandidateGroup::adult)
+                }
             }
         }
         return candidates.minWithOrNull(
@@ -207,6 +234,47 @@ class BreedWeightReferenceResolver(
                 .thenBy { sourcePriority(it.source?.kind) }
                 .thenBy { it.width }
                 .thenBy { it.source?.id.orEmpty() },
+        )
+    }
+
+    private fun selectAdultCompanion(
+        values: List<BreedReferenceValue>,
+        selectedSex: BreedReferenceSex,
+        selectedAgeDays: Long?,
+        primary: CandidateGroup,
+        snapshot: BreedReferenceSnapshot,
+    ): List<CandidateGroup> {
+        if (selectedAgeDays == null || selectedAgeDays < 365 || primary.adult) return emptyList()
+        return values
+            .groupBy { GroupKey(it.sex, it.adult, it.ageMinimumDays, it.ageMaximumDays, it.ageLabel, it.sourceId) }
+            .map { (key, records) ->
+                CandidateGroup(key, records, key.sourceId?.let { id -> snapshot.manifest.sources.firstOrNull { it.id == id } })
+            }
+            .filter { candidate ->
+                candidate.adult &&
+                    (candidate.sex == selectedSex || candidate.sex == BreedReferenceSex.COMBINED) &&
+                    candidate.records.any { it.statistic == BreedReferenceStatisticKind.RANGE || it.statistic == BreedReferenceStatisticKind.QUANTILES }
+            }
+            .sortedWith(
+                compareBy<CandidateGroup> { if (it.sex == selectedSex) 0 else 1 }
+                    .thenBy { sourcePriority(it.source?.kind) }
+                    .thenBy { it.source?.id.orEmpty() },
+            )
+            .take(1)
+    }
+
+    private fun CandidateGroup.toReferenceGroup(): BreedWeightReferenceGroup? {
+        val metadata = source?.toMetadata() ?: return null
+        val numeric = records.mapNotNull(::toWeightValue)
+        if (numeric.isEmpty()) return null
+        return BreedWeightReferenceGroup(
+            sex = sex,
+            ageScope = scope,
+            values = numeric,
+            source = metadata,
+            sampleSize = records.firstNotNullOfOrNull(BreedReferenceValue::sampleSize),
+            sampleUnit = records.firstNotNullOfOrNull(BreedReferenceValue::sampleUnit),
+            limitations = records.flatMap(BreedReferenceValue::limitations).distinct(),
         )
     }
 

@@ -24,6 +24,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.reference.BreedWeightAgeScope
 import com.palixander.scalesync.domain.reference.BreedWeightReference
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceDetail
+import com.palixander.scalesync.domain.reference.BreedWeightReferenceGroup
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolution
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
@@ -41,8 +42,9 @@ internal object PetBreedReferenceTestTags {
     const val Card = "pet-breed-reference-card"
     const val Edit = "pet-breed-reference-edit"
     const val Details = "pet-breed-reference-details"
-    const val OpenSource = "pet-breed-reference-open-source"
-    const val SourceError = "pet-breed-reference-source-error"
+    fun sourceGroup(index: Int) = "pet-breed-reference-source-$index"
+    fun openSource(index: Int) = "pet-breed-reference-open-source-$index"
+    fun sourceError(index: Int) = "pet-breed-reference-source-error-$index"
 }
 
 sealed interface PetHistoryBreedReference {
@@ -65,8 +67,18 @@ sealed interface PetHistoryBreedReference {
         val chartValues: List<PetHistoryBreedChartValue>,
         val source: PetHistoryBreedSource,
         val details: List<PetHistoryBreedReferenceDetail>,
+        val companionReferences: List<PetHistoryBreedCompanionReference> = emptyList(),
     ) : PetHistoryBreedReference
 }
+
+data class PetHistoryBreedCompanionReference(
+    val ageLabel: String,
+    val sexLabel: String,
+    val valueLabels: List<String>,
+    val sourceKindLabel: String,
+    val chartValues: List<PetHistoryBreedChartValue>,
+    val source: PetHistoryBreedSource,
+)
 
 sealed interface PetHistoryBreedChartValue {
     val statisticLabel: String
@@ -134,6 +146,15 @@ class PetHistoryBreedReferencePresenter(
                     resolution.reference.source.kind.label(),
                     locale,
                 )
+            } + resolution.reference.companionGroups.flatMap { group ->
+                group.values.map { value ->
+                    value.chartValue(
+                        resolution.reference.breedRussianName,
+                        group.ageScope.label(),
+                        group.source.kind.label(),
+                        locale,
+                    )
+                }
             }
             is BreedWeightReferenceResolution.Unavailable -> null
         }
@@ -149,6 +170,7 @@ class PetHistoryBreedReferencePresenter(
                 "Показан ориентир ${age.prepositionForm()}."
         }
         val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations)
+        val companions = companionGroups.map { it.presentation(breedRussianName) }
         return PetHistoryBreedReference.Available(
             breedName = breedRussianName,
             ageLabel = age,
@@ -160,10 +182,30 @@ class PetHistoryBreedReferencePresenter(
                 append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
                 append(values.joinToString(". "))
                 append(". Тип источника: $kind. Не является медицинской нормой.")
+                companions.forEach { companion ->
+                    append(" Дополнительный ориентир ${companion.ageLabel}: ")
+                    append(companion.valueLabels.joinToString(". "))
+                    append(". Тип источника: ${companion.sourceKindLabel}.")
+                }
             },
-            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) },
+            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) } +
+                companions.flatMap(PetHistoryBreedCompanionReference::chartValues),
             source = sourcePresentation,
             details = details.map { it.presentation() },
+            companionReferences = companions,
+        )
+    }
+
+    private fun BreedWeightReferenceGroup.presentation(breedName: String): PetHistoryBreedCompanionReference {
+        val age = ageScope.label()
+        val kind = source.kind.label()
+        return PetHistoryBreedCompanionReference(
+            ageLabel = age,
+            sexLabel = sex.label(),
+            valueLabels = values.map { it.label(locale) },
+            sourceKindLabel = kind,
+            chartValues = values.map { it.chartValue(breedName, age, kind, locale) },
+            source = source.presentation(sampleSize, sampleUnit, limitations),
         )
     }
 
@@ -231,7 +273,7 @@ internal fun PetHistoryBreedReferenceCard(
 ) {
     if (reference is PetHistoryBreedReference.Hidden) return
     var expanded by remember(reference) { mutableStateOf(false) }
-    var sourceError by remember(reference) { mutableStateOf(false) }
+    var sourceErrors by remember(reference) { mutableStateOf<Set<Int>>(emptySet()) }
     HuaweiSurface(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Card)) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Text("Ориентиры породы", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
@@ -249,16 +291,40 @@ internal fun PetHistoryBreedReferenceCard(
                         Text("Для возраста: ${reference.ageLabel}")
                         reference.valueLabels.forEach { value -> Text(value) }
                         Text("Тип: ${reference.sourceKindLabel}")
+                        reference.companionReferences.forEach { companion ->
+                            Text("Дополнительный ориентир для ${companion.ageLabel}")
+                            companion.valueLabels.forEach { value -> Text(value) }
+                            Text("Тип: ${companion.sourceKindLabel}")
+                        }
                         reference.partialDateDisclosure?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     TextButton(onClick = { expanded = !expanded }) {
                         Text("Источник и ограничения ${if (expanded) "▴" else "▾"}")
                     }
                     if (expanded) Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Details)) {
-                        SourceDetails(reference.source)
-                        Text("Пол: ${reference.sexLabel}")
-                        Text("Возрастная область: ${reference.ageLabel}")
-                        reference.valueLabels.forEach { value -> Text("Значение: $value") }
+                        ReferenceSourceGroup(
+                            index = 0,
+                            source = reference.source,
+                            ageLabel = reference.ageLabel,
+                            sexLabel = reference.sexLabel,
+                            valueLabels = reference.valueLabels,
+                            sourceLauncher = sourceLauncher,
+                            hasError = 0 in sourceErrors,
+                            onOpenResult = { success -> sourceErrors = sourceErrors.update(0, !success) },
+                        )
+                        reference.companionReferences.forEachIndexed { companionIndex, companion ->
+                            val sourceIndex = companionIndex + 1
+                            ReferenceSourceGroup(
+                                index = sourceIndex,
+                                source = companion.source,
+                                ageLabel = companion.ageLabel,
+                                sexLabel = companion.sexLabel,
+                                valueLabels = companion.valueLabels,
+                                sourceLauncher = sourceLauncher,
+                                hasError = sourceIndex in sourceErrors,
+                                onOpenResult = { success -> sourceErrors = sourceErrors.update(sourceIndex, !success) },
+                            )
+                        }
                         reference.details.forEach { detail ->
                             Text(if (detail.youngerThanSelectedAge) "Более младшие данные: ${detail.ageLabel}" else "Дополнительные данные: ${detail.ageLabel}")
                             Text("${detail.sexLabel}: ${detail.valueLabel}")
@@ -267,21 +333,45 @@ internal fun PetHistoryBreedReferenceCard(
                             detail.sampleLabel?.let { Text("Выборка: $it") }
                             detail.limitations.forEach { Text("Ограничение: $it") }
                         }
-                        TextButton(
-                            onClick = { sourceError = !sourceLauncher.open(reference.source.url) },
-                            modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget).testTag(PetBreedReferenceTestTags.OpenSource),
-                        ) { Text("Открыть источник") }
-                        if (sourceError) Text(
-                            "Не удалось открыть источник.",
-                            color = MaterialTheme.colorScheme.error,
-                            modifier = Modifier.testTag(PetBreedReferenceTestTags.SourceError),
-                        )
                     }
                 }
             }
         }
     }
 }
+
+@Composable
+private fun ReferenceSourceGroup(
+    index: Int,
+    source: PetHistoryBreedSource,
+    ageLabel: String,
+    sexLabel: String,
+    valueLabels: List<String>,
+    sourceLauncher: ReferenceSourceLauncher,
+    hasError: Boolean,
+    onOpenResult: (Boolean) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.sourceGroup(index))) {
+        SourceDetails(source)
+        Text("Возрастная область: $ageLabel")
+        Text("Пол: $sexLabel")
+        valueLabels.forEach { value -> Text("Значение: $value") }
+        TextButton(
+            onClick = { onOpenResult(sourceLauncher.open(source.url)) },
+            modifier = Modifier
+                .heightIn(min = HuaweiDimensions.TouchTarget)
+                .testTag(PetBreedReferenceTestTags.openSource(index)),
+        ) { Text("Открыть источник: ${source.title}") }
+        if (hasError) Text(
+            "Не удалось открыть источник «${source.title}».",
+            color = MaterialTheme.colorScheme.error,
+            modifier = Modifier.testTag(PetBreedReferenceTestTags.sourceError(index)),
+        )
+    }
+}
+
+private fun Set<Int>.update(value: Int, present: Boolean): Set<Int> =
+    if (present) this + value else this - value
 
 @Composable
 private fun SourceDetails(source: PetHistoryBreedSource) {
