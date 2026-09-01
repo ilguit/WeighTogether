@@ -13,6 +13,7 @@ import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
@@ -363,6 +364,8 @@ fun ProfileStore.asPortableSettingsWriter(): PortableSettingsWriter =
 class BackupImportService(
     private val codec: BackupJsonCodec = BackupJsonCodec(),
     private val byteLimit: Int = MAX_BACKUP_BYTES,
+    private val breedSnapshotResult: BreedReferenceSnapshotLoadResult =
+        BreedReferenceSnapshot.bundledOrUnavailable(),
 ) {
     init { require(byteLimit > 0) }
 
@@ -438,7 +441,7 @@ class BackupImportService(
         current: BackupDatabaseSnapshot,
         baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
-        val result = document.toSnapshot()
+        val result = document.toSnapshot(breedSnapshotResult)
         return BackupImportPreview(
             BackupImportMode.REPLACE,
             BackupImportCounts(
@@ -468,7 +471,7 @@ class BackupImportService(
         currentSettings: PortableProfileSettings,
         baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
-        val incoming = document.toSnapshot()
+        val incoming = document.toSnapshot(breedSnapshotResult)
         val conflicts = mutableListOf<BackupImportConflict>()
         val existingAccountsById = current.accounts.associateBy { it.id }
         val existingAccountsByName = current.accounts.associateBy { it.normalizedName }
@@ -554,7 +557,9 @@ class BackupImportService(
     }
 }
 
-private fun BackupDocumentV1.toSnapshot(): BackupDatabaseSnapshot {
+private fun BackupDocumentV1.toSnapshot(
+    breedSnapshotResult: BreedReferenceSnapshotLoadResult,
+): BackupDatabaseSnapshot {
     val importedAccountsById = accounts.associateBy { it.id }
     return BackupDatabaseSnapshot(
     accounts = accounts.map { account ->
@@ -583,7 +588,7 @@ private fun BackupDocumentV1.toSnapshot(): BackupDatabaseSnapshot {
     },
     pets = pets.map {
         PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis,
-            it.sex, normalizeImportedBreedId(it.species, it.breedId), it.birthYear, it.birthMonth, it.birthDay,
+            it.sex, normalizeImportedBreedId(it.species, it.breedId, breedSnapshotResult), it.birthYear, it.birthMonth, it.birthDay,
             it.dogAdultWeightCategory)
     },
     petMeasurements = petMeasurements.map {
@@ -592,13 +597,15 @@ private fun BackupDocumentV1.toSnapshot(): BackupDatabaseSnapshot {
     )
 }
 
-private val importedBreedSnapshot by lazy(LazyThreadSafetyMode.PUBLICATION) {
-    BreedReferenceSnapshot.bundled()
-}
-
-private fun normalizeImportedBreedId(species: PetSpecies, breedId: String?): String? {
+private fun normalizeImportedBreedId(
+    species: PetSpecies,
+    breedId: String?,
+    snapshotResult: BreedReferenceSnapshotLoadResult,
+): String? {
     if (species != PetSpecies.DOG || breedId == null) return null
-    return importedBreedSnapshot.breed(breedId)?.breedId
+    val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
+        ?: return null
+    return snapshot.breed(breedId)?.breedId
 }
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(

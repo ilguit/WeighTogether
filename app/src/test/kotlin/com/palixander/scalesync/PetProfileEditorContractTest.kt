@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import com.palixander.scalesync.core.breed.BreedKind
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PartialBirthDate
@@ -177,6 +178,28 @@ class PetProfileEditorContractTest {
         assertTrue(dogOptions.all { it.hasWeightReference })
         assertFalse(breedCatalog.hasWeightReferenceProfiles(PetSpecies.CAT))
         assertTrue(breedCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
+    }
+
+    @Test
+    fun `editor catalog remains constructible when breed snapshot is unavailable`() {
+        listOf("corrupt snapshot", "unsupported schema", "checksum mismatch").forEach { reason ->
+            val unavailableCatalog = PetBreedCatalog(
+                snapshotResult = BreedReferenceSnapshotLoadResult.Unavailable(reason),
+            )
+
+            assertFalse(unavailableCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
+            assertTrue(unavailableCatalog.search("", PetSpecies.DOG).isEmpty())
+            assertTrue(
+                unavailableCatalog.resolve(BreedId("VBO:0200800"), PetSpecies.DOG) is
+                    PetBreedSelection.Unavailable,
+            )
+            assertNull(
+                PetProfileDraft.edit(
+                    pet("dog", "Dog", PetSpecies.DOG, breedId = null),
+                    unavailableCatalog,
+                ).breed,
+            )
+        }
     }
 
     @Test

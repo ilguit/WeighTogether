@@ -5,6 +5,7 @@ import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.NewPet
@@ -100,9 +101,11 @@ sealed interface PetBreedSelection {
 
 class PetBreedCatalog(
     private val catalog: BreedCatalog = BreedCatalog.bundled(),
-    private val snapshot: BreedReferenceSnapshot = BreedReferenceSnapshot.bundled(catalog),
+    snapshotResult: BreedReferenceSnapshotLoadResult = BreedReferenceSnapshot.bundledOrUnavailable(catalog),
 ) {
-    private val supportedById = snapshot.breeds.associateBy(BreedReferenceBreed::breedId)
+    private val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
+    private val supportedBreeds = snapshot?.breeds.orEmpty()
+    private val supportedById = supportedBreeds.associateBy(BreedReferenceBreed::breedId)
 
     fun hasWeightReferenceProfiles(species: PetSpecies): Boolean =
         species == PetSpecies.DOG && supportedById.isNotEmpty()
@@ -116,7 +119,7 @@ class PetBreedCatalog(
     ): List<PetBreedOption> {
         if (species != PetSpecies.DOG) return emptyList()
         val needle = query.trim().lowercase()
-        return snapshot.breeds
+        return supportedBreeds
             .asSequence()
             .filter { breed ->
                 needle.isEmpty() || sequenceOf(
@@ -133,7 +136,7 @@ class PetBreedCatalog(
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
-        val supported = snapshot.breed(id.value)
+        val supported = snapshot?.breed(id.value)
         return if (supported != null) {
             PetBreedSelection.Available(toPetBreedOption(supported))
         } else if (catalog.findById(id.value) == null) {
