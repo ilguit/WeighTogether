@@ -108,6 +108,35 @@ class PetHistoryBreedReferencePresenterTest {
         assertEquals(10.0, (timeline[1].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
     }
 
+    @Test
+    fun `adult labrador presentation and timeline retain median range and distinct provenance`() {
+        val pet = dog().copy(
+            breedId = BreedId("VBO:0200800"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2025, 9, 1)),
+        )
+
+        val result = presenter().present(pet) as PetHistoryBreedReference.Available
+
+        assertTrue(result.chartValues.any { it is PetHistoryBreedChartValue.Single })
+        assertTrue(result.chartValues.any { it is PetHistoryBreedChartValue.Interval })
+        assertTrue(result.source.title.contains("Dogslife", ignoreCase = true))
+        assertEquals("Labrador Retriever Club", result.companionReferences.single().source.title)
+        assertTrue(result.accessibilityLabel.contains("Дополнительный ориентир"))
+
+        val timelineValues = presenter().presentTimeline(pet, listOf(today)).single().values!!
+        assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Single })
+        assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Interval })
+        assertEquals(
+            listOf(
+                BreedWeightReferenceSeriesKind.CENTER,
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+            ),
+            breedWeightReferenceChartSeries(presenter().presentTimeline(pet, listOf(today)))
+                .map(BreedWeightReferenceChartSeries::kind),
+        )
+    }
+
     private fun presenter() = PetHistoryBreedReferencePresenter(clock = clock, locale = Locale.forLanguageTag("ru-RU"))
 
     private fun dog() = Pet(

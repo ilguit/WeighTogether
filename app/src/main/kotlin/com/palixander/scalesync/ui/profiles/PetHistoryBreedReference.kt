@@ -24,6 +24,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.reference.BreedWeightAgeScope
 import com.palixander.scalesync.domain.reference.BreedWeightReference
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceDetail
+import com.palixander.scalesync.domain.reference.BreedWeightReferenceGroup
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolution
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
@@ -65,8 +66,18 @@ sealed interface PetHistoryBreedReference {
         val chartValues: List<PetHistoryBreedChartValue>,
         val source: PetHistoryBreedSource,
         val details: List<PetHistoryBreedReferenceDetail>,
+        val companionReferences: List<PetHistoryBreedCompanionReference> = emptyList(),
     ) : PetHistoryBreedReference
 }
+
+data class PetHistoryBreedCompanionReference(
+    val ageLabel: String,
+    val sexLabel: String,
+    val valueLabels: List<String>,
+    val sourceKindLabel: String,
+    val chartValues: List<PetHistoryBreedChartValue>,
+    val source: PetHistoryBreedSource,
+)
 
 sealed interface PetHistoryBreedChartValue {
     val statisticLabel: String
@@ -134,6 +145,15 @@ class PetHistoryBreedReferencePresenter(
                     resolution.reference.source.kind.label(),
                     locale,
                 )
+            } + resolution.reference.companionGroups.flatMap { group ->
+                group.values.map { value ->
+                    value.chartValue(
+                        resolution.reference.breedRussianName,
+                        group.ageScope.label(),
+                        group.source.kind.label(),
+                        locale,
+                    )
+                }
             }
             is BreedWeightReferenceResolution.Unavailable -> null
         }
@@ -149,6 +169,7 @@ class PetHistoryBreedReferencePresenter(
                 "Показан ориентир ${age.prepositionForm()}."
         }
         val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations)
+        val companions = companionGroups.map { it.presentation(breedRussianName) }
         return PetHistoryBreedReference.Available(
             breedName = breedRussianName,
             ageLabel = age,
@@ -160,10 +181,30 @@ class PetHistoryBreedReferencePresenter(
                 append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
                 append(values.joinToString(". "))
                 append(". Тип источника: $kind. Не является медицинской нормой.")
+                companions.forEach { companion ->
+                    append(" Дополнительный ориентир ${companion.ageLabel}: ")
+                    append(companion.valueLabels.joinToString(". "))
+                    append(". Тип источника: ${companion.sourceKindLabel}.")
+                }
             },
-            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) },
+            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) } +
+                companions.flatMap(PetHistoryBreedCompanionReference::chartValues),
             source = sourcePresentation,
             details = details.map { it.presentation() },
+            companionReferences = companions,
+        )
+    }
+
+    private fun BreedWeightReferenceGroup.presentation(breedName: String): PetHistoryBreedCompanionReference {
+        val age = ageScope.label()
+        val kind = source.kind.label()
+        return PetHistoryBreedCompanionReference(
+            ageLabel = age,
+            sexLabel = sex.label(),
+            valueLabels = values.map { it.label(locale) },
+            sourceKindLabel = kind,
+            chartValues = values.map { it.chartValue(breedName, age, kind, locale) },
+            source = source.presentation(sampleSize, sampleUnit, limitations),
         )
     }
 
@@ -249,6 +290,11 @@ internal fun PetHistoryBreedReferenceCard(
                         Text("Для возраста: ${reference.ageLabel}")
                         reference.valueLabels.forEach { value -> Text(value) }
                         Text("Тип: ${reference.sourceKindLabel}")
+                        reference.companionReferences.forEach { companion ->
+                            Text("Дополнительный ориентир для ${companion.ageLabel}")
+                            companion.valueLabels.forEach { value -> Text(value) }
+                            Text("Тип: ${companion.sourceKindLabel}")
+                        }
                         reference.partialDateDisclosure?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     TextButton(onClick = { expanded = !expanded }) {
@@ -259,6 +305,13 @@ internal fun PetHistoryBreedReferenceCard(
                         Text("Пол: ${reference.sexLabel}")
                         Text("Возрастная область: ${reference.ageLabel}")
                         reference.valueLabels.forEach { value -> Text("Значение: $value") }
+                        reference.companionReferences.forEach { companion ->
+                            Text("Дополнительный источник: ${companion.source.title}")
+                            Text("Возрастная область: ${companion.ageLabel}")
+                            Text("Пол: ${companion.sexLabel}")
+                            companion.valueLabels.forEach { value -> Text("Значение: $value") }
+                            Text("Тип утверждения: ${companion.sourceKindLabel}")
+                        }
                         reference.details.forEach { detail ->
                             Text(if (detail.youngerThanSelectedAge) "Более младшие данные: ${detail.ageLabel}" else "Дополнительные данные: ${detail.ageLabel}")
                             Text("${detail.sexLabel}: ${detail.valueLabel}")
