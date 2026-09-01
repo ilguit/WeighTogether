@@ -223,7 +223,11 @@ class BreedWeightReferenceResolver(
                 val futureMinimum = groups.filter { !it.adult && it.minimumDays!! > selectedAgeDays }
                     .minOfOrNull { it.minimumDays!! }
                 if (futureMinimum != null) groups.filter { it.minimumDays == futureMinimum } else {
-                    val latestPast = groups.filter { !it.adult && selectedAgeDays >= 365 }
+                    val latestPast = groups.filter {
+                        !it.adult &&
+                            selectedAgeDays >= 365 &&
+                            requireNotNull(it.minimumDays) >= 365
+                    }
                         .maxOfOrNull { it.minimumDays!! }
                     if (latestPast != null) groups.filter { it.minimumDays == latestPast } else groups.filter(CandidateGroup::adult)
                 }

@@ -156,6 +156,33 @@ class PetHistoryBreedReferencePresenterTest {
         )
     }
 
+    @Test
+    fun `adult amstaff timeline produces only adult lower and upper chart series`() {
+        val pet = dog().copy(
+            breedId = BreedId("VBO:0200055"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)),
+        )
+
+        val timeline = presenter().presentTimeline(
+            pet,
+            listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
+        )
+        val values = requireNotNull(timeline.single().values)
+
+        assertEquals(1, values.size)
+        val range = values.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(28.0, range.lowerKg, 0.0)
+        assertEquals(33.0, range.upperKg, 0.0)
+        assertNull(range.centerKg)
+        assertEquals(
+            listOf(
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+            ),
+            breedWeightReferenceChartSeries(timeline).map(BreedWeightReferenceChartSeries::kind),
+        )
+    }
+
     private fun presenter() = PetHistoryBreedReferencePresenter(clock = clock, locale = Locale.forLanguageTag("ru-RU"))
 
     private fun dog() = Pet(
