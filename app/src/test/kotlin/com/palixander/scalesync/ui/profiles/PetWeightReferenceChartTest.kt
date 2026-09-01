@@ -139,9 +139,9 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             listOf(
-                BreedWeightReferenceChartSeries(listOf(firstDate to 8.0, secondDate to 9.0), true),
-                BreedWeightReferenceChartSeries(listOf(firstDate to 12.0, secondDate to 13.0), true),
-                BreedWeightReferenceChartSeries(listOf(firstDate to 10.0, secondDate to 11.0), false),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, listOf(firstDate to 8.0, secondDate to 9.0)),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, listOf(firstDate to 12.0, secondDate to 13.0)),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, listOf(firstDate to 10.0, secondDate to 11.0)),
             ),
             breedWeightReferenceChartSeries(timeline),
         )
@@ -162,7 +162,7 @@ class PetWeightReferenceChartTest {
         assertEquals(2, series.size)
         assertEquals(listOf(firstDate to 6.0), series[0].points)
         assertEquals(listOf(lastDate to 11.0), series[1].points)
-        assertTrue(series.none(BreedWeightReferenceChartSeries::drawsInterval))
+        assertTrue(series.all { it.kind == BreedWeightReferenceSeriesKind.CENTER })
     }
 
     @Test fun `every breed boundary series presents point markers including singleton segments`() {
@@ -175,11 +175,88 @@ class PetWeightReferenceChartTest {
             timelinePoint(lastDate, PetHistoryBreedChartValue.Interval(9.0, 13.0, null, "Последний", "last")),
         )
 
-        val boundarySeries = breedWeightReferenceChartSeries(timeline).filter(BreedWeightReferenceChartSeries::drawsInterval)
+        val boundarySeries = breedWeightReferenceChartSeries(timeline).filter {
+            it.kind != BreedWeightReferenceSeriesKind.CENTER
+        }
 
         assertEquals(4, boundarySeries.size)
         assertTrue(boundarySeries.all { it.points.size == 1 })
         assertTrue(boundarySeries.all(BreedWeightReferenceChartSeries::showsPointMarkers))
+    }
+
+    @Test fun `interval keeps both boundaries when center exists and maps stable presentations`() {
+        val firstDate = LocalDate.of(2026, 8, 1)
+        val secondDate = LocalDate.of(2026, 9, 1)
+        val series = breedWeightReferenceChartSeries(
+            listOf(
+                timelinePoint(firstDate, PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Диапазон", "range")),
+                timelinePoint(secondDate, PetHistoryBreedChartValue.Interval(9.0, 13.0, 11.0, "Диапазон", "range")),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.CENTER,
+            ),
+            series.map(BreedWeightReferenceChartSeries::kind),
+        )
+        assertEquals(listOf(8.0, 9.0), series[0].points.map { it.second })
+        assertEquals(listOf(12.0, 13.0), series[1].points.map { it.second })
+        assertEquals(listOf(10.0, 11.0), series[2].points.map { it.second })
+        assertTrue(!breedWeightReferenceSeriesPresentation(series[0].kind).lowEmphasis)
+        assertTrue(!breedWeightReferenceSeriesPresentation(series[1].kind).lowEmphasis)
+        assertTrue(breedWeightReferenceSeriesPresentation(series[2].kind).lowEmphasis)
+        assertTrue(
+            breedWeightReferenceSeriesPresentation(series[0].kind).strokeWidthDp >
+                breedWeightReferenceSeriesPresentation(series[2].kind).strokeWidthDp,
+        )
+    }
+
+    @Test fun `multiple values retain boundary center order and split every kind at gaps`() {
+        val firstDate = LocalDate.of(2026, 7, 1)
+        val gapDate = LocalDate.of(2026, 8, 1)
+        val lastDate = LocalDate.of(2026, 9, 1)
+        val series = breedWeightReferenceChartSeries(
+            listOf(
+                timelinePoint(
+                    firstDate,
+                    PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Первый", "first"),
+                    PetHistoryBreedChartValue.Interval(18.0, 22.0, 20.0, "Второй", "second"),
+                ),
+                PetHistoryBreedReferenceTimelinePoint(gapDate, null),
+                timelinePoint(
+                    lastDate,
+                    PetHistoryBreedChartValue.Interval(9.0, 13.0, 11.0, "Первый", "first"),
+                    PetHistoryBreedChartValue.Interval(19.0, 23.0, 21.0, "Второй", "second"),
+                ),
+            ),
+        )
+
+        assertEquals(12, series.size)
+        assertEquals(
+            listOf(
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.CENTER,
+                BreedWeightReferenceSeriesKind.CENTER,
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                BreedWeightReferenceSeriesKind.CENTER,
+                BreedWeightReferenceSeriesKind.CENTER,
+            ),
+            series.map(BreedWeightReferenceChartSeries::kind),
+        )
+        assertTrue(series.all { it.points.size == 1 })
+        assertEquals(
+            listOf(8.0, 9.0, 12.0, 13.0, 10.0, 11.0, 18.0, 19.0, 22.0, 23.0, 20.0, 21.0),
+            series.map { it.points.single().second },
+        )
     }
 
     @Test fun `hidden breed has no native chart series`() {
