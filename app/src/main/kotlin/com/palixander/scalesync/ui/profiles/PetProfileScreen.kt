@@ -166,6 +166,7 @@ internal fun PetProfileScreen(
                             series = state.series,
                             reference = state.weightReference,
                             breedReference = state.breedReference,
+                            breedReferenceTimeline = state.breedReferenceTimeline,
                             startDate = state.startDate,
                             endDateInclusive = state.endDateInclusive,
                             zoneId = java.time.ZoneId.systemDefault(),

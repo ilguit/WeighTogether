@@ -129,46 +129,61 @@ class PetWeightReferenceChartTest {
         assertTrue(range.max > 12.0)
     }
 
-    @Test fun `breed series keep interval and diamond in chart data coordinates`() {
-        val date = LocalDate.of(2026, 9, 1)
-        val breed = breedAvailable(
-            listOf(
-                PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Диапазон", "range"),
-                PetHistoryBreedChartValue.Single(11.0, "Медиана", "median"),
-            ),
+    @Test fun `breed series connect lower and upper values across distinct measurement dates`() {
+        val firstDate = LocalDate.of(2026, 8, 1)
+        val secondDate = LocalDate.of(2026, 9, 1)
+        val timeline = listOf(
+            timelinePoint(firstDate, PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Диапазон", "range")),
+            timelinePoint(secondDate, PetHistoryBreedChartValue.Interval(9.0, 13.0, 11.0, "Диапазон", "range")),
         )
 
         assertEquals(
             listOf(
-                BreedWeightReferenceChartSeries(listOf(date to 8.0, date to 12.0), true),
-                BreedWeightReferenceChartSeries(listOf(date to 10.0), false),
-                BreedWeightReferenceChartSeries(listOf(date to 11.0), false),
+                BreedWeightReferenceChartSeries(listOf(firstDate to 8.0, secondDate to 9.0), true),
+                BreedWeightReferenceChartSeries(listOf(firstDate to 12.0, secondDate to 13.0), true),
+                BreedWeightReferenceChartSeries(listOf(firstDate to 10.0, secondDate to 11.0), false),
             ),
-            breedWeightReferenceChartSeries(breed, date),
+            breedWeightReferenceChartSeries(timeline),
         )
     }
 
-    @Test fun `breed series remain data coordinates across viewport ranges`() {
-        val date = LocalDate.of(2026, 9, 1)
-        val breed = breedAvailable(
-            listOf(PetHistoryBreedChartValue.Interval(3.25, 47.75, null, "Диапазон", "range")),
+    @Test fun `breed series split at unavailable measurement and keep singleton segments`() {
+        val firstDate = LocalDate.of(2026, 7, 1)
+        val gapDate = LocalDate.of(2026, 8, 1)
+        val lastDate = LocalDate.of(2026, 9, 1)
+        val timeline = listOf(
+            timelinePoint(firstDate, PetHistoryBreedChartValue.Single(6.0, "Медиана", "first")),
+            PetHistoryBreedReferenceTimelinePoint(gapDate, null),
+            timelinePoint(lastDate, PetHistoryBreedChartValue.Single(11.0, "Медиана", "last")),
         )
 
-        val series = breedWeightReferenceChartSeries(breed, date).single()
+        val series = breedWeightReferenceChartSeries(timeline)
 
-        // Vico receives domain values, not canvas fractions. Its current layer bounds, axes,
-        // scroll, zoom, font scale, and Y range therefore own both coordinate transforms.
-        assertEquals(listOf(date to 3.25, date to 47.75), series.points)
-        assertTrue(series.drawsInterval)
+        assertEquals(2, series.size)
+        assertEquals(listOf(firstDate to 6.0), series[0].points)
+        assertEquals(listOf(lastDate to 11.0), series[1].points)
+        assertTrue(series.none(BreedWeightReferenceChartSeries::drawsInterval))
+    }
+
+    @Test fun `every breed boundary series presents point markers including singleton segments`() {
+        val firstDate = LocalDate.of(2026, 7, 1)
+        val gapDate = LocalDate.of(2026, 8, 1)
+        val lastDate = LocalDate.of(2026, 9, 1)
+        val timeline = listOf(
+            timelinePoint(firstDate, PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Первый", "first")),
+            PetHistoryBreedReferenceTimelinePoint(gapDate, null),
+            timelinePoint(lastDate, PetHistoryBreedChartValue.Interval(9.0, 13.0, null, "Последний", "last")),
+        )
+
+        val boundarySeries = breedWeightReferenceChartSeries(timeline).filter(BreedWeightReferenceChartSeries::drawsInterval)
+
+        assertEquals(4, boundarySeries.size)
+        assertTrue(boundarySeries.all { it.points.size == 1 })
+        assertTrue(boundarySeries.all(BreedWeightReferenceChartSeries::showsPointMarkers))
     }
 
     @Test fun `hidden breed has no native chart series`() {
-        assertTrue(
-            breedWeightReferenceChartSeries(
-                PetHistoryBreedReference.Hidden,
-                LocalDate.of(2026, 9, 1),
-            ).isEmpty(),
-        )
+        assertTrue(breedWeightReferenceChartSeries(emptyList()).isEmpty())
     }
 
     @Test fun `model input changes between breed intervals while factual series stays stable`() {
@@ -178,8 +193,10 @@ class PetWeightReferenceChartTest {
         val second = modelSeries(factual, date, PetHistoryBreedChartValue.Interval(10.0, 14.0, null, "Второй", "second"))
 
         assertEquals(first.first(), second.first())
-        assertEquals(listOf(8.0, 12.0), first.last().y)
-        assertEquals(listOf(10.0, 14.0), second.last().y)
+        assertEquals(listOf(8.0), first[1].y)
+        assertEquals(listOf(12.0), first[2].y)
+        assertEquals(listOf(10.0), second[1].y)
+        assertEquals(listOf(14.0), second[2].y)
         assertTrue(first != second)
     }
 
@@ -190,7 +207,8 @@ class PetWeightReferenceChartTest {
         val single = modelSeries(factual, date, PetHistoryBreedChartValue.Single(11.0, "Медиана", "median"))
 
         assertEquals(interval.first(), single.first())
-        assertEquals(listOf(8.0, 12.0), interval.last().y)
+        assertEquals(listOf(8.0), interval[1].y)
+        assertEquals(listOf(12.0), interval[2].y)
         assertEquals(listOf(11.0), single.last().y)
         assertTrue(interval != single)
     }
@@ -202,7 +220,7 @@ class PetWeightReferenceChartTest {
         val unavailable = petWeightChartModelSeries(factual, emptyList(), emptyList(), ZoneOffset.UTC)
 
         assertEquals(available.first(), unavailable.first())
-        assertEquals(2, available.size)
+        assertEquals(3, available.size)
         assertEquals(1, unavailable.size)
     }
 
@@ -253,6 +271,45 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `marker uses breed reference for selected date`() {
+        val selectedDate = LocalDate.of(2026, 8, 2)
+        val otherDate = LocalDate.of(2026, 8, 3)
+        val selectedValue = PetHistoryBreedChartValue.Interval(
+            8.0,
+            12.0,
+            10.0,
+            "Диапазон 8–12 кг",
+            "Диапазон породы: 8–12 кг",
+        )
+        val selection = petWeightMarkerSelection(
+            selectedDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            emptyList(),
+            available(emptyList()),
+            ZoneOffset.UTC,
+            listOf(
+                timelinePoint(selectedDate, selectedValue),
+                timelinePoint(otherDate, PetHistoryBreedChartValue.Single(14.0, "Медиана", "Не выбран")),
+            ),
+        )
+
+        assertEquals(listOf(selectedValue), selection.breedValues)
+        assertTrue(formatPetWeightMarker(selection, Locale.US).endsWith("Породный ориентир: Диапазон породы: 8–12 кг"))
+    }
+
+    @Test fun `marker omits breed reference when selected date has none`() {
+        val selectedDate = LocalDate.of(2026, 8, 2)
+        val selection = petWeightMarkerSelection(
+            selectedDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
+            emptyList(),
+            available(emptyList()),
+            ZoneOffset.UTC,
+            listOf(PetHistoryBreedReferenceTimelinePoint(selectedDate, null)),
+        )
+
+        assertEquals(null, selection.breedValues)
+        assertTrue(!formatPetWeightMarker(selection, Locale.US).contains("Породный ориентир"))
+    }
+
     private fun available(points: List<PetHistoryReferencePoint>) = availableSegments(listOf(points))
 
     private fun availableSegments(
@@ -290,7 +347,12 @@ class PetWeightReferenceChartTest {
     ) = petWeightChartModelSeries(
         factual = factual,
         referenceSeries = emptyList(),
-        breedSeries = breedWeightReferenceChartSeries(breedAvailable(listOf(value)), date),
+        breedSeries = breedWeightReferenceChartSeries(listOf(timelinePoint(date, value))),
         zoneId = ZoneOffset.UTC,
     )
+
+    private fun timelinePoint(
+        date: LocalDate,
+        vararg values: PetHistoryBreedChartValue,
+    ) = PetHistoryBreedReferenceTimelinePoint(date, values.toList())
 }

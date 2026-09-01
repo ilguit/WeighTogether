@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -86,6 +87,7 @@ internal data class PetWeightReferenceChartSeries(
 internal data class BreedWeightReferenceChartSeries(
     val points: List<Pair<LocalDate, Double>>,
     val drawsInterval: Boolean,
+    val showsPointMarkers: Boolean = true,
 )
 
 internal data class PetWeightChartModelSeries(
@@ -94,18 +96,35 @@ internal data class PetWeightChartModelSeries(
 )
 
 internal fun breedWeightReferenceChartSeries(
-    reference: PetHistoryBreedReference,
-    date: LocalDate,
+    timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceChartSeries> {
-    val available = reference as? PetHistoryBreedReference.Available ?: return emptyList()
-    return available.chartValues.flatMap { value ->
-        when (value) {
-            is PetHistoryBreedChartValue.Interval -> buildList {
-                add(BreedWeightReferenceChartSeries(listOf(date to value.lowerKg, date to value.upperKg), true))
-                value.centerKg?.let { add(BreedWeightReferenceChartSeries(listOf(date to it), false)) }
+    val maximumValueCount = timeline.maxOfOrNull { it.values?.size ?: 0 } ?: return emptyList()
+    return buildList {
+        repeat(maximumValueCount) { valueIndex ->
+            fun points(selector: (PetHistoryBreedChartValue) -> Double?): List<List<Pair<LocalDate, Double>>> {
+                val segments = mutableListOf<MutableList<Pair<LocalDate, Double>>>()
+                timeline.forEach { point ->
+                    val value = point.values?.getOrNull(valueIndex)?.let(selector)
+                    if (value == null) {
+                        if (segments.lastOrNull()?.isNotEmpty() == true) segments.add(mutableListOf())
+                    } else {
+                        if (segments.isEmpty()) segments.add(mutableListOf())
+                        segments.last().add(point.date to value)
+                    }
+                }
+                return segments.filter(List<Pair<LocalDate, Double>>::isNotEmpty)
             }
-            is PetHistoryBreedChartValue.Single ->
-                listOf(BreedWeightReferenceChartSeries(listOf(date to value.valueKg), false))
+
+            points { (it as? PetHistoryBreedChartValue.Interval)?.lowerKg }
+                .forEach { add(BreedWeightReferenceChartSeries(it, true)) }
+            points { (it as? PetHistoryBreedChartValue.Interval)?.upperKg }
+                .forEach { add(BreedWeightReferenceChartSeries(it, true)) }
+            points {
+                when (it) {
+                    is PetHistoryBreedChartValue.Interval -> it.centerKg
+                    is PetHistoryBreedChartValue.Single -> it.valueKg
+                }
+            }.forEach { add(BreedWeightReferenceChartSeries(it, false)) }
         }
     }
 }
@@ -150,6 +169,7 @@ internal data class PetWeightMarkerSelection(
     val date: LocalDate,
     val measurementKg: Double?,
     val reference: PetHistoryReferencePoint?,
+    val breedValues: List<PetHistoryBreedChartValue>? = null,
 )
 
 internal fun petWeightMarkerSelection(
@@ -157,6 +177,7 @@ internal fun petWeightMarkerSelection(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
     zoneId: ZoneId,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
 ): PetWeightMarkerSelection {
     val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
     val measurement = factual
@@ -167,7 +188,8 @@ internal fun petWeightMarkerSelection(
         ?.asSequence()
         ?.flatten()
         ?.firstOrNull { it.date == targetDate }
-    return PetWeightMarkerSelection(targetDate, measurement?.value, referencePoint)
+    val breedValues = breedReferenceTimeline.firstOrNull { it.date == targetDate }?.values
+    return PetWeightMarkerSelection(targetDate, measurement?.value, referencePoint, breedValues)
 }
 
 internal fun formatPetWeightMarker(
@@ -185,6 +207,10 @@ internal fun formatPetWeightMarker(
         append("\nНижняя граница: ${kg(selection.reference?.lowerKg)}")
         append("\nМедиана: ${selection.reference?.let { "${kg(it.medianLowerKg)}–${kg(it.medianUpperKg)}" } ?: "—"}")
         append("\nВерхняя граница: ${kg(selection.reference?.upperKg)}")
+        selection.breedValues?.takeIf(List<PetHistoryBreedChartValue>::isNotEmpty)?.let { values ->
+            append("\nПородный ориентир: ")
+            append(values.joinToString("; ") { it.accessibilityLabel })
+        }
     }
 }
 
@@ -192,6 +218,7 @@ internal fun petWeightChartRange(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
     breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
 ): PetWeightChartRange? {
     val values = buildList {
         addAll(factual.map(ChartPoint::value).filter(Double::isFinite))
@@ -207,6 +234,18 @@ internal fun petWeightChartRange(
                     is PetHistoryBreedChartValue.Interval -> {
                         add(value.lowerKg)
                         add(value.upperKg)
+                    }
+                    is PetHistoryBreedChartValue.Single -> add(value.valueKg)
+                }
+            }
+        }
+        breedReferenceTimeline.forEach { point ->
+            point.values.orEmpty().forEach { value ->
+                when (value) {
+                    is PetHistoryBreedChartValue.Interval -> {
+                        add(value.lowerKg)
+                        add(value.upperKg)
+                        value.centerKg?.let(::add)
                     }
                     is PetHistoryBreedChartValue.Single -> add(value.valueKg)
                 }
@@ -257,6 +296,7 @@ internal fun PetWeightReferenceChartCard(
     series: ChartSeries,
     reference: PetHistoryWeightReference,
     breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -265,7 +305,9 @@ internal fun PetWeightReferenceChartCard(
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
     }
-    val yRange = remember(factual, reference, breedReference) { petWeightChartRange(factual, reference, breedReference) }
+    val yRange = remember(factual, reference, breedReference, breedReferenceTimeline) {
+        petWeightChartRange(factual, reference, breedReference, breedReferenceTimeline)
+    }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
     val available = reference as? PetHistoryWeightReference.Available
@@ -278,7 +320,7 @@ internal fun PetWeightReferenceChartCard(
             if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
         }
         if (breedReference is PetHistoryBreedReference.Available) {
-            append(" ${breedReference.accessibilityLabel} Породный диапазон отмечен вертикальным отрезком, одиночное значение — ромбом.")
+            append(" ${breedReference.accessibilityLabel} Породные ориентиры построены по датам измерений; одиночное значение отмечено ромбом.")
         }
     }
 
@@ -294,6 +336,7 @@ internal fun PetWeightReferenceChartCard(
                     factual = factual,
                     reference = reference,
                     breedReference = breedReference,
+                    breedReferenceTimeline = breedReferenceTimeline,
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -328,6 +371,7 @@ private fun PetWeightVicoChart(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
     breedReference: PetHistoryBreedReference,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -338,9 +382,8 @@ private fun PetWeightVicoChart(
 ) {
     val available = reference as? PetHistoryWeightReference.Available
     val referenceSeries = remember(reference) { petWeightReferenceChartSeries(reference) }
-    val breedDate = LocalDate.now().coerceIn(startDate, endDateInclusive)
-    val breedSeries = remember(breedReference, breedDate) {
-        breedWeightReferenceChartSeries(breedReference, breedDate)
+    val breedSeries = remember(breedReferenceTimeline) {
+        breedWeightReferenceChartSeries(breedReferenceTimeline)
     }
     val modelSeries = remember(factual, referenceSeries, breedSeries, zoneId) {
         petWeightChartModelSeries(factual, referenceSeries, breedSeries, zoneId)
@@ -362,7 +405,13 @@ private fun PetWeightVicoChart(
             add(rememberSmoothChartLine(referenceColor, series.points.size))
         }
         breedSeries.forEach { series ->
-            add(rememberBreedChartLine(MaterialTheme.colorScheme.secondary, series.drawsInterval))
+            add(
+                rememberBreedChartLine(
+                    MaterialTheme.colorScheme.secondary,
+                    series.drawsInterval,
+                    series.showsPointMarkers,
+                ),
+            )
         }
     }
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -371,19 +420,28 @@ private fun PetWeightVicoChart(
             PetAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerFormatter = remember(factual, reference, zoneId) {
+    val markerFormatter = remember(factual, reference, breedReferenceTimeline, zoneId) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightMarker(petWeightMarkerSelection(target.x.toLong(), factual, reference, zoneId))
+            formatPetWeightMarker(
+                petWeightMarkerSelection(
+                    target.x.toLong(),
+                    factual,
+                    reference,
+                    zoneId,
+                    breedReferenceTimeline,
+                ),
+            )
         }
     }
     val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
         rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
     }
-    val selectableDates = remember(factual, available, zoneId) {
+    val selectableDates = remember(factual, available, breedReferenceTimeline, zoneId) {
         (factual.map { it.measuredAt.atZone(zoneId).toLocalDate() } +
-            available?.segments.orEmpty().flatten().map(PetHistoryReferencePoint::date))
+            available?.segments.orEmpty().flatten().map(PetHistoryReferencePoint::date) +
+            breedReferenceTimeline.filter { !it.values.isNullOrEmpty() }.map(PetHistoryBreedReferenceTimelinePoint::date))
             .distinct()
             .sorted()
     }
@@ -399,6 +457,7 @@ private fun PetWeightVicoChart(
             factual,
             reference,
             zoneId,
+            breedReferenceTimeline,
         )
     }
 
@@ -419,7 +478,10 @@ private fun PetWeightVicoChart(
                     CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
                 ),
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
-                marker = rememberChartMarker(markerFormatter, lineCount = 5),
+                marker = rememberChartMarker(
+                    markerFormatter,
+                    lineCount = if (breedReferenceTimeline.any { !it.values.isNullOrEmpty() }) 6 else 5,
+                ),
             ),
             modelProducer = modelProducer,
             modifier = Modifier
@@ -440,12 +502,21 @@ private fun PetWeightVicoChart(
             scrollState = rememberVicoScrollState(scrollEnabled = true),
             zoomState = zoomState,
         )
-        if (breedReference is PetHistoryBreedReference.Available) BreedReferenceSemantics(breedReference, breedDate)
+        if (breedReference is PetHistoryBreedReference.Available) {
+            BreedReferenceSemantics(
+                accessibleSelection?.date ?: endDateInclusive,
+                accessibleSelection?.breedValues,
+            )
+        }
     }
 }
 
 @Composable
-private fun rememberBreedChartLine(color: Color, drawsInterval: Boolean): LineCartesianLayer.Line {
+private fun rememberBreedChartLine(
+    color: Color,
+    drawsInterval: Boolean,
+    showsPointMarkers: Boolean,
+): LineCartesianLayer.Line {
     val diamond = remember {
         GenericShape { size, _ ->
             moveTo(size.width / 2f, 0f)
@@ -455,18 +526,21 @@ private fun rememberBreedChartLine(color: Color, drawsInterval: Boolean): LineCa
             close()
         }
     }
-    return remember(color, drawsInterval, diamond) {
+    return remember(color, drawsInterval, showsPointMarkers, diamond) {
+        val pointShape = if (drawsInterval) CircleShape else diamond
         LineCartesianLayer.Line(
             fill = LineCartesianLayer.LineFill.single(Fill(color)),
             stroke = LineCartesianLayer.LineStroke.Continuous(if (drawsInterval) 4.dp else 0.dp),
             areaFill = null,
-            pointProvider = if (drawsInterval) null else {
+            pointProvider = if (showsPointMarkers) {
                 LineCartesianLayer.PointProvider.single(
                     LineCartesianLayer.Point(
-                        component = ShapeComponent(fill = Fill(color), shape = diamond),
-                        size = 14.dp,
+                        component = ShapeComponent(fill = Fill(color), shape = pointShape),
+                        size = if (drawsInterval) 8.dp else 14.dp,
                     ),
                 )
+            } else {
+                null
             },
             interpolator = LineCartesianLayer.Interpolator.Sharp,
         )
@@ -475,16 +549,18 @@ private fun rememberBreedChartLine(color: Color, drawsInterval: Boolean): LineCa
 
 @Composable
 private fun BreedReferenceSemantics(
-    reference: PetHistoryBreedReference.Available,
     date: LocalDate,
+    values: List<PetHistoryBreedChartValue>?,
 ) {
     Box(
         Modifier
             .fillMaxSize()
             .testTag(PetWeightChartTestTags.BreedLayer)
             .semantics(mergeDescendants = true) {
-                contentDescription = reference.chartValues.joinToString(" ") { it.accessibilityLabel }
-                stateDescription = "Породный ориентир показан на текущую дату $date"
+                values?.takeIf(List<PetHistoryBreedChartValue>::isNotEmpty)?.let {
+                    contentDescription = it.joinToString(" ") { value -> value.accessibilityLabel }
+                    stateDescription = "Породный ориентир для $date"
+                }
             },
     )
 }
@@ -493,7 +569,7 @@ private fun BreedReferenceSemantics(
 private fun BreedChartLegend(reference: PetHistoryBreedReference.Available) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
         if (reference.chartValues.any { it is PetHistoryBreedChartValue.Interval }) {
-            Text("│ Породный диапазон · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
+            Text("— Границы породного диапазона · возраст на дату измерения", style = MaterialTheme.typography.bodySmall)
         }
         if (reference.chartValues.any {
                 it is PetHistoryBreedChartValue.Single || it is PetHistoryBreedChartValue.Interval && it.centerKg != null

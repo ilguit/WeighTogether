@@ -122,6 +122,24 @@ class PetHistoryBreedReferencePresenter(
         is BreedWeightReferenceResolution.Unavailable -> resolution.reason.toPresentation()
     }
 
+    fun presentTimeline(
+        pet: Pet,
+        dates: List<LocalDate>,
+    ): List<PetHistoryBreedReferenceTimelinePoint> = dates.distinct().sorted().map { date ->
+        val values = when (val resolution = resolver.resolve(pet.species, pet.breedId, pet.sex, pet.birthDate, date)) {
+            is BreedWeightReferenceResolution.Available -> resolution.reference.values.map {
+                it.chartValue(
+                    resolution.reference.breedRussianName,
+                    resolution.reference.ageScope.label(),
+                    resolution.reference.source.kind.label(),
+                    locale,
+                )
+            }
+            is BreedWeightReferenceResolution.Unavailable -> null
+        }
+        PetHistoryBreedReferenceTimelinePoint(date, values)
+    }
+
     private fun BreedWeightReference.toPresentation(): PetHistoryBreedReference.Available {
         val age = ageScope.label()
         val values = values.map { it.label(locale) }
@@ -174,6 +192,12 @@ class PetHistoryBreedReferencePresenter(
         limitations = limitations,
     )
 }
+
+data class PetHistoryBreedReferenceTimelinePoint(
+    val date: LocalDate,
+    /** Null means that the resolver has no applicable value and must break chart lines. */
+    val values: List<PetHistoryBreedChartValue>?,
+)
 
 private fun BreedWeightValue.chartValue(
     breedName: String,

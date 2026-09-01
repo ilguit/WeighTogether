@@ -201,6 +201,14 @@ class PetHistoryStateOwner(
                         series = series,
                         weightReference = referencePresenter.present(observedPet, current.range),
                         breedReference = breedReferencePresenter.present(observedPet),
+                        breedReferenceTimeline = breedReferencePresenter.presentTimeline(
+                            observedPet,
+                            series.points.mapNotNull { point ->
+                                point.xEpochMillis?.let { epochMillis ->
+                                    java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate()
+                                }
+                            },
+                        ),
                         isLoading = false,
                     )
                 }

@@ -92,6 +92,22 @@ class PetHistoryBreedReferencePresenterTest {
         assertEquals(PetHistoryBreedReference.Hidden, presenter().present(dog().copy(species = PetSpecies.CAT)))
     }
 
+    @Test
+    fun `timeline resolves breed value from age at every measurement date`() {
+        val pet = dog().copy(
+            breedId = BreedId("VBO:0200800"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2026, 1, 1)),
+        )
+        val twoMonths = LocalDate.of(2026, 3, 3)
+        val threeMonths = LocalDate.of(2026, 4, 2)
+
+        val timeline = presenter().presentTimeline(pet, listOf(threeMonths, twoMonths, twoMonths))
+
+        assertEquals(listOf(twoMonths, threeMonths), timeline.map(PetHistoryBreedReferenceTimelinePoint::date))
+        assertEquals(6.4, (timeline[0].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
+        assertEquals(10.0, (timeline[1].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
+    }
+
     private fun presenter() = PetHistoryBreedReferencePresenter(clock = clock, locale = Locale.forLanguageTag("ru-RU"))
 
     private fun dog() = Pet(

@@ -65,6 +65,7 @@ data class PetHistoryUiState(
         "Эталон недоступен: вид питомца не указан.",
     ),
     val breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
+    val breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
     val errorMessage: String? = null,
