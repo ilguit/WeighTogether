@@ -178,6 +178,34 @@ internal enum class PetWeightDisplayedSeriesKind {
 
 internal enum class PetWeightDisplayedSeriesStyle { FACTUAL, CATEGORY, BREED_BOUNDARY, BREED_CENTER }
 
+internal data class PetWeightChartLegendEntry(
+    val label: String,
+    val style: PetWeightDisplayedSeriesStyle,
+)
+
+internal fun petWeightChartLegendEntries(
+    displayedSeries: List<PetWeightDisplayedSeries>,
+): List<PetWeightChartLegendEntry> = buildList {
+    if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
+        add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+    }
+    displayedSeries
+        .filter { it.style == PetWeightDisplayedSeriesStyle.CATEGORY }
+        .distinctBy(PetWeightDisplayedSeries::kind)
+        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.CATEGORY)) }
+    if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
+        add(
+            PetWeightChartLegendEntry(
+                "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы",
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+            ),
+        )
+    }
+    if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_CENTER }) {
+        add(PetWeightChartLegendEntry("— Породная медиана или среднее", PetWeightDisplayedSeriesStyle.BREED_CENTER))
+    }
+}
+
 /** The single source of truth for everything Vico displays. */
 internal data class PetWeightDisplayedSeries(
     val id: String,
@@ -461,6 +489,7 @@ internal fun PetWeightReferenceChartCard(
     val displayedSeries = remember(factual, reference, breedReferenceTimeline, zoneId) {
         petWeightDisplayedSeries(factual, reference, breedReferenceTimeline, zoneId)
     }
+    val legendEntries = remember(displayedSeries) { petWeightChartLegendEntries(displayedSeries) }
     val yRange = remember(displayedSeries) {
         displayedSeries.flatMap(PetWeightDisplayedSeries::y).takeIf(List<Double>::isNotEmpty)?.let { values ->
             val min = values.min()
@@ -482,7 +511,12 @@ internal fun PetWeightReferenceChartCard(
             if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
         }
         if (breedReference is PetHistoryBreedReference.Available) {
-            append(" ${breedReference.accessibilityLabel} Породный диапазон показан светло-зелёной прозрачной зоной с тонкими границами; среднее или медиана — тонкой приглушённой линией.")
+            append(" ${breedReference.accessibilityLabel}")
+        }
+        if (legendEntries.isNotEmpty()) {
+            append(" Отображаются: ")
+            append(legendEntries.joinToString("; ") { it.label })
+            append('.')
         }
     }
 
@@ -506,7 +540,7 @@ internal fun PetWeightReferenceChartCard(
                     contentDescription = description,
                 )
                 if (displayedSeries.isNotEmpty()) {
-                    DisplayedSeriesLegend(displayedSeries, factualColor, referenceColor)
+                    DisplayedSeriesLegend(legendEntries, factualColor, referenceColor)
                 } else if (factual.size < 2) {
                     Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
                 }
@@ -690,39 +724,20 @@ private class BreedWeightReferenceBandDecoration(
 }
 
 @Composable
-private fun BreedChartLegend(reference: PetHistoryBreedReference.Available) {
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        if (reference.chartValues.any { it is PetHistoryBreedChartValue.Interval }) {
-            Text("▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы", style = MaterialTheme.typography.bodySmall)
-        }
-        if (reference.chartValues.any {
-                it is PetHistoryBreedChartValue.Single || it is PetHistoryBreedChartValue.Interval && it.centerKg != null
-            }) {
-            Text("— Тонкая приглушённая линия — породное среднее или медиана · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
-        }
-    }
-}
-
-@Composable
 private fun DisplayedSeriesLegend(
-    displayedSeries: List<PetWeightDisplayedSeries>,
+    entries: List<PetWeightChartLegendEntry>,
     factualColor: Color,
     referenceColor: Color,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        displayedSeries.distinctBy(PetWeightDisplayedSeries::kind).forEach { series ->
-            val color = when (series.style) {
+        entries.forEach { entry ->
+            val color = when (entry.style) {
                 PetWeightDisplayedSeriesStyle.FACTUAL -> factualColor
                 PetWeightDisplayedSeriesStyle.CATEGORY -> referenceColor
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> Color(0xFF43A047).copy(alpha = 0.36f)
                 PetWeightDisplayedSeriesStyle.BREED_CENTER -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
             }
-            val symbol = when (series.style) {
-                PetWeightDisplayedSeriesStyle.FACTUAL -> "●"
-                PetWeightDisplayedSeriesStyle.BREED_CENTER -> "—"
-                else -> "—"
-            }
-            ChartLegend("$symbol ${series.label}", color)
+            ChartLegend(entry.label, color)
         }
     }
 }

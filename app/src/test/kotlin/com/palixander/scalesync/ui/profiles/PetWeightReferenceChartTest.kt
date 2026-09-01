@@ -13,6 +13,35 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `breed interval has one zone legend entry and no center entry`() {
+        val series = listOf(
+            displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_LOWER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Нижняя граница"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_UPPER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Верхняя граница"),
+        )
+
+        assertEquals(
+            listOf("● Фактический вес", "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы"),
+            petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
+    @Test fun `breed interval and center have zone and center legend entries`() {
+        val series = listOf(
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_LOWER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Нижняя граница"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_UPPER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Верхняя граница"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_CENTER, PetWeightDisplayedSeriesStyle.BREED_CENTER, "Медиана или среднее"),
+        )
+
+        assertEquals(
+            listOf(
+                "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы",
+                "— Породная медиана или среднее",
+            ),
+            petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
     @Test fun `bundled AmStaff range displays factual lower and upper without zero or center`() {
         val date = LocalDate.of(2026, 9, 1)
         val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
@@ -56,6 +85,12 @@ class PetWeightReferenceChartTest {
             assertTrue(displayed.all { it.x == listOf(measuredAt) })
         }
     }
+
+    private fun displayedSeries(
+        kind: PetWeightDisplayedSeriesKind,
+        style: PetWeightDisplayedSeriesStyle,
+        label: String,
+    ) = PetWeightDisplayedSeries(kind.name, kind, label, listOf(1L), listOf(1.0), style)
 
     @Test fun `tooltip contains only displayed names and exact x values`() {
         val selectedX = 1_000L
