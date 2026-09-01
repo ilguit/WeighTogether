@@ -2,6 +2,9 @@ package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
+import com.palixander.scalesync.core.breedreference.BreedReferenceSex
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Locale
@@ -10,6 +13,65 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `bundled AmStaff range displays factual lower and upper without zero or center`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val amstaff = requireNotNull(BreedReferenceSnapshot.bundled().breed("VBO:0200055"))
+
+        listOf(BreedReferenceSex.MALE, BreedReferenceSex.FEMALE).forEach { sex ->
+            val range = amstaff.values.single {
+                it.measure == BreedReferenceMeasure.WEIGHT && it.sex == sex && it.adult &&
+                    it.activeForProduct && it.lower != null && it.upper != null
+            }
+            val displayed = petWeightDisplayedSeries(
+                factual = listOf(ChartPoint(measuredAt / 1_000, 27.0)),
+                reference = available(listOf(PetHistoryReferencePoint(date, 0.0, 20.0, 21.0, 30.0))),
+                breedReferenceTimeline = listOf(
+                    PetHistoryBreedReferenceTimelinePoint(
+                        measuredAt,
+                        date,
+                        listOf(
+                            PetHistoryBreedChartValue.Interval(
+                                requireNotNull(range.lower),
+                                requireNotNull(range.upper),
+                                null,
+                                "Диапазон",
+                                "Диапазон",
+                            ),
+                        ),
+                    ),
+                ),
+                zoneId = ZoneOffset.UTC,
+            )
+
+            assertEquals(
+                listOf(
+                    PetWeightDisplayedSeriesKind.FACTUAL,
+                    PetWeightDisplayedSeriesKind.BREED_LOWER,
+                    PetWeightDisplayedSeriesKind.BREED_UPPER,
+                ),
+                displayed.map(PetWeightDisplayedSeries::kind),
+            )
+            assertTrue(displayed.flatMap(PetWeightDisplayedSeries::y).none { it == 0.0 })
+            assertTrue(displayed.all { it.x == listOf(measuredAt) })
+        }
+    }
+
+    @Test fun `tooltip contains only displayed names and exact x values`() {
+        val selectedX = 1_000L
+        val series = listOf(
+            PetWeightDisplayedSeries("factual", PetWeightDisplayedSeriesKind.FACTUAL, "Фактический вес", listOf(selectedX), listOf(24.5), PetWeightDisplayedSeriesStyle.FACTUAL),
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", listOf(selectedX), listOf(22.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+            PetWeightDisplayedSeries("upper", PetWeightDisplayedSeriesKind.BREED_UPPER, "Верхняя граница", listOf(2_000L), listOf(32.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        assertEquals(
+            "Фактический вес: 24.50 кг\nНижняя граница: 22.00 кг",
+            formatPetWeightDisplayedMarker(selectedX, series, Locale.US),
+        )
+        assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, Locale.US))
+    }
+
     @Test fun `reference series keep segment boundaries and lower to upper order`() {
         val firstDate = LocalDate.of(2026, 8, 1)
         val secondDate = LocalDate.of(2026, 8, 2)

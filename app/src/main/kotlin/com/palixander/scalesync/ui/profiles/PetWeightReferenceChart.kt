@@ -120,6 +120,127 @@ internal data class PetWeightChartModelSeries(
     val y: List<Double>,
 )
 
+internal enum class PetWeightDisplayedSeriesKind {
+    FACTUAL,
+    CATEGORY_LOWER,
+    CATEGORY_MEDIAN_LOWER,
+    CATEGORY_MEDIAN_UPPER,
+    CATEGORY_UPPER,
+    BREED_LOWER,
+    BREED_UPPER,
+    BREED_CENTER,
+}
+
+internal enum class PetWeightDisplayedSeriesStyle { FACTUAL, CATEGORY, BREED_BOUNDARY, BREED_CENTER }
+
+/** The single source of truth for everything Vico displays. */
+internal data class PetWeightDisplayedSeries(
+    val id: String,
+    val kind: PetWeightDisplayedSeriesKind,
+    val label: String,
+    val x: List<Long>,
+    val y: List<Double>,
+    val style: PetWeightDisplayedSeriesStyle,
+) {
+    init {
+        require(x.size == y.size)
+        require(x.isNotEmpty())
+        require(y.all(Double::isFinite))
+    }
+}
+
+internal fun petWeightDisplayedSeries(
+    factual: List<ChartPoint>,
+    reference: PetHistoryWeightReference,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
+    zoneId: ZoneId,
+): List<PetWeightDisplayedSeries> = buildList {
+    val factualPoints = factual.filter { it.xEpochMillis != null && it.value.isFinite() }
+    if (factualPoints.isNotEmpty()) {
+        add(
+            PetWeightDisplayedSeries(
+                id = "factual",
+                kind = PetWeightDisplayedSeriesKind.FACTUAL,
+                label = "Фактический вес",
+                x = factualPoints.map { requireNotNull(it.xEpochMillis) },
+                y = factualPoints.map(ChartPoint::value),
+                style = PetWeightDisplayedSeriesStyle.FACTUAL,
+            ),
+        )
+    }
+    val breedSeries = breedWeightReferenceChartSeries(breedReferenceTimeline)
+    if (breedSeries.isNotEmpty()) {
+        val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
+        breedSeries.forEach { series ->
+            val occurrence = counters.getOrDefault(series.kind, 0)
+            counters[series.kind] = occurrence + 1
+            val (kind, label, style) = when (series.kind) {
+                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY -> Triple(
+                    PetWeightDisplayedSeriesKind.BREED_LOWER,
+                    "Нижняя граница",
+                    PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+                )
+                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY -> Triple(
+                    PetWeightDisplayedSeriesKind.BREED_UPPER,
+                    "Верхняя граница",
+                    PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+                )
+                BreedWeightReferenceSeriesKind.CENTER -> Triple(
+                    PetWeightDisplayedSeriesKind.BREED_CENTER,
+                    "Медиана или среднее",
+                    PetWeightDisplayedSeriesStyle.BREED_CENTER,
+                )
+            }
+            add(
+                PetWeightDisplayedSeries(
+                    id = "breed-${series.kind.name.lowercase()}-$occurrence",
+                    kind = kind,
+                    label = label,
+                    x = series.xEpochMillis,
+                    y = series.points.map { it.second },
+                    style = style,
+                ),
+            )
+        }
+    } else {
+        petWeightReferenceChartSeries(reference).forEachIndexed { index, series ->
+            val (kind, label) = when (series.kind) {
+                PetWeightReferenceSeriesKind.LOWER -> PetWeightDisplayedSeriesKind.CATEGORY_LOWER to "Нижняя граница эталона"
+                PetWeightReferenceSeriesKind.MEDIAN_LOWER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER to "Нижняя медианная граница"
+                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Верхняя медианная граница"
+                PetWeightReferenceSeriesKind.UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_UPPER to "Верхняя граница эталона"
+            }
+            add(
+                PetWeightDisplayedSeries(
+                    id = "category-${series.kind.name.lowercase()}-$index",
+                    kind = kind,
+                    label = label,
+                    x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                    y = series.points.map { it.second },
+                    style = PetWeightDisplayedSeriesStyle.CATEGORY,
+                ),
+            )
+        }
+    }
+}
+
+internal fun formatPetWeightDisplayedMarker(
+    targetXEpochMillis: Long,
+    displayedSeries: List<PetWeightDisplayedSeries>,
+    locale: Locale = Locale.getDefault(),
+): String {
+    val number = NumberFormat.getNumberInstance(locale).apply {
+        minimumFractionDigits = 2
+        maximumFractionDigits = 2
+        isGroupingUsed = false
+    }
+    return displayedSeries.mapNotNull { series ->
+        series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let { index ->
+            "${series.label}: ${number.format(series.y[index])} кг"
+        }
+    }.joinToString("\n")
+}
+
 internal fun breedWeightReferenceChartSeries(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceChartSeries> {
@@ -344,8 +465,16 @@ internal fun PetWeightReferenceChartCard(
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
     }
-    val yRange = remember(factual, reference, breedReference, breedReferenceTimeline) {
-        petWeightChartRange(factual, reference, breedReference, breedReferenceTimeline)
+    val displayedSeries = remember(factual, reference, breedReferenceTimeline, zoneId) {
+        petWeightDisplayedSeries(factual, reference, breedReferenceTimeline, zoneId)
+    }
+    val yRange = remember(displayedSeries) {
+        displayedSeries.flatMap(PetWeightDisplayedSeries::y).takeIf(List<Double>::isNotEmpty)?.let { values ->
+            val min = values.min()
+            val max = values.max()
+            val padding = ((max - min) * 0.08).coerceAtLeast(0.1)
+            PetWeightChartRange((min - padding).coerceAtLeast(0.0), max + padding)
+        }
     }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
@@ -377,6 +506,7 @@ internal fun PetWeightReferenceChartCard(
                     reference = reference,
                     breedReference = breedReference,
                     breedReferenceTimeline = breedReferenceTimeline,
+                    displayedSeries = displayedSeries,
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -385,16 +515,8 @@ internal fun PetWeightReferenceChartCard(
                     referenceColor = referenceColor,
                     contentDescription = description,
                 )
-                if (available != null && !hasBreedTimeline) {
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        ChartLegend("● Фактический вес", factualColor)
-                        ChartLegend("— Границы эталона", referenceColor)
-                        if (breedReference is PetHistoryBreedReference.Available) {
-                            BreedChartLegend(breedReference)
-                        }
-                    }
-                } else if (breedReference is PetHistoryBreedReference.Available) {
-                    BreedChartLegend(breedReference)
+                if (displayedSeries.isNotEmpty()) {
+                    DisplayedSeriesLegend(displayedSeries, factualColor, referenceColor)
                 } else if (factual.size < 2) {
                     Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
                 }
@@ -412,6 +534,7 @@ private fun PetWeightVicoChart(
     reference: PetHistoryWeightReference,
     breedReference: PetHistoryBreedReference,
     breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
+    displayedSeries: List<PetWeightDisplayedSeries>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -422,15 +545,6 @@ private fun PetWeightVicoChart(
 ) {
     val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
     val available = (reference as? PetHistoryWeightReference.Available)?.takeUnless { hasBreedTimeline }
-    val referenceSeries = remember(reference, hasBreedTimeline) {
-        if (hasBreedTimeline) emptyList() else petWeightReferenceChartSeries(reference)
-    }
-    val breedSeries = remember(breedReferenceTimeline) {
-        breedWeightReferenceChartSeries(breedReferenceTimeline)
-    }
-    val modelSeries = remember(factual, referenceSeries, breedSeries, zoneId) {
-        petWeightChartModelSeries(factual, referenceSeries, breedSeries, zoneId)
-    }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
     }
@@ -442,24 +556,23 @@ private fun PetWeightVicoChart(
             override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange.max
         }
     }
-    val lines = buildList {
-        if (factual.isNotEmpty()) add(rememberSmoothChartLine(factualColor, factual.size))
-        referenceSeries.forEach { series ->
-            add(rememberSmoothChartLine(referenceColor, series.points.size))
-        }
-        breedSeries.forEach { series ->
-            val presentation = breedWeightReferenceSeriesPresentation(series.kind)
-            add(
-                rememberBreedChartLine(
-                    if (presentation.lowEmphasis) {
+    val lines = displayedSeries.map { series ->
+        when (series.style) {
+            PetWeightDisplayedSeriesStyle.FACTUAL -> rememberSmoothChartLine(factualColor, series.x.size)
+            PetWeightDisplayedSeriesStyle.CATEGORY -> rememberSmoothChartLine(referenceColor, series.x.size)
+            PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+            PetWeightDisplayedSeriesStyle.BREED_CENTER,
+            -> rememberBreedChartLine(
+                    if (series.style == PetWeightDisplayedSeriesStyle.BREED_CENTER) {
                         MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
                     } else {
                         MaterialTheme.colorScheme.secondary
                     },
-                    series.kind,
-                    series.showsPointMarkers,
-                ),
-            )
+                    if (series.style == PetWeightDisplayedSeriesStyle.BREED_CENTER) BreedWeightReferenceSeriesKind.CENTER
+                    else if (series.kind == PetWeightDisplayedSeriesKind.BREED_LOWER) BreedWeightReferenceSeriesKind.LOWER_BOUNDARY
+                    else BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+                    true,
+                )
         }
     }
     val modelProducer = remember { CartesianChartModelProducer() }
@@ -468,19 +581,11 @@ private fun PetWeightVicoChart(
             PetAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerFormatter = remember(factual, reference, breedReferenceTimeline, zoneId) {
+    val markerFormatter = remember(displayedSeries) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightMarker(
-                petWeightMarkerSelection(
-                    target.x.toLong(),
-                    factual,
-                    reference,
-                    zoneId,
-                    breedReferenceTimeline,
-                ),
-            )
+            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries)
         }
     }
     val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
@@ -509,10 +614,10 @@ private fun PetWeightVicoChart(
         )
     }
 
-    LaunchedEffect(modelSeries) {
+    LaunchedEffect(displayedSeries) {
         modelProducer.runTransaction {
             lineModel {
-                modelSeries.forEach { chartSeries ->
+                displayedSeries.forEach { chartSeries ->
                     series(x = chartSeries.x, y = chartSeries.y)
                 }
             }
@@ -528,7 +633,7 @@ private fun PetWeightVicoChart(
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
                 marker = rememberChartMarker(
                     markerFormatter,
-                    lineCount = if (breedReferenceTimeline.any { !it.values.isNullOrEmpty() }) 6 else 5,
+                    lineCount = displayedSeries.size,
                 ),
             ),
             modelProducer = modelProducer,
@@ -624,6 +729,30 @@ private fun BreedChartLegend(reference: PetHistoryBreedReference.Available) {
                 it is PetHistoryBreedChartValue.Single || it is PetHistoryBreedChartValue.Interval && it.centerKg != null
             }) {
             Text("◆ Породное среднее или медиана · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
+        }
+    }
+}
+
+@Composable
+private fun DisplayedSeriesLegend(
+    displayedSeries: List<PetWeightDisplayedSeries>,
+    factualColor: Color,
+    referenceColor: Color,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        displayedSeries.distinctBy(PetWeightDisplayedSeries::kind).forEach { series ->
+            val color = when (series.style) {
+                PetWeightDisplayedSeriesStyle.FACTUAL -> factualColor
+                PetWeightDisplayedSeriesStyle.CATEGORY -> referenceColor
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> MaterialTheme.colorScheme.secondary
+                PetWeightDisplayedSeriesStyle.BREED_CENTER -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+            }
+            val symbol = when (series.style) {
+                PetWeightDisplayedSeriesStyle.FACTUAL -> "●"
+                PetWeightDisplayedSeriesStyle.BREED_CENTER -> "◆"
+                else -> "—"
+            }
+            ChartLegend("$symbol ${series.label}", color)
         }
     }
 }
