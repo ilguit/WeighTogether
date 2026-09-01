@@ -85,10 +85,32 @@ internal data class PetWeightReferenceChartSeries(
 )
 
 internal data class BreedWeightReferenceChartSeries(
+    val kind: BreedWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
-    val drawsInterval: Boolean,
     val showsPointMarkers: Boolean = true,
 )
+
+internal enum class BreedWeightReferenceSeriesKind {
+    LOWER_BOUNDARY,
+    UPPER_BOUNDARY,
+    CENTER,
+}
+
+internal data class BreedWeightReferenceSeriesPresentation(
+    val strokeWidthDp: Int,
+    val pointSizeDp: Int,
+    val lowEmphasis: Boolean,
+)
+
+internal fun breedWeightReferenceSeriesPresentation(
+    kind: BreedWeightReferenceSeriesKind,
+): BreedWeightReferenceSeriesPresentation = when (kind) {
+    BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
+    BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
+    -> BreedWeightReferenceSeriesPresentation(strokeWidthDp = 4, pointSizeDp = 8, lowEmphasis = false)
+    BreedWeightReferenceSeriesKind.CENTER ->
+        BreedWeightReferenceSeriesPresentation(strokeWidthDp = 2, pointSizeDp = 8, lowEmphasis = true)
+}
 
 internal data class PetWeightChartModelSeries(
     val x: List<Long>,
@@ -116,15 +138,15 @@ internal fun breedWeightReferenceChartSeries(
             }
 
             points { (it as? PetHistoryBreedChartValue.Interval)?.lowerKg }
-                .forEach { add(BreedWeightReferenceChartSeries(it, true)) }
+                .forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, it)) }
             points { (it as? PetHistoryBreedChartValue.Interval)?.upperKg }
-                .forEach { add(BreedWeightReferenceChartSeries(it, true)) }
+                .forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, it)) }
             points {
                 when (it) {
                     is PetHistoryBreedChartValue.Interval -> it.centerKg
                     is PetHistoryBreedChartValue.Single -> it.valueKg
                 }
-            }.forEach { add(BreedWeightReferenceChartSeries(it, false)) }
+            }.forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, it)) }
         }
     }
 }
@@ -405,10 +427,15 @@ private fun PetWeightVicoChart(
             add(rememberSmoothChartLine(referenceColor, series.points.size))
         }
         breedSeries.forEach { series ->
+            val presentation = breedWeightReferenceSeriesPresentation(series.kind)
             add(
                 rememberBreedChartLine(
-                    MaterialTheme.colorScheme.secondary,
-                    series.drawsInterval,
+                    if (presentation.lowEmphasis) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                    } else {
+                        MaterialTheme.colorScheme.secondary
+                    },
+                    series.kind,
                     series.showsPointMarkers,
                 ),
             )
@@ -514,7 +541,7 @@ private fun PetWeightVicoChart(
 @Composable
 private fun rememberBreedChartLine(
     color: Color,
-    drawsInterval: Boolean,
+    kind: BreedWeightReferenceSeriesKind,
     showsPointMarkers: Boolean,
 ): LineCartesianLayer.Line {
     val diamond = remember {
@@ -526,17 +553,18 @@ private fun rememberBreedChartLine(
             close()
         }
     }
-    return remember(color, drawsInterval, showsPointMarkers, diamond) {
-        val pointShape = if (drawsInterval) CircleShape else diamond
+    val presentation = breedWeightReferenceSeriesPresentation(kind)
+    return remember(color, kind, showsPointMarkers, diamond) {
+        val pointShape = if (kind == BreedWeightReferenceSeriesKind.CENTER) diamond else CircleShape
         LineCartesianLayer.Line(
             fill = LineCartesianLayer.LineFill.single(Fill(color)),
-            stroke = LineCartesianLayer.LineStroke.Continuous(if (drawsInterval) 4.dp else 0.dp),
+            stroke = LineCartesianLayer.LineStroke.Continuous(presentation.strokeWidthDp.dp),
             areaFill = null,
             pointProvider = if (showsPointMarkers) {
                 LineCartesianLayer.PointProvider.single(
                     LineCartesianLayer.Point(
                         component = ShapeComponent(fill = Fill(color), shape = pointShape),
-                        size = if (drawsInterval) 8.dp else 14.dp,
+                        size = presentation.pointSizeDp.dp,
                     ),
                 )
             } else {
