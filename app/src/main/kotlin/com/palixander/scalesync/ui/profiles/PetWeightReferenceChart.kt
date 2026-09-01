@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -18,7 +17,8 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.shape.GenericShape
+import androidx.compose.ui.graphics.Paint
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -41,11 +41,14 @@ import com.palixander.scalesync.charts.rememberSmoothLineLayer
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
+import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
 import com.patrykandpatrick.vico.compose.cartesian.data.lineModel
+import com.patrykandpatrick.vico.compose.cartesian.decoration.Decoration
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.LineCartesianLayerMarkerTarget
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
@@ -54,7 +57,6 @@ import com.patrykandpatrick.vico.compose.cartesian.rememberVicoScrollState
 import com.patrykandpatrick.vico.compose.cartesian.rememberVicoZoomState
 import com.patrykandpatrick.vico.compose.common.data.ExtraStore
 import com.patrykandpatrick.vico.compose.common.Fill
-import com.patrykandpatrick.vico.compose.common.component.ShapeComponent
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.LocalDate
@@ -85,7 +87,7 @@ internal data class PetWeightReferenceChartSeries(
 internal data class BreedWeightReferenceChartSeries(
     val kind: BreedWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
-    val showsPointMarkers: Boolean = true,
+    val showsPointMarkers: Boolean = false,
     val xEpochMillis: List<Long> = points.map { (date, _) ->
         date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
     },
@@ -108,9 +110,53 @@ internal fun breedWeightReferenceSeriesPresentation(
 ): BreedWeightReferenceSeriesPresentation = when (kind) {
     BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
     BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
-    -> BreedWeightReferenceSeriesPresentation(strokeWidthDp = 4, pointSizeDp = 8, lowEmphasis = false)
+    -> BreedWeightReferenceSeriesPresentation(strokeWidthDp = 1, pointSizeDp = 0, lowEmphasis = true)
     BreedWeightReferenceSeriesKind.CENTER ->
-        BreedWeightReferenceSeriesPresentation(strokeWidthDp = 2, pointSizeDp = 8, lowEmphasis = true)
+        BreedWeightReferenceSeriesPresentation(strokeWidthDp = 1, pointSizeDp = 0, lowEmphasis = true)
+}
+
+internal data class BreedWeightReferenceBandPoint(
+    val xEpochMillis: Long,
+    val lowerKg: Double,
+    val upperKg: Double,
+)
+
+internal data class BreedWeightReferenceBand(val points: List<BreedWeightReferenceBandPoint>) {
+    init {
+        require(points.size >= 2)
+        require(points.zipWithNext().all { (first, second) -> first.xEpochMillis < second.xEpochMillis })
+    }
+}
+
+/** Produces one polygon source per value and continuous interval segment. */
+internal fun breedWeightReferenceBands(
+    timeline: List<PetHistoryBreedReferenceTimelinePoint>,
+): List<BreedWeightReferenceBand> {
+    val maximumValueCount = timeline.maxOfOrNull { it.values?.size ?: 0 } ?: return emptyList()
+    return buildList {
+        repeat(maximumValueCount) { valueIndex ->
+            var segment = mutableListOf<BreedWeightReferenceBandPoint>()
+            fun finishSegment() {
+                if (segment.size >= 2) add(BreedWeightReferenceBand(segment))
+                segment = mutableListOf()
+            }
+            timeline.forEach { timelinePoint ->
+                val interval = timelinePoint.values?.getOrNull(valueIndex) as? PetHistoryBreedChartValue.Interval
+                if (interval == null) {
+                    finishSegment()
+                } else {
+                    val point = BreedWeightReferenceBandPoint(
+                        xEpochMillis = timelinePoint.xEpochMillis,
+                        lowerKg = interval.lowerKg,
+                        upperKg = interval.upperKg,
+                    )
+                    if (segment.lastOrNull()?.xEpochMillis?.let { it >= point.xEpochMillis } == true) finishSegment()
+                    segment.add(point)
+                }
+            }
+            finishSegment()
+        }
+    }
 }
 
 internal data class PetWeightChartModelSeries(
@@ -449,6 +495,7 @@ internal fun PetWeightReferenceChartCard(
             if (yRange != null) {
                 PetWeightVicoChart(
                     displayedSeries = displayedSeries,
+                    breedBands = breedWeightReferenceBands(breedReferenceTimeline),
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -473,6 +520,7 @@ internal fun PetWeightReferenceChartCard(
 @Composable
 private fun PetWeightVicoChart(
     displayedSeries: List<PetWeightDisplayedSeries>,
+    breedBands: List<BreedWeightReferenceBand>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -500,16 +548,18 @@ private fun PetWeightVicoChart(
             PetWeightDisplayedSeriesStyle.BREED_CENTER,
             -> rememberBreedChartLine(
                     if (series.style == PetWeightDisplayedSeriesStyle.BREED_CENTER) {
-                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.22f)
                     } else {
-                        MaterialTheme.colorScheme.secondary
+                        Color(0xFF43A047).copy(alpha = 0.36f)
                     },
                     if (series.style == PetWeightDisplayedSeriesStyle.BREED_CENTER) BreedWeightReferenceSeriesKind.CENTER
                     else if (series.kind == PetWeightDisplayedSeriesKind.BREED_LOWER) BreedWeightReferenceSeriesKind.LOWER_BOUNDARY
                     else BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
-                    true,
                 )
         }
+    }
+    val bandDecoration = remember(breedBands) {
+        BreedWeightReferenceBandDecoration(breedBands, Color(0xFF66BB6A).copy(alpha = 0.14f))
     }
     val modelProducer = remember { CartesianChartModelProducer() }
     val bottomFormatter = remember(zoneId) {
@@ -561,6 +611,7 @@ private fun PetWeightVicoChart(
                     markerFormatter,
                     lineCount = displayedSeries.size,
                 ),
+                decorations = listOf(bandDecoration),
             ),
             modelProducer = modelProducer,
             modifier = Modifier
@@ -587,36 +638,47 @@ private fun PetWeightVicoChart(
 private fun rememberBreedChartLine(
     color: Color,
     kind: BreedWeightReferenceSeriesKind,
-    showsPointMarkers: Boolean,
 ): LineCartesianLayer.Line {
-    val diamond = remember {
-        GenericShape { size, _ ->
-            moveTo(size.width / 2f, 0f)
-            lineTo(size.width, size.height / 2f)
-            lineTo(size.width / 2f, size.height)
-            lineTo(0f, size.height / 2f)
-            close()
-        }
-    }
     val presentation = breedWeightReferenceSeriesPresentation(kind)
-    return remember(color, kind, showsPointMarkers, diamond) {
-        val pointShape = if (kind == BreedWeightReferenceSeriesKind.CENTER) diamond else CircleShape
+    return remember(color, kind) {
         LineCartesianLayer.Line(
             fill = LineCartesianLayer.LineFill.single(Fill(color)),
             stroke = LineCartesianLayer.LineStroke.Continuous(presentation.strokeWidthDp.dp),
             areaFill = null,
-            pointProvider = if (showsPointMarkers) {
-                LineCartesianLayer.PointProvider.single(
-                    LineCartesianLayer.Point(
-                        component = ShapeComponent(fill = Fill(color), shape = pointShape),
-                        size = presentation.pointSizeDp.dp,
-                    ),
-                )
-            } else {
-                null
-            },
+            pointProvider = null,
             interpolator = LineCartesianLayer.Interpolator.Sharp,
         )
+    }
+}
+
+private class BreedWeightReferenceBandDecoration(
+    private val bands: List<BreedWeightReferenceBand>,
+    color: Color,
+) : Decoration {
+    private val paint = Paint().apply { this.color = color }
+
+    override fun drawUnderLayers(context: CartesianDrawingContext) = with(context) {
+        val yRange = ranges.getYRange(Axis.Position.Vertical.Start)
+        if (ranges.xStep == 0.0 || yRange.length == 0.0) return@with
+        val start = if (isLtr) layerBounds.left else layerBounds.right
+        val baseX = start + layoutDirectionMultiplier * layerDimensions.startPadding - scroll
+        fun x(value: Long): Float = baseX + layoutDirectionMultiplier * layerDimensions.xSpacing *
+            ((value - ranges.minX) / ranges.xStep).toFloat()
+        fun y(value: Double): Float = layerBounds.bottom -
+            ((value - yRange.minY) / yRange.length).toFloat() * layerBounds.height
+
+        bands.forEach { band ->
+            val path = Path()
+            band.points.forEachIndexed { index, point ->
+                if (index == 0) path.moveTo(x(point.xEpochMillis), y(point.lowerKg))
+                else path.lineTo(x(point.xEpochMillis), y(point.lowerKg))
+            }
+            band.points.asReversed().forEach { point ->
+                path.lineTo(x(point.xEpochMillis), y(point.upperKg))
+            }
+            path.close()
+            canvas.drawPath(path, paint)
+        }
     }
 }
 

@@ -235,6 +235,66 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `breed band pairs boundaries by original value and exact measurement timestamp`() {
+        val first = LocalDate.of(2026, 8, 1).atTime(8, 15).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val second = LocalDate.of(2026, 9, 1).atTime(19, 45).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val timeline = listOf(
+            PetHistoryBreedReferenceTimelinePoint(
+                first,
+                LocalDate.of(2026, 8, 1),
+                listOf(
+                    PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Первый", "first"),
+                    PetHistoryBreedChartValue.Interval(18.0, 22.0, null, "Второй", "second"),
+                ),
+            ),
+            PetHistoryBreedReferenceTimelinePoint(
+                second,
+                LocalDate.of(2026, 9, 1),
+                listOf(
+                    PetHistoryBreedChartValue.Interval(9.0, 13.0, 11.0, "Первый", "first"),
+                    PetHistoryBreedChartValue.Interval(19.0, 23.0, null, "Второй", "second"),
+                ),
+            ),
+        )
+
+        assertEquals(
+            listOf(
+                BreedWeightReferenceBand(
+                    listOf(
+                        BreedWeightReferenceBandPoint(first, 8.0, 12.0),
+                        BreedWeightReferenceBandPoint(second, 9.0, 13.0),
+                    ),
+                ),
+                BreedWeightReferenceBand(
+                    listOf(
+                        BreedWeightReferenceBandPoint(first, 18.0, 22.0),
+                        BreedWeightReferenceBandPoint(second, 19.0, 23.0),
+                    ),
+                ),
+            ),
+            breedWeightReferenceBands(timeline),
+        )
+    }
+
+    @Test fun `breed band splits at gaps and omits singleton polygons`() {
+        val first = LocalDate.of(2026, 7, 1)
+        val second = LocalDate.of(2026, 7, 2)
+        val gap = LocalDate.of(2026, 8, 1)
+        val singleton = LocalDate.of(2026, 9, 1)
+        val timeline = listOf(
+            timelinePoint(first, PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Диапазон", "range")),
+            timelinePoint(second, PetHistoryBreedChartValue.Interval(9.0, 13.0, null, "Диапазон", "range")),
+            PetHistoryBreedReferenceTimelinePoint(gap, null),
+            timelinePoint(singleton, PetHistoryBreedChartValue.Interval(10.0, 14.0, null, "Диапазон", "range")),
+        )
+
+        val bands = breedWeightReferenceBands(timeline)
+
+        assertEquals(1, bands.size)
+        assertEquals(listOf(8.0, 9.0), bands.single().points.map(BreedWeightReferenceBandPoint::lowerKg))
+        assertEquals(listOf(12.0, 13.0), bands.single().points.map(BreedWeightReferenceBandPoint::upperKg))
+    }
+
     @Test fun `breed series split at unavailable measurement and keep singleton segments`() {
         val firstDate = LocalDate.of(2026, 7, 1)
         val gapDate = LocalDate.of(2026, 8, 1)
@@ -253,7 +313,7 @@ class PetWeightReferenceChartTest {
         assertTrue(series.all { it.kind == BreedWeightReferenceSeriesKind.CENTER })
     }
 
-    @Test fun `every breed boundary series presents point markers including singleton segments`() {
+    @Test fun `breed boundary series never present point markers including singleton segments`() {
         val firstDate = LocalDate.of(2026, 7, 1)
         val gapDate = LocalDate.of(2026, 8, 1)
         val lastDate = LocalDate.of(2026, 9, 1)
@@ -269,7 +329,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(4, boundarySeries.size)
         assertTrue(boundarySeries.all { it.points.size == 1 })
-        assertTrue(boundarySeries.all(BreedWeightReferenceChartSeries::showsPointMarkers))
+        assertTrue(boundarySeries.none(BreedWeightReferenceChartSeries::showsPointMarkers))
     }
 
     @Test fun `interval keeps both boundaries when center exists and maps stable presentations`() {
@@ -293,13 +353,11 @@ class PetWeightReferenceChartTest {
         assertEquals(listOf(8.0, 9.0), series[0].points.map { it.second })
         assertEquals(listOf(12.0, 13.0), series[1].points.map { it.second })
         assertEquals(listOf(10.0, 11.0), series[2].points.map { it.second })
-        assertTrue(!breedWeightReferenceSeriesPresentation(series[0].kind).lowEmphasis)
-        assertTrue(!breedWeightReferenceSeriesPresentation(series[1].kind).lowEmphasis)
+        assertTrue(breedWeightReferenceSeriesPresentation(series[0].kind).lowEmphasis)
+        assertTrue(breedWeightReferenceSeriesPresentation(series[1].kind).lowEmphasis)
         assertTrue(breedWeightReferenceSeriesPresentation(series[2].kind).lowEmphasis)
-        assertTrue(
-            breedWeightReferenceSeriesPresentation(series[0].kind).strokeWidthDp >
-                breedWeightReferenceSeriesPresentation(series[2].kind).strokeWidthDp,
-        )
+        assertEquals(1, breedWeightReferenceSeriesPresentation(series[0].kind).strokeWidthDp)
+        assertEquals(0, breedWeightReferenceSeriesPresentation(series[0].kind).pointSizeDp)
     }
 
     @Test fun `multiple values retain boundary center order and split every kind at gaps`() {
