@@ -205,7 +205,10 @@ class PetHistoryStateOwner(
                             observedPet,
                             series.points.mapNotNull { point ->
                                 point.xEpochMillis?.let { epochMillis ->
-                                    java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate()
+                                    PetHistoryBreedReferenceTimelineMoment(
+                                        epochMillis,
+                                        java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate(),
+                                    )
                                 }
                             },
                         ),
