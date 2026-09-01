@@ -87,6 +87,31 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `amstaff birth observation never leaks into an adult reference`() {
+        listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
+            listOf(365, 800).forEach { age ->
+                val result = resolve("VBO:0200055", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
+                val range = result.values.single() as BreedWeightValue.Interval
+
+                assertEquals("$sex at $age days uses adult scope", BreedWeightAgeScope.Adult, result.ageScope)
+                assertEquals("$sex at $age days has no companion", emptyList<BreedWeightReferenceGroup>(), result.companionGroups)
+                assertEquals(if (sex == PetSex.MALE) 28.0 else 19.0, range.lower, 0.0)
+                assertEquals(if (sex == PetSex.MALE) 33.0 else 25.0, range.upper, 0.0)
+            }
+        }
+    }
+
+    @Test
+    fun `amstaff birth date still uses the birth observation`() {
+        val result = resolve("VBO:0200055", PetSex.MALE, PartialBirthDate.Day(today)).available()
+        val birth = result.values.single() as BreedWeightValue.Interval
+
+        assertEquals(BreedWeightAgeScope.Age(0, 0, "birth"), result.ageScope)
+        assertEquals(0.5, birth.lower, 0.0)
+        assertEquals(0.5, birth.upper, 0.0)
+    }
+
+    @Test
     fun `range quantiles and single statistics remain distinct immutable shapes`() {
         val range = resolve("VBO:0200995", PetSex.MALE, null).available().values.single()
         assertTrue(range is BreedWeightValue.Interval)
