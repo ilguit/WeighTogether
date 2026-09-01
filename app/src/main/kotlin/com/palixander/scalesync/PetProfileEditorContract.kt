@@ -2,10 +2,9 @@ package com.palixander.scalesync
 
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedKind
-import com.palixander.scalesync.core.breed.BreedRecord
 import com.palixander.scalesync.core.breed.BreedSpecies
-import com.palixander.scalesync.core.reference.ReferenceBasis
-import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
+import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.NewPet
@@ -101,56 +100,60 @@ sealed interface PetBreedSelection {
 
 class PetBreedCatalog(
     private val catalog: BreedCatalog = BreedCatalog.bundled(),
-    snapshot: WeightReferenceSnapshot = WeightReferenceSnapshot.bundled(catalog),
+    private val snapshot: BreedReferenceSnapshot = BreedReferenceSnapshot.bundled(catalog),
 ) {
-    private val breedsWithWeightReference = snapshot.profiles.asSequence()
-        .filter { profile -> profile.basis == ReferenceBasis.BREED }
-        .mapNotNull { profile -> profile.breedId }
-        .toSet()
-    private val speciesWithWeightReference = breedsWithWeightReference.asSequence()
-        .mapNotNull(catalog::findById)
-        .map(BreedRecord::species)
-        .toSet()
+    private val supportedById = snapshot.breeds.associateBy(BreedReferenceBreed::breedId)
 
     fun hasWeightReferenceProfiles(species: PetSpecies): Boolean =
-        species.toBreedSpecies() in speciesWithWeightReference
+        species == PetSpecies.DOG && supportedById.isNotEmpty()
 
-    /**
-     * Searches the bundled breed catalog for one species. When [onlyWithWeightReference] is true,
-     * the result contains only breeds backed by their own numerical BREED profile. In particular,
-     * dog WEIGHT_CATEGORY profiles are not treated as breed profiles.
-     */
+    /** Searches only the product-supported dog breeds. The full catalog remains internal. */
     fun search(
         query: String,
         species: PetSpecies,
+        @Suppress("UNUSED_PARAMETER")
         onlyWithWeightReference: Boolean = false,
     ): List<PetBreedOption> {
-        val catalogSpecies = species.toBreedSpecies() ?: return emptyList()
-        return catalog.search(query, catalogSpecies)
+        if (species != PetSpecies.DOG) return emptyList()
+        val needle = query.trim().lowercase()
+        return snapshot.breeds
+            .asSequence()
+            .filter { breed ->
+                needle.isEmpty() || sequenceOf(
+                    breed.russianName,
+                    breed.englishName,
+                    *breed.aliases.mapNotNull(catalog::findById)
+                        .flatMap { listOf(it.displayNameRu, it.canonicalName) + it.aliases }
+                        .toTypedArray(),
+                ).any { it.lowercase().contains(needle) }
+            }
+            .sortedBy { it.russianName.lowercase() }
             .map(::toPetBreedOption)
-            .filter { option -> !onlyWithWeightReference || option.hasWeightReference }
+            .toList()
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
-        val record = catalog.findById(id.value)
-        return if (record == null) {
+        val supported = snapshot.breed(id.value)
+        return if (supported != null) {
+            PetBreedSelection.Available(toPetBreedOption(supported))
+        } else if (catalog.findById(id.value) == null) {
             PetBreedSelection.Unavailable(id, savedSpecies)
         } else {
-            PetBreedSelection.Available(toPetBreedOption(record))
+            PetBreedSelection.Unavailable(id, savedSpecies)
         }
     }
 
-    private fun toPetBreedOption(record: BreedRecord): PetBreedOption = PetBreedOption(
-        id = BreedId(record.id),
-        species = when (record.species) {
-            BreedSpecies.CAT -> PetSpecies.CAT
-            BreedSpecies.DOG -> PetSpecies.DOG
+    private fun toPetBreedOption(breed: BreedReferenceBreed): PetBreedOption = PetBreedOption(
+        id = BreedId(breed.breedId),
+        species = PetSpecies.DOG,
+        displayName = breed.russianName,
+        canonicalName = breed.englishName,
+        aliases = breed.aliases.flatMap { alias ->
+            catalog.findById(alias)?.let { listOf(it.displayNameRu, it.canonicalName) + it.aliases }
+                .orEmpty()
         },
-        displayName = record.displayNameRu,
-        canonicalName = record.canonicalName,
-        aliases = record.aliases,
-        kind = record.kind,
-        hasWeightReference = record.id in breedsWithWeightReference,
+        kind = BreedKind.VBO,
+        hasWeightReference = true,
     )
 }
 
@@ -491,8 +494,7 @@ fun validatePetBirthDateInput(
 fun isDogAdultWeightCategoryApplicable(
     species: PetSpecies?,
     breed: PetBreedSelection?,
-): Boolean = species == PetSpecies.DOG &&
-    (breed as? PetBreedSelection.Available)?.option?.hasWeightReference != true
+): Boolean = species == PetSpecies.DOG
 
 fun petSexLabel(sex: PetSex?): String = when (sex) {
     PetSex.MALE -> "Самец"
@@ -503,7 +505,7 @@ fun petSexLabel(sex: PetSex?): String = when (sex) {
 fun petBreedLabel(breed: PetBreedSelection?): String = when (breed) {
     is PetBreedSelection.Available -> breed.option.displayName
     is PetBreedSelection.Unavailable -> "Недоступна: ${breed.id.value}"
-    null -> "Не указана"
+    null -> "Другая порода"
 }
 
 fun birthDatePrecisionLabel(precision: BirthDatePrecision): String = when (precision) {

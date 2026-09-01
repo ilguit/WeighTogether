@@ -14,14 +14,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -71,6 +69,7 @@ internal object PetProfileEditorTestTags {
     const val BreedNoResults = "pet-profile-editor-breed-no-results"
     const val BreedProfileFilter = "pet-profile-editor-breed-profile-filter"
     const val BreedNoProfiles = "pet-profile-editor-breed-no-profiles"
+    const val BreedOther = "pet-profile-editor-breed-other"
     const val BirthPrecisionYear = "pet-profile-editor-birth-precision-year"
     const val BirthPrecisionMonth = "pet-profile-editor-birth-precision-month"
     const val BirthPrecisionDay = "pet-profile-editor-birth-precision-day"
@@ -223,10 +222,10 @@ internal fun PetProfileEditorDialog(
                     }
                 }
 
-                EditorSection("Порода (необязательно)") {
+                if (draft.species == PetSpecies.DOG) EditorSection("Порода") {
                     OutlinedButton(
                         onClick = { breedPickerOpen = true },
-                        enabled = !locked && draft.species != null,
+                        enabled = !locked,
                         modifier = Modifier
                             .fillMaxWidth()
                             .heightIn(min = 48.dp)
@@ -239,23 +238,6 @@ internal fun PetProfileEditorDialog(
                             text = petBreedLabel(draft.breed),
                             modifier = Modifier.weight(1f),
                         )
-                    }
-                    if (draft.species == null) {
-                        Text(
-                            "Сначала выберите вид питомца",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    if (draft.breed != null) {
-                        TextButton(
-                            onClick = { dispatch(PetProfileAction.BreedChanged(null)) },
-                            enabled = !locked,
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .testTag(PetProfileEditorTestTags.BreedClear)
-                                .semantics { contentDescription = "Очистить породу питомца" },
-                        ) { Text("Очистить породу") }
                     }
                     fieldErrors.breed?.let {
                         FieldError("Порода не соответствует выбранному виду питомца")
@@ -348,14 +330,14 @@ internal fun PetProfileEditorDialog(
         },
     )
 
-    if (breedPickerOpen && draft.species != null && !locked) {
+    if (breedPickerOpen && draft.species == PetSpecies.DOG && !locked) {
         BreedPickerDialog(
             species = draft.species,
             selected = draft.breed,
             breedCatalog = breedCatalog,
             onSelect = {
                 breedPickerOpen = false
-                dispatch(PetProfileAction.BreedChanged(PetBreedSelection.Available(it)))
+                dispatch(PetProfileAction.BreedChanged(it?.let(PetBreedSelection::Available)))
             },
             onDismiss = { breedPickerOpen = false },
         )
@@ -581,17 +563,15 @@ private fun BreedPickerDialog(
     species: PetSpecies,
     selected: PetBreedSelection?,
     breedCatalog: PetBreedCatalog,
-    onSelect: (PetBreedOption) -> Unit,
+    onSelect: (PetBreedOption?) -> Unit,
     onDismiss: () -> Unit,
 ) {
     var query by rememberSaveable(species) { mutableStateOf("") }
-    var onlyWithWeightReference by rememberSaveable(species) { mutableStateOf(false) }
-    val options = remember(query, species, onlyWithWeightReference, breedCatalog) {
-        breedCatalog.search(query, species, onlyWithWeightReference)
+    val options = remember(query, species, breedCatalog) {
+        breedCatalog.search(query, species)
     }
-    val speciesHasWeightReferenceProfiles = remember(species, breedCatalog) {
-        breedCatalog.hasWeightReferenceProfiles(species)
-    }
+    val normalizedQuery = query.trim().lowercase()
+    val showOther = normalizedQuery.isEmpty() || "другая порода".contains(normalizedQuery)
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(PetProfileEditorTestTags.BreedPicker),
@@ -612,55 +592,38 @@ private fun BreedPickerDialog(
                         .fillMaxWidth()
                         .testTag(PetProfileEditorTestTags.BreedQuery),
                 )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 48.dp)
-                        .testTag(PetProfileEditorTestTags.BreedProfileFilter)
-                        .toggleable(
-                            value = onlyWithWeightReference,
-                            role = Role.Checkbox,
-                            onValueChange = { onlyWithWeightReference = it },
-                        )
-                        .semantics(mergeDescendants = true) {},
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Checkbox(
-                        checked = onlyWithWeightReference,
-                        onCheckedChange = null,
-                    )
-                    Text("Только с весовым профилем")
-                }
                 LazyColumn(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 360.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (options.isEmpty()) {
-                        item {
-                            Text(
-                                if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
-                                    "Для выбранного вида нет пород с весовым профилем"
-                                } else {
-                                    "Породы не найдены"
-                                },
-                                modifier = Modifier.testTag(
-                                    if (onlyWithWeightReference && !speciesHasWeightReferenceProfiles) {
-                                        PetProfileEditorTestTags.BreedNoProfiles
-                                    } else {
-                                        PetProfileEditorTestTags.BreedNoResults
-                                    },
-                                ),
+                    if (showOther) {
+                        item(key = "other") {
+                            SelectionRow(
+                                label = "Другая порода",
+                                selected = selected == null,
+                                enabled = true,
+                                tag = PetProfileEditorTestTags.BreedOther,
+                                onClick = { onSelect(null) },
                             )
                         }
-                    } else {
+                    }
+                    if (options.isEmpty() && !showOther) {
+                        item {
+                            Text(
+                                "Поддерживаемые породы не найдены",
+                                modifier = Modifier.testTag(PetProfileEditorTestTags.BreedNoResults),
+                            )
+                        }
+                    } else if (options.isNotEmpty()) {
                         items(
                             items = options,
                             key = { option -> option.id.value },
                         ) { option ->
                             SelectionRow(
                                 label = option.displayName,
+                                supportingLabel = option.canonicalName,
                                 selected = selected?.id == option.id,
                                 enabled = true,
                                 tag = PetProfileEditorTestTags.breedOption(option.id.value),
@@ -681,6 +644,7 @@ private fun BreedPickerDialog(
 @Composable
 private fun SelectionRow(
     label: String,
+    supportingLabel: String? = null,
     selected: Boolean,
     enabled: Boolean,
     tag: String,
@@ -713,12 +677,20 @@ private fun SelectionRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             RadioButton(selected = selected, onClick = null, enabled = enabled)
-            Text(
-                text = label,
+            Column(
                 modifier = Modifier
                     .weight(1f)
                     .padding(start = 8.dp),
-            )
+            ) {
+                Text(label)
+                supportingLabel?.let {
+                    Text(
+                        it,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
         }
     }
 }

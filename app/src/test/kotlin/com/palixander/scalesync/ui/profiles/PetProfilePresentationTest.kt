@@ -29,7 +29,7 @@ class PetProfilePresentationTest {
 
     @Test
     fun `filled profile uses localized breed and applicable dog category range`() {
-        val breed = catalog.search("Метис", PetSpecies.DOG).single()
+        val breed = catalog.search("Лабрадор", PetSpecies.DOG).single()
         val summary = petProfileSummary(
             pet(
                 species = PetSpecies.DOG,
@@ -44,14 +44,14 @@ class PetProfilePresentationTest {
         assertEquals(
             listOf(
                 PetProfileSummaryItem("Пол", "Самка"),
-                PetProfileSummaryItem("Порода", "Метис"),
+                PetProfileSummaryItem("Порода", "Лабрадор-ретривер"),
                 PetProfileSummaryItem("Дата рождения", "29.02.2020 (день)"),
                 PetProfileSummaryItem("Весовая категория", "III — 9–15 кг"),
             ),
             summary.items,
         )
         assertEquals(
-            "Пол: Самка. Порода: Метис. Дата рождения: 29.02.2020 (день). " +
+            "Пол: Самка. Порода: Лабрадор-ретривер. Дата рождения: 29.02.2020 (день). " +
                 "Весовая категория: III — 9–15 кг",
             summary.contentDescription,
         )
@@ -75,16 +75,13 @@ class PetProfilePresentationTest {
     }
 
     @Test
-    fun `unknown saved breed stays visible with its exact id`() {
+    fun `cat breed row is hidden`() {
         val summary = petProfileSummary(
             pet(breedId = BreedId("retired:cat:very-long-id")),
             catalog,
         )
 
-        assertEquals(
-            PetProfileSummaryItem("Порода", "Недоступна: retired:cat:very-long-id"),
-            summary.items.single(),
-        )
+        assertTrue(summary.items.isEmpty())
     }
 
     @Test
