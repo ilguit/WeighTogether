@@ -64,6 +64,7 @@ data class PetHistoryUiState(
         WeightReferenceUnavailableReason.UnsupportedSpecies,
         "Эталон недоступен: вид питомца не указан.",
     ),
+    val breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
     val errorMessage: String? = null,

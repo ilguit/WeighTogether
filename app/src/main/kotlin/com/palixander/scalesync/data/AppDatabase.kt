@@ -18,7 +18,7 @@ import androidx.room.migration.Migration
         PetMeasurementEntity::class,
         AcceptedStableMeasurementEntity::class,
     ],
-    version = 12,
+    version = 13,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -57,6 +57,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_9_10: Migration = Migration9To10
         val MIGRATION_10_11: Migration = Migration10To11
         val MIGRATION_11_12: Migration = Migration11To12
+        val MIGRATION_12_13: Migration = Migration12To13
 
         fun build(
             context: Context,
@@ -74,6 +75,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_9_10,
                 MIGRATION_10_11,
                 MIGRATION_11_12,
+                MIGRATION_12_13,
             )
             .build()
     }

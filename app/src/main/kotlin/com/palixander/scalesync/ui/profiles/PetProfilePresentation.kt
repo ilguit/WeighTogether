@@ -37,7 +37,9 @@ fun petProfileSummary(
     return PetProfileSummary(
         buildList {
             pet.sex?.let { add(PetProfileSummaryItem("Пол", petSexLabel(it))) }
-            resolvedBreed?.let { add(PetProfileSummaryItem("Порода", petBreedLabel(it))) }
+            resolvedBreed
+                ?.takeIf { pet.species == com.palixander.scalesync.domain.PetSpecies.DOG }
+                ?.let { add(PetProfileSummaryItem("Порода", petBreedLabel(it))) }
             pet.birthDate?.let {
                 add(PetProfileSummaryItem("Дата рождения", partialBirthDateLabel(it)))
             }

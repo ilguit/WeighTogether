@@ -20,7 +20,7 @@ import org.junit.Test
 class PetManagementContractTest {
     private val today = LocalDate.of(2026, 8, 31)
     private val breedCatalog = PetBreedCatalog()
-    private val mixedDog = breedCatalog.search("Метис", PetSpecies.DOG).single()
+    private val mixedDog = breedCatalog.search("Бигль", PetSpecies.DOG).single()
 
     @Test
     fun openingCreateStartsFreshTypedSessionAndOpeningWhileBusyIsIgnored() {

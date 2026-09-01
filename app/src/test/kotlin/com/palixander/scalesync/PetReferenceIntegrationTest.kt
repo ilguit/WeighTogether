@@ -26,7 +26,6 @@ import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.ui.profiles.PetHistoryReferencePresenter
 import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
-import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.petProfileSummary
 import com.palixander.scalesync.ui.profiles.petWeightChartRange
 import java.io.ByteArrayInputStream
@@ -51,7 +50,7 @@ class PetReferenceIntegrationTest {
 
     @Test
     fun `catalog profile survives entity and backup round trip into reference chart`() = runBlocking {
-        val stableBreedId = BreedId("scalesync:dog:mixed-breed")
+        val stableBreedId = BreedId("VBO:0200309")
         val breed = catalog.resolve(stableBreedId, PetSpecies.DOG)
         assertTrue(breed is PetBreedSelection.Available)
         assertEquals(stableBreedId, breed.id)
@@ -132,7 +131,7 @@ class PetReferenceIntegrationTest {
         val restoredKnown = imported.pets.single { it.id == knownEntity.id }
         val restoredUnknown = imported.pets.single { it.id == unknownEntity.id }
         assertEquals(knownEntity, restoredKnown)
-        assertEquals(unknownEntity, restoredUnknown)
+        assertEquals(unknownEntity.copy(breedId = null), restoredUnknown)
         assertEquals(birthDate.year, restoredKnown.birthYear)
         assertEquals(birthDate.monthValue, restoredKnown.birthMonth)
         assertEquals(birthDate.dayOfMonth, restoredKnown.birthDay)
@@ -161,17 +160,14 @@ class PetReferenceIntegrationTest {
         assertTrue(chartRange.max >= points.maxOf { it.upperKg })
 
         val unknownPet = restoredUnknown.toDomain()
-        assertEquals(unknownBreedId, unknownPet.breedId)
-        assertEquals(
-            PetProfileSummaryItem("Порода", "Недоступна: ${unknownBreedId.value}"),
-            petProfileSummary(unknownPet, catalog).items.first { it.label == "Порода" },
-        )
+        assertNull(unknownPet.breedId)
+        assertFalse(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
         val unavailable = PetHistoryReferencePresenter().present(
             unknownPet,
             ChartDateRange(referenceDate, referenceDate),
         ) as PetHistoryWeightReference.Unavailable
         assertEquals(
-            WeightReferenceUnavailableReason.UnknownBreed(unknownBreedId.value),
+            WeightReferenceUnavailableReason.MissingDogAdultWeight,
             unavailable.reason,
         )
     }

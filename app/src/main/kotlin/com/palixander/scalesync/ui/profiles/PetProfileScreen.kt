@@ -35,6 +35,9 @@ import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
+import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
+import androidx.compose.ui.platform.LocalContext
 
 object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
@@ -64,6 +67,7 @@ internal fun PetProfileScreen(
     contentPadding: PaddingValues,
     onStartMeasurement: () -> Unit,
     onEditPet: (Pet) -> Unit = {},
+    sourceLauncher: ReferenceSourceLauncher = AndroidReferenceSourceLauncher(LocalContext.current),
 ) {
     state.deleteConfirmation?.let { confirmation ->
         PetHistoryDeleteDialog(
@@ -150,10 +154,18 @@ internal fun PetProfileScreen(
                     }
                 }
                 item {
+                    PetHistoryBreedReferenceCard(
+                        reference = state.breedReference,
+                        onEdit = { state.pet?.let(onEditPet) },
+                        sourceLauncher = sourceLauncher,
+                    )
+                }
+                item {
                     Column(Modifier.testTag(PetProfileScreenTestTags.Chart)) {
                         PetWeightReferenceChartCard(
                             series = state.series,
                             reference = state.weightReference,
+                            breedReference = state.breedReference,
                             startDate = state.startDate,
                             endDateInclusive = state.endDateInclusive,
                             zoneId = java.time.ZoneId.systemDefault(),

@@ -13,6 +13,7 @@ import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
@@ -126,6 +127,59 @@ class BackupImportServiceTest {
         assertThrows(BackupImportConflicts::class.java) {
             service.preview(renamed, imported.result, emptySettings, BackupImportMode.MERGE)
         }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetName("cat"))) }
+    }
+
+    @Test
+    fun `import normalizes breed ids at the backup compatibility boundary`() {
+        val pets = listOf(
+            BackupPetV2("supported", "Supported", "supported", PetSpecies.DOG, 1, 2,
+                breedId = "VBO:0200995"),
+            BackupPetV2("alias", "Alias", "alias", PetSpecies.DOG, 1, 2,
+                breedId = "VBO:0201146"),
+            BackupPetV2("unsupported", "Unsupported", "unsupported", PetSpecies.DOG, 1, 2,
+                breedId = "external:dog:future"),
+            BackupPetV2("cat", "Cat", "cat", PetSpecies.CAT, 1, 2,
+                breedId = "VBO:0100000"),
+        )
+
+        val imported = service.preview(
+            document().copy(pets = pets),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        ).result.pets.associateBy { it.id }
+
+        assertEquals("VBO:0200995", imported.getValue("supported").breedId)
+        assertEquals("VBO:0200174", imported.getValue("alias").breedId)
+        assertEquals(null, imported.getValue("unsupported").breedId)
+        assertEquals(null, imported.getValue("cat").breedId)
+    }
+
+    @Test
+    fun `import remains available and clears breed ids when breed snapshot is unavailable`() {
+        val unavailableService = BackupImportService(
+            breedSnapshotResult = BreedReferenceSnapshotLoadResult.Unavailable("checksum mismatch"),
+        )
+        val imported = unavailableService.preview(
+            document().copy(
+                pets = listOf(
+                    BackupPetV2(
+                        "dog",
+                        "Dog",
+                        "dog",
+                        PetSpecies.DOG,
+                        1,
+                        2,
+                        breedId = "VBO:0200995",
+                    ),
+                ),
+            ),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.REPLACE,
+        )
+
+        assertEquals(null, imported.result.pets.single().breedId)
     }
 
     @Test

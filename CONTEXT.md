@@ -24,3 +24,27 @@ _Avoid_: Approximate birth date
 **Age interval**:
 The range of possible completed ages on an explicitly chosen date, derived from a partial birth date.
 _Avoid_: Estimated age, current age
+
+**Breed weight reference**:
+A published informational weight value for a particular breed, sex scope, and age scope. It describes the source population or breed standard and does not assess an individual pet's health.
+_Avoid_: Normal weight, ideal weight, weight target
+
+**Weight-category age reference**:
+An empirical age-based weight reference selected through a dog's adult weight category. It is distinct from a breed weight reference.
+_Avoid_: Breed standard, breed weight reference
+
+**Supported breed**:
+A breed for which the current product dataset contains a complete set of usable breed-reference data.
+_Avoid_: Catalog breed
+
+**Other breed**:
+The state in which no supported breed has been selected. It also represents an unknown or unlisted breed.
+_Avoid_: Unsupported Breed ID
+
+**Documented gap**:
+A confirmed absence of a usable published value for a specific breed-reference scope. It is neither a zero value nor permission to substitute a weaker claim.
+_Avoid_: Missing value, zero
+
+**Reference provenance**:
+The known origin and evidentiary context of a reference, including its source, claim and statistic kinds, population, geography, method, and limitations.
+_Avoid_: Source link

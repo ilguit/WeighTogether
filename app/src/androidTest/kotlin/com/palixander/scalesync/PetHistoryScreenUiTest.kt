@@ -47,6 +47,9 @@ import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
 import com.palixander.scalesync.ui.profiles.PetHistoryReferencePoint
 import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
+import com.palixander.scalesync.ui.profiles.PetHistoryBreedReference
+import com.palixander.scalesync.ui.profiles.PetHistoryBreedChartValue
+import com.palixander.scalesync.ui.profiles.PetHistoryBreedSource
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -210,6 +213,59 @@ class PetHistoryScreenUiTest {
             .assert(hasContentDescription("Источник: Test veterinary source", substring = true))
             .assert(hasContentDescription("Ограничение: Только здоровые животные", substring = true))
             .assert(hasContentDescription("не ставит диагноз", substring = true))
+    }
+
+    @Test fun breedLayerRendersWithoutMeasurementsAndExposesShapeIndependentSemanticsAtNarrowLargeText() {
+        val breedReference = PetHistoryBreedReference.Available(
+            breedName = "Американский стаффордширский терьер",
+            ageLabel = "6 месяцев",
+            valueLabels = listOf("Диапазон: 8,2–10,4 кг", "Среднее: 9,3 кг"),
+            sourceKindLabel = "наблюдаемая выборка",
+            sexLabel = "Самец",
+            partialDateDisclosure = null,
+            accessibilityLabel = "Ориентиры породы Американский стаффордширский терьер",
+            chartValues = listOf(
+                PetHistoryBreedChartValue.Interval(
+                    8.2,
+                    10.4,
+                    9.3,
+                    "Диапазон",
+                    "Американский стаффордширский терьер. Возраст источника: 6 месяцев. Диапазон: 8,2–10,4 кг. Тип источника: наблюдаемая выборка.",
+                ),
+            ),
+            source = PetHistoryBreedSource(
+                "Исследование",
+                "https://example.com",
+                2024,
+                "наблюдаемая выборка",
+                null,
+                null,
+                null,
+                null,
+                emptyList(),
+            ),
+            details = emptyList(),
+        )
+        val screenState = state(PetHistoryContent.Empty).copy(breedReference = breedReference)
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasContentDescription("Породный диапазон отмечен вертикальным отрезком", substring = true))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.BreedLayer)
+            .assertIsDisplayed()
+            .assert(hasContentDescription("Американский стаффордширский терьер", substring = true))
+            .assert(hasContentDescription("Возраст источника: 6 месяцев", substring = true))
+            .assert(hasContentDescription("Диапазон: 8,2–10,4 кг", substring = true))
+        composeRule.onNodeWithText("│ Породный диапазон · 6 месяцев").assertIsDisplayed()
+        composeRule.onNodeWithText("◆ Породное среднее или медиана · 6 месяцев").assertIsDisplayed()
     }
 
     @Test fun singletonReferenceExposesAllBoundsAsAccessibleSelectedState() {
