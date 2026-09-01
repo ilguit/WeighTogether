@@ -268,6 +268,26 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithText("◆ Породное среднее или медиана · 6 месяцев").assertIsDisplayed()
     }
 
+    @Test fun availableBreedSuppressesUnavailableCategoryExplanationFromUiAndAccessibility() {
+        val explanation = "Эталон недоступен: укажите ожидаемую весовую категорию взрослой собаки."
+        val screenState = state(PetHistoryContent.Empty).copy(
+            weightReference = PetHistoryWeightReference.Unavailable(
+                WeightReferenceUnavailableReason.MissingDogAdultWeight,
+                explanation,
+            ),
+            breedReference = availableBreedReference(),
+        )
+
+        setScreen(screenState)
+
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasContentDescription("Ориентиры породы", substring = true))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Unavailable).assertDoesNotExist()
+        composeRule.onNodeWithText(explanation).assertDoesNotExist()
+        composeRule.onNode(hasContentDescription(explanation, substring = true)).assertDoesNotExist()
+    }
+
     @Test fun singletonReferenceExposesAllBoundsAsAccessibleSelectedState() {
         val reference = availableReference("Эталон по породе").copy(
             segments = listOf(
@@ -546,6 +566,37 @@ class PetHistoryScreenUiTest {
         license = "CC BY 4.0",
         constraints = listOf("Только здоровые животные"),
         accessibilityLabel = "$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0.",
+    )
+
+    private fun availableBreedReference() = PetHistoryBreedReference.Available(
+        breedName = "Американский стаффордширский терьер",
+        ageLabel = "6 месяцев",
+        valueLabels = listOf("Диапазон: 8,2–10,4 кг"),
+        sourceKindLabel = "наблюдаемая выборка",
+        sexLabel = "Самец",
+        partialDateDisclosure = null,
+        accessibilityLabel = "Ориентиры породы Американский стаффордширский терьер",
+        chartValues = listOf(
+            PetHistoryBreedChartValue.Interval(
+                8.2,
+                10.4,
+                null,
+                "Диапазон",
+                "Американский стаффордширский терьер. Возраст источника: 6 месяцев. Диапазон: 8,2–10,4 кг.",
+            ),
+        ),
+        source = PetHistoryBreedSource(
+            "Исследование",
+            "https://example.com",
+            2024,
+            "наблюдаемая выборка",
+            null,
+            null,
+            null,
+            null,
+            emptyList(),
+        ),
+        details = emptyList(),
     )
 }
 
