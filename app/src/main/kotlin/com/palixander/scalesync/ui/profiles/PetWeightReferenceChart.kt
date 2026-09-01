@@ -246,6 +246,12 @@ internal fun petWeightReferenceChartSeries(
     }
 }
 
+internal fun shouldShowWeightReferenceExplanation(
+    reference: PetHistoryWeightReference,
+    breedReference: PetHistoryBreedReference,
+): Boolean = reference is PetHistoryWeightReference.Available ||
+    breedReference !is PetHistoryBreedReference.Available
+
 @Composable
 internal fun PetWeightReferenceChartCard(
     series: ChartSeries,
@@ -263,11 +269,14 @@ internal fun PetWeightReferenceChartCard(
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
     val available = reference as? PetHistoryWeightReference.Available
+    val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
     val description = buildString {
         append("График веса питомца. ")
         append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
-        append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
-        if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
+        if (showReferenceExplanation) {
+            append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
+            if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
+        }
         if (breedReference is PetHistoryBreedReference.Available) {
             append(" ${breedReference.accessibilityLabel} Породный диапазон отмечен вертикальным отрезком, одиночное значение — ромбом.")
         }
@@ -309,7 +318,7 @@ internal fun PetWeightReferenceChartCard(
             } else {
                 Text("Нет данных за выбранный период", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            ReferenceExplanation(reference)
+            if (showReferenceExplanation) ReferenceExplanation(reference)
         }
     }
 }

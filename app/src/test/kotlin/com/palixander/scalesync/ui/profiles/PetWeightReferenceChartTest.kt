@@ -72,6 +72,20 @@ class PetWeightReferenceChartTest {
         assertTrue(petWeightReferenceChartSeries(unavailable).isEmpty())
     }
 
+    @Test fun `available breed suppresses only unavailable category explanation`() {
+        val unavailable = PetHistoryWeightReference.Unavailable(
+            com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingDogAdultWeight,
+            "missing category",
+        )
+        val breed = breedAvailable(
+            listOf(PetHistoryBreedChartValue.Single(11.0, "Медиана", "median")),
+        )
+
+        assertTrue(!shouldShowWeightReferenceExplanation(unavailable, breed))
+        assertTrue(shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Hidden))
+        assertTrue(shouldShowWeightReferenceExplanation(available(emptyList()), breed))
+    }
+
     @Test fun `range combines factual and reference extremes`() {
         val date = LocalDate.of(2026, 8, 1)
         val reference = available(listOf(PetHistoryReferencePoint(date, 2.0, 3.0, 4.0, 5.0)))
