@@ -120,7 +120,12 @@ class PetHistoryBreedReferencePresenterTest {
         assertTrue(result.chartValues.any { it is PetHistoryBreedChartValue.Single })
         assertTrue(result.chartValues.any { it is PetHistoryBreedChartValue.Interval })
         assertTrue(result.source.title.contains("Dogslife", ignoreCase = true))
-        assertEquals("Labrador Retriever Club", result.companionReferences.single().source.title)
+        val companionSource = result.companionReferences.single().source
+        assertEquals("Labrador Retriever Club", companionSource.title)
+        assertEquals("https://thelabradorclub.com/labrador-breed-standard/", companionSource.url)
+        assertTrue(companionSource.limitations.contains("Approximate working-condition weight"))
+        assertTrue(result.source.url.isNotBlank())
+        assertTrue(result.source.url != companionSource.url)
         assertTrue(result.accessibilityLabel.contains("Дополнительный ориентир"))
 
         val timelineValues = presenter().presentTimeline(pet, listOf(today)).single().values!!
