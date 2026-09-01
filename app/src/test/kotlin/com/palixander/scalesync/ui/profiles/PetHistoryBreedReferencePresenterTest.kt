@@ -101,11 +101,20 @@ class PetHistoryBreedReferencePresenterTest {
         val twoMonths = LocalDate.of(2026, 3, 3)
         val threeMonths = LocalDate.of(2026, 4, 2)
 
-        val timeline = presenter().presentTimeline(pet, listOf(threeMonths, twoMonths, twoMonths))
+        val timeline = presenter().presentTimeline(
+            pet,
+            listOf(
+                PetHistoryBreedReferenceTimelineMoment(3, threeMonths),
+                PetHistoryBreedReferenceTimelineMoment(1, twoMonths),
+                PetHistoryBreedReferenceTimelineMoment(2, twoMonths),
+            ),
+        )
 
-        assertEquals(listOf(twoMonths, threeMonths), timeline.map(PetHistoryBreedReferenceTimelinePoint::date))
+        assertEquals(listOf(twoMonths, twoMonths, threeMonths), timeline.map(PetHistoryBreedReferenceTimelinePoint::date))
+        assertEquals(listOf(1L, 2L, 3L), timeline.map(PetHistoryBreedReferenceTimelinePoint::xEpochMillis))
         assertEquals(6.4, (timeline[0].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
-        assertEquals(10.0, (timeline[1].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
+        assertEquals(6.4, (timeline[1].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
+        assertEquals(10.0, (timeline[2].values!!.single() as PetHistoryBreedChartValue.Single).valueKg, 0.0)
     }
 
     @Test
@@ -128,7 +137,10 @@ class PetHistoryBreedReferencePresenterTest {
         assertTrue(result.source.url != companionSource.url)
         assertTrue(result.accessibilityLabel.contains("Дополнительный ориентир"))
 
-        val timelineValues = presenter().presentTimeline(pet, listOf(today)).single().values!!
+        val timelineValues = presenter().presentTimeline(
+            pet,
+            listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
+        ).single().values!!
         assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Single })
         assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Interval })
         assertEquals(
@@ -137,7 +149,9 @@ class PetHistoryBreedReferencePresenterTest {
                 BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
                 BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
             ),
-            breedWeightReferenceChartSeries(presenter().presentTimeline(pet, listOf(today)))
+            breedWeightReferenceChartSeries(
+                presenter().presentTimeline(pet, listOf(PetHistoryBreedReferenceTimelineMoment(1, today))),
+            )
                 .map(BreedWeightReferenceChartSeries::kind),
         )
     }

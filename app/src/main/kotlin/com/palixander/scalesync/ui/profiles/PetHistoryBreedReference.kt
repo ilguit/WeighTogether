@@ -136,29 +136,33 @@ class PetHistoryBreedReferencePresenter(
 
     fun presentTimeline(
         pet: Pet,
-        dates: List<LocalDate>,
-    ): List<PetHistoryBreedReferenceTimelinePoint> = dates.distinct().sorted().map { date ->
-        val values = when (val resolution = resolver.resolve(pet.species, pet.breedId, pet.sex, pet.birthDate, date)) {
-            is BreedWeightReferenceResolution.Available -> resolution.reference.values.map {
-                it.chartValue(
-                    resolution.reference.breedRussianName,
-                    resolution.reference.ageScope.label(),
-                    resolution.reference.source.kind.label(),
-                    locale,
-                )
-            } + resolution.reference.companionGroups.flatMap { group ->
-                group.values.map { value ->
-                    value.chartValue(
+        moments: List<PetHistoryBreedReferenceTimelineMoment>,
+    ): List<PetHistoryBreedReferenceTimelinePoint> {
+        val valuesByDate = moments.map(PetHistoryBreedReferenceTimelineMoment::date).distinct().associateWith { date ->
+            when (val resolution = resolver.resolve(pet.species, pet.breedId, pet.sex, pet.birthDate, date)) {
+                is BreedWeightReferenceResolution.Available -> resolution.reference.values.map {
+                    it.chartValue(
                         resolution.reference.breedRussianName,
-                        group.ageScope.label(),
-                        group.source.kind.label(),
+                        resolution.reference.ageScope.label(),
+                        resolution.reference.source.kind.label(),
                         locale,
                     )
+                } + resolution.reference.companionGroups.flatMap { group ->
+                    group.values.map { value ->
+                        value.chartValue(
+                            resolution.reference.breedRussianName,
+                            group.ageScope.label(),
+                            group.source.kind.label(),
+                            locale,
+                        )
+                    }
                 }
+                is BreedWeightReferenceResolution.Unavailable -> null
             }
-            is BreedWeightReferenceResolution.Unavailable -> null
         }
-        PetHistoryBreedReferenceTimelinePoint(date, values)
+        return moments.sortedBy(PetHistoryBreedReferenceTimelineMoment::xEpochMillis).map { moment ->
+            PetHistoryBreedReferenceTimelinePoint(moment.xEpochMillis, moment.date, valuesByDate[moment.date])
+        }
     }
 
     private fun BreedWeightReference.toPresentation(): PetHistoryBreedReference.Available {
@@ -236,9 +240,21 @@ class PetHistoryBreedReferencePresenter(
 }
 
 data class PetHistoryBreedReferenceTimelinePoint(
+    val xEpochMillis: Long,
     val date: LocalDate,
     /** Null means that the resolver has no applicable value and must break chart lines. */
     val values: List<PetHistoryBreedChartValue>?,
+) {
+    constructor(date: LocalDate, values: List<PetHistoryBreedChartValue>?) : this(
+        date.atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+        date,
+        values,
+    )
+}
+
+data class PetHistoryBreedReferenceTimelineMoment(
+    val xEpochMillis: Long,
+    val date: LocalDate,
 )
 
 private fun BreedWeightValue.chartValue(

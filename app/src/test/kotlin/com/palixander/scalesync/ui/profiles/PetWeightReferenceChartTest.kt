@@ -301,6 +301,62 @@ class PetWeightReferenceChartTest {
         assertEquals(1, unavailable.size)
     }
 
+    @Test fun `breed interval suppresses category lines and keeps exact measurement time`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val factual = listOf(ChartPoint(measuredAt / 1000, 24.0))
+        val category = petWeightReferenceChartSeries(
+            available(listOf(PetHistoryReferencePoint(date, 0.0, 20.0, 21.0, 30.0))),
+        )
+        val breed = breedWeightReferenceChartSeries(
+            listOf(
+                PetHistoryBreedReferenceTimelinePoint(
+                    measuredAt,
+                    date,
+                    listOf(PetHistoryBreedChartValue.Interval(22.0, 32.0, null, "Диапазон", "range")),
+                ),
+            ),
+        )
+
+        val model = petWeightChartModelSeries(factual, category, breed, ZoneOffset.UTC)
+
+        assertEquals(3, model.size)
+        assertEquals(listOf(24.0), model[0].y)
+        assertEquals(listOf(22.0), model[1].y)
+        assertEquals(listOf(32.0), model[2].y)
+        assertTrue(model.drop(1).all { it.x == listOf(measuredAt) })
+        assertTrue(breed.none { it.kind == BreedWeightReferenceSeriesKind.CENTER })
+        assertTrue(model.flatMap(PetWeightChartModelSeries::y).none { it == 0.0 })
+    }
+
+    @Test fun `two measurements on same date keep distinct breed timestamps`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val morning = date.atTime(8, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val evening = date.atTime(20, 0).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val value = PetHistoryBreedChartValue.Interval(22.0, 32.0, null, "Диапазон", "range")
+
+        val series = breedWeightReferenceChartSeries(
+            listOf(
+                PetHistoryBreedReferenceTimelinePoint(morning, date, listOf(value)),
+                PetHistoryBreedReferenceTimelinePoint(evening, date, listOf(value)),
+            ),
+        )
+
+        assertTrue(series.all { it.xEpochMillis == listOf(morning, evening) })
+    }
+
+    @Test fun `category lines remain fallback without breed timeline`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val category = petWeightReferenceChartSeries(
+            available(listOf(PetHistoryReferencePoint(date, 10.0, 11.0, 12.0, 13.0))),
+        )
+
+        val model = petWeightChartModelSeries(emptyList(), category, emptyList(), ZoneOffset.UTC)
+
+        assertEquals(4, model.size)
+        assertEquals(listOf(10.0, 11.0, 12.0, 13.0), model.map { it.y.single() })
+    }
+
     @Test fun `no factual or available reference has no range`() {
         assertEquals(
             null,
@@ -371,6 +427,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(listOf(selectedValue), selection.breedValues)
         assertTrue(formatPetWeightMarker(selection, Locale.US).endsWith("Породный ориентир: Диапазон породы: 8–12 кг"))
+        assertTrue(!formatPetWeightMarker(selection, Locale.US).contains("Нижняя граница"))
     }
 
     @Test fun `marker omits breed reference when selected date has none`() {

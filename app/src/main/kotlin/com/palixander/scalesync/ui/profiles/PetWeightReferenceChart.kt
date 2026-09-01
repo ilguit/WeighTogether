@@ -88,6 +88,9 @@ internal data class BreedWeightReferenceChartSeries(
     val kind: BreedWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
     val showsPointMarkers: Boolean = true,
+    val xEpochMillis: List<Long> = points.map { (date, _) ->
+        date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
+    },
 )
 
 internal enum class BreedWeightReferenceSeriesKind {
@@ -123,30 +126,38 @@ internal fun breedWeightReferenceChartSeries(
     val maximumValueCount = timeline.maxOfOrNull { it.values?.size ?: 0 } ?: return emptyList()
     return buildList {
         repeat(maximumValueCount) { valueIndex ->
-            fun points(selector: (PetHistoryBreedChartValue) -> Double?): List<List<Pair<LocalDate, Double>>> {
+            fun points(selector: (PetHistoryBreedChartValue) -> Double?): List<Pair<List<Pair<LocalDate, Double>>, List<Long>>> {
                 val segments = mutableListOf<MutableList<Pair<LocalDate, Double>>>()
+                val timestamps = mutableListOf<MutableList<Long>>()
                 timeline.forEach { point ->
                     val value = point.values?.getOrNull(valueIndex)?.let(selector)
                     if (value == null) {
-                        if (segments.lastOrNull()?.isNotEmpty() == true) segments.add(mutableListOf())
+                        if (segments.lastOrNull()?.isNotEmpty() == true) {
+                            segments.add(mutableListOf())
+                            timestamps.add(mutableListOf())
+                        }
                     } else {
-                        if (segments.isEmpty()) segments.add(mutableListOf())
+                        if (segments.isEmpty()) {
+                            segments.add(mutableListOf())
+                            timestamps.add(mutableListOf())
+                        }
                         segments.last().add(point.date to value)
+                        timestamps.last().add(point.xEpochMillis)
                     }
                 }
-                return segments.filter(List<Pair<LocalDate, Double>>::isNotEmpty)
+                return segments.zip(timestamps).filter { it.first.isNotEmpty() }
             }
 
             points { (it as? PetHistoryBreedChartValue.Interval)?.lowerKg }
-                .forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, it)) }
+                .forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, values, xEpochMillis = x)) }
             points { (it as? PetHistoryBreedChartValue.Interval)?.upperKg }
-                .forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, it)) }
+                .forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, values, xEpochMillis = x)) }
             points {
                 when (it) {
                     is PetHistoryBreedChartValue.Interval -> it.centerKg
                     is PetHistoryBreedChartValue.Single -> it.valueKg
                 }
-            }.forEach { add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, it)) }
+            }.forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, values, xEpochMillis = x)) }
         }
     }
 }
@@ -165,7 +176,7 @@ internal fun petWeightChartModelSeries(
             ),
         )
     }
-    referenceSeries.forEach { series ->
+    referenceSeries.takeIf { breedSeries.isEmpty() }.orEmpty().forEach { series ->
         add(
             PetWeightChartModelSeries(
                 x = series.points.map { (date, _) ->
@@ -178,9 +189,7 @@ internal fun petWeightChartModelSeries(
     breedSeries.forEach { series ->
         add(
             PetWeightChartModelSeries(
-                x = series.points.map { (date, _) ->
-                    date.atStartOfDay(zoneId).toInstant().toEpochMilli()
-                },
+                x = series.xEpochMillis,
                 y = series.points.map { it.second },
             ),
         )
@@ -205,12 +214,17 @@ internal fun petWeightMarkerSelection(
     val measurement = factual
         .filter { it.measuredAt.atZone(zoneId).toLocalDate() == targetDate }
         .minByOrNull { abs(it.xEpochMillis!! - targetXEpochMillis) }
+    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
     val referencePoint = (reference as? PetHistoryWeightReference.Available)
+        ?.takeUnless { hasBreedTimeline }
         ?.segments
         ?.asSequence()
         ?.flatten()
         ?.firstOrNull { it.date == targetDate }
-    val breedValues = breedReferenceTimeline.firstOrNull { it.date == targetDate }?.values
+    val breedValues = breedReferenceTimeline
+        .filter { it.date == targetDate && !it.values.isNullOrEmpty() }
+        .minByOrNull { abs(it.xEpochMillis - targetXEpochMillis) }
+        ?.values
     return PetWeightMarkerSelection(targetDate, measurement?.value, referencePoint, breedValues)
 }
 
@@ -226,9 +240,11 @@ internal fun formatPetWeightMarker(
     return buildString {
         append(PetMarkerDateFormatter.format(selection.date))
         append("\nИзмерение: ${kg(selection.measurementKg)}")
-        append("\nНижняя граница: ${kg(selection.reference?.lowerKg)}")
-        append("\nМедиана: ${selection.reference?.let { "${kg(it.medianLowerKg)}–${kg(it.medianUpperKg)}" } ?: "—"}")
-        append("\nВерхняя граница: ${kg(selection.reference?.upperKg)}")
+        if (selection.breedValues.isNullOrEmpty()) {
+            append("\nНижняя граница: ${kg(selection.reference?.lowerKg)}")
+            append("\nМедиана: ${selection.reference?.let { "${kg(it.medianLowerKg)}–${kg(it.medianUpperKg)}" } ?: "—"}")
+            append("\nВерхняя граница: ${kg(selection.reference?.upperKg)}")
+        }
         selection.breedValues?.takeIf(List<PetHistoryBreedChartValue>::isNotEmpty)?.let { values ->
             append("\nПородный ориентир: ")
             append(values.joinToString("; ") { it.accessibilityLabel })
@@ -242,9 +258,10 @@ internal fun petWeightChartRange(
     breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
     breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
 ): PetWeightChartRange? {
+    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
     val values = buildList {
         addAll(factual.map(ChartPoint::value).filter(Double::isFinite))
-        if (reference is PetHistoryWeightReference.Available) {
+        if (!hasBreedTimeline && reference is PetHistoryWeightReference.Available) {
             reference.segments.flatten().forEach { point ->
                 add(point.lowerKg)
                 add(point.upperKg)
@@ -333,11 +350,12 @@ internal fun PetWeightReferenceChartCard(
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
     val available = reference as? PetHistoryWeightReference.Available
+    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
     val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
     val description = buildString {
         append("График веса питомца. ")
         append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
-        if (showReferenceExplanation) {
+        if (showReferenceExplanation && !hasBreedTimeline) {
             append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
             if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
         }
@@ -367,7 +385,7 @@ internal fun PetWeightReferenceChartCard(
                     referenceColor = referenceColor,
                     contentDescription = description,
                 )
-                if (available != null) {
+                if (available != null && !hasBreedTimeline) {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         ChartLegend("● Фактический вес", factualColor)
                         ChartLegend("— Границы эталона", referenceColor)
@@ -383,7 +401,7 @@ internal fun PetWeightReferenceChartCard(
             } else {
                 Text("Нет данных за выбранный период", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
-            if (showReferenceExplanation) ReferenceExplanation(reference)
+            if (showReferenceExplanation && !hasBreedTimeline) ReferenceExplanation(reference)
         }
     }
 }
@@ -402,8 +420,11 @@ private fun PetWeightVicoChart(
     referenceColor: Color,
     contentDescription: String,
 ) {
-    val available = reference as? PetHistoryWeightReference.Available
-    val referenceSeries = remember(reference) { petWeightReferenceChartSeries(reference) }
+    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
+    val available = (reference as? PetHistoryWeightReference.Available)?.takeUnless { hasBreedTimeline }
+    val referenceSeries = remember(reference, hasBreedTimeline) {
+        if (hasBreedTimeline) emptyList() else petWeightReferenceChartSeries(reference)
+    }
     val breedSeries = remember(breedReferenceTimeline) {
         breedWeightReferenceChartSeries(breedReferenceTimeline)
     }
