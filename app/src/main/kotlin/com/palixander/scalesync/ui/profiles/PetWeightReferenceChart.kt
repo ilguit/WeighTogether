@@ -2,8 +2,11 @@ package com.palixander.scalesync.ui.profiles
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.Canvas
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -15,6 +18,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -60,6 +66,7 @@ internal object PetWeightChartTestTags {
     const val Chart = "pet-weight-reference-chart"
     const val ReferenceDetails = "pet-weight-reference-details"
     const val Unavailable = "pet-weight-reference-unavailable"
+    const val BreedLayer = "pet-breed-reference-chart-layer"
 }
 
 internal data class PetWeightChartRange(val min: Double, val max: Double)
@@ -121,6 +128,7 @@ internal fun formatPetWeightMarker(
 internal fun petWeightChartRange(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
+    breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
 ): PetWeightChartRange? {
     val values = buildList {
         addAll(factual.map(ChartPoint::value).filter(Double::isFinite))
@@ -128,6 +136,17 @@ internal fun petWeightChartRange(
             reference.segments.flatten().forEach { point ->
                 add(point.lowerKg)
                 add(point.upperKg)
+            }
+        }
+        if (breedReference is PetHistoryBreedReference.Available) {
+            breedReference.chartValues.forEach { value ->
+                when (value) {
+                    is PetHistoryBreedChartValue.Interval -> {
+                        add(value.lowerKg)
+                        add(value.upperKg)
+                    }
+                    is PetHistoryBreedChartValue.Single -> add(value.valueKg)
+                }
             }
         }
     }
@@ -168,6 +187,7 @@ internal fun petWeightReferenceChartSeries(
 internal fun PetWeightReferenceChartCard(
     series: ChartSeries,
     reference: PetHistoryWeightReference,
+    breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -176,7 +196,7 @@ internal fun PetWeightReferenceChartCard(
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
     }
-    val yRange = remember(factual, reference) { petWeightChartRange(factual, reference) }
+    val yRange = remember(factual, reference, breedReference) { petWeightChartRange(factual, reference, breedReference) }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
     val available = reference as? PetHistoryWeightReference.Available
@@ -185,6 +205,9 @@ internal fun PetWeightReferenceChartCard(
         append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
         append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
         if (available != null) append(" Фактический вес отмечен кругами; эталон — четырьмя линиями границ.")
+        if (breedReference is PetHistoryBreedReference.Available) {
+            append(" ${breedReference.accessibilityLabel} Породный диапазон отмечен вертикальным отрезком, одиночное значение — ромбом.")
+        }
     }
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
@@ -198,6 +221,7 @@ internal fun PetWeightReferenceChartCard(
                 PetWeightVicoChart(
                     factual = factual,
                     reference = reference,
+                    breedReference = breedReference,
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -210,7 +234,12 @@ internal fun PetWeightReferenceChartCard(
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         ChartLegend("● Фактический вес", factualColor)
                         ChartLegend("— Границы эталона", referenceColor)
+                        if (breedReference is PetHistoryBreedReference.Available) {
+                            BreedChartLegend(breedReference)
+                        }
                     }
+                } else if (breedReference is PetHistoryBreedReference.Available) {
+                    BreedChartLegend(breedReference)
                 } else if (factual.size < 2) {
                     Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
                 }
@@ -226,6 +255,7 @@ internal fun PetWeightReferenceChartCard(
 private fun PetWeightVicoChart(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
+    breedReference: PetHistoryBreedReference,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -309,7 +339,8 @@ private fun PetWeightVicoChart(
             }
         }
     }
-    CartesianChartHost(
+    Box(Modifier.fillMaxWidth().height(250.dp)) {
+        CartesianChartHost(
             chart = rememberCartesianChart(
                 rememberSmoothLineLayer(lines, rangeProvider),
                 startAxis = rememberChartStartAxis(
@@ -321,7 +352,7 @@ private fun PetWeightVicoChart(
             modelProducer = modelProducer,
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp)
+                .fillMaxSize()
                 .testTag(PetWeightChartTestTags.Chart)
                 .semantics {
                     this.contentDescription = contentDescription
@@ -337,6 +368,81 @@ private fun PetWeightVicoChart(
             scrollState = rememberVicoScrollState(scrollEnabled = true),
             zoomState = zoomState,
         )
+        if (breedReference is PetHistoryBreedReference.Available) {
+            BreedReferenceOverlay(
+                reference = breedReference,
+                startDate = startDate,
+                endDateInclusive = endDateInclusive,
+                yRange = yRange,
+                color = MaterialTheme.colorScheme.secondary,
+            )
+        }
+    }
+}
+
+@Composable
+private fun BreedReferenceOverlay(
+    reference: PetHistoryBreedReference.Available,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    yRange: PetWeightChartRange,
+    color: Color,
+) {
+    val today = LocalDate.now().coerceIn(startDate, endDateInclusive)
+    val surfaceColor = MaterialTheme.colorScheme.surface
+    Canvas(
+        Modifier
+            .fillMaxSize()
+            .testTag(PetWeightChartTestTags.BreedLayer)
+            .semantics(mergeDescendants = true) {
+                contentDescription = reference.chartValues.joinToString(" ") { it.accessibilityLabel }
+                stateDescription = "Породный ориентир показан на текущую дату $today"
+            },
+    ) {
+        val left = size.width * 0.14f
+        val right = size.width * 0.96f
+        val days = (endDateInclusive.toEpochDay() - startDate.toEpochDay()).coerceAtLeast(1)
+        val x = left + (right - left) * ((today.toEpochDay() - startDate.toEpochDay()).toFloat() / days)
+        val top = size.height * 0.06f
+        val bottom = size.height * 0.82f
+        fun y(value: Double): Float = bottom - ((value - yRange.min) / (yRange.max - yRange.min)).toFloat() * (bottom - top)
+        fun diamond(value: Double) {
+            val cy = y(value)
+            val radius = 7.dp.toPx()
+            val path = Path().apply {
+                moveTo(x, cy - radius)
+                lineTo(x + radius, cy)
+                lineTo(x, cy + radius)
+                lineTo(x - radius, cy)
+                close()
+            }
+            drawPath(path, color)
+            drawPath(path, surfaceColor, style = Stroke(1.dp.toPx()))
+        }
+        reference.chartValues.forEach { value ->
+            when (value) {
+                is PetHistoryBreedChartValue.Interval -> {
+                    drawLine(color, androidx.compose.ui.geometry.Offset(x, y(value.lowerKg)), androidx.compose.ui.geometry.Offset(x, y(value.upperKg)), 4.dp.toPx(), StrokeCap.Round)
+                    value.centerKg?.let(::diamond)
+                }
+                is PetHistoryBreedChartValue.Single -> diamond(value.valueKg)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BreedChartLegend(reference: PetHistoryBreedReference.Available) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (reference.chartValues.any { it is PetHistoryBreedChartValue.Interval }) {
+            Text("│ Породный диапазон · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
+        }
+        if (reference.chartValues.any {
+                it is PetHistoryBreedChartValue.Single || it is PetHistoryBreedChartValue.Interval && it.centerKg != null
+            }) {
+            Text("◆ Породное среднее или медиана · ${reference.ageLabel}", style = MaterialTheme.typography.bodySmall)
+        }
+    }
 }
 
 @Composable

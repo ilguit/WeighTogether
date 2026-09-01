@@ -92,6 +92,29 @@ class PetWeightReferenceChartTest {
         assertTrue(range.max > 5.0)
     }
 
+    @Test fun `breed interval and single values extend chart range without measurements or category lines`() {
+        val breed = breedAvailable(
+            listOf(
+                PetHistoryBreedChartValue.Interval(8.0, 12.0, 10.0, "Диапазон", "range"),
+                PetHistoryBreedChartValue.Single(11.0, "Медиана", "median"),
+            ),
+        )
+
+        val range = requireNotNull(
+            petWeightChartRange(
+                emptyList(),
+                PetHistoryWeightReference.Unavailable(
+                    com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingDogAdultWeight,
+                    "missing",
+                ),
+                breed,
+            ),
+        )
+
+        assertTrue(range.min < 8.0)
+        assertTrue(range.max > 12.0)
+    }
+
     @Test fun `no factual or available reference has no range`() {
         assertEquals(
             null,
@@ -154,5 +177,18 @@ class PetWeightReferenceChartTest {
         license = "CC",
         constraints = listOf("test constraint"),
         accessibilityLabel = "test reference",
+    )
+
+    private fun breedAvailable(values: List<PetHistoryBreedChartValue>) = PetHistoryBreedReference.Available(
+        breedName = "Бигль",
+        ageLabel = "6 месяцев",
+        valueLabels = listOf("Диапазон: 8–12 кг"),
+        sourceKindLabel = "наблюдаемая выборка",
+        sexLabel = "Самец",
+        partialDateDisclosure = null,
+        accessibilityLabel = "Ориентиры породы Бигль",
+        chartValues = values,
+        source = PetHistoryBreedSource("Источник", "https://example.com", 2024, "наблюдаемая выборка", null, null, null, null, emptyList()),
+        details = emptyList(),
     )
 }

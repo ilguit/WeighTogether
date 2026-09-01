@@ -165,6 +165,7 @@ internal fun PetProfileScreen(
                         PetWeightReferenceChartCard(
                             series = state.series,
                             reference = state.weightReference,
+                            breedReference = state.breedReference,
                             startDate = state.startDate,
                             endDateInclusive = state.endDateInclusive,
                             zoneId = java.time.ZoneId.systemDefault(),

@@ -37,6 +37,12 @@ class PetHistoryBreedReferencePresenterTest {
         assertTrue(result.source.title.isNotBlank())
         assertNull(result.partialDateDisclosure)
         assertTrue(result.accessibilityLabel.contains("Не является медицинской нормой"))
+        val chartValue = result.chartValues.single() as PetHistoryBreedChartValue.Interval
+        assertTrue(chartValue.lowerKg < chartValue.upperKg)
+        assertTrue(chartValue.accessibilityLabel.contains("Русский чёрный терьер"))
+        assertTrue(chartValue.accessibilityLabel.contains("Возраст источника: взрослой собаки"))
+        assertTrue(chartValue.accessibilityLabel.contains("кг"))
+        assertTrue(chartValue.accessibilityLabel.contains("официальный международный стандарт"))
     }
 
     @Test

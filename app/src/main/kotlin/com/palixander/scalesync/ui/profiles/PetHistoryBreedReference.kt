@@ -62,9 +62,29 @@ sealed interface PetHistoryBreedReference {
         val sexLabel: String,
         val partialDateDisclosure: String?,
         val accessibilityLabel: String,
+        val chartValues: List<PetHistoryBreedChartValue>,
         val source: PetHistoryBreedSource,
         val details: List<PetHistoryBreedReferenceDetail>,
     ) : PetHistoryBreedReference
+}
+
+sealed interface PetHistoryBreedChartValue {
+    val statisticLabel: String
+    val accessibilityLabel: String
+
+    data class Interval(
+        val lowerKg: Double,
+        val upperKg: Double,
+        val centerKg: Double?,
+        override val statisticLabel: String,
+        override val accessibilityLabel: String,
+    ) : PetHistoryBreedChartValue
+
+    data class Single(
+        val valueKg: Double,
+        override val statisticLabel: String,
+        override val accessibilityLabel: String,
+    ) : PetHistoryBreedChartValue
 }
 
 data class PetHistoryBreedSource(
@@ -123,6 +143,7 @@ class PetHistoryBreedReferencePresenter(
                 append(values.joinToString(". "))
                 append(". Тип источника: $kind. Не является медицинской нормой.")
             },
+            chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale) },
             source = sourcePresentation,
             details = details.map { it.presentation() },
         )
@@ -152,6 +173,30 @@ class PetHistoryBreedReferencePresenter(
         sampleLabel = sampleSize?.let { "$it ${sampleUnit.orEmpty()}".trim() },
         limitations = limitations,
     )
+}
+
+private fun BreedWeightValue.chartValue(
+    breedName: String,
+    ageLabel: String,
+    sourceKind: String,
+    locale: Locale,
+): PetHistoryBreedChartValue {
+    val valueLabel = label(locale)
+    val description = "$breedName. Возраст источника: $ageLabel. $valueLabel. Тип источника: $sourceKind."
+    return when (this) {
+        is BreedWeightValue.Interval -> PetHistoryBreedChartValue.Interval(
+            lowerKg = lower,
+            upperKg = upper,
+            centerKg = center,
+            statisticLabel = statistic.label(),
+            accessibilityLabel = description,
+        )
+        is BreedWeightValue.Single -> PetHistoryBreedChartValue.Single(
+            valueKg = value,
+            statisticLabel = statistic.label(),
+            accessibilityLabel = description,
+        )
+    }
 }
 
 @Composable
