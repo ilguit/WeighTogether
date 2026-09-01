@@ -11,9 +11,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -61,13 +61,11 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.abs
 
 internal object PetWeightChartTestTags {
     const val Chart = "pet-weight-reference-chart"
     const val ReferenceDetails = "pet-weight-reference-details"
     const val Unavailable = "pet-weight-reference-unavailable"
-    const val BreedLayer = "pet-breed-reference-chart-layer"
 }
 
 internal data class PetWeightChartRange(val min: Double, val max: Double)
@@ -241,6 +239,10 @@ internal fun formatPetWeightDisplayedMarker(
     }.joinToString("\n")
 }
 
+internal fun petWeightDisplayedMarkerXs(
+    displayedSeries: List<PetWeightDisplayedSeries>,
+): List<Long> = displayedSeries.flatMap(PetWeightDisplayedSeries::x).distinct().sorted()
+
 internal fun breedWeightReferenceChartSeries(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceChartSeries> {
@@ -314,62 +316,6 @@ internal fun petWeightChartModelSeries(
                 y = series.points.map { it.second },
             ),
         )
-    }
-}
-
-internal data class PetWeightMarkerSelection(
-    val date: LocalDate,
-    val measurementKg: Double?,
-    val reference: PetHistoryReferencePoint?,
-    val breedValues: List<PetHistoryBreedChartValue>? = null,
-)
-
-internal fun petWeightMarkerSelection(
-    targetXEpochMillis: Long,
-    factual: List<ChartPoint>,
-    reference: PetHistoryWeightReference,
-    zoneId: ZoneId,
-    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
-): PetWeightMarkerSelection {
-    val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
-    val measurement = factual
-        .filter { it.measuredAt.atZone(zoneId).toLocalDate() == targetDate }
-        .minByOrNull { abs(it.xEpochMillis!! - targetXEpochMillis) }
-    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
-    val referencePoint = (reference as? PetHistoryWeightReference.Available)
-        ?.takeUnless { hasBreedTimeline }
-        ?.segments
-        ?.asSequence()
-        ?.flatten()
-        ?.firstOrNull { it.date == targetDate }
-    val breedValues = breedReferenceTimeline
-        .filter { it.date == targetDate && !it.values.isNullOrEmpty() }
-        .minByOrNull { abs(it.xEpochMillis - targetXEpochMillis) }
-        ?.values
-    return PetWeightMarkerSelection(targetDate, measurement?.value, referencePoint, breedValues)
-}
-
-internal fun formatPetWeightMarker(
-    selection: PetWeightMarkerSelection,
-    locale: Locale = Locale.getDefault(),
-): String {
-    val number = NumberFormat.getNumberInstance(locale).apply {
-        minimumFractionDigits = 2
-        maximumFractionDigits = 2
-    }
-    fun kg(value: Double?) = value?.let { "${number.format(it)} кг" } ?: "—"
-    return buildString {
-        append(PetMarkerDateFormatter.format(selection.date))
-        append("\nИзмерение: ${kg(selection.measurementKg)}")
-        if (selection.breedValues.isNullOrEmpty()) {
-            append("\nНижняя граница: ${kg(selection.reference?.lowerKg)}")
-            append("\nМедиана: ${selection.reference?.let { "${kg(it.medianLowerKg)}–${kg(it.medianUpperKg)}" } ?: "—"}")
-            append("\nВерхняя граница: ${kg(selection.reference?.upperKg)}")
-        }
-        selection.breedValues?.takeIf(List<PetHistoryBreedChartValue>::isNotEmpty)?.let { values ->
-            append("\nПородный ориентир: ")
-            append(values.joinToString("; ") { it.accessibilityLabel })
-        }
     }
 }
 
@@ -502,10 +448,6 @@ internal fun PetWeightReferenceChartCard(
             )
             if (yRange != null) {
                 PetWeightVicoChart(
-                    factual = factual,
-                    reference = reference,
-                    breedReference = breedReference,
-                    breedReferenceTimeline = breedReferenceTimeline,
                     displayedSeries = displayedSeries,
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
@@ -530,10 +472,6 @@ internal fun PetWeightReferenceChartCard(
 
 @Composable
 private fun PetWeightVicoChart(
-    factual: List<ChartPoint>,
-    reference: PetHistoryWeightReference,
-    breedReference: PetHistoryBreedReference,
-    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
     displayedSeries: List<PetWeightDisplayedSeries>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
@@ -543,8 +481,6 @@ private fun PetWeightVicoChart(
     referenceColor: Color,
     contentDescription: String,
 ) {
-    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
-    val available = (reference as? PetHistoryWeightReference.Available)?.takeUnless { hasBreedTimeline }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
     }
@@ -591,28 +527,18 @@ private fun PetWeightVicoChart(
     val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
         rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
     }
-    val selectableDates = remember(factual, available, breedReferenceTimeline, zoneId) {
-        (factual.map { it.measuredAt.atZone(zoneId).toLocalDate() } +
-            available?.segments.orEmpty().flatten().map(PetHistoryReferencePoint::date) +
-            breedReferenceTimeline.filter { !it.values.isNullOrEmpty() }.map(PetHistoryBreedReferenceTimelinePoint::date))
-            .distinct()
-            .sorted()
+    val selectableXs = remember(displayedSeries) {
+        petWeightDisplayedMarkerXs(displayedSeries)
     }
-    var selectedDateIndex by remember(selectableDates) { mutableIntStateOf(0) }
+    var selectedXIndex by remember(selectableXs) { mutableIntStateOf(0) }
     fun selectRelative(offset: Int): Boolean {
-        if (selectableDates.isEmpty()) return false
-        selectedDateIndex = (selectedDateIndex + offset).mod(selectableDates.size)
+        if (selectableXs.isEmpty()) return false
+        selectedXIndex = (selectedXIndex + offset).mod(selectableXs.size)
         return true
     }
-    val accessibleSelection = selectableDates.getOrNull(selectedDateIndex)?.let { date ->
-        petWeightMarkerSelection(
-            date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
-            factual,
-            reference,
-            zoneId,
-            breedReferenceTimeline,
-        )
-    }
+    val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
+        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries) }
+        ?.takeIf(String::isNotEmpty)
 
     LaunchedEffect(displayedSeries) {
         modelProducer.runTransaction {
@@ -644,23 +570,16 @@ private fun PetWeightVicoChart(
                 .semantics {
                     this.contentDescription = contentDescription
                     role = Role.Button
-                    stateDescription = accessibleSelection?.let(::formatPetWeightMarker)
-                        ?: "Нет доступных дат для выбора"
-                    onClick("Выбрать следующую дату") { selectRelative(1) }
+                    stateDescription = accessibleMarker ?: "Нет доступных точек для выбора"
+                    onClick("Выбрать следующую точку") { selectRelative(1) }
                     customActions = listOf(
-                        CustomAccessibilityAction("Выбрать предыдущую дату") { selectRelative(-1) },
-                        CustomAccessibilityAction("Выбрать следующую дату") { selectRelative(1) },
+                        CustomAccessibilityAction("Выбрать предыдущую точку") { selectRelative(-1) },
+                        CustomAccessibilityAction("Выбрать следующую точку") { selectRelative(1) },
                     )
                 },
             scrollState = rememberVicoScrollState(scrollEnabled = true),
             zoomState = zoomState,
         )
-        if (breedReference is PetHistoryBreedReference.Available) {
-            BreedReferenceSemantics(
-                accessibleSelection?.date ?: endDateInclusive,
-                accessibleSelection?.breedValues,
-            )
-        }
     }
 }
 
@@ -699,24 +618,6 @@ private fun rememberBreedChartLine(
             interpolator = LineCartesianLayer.Interpolator.Sharp,
         )
     }
-}
-
-@Composable
-private fun BreedReferenceSemantics(
-    date: LocalDate,
-    values: List<PetHistoryBreedChartValue>?,
-) {
-    Box(
-        Modifier
-            .fillMaxSize()
-            .testTag(PetWeightChartTestTags.BreedLayer)
-            .semantics(mergeDescendants = true) {
-                values?.takeIf(List<PetHistoryBreedChartValue>::isNotEmpty)?.let {
-                    contentDescription = it.joinToString(" ") { value -> value.accessibilityLabel }
-                    stateDescription = "Породный ориентир для $date"
-                }
-            },
-    )
 }
 
 @Composable
@@ -799,4 +700,3 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference) {
 }
 
 private val PetAxisDateFormatter = DateTimeFormatter.ofPattern("dd.MM")
-private val PetMarkerDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")

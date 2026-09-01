@@ -72,6 +72,32 @@ class PetWeightReferenceChartTest {
         assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, Locale.US))
     }
 
+    @Test fun `screen reader visits exact displayed x values and uses visual tooltip text`() {
+        val first = LocalDate.of(2026, 9, 1).atTime(8, 15).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val second = LocalDate.of(2026, 9, 1).atTime(19, 45).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val series = listOf(
+            PetWeightDisplayedSeries("factual", PetWeightDisplayedSeriesKind.FACTUAL, "Фактический вес", listOf(first, second), listOf(24.5, 25.0), PetWeightDisplayedSeriesStyle.FACTUAL),
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", listOf(first, second), listOf(22.0, 22.5), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+            PetWeightDisplayedSeries("upper", PetWeightDisplayedSeriesKind.BREED_UPPER, "Верхняя граница", listOf(first), listOf(32.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        val selectableXs = petWeightDisplayedMarkerXs(series)
+
+        assertEquals(listOf(first, second), selectableXs)
+        assertEquals(
+            "Фактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
+            formatPetWeightDisplayedMarker(selectableXs[0], series, Locale.US),
+        )
+        assertEquals(
+            "Фактический вес: 25.00 кг\nНижняя граница: 22.50 кг",
+            formatPetWeightDisplayedMarker(selectableXs[1], series, Locale.US),
+        )
+    }
+
+    @Test fun `screen reader has no selectable x when nothing is displayed`() {
+        assertEquals(emptyList<Long>(), petWeightDisplayedMarkerXs(emptyList()))
+    }
+
     @Test fun `reference series keep segment boundaries and lower to upper order`() {
         val firstDate = LocalDate.of(2026, 8, 1)
         val secondDate = LocalDate.of(2026, 8, 2)
@@ -430,80 +456,6 @@ class PetWeightReferenceChartTest {
                 ),
             ),
         )
-    }
-
-    @Test fun `marker maps measurement and singleton reference by local date`() {
-        val date = LocalDate.of(2026, 8, 1)
-        val referencePoint = PetHistoryReferencePoint(date, 2.0, 3.0, 4.0, 5.0)
-        val epochSecond = date.atTime(14, 30).toEpochSecond(ZoneOffset.UTC)
-
-        val selection = petWeightMarkerSelection(
-            targetXEpochMillis = date.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
-            factual = listOf(ChartPoint(epochSecond, 4.25)),
-            reference = available(listOf(referencePoint)),
-            zoneId = ZoneOffset.UTC,
-        )
-
-        assertEquals(date, selection.date)
-        assertEquals(4.25, selection.measurementKg!!, 0.0)
-        assertEquals(referencePoint, selection.reference)
-        assertEquals(
-            "01.08.2026\n" +
-                "Измерение: 4.25 кг\n" +
-                "Нижняя граница: 2.00 кг\n" +
-                "Медиана: 3.00 кг–4.00 кг\n" +
-                "Верхняя граница: 5.00 кг",
-            formatPetWeightMarker(selection, Locale.US),
-        )
-    }
-
-    @Test fun `marker keeps distinct unavailable values explicit`() {
-        val selection = PetWeightMarkerSelection(LocalDate.of(2026, 8, 2), null, null)
-
-        assertEquals(
-            "02.08.2026\nИзмерение: —\nНижняя граница: —\nМедиана: —\nВерхняя граница: —",
-            formatPetWeightMarker(selection, Locale.US),
-        )
-    }
-
-    @Test fun `marker uses breed reference for selected date`() {
-        val selectedDate = LocalDate.of(2026, 8, 2)
-        val otherDate = LocalDate.of(2026, 8, 3)
-        val selectedValue = PetHistoryBreedChartValue.Interval(
-            8.0,
-            12.0,
-            10.0,
-            "Диапазон 8–12 кг",
-            "Диапазон породы: 8–12 кг",
-        )
-        val selection = petWeightMarkerSelection(
-            selectedDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
-            emptyList(),
-            available(emptyList()),
-            ZoneOffset.UTC,
-            listOf(
-                timelinePoint(selectedDate, selectedValue),
-                timelinePoint(otherDate, PetHistoryBreedChartValue.Single(14.0, "Медиана", "Не выбран")),
-            ),
-        )
-
-        assertEquals(listOf(selectedValue), selection.breedValues)
-        assertTrue(formatPetWeightMarker(selection, Locale.US).endsWith("Породный ориентир: Диапазон породы: 8–12 кг"))
-        assertTrue(!formatPetWeightMarker(selection, Locale.US).contains("Нижняя граница"))
-    }
-
-    @Test fun `marker omits breed reference when selected date has none`() {
-        val selectedDate = LocalDate.of(2026, 8, 2)
-        val selection = petWeightMarkerSelection(
-            selectedDate.atStartOfDay().toInstant(ZoneOffset.UTC).toEpochMilli(),
-            emptyList(),
-            available(emptyList()),
-            ZoneOffset.UTC,
-            listOf(PetHistoryBreedReferenceTimelinePoint(selectedDate, null)),
-        )
-
-        assertEquals(null, selection.breedValues)
-        assertTrue(!formatPetWeightMarker(selection, Locale.US).contains("Породный ориентир"))
     }
 
     private fun available(points: List<PetHistoryReferencePoint>) = availableSegments(listOf(points))
