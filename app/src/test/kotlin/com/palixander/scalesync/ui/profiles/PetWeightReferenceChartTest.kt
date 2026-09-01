@@ -157,6 +157,41 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `model input changes between breed intervals while factual series stays stable`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val factual = listOf(ChartPoint(date.atStartOfDay().toEpochSecond(ZoneOffset.UTC), 9.5))
+        val first = modelSeries(factual, date, PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Первый", "first"))
+        val second = modelSeries(factual, date, PetHistoryBreedChartValue.Interval(10.0, 14.0, null, "Второй", "second"))
+
+        assertEquals(first.first(), second.first())
+        assertEquals(listOf(8.0, 12.0), first.last().y)
+        assertEquals(listOf(10.0, 14.0), second.last().y)
+        assertTrue(first != second)
+    }
+
+    @Test fun `model input changes from breed interval to single while factual series stays stable`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val factual = listOf(ChartPoint(date.atStartOfDay().toEpochSecond(ZoneOffset.UTC), 9.5))
+        val interval = modelSeries(factual, date, PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Диапазон", "range"))
+        val single = modelSeries(factual, date, PetHistoryBreedChartValue.Single(11.0, "Медиана", "median"))
+
+        assertEquals(interval.first(), single.first())
+        assertEquals(listOf(8.0, 12.0), interval.last().y)
+        assertEquals(listOf(11.0), single.last().y)
+        assertTrue(interval != single)
+    }
+
+    @Test fun `model input removes unavailable breed while factual series stays stable`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val factual = listOf(ChartPoint(date.atStartOfDay().toEpochSecond(ZoneOffset.UTC), 9.5))
+        val available = modelSeries(factual, date, PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Диапазон", "range"))
+        val unavailable = petWeightChartModelSeries(factual, emptyList(), emptyList(), ZoneOffset.UTC)
+
+        assertEquals(available.first(), unavailable.first())
+        assertEquals(2, available.size)
+        assertEquals(1, unavailable.size)
+    }
+
     @Test fun `no factual or available reference has no range`() {
         assertEquals(
             null,
@@ -232,5 +267,16 @@ class PetWeightReferenceChartTest {
         chartValues = values,
         source = PetHistoryBreedSource("Источник", "https://example.com", 2024, "наблюдаемая выборка", null, null, null, null, emptyList()),
         details = emptyList(),
+    )
+
+    private fun modelSeries(
+        factual: List<ChartPoint>,
+        date: LocalDate,
+        value: PetHistoryBreedChartValue,
+    ) = petWeightChartModelSeries(
+        factual = factual,
+        referenceSeries = emptyList(),
+        breedSeries = breedWeightReferenceChartSeries(breedAvailable(listOf(value)), date),
+        zoneId = ZoneOffset.UTC,
     )
 }

@@ -88,6 +88,11 @@ internal data class BreedWeightReferenceChartSeries(
     val drawsInterval: Boolean,
 )
 
+internal data class PetWeightChartModelSeries(
+    val x: List<Long>,
+    val y: List<Double>,
+)
+
 internal fun breedWeightReferenceChartSeries(
     reference: PetHistoryBreedReference,
     date: LocalDate,
@@ -102,6 +107,42 @@ internal fun breedWeightReferenceChartSeries(
             is PetHistoryBreedChartValue.Single ->
                 listOf(BreedWeightReferenceChartSeries(listOf(date to value.valueKg), false))
         }
+    }
+}
+
+internal fun petWeightChartModelSeries(
+    factual: List<ChartPoint>,
+    referenceSeries: List<PetWeightReferenceChartSeries>,
+    breedSeries: List<BreedWeightReferenceChartSeries>,
+    zoneId: ZoneId,
+): List<PetWeightChartModelSeries> = buildList {
+    if (factual.isNotEmpty()) {
+        add(
+            PetWeightChartModelSeries(
+                x = factual.map { requireNotNull(it.xEpochMillis) },
+                y = factual.map(ChartPoint::value),
+            ),
+        )
+    }
+    referenceSeries.forEach { series ->
+        add(
+            PetWeightChartModelSeries(
+                x = series.points.map { (date, _) ->
+                    date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+                },
+                y = series.points.map { it.second },
+            ),
+        )
+    }
+    breedSeries.forEach { series ->
+        add(
+            PetWeightChartModelSeries(
+                x = series.points.map { (date, _) ->
+                    date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+                },
+                y = series.points.map { it.second },
+            ),
+        )
     }
 }
 
@@ -292,6 +333,9 @@ private fun PetWeightVicoChart(
     val breedSeries = remember(breedReference, breedDate) {
         breedWeightReferenceChartSeries(breedReference, breedDate)
     }
+    val modelSeries = remember(factual, referenceSeries, breedSeries, zoneId) {
+        petWeightChartModelSeries(factual, referenceSeries, breedSeries, zoneId)
+    }
     val xRange = remember(startDate, endDateInclusive, zoneId) {
         chartXRange(startDate, endDateInclusive, zoneId)
     }
@@ -349,29 +393,11 @@ private fun PetWeightVicoChart(
         )
     }
 
-    LaunchedEffect(factual, referenceSeries, zoneId) {
+    LaunchedEffect(modelSeries) {
         modelProducer.runTransaction {
             lineModel {
-                if (factual.isNotEmpty()) {
-                    series(
-                        x = factual.map { requireNotNull(it.xEpochMillis) },
-                        y = factual.map(ChartPoint::value),
-                    )
-                }
-                referenceSeries.forEach { referenceChartSeries ->
-                    val points = referenceChartSeries.points
-                    series(
-                        x = points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
-                        y = points.map { it.second },
-                    )
-                }
-                breedSeries.forEach { breedChartSeries ->
-                    series(
-                        x = breedChartSeries.points.map { (date, _) ->
-                            date.atStartOfDay(zoneId).toInstant().toEpochMilli()
-                        },
-                        y = breedChartSeries.points.map { it.second },
-                    )
+                modelSeries.forEach { chartSeries ->
+                    series(x = chartSeries.x, y = chartSeries.y)
                 }
             }
         }
