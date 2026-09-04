@@ -7,8 +7,13 @@ import org.junit.Test
 
 class AppIdentityContractTest {
     @Test
-    fun personalBuildKeepsSuffixOnNewApplicationId() {
-        assertEquals("com.palixander.scalesync.personal", BuildConfig.APPLICATION_ID)
+    fun eachFlavorKeepsItsApplicationId() {
+        val expected = when (BuildConfig.FLAVOR) {
+            "personal" -> "com.palixander.scalesync.personal"
+            "huaweiEnterprise" -> "com.palixander.scalesync"
+            else -> error("Unexpected flavor: ${BuildConfig.FLAVOR}")
+        }
+        assertEquals(expected, BuildConfig.APPLICATION_ID)
     }
 
     @Test
