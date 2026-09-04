@@ -69,6 +69,20 @@ import kotlinx.coroutines.withContext
 @OptIn(ExperimentalCoroutinesApi::class)
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
+    private val manualRepository = com.palixander.scalesync.data.ManualWeightRepository(
+        container.database, container.huaweiHealth.isAvailableInBuild, container.syncScheduler::enqueueInitial,
+    )
+    val manualWeight = com.palixander.scalesync.ui.manualweight.ManualWeightStateOwner(
+        viewModelScope, manualRepository::save,
+        onSaved = { owner, result ->
+            if (owner is com.palixander.scalesync.domain.ManualWeightOwner.Human) {
+                container.accountSelection.select(owner.accountId)
+                showHistory()
+                interaction.update { it.copy(scrollToMeasurementId = result.measurementId) }
+            }
+            eventChannel.trySend(MeasurementsUiEvent.ManualWeightSaved(owner, result))
+        },
+    )
     private val repository = container.repository
     private val profileStore = container.profileStore
     private val homeChartZoneId = ZoneId.systemDefault()
@@ -215,6 +229,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             item.copy(isOperationInProgress = item.id == deletingId)
         }
         MeasurementsUiState(
+            scrollToMeasurementId = currentInteraction.scrollToMeasurementId,
             destination = currentInteraction.navigation.destination,
             editorOrigin = currentInteraction.navigation.editorOrigin,
             measurements = items,
@@ -229,6 +244,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), MeasurementsUiState())
 
     val callbacks = MeasurementsCallbacks(
+        onAddWeightRequested = {
+            val selector = accountSelection.value.selector
+            selector.accounts.firstOrNull { it.id == selector.selectedAccountId }?.let { account ->
+                manualWeight.open(com.palixander.scalesync.domain.ManualWeightOwner.Human(account.id), account.displayName)
+            }
+        },
+        onScrollToMeasurementHandled = { interaction.update { it.copy(scrollToMeasurementId = null) } },
         onSummaryRequested = ::showSummary,
         onPendingQueueRequested = ::showPendingQueue,
         onHistoryRequested = ::showHistory,
@@ -476,6 +498,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 }
 
 internal data class MeasurementsInteractionState(
+    val scrollToMeasurementId: String? = null,
     val selection: AccountSelection = AccountSelection(),
     val navigation: MeasurementsNavigationState = MeasurementsNavigationState(),
     val editor: MeasurementEditorState? = null,
@@ -490,6 +513,7 @@ internal data class MeasurementsInteractionState(
     fun normalizedFor(selection: AccountSelection): MeasurementsInteractionState =
         if (this.selection == selection) this else copy(
             selection = selection,
+            scrollToMeasurementId = null,
             navigation = navigation.afterAccountSelectionChanged(),
             editor = null,
             deleteConfirmation = null,

@@ -31,7 +31,7 @@ class BackupSettingsScreenTest {
             SettingsScreen(MainUiState(), SettingsCallbacks(
                 onHuaweiAuthorization = {}, onHuaweiPermissionRefresh = {},
                 onHealthConnectAuthorization = {}, onHealthConnectAccessManagement = {},
-                onManualTest = { _, _ -> }, onManualScan = {}, onReliabilityMode = {},
+                onManualScan = {}, onReliabilityMode = {},
                 openBatterySettings = {}, openApplicationSettings = {},
             ), PaddingValues(), destination.value, { destination.value = it })
         }
@@ -106,7 +106,6 @@ class BackupSettingsScreenTest {
         onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
-        onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

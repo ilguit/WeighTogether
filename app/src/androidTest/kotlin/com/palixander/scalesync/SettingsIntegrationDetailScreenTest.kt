@@ -114,13 +114,13 @@ class SettingsIntegrationDetailScreenTest {
     }
 
     @Test
-    fun diagnosticsUsesSeparateMeasurementAndBackgroundGroups() {
+    fun diagnosticsKeepsBackgroundActionsWithoutManualInput() {
         setDetail(SettingsDestination.DIAGNOSTICS, MainUiState())
 
-        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestAction).assertIsEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestAction).assertDoesNotExist()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider).assertExists()
@@ -183,7 +183,6 @@ class SettingsIntegrationDetailScreenTest {
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
-        onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

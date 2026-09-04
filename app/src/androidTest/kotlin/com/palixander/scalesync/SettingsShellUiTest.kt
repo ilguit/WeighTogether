@@ -103,41 +103,19 @@ class SettingsShellUiTest {
             .performClick()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsDetail).assertExists()
-        composeRule.onNodeWithText("Отправить тест").assertExists()
+        composeRule.onNodeWithText("Отправить тест").assertDoesNotExist()
         composeRule.onNodeWithText("Повышенная надёжность").assertExists()
         composeRule.onNodeWithText("Батарея").assertExists()
         composeRule.onNodeWithText("Настройки приложения").assertExists()
     }
 
     @Test
-    fun manualTestValuesSurviveNavigationAndRecreationAndDispatchEditedValues() {
-        var submitted: Pair<String, String>? = null
-        setSettingsShell(
-            expandSections = false,
-            onManualTest = { weight, impedance -> submitted = weight to impedance },
-        )
-
+    fun diagnosticsHasNoManualWeightOrImpedanceInput() {
+        setSettingsShell(expandSections = false)
         composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
-            .performTextReplacement("82.35")
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
-            .performTextReplacement("612")
-
-        composeRule.onNodeWithContentDescription("Вернуться к настройкам").performClick()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.DiagnosticsRow).performClick()
-
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
-            .assertTextEquals("Вес, кг", "82.35")
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
-            .assertTextEquals("Импеданс, Ом", "612")
-        composeRule.onNodeWithText("Отправить тест").performScrollTo().performClick()
-        composeRule.runOnIdle { assertEquals("82.35" to "612", submitted) }
-
-        composeRule.activityRule.scenario.recreate()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight)
-            .assertTextEquals("Вес, кг", "82.35")
-        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance)
-            .assertTextEquals("Импеданс, Ом", "612")
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertDoesNotExist()
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertDoesNotExist()
+        composeRule.onNodeWithText("Отправить тестовое измерение").assertDoesNotExist()
     }
 
     @Test
@@ -804,7 +782,6 @@ class SettingsShellUiTest {
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
-        onManualTest: (String, String) -> Unit = { _, _ -> },
         pets: List<PetWithLatestWeight> = emptyList(),
     ) {
         composeRule.setContent {
@@ -851,7 +828,6 @@ class SettingsShellUiTest {
                         onAction = { management.value = reduceAccountManagement(management.value, it) },
                     ),
                     onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
-                    onManualTest = onManualTest,
                 ),
                 measurementsContent = {},
                 chartsContent = {},
@@ -866,13 +842,11 @@ class SettingsShellUiTest {
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
-        onManualTest: (String, String) -> Unit = { _, _ -> },
     ) = SettingsCallbacks(
         onHuaweiAuthorization = onHuaweiAuthorization,
         onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
-        onManualTest = onManualTest,
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

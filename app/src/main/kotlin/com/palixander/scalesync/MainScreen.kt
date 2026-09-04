@@ -207,6 +207,7 @@ fun ScaleSyncApp(
         mutableStateOf(ProfileNavigationState())
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val manualDraft by measurementsViewModel.manualWeight.draft.collectAsStateWithLifecycle()
     val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
         activeState
@@ -245,6 +246,18 @@ fun ScaleSyncApp(
         measurementsViewModel.events.collect { event ->
             when (event) {
                 is MeasurementsUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is MeasurementsUiEvent.ManualWeightSaved -> {
+                    currentSection = AppSection.MEASUREMENTS
+                    currentDestination = AppDestination.ROOT
+                    when (val owner = event.owner) {
+                        is com.palixander.scalesync.domain.ManualWeightOwner.Human ->
+                            profileNavigation = profileNavigation.select(ProfileKey.Human(owner.accountId))
+                        is com.palixander.scalesync.domain.ManualWeightOwner.Pet -> {
+                            viewModel.petHistoryStateOwner(owner.petId).showSavedMeasurement(event.result)
+                            profileNavigation = profileNavigation.select(ProfileKey.Pet(owner.petId))
+                        }
+                    }
+                }
             }
         }
     }
@@ -252,8 +265,15 @@ fun ScaleSyncApp(
     val petHistoryOwner = selectedPetId?.let { petId ->
         remember(petId) { viewModel.petHistoryStateOwner(petId) }
     }
-    DisposableEffect(petHistoryOwner) {
-        onDispose { petHistoryOwner?.close() }
+    LaunchedEffect(manualDraft?.owner, state.accounts, state.pets, state.profilesLoaded) {
+        if (state.profilesLoaded) {
+            val available = when (val owner = manualDraft?.owner) {
+                is com.palixander.scalesync.domain.ManualWeightOwner.Human -> state.accounts.any { it.id == owner.accountId }
+                is com.palixander.scalesync.domain.ManualWeightOwner.Pet -> state.pets.any { it.pet.id == owner.petId }
+                null -> false
+            }
+            measurementsViewModel.manualWeight.setOwnerAvailable(available)
+        }
     }
     val petHistoryState = petHistoryOwner?.uiState?.collectAsStateWithLifecycle()?.value
     MainUiEventHandler(
@@ -281,7 +301,13 @@ fun ScaleSyncApp(
         profileSelection = profileSelection,
         profileDestination = profileNavigation.destination,
         petHistoryState = petHistoryState,
-        petHistoryCallbacks = petHistoryOwner?.callbacks,
+        manualDraft = manualDraft,
+        manualWeightOwner = measurementsViewModel.manualWeight,
+        petHistoryCallbacks = petHistoryOwner?.callbacks?.copy(onAddWeightRequested = {
+            petHistoryState?.pet?.let { pet ->
+                measurementsViewModel.manualWeight.open(com.palixander.scalesync.domain.ManualWeightOwner.Pet(pet.id), pet.displayName)
+            }
+        }),
         measurementsDestination = measurementsState.destination,
         measurementsCallbacks = measurementsViewModel.callbacks,
         petMeasurementCallbacks = PetMeasurementCallbacks(
@@ -316,7 +342,6 @@ fun ScaleSyncApp(
             onHuaweiPermissionRefresh = viewModel::refreshHuaweiAuthorization,
             onHealthConnectAuthorization = requestHealthConnectPermissions,
             onHealthConnectAccessManagement = openHealthConnectAccessManagement,
-            onManualTest = viewModel::sendManualTest,
             onManualScan = viewModel::toggleManualScan,
             onReliabilityMode = viewModel::setReliabilityMode,
             openBatterySettings = openBatterySettings,
@@ -407,6 +432,8 @@ internal fun ScaleSyncScaffold(
     profileDestination: ProfileDestination = ProfileDestination.HumanShell,
     petHistoryState: PetHistoryUiState? = null,
     petHistoryCallbacks: PetHistoryCallbacks? = null,
+    manualDraft: com.palixander.scalesync.ui.manualweight.ManualWeightDraft? = null,
+    manualWeightOwner: com.palixander.scalesync.ui.manualweight.ManualWeightStateOwner? = null,
     measurementsDestination: MeasurementsDestination,
     measurementsCallbacks: MeasurementsCallbacks,
     petMeasurementCallbacks: PetMeasurementCallbacks = PetMeasurementCallbacks.None,
@@ -444,19 +471,20 @@ internal fun ScaleSyncScaffold(
     }
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
+        manualDraft != null -> false
         profileEditorOpen -> true
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
         else -> true
     }
-    val showBottomNavigation = petDestination == null && !profileEditorOpen && !changelogOpen &&
+    val showBottomNavigation = manualDraft == null && petDestination == null && !profileEditorOpen && !changelogOpen &&
         !settingsDetailOpen && when (currentSection) {
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
     val contentWindowInsets = if (
-        !profileEditorOpen &&
+        manualDraft != null || (!profileEditorOpen &&
         currentSection == AppSection.MEASUREMENTS &&
-        measurementsChrome.contentUsesSafeDrawingInsets
+        measurementsChrome.contentUsesSafeDrawingInsets)
     ) {
         WindowInsets.safeDrawing
     } else {
@@ -479,6 +507,7 @@ internal fun ScaleSyncScaffold(
         onBack = measurementsCallbacks.onBackRequested,
     )
     BackHandler(enabled = profileEditorOpen, onBack = onCloseProfile)
+    BackHandler(enabled = manualDraft != null, onBack = { manualWeightOwner?.dismiss() })
 
     ScaleSyncTheme {
         Box(Modifier.fillMaxSize()) {
@@ -554,6 +583,17 @@ internal fun ScaleSyncScaffold(
                 },
             ) { padding ->
                 when {
+                    manualDraft != null && manualWeightOwner != null -> com.palixander.scalesync.ui.manualweight.ManualWeightScreen(
+                        draft = manualDraft,
+                        onWeightChanged = manualWeightOwner::changeWeight,
+                        onDateChanged = manualWeightOwner::changeDate,
+                        onTimeChanged = manualWeightOwner::changeTime,
+                        onSave = { manualWeightOwner.submit() },
+                        onConfirmDuplicate = { manualWeightOwner.submit(true) },
+                        onDismissDuplicate = manualWeightOwner::dismissDuplicate,
+                        onBack = manualWeightOwner::dismiss,
+                        modifier = Modifier.padding(padding).consumeWindowInsets(padding),
+                    )
                     petDestination != null -> PetProfileScreen(
                         state = petHistoryState ?: PetHistoryUiState.initial(petDestination.petId),
                         callbacks = petHistoryCallbacks ?: PetHistoryCallbacks({}, { _, _ -> }),

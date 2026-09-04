@@ -88,7 +88,7 @@ class ScaleSettingsScreenTest {
     private fun callbacks() = SettingsCallbacks(
         onHuaweiAuthorization = {}, onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {}, onHealthConnectAccessManagement = {},
-        onManualTest = { _, _ -> }, onManualScan = {}, onReliabilityMode = {},
+        onManualScan = {}, onReliabilityMode = {},
         openBatterySettings = {}, openApplicationSettings = {},
     )
 }

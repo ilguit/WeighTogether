@@ -189,11 +189,10 @@ class MainViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
 
-    fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = PetHistoryStateOwner(
-        initialPetId = petId,
-        repository = container.pets,
-        parentScope = viewModelScope,
-    )
+    private val petHistoryOwners = mutableMapOf<PetId, PetHistoryStateOwner>()
+    fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = petHistoryOwners.getOrPut(petId) {
+        PetHistoryStateOwner(initialPetId = petId, repository = container.pets, parentScope = viewModelScope)
+    }
     private val huaweiAuthorization = HuaweiAuthorizationController(
         gateway = container.huaweiHealth,
         onExplicitAuthorizationConfirmed = {
@@ -1128,54 +1127,6 @@ class MainViewModel @JvmOverloads constructor(
         showMessage(huaweiAuthorizationMessage(attempt))
     }
 
-    fun sendManualTest(weight: String, impedance: String) = viewModelScope.launch {
-        val weightKg = weight.replace(',', '.').toDoubleOrNull()
-        val impedanceOhm = impedance.toIntOrNull()
-        if (weightKg == null || impedanceOhm == null ||
-            weightKg !in 10.0..300.0 || impedanceOhm !in 80..3_000
-        ) {
-            showMessage("Проверьте вес и импеданс")
-            return@launch
-        }
-        when (val result = container.repository.ingestTestMeasurement(weightKg, impedanceOhm)) {
-            is MeasurementIngestionResult.CreatedAggregate ->
-                showMessage("Тестовое измерение ожидает завершения")
-            is MeasurementIngestionResult.UpdatedAggregate ->
-                showMessage("Окно тестового измерения продлено")
-            is MeasurementIngestionResult.UpgradedFinalized ->
-                showMessage("Состав тела добавлен к тестовому измерению")
-            MeasurementIngestionResult.SuppressedFinal,
-            MeasurementIngestionResult.SuppressedTombstone,
-            MeasurementIngestionResult.ExactReplay,
-            -> showMessage("Такое тестовое измерение уже существует")
-            is MeasurementIngestionResult.Assigned -> {
-                val accountName = container.accounts.getAccount(result.measurement.accountId)
-                    ?.displayName
-                    .orEmpty()
-                showMessage(
-                    if (result.wasAlreadyFinalized) {
-                        "Такое тестовое измерение уже обработано"
-                    } else {
-                        "Тестовое измерение назначено профилю «$accountName»"
-                    },
-                )
-            }
-            is MeasurementIngestionResult.AwaitingDecision -> {
-                selectPendingForResolver(result.pending.id, PendingResolverSource.EXTERNAL)
-                pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
-                showMessage("Тестовое измерение ожидает выбора профиля")
-            }
-            MeasurementIngestionResult.Tombstoned,
-            MeasurementIngestionResult.LegacyDuplicate,
-            -> showMessage("Такое тестовое измерение уже существует")
-            MeasurementIngestionResult.AutomaticallyIgnoredUnknown -> Unit
-            MeasurementIngestionResult.PendingMissing -> showMessage("Измерение уже обработано")
-            MeasurementIngestionResult.IgnoredNotFinal -> showMessage("Измерение ещё не завершено")
-            MeasurementIngestionResult.LegacyProfileMissing ->
-                showMessage("Не удалось обработать тестовое измерение")
-        }
-    }
-
     fun retry(id: String) = viewModelScope.launch {
         container.repository.retry(id)
         showMessage("Повторная отправка поставлена в очередь")
@@ -1243,6 +1194,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     override fun onCleared() {
+        petHistoryOwners.values.forEach { it.close() }
         invalidatePetMeasurementStartup()
         petMeasurementCoordinator.clear()
         scaleRefresh.clear()

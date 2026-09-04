@@ -45,6 +45,31 @@ class PetHistoryStateOwnerTest {
     private val luna = pet("luna", "Луна")
 
     @Test
+    fun `saved old measurement reveals its day and retains scroll target across collector recreation`() = runBlocking {
+        val old = measurement("old", luna.id, "1800-01-01T10:00:00Z", 4.125)
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to MutableStateFlow(listOf(old)))),
+            scope, clock, zone, Locale.US)
+        var collector = scope.launch { owner.uiState.collect() }
+        yield()
+        owner.showSavedMeasurement(com.palixander.scalesync.domain.ManualWeightResult.Saved(old.id, old.measuredAt))
+        yield()
+        assertEquals(LocalDate.of(1800, 1, 1), owner.uiState.value.startDate)
+        assertEquals(owner.uiState.value.startDate, owner.uiState.value.endDateInclusive)
+        assertEquals(listOf("old"), owner.uiState.value.measurements.map { it.id })
+        collector.cancelAndJoin()
+        collector = scope.launch { owner.uiState.collect() }
+        yield()
+        assertEquals("old", owner.uiState.value.scrollToMeasurementId)
+        owner.callbacks.onScrollToMeasurementHandled()
+        yield()
+        assertNull(owner.uiState.value.scrollToMeasurementId)
+        collector.cancelAndJoin()
+        scope.cancel()
+    }
+
+    @Test
     fun `presentation distinguishes zero one and multiple measurements`() {
         val range = ChartDateRange(LocalDate.of(2026, 3, 1), LocalDate.of(2026, 3, 31))
         val empty = petHistoryPresentation(emptyList(), range, zone, Locale.US)

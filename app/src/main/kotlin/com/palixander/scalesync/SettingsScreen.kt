@@ -3,7 +3,6 @@ package com.palixander.scalesync
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -93,7 +92,6 @@ internal data class SettingsCallbacks(
     val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
     val onHealthConnectAccessManagement: () -> Unit,
-    val onManualTest: (String, String) -> Unit,
     val onManualScan: () -> Unit,
     val onReliabilityMode: (Boolean) -> Unit,
     val openBatterySettings: () -> Unit,
@@ -454,8 +452,6 @@ internal fun SettingsScreen(
     onDestinationChanged: (SettingsDestination) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
-    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     var returnFocusDestination by rememberSaveable { mutableStateOf<SettingsDestination?>(null) }
     val rootListState = rememberLazyListState()
     val rootFocusRequesters = remember {
@@ -498,10 +494,6 @@ internal fun SettingsScreen(
         SettingsDestination.DIAGNOSTICS -> SettingsDiagnosticsDetail(
             state = state,
             callbacks = callbacks,
-            weight = manualTestWeight,
-            onWeightChanged = { manualTestWeight = it },
-            impedance = manualTestImpedance,
-            onImpedanceChanged = { manualTestImpedance = it },
             contentPadding = contentPadding,
             modifier = modifier,
         )
@@ -525,10 +517,6 @@ private fun SettingsBackupDetail(
 private fun SettingsDiagnosticsDetail(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -536,10 +524,6 @@ private fun SettingsDiagnosticsDetail(
         SettingsDiagnosticsContent(
             state = state,
             callbacks = callbacks,
-            weight = weight,
-            onWeightChanged = onWeightChanged,
-            impedance = impedance,
-            onImpedanceChanged = onImpedanceChanged,
         )
     }
 }
@@ -910,26 +894,8 @@ private fun DetailActionRow(
 private fun SettingsDiagnosticsContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-        DetailSectionTitle("Проверка весов")
-        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup)) {
-            Column(
-                modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-            ) {
-                ResponsiveTestFields(weight, onWeightChanged, impedance, onImpedanceChanged)
-                Button(
-                    onClick = { callbacks.onManualTest(weight, impedance) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
-                        .testTag(SettingsScreenTestTags.ManualTestAction),
-                ) { Text("Отправить тестовое измерение") }
-            }
-        }
         DetailSectionTitle("Работа в фоне")
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup)) {
             DiagnosticsSwitchRow(state, callbacks)
@@ -1273,8 +1239,6 @@ private fun LegacySettingsScreen(
     var backupExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var additionalExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var aboutExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
-    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
     var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.destructiveActionInProgress) {
@@ -1375,10 +1339,6 @@ private fun LegacySettingsScreen(
                     AdditionalContent(
                         state = state,
                         callbacks = callbacks,
-                        weight = manualTestWeight,
-                        onWeightChanged = { manualTestWeight = it },
-                        impedance = manualTestImpedance,
-                        onImpedanceChanged = { manualTestImpedance = it },
                     )
                 }
             }
@@ -1844,35 +1804,12 @@ private fun CollapsibleSettingsSection(
 private fun AdditionalContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(HuaweiDimensions.ContentPadding),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
-        Text("Ручное тестовое измерение", style = MaterialTheme.typography.titleSmall)
-        Text(
-            "Проходит тот же путь распознавания профиля, что и измерение с весов.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        ResponsiveTestFields(
-            weight = weight,
-            onWeightChanged = onWeightChanged,
-            impedance = impedance,
-            onImpedanceChanged = onImpedanceChanged,
-        )
-        OutlinedButton(
-            onClick = { callbacks.onManualTest(weight, impedance) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget),
-        ) {
-            Text("Отправить тест")
-        }
-        HorizontalDivider()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1917,71 +1854,6 @@ private fun AdditionalContent(
             ) { Text("Настройки приложения") }
         }
     }
-}
-
-@Composable
-private fun ResponsiveTestFields(
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
-) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val compact = maxWidth < 360.dp
-        if (compact) {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                TestField(
-                    weight,
-                    onWeightChanged,
-                    "Вес, кг",
-                    KeyboardType.Decimal,
-                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestWeight),
-                )
-                TestField(
-                    impedance,
-                    onImpedanceChanged,
-                    "Импеданс, Ом",
-                    KeyboardType.Number,
-                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestImpedance),
-                )
-            }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                TestField(
-                    weight,
-                    onWeightChanged,
-                    "Вес, кг",
-                    KeyboardType.Decimal,
-                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestWeight),
-                )
-                TestField(
-                    impedance,
-                    onImpedanceChanged,
-                    "Импеданс, Ом",
-                    KeyboardType.Number,
-                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestImpedance),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TestField(
-    value: String,
-    onValueChanged: (String) -> Unit,
-    label: String,
-    keyboardType: KeyboardType,
-    modifier: Modifier,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChanged,
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        singleLine = true,
-        modifier = modifier,
-    )
 }
 
 @Composable

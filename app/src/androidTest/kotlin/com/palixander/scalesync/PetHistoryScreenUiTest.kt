@@ -24,6 +24,7 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
@@ -59,6 +60,13 @@ import org.junit.Test
 
 class PetHistoryScreenUiTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun emptyHistoryOffersManualWeightForItsPet() {
+        var additions = 0
+        setScreen(state(PetHistoryContent.Empty), PetHistoryCallbacks({}, { _, _ -> }, onAddWeightRequested = { additions++ }))
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.AddWeight).performScrollTo().assertIsEnabled().performClick()
+        composeRule.runOnIdle { assertEquals(1, additions) }
+    }
 
     @Test fun emptyHistoryStillOffersExactPetMeasurementAndPeriodFilter() {
         var starts = 0

@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -990,7 +991,16 @@ private fun MeasurementHistoryScreen(
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
+        val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
+        if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
+            listState.scrollToItem(index + 1)
+            callbacks.onScrollToMeasurementHandled()
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .widthIn(max = 680.dp)
             .fillMaxHeight()
@@ -1005,6 +1015,8 @@ private fun MeasurementHistoryScreen(
         item {
             NestedScreenHeader(
                 title = "История",
+                onAdd = callbacks.onAddWeightRequested,
+                addEnabled = state.accountSelector.selectedAccountId != null,
                 backContentDescription = "Назад к последнему измерению",
                 onBack = callbacks.onBackRequested,
             )
@@ -1578,6 +1590,8 @@ private fun NestedScreenHeader(
     backContentDescription: String,
     onBack: () -> Unit,
     enabled: Boolean = true,
+    onAdd: (() -> Unit)? = null,
+    addEnabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TopBarHeight),
@@ -1591,9 +1605,15 @@ private fun NestedScreenHeader(
         )
         Text(
             title,
-            modifier = Modifier.semantics { heading() },
+            modifier = Modifier.weight(1f).semantics { heading() },
             style = MaterialTheme.typography.titleLarge,
         )
+        onAdd?.let { action ->
+            TextButton(onClick = action, enabled = addEnabled, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .testTag("measurement-history-add").semantics { contentDescription = "Добавить вес" }) {
+                Text("+", style = MaterialTheme.typography.headlineMedium)
+            }
+        }
     }
 }
 

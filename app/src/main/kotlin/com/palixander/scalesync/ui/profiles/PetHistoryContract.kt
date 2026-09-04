@@ -71,6 +71,7 @@ data class PetHistoryUiState(
     val errorMessage: String? = null,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
     val actionErrorMessage: String? = null,
+    val scrollToMeasurementId: String? = null,
 ) {
     init {
         require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
@@ -237,6 +238,8 @@ data class PetHistoryCallbacks(
     val confirmDelete: () -> Unit = {},
     val dismissDelete: () -> Unit = {},
     val dismissActionError: () -> Unit = {},
+    val onAddWeightRequested: () -> Unit = {},
+    val onScrollToMeasurementHandled: () -> Unit = {},
 )
 
 internal fun petHistoryPresentation(

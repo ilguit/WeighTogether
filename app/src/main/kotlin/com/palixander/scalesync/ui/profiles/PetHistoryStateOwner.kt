@@ -39,6 +39,7 @@ private data class PetHistoryInteraction(
     val petId: PetId,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
     val actionErrorMessage: String? = null,
+    val scrollToMeasurementId: String? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -73,6 +74,7 @@ class PetHistoryStateOwner(
             state.copy(
                 deleteConfirmation = currentInteraction.deleteConfirmation,
                 actionErrorMessage = currentInteraction.actionErrorMessage,
+                scrollToMeasurementId = currentInteraction.scrollToMeasurementId,
             )
         } else {
             state
@@ -94,7 +96,18 @@ class PetHistoryStateOwner(
         confirmDelete = ::confirmDelete,
         dismissDelete = ::dismissDelete,
         dismissActionError = ::dismissActionError,
+        onScrollToMeasurementHandled = { interaction.update { it.copy(scrollToMeasurementId = null) } },
     )
+
+    fun showSavedMeasurement(saved: com.palixander.scalesync.domain.ManualWeightResult.Saved) {
+        val date = saved.measuredAt.atZone(zoneId).toLocalDate()
+        selection.update { current ->
+            if (date.isBefore(current.range.startDate) || date.isAfter(current.range.endDateInclusive)) {
+                current.copy(range = ChartDateRange(date, date), rangePreset = ChartRangePreset.CUSTOM)
+            } else current
+        }
+        interaction.update { it.copy(scrollToMeasurementId = saved.measurementId) }
+    }
 
     fun selectPet(petId: PetId) {
         interaction.value = PetHistoryInteraction(petId)
