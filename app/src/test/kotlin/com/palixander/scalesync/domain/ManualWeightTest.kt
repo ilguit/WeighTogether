@@ -29,4 +29,11 @@ class ManualWeightTest {
         assertThrows(IllegalArgumentException::class.java) { direct.copy(origin = MeasurementOrigin.SCALE) }
         assertEquals(4.125, PetMeasurement("scale", PetId("pet"), Instant.EPOCH, 70.0, 74.125).petWeightKg, 0.0)
     }
+
+    @Test fun canonicalManualWeightRoundsFloatArtifactsToDisplayedPrecision() {
+        assertEquals(4.12, canonicalManualWeight(4.1200000000000045), 0.0)
+        assertEquals(4.121, canonicalManualWeight(4.1209999999999996), 0.0)
+        assertEquals(10.04, canonicalManualWeight(10.040000000000001), 0.0)
+        assertEquals(2.5, canonicalManualWeight(2.5), 0.0)
+    }
 }

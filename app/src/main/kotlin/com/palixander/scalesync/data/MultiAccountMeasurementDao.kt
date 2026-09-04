@@ -9,7 +9,8 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MultiAccountMeasurementDao {
-    @Query("SELECT * FROM measurements WHERE accountId = :ownerId AND weightKg = :weightKg " +
+    @Query("SELECT * FROM measurements WHERE accountId = :ownerId " +
+        "AND ROUND(weightKg, 3) = ROUND(:weightKg, 3) " +
         "AND measuredAtEpochSecond >= :minuteStart AND measuredAtEpochSecond < :minuteStart + 60 LIMIT 1")
     suspend fun findManualDuplicate(ownerId: String, weightKg: Double, minuteStart: Long): MeasurementEntity?
 

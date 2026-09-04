@@ -89,6 +89,14 @@ class ManualWeightRepositoryTest {
         assertEquals(MeasurementOrigin.MANUAL, latest?.origin)
     }
 
+    @Test fun duplicateComparisonUsesRoundedWeightsForHumanAndPetManualWeights() = runBlocking {
+        assertTrue(repository.save(request(weight = 4.1200000000000045)) is ManualWeightResult.Saved)
+        assertTrue(repository.save(request(weight = 4.12)) is ManualWeightResult.Duplicate)
+
+        repository.save(request(pet, weight = 10.040000000000001))
+        assertTrue(repository.save(request(pet, weight = 10.04)) is ManualWeightResult.Duplicate)
+    }
+
     @Test fun deletedOwnerFutureInvalidPrecisionAndCrossOwnerRequestReuseNeverInsert() = runBlocking {
         assertEquals(ManualWeightResult.Invalid, repository.save(request(time = now.plusSeconds(4))))
         assertEquals(ManualWeightResult.Invalid, repository.save(request(weight = 4.1251)))

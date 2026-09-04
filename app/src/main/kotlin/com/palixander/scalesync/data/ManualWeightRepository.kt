@@ -6,6 +6,7 @@ import com.palixander.scalesync.domain.ManualWeightOwner
 import com.palixander.scalesync.domain.ManualWeightRequest
 import com.palixander.scalesync.domain.ManualWeightResult
 import com.palixander.scalesync.domain.MeasurementOrigin
+import com.palixander.scalesync.domain.canonicalManualWeight
 import com.palixander.scalesync.domain.isValidManualWeight
 import java.time.Clock
 import java.time.Instant
@@ -53,7 +54,7 @@ class ManualWeightRepository(
         }
         if (database.petDao().getMeasurement(request.requestId) != null) return ManualWeightResult.Invalid
         if (!allowDuplicate) {
-            dao.findManualDuplicate(owner.accountId.value, request.weightKg, request.measuredAt.epochSecond)?.let {
+            dao.findManualDuplicate(owner.accountId.value, canonicalManualWeight(request.weightKg), request.measuredAt.epochSecond)?.let {
                 return ManualWeightResult.Duplicate(it.id)
             }
         }
@@ -101,7 +102,7 @@ class ManualWeightRepository(
         }
         if (database.multiAccountMeasurementDao().get(request.requestId) != null) return ManualWeightResult.Invalid
         if (!allowDuplicate) {
-            dao.findManualDuplicate(owner.petId.value, request.weightKg, request.measuredAt.epochSecond)?.let {
+            dao.findManualDuplicate(owner.petId.value, canonicalManualWeight(request.weightKg), request.measuredAt.epochSecond)?.let {
                 return ManualWeightResult.Duplicate(it.id)
             }
         }
