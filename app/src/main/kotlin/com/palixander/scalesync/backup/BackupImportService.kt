@@ -592,7 +592,7 @@ private fun BackupDocumentV1.toSnapshot(
             it.dogAdultWeightCategory)
     },
     petMeasurements = petMeasurements.map {
-        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
+        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg, it.origin)
     },
     )
 }
@@ -655,4 +655,5 @@ private fun BackupMeasurementV1.toEntity(
     healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
     ratingHeightCm = ratingHeightCm,
     ratingHeightOrigin = ratingHeightOrigin,
+    origin = origin,
 )

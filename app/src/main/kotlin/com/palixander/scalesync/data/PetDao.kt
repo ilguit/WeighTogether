@@ -24,10 +24,15 @@ data class PetWithLatestMeasurementRow(
     val latestFirstWeightKg: Double?,
     val latestSecondWeightKg: Double?,
     val latestPetWeightKg: Double?,
+    val latestOrigin: com.palixander.scalesync.domain.MeasurementOrigin?,
 )
 
 @Dao
 interface PetDao {
+    @Query("SELECT * FROM pet_measurements WHERE petId = :ownerId AND petWeightKg = :weightKg " +
+        "AND measuredAtEpochSecond >= :minuteStart AND measuredAtEpochSecond < :minuteStart + 60 LIMIT 1")
+    suspend fun findManualDuplicate(ownerId: String, weightKg: Double, minuteStart: Long): PetMeasurementEntity?
+
     @Query("SELECT * FROM pets ORDER BY createdAtEpochMillis ASC, id ASC")
     suspend fun getAllPetsForBackup(): List<PetEntity>
 
@@ -42,7 +47,7 @@ interface PetDao {
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
             m.secondWeightKg AS latestSecondWeightKg,
-            m.petWeightKg AS latestPetWeightKg
+            m.petWeightKg AS latestPetWeightKg, m.origin AS latestOrigin
         FROM pets p
         LEFT JOIN pet_measurements m ON m.id = (
             SELECT latest.id FROM pet_measurements latest

@@ -85,7 +85,7 @@ private class ExtendedHuaweiHealthGateway(
         val time = payload.measurement.measuredAtEpochMillis
         return buildHuaweiPointSpecs(payload).map { spec ->
             HiHealthPointData(spec.type, time, time, spec.value, DEFAULT_UNIT).apply {
-                metaData = spec.externalId
+                metaData = spec.metadata
             }
         }
     }
@@ -111,6 +111,7 @@ internal data class HuaweiPointSpec(
     val type: Int,
     val value: Double,
     val externalId: String,
+    val metadata: String = externalId,
 )
 
 internal fun buildHuaweiPointSpecs(payload: MeasurementSyncPayload): List<HuaweiPointSpec> {
@@ -119,6 +120,8 @@ internal fun buildHuaweiPointSpecs(payload: MeasurementSyncPayload): List<Huawei
         type = type,
         value = number,
         externalId = "${value.id}:huawei:$type",
+        metadata = "${value.id}:huawei:$type" +
+            if (value.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL) ";origin=MANUAL" else "",
     )
 
     return buildList {

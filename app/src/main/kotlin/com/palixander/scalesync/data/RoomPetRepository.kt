@@ -178,6 +178,7 @@ private fun PetMeasurement.toEntity(): PetMeasurementEntity = PetMeasurementEnti
     firstWeightKg = firstWeightKg,
     secondWeightKg = secondWeightKg,
     petWeightKg = petWeightKg,
+    origin = origin,
 )
 
 private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
@@ -200,9 +201,10 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
             id = measurementId,
             petId = id,
             measuredAtEpochSecond = requireNotNull(latestMeasuredAtEpochSecond),
-            firstWeightKg = requireNotNull(latestFirstWeightKg),
-            secondWeightKg = requireNotNull(latestSecondWeightKg),
+            firstWeightKg = latestFirstWeightKg,
+            secondWeightKg = latestSecondWeightKg,
             petWeightKg = requireNotNull(latestPetWeightKg),
+            origin = requireNotNull(latestOrigin),
         ).toDomain()
     }
     return PetWithLatestWeight(pet = pet, latestMeasurement = latest)

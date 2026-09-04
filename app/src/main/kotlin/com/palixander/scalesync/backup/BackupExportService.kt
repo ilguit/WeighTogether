@@ -81,7 +81,7 @@ private fun PetEntity.toBackup() = BackupPetV2(
 )
 
 private fun PetMeasurementEntity.toBackup() = BackupPetMeasurementV2(
-    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg,
+    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg, origin,
 )
 
 private fun AccountEntity.toBackup() = BackupAccountV1(
@@ -152,4 +152,5 @@ private fun MeasurementEntity.toBackup() = BackupMeasurementV1(
     healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
     ratingHeightCm = ratingHeightCm,
     ratingHeightOrigin = ratingHeightOrigin,
+    origin = origin,
 )

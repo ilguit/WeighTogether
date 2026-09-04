@@ -10,10 +10,11 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 4
+const val BACKUP_SCHEMA_VERSION: Int = 5
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
+const val BACKUP_SCHEMA_VERSION_V4: Int = 4
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -51,9 +52,10 @@ data class BackupPetMeasurementV2(
     val id: String,
     val petId: String,
     val measuredAtEpochSecond: Long,
-    val firstWeightKg: Double,
-    val secondWeightKg: Double,
+    val firstWeightKg: Double?,
+    val secondWeightKg: Double?,
     val petWeightKg: Double,
+    val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
 )
 
 data class BackupAccountV1(
@@ -124,6 +126,7 @@ data class BackupMeasurementV1(
     val deduplicationHash: String?,
     val huaweiSyncedCalculatedValues: String?,
     val healthConnectSyncedCalculatedValues: String?,
+    val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
     val ratingHeightCm: Double? = null,
     val ratingHeightOrigin: RatingHeightOrigin? = RatingHeightOrigin.CAPTURED,
 )

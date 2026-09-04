@@ -1,5 +1,6 @@
 package com.palixander.scalesync.data
 
+import com.palixander.scalesync.domain.MeasurementOrigin
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -307,6 +308,8 @@ data class MeasurementEntity(
     /** Whether [ratingHeightCm] was captured at measurement time or restored for legacy data. */
     @ColumnInfo(defaultValue = "'RESTORED_CURRENT_ACCOUNT'")
     val ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
+    @ColumnInfo(defaultValue = "'LEGACY'")
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     val values: MeasurementValues
         get() = checkNotNull(fullValues) { "Weight-only measurement $id has no composition values" }
@@ -467,6 +470,7 @@ fun BodyComposition.toEntity(
     deduplicationHash = deduplicationHash,
     ratingHeightCm = ratingHeightCm,
     ratingHeightOrigin = ratingHeightOrigin,
+    origin = MeasurementOrigin.SCALE,
 )
 
 fun RawScaleMeasurement.toWeightOnlyEntity(
@@ -509,6 +513,7 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     deduplicationHash = deduplicationHash,
     ratingHeightCm = ratingHeightCm,
     ratingHeightOrigin = ratingHeightOrigin,
+    origin = MeasurementOrigin.SCALE,
 )
 
 const val LEGACY_UNASSIGNED_ACCOUNT_ID: String = "00000000-0000-0000-0000-000000000000"

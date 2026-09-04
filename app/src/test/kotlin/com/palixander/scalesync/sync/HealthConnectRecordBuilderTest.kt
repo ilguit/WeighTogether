@@ -15,6 +15,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HealthConnectRecordBuilderTest {
+    @Test fun manualWeightMetadataHasNoScaleDeviceAndStableIdentity() {
+        val row = healthWeightOnlyMeasurement().copy(origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL)
+        val record = buildHealthConnectRecords(MeasurementSyncPayload(row, true), UTC).single()
+        assertEquals(androidx.health.connect.client.records.metadata.Metadata.RECORDING_METHOD_MANUAL_ENTRY, record.metadata.recordingMethod)
+        org.junit.Assert.assertNull(record.metadata.device)
+        assertEquals("measurement-1:weight", record.metadata.clientRecordId)
+    }
+
     @Test
     fun `weight-only payload creates one weight record and needs one permission`() {
         val payload = MeasurementSyncPayload(healthWeightOnlyMeasurement(), includesWeight = true)
