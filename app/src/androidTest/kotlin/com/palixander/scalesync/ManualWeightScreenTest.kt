@@ -101,6 +101,10 @@ class ManualWeightScreenTest {
         compose.onNodeWithTag(ManualWeightTags.Weight).performScrollTo().performTextInput("4,1251")
         compose.onNodeWithTag(ManualWeightTags.Save).performScrollTo().assertIsNotEnabled()
         compose.onNodeWithTag(ManualWeightTags.Weight).performScrollTo().performTextReplacement("4,125")
+        compose.waitForIdle()
+        val screenshot = InstrumentationRegistry.getInstrumentation().uiAutomation.takeScreenshot()
+        val file = java.io.File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "manual-weight-narrow-large-font-keyboard.png")
+        file.outputStream().use { screenshot.compress(Bitmap.CompressFormat.PNG, 100, it) }
         compose.onNodeWithTag(ManualWeightTags.Save).performScrollTo().assertIsEnabled().assertHeightIsAtLeast(48.dp)
         compose.onNodeWithTag(ManualWeightTags.Back).performScrollTo().performClick()
         compose.runOnIdle { assertEquals(1, backCount) }

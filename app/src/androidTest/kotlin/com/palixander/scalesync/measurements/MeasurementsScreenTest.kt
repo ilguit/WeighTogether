@@ -72,11 +72,21 @@ class MeasurementsScreenTest {
         ))
         composeRule.setContent { ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) } }
         composeRule.onNodeWithTag("summary-manual-origin").assertIsDisplayed()
+        captureManualWeightEvidence("manual-weight-summary")
         composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
         composeRule.onNodeWithTag("history-manual-origin-manual").assertIsDisplayed().performClick()
         composeRule.onNodeWithText("Введено вручную").assertIsDisplayed()
         composeRule.onNodeWithTag("manual-origin-dismiss").performClick()
         composeRule.onNodeWithTag("history-manual-origin-manual").assertIsFocused()
+        captureManualWeightEvidence("manual-weight-history")
+    }
+
+    private fun captureManualWeightEvidence(name: String) {
+        composeRule.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val bitmap = instrumentation.uiAutomation.takeScreenshot()
+        val file = java.io.File(instrumentation.targetContext.cacheDir, "$name.png")
+        file.outputStream().use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }
     }
 
     @Test
