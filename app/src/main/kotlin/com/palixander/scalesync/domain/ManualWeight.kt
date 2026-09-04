@@ -1,8 +1,8 @@
 package com.palixander.scalesync.domain
 
 import java.math.BigDecimal
-import java.math.RoundingMode
 import java.time.Instant
+import java.util.Locale
 
 sealed interface ManualWeightOwner {
     data class Human(val accountId: AccountId) : ManualWeightOwner
@@ -33,7 +33,8 @@ fun parseManualWeight(input: String): Double? {
 fun isValidManualWeight(weightKg: Double): Boolean =
     weightKg.isFinite() && weightKg > 0.0 && BigDecimal.valueOf(weightKg).stripTrailingZeros().scale() <= 3
 
-fun canonicalManualWeight(weightKg: Double): Double = BigDecimal.valueOf(weightKg)
-    .setScale(3, RoundingMode.HALF_UP)
-    .stripTrailingZeros()
-    .toDouble()
+/** Compare the same rounded Double that the weight UI displays, including binary ties. */
+fun canonicalManualWeight(weightKg: Double): Double {
+    require(weightKg.isFinite())
+    return formatWeightNumber(weightKg, Locale.ROOT).toDouble()
+}

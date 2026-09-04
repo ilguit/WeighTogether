@@ -90,11 +90,67 @@ class ManualWeightRepositoryTest {
     }
 
     @Test fun duplicateComparisonUsesRoundedWeightsForHumanAndPetManualWeights() = runBlocking {
-        assertTrue(repository.save(request(weight = 4.1200000000000045)) is ManualWeightResult.Saved)
-        assertTrue(repository.save(request(weight = 4.12)) is ManualWeightResult.Duplicate)
+        val duplicatedTime = Instant.ofEpochSecond(-120)
+        database.multiAccountMeasurementDao().insert(
+            MeasurementEntity(
+                id = "existing-human-raw-weight",
+                deviceAddress = "scale",
+                measuredAtEpochSecond = duplicatedTime.epochSecond,
+                measurementType = MeasurementType.WEIGHT_ONLY,
+                rawPayloadHex = "",
+                weightKg = 4.1200000000000045,
+                rawWeight = 824,
+                impedanceOhm = null, bmi = null, bodyFatPercent = null, bodyFatMassKg = null,
+                waterPercent = null, waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
+                boneMassKg = null, proteinPercent = null, proteinMassKg = null, visceralFatLevel = null,
+                basalMetabolicRateKcal = null, metabolicAge = null, leanBodyMassKg = null, algorithmVersion = null,
+                accountId = "human",
+                externalSyncPolicy = ExternalSyncPolicy.AUTO.name,
+                origin = MeasurementOrigin.SCALE,
+                createdAtEpochMillis = 100,
+            ),
+        )
+        assertTrue(repository.save(request(weight = 4.12, time = duplicatedTime)) is ManualWeightResult.Duplicate)
 
-        repository.save(request(pet, weight = 10.040000000000001))
-        assertTrue(repository.save(request(pet, weight = 10.04)) is ManualWeightResult.Duplicate)
+        database.petDao().insertMeasurement(
+            PetMeasurementEntity(
+                id = "existing-pet-raw-weight",
+                petId = "pet",
+                measuredAtEpochSecond = duplicatedTime.epochSecond,
+                firstWeightKg = 70.0,
+                secondWeightKg = 80.04,
+                petWeightKg = 80.04 - 70.0,
+                origin = MeasurementOrigin.SCALE,
+            ),
+        )
+        assertTrue(repository.save(request(pet, weight = 10.04, time = duplicatedTime)) is ManualWeightResult.Duplicate)
+
+        val halfEvenDuplicateTime = Instant.ofEpochSecond(-180)
+        database.multiAccountMeasurementDao().insert(
+            MeasurementEntity(
+                id = "existing-human-half-even",
+                deviceAddress = "scale",
+                measuredAtEpochSecond = halfEvenDuplicateTime.epochSecond,
+                measurementType = MeasurementType.WEIGHT_ONLY,
+                rawPayloadHex = "",
+                weightKg = 4.0625,
+                rawWeight = 813,
+                impedanceOhm = null, bmi = null, bodyFatPercent = null, bodyFatMassKg = null,
+                waterPercent = null, waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
+                boneMassKg = null, proteinPercent = null, proteinMassKg = null, visceralFatLevel = null,
+                basalMetabolicRateKcal = null, metabolicAge = null, leanBodyMassKg = null, algorithmVersion = null,
+                accountId = "human",
+                externalSyncPolicy = ExternalSyncPolicy.AUTO.name,
+                origin = MeasurementOrigin.SCALE,
+                createdAtEpochMillis = 100,
+            ),
+        )
+        val displayed = com.palixander.scalesync.measurements.formatWeight(4.0625, java.util.Locale.US).toDouble()
+        assertTrue(repository.save(request(weight = displayed, time = halfEvenDuplicateTime)) is ManualWeightResult.Duplicate)
+        assertTrue(repository.save(request(weight = 4.063, time = halfEvenDuplicateTime)) is ManualWeightResult.Saved)
+        assertTrue(repository.save(request(weight = displayed, time = halfEvenDuplicateTime.minusSeconds(60))) is ManualWeightResult.Saved)
+        assertTrue(repository.save(request(ManualWeightOwner.Human(AccountId("other")), weight = displayed,
+            time = halfEvenDuplicateTime)) is ManualWeightResult.Saved)
     }
 
     @Test fun deletedOwnerFutureInvalidPrecisionAndCrossOwnerRequestReuseNeverInsert() = runBlocking {

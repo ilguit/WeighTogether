@@ -54,9 +54,10 @@ class ManualWeightRepository(
         }
         if (database.petDao().getMeasurement(request.requestId) != null) return ManualWeightResult.Invalid
         if (!allowDuplicate) {
-            dao.findManualDuplicate(owner.accountId.value, canonicalManualWeight(request.weightKg), request.measuredAt.epochSecond)?.let {
-                return ManualWeightResult.Duplicate(it.id)
-            }
+            val canonicalWeight = canonicalManualWeight(request.weightKg)
+            dao.findManualDuplicateCandidates(owner.accountId.value, request.measuredAt.epochSecond)
+                .firstOrNull { runCatching { canonicalManualWeight(it.weightKg) }.getOrNull() == canonicalWeight }
+                ?.let { return ManualWeightResult.Duplicate(it.id) }
         }
         val isPrimary = database.appStateDao().get()?.primaryAccountId == owner.accountId.value
         val measurement = MeasurementEntity(
@@ -102,9 +103,10 @@ class ManualWeightRepository(
         }
         if (database.multiAccountMeasurementDao().get(request.requestId) != null) return ManualWeightResult.Invalid
         if (!allowDuplicate) {
-            dao.findManualDuplicate(owner.petId.value, canonicalManualWeight(request.weightKg), request.measuredAt.epochSecond)?.let {
-                return ManualWeightResult.Duplicate(it.id)
-            }
+            val canonicalWeight = canonicalManualWeight(request.weightKg)
+            dao.findManualDuplicateCandidates(owner.petId.value, request.measuredAt.epochSecond)
+                .firstOrNull { runCatching { canonicalManualWeight(it.petWeightKg) }.getOrNull() == canonicalWeight }
+                ?.let { return ManualWeightResult.Duplicate(it.id) }
         }
         dao.insertMeasurement(
             PetMeasurementEntity(request.requestId, owner.petId.value, request.measuredAt.epochSecond,

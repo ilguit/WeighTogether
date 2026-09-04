@@ -29,9 +29,10 @@ data class PetWithLatestMeasurementRow(
 
 @Dao
 interface PetDao {
-    @Query("SELECT * FROM pet_measurements WHERE petId = :ownerId AND ROUND(petWeightKg, 3) = ROUND(:weightKg, 3) " +
-        "AND measuredAtEpochSecond >= :minuteStart AND measuredAtEpochSecond < :minuteStart + 60 LIMIT 1")
-    suspend fun findManualDuplicate(ownerId: String, weightKg: Double, minuteStart: Long): PetMeasurementEntity?
+    @Query("SELECT * FROM pet_measurements " +
+        "WHERE petId = :ownerId " +
+        "AND measuredAtEpochSecond >= :minuteStart AND measuredAtEpochSecond < :minuteStart + 60")
+    suspend fun findManualDuplicateCandidates(ownerId: String, minuteStart: Long): List<PetMeasurementEntity>
 
     @Query("SELECT * FROM pets ORDER BY createdAtEpochMillis ASC, id ASC")
     suspend fun getAllPetsForBackup(): List<PetEntity>
