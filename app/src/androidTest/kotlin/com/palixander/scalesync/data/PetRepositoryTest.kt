@@ -99,8 +99,8 @@ class PetRepositoryTest {
 
         val stored = database.petDao().getMeasurement(latest.id)
         assertNotNull(stored)
-        assertEquals(70.0, stored!!.firstWeightKg, 0.0)
-        assertEquals(66.5, stored.secondWeightKg, 0.0)
+        assertEquals(70.0, requireNotNull(stored!!.firstWeightKg), 0.0)
+        assertEquals(66.5, requireNotNull(stored.secondWeightKg), 0.0)
         assertEquals(3.5, stored.petWeightKg, 0.0)
         val observed = repository.observePets().first().single()
         assertEquals(3.5, observed.latestPetWeightKg!!, 0.0)
