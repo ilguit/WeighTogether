@@ -625,6 +625,7 @@ internal fun MeasurementEntity.toMeasurementUiItem(
             huaweiError = huaweiError,
         ),
         isManuallyEdited = isManuallyEdited,
+        origin = origin,
         hasProfileSyncMismatch = hasProfileSyncMismatch,
         isOperationInProgress = isOperationInProgress,
     ).withReferencePresentation(

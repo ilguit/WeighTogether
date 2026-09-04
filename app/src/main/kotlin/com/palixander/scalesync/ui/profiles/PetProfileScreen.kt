@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -210,7 +212,10 @@ internal fun PetProfileScreen(
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(measurement.measuredAtText)
-                                    Text(measurement.weightText, style = MaterialTheme.typography.titleMedium)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                                        ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
+                                    }
                                 }
                                 HuaweiIconButton(
                                     icon = HuaweiIcons.Delete,

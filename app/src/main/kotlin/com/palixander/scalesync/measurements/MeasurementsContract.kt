@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.domain.MeasurementOrigin
+
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -243,6 +245,7 @@ data class MeasurementUiItem(
     val ratingHeightCm: Double? = null,
     val referenceAge: Int? = null,
     val hasRestoredRatingHeight: Boolean = false,
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     init {
         require(presentationKey.isNotBlank()) { "Presentation key must not be blank" }

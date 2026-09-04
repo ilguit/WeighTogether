@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.domain.MeasurementOrigin
+
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartMetricOption
 import com.palixander.scalesync.charts.ChartPoint
@@ -43,6 +45,7 @@ data class PetHistoryMeasurementUi(
     val measuredAtText: String,
     val weightKg: Double,
     val weightText: String,
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 )
 
 data class PetHistoryDeleteConfirmation(
@@ -266,6 +269,7 @@ internal fun petHistoryPresentation(
             measuredAtEpochSecond = measurement.measuredAt.epochSecond,
             measuredAtText = formatMeasurementDateTime(measurement.measuredAt, zoneId, locale),
             weightKg = measurement.petWeightKg,
+            origin = measurement.origin,
             weightText = formatChartCurrentValue(measurement.petWeightKg, PetWeightChartMetric, locale),
         )
     }

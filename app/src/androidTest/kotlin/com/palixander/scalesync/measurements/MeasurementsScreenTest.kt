@@ -63,6 +63,23 @@ class MeasurementsScreenTest {
     val composeRule = createComposeRule()
 
     @Test
+    fun manualOriginRemainsVisibleInSummaryAndCollapsedEditedHistory() {
+        val item = sampleItem("manual", "2026-08-15T12:42:00Z", 4.125, syncedSync(),
+            type = MeasurementUiType.WEIGHT_ONLY, isManuallyEdited = true,
+        ).copy(origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL)
+        var state by mutableStateOf(MeasurementsUiState(
+            isLoading = false, measurements = listOf(item), summary = buildMeasurementSummary(listOf(item)),
+        ))
+        composeRule.setContent { ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) } }
+        composeRule.onNodeWithTag("summary-manual-origin").assertIsDisplayed()
+        composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
+        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Введено вручную").assertIsDisplayed()
+        composeRule.onNodeWithTag("manual-origin-dismiss").performClick()
+        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsFocused()
+    }
+
+    @Test
     fun accountSelectorIsVisibleOnlyOnSummaryAndHistory() {
         var state by mutableStateOf(sampleState())
 

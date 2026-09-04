@@ -126,7 +126,7 @@ internal fun formatHomeKgChartMarker(
         append('\n')
         append(entry.label)
         append(": ")
-        append(number.format(entry.valueKg))
+        append(if (entry.key == HomeKgChartMetric.WEIGHT.key) formatWeight(entry.valueKg, locale) else number.format(entry.valueKg))
         append(" кг")
     }
 }
