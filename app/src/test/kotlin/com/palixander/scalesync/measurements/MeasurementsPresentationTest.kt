@@ -181,7 +181,7 @@ class MeasurementsPresentationTest {
 
     @Test
     fun syncAggregateUsesAvailableErrorPendingSyncedPriority() {
-        val localWithError = sync(health = "FAILED", huawei = "LOCAL_ONLY")
+        val localWithError = sync(health = "FAILED")
 
         assertEquals(MeasurementSyncPresentationState.ERROR, localWithError.state)
         assertTrue(localWithError.canRetry)
@@ -271,7 +271,7 @@ class MeasurementsPresentationTest {
         id = id,
         measuredAtEpochSecond = measuredAt,
         values = values,
-        sync = sync(health = "SYNCED", huawei = "DISABLED"),
+        sync = sync(health = "SYNCED"),
         type = type,
     )
 
