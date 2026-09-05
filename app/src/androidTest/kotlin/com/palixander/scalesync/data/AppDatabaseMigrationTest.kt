@@ -451,9 +451,6 @@ class AppDatabaseMigrationTest {
         val room = AppDatabase.build(context, MIGRATION_4_5_DB)
         openedDatabase = room
         val beforeRecalculation = requireNotNull(room.measurementDao().get("measurement"))
-        val legacyHuaweiSnapshot = requireNotNull(beforeRecalculation.fullValues)
-            .toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
-            .encode()
         val repository = RoomAccountRepository(
             database = room,
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
@@ -474,16 +471,14 @@ class AppDatabaseMigrationTest {
         )
 
         val recalculated = requireNotNull(room.measurementDao().get("measurement"))
-        assertEquals(legacyHuaweiSnapshot, recalculated.huaweiSyncedCalculatedValues)
         assertTrue(recalculated.healthConnectSyncedCalculatedValues == null)
-        assertEquals(SyncStatus.SYNCED.name, recalculated.huaweiStatus)
         assertEquals(SyncStatus.FAILED.name, recalculated.healthConnectStatus)
         assertEquals("retry", recalculated.healthConnectError)
         assertEquals(beforeRecalculation.rawPayloadHex, recalculated.rawPayloadHex)
         assertEquals(beforeRecalculation.rawWeight, recalculated.rawWeight)
         assertEquals(beforeRecalculation.impedanceOhm, recalculated.impedanceOhm)
         assertTrue(beforeRecalculation.fullValues != recalculated.fullValues)
-        assertTrue(recalculated.hasProfileSyncMismatch)
+        assertTrue(!recalculated.hasProfileSyncMismatch)
     }
 
     @Test
@@ -585,13 +580,6 @@ class AppDatabaseMigrationTest {
         dao.upsertScaleMeasurement(partial)
         dao.upsertScaleMeasurement(fullEntity(partial))
 
-        dao.applyHuaweiSyncResult(
-            id = partial.id,
-            expectedMeasurementType = MeasurementType.WEIGHT_ONLY.name,
-            status = SyncStatus.SYNCED.name,
-            error = null,
-            markWeightSynced = true,
-        )
         dao.applyHealthConnectSyncResult(
             id = partial.id,
             expectedMeasurementType = MeasurementType.WEIGHT_ONLY.name,
@@ -602,56 +590,39 @@ class AppDatabaseMigrationTest {
 
         val stored = dao.get(partial.id)
         assertEquals(MeasurementType.FULL, stored?.measurementType)
-        assertEquals(SyncStatus.PENDING.name, stored?.huaweiStatus)
         assertEquals(SyncStatus.PENDING.name, stored?.healthConnectStatus)
-        assertTrue(stored?.huaweiWeightSynced == true)
         assertTrue(stored?.healthConnectWeightSynced == true)
     }
 
     @Test
-    fun directionSpecificPendingQueriesIgnoreOtherProvidersLocalOnlyStatus() = runBlocking {
+    fun pendingQueriesExcludeHealthConnectLocalOnlyRows() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
         val dao = database.measurementDao()
         dao.insert(
             fullEntity(weightOnlyEntity(200)).copy(
-                huaweiStatus = SyncStatus.LOCAL_ONLY.name,
                 healthConnectStatus = SyncStatus.FAILED.name,
             ),
         )
         dao.insert(
             fullEntity(weightOnlyEntity(201)).copy(
-                huaweiStatus = SyncStatus.BLOCKED.name,
                 healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
             ),
         )
 
         assertEquals(listOf("new-200"), dao.idsNeedingHealthConnectSync())
-        assertEquals(listOf("new-201"), dao.idsNeedingHuaweiSync())
-        assertEquals(listOf("new-200", "new-201"), dao.idsNeedingSync())
+        assertEquals(listOf("new-200"), dao.idsNeedingSync())
     }
 
     @Test
-    fun successfulSyncResultsStoreCalculatedSnapshotsPerDestination() = runBlocking {
+    fun successfulSyncResultStoresHealthConnectCalculatedSnapshot() = runBlocking {
         val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
         openedDatabase = database
         val dao = database.measurementDao()
         val measurement = fullEntity(weightOnlyEntity(250))
         dao.insert(measurement)
-        val huaweiSnapshot = measurement.currentCalculatedValuesSnapshot(
-            ExternalSyncDestination.HUAWEI,
-        )!!.encode()
         val healthConnectSnapshot = measurement.copy(bodyFatPercent = 24.0)
             .currentCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT)!!.encode()
-
-        dao.applyHuaweiSyncResult(
-            id = measurement.id,
-            expectedMeasurementType = MeasurementType.FULL.name,
-            status = SyncStatus.SYNCED.name,
-            error = null,
-            markWeightSynced = true,
-            syncedCalculatedValues = huaweiSnapshot,
-        )
         dao.applyHealthConnectSyncResult(
             id = measurement.id,
             expectedMeasurementType = MeasurementType.FULL.name,
@@ -662,7 +633,6 @@ class AppDatabaseMigrationTest {
         )
 
         val stored = dao.get(measurement.id)!!
-        assertEquals(huaweiSnapshot, stored.huaweiSyncedCalculatedValues)
         assertEquals(healthConnectSnapshot, stored.healthConnectSyncedCalculatedValues)
         assertTrue(stored.hasProfileSyncMismatch)
     }
@@ -677,7 +647,6 @@ class AppDatabaseMigrationTest {
 
         val staleEditedPartial = partial.copy(
             weightKg = 69.25,
-            huaweiStatus = SyncStatus.LOCAL_ONLY.name,
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         )
         dao.upsertScaleMeasurement(fullEntity(partial))
