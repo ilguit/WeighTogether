@@ -187,7 +187,7 @@ class MultiAccountPersistenceTest {
                 healthConnectStatus = SyncStatus.SYNCED.name,
             )
             assertEquals(1, database.measurementDao().update(entity))
-            huaweiStatus to entity.id
+            entity.id
         }
 
         assertEquals(emptyList<String>(), dao.eligiblePendingSyncIds(account.id.value))
