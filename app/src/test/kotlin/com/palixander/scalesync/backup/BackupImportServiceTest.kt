@@ -29,7 +29,7 @@ class BackupImportServiceTest {
     private val emptySettings = PortableProfileSettings(null, null, false, null, null)
 
     @Test
-    fun `v5 import retains manual provenance and flags origin conflicts`() {
+    fun `v5 import retains manual provenance and keeps it on merge collisions`() {
         val document = document().copy(
             measurements = listOf(document().measurements.single().copy(
                 origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
@@ -45,11 +45,19 @@ class BackupImportServiceTest {
         assertEquals(4.125, imported.result.petMeasurements.single().toDomain().petWeightKg, 0.0)
         val repeated = service.preview(document, imported.result, emptySettings, BackupImportMode.MERGE)
         assertEquals(0, repeated.counts.measurementsAdded)
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(document.copy(measurements = listOf(document.measurements.single().copy(
+        val changedOrigin = service.preview(
+            document.copy(measurements = listOf(document.measurements.single().copy(
                 origin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
-            ))), imported.result, emptySettings, BackupImportMode.MERGE)
-        }
+            ))),
+            imported.result,
+            emptySettings,
+            BackupImportMode.MERGE,
+        )
+        assertEquals(1, changedOrigin.counts.measurementsSkipped)
+        assertEquals(
+            com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
+            changedOrigin.result.measurements.single().origin,
+        )
     }
 
     @Test
@@ -89,30 +97,157 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `merge blocks incompatible ids names fingerprints and hashes before producing a result`() {
+    fun `merge keeps local rows on matching ids names fingerprints and hashes`() {
         val base = service.preview(document(), emptySnapshot(), emptySettings, BackupImportMode.MERGE).result
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(document(accountDisplayName = "Changed"), base, emptySettings, BackupImportMode.MERGE)
-        }.also { assertEquals(BackupImportConflict.AccountId("a"), it.conflicts.first()) }
+        val changedAccount = service.preview(
+            document(accountDisplayName = "Changed"),
+            base,
+            emptySettings,
+            BackupImportMode.MERGE,
+        )
+        assertEquals(base.accounts.single(), changedAccount.result.accounts.single())
+        assertEquals(1, changedAccount.counts.accountsSkipped)
 
         val renamedId = document().copy(accounts = listOf(document().accounts.single().copy(id = "other")),
             appState = document().appState.copy(primaryAccountId = "other"),
-            measurements = listOf(document().measurements.single().copy(id = "other-m", accountId = "other")))
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(renamedId, base, emptySettings, BackupImportMode.MERGE)
-        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.AccountName("account"))) }
+            measurements = listOf(document().measurements.single().copy(
+                id = "other-m",
+                fingerprint = "other-f",
+                deduplicationHash = "other-d",
+                accountId = "other",
+            )))
+        val matchedByName = service.preview(renamedId, base, emptySettings, BackupImportMode.MERGE)
+        assertEquals(listOf("a"), matchedByName.result.accounts.map { it.id })
+        assertEquals("a", matchedByName.result.measurements.last().accountId)
 
         val collision = document().copy(measurements = listOf(document().measurements.single().copy(id = "new", weightKg = 71.0)))
+        val skippedCollision = service.preview(collision, base, emptySettings, BackupImportMode.MERGE)
+        assertEquals(base.measurements, skippedCollision.result.measurements)
+        assertEquals(1, skippedCollision.counts.measurementsSkipped)
+    }
+
+    @Test
+    fun `merge remaps matched owners and stays idempotent with correct counts`() {
+        val localAccount = document().accounts.single().let {
+            AccountEntity(
+                id = "local-account",
+                displayName = it.displayName,
+                normalizedName = it.normalizedName,
+                heightCm = 190.0,
+                birthDateEpochDay = null,
+                sex = null,
+                isProfileComplete = false,
+                createdAtEpochMillis = 10,
+                updatedAtEpochMillis = 20,
+            )
+        }
+        val localPet = PetEntity("local-pet", "Cat", "cat", PetSpecies.CAT, 10, 20)
+        val current = BackupDatabaseSnapshot(
+            accounts = listOf(localAccount),
+            appState = AppStateEntity(primaryAccountId = null),
+            measurements = emptyList(),
+            pets = listOf(localPet),
+            petMeasurements = emptyList(),
+        )
+        val incoming = document().copy(
+            accounts = listOf(document().accounts.single().copy(id = "remote-account")),
+            appState = document().appState.copy(primaryAccountId = "remote-account"),
+            measurements = listOf(document().measurements.single().copy(
+                id = "imported-measurement",
+                fingerprint = "imported-fingerprint",
+                deduplicationHash = "imported-hash",
+                accountId = "remote-account",
+            )),
+            pets = listOf(BackupPetV2("remote-pet", "Cat", "cat", PetSpecies.DOG, 1, 2)),
+            petMeasurements = listOf(BackupPetMeasurementV2("imported-pet-measurement", "remote-pet", 3, 70.0, 74.0, 4.0)),
+        )
+
+        val imported = service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        val repeated = service.preview(incoming, imported.result, emptySettings, BackupImportMode.MERGE)
+
+        assertEquals(localAccount, imported.result.accounts.single())
+        assertEquals("local-account", imported.result.appState.primaryAccountId)
+        assertEquals("local-account", imported.result.measurements.single().accountId)
+        assertEquals(localPet, imported.result.pets.single())
+        assertEquals("local-pet", imported.result.petMeasurements.single().petId)
+        assertEquals(BackupImportCounts(0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 0), imported.counts)
+        assertEquals(BackupImportCounts(0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0), repeated.counts)
+        assertEquals(imported.result, repeated.result)
+    }
+
+    @Test
+    fun `merge rejects account pet and measurement keys that point to different local entities`() {
+        val base = service.preview(
+            document().copy(
+                accounts = document().accounts + document().accounts.single().copy(
+                    id = "b",
+                    displayName = "Second",
+                    normalizedName = "second",
+                ),
+                measurements = document().measurements + document().measurements.single().copy(
+                    id = "m2",
+                    fingerprint = "f2",
+                    deduplicationHash = "d2",
+                    accountId = "b",
+                ),
+                pets = listOf(
+                    BackupPetV2("p1", "Cat", "cat", PetSpecies.CAT, 1, 2),
+                    BackupPetV2("p2", "Dog", "dog", PetSpecies.DOG, 1, 2),
+                ),
+            ),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+
         assertThrows(BackupImportConflicts::class.java) {
-            service.preview(collision, base, emptySettings, BackupImportMode.MERGE)
+            service.preview(
+                document().copy(
+                    accounts = listOf(document().accounts.single().copy(
+                        displayName = "Second",
+                        normalizedName = "second",
+                    )),
+                ),
+                base,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
         }.also {
-            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementFingerprint("f")))
-            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementDeduplicationHash("d")))
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.AccountId("a")))
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.AccountName("second")))
+        }
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                document().copy(measurements = listOf(document().measurements.single().copy(
+                    fingerprint = "f2",
+                ))),
+                base,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }.also {
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementId("m")))
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.MeasurementFingerprint("f2")))
+        }
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                document().copy(
+                    pets = listOf(BackupPetV2("p1", "Dog", "dog", PetSpecies.CAT, 1, 2)),
+                ),
+                base,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }.also {
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p1")))
+            assertEquals(true, it.conflicts.contains(BackupImportConflict.PetName("dog")))
         }
     }
 
     @Test
-    fun `pet merge skips identical rows and rejects id and normalized name conflicts`() {
+    fun `pet merge keeps local rows on matching id or normalized name`() {
         val petDocument = document().copy(
             pets = listOf(BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 3, 70.0, 74.0, 4.0)),
@@ -122,35 +257,33 @@ class BackupImportServiceTest {
         assertEquals(1, repeated.counts.petsSkipped)
         assertEquals(1, repeated.counts.petMeasurementsSkipped)
 
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(
-                petDocument.copy(pets = listOf(petDocument.pets.single().copy(species = PetSpecies.DOG))),
-                imported.result,
-                emptySettings,
-                BackupImportMode.MERGE,
-            )
-        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p"))) }
+        val changedById = service.preview(
+            petDocument.copy(pets = listOf(petDocument.pets.single().copy(species = PetSpecies.DOG))),
+            imported.result,
+            emptySettings,
+            BackupImportMode.MERGE,
+        )
+        assertEquals(PetSpecies.CAT, changedById.result.pets.single().species)
 
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(
-                petDocument.copy(pets = listOf(petDocument.pets.single().copy(
-                    sex = PetSex.FEMALE,
-                    breedId = "external:cat:future",
-                    birthYear = 2020,
-                ))),
-                imported.result,
-                emptySettings,
-                BackupImportMode.MERGE,
-            )
-        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetId("p"))) }
+        val changedProfileById = service.preview(
+            petDocument.copy(pets = listOf(petDocument.pets.single().copy(
+                sex = PetSex.FEMALE,
+                breedId = "external:cat:future",
+                birthYear = 2020,
+            ))),
+            imported.result,
+            emptySettings,
+            BackupImportMode.MERGE,
+        )
+        assertEquals(null, changedProfileById.result.pets.single().sex)
 
         val renamed = petDocument.copy(
             pets = listOf(petDocument.pets.single().copy(id = "other")),
             petMeasurements = listOf(petDocument.petMeasurements.single().copy(id = "other-pm", petId = "other")),
         )
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(renamed, imported.result, emptySettings, BackupImportMode.MERGE)
-        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetName("cat"))) }
+        val matchedByName = service.preview(renamed, imported.result, emptySettings, BackupImportMode.MERGE)
+        assertEquals(listOf("p"), matchedByName.result.pets.map { it.id })
+        assertEquals("p", matchedByName.result.petMeasurements.last().petId)
     }
 
     @Test
@@ -207,7 +340,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `pet measurement id conflict is rejected and replace removes old pet graph`() {
+    fun `pet measurement id collision keeps local row and replace removes old pet graph`() {
         val current = BackupDatabaseSnapshot(
             emptyList(),
             AppStateEntity(),
@@ -219,9 +352,9 @@ class BackupImportServiceTest {
             pets = listOf(BackupPetV2("new", "New", "new", PetSpecies.CAT, 4, 5)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "new", 6, 70.0, 74.0, 4.0)),
         )
-        assertThrows(BackupImportConflicts::class.java) {
-            service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
-        }.also { assertEquals(true, it.conflicts.contains(BackupImportConflict.PetMeasurementId("pm"))) }
+        val merged = service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        assertEquals(current.petMeasurements, merged.result.petMeasurements)
+        assertEquals(1, merged.counts.petMeasurementsSkipped)
 
         val replacement = service.preview(incoming, current, emptySettings, BackupImportMode.REPLACE)
         assertEquals(listOf("new"), replacement.result.pets.map { it.id })
