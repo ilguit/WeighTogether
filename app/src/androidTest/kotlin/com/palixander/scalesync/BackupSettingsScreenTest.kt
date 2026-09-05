@@ -29,7 +29,6 @@ class BackupSettingsScreenTest {
         compose.setContent {
             val destination = remember { mutableStateOf(SettingsDestination.ROOT) }
             SettingsScreen(MainUiState(), SettingsCallbacks(
-                onHuaweiAuthorization = {}, onHuaweiPermissionRefresh = {},
                 onHealthConnectAuthorization = {}, onHealthConnectAccessManagement = {},
                 onManualScan = {}, onReliabilityMode = {},
                 openBatterySettings = {}, openApplicationSettings = {},
@@ -102,8 +101,6 @@ class BackupSettingsScreenTest {
     }
 
     private fun callbacks() = SettingsCallbacks(
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualScan = {},

@@ -3,7 +3,3 @@ issue: 123
 userVisible: true
 text: Краткое описание изменения для пользователя
 # reason: Краткая техническая причина исключения из пользовательских заметок
-# Optional; omit to apply to both flavors.
-flavors:
-  - personal
-  - huaweiEnterprise

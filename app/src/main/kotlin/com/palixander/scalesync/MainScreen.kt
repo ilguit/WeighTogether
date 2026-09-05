@@ -338,8 +338,6 @@ fun ScaleSyncApp(
         onProfileSexChanged = {},
         settingsCallbacks = SettingsCallbacks(
             onOpenChangelog = { currentDestination = AppDestination.CHANGELOG },
-            onHuaweiAuthorization = viewModel::authorizeHuawei,
-            onHuaweiPermissionRefresh = viewModel::refreshHuaweiAuthorization,
             onHealthConnectAuthorization = requestHealthConnectPermissions,
             onHealthConnectAccessManagement = openHealthConnectAccessManagement,
             onManualScan = viewModel::toggleManualScan,
@@ -370,7 +368,6 @@ fun ScaleSyncApp(
             onConfirmDeletePet = viewModel::confirmDeletePet,
             onDismissPetManagement = viewModel::dismissPetManagement,
             onDisableHealthConnect = viewModel::disableHealthConnect,
-            onDisableHuawei = viewModel::disableHuawei,
             onForgetScale = viewModel::forgetScale,
         ),
         resolverCallbacks = MeasurementResolverCallbacks(

@@ -28,18 +28,18 @@ assert_excludes() {
     fi
 }
 
-assemble_graph="$(task_graph :app:assemblePersonalDebug)"
-assert_contains "$assemble_graph" verifyPersonalDebugReleaseMetadata
-assert_contains "$assemble_graph" packagePersonalDebug
+assemble_graph="$(task_graph :app:assembleDebug)"
+assert_contains "$assemble_graph" verifyDebugReleaseMetadata
+assert_contains "$assemble_graph" packageDebug
 
-package_graph="$(task_graph :app:packagePersonalDebug)"
-assert_contains "$package_graph" verifyPersonalDebugReleaseMetadata
+package_graph="$(task_graph :app:packageDebug)"
+assert_contains "$package_graph" verifyDebugReleaseMetadata
 
-unit_graph="$(task_graph :app:testPersonalDebugUnitTest)"
-assert_excludes "$unit_graph" verifyPersonalDebugReleaseMetadata
+unit_graph="$(task_graph :app:testDebugUnitTest)"
+assert_excludes "$unit_graph" verifyDebugReleaseMetadata
 
-lint_graph="$(task_graph :app:lintPersonalDebug)"
-assert_excludes "$lint_graph" verifyPersonalDebugReleaseMetadata
+lint_graph="$(task_graph :app:lintDebug)"
+assert_excludes "$lint_graph" verifyDebugReleaseMetadata
 
 mode_init_script="$(mktemp)"
 trap 'rm -f "$mode_init_script"' EXIT
@@ -52,8 +52,8 @@ gradle.projectsEvaluated {
     app.tasks.register("assertReleaseHistoryModeWiring") {
         doLast {
             def expected = System.getenv("EXPECTED_RELEASE_HISTORY_MODE")
-            def generate = app.tasks.named("generatePersonalDebugReleaseHistory").get()
-            def verify = app.tasks.named("verifyPersonalDebugReleaseMetadata").get()
+            def generate = app.tasks.named("generateDebugReleaseHistory").get()
+            def verify = app.tasks.named("verifyDebugReleaseMetadata").get()
             if (generate.mode.get().id != expected) {
                 throw new GradleException("generate mode ${generate.mode.get().id} != ${expected}")
             }

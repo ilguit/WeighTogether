@@ -272,16 +272,6 @@ class MeasurementRepository(
         }
     }
 
-    suspend fun retryPendingHuawei() {
-        if (accountRepository == null) {
-            dao.idsNeedingHuaweiSync().forEach(syncScheduler::enqueue)
-        } else {
-            eligiblePendingEntities()
-                .filter { it.huaweiStatus !in HUAWEI_TERMINAL_STATUSES }
-                .forEach { syncScheduler.enqueue(it.id) }
-        }
-    }
-
     suspend fun sweepPendingSync(): Int {
         val ids = currentPendingSyncIds()
         ids.forEach(syncScheduler::enqueue)
@@ -290,7 +280,7 @@ class MeasurementRepository(
 
     suspend fun currentPendingSyncIds(): List<String> =
         if (accountRepository == null) {
-            dao.idsNeedingSync()
+            dao.idsNeedingHealthConnectSync()
         } else {
             eligiblePendingEntities().filter(MeasurementEntity::hasPendingDestination)
                 .map(MeasurementEntity::id)
@@ -464,19 +454,12 @@ sealed interface MeasurementMutationResult {
 private fun String.toLocalOnlyUnlessDisabled(): String =
     if (this == SyncStatus.DISABLED.name) this else SyncStatus.LOCAL_ONLY.name
 
-private fun String.isHuaweiRetryable(): Boolean = this !in setOf(
-    SyncStatus.SYNCED.name,
-    SyncStatus.DISABLED.name,
-    SyncStatus.LOCAL_ONLY.name,
-)
-
 private fun String.isHealthRetryable(): Boolean = this !in setOf(
     SyncStatus.SYNCED.name,
     SyncStatus.LOCAL_ONLY.name,
 )
 
-private fun MeasurementEntity.needsSync(): Boolean =
-    huaweiStatus.isHuaweiRetryable() || healthConnectStatus.isHealthRetryable()
+private fun MeasurementEntity.needsSync(): Boolean = healthConnectStatus.isHealthRetryable()
 
 private fun MeasurementValues.isValid(): Boolean {
     val doubleValues = listOf(
@@ -504,14 +487,7 @@ private fun MeasurementValues.isValid(): Boolean {
 }
 
 private fun MeasurementEntity.hasPendingDestination(): Boolean =
-    huaweiStatus !in HUAWEI_TERMINAL_STATUSES ||
-        healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES
-
-private val HUAWEI_TERMINAL_STATUSES = setOf(
-    SyncStatus.SYNCED.name,
-    SyncStatus.DISABLED.name,
-    SyncStatus.LOCAL_ONLY.name,
-)
+    healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES
 
 private val HEALTH_CONNECT_TERMINAL_STATUSES = setOf(
     SyncStatus.SYNCED.name,
