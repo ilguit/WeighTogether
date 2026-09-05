@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.focusable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -25,8 +26,12 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -99,12 +104,15 @@ internal fun PetProfileScreen(
         )
     }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val restoredMeasurementFocusRequester = remember(state.scrollToMeasurementId) { FocusRequester() }
     androidx.compose.runtime.LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
         val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
         if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
             val precedingItems = 5 + (if (state.pet != null && !state.isNotFound) 1 else 0) +
                 (if (state.actionErrorMessage != null && state.deleteConfirmation == null) 1 else 0)
             listState.scrollToItem(precedingItems + index)
+            withFrameNanos { }
+            restoredMeasurementFocusRequester.requestFocus()
             callbacks.onScrollToMeasurementHandled()
         }
     }
@@ -222,6 +230,14 @@ internal fun PetProfileScreen(
                     items(state.measurements, key = { it.id }) { measurement ->
                         HuaweiSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.measurement(measurement.id))
+                                .then(
+                                    if (measurement.id == state.scrollToMeasurementId) {
+                                        Modifier.focusRequester(restoredMeasurementFocusRequester)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .focusable()
                                 .semantics { contentDescription = "${measurement.measuredAtText}, ${measurement.weightText}" },
                         ) {
                             Row(
@@ -299,7 +315,12 @@ private fun PetWeightEditorScreen(
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 isError = editor.parsedWeightKg == null,
                 supportingText = if (editor.parsedWeightKg == null) {
-                    { Text("Введите положительный вес от 0,001 кг, максимум 3 знака после запятой") }
+                    {
+                        Text(
+                            "Введите положительный вес от 0,001 кг, максимум 3 знака после запятой",
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
                 } else null,
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.WeightInput),
             )

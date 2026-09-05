@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
@@ -18,6 +19,7 @@ import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -81,6 +83,43 @@ class PetHistoryScreenUiTest {
         composeRule.runOnIdle { assertEquals("one", edited) }
     }
 
+    @Test fun successfulSaveTargetIsScrolledFocusedAndConsumedOnce() {
+        val measurements = (1..12).map { index ->
+            PetHistoryMeasurementUi(
+                id = "measurement-$index",
+                measuredAtEpochSecond = index.toLong(),
+                measuredAtText = "5 сентября 2026, 18:$index",
+                weightKg = 4.0 + index / 100.0,
+                weightText = "4,$index кг",
+            )
+        }
+        var handled = 0
+        var screenState by mutableStateOf(
+            state(PetHistoryContent.Multiple(measurements)).copy(
+                scrollToMeasurementId = "measurement-12",
+            ),
+        )
+        composeRule.setContent {
+            PetProfileScreen(
+                state = screenState,
+                callbacks = callbacks().copy(onScrollToMeasurementHandled = {
+                    handled++
+                    screenState = screenState.copy(scrollToMeasurementId = null)
+                }),
+                contentPadding = PaddingValues(),
+                onStartMeasurement = {},
+            )
+        }
+
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-12"))
+            .assertIsDisplayed()
+            .assertIsFocused()
+        composeRule.runOnIdle { assertEquals(1, handled) }
+        composeRule.waitForIdle()
+        composeRule.runOnIdle { assertEquals(1, handled) }
+    }
+
     @Test fun weightEditorIsScrollableValidatesInputAndExposesReadOnlyTime() {
         var input by mutableStateOf("4.12")
         val editor = com.palixander.scalesync.ui.profiles.PetWeightEditorState(
@@ -105,6 +144,9 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithText("5 сентября 2026, 18:24").assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightSave).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightInput).performTextClearance()
+        composeRule.onNodeWithText(
+            "Введите положительный вес от 0,001 кг, максимум 3 знака после запятой",
+        ).assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
         composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightInput).performTextInput("4,125")
         composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightSave).assertIsEnabled()
     }
