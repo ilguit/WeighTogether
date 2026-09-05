@@ -6,7 +6,6 @@ local.properties
 *.iml
 *.jks
 *.keystore
-app/agconnect-services.json
 captures/
 .externalNativeBuild/
 .cxx/

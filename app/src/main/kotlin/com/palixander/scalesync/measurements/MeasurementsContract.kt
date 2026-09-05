@@ -193,7 +193,6 @@ enum class MeasurementSyncDirection(
     val label: String,
 ) {
     HEALTH_CONNECT("Health Connect"),
-    HUAWEI_HEALTH("Huawei Health"),
 }
 
 enum class MeasurementSyncPresentationState(
