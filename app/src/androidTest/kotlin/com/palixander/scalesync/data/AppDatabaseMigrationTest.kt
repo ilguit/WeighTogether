@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -44,6 +45,47 @@ class AppDatabaseMigrationTest {
     fun closeDatabase() {
         openedDatabase?.close()
         openedDatabase = null
+    }
+
+    @Test
+    fun migrate14To15RetainsMeasurementAndDropsHuaweiColumns() {
+        helper.createDatabase(MIGRATION_14_15_DB, 14).apply {
+            execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',180.0,1,'MALE',1,2,3)")
+            execSQL(
+                """
+                INSERT INTO measurements VALUES (
+                    'm','fingerprint','FULL','AA:BB',123,'00ff',70.5,14100,500,22.0,
+                    20.0,14.1,55.0,38.8,40.0,20.0,3.0,18.0,12.6,7.0,1500.0,35,
+                    56.4,'algo','FAILED','SYNCED','legacy Huawei error','health error',1,1,
+                    456,'a','AUTO','pending','dedupe','legacy Huawei snapshot','health snapshot',
+                    179.5,'CAPTURED','SCALE'
+                )
+                """.trimIndent(),
+            )
+            close()
+        }
+
+        helper.runMigrationsAndValidate(MIGRATION_14_15_DB, 15, true, AppDatabase.MIGRATION_14_15).apply {
+            query("SELECT weightKg, rawWeight, healthConnectStatus, healthConnectError, healthConnectWeightSynced, accountId, deduplicationHash, healthConnectSyncedCalculatedValues, ratingHeightCm, ratingHeightOrigin, origin FROM measurements WHERE id='m'").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(70.5, it.getDouble(0), 0.0)
+                assertEquals(14100, it.getInt(1))
+                assertEquals("SYNCED", it.getString(2))
+                assertEquals("health error", it.getString(3))
+                assertEquals(1, it.getInt(4))
+                assertEquals("a", it.getString(5))
+                assertEquals("dedupe", it.getString(6))
+                assertEquals("health snapshot", it.getString(7))
+                assertEquals(179.5, it.getDouble(8), 0.0)
+                assertEquals("CAPTURED", it.getString(9))
+                assertEquals("SCALE", it.getString(10))
+            }
+            query("PRAGMA table_info(measurements)").use { cursor ->
+                val columns = buildSet { while (cursor.moveToNext()) add(cursor.getString(1)) }
+                assertFalse(columns.any { it.contains("huawei", ignoreCase = true) })
+            }
+            close()
+        }
     }
 
     @Test
@@ -701,5 +743,6 @@ class AppDatabaseMigrationTest {
         const val MIGRATION_4_5_DB = "measurement-migration-4-5-test"
         const val MIGRATION_5_6_DB = "measurement-migration-5-6-test"
         const val MIGRATION_6_7_DB = "measurement-migration-6-7-test"
+        const val MIGRATION_14_15_DB = "measurement-migration-14-15-test"
     }
 }
