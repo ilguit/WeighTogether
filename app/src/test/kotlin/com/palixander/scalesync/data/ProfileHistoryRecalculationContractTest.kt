@@ -40,13 +40,9 @@ class ProfileHistoryRecalculationContractTest {
             deduplicationHash = "dedup",
             ratingHeightCm = oldProfile.heightCm,
         ).copy(
-            huaweiStatus = SyncStatus.SYNCED.name,
             healthConnectStatus = SyncStatus.FAILED.name,
-            huaweiError = "huawei detail",
             healthConnectError = "retry later",
-            huaweiWeightSynced = true,
             healthConnectWeightSynced = true,
-            huaweiSyncedCalculatedValues = "huawei-snapshot",
             healthConnectSyncedCalculatedValues = "health-connect-snapshot",
             createdAtEpochMillis = 42L,
         )

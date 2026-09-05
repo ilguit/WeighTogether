@@ -50,7 +50,7 @@ class BackupExportServiceTest {
         assertEquals(BACKUP_SCHEMA_VERSION, document.schemaVersion)
         assertEquals("2026-08-25T12:00:00Z", document.exportedAt)
         assertEquals(Sex.MALE, document.accounts.single().profile.sex)
-        assertEquals(SyncStatus.SYNCED, document.measurements.single().huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY, document.measurements.single().healthConnectStatus)
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
         assertEquals(179.5, document.measurements.single().ratingHeightCm)
         assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, document.measurements.single().ratingHeightOrigin)
@@ -75,7 +75,6 @@ class BackupExportServiceTest {
             selectedChartMetricKeys = keys,
             externalSyncPaused = true,
             healthConnectSyncEnabled = false,
-            huaweiSyncEnabled = false,
         )
 
         val snapshot = settings.toPortableSnapshot()
@@ -144,7 +143,7 @@ class BackupExportServiceTest {
         skeletalMuscleMassKg = null, boneMassKg = null, proteinPercent = null,
         proteinMassKg = null, visceralFatLevel = null, basalMetabolicRateKcal = null,
         metabolicAge = null, leanBodyMassKg = null, algorithmVersion = null,
-        huaweiStatus = SyncStatus.SYNCED.name, healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+        healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         accountId = "account", externalSyncPolicy = ExternalSyncPolicy.AUTO.name,
         deduplicationHash = "dedupe",
         ratingHeightCm = 179.5,

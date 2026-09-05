@@ -187,47 +187,23 @@ class MeasurementsPresentationTest {
         assertTrue(localWithError.canRetry)
         assertEquals(
             MeasurementSyncPresentationState.PENDING,
-            sync(health = "PENDING", huawei = "BLOCKED").state,
+            sync(health = "PENDING").state,
         )
         assertEquals(
             MeasurementSyncPresentationState.PENDING,
-            sync(health = "PENDING", huawei = "SYNCED").state,
+            sync(health = "PENDING").state,
         )
         assertEquals(
             MeasurementSyncPresentationState.SYNCED,
-            sync(health = "SYNCED", huawei = "SYNCED").state,
+            sync(health = "SYNCED").state,
         )
-    }
-
-    @Test
-    fun legacyHuaweiStatusesNeverAffectPresentationOrRetryEligibility() {
-        listOf("PENDING", "FAILED", "SYNCED").forEach { legacyHuaweiStatus ->
-            val synced = measurementSyncPresentation(
-                healthConnectStatus = "SYNCED",
-                healthConnectError = null,
-                huaweiStatus = legacyHuaweiStatus,
-                huaweiError = "legacy Huawei error",
-            )
-            val pending = measurementSyncPresentation(
-                healthConnectStatus = "PENDING",
-                healthConnectError = null,
-                huaweiStatus = legacyHuaweiStatus,
-                huaweiError = "legacy Huawei error",
-            )
-
-            assertEquals(listOf(MeasurementSyncDirection.HEALTH_CONNECT), synced.directions.map { it.direction })
-            assertEquals(MeasurementSyncPresentationState.SYNCED, synced.state)
-            assertFalse(synced.canRetry)
-            assertEquals(MeasurementSyncPresentationState.PENDING, pending.state)
-            assertTrue(pending.canRetry)
-        }
     }
 
     @Test
     fun disabledDirectionsAreExcludedAndRetryEligibilityUsesVisibleDirections() {
-        val personalSynced = sync(health = "SYNCED", huawei = "DISABLED")
-        val personalPending = sync(health = "PENDING", huawei = "DISABLED")
-        val local = sync(health = "LOCAL_ONLY", huawei = "DISABLED")
+        val personalSynced = sync(health = "SYNCED")
+        val personalPending = sync(health = "PENDING")
+        val local = sync(health = "LOCAL_ONLY")
 
         assertEquals(listOf(MeasurementSyncDirection.HEALTH_CONNECT), personalSynced.directions.map { it.direction })
         assertEquals(MeasurementSyncPresentationState.SYNCED, personalSynced.state)
@@ -244,8 +220,6 @@ class MeasurementsPresentationTest {
         val presentation = measurementSyncPresentation(
             healthConnectStatus = "FAILED",
             healthConnectError = "permission denied",
-            huaweiStatus = "DISABLED",
-            huaweiError = "adapter disabled",
         )
 
         assertEquals("Ошибка синхронизации", presentation.label)
@@ -256,7 +230,7 @@ class MeasurementsPresentationTest {
     @Test
     fun historyAnnotationsAreIndependentFromLocalOnlySyncPresentation() {
         val localOnly = sampleItem().copy(
-            sync = sync(health = "LOCAL_ONLY", huawei = "DISABLED"),
+            sync = sync(health = "LOCAL_ONLY"),
         )
         val bothAnnotations = sampleItem().copy(
             isManuallyEdited = true,
@@ -282,12 +256,9 @@ class MeasurementsPresentationTest {
 
     private fun sync(
         health: String,
-        huawei: String,
     ): MeasurementSyncPresentation = measurementSyncPresentation(
         healthConnectStatus = health,
         healthConnectError = null,
-        huaweiStatus = huawei,
-        huaweiError = null,
     )
 
     private fun sampleItem(

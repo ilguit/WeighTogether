@@ -12,9 +12,8 @@ import org.junit.Test
 
 class MeasurementSyncProcessorTest {
     @Test
-    fun staleHuaweiPendingStateNeverTriggersExternalWork() = runBlocking {
+    fun syncedHealthConnectStateNeverTriggersExternalWork() = runBlocking {
         val value = measurement().copy(
-            huaweiStatus = SyncStatus.PENDING.name,
             healthConnectStatus = SyncStatus.SYNCED.name,
         )
         var wrote = false
@@ -31,7 +30,6 @@ class MeasurementSyncProcessorTest {
     @Test
     fun healthConnectPendingStateStillWritesAndAppliesResult() = runBlocking {
         val value = measurement().copy(
-            huaweiStatus = SyncStatus.PENDING.name,
             healthConnectStatus = SyncStatus.PENDING.name,
         )
         var payload: MeasurementSyncPayload? = null
