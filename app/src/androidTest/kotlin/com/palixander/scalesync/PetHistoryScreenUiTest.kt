@@ -24,6 +24,8 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextClearance
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -61,6 +63,51 @@ import org.junit.Test
 
 class PetHistoryScreenUiTest {
     @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
+
+    @Test fun measurementCardAddsOnlyAccessibleEditIconBesideExistingDelete() {
+        val measurement = PetHistoryMeasurementUi("one", 0, "5 сентября 2026, 18:24", 4.125, "4,125 кг")
+        var edited: String? = null
+        setScreen(
+            state(PetHistoryContent.Single(measurement)),
+            callbacks().copy(editMeasurement = { edited = it }),
+        )
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.editMeasurement("one"))
+            .assertContentDescriptionEquals("Изменить измерение 5 сентября 2026, 18:24, 4,125 кг")
+            .assertHeightIsAtLeast(48.dp)
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.deleteMeasurement("one"))
+            .assertHeightIsAtLeast(48.dp)
+        composeRule.runOnIdle { assertEquals("one", edited) }
+    }
+
+    @Test fun weightEditorIsScrollableValidatesInputAndExposesReadOnlyTime() {
+        var input by mutableStateOf("4.12")
+        val editor = com.palixander.scalesync.ui.profiles.PetWeightEditorState(
+            measurementId = "one",
+            petName = "Очень длинное имя питомца",
+            measuredAtText = "5 сентября 2026, 18:24",
+            originalWeightKg = 4.12,
+            weightInput = input,
+        )
+        composeRule.setContent {
+            Box(Modifier.width(320.dp)) {
+                PetProfileScreen(
+                    state(PetHistoryContent.Empty).copy(weightEditor = editor.copy(weightInput = input)),
+                    callbacks().copy(changeEditedWeight = { input = it }),
+                    PaddingValues(),
+                    {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightEditor).assert(hasScrollAction())
+        composeRule.onNodeWithText("5 сентября 2026, 18:24").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightSave).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightInput).performTextClearance()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightInput).performTextInput("4,125")
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.WeightSave).assertIsEnabled()
+    }
 
     @Test fun emptyHistoryOffersManualWeightForItsPet() {
         var additions = 0

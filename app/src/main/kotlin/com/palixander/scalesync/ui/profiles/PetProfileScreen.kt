@@ -10,8 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,6 +21,7 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +31,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
@@ -60,6 +66,13 @@ object PetProfileScreenTestTags {
     const val DeleteCancel = "pet-history-delete-cancel"
     fun measurement(id: String) = "pet-history-measurement-$id"
     fun deleteMeasurement(id: String) = "pet-history-delete-$id"
+    fun editMeasurement(id: String) = "pet-history-edit-$id"
+    const val WeightEditor = "pet-weight-editor"
+    const val WeightInput = "pet-weight-editor-input"
+    const val WeightSave = "pet-weight-editor-save"
+    const val WeightBack = "pet-weight-editor-back"
+    const val WeightUnavailable = "pet-weight-editor-unavailable"
+    const val WeightError = "pet-weight-editor-error"
     fun preset(preset: ChartRangePreset) = "pet-history-period-${preset.name.lowercase()}"
 }
 
@@ -72,6 +85,11 @@ internal fun PetProfileScreen(
     onEditPet: (Pet) -> Unit = {},
     sourceLauncher: ReferenceSourceLauncher = AndroidReferenceSourceLauncher(LocalContext.current),
 ) {
+    state.weightEditor?.let { editor ->
+        androidx.activity.compose.BackHandler(enabled = !editor.isSaving, onBack = callbacks.dismissWeightEditor)
+        PetWeightEditorScreen(editor, callbacks, contentPadding)
+        return
+    }
     state.deleteConfirmation?.let { confirmation ->
         PetHistoryDeleteDialog(
             confirmation = confirmation,
@@ -218,18 +236,104 @@ internal fun PetProfileScreen(
                                         ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
                                     }
                                 }
-                                HuaweiIconButton(
-                                    icon = HuaweiIcons.Delete,
-                                    contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
-                                    onClick = { callbacks.requestDelete(measurement.id) },
-                                    enabled = state.deleteConfirmation?.isDeleting != true,
-                                    modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
-                                )
+                                Row {
+                                    HuaweiIconButton(
+                                        icon = HuaweiIcons.Edit,
+                                        contentDescription = "Изменить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                                        onClick = { callbacks.editMeasurement(measurement.id) },
+                                        enabled = state.deleteConfirmation?.isDeleting != true,
+                                        modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
+                                    )
+                                    HuaweiIconButton(
+                                        icon = HuaweiIcons.Delete,
+                                        contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                                        onClick = { callbacks.requestDelete(measurement.id) },
+                                        enabled = state.deleteConfirmation?.isDeleting != true,
+                                        modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
+                                    )
+                                }
                             }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun PetWeightEditorScreen(
+    editor: PetWeightEditorState,
+    callbacks: PetHistoryCallbacks,
+    contentPadding: PaddingValues,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(contentPadding).imePadding()
+            .padding(horizontal = HuaweiDimensions.ContentPadding)
+            .testTag(PetProfileScreenTestTags.WeightEditor)
+            .semantics { contentDescription = "Изменить вес питомца ${editor.petName}" },
+        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        contentPadding = PaddingValues(vertical = HuaweiDimensions.ContentPadding),
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Back,
+                    contentDescription = "Вернуться к измерениям",
+                    onClick = callbacks.dismissWeightEditor,
+                    enabled = !editor.isSaving,
+                    modifier = Modifier.testTag(PetProfileScreenTestTags.WeightBack),
+                )
+                Text("Изменить вес", style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.semantics { heading() })
+            }
+        }
+        item { Text(editor.petName, style = MaterialTheme.typography.titleMedium) }
+        item {
+            OutlinedTextField(
+                value = editor.weightInput,
+                onValueChange = callbacks.changeEditedWeight,
+                enabled = !editor.isSaving && !editor.isUnavailable,
+                singleLine = true,
+                label = { Text("Вес, кг") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                isError = editor.parsedWeightKg == null,
+                supportingText = if (editor.parsedWeightKg == null) {
+                    { Text("Введите положительный вес от 0,001 кг, максимум 3 знака после запятой") }
+                } else null,
+                modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.WeightInput),
+            )
+        }
+        item {
+            Column(Modifier.semantics {
+                contentDescription = "Дата и время измерения: ${editor.measuredAtText}. Не изменяется"
+            }) {
+                Text("Дата и время", style = MaterialTheme.typography.labelLarge)
+                Text(editor.measuredAtText)
+                Text("Дата и время измерения не изменяются", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (editor.isUnavailable) item {
+            Text(
+                "Измерение недоступно. Вернитесь к измерениям",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.WeightUnavailable)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        editor.saveError?.let { error -> item {
+            Text(error, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.WeightError)
+                    .semantics { liveRegion = LiveRegionMode.Polite })
+        } }
+        item {
+            Button(
+                onClick = callbacks.saveEditedWeight,
+                enabled = editor.canSave,
+                modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag(PetProfileScreenTestTags.WeightSave)
+                    .semantics { if (editor.isSaving) stateDescription = "Сохранение" },
+            ) { Text(if (editor.isSaving) "Сохранение…" else "Сохранить") }
         }
     }
 }

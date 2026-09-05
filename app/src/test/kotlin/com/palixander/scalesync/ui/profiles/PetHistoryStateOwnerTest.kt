@@ -45,6 +45,54 @@ class PetHistoryStateOwnerTest {
     private val luna = pet("luna", "Луна")
 
     @Test
+    fun `editor keeps draft on failure blocks double save and returns to updated row on success`() = runBlocking {
+        val original = measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.12)
+        val history = MutableStateFlow(listOf(original))
+        val saveStarted = CompletableDeferred<Unit>()
+        val releaseSave = CompletableDeferred<Unit>()
+        var calls = 0
+        var fail = true
+        val repository = FakeRepository(
+            pets = mapOf(luna.id to luna),
+            histories = mapOf(luna.id to history),
+            updateWeightBlock = { _, id, weight ->
+                calls++
+                saveStarted.complete(Unit)
+                releaseSave.await()
+                if (fail) error("database unavailable")
+                original.copy(id = id, petWeightKg = weight, isManuallyEdited = true).also {
+                    history.value = listOf(it)
+                }
+            },
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(luna.id, repository, scope, clock, zone, Locale.US)
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.editMeasurement("one")
+        owner.changeEditedWeight("4,125")
+        owner.saveEditedWeight()
+        owner.saveEditedWeight()
+        saveStarted.await()
+        assertEquals(1, calls)
+        releaseSave.complete(Unit)
+        yield()
+        assertEquals("4,125", owner.uiState.value.weightEditor?.weightInput)
+        assertEquals("Не удалось сохранить изменения. Попробуйте ещё раз", owner.uiState.value.weightEditor?.saveError)
+
+        fail = false
+        owner.saveEditedWeight()
+        yield()
+        yield()
+        assertNull(owner.uiState.value.weightEditor)
+        assertEquals("one", owner.uiState.value.scrollToMeasurementId)
+        assertEquals(4.125, owner.uiState.value.measurements.single().weightKg, 0.0)
+        collector.cancelAndJoin()
+        scope.cancel()
+    }
+
+    @Test
     fun `saved earlier measurement expands range and deleting it keeps existing history visible`() = runBlocking {
         val old = measurement("old", luna.id, "1800-01-01T10:00:00Z", 4.125)
         val existing = measurement("existing", luna.id, "2026-03-20T10:00:00Z", 4.25)
@@ -698,6 +746,7 @@ private class FakeRepository(
     private val observedPets: Flow<List<PetWithLatestWeight>> = emptyFlow(),
     private val getPetBlock: (suspend (PetId) -> Pet?)? = null,
     private val deleteBlock: suspend (PetId, String) -> Unit = { _, _ -> error("unused") },
+    private val updateWeightBlock: suspend (PetId, String, Double) -> PetMeasurement = { _, _, _ -> error("unused") },
 ) : PetRepository {
     val deleteCalls = mutableListOf<Pair<PetId, String>>()
     override fun observePets(): Flow<List<PetWithLatestWeight>> = observedPets
@@ -718,7 +767,7 @@ private class FakeRepository(
         petId: PetId,
         measurementId: String,
         petWeightKg: Double,
-    ): PetMeasurement = error("unused")
+    ): PetMeasurement = updateWeightBlock(petId, measurementId, petWeightKg)
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,

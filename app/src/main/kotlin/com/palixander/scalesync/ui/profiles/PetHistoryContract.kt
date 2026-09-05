@@ -76,6 +76,7 @@ data class PetHistoryUiState(
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
     val actionErrorMessage: String? = null,
     val scrollToMeasurementId: String? = null,
+    val weightEditor: PetWeightEditorState? = null,
 ) {
     init {
         require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
@@ -251,7 +252,40 @@ data class PetHistoryCallbacks(
     val dismissActionError: () -> Unit = {},
     val onAddWeightRequested: () -> Unit = {},
     val onScrollToMeasurementHandled: () -> Unit = {},
+    val editMeasurement: (measurementId: String) -> Unit = {},
+    val changeEditedWeight: (String) -> Unit = {},
+    val saveEditedWeight: () -> Unit = {},
+    val dismissWeightEditor: () -> Unit = {},
 )
+
+data class PetWeightEditorState(
+    val measurementId: String,
+    val petName: String,
+    val measuredAtText: String,
+    val originalWeightKg: Double,
+    val weightInput: String,
+    val isSaving: Boolean = false,
+    val saveError: String? = null,
+    val isUnavailable: Boolean = false,
+) {
+    val parsedWeightKg: Double?
+        get() = parsePetWeightInput(weightInput)
+    val canSave: Boolean
+        get() = !isSaving && !isUnavailable && parsedWeightKg != null &&
+            canonicalPetWeight(parsedWeightKg!!) != canonicalPetWeight(originalWeightKg)
+}
+
+internal fun canonicalPetWeight(weightKg: Double): String = java.math.BigDecimal.valueOf(weightKg)
+    .setScale(3, java.math.RoundingMode.HALF_EVEN)
+    .stripTrailingZeros()
+    .toPlainString()
+
+internal fun parsePetWeightInput(input: String): Double? {
+    val normalized = input.trim().replace(',', '.')
+    if (!Regex("[0-9]+(?:\\.[0-9]{0,3})?").matches(normalized)) return null
+    val value = normalized.toDoubleOrNull() ?: return null
+    return value.takeIf { it.isFinite() && it >= 0.001 }
+}
 
 internal fun petHistoryPresentation(
     measurements: List<PetMeasurement>,

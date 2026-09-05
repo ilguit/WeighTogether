@@ -5,6 +5,7 @@ import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetRepository
+import com.palixander.scalesync.domain.PetMeasurementNotFoundException
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
@@ -40,6 +41,7 @@ private data class PetHistoryInteraction(
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
     val actionErrorMessage: String? = null,
     val scrollToMeasurementId: String? = null,
+    val weightEditor: PetWeightEditorState? = null,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -75,6 +77,11 @@ class PetHistoryStateOwner(
                 deleteConfirmation = currentInteraction.deleteConfirmation,
                 actionErrorMessage = currentInteraction.actionErrorMessage,
                 scrollToMeasurementId = currentInteraction.scrollToMeasurementId,
+                weightEditor = currentInteraction.weightEditor?.copy(
+                    isUnavailable = state.isNotFound || state.measurements.none {
+                        it.id == currentInteraction.weightEditor.measurementId
+                    },
+                ),
             )
         } else {
             state
@@ -97,7 +104,74 @@ class PetHistoryStateOwner(
         dismissDelete = ::dismissDelete,
         dismissActionError = ::dismissActionError,
         onScrollToMeasurementHandled = { interaction.update { it.copy(scrollToMeasurementId = null) } },
+        editMeasurement = ::editMeasurement,
+        changeEditedWeight = ::changeEditedWeight,
+        saveEditedWeight = ::saveEditedWeight,
+        dismissWeightEditor = ::dismissWeightEditor,
     )
+
+    fun editMeasurement(measurementId: String) {
+        val state = uiState.value
+        val measurement = state.measurements.firstOrNull { it.id == measurementId } ?: return
+        val pet = state.pet ?: return
+        interaction.update {
+            it.copy(
+                actionErrorMessage = null,
+                weightEditor = PetWeightEditorState(
+                    measurementId = measurement.id,
+                    petName = pet.displayName,
+                    measuredAtText = measurement.measuredAtText,
+                    originalWeightKg = measurement.weightKg,
+                    weightInput = canonicalPetWeight(measurement.weightKg),
+                ),
+            )
+        }
+    }
+
+    fun changeEditedWeight(value: String) {
+        interaction.update { current ->
+            val editor = current.weightEditor
+            if (editor == null || editor.isSaving) current
+            else current.copy(weightEditor = editor.copy(weightInput = value, saveError = null))
+        }
+    }
+
+    fun saveEditedWeight() {
+        val current = interaction.value
+        val editor = current.weightEditor ?: return
+        val weight = editor.parsedWeightKg ?: return
+        if (!editor.canSave) return
+        val saving = editor.copy(isSaving = true, saveError = null)
+        interaction.value = current.copy(weightEditor = saving)
+        ownerScope.launch {
+            runCatching { repository.updateMeasurementWeight(current.petId, editor.measurementId, weight) }
+                .onSuccess {
+                    interaction.update { latest ->
+                        if (latest.petId == current.petId && latest.weightEditor == saving) {
+                            latest.copy(weightEditor = null, scrollToMeasurementId = editor.measurementId)
+                        } else latest
+                    }
+                }
+                .onFailure { error ->
+                    interaction.update { latest ->
+                        if (latest.petId != current.petId || latest.weightEditor != saving) latest else latest.copy(
+                            weightEditor = saving.copy(
+                                isSaving = false,
+                                isUnavailable = error is PetMeasurementNotFoundException,
+                                saveError = if (error is PetMeasurementNotFoundException) null
+                                else "Не удалось сохранить изменения. Попробуйте ещё раз",
+                            ),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun dismissWeightEditor() {
+        interaction.update { current ->
+            if (current.weightEditor?.isSaving == true) current else current.copy(weightEditor = null)
+        }
+    }
 
     fun showSavedMeasurement(saved: com.palixander.scalesync.domain.ManualWeightResult.Saved) {
         val date = saved.measuredAt.atZone(zoneId).toLocalDate()
