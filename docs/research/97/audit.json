@@ -1,0 +1,62 @@
+{
+  "source_sha256": "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094",
+  "raw_rows": 93899,
+  "raw_groups": {
+    "Modelling:F": 7961,
+    "Modelling:M": 6254,
+    "Overweight:F": 12640,
+    "Overweight:M": 17199,
+    "Research Colony:F": 25484,
+    "Research Colony:M": 23645,
+    "Underweight:F": 417,
+    "Underweight:M": 299
+  },
+  "eligible": {
+    "F": {
+      "rows": 7050,
+      "cats": 3518
+    },
+    "M": {
+      "rows": 5628,
+      "cats": 2779
+    }
+  },
+  "windows": {
+    "F:2": {
+      "min_cats": 12,
+      "max_cats": 922,
+      "centres_below_30": 26,
+      "centres_below_250": 52
+    },
+    "F:4": {
+      "min_cats": 21,
+      "max_cats": 1491,
+      "centres_below_30": 4,
+      "centres_below_250": 50
+    },
+    "F:8": {
+      "min_cats": 40,
+      "max_cats": 2003,
+      "centres_below_30": 0,
+      "centres_below_250": 40
+    },
+    "M:2": {
+      "min_cats": 5,
+      "max_cats": 770,
+      "centres_below_30": 35,
+      "centres_below_250": 56
+    },
+    "M:4": {
+      "min_cats": 12,
+      "max_cats": 1245,
+      "centres_below_30": 14,
+      "centres_below_250": 51
+    },
+    "M:8": {
+      "min_cats": 23,
+      "max_cats": 1687,
+      "centres_below_30": 2,
+      "centres_below_250": 48
+    }
+  }
+}
