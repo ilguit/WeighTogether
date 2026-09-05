@@ -186,7 +186,7 @@ class MeasurementsPresentationTest {
         assertEquals(MeasurementSyncPresentationState.ERROR, localWithError.state)
         assertTrue(localWithError.canRetry)
         assertEquals(
-            MeasurementSyncPresentationState.ERROR,
+            MeasurementSyncPresentationState.PENDING,
             sync(health = "PENDING", huawei = "BLOCKED").state,
         )
         assertEquals(
@@ -197,6 +197,30 @@ class MeasurementsPresentationTest {
             MeasurementSyncPresentationState.SYNCED,
             sync(health = "SYNCED", huawei = "SYNCED").state,
         )
+    }
+
+    @Test
+    fun legacyHuaweiStatusesNeverAffectPresentationOrRetryEligibility() {
+        listOf("PENDING", "FAILED", "SYNCED").forEach { legacyHuaweiStatus ->
+            val synced = measurementSyncPresentation(
+                healthConnectStatus = "SYNCED",
+                healthConnectError = null,
+                huaweiStatus = legacyHuaweiStatus,
+                huaweiError = "legacy Huawei error",
+            )
+            val pending = measurementSyncPresentation(
+                healthConnectStatus = "PENDING",
+                healthConnectError = null,
+                huaweiStatus = legacyHuaweiStatus,
+                huaweiError = "legacy Huawei error",
+            )
+
+            assertEquals(listOf(MeasurementSyncDirection.HEALTH_CONNECT), synced.directions.map { it.direction })
+            assertEquals(MeasurementSyncPresentationState.SYNCED, synced.state)
+            assertFalse(synced.canRetry)
+            assertEquals(MeasurementSyncPresentationState.PENDING, pending.state)
+            assertTrue(pending.canRetry)
+        }
     }
 
     @Test

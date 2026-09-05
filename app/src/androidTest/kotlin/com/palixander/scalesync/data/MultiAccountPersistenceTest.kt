@@ -168,6 +168,40 @@ class MultiAccountPersistenceTest {
     }
 
     @Test
+    fun legacyHuaweiStatusesDoNotMakeSyncedHealthConnectHistoryRetryable() = runBlocking {
+        val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
+        val dao = database.multiAccountMeasurementDao()
+
+        val idsByHuaweiStatus = listOf(
+            SyncStatus.PENDING.name,
+            SyncStatus.FAILED.name,
+            SyncStatus.SYNCED.name,
+        ).associateWith { huaweiStatus ->
+            val pending = persistence().enqueue(raw(currentTime.toString(), 70.0 + nextId))
+                as PendingPersistenceResult.Inserted
+            val finalized = persistence().finalizePending(pending.pending.id, account.id)
+                as FinalizePendingResult.Finalized
+            val entity = requireNotNull(dao.get(finalized.measurement.measurementId)).copy(
+                huaweiStatus = huaweiStatus,
+                huaweiError = "legacy Huawei error",
+                healthConnectStatus = SyncStatus.SYNCED.name,
+            )
+            assertEquals(1, database.measurementDao().update(entity))
+            huaweiStatus to entity.id
+        }
+
+        assertEquals(emptyList<String>(), dao.eligiblePendingSyncIds(account.id.value))
+        assertEquals(emptyList<String>(), dao.activeSyncWorkIds(account.id.value))
+        assertEquals(0, dao.demoteUnfinishedHistory(account.id.value))
+        idsByHuaweiStatus.forEach { (status, id) ->
+            val stored = requireNotNull(dao.get(id))
+            assertEquals(ExternalSyncPolicy.AUTO.name, stored.externalSyncPolicy)
+            assertEquals(status, stored.huaweiStatus)
+            assertEquals("legacy Huawei error", stored.huaweiError)
+        }
+    }
+
+    @Test
     fun latestWeightsUseOnlyStrictlyPriorMeasurements() = runBlocking {
         val account = accountRepository().createAccount(NewAccount("Alice", completeProfile()))
         val persistence = persistence()
