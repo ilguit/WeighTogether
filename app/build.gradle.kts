@@ -12,11 +12,10 @@ android {
     compileSdk = 36
 
     defaultConfig {
-        // Keep the former personal-flavor id so installed personal builds upgrade in place.
-        applicationId = "com.palixander.scalesync.personal"
+        applicationId = "com.palixander.scalesync"
         minSdk = 26
         targetSdk = 36
-        versionCode = 128
+        versionCode = 129
         versionName = "0.2"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -47,7 +46,7 @@ android {
     buildTypes {
         release {
             isMinifyEnabled = false
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
         }
     }
 
