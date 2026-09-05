@@ -125,11 +125,16 @@ class BackupJsonCodec(
         root.array("measurements").forEachIndexed { index, element ->
             element.requiredObject("$.measurements[$index]").apply {
                 val path = "$.measurements[$index]"
-                requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION_V5) MEASUREMENT_KEYS_V3 + "origin" else if (version >= BACKUP_SCHEMA_VERSION_V3) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
-                requireStrings(path, MEASUREMENT_STRING_KEYS)
+                requireKeys(path, when {
+                    version >= BACKUP_SCHEMA_VERSION -> MEASUREMENT_KEYS_CURRENT + "origin"
+                    version >= BACKUP_SCHEMA_VERSION_V5 -> MEASUREMENT_KEYS_V3 + "origin"
+                    version >= BACKUP_SCHEMA_VERSION_V3 -> MEASUREMENT_KEYS_V3
+                    else -> MEASUREMENT_KEYS_V1_V2
+                })
+                requireStrings(path, if (version >= BACKUP_SCHEMA_VERSION) MEASUREMENT_STRING_KEYS_CURRENT else MEASUREMENT_STRING_KEYS_LEGACY)
                 requireNullableStrings(
                     path,
-                    MEASUREMENT_NULLABLE_STRING_KEYS,
+                    if (version >= BACKUP_SCHEMA_VERSION) MEASUREMENT_NULLABLE_STRING_KEYS_CURRENT else MEASUREMENT_NULLABLE_STRING_KEYS_LEGACY,
                 )
                 if (version >= BACKUP_SCHEMA_VERSION_V5) requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
                 if (version >= BACKUP_SCHEMA_VERSION_V3) requireStrings(path, setOf("ratingHeightOrigin"))
@@ -142,7 +147,7 @@ class BackupJsonCodec(
                         MEASUREMENT_NULLABLE_NUMBER_KEYS
                     },
                 )
-                requireBooleans(path, MEASUREMENT_BOOLEAN_KEYS)
+                requireBooleans(path, if (version >= BACKUP_SCHEMA_VERSION) MEASUREMENT_BOOLEAN_KEYS_CURRENT else MEASUREMENT_BOOLEAN_KEYS_LEGACY)
             }
         }
         root.objectValue("settings").apply {
@@ -251,7 +256,6 @@ class BackupJsonCodec(
             invalidUnless(measurement.rawPayloadHex.length % 2 == 0 && measurement.rawPayloadHex.all { it.isDigit() || it.lowercaseChar() in 'a'..'f' }, "$path.rawPayloadHex", "must be hexadecimal")
             invalidUnless(measurement.weightKg.isFinite() && measurement.weightKg > 0.0, "$path.weightKg", "must be positive and finite")
             invalidUnless(measurement.measurementType != null, "$path.measurementType", "unknown enum value")
-            invalidUnless(measurement.huaweiStatus != null, "$path.huaweiStatus", "unknown enum value")
             invalidUnless(measurement.healthConnectStatus != null, "$path.healthConnectStatus", "unknown enum value")
             invalidUnless(measurement.externalSyncPolicy != null, "$path.externalSyncPolicy", "unknown enum value")
             val calculated = listOf(
@@ -464,11 +468,17 @@ class BackupJsonCodec(
             "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues",
         )
         val MEASUREMENT_KEYS_V3 = MEASUREMENT_KEYS_V1_V2 + setOf("ratingHeightCm", "ratingHeightOrigin")
-        val MEASUREMENT_STRING_KEYS = setOf("id", "fingerprint", "measurementType", "deviceAddress", "rawPayloadHex", "huaweiStatus", "healthConnectStatus", "accountId", "externalSyncPolicy")
-        val MEASUREMENT_NULLABLE_STRING_KEYS = setOf("algorithmVersion", "huaweiError", "healthConnectError", "sourcePendingId", "deduplicationHash", "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues")
+        val MEASUREMENT_KEYS_CURRENT = MEASUREMENT_KEYS_V3 - setOf(
+            "huaweiStatus", "huaweiError", "huaweiWeightSynced", "huaweiSyncedCalculatedValues",
+        )
+        val MEASUREMENT_STRING_KEYS_LEGACY = setOf("id", "fingerprint", "measurementType", "deviceAddress", "rawPayloadHex", "huaweiStatus", "healthConnectStatus", "accountId", "externalSyncPolicy")
+        val MEASUREMENT_STRING_KEYS_CURRENT = MEASUREMENT_STRING_KEYS_LEGACY - "huaweiStatus"
+        val MEASUREMENT_NULLABLE_STRING_KEYS_LEGACY = setOf("algorithmVersion", "huaweiError", "healthConnectError", "sourcePendingId", "deduplicationHash", "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues")
+        val MEASUREMENT_NULLABLE_STRING_KEYS_CURRENT = MEASUREMENT_NULLABLE_STRING_KEYS_LEGACY - setOf("huaweiError", "huaweiSyncedCalculatedValues")
         val MEASUREMENT_NUMBER_KEYS = setOf("measuredAtEpochSecond", "weightKg", "rawWeight", "createdAtEpochMillis")
         val MEASUREMENT_NULLABLE_NUMBER_KEYS = setOf("impedanceOhm", "bmi", "bodyFatPercent", "bodyFatMassKg", "waterPercent", "waterMassKg", "muscleMassKg", "skeletalMuscleMassKg", "boneMassKg", "proteinPercent", "proteinMassKg", "visceralFatLevel", "basalMetabolicRateKcal", "metabolicAge", "leanBodyMassKg")
-        val MEASUREMENT_BOOLEAN_KEYS = setOf("huaweiWeightSynced", "healthConnectWeightSynced")
+        val MEASUREMENT_BOOLEAN_KEYS_LEGACY = setOf("huaweiWeightSynced", "healthConnectWeightSynced")
+        val MEASUREMENT_BOOLEAN_KEYS_CURRENT = setOf("healthConnectWeightSynced")
         val SUPPORTED_VERSIONS = setOf(
             BACKUP_SCHEMA_VERSION_V1,
             BACKUP_SCHEMA_VERSION_V2,

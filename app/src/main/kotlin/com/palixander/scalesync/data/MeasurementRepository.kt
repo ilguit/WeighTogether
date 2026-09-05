@@ -37,7 +37,6 @@ class MeasurementRepository(
     private val profileProvider: () -> UserProfile?,
     private val calculator: BodyCompositionCalculator,
     private val syncScheduler: MeasurementSyncScheduler,
-    private val huaweiSyncEnabled: Boolean,
     private val multiAccountPersistence: RoomMeasurementPersistence? = null,
     private val accountRepository: AccountRepository? = null,
     pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
@@ -109,12 +108,10 @@ class MeasurementRepository(
             calculator.calculate(raw, profile).toEntity(
                 rawPayload = raw.rawPayload,
                 fingerprint = measurementFingerprint(raw),
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 ratingHeightCm = profile.heightCm,
             )
         } else {
             raw.toWeightOnlyEntity(
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 ratingHeightCm = profile?.heightCm,
             )
         }
@@ -411,9 +408,7 @@ class MeasurementRepository(
     ): MeasurementMutationResult {
         val updated = edited.copy(
             rawWeight = current.rawWeight,
-            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-            huaweiError = null,
             healthConnectError = null,
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )

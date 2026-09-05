@@ -621,8 +621,6 @@ internal fun MeasurementEntity.toMeasurementUiItem(
         sync = measurementSyncPresentation(
             healthConnectStatus = healthConnectStatus,
             healthConnectError = healthConnectError,
-            huaweiStatus = huaweiStatus,
-            huaweiError = huaweiError,
         ),
         isManuallyEdited = isManuallyEdited,
         origin = origin,

@@ -16,7 +16,6 @@ data class AppSettings(
     val externalSyncPaused: Boolean = false,
     // Missing keys from installations created before #43 intentionally mean enabled.
     val healthConnectSyncEnabled: Boolean = true,
-    val huaweiSyncEnabled: Boolean = true,
 )
 
 /** Settings that are meaningful when moved to another installation or device. */
@@ -157,14 +156,12 @@ class ProfileStore(
     override fun isExternalSyncEnabled(destination: ExternalSyncDestination): Boolean =
         when (destination) {
             ExternalSyncDestination.HEALTH_CONNECT -> settings.value.healthConnectSyncEnabled
-            ExternalSyncDestination.HUAWEI -> settings.value.huaweiSyncEnabled
         }
 
     override fun setExternalSyncEnabled(destination: ExternalSyncDestination, enabled: Boolean) {
         portableOperations.runExclusiveBlocking {
             val key = when (destination) {
                 ExternalSyncDestination.HEALTH_CONNECT -> KEY_HEALTH_CONNECT_SYNC_ENABLED
-                ExternalSyncDestination.HUAWEI -> KEY_HUAWEI_SYNC_ENABLED
             }
             check(preferences.edit().putBoolean(key, enabled).commit()) {
                 "Could not durably commit ${destination.name} sync setting"
@@ -199,7 +196,6 @@ class ProfileStore(
                 ?.toSet(),
             externalSyncPaused = externalSyncPaused,
             healthConnectSyncEnabled = preferences.getBoolean(KEY_HEALTH_CONNECT_SYNC_ENABLED, true),
-            huaweiSyncEnabled = preferences.getBoolean(KEY_HUAWEI_SYNC_ENABLED, true),
         )
     }
 
@@ -227,6 +223,5 @@ class ProfileStore(
         const val KEY_EXTERNAL_SYNC_PAUSED = "external_sync_paused"
         const val KEY_EXTERNAL_SYNC_PAUSED_UNTIL = "external_sync_paused_until_epoch_millis"
         const val KEY_HEALTH_CONNECT_SYNC_ENABLED = "health_connect_sync_enabled"
-        const val KEY_HUAWEI_SYNC_ENABLED = "huawei_sync_enabled"
     }
 }
