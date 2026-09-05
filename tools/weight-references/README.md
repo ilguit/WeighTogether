@@ -6,7 +6,9 @@ deterministic **empirical fallback references**, not the fitted GAMLSS standards
 published in the cited papers. The raw data do not contain the fitted models.
 
 Run `./gradlew -p tools/weight-references verifySnapshot` to prove that the
-bundled resource is derived from the canonical source/config. This is offline
+bundled resource is derived from the canonical source/config and the pinned
+`docs/research/97/bccg-curves.csv`. The fitted cat profiles copy only P9/P50/P91;
+P2/P98 and model parameters remain in the research package. This is offline
 and does not require the 140 MB compressed / 1.15 GB expanded dog artifact.
 
 To independently rebuild the points from pinned raw artifacts, download the

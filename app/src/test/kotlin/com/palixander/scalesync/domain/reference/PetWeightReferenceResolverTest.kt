@@ -1,6 +1,7 @@
 package com.palixander.scalesync.domain.reference
 
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSex
@@ -77,7 +78,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `dog reference carries the last published point through declared scope only`() {
+    fun `dog category reference is unavailable before first point and carries last point indefinitely`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val last = snapshot.profiles.single { it.id == "dog-male-I" }.points.last()
 
@@ -94,12 +95,21 @@ class PetWeightReferenceResolverTest {
             assertEquals(last.upperKg, result.bounds.upperKg, 1e-12)
         }
 
-        val outside = resolveDog(
-            birthDate = PartialBirthDate.Day(referenceDate.minusDays(731)),
+        val carriedAge = 10_000L
+        val carried = resolveDog(
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(carriedAge)),
             dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertEquals(730, outside.supportedMaximumDays)
-        assertEquals(731, outside.actualMaximumDays)
+        ).available()
+        assertEquals(last.lowerKg, carried.bounds.lowerKg, 1e-12)
+        assertEquals(last.medianKg, carried.bounds.medianLowerKg, 1e-12)
+        assertEquals(last.upperKg, carried.bounds.upperKg, 1e-12)
+
+        assertReason<WeightReferenceUnavailableReason.AgeOutOfRange>(
+            resolveDog(
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(83)),
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+            ),
+        )
     }
 
     @Test
@@ -120,10 +130,9 @@ class PetWeightReferenceResolverTest {
         val crossing = resolveDog(
             birthDate = PartialBirthDate.Month(YearMonth.of(2023, 1)),
             dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertEquals(715, crossing.actualMinimumDays)
-        assertEquals(745, crossing.actualMaximumDays)
-        assertEquals(730, crossing.supportedMaximumDays)
+        ).available()
+        assertEquals(715L..745L, crossing.ageDays)
+        assertTrue(crossing.bounds.medianUpperKg <= crossing.bounds.upperKg)
     }
 
     @Test
@@ -171,30 +180,58 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `DSH sparse intervals are data gaps while weekly intervals interpolate`() {
+    fun `cat breed profile interpolates former long gaps and carries final percentiles indefinitely`() {
         val breed = BreedId("VBO:0100119")
         for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
-            assertReason<WeightReferenceUnavailableReason.ReferenceDataGap>(
-                resolver.resolve(
-                    PetSpecies.CAT,
-                    sex,
-                    breed,
-                    PartialBirthDate.Day(referenceDate.minusDays(230)),
-                    referenceDate,
-                    intactStatus = IntactStatus.CONFIRMED_INTACT,
-                ),
-            )
-            assertTrue(
-                resolver.resolve(
-                    PetSpecies.CAT,
-                    sex,
-                    breed,
-                    PartialBirthDate.Day(referenceDate.minusDays(165)),
-                    referenceDate,
-                    intactStatus = IntactStatus.CONFIRMED_INTACT,
-                ) is PetWeightReferenceResolution.Available,
-            )
+            val interpolated = resolver.resolve(
+                PetSpecies.CAT,
+                sex,
+                breed,
+                PartialBirthDate.Day(referenceDate.minusDays(230)),
+                referenceDate,
+                intactStatus = IntactStatus.CONFIRMED_INTACT,
+            ).available()
+            val carried = resolver.resolve(
+                PetSpecies.CAT,
+                sex,
+                breed,
+                PartialBirthDate.Day(referenceDate.minusDays(10_000)),
+                referenceDate,
+                intactStatus = IntactStatus.CONFIRMED_INTACT,
+            ).available()
+            listOf(interpolated.bounds, carried.bounds).forEach { bounds ->
+                assertTrue(bounds.lowerKg <= bounds.medianLowerKg)
+                assertTrue(bounds.medianLowerKg <= bounds.medianUpperKg)
+                assertTrue(bounds.medianUpperKg <= bounds.upperKg)
+            }
         }
+    }
+
+    @Test
+    fun `partial date across final point uses extrema across the entire possible interval`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val profile = snapshot.profiles.single { it.id == "dog-male-I" }
+        val last = profile.points.last()
+        val result = resolver.resolve(
+            PetSpecies.DOG,
+            PetSex.MALE,
+            null,
+            PartialBirthDate.Month(YearMonth.of(2023, 1)),
+            referenceDate,
+            DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).available()
+        val candidates = buildList {
+            add(snapshot.interpolate(profile.id, result.ageDays.first.toInt())!!)
+            addAll(profile.points.filter { it.ageDays.toLong() in result.ageDays })
+            add(last.copy(ageDays = result.ageDays.last.toInt()))
+        }
+        assertEquals(candidates.minOf { it.lowerKg }, result.bounds.lowerKg, 1e-12)
+        assertEquals(candidates.minOf { it.medianKg }, result.bounds.medianLowerKg, 1e-12)
+        assertEquals(candidates.maxOf { it.medianKg }, result.bounds.medianUpperKg, 1e-12)
+        assertEquals(candidates.maxOf { it.upperKg }, result.bounds.upperKg, 1e-12)
+        assertTrue(result.bounds.lowerKg <= result.bounds.medianLowerKg)
+        assertTrue(result.bounds.medianLowerKg <= result.bounds.medianUpperKg)
+        assertTrue(result.bounds.medianUpperKg <= result.bounds.upperKg)
     }
 
     @Test
@@ -252,34 +289,67 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `DSH breed has priority and requires explicitly confirmed intact status`() {
+    fun `supported DSH breed resolves for both sexes without intact status`() {
         val breed = BreedId("VBO:0100119")
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
-        assertReason<WeightReferenceUnavailableReason.DshIntactStatusUnknown>(
-            resolver.resolve(PetSpecies.CAT, PetSex.FEMALE, breed, birthDate, referenceDate),
+        listOf(PetSex.FEMALE to "cat-dsh-female", PetSex.MALE to "cat-dsh-male").forEach { (sex, profileId) ->
+            for (intactStatus in IntactStatus.entries) {
+                val result = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breed,
+                    birthDate,
+                    referenceDate,
+                    intactStatus = intactStatus,
+                ).available()
+                assertEquals(profileId, result.profileId)
+                assertEquals(ReferenceBasis.BREED, result.basis)
+            }
+        }
+    }
+
+    @Test
+    fun `other cat breed uses sex specific fitted population profile`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
+        val cases = listOf(
+            CatPopulationCase(PetSex.FEMALE, "cat-population-female", 0.636271, 0.890118, 1.228598),
+            CatPopulationCase(PetSex.MALE, "cat-population-male", 0.567307, 0.861525, 1.265159),
         )
-        assertReason<WeightReferenceUnavailableReason.DshNotIntact>(
-            resolver.resolve(
+        cases.forEach { case ->
+            val result = resolver.resolve(PetSpecies.CAT, case.sex, null, birthDate, referenceDate).available()
+
+            assertEquals(case.profileId, result.profileId)
+            assertEquals(ReferenceBasis.POPULATION, result.basis)
+            assertEquals(ReferenceKind.FITTED_BCCG_PERCENTILES, snapshot.metadataFor(result.profileId)!!.referenceKind)
+            assertEquals(case.p9, result.bounds.lowerKg, 1e-12)
+            assertEquals(case.p50, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(case.p50, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(case.p91, result.bounds.upperKg, 1e-12)
+        }
+    }
+
+    @Test
+    fun `unsupported and unknown cat breeds use fitted population profile`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
+        listOf(BreedId("VBO:0100000"), BreedId("external:cat:future")).forEach { breedId ->
+            val result = resolver.resolve(
                 PetSpecies.CAT,
-                PetSex.FEMALE,
-                breed,
+                PetSex.MALE,
+                breedId,
                 birthDate,
                 referenceDate,
-                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-                intactStatus = IntactStatus.CONFIRMED_NOT_INTACT,
-            ),
-        )
+            ).available()
 
-        val result = resolver.resolve(
-            PetSpecies.CAT,
-            PetSex.FEMALE,
-            breed,
-            birthDate,
-            referenceDate,
-            intactStatus = IntactStatus.CONFIRMED_INTACT,
-        ).available()
-        assertEquals("cat-dsh-female", result.profileId)
-        assertEquals(ReferenceBasis.BREED, result.basis)
+            assertEquals("cat-population-male", result.profileId)
+            assertEquals(ReferenceBasis.POPULATION, result.basis)
+            assertEquals(ReferenceKind.FITTED_BCCG_PERCENTILES, snapshot.metadataFor(result.profileId)!!.referenceKind)
+            assertEquals(0.567307, result.bounds.lowerKg, 1e-12)
+            assertEquals(0.861525, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(0.861525, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(1.265159, result.bounds.upperKg, 1e-12)
+        }
     }
 
     @Test
@@ -294,8 +364,11 @@ class PetWeightReferenceResolverTest {
         assertReason<WeightReferenceUnavailableReason.MissingDogAdultWeight>(
             resolveDog(birthDate = date),
         )
-        assertReason<WeightReferenceUnavailableReason.MissingBreed>(
-            resolver.resolve(PetSpecies.CAT, PetSex.MALE, null, date, referenceDate),
+        assertReason<WeightReferenceUnavailableReason.MissingSex>(
+            resolver.resolve(PetSpecies.CAT, null, null, date, referenceDate),
+        )
+        assertReason<WeightReferenceUnavailableReason.MissingBirthDate>(
+            resolver.resolve(PetSpecies.CAT, PetSex.MALE, null, null, referenceDate),
         )
         assertReason<WeightReferenceUnavailableReason.UnsupportedSpecies>(
             resolver.resolve(PetSpecies.UNSPECIFIED, PetSex.MALE, null, date, referenceDate),
@@ -303,7 +376,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `breed lookup failures species mismatch and unsupported cat breed are distinct`() {
+    fun `dog breed lookup failures and species mismatch remain distinct`() {
         val date = PartialBirthDate.Day(referenceDate.minusDays(100))
         assertReason<WeightReferenceUnavailableReason.UnknownBreed>(
             resolveDog(BreedId("not-in-catalog"), date, DogAdultWeight.Category(DogAdultWeightCategory.I)),
@@ -311,20 +384,19 @@ class PetWeightReferenceResolverTest {
         assertReason<WeightReferenceUnavailableReason.BreedSpeciesMismatch>(
             resolveDog(BreedId("VBO:0100119"), date, DogAdultWeight.Category(DogAdultWeightCategory.I)),
         )
-        assertReason<WeightReferenceUnavailableReason.UnsupportedBreed>(
+        assertReason<WeightReferenceUnavailableReason.BreedSpeciesMismatch>(
             resolver.resolve(
                 PetSpecies.CAT,
                 PetSex.MALE,
-                BreedId("VBO:0100000"),
+                BreedId("VBO:0000661"),
                 date,
                 referenceDate,
-                intactStatus = IntactStatus.CONFIRMED_INTACT,
             ),
         )
     }
 
     @Test
-    fun `over forty kg and ages crossing either profile edge are typed unavailable`() {
+    fun `over forty kg and ages crossing lower profile edge are typed unavailable`() {
         assertReason<WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum>(
             resolveDog(
                 birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),
@@ -337,11 +409,6 @@ class PetWeightReferenceResolverTest {
         ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
         assertEquals(83, tooYoung.actualMinimumDays)
 
-        val partiallyTooOld = resolveDog(
-            birthDate = PartialBirthDate.Month(YearMonth.of(2023, 1)),
-            dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertTrue(partiallyTooOld.actualMaximumDays > partiallyTooOld.supportedMaximumDays)
     }
 
     private fun resolveDog(
@@ -355,6 +422,14 @@ class PetWeightReferenceResolverTest {
         birthDate,
         referenceDate,
         dogAdultWeight,
+    )
+
+    private data class CatPopulationCase(
+        val sex: PetSex,
+        val profileId: String,
+        val p9: Double,
+        val p50: Double,
+        val p91: Double,
     )
 
     private fun PetWeightReferenceResolution.available() =

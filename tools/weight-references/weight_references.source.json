@@ -13,7 +13,8 @@
       "dogEligibility": "84-730 days; known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
-      "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. They are visual fallback references only and do not reproduce fitted centiles, smoothing, longitudinal modelling, or clinical standards. Dog rows are not mapped to VBO breeds."
+      "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
+      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only"
     },
     "sources": [
       {
@@ -29,13 +30,16 @@
       },
       {
         "id": "salt-dsh-kitten-2022",
-        "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+        "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
         "publicationDoi": "10.1371/journal.pone.0277531",
         "dataDoi": "10.17638/datacat.liverpool.ac.uk/1456",
         "dataUrl": "https://datacat.liverpool.ac.uk/1456/1/KGC1_dataset.csv",
         "upstreamArtifactSha256": "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094",
         "license": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "derivedArtifact": "docs/research/97/bccg-curves.csv",
+        "derivedArtifactSha256": "fa324dc464c038518d8cebce7dc234d637142c7dbe59b601be77b64212541da1",
+        "derivationSoftware": "docs/research/97/fit_bccg.py with pinned docs/research/97/requirements-bccg.txt"
       }
     ],
     "scopes": [
@@ -235,6 +239,36 @@
           "Domestic Shorthair only",
           "Sexually intact kittens from the USA",
           "Age 8 to 78 weeks"
+        ],
+        "sourceId": "salt-dsh-kitten-2022",
+        "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-population-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "population",
+        "minimumAgeDays": 56,
+        "maximumAgeDays": 546,
+        "constraints": [
+          "Other-breed fallback; source population was Domestic Shorthair",
+          "Sexually intact kittens from the USA",
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+        ],
+        "sourceId": "salt-dsh-kitten-2022",
+        "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-population-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "population",
+        "minimumAgeDays": 56,
+        "maximumAgeDays": 546,
+        "constraints": [
+          "Other-breed fallback; source population was Domestic Shorthair",
+          "Sexually intact kittens from the USA",
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available"
@@ -6014,7 +6048,7 @@
         "Sexually intact kittens from the USA",
         "Age 8 to 78 weeks"
       ],
-      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
       "referenceKind": "empirical_observation_quartiles",
       "minimumBinN": 30,
@@ -6213,7 +6247,7 @@
         "Sexually intact kittens from the USA",
         "Age 8 to 78 weeks"
       ],
-      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
       "referenceKind": "empirical_observation_quartiles",
       "minimumBinN": 30,

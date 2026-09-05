@@ -26,12 +26,72 @@ public final class Main {
     private Main() {}
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 4 && args[0].equals("--snapshot")) {
+            snapshot(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+            return;
+        }
         if (args.length == 5 && args[0].equals("--derive")) {
             derive(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]), Path.of(args[4]));
             return;
         }
-        if (args.length != 2) throw new IllegalArgumentException("Usage: <source-json> <output-json> | --derive <source-json> <dog-zip> <kitten-csv> <output-json>");
+        if (args.length != 2) throw new IllegalArgumentException("Usage: <source-json> <output-json> | --snapshot <source-json> <bccg-curves.csv> <output-json> | --derive <source-json> <dog-zip> <kitten-csv> <output-json>");
         normalize(Path.of(args[0]), Path.of(args[1]));
+    }
+
+    private static void snapshot(Path source, Path fittedCatCurves, Path output) throws Exception {
+        JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+        JsonObject catSource = root.getAsJsonObject("manifest").getAsJsonArray("sources").asList().stream()
+            .map(value -> value.getAsJsonObject())
+            .filter(value -> value.get("id").getAsString().equals("salt-dsh-kitten-2022"))
+            .findFirst().orElseThrow();
+        verify(fittedCatCurves, catSource.get("derivedArtifactSha256").getAsString());
+        JsonArray profiles = root.getAsJsonArray("profiles");
+        for (int index = profiles.size() - 1; index >= 0; index--) {
+            if (profiles.get(index).getAsJsonObject().get("id").getAsString().startsWith("cat-population-")) profiles.remove(index);
+        }
+        addFittedCatProfiles(root, profiles, fittedCatCurves);
+        Path assembled = Files.createTempFile("weight-reference-snapshot", ".json");
+        try {
+            Files.writeString(assembled, GSON.toJson(root) + "\n", StandardCharsets.UTF_8);
+            normalize(assembled, output);
+        } finally {
+            Files.deleteIfExists(assembled);
+        }
+    }
+
+    private static void addFittedCatProfiles(JsonObject root, JsonArray profiles, Path curves) throws Exception {
+        Map<String, JsonObject> scopes = new TreeMap<>();
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes").forEach(value -> scopes.put(value.getAsJsonObject().get("id").getAsString(), value.getAsJsonObject()));
+        Map<String, JsonArray> pointsById = new TreeMap<>();
+        try (BufferedReader reader = Files.newBufferedReader(curves, StandardCharsets.UTF_8)) {
+            String header = reader.readLine();
+            if (!"sex,week,mu,sigma,nu,p02,p09,p50,p91,p98".equals(header)) throw new IllegalArgumentException("Unexpected fitted-curve header");
+            for (String line; (line = reader.readLine()) != null;) {
+                String[] value = line.split(",", -1);
+                if (value.length != 10) throw new IllegalArgumentException("Invalid fitted-curve row: " + line);
+                String sex = value[0].equals("F") ? "female" : value[0].equals("M") ? "male" : null;
+                if (sex == null) throw new IllegalArgumentException("Unknown fitted-curve sex: " + value[0]);
+                JsonObject point = new JsonObject();
+                point.addProperty("ageDays", Integer.parseInt(value[1]) * 7);
+                point.addProperty("lowerKg", Double.parseDouble(value[6]));
+                point.addProperty("medianKg", Double.parseDouble(value[7]));
+                point.addProperty("upperKg", Double.parseDouble(value[8]));
+                pointsById.computeIfAbsent("cat-population-" + sex, unused -> new JsonArray()).add(point);
+            }
+        }
+        pointsById.forEach((id, points) -> {
+            JsonObject scope = scopes.get(id);
+            if (scope == null) throw new IllegalArgumentException("Fitted profile has no declared scope: " + id);
+            JsonObject source = root.getAsJsonObject("manifest").getAsJsonArray("sources").asList().stream().map(e -> e.getAsJsonObject()).filter(s -> s.get("id").equals(scope.get("sourceId"))).findFirst().orElseThrow();
+            JsonObject profile = new JsonObject();
+            for (String field : List.of("id", "species", "sex", "basis", "weightCategory", "breedId", "sourceId", "constraints")) profile.add(field, scope.get(field));
+            profile.addProperty("citation", source.get("citation").getAsString());
+            profile.addProperty("license", source.get("license").getAsString());
+            profile.addProperty("referenceKind", "fitted_bccg_percentiles");
+            profile.addProperty("minimumBinN", 0);
+            profile.add("points", points);
+            profiles.add(profile);
+        });
     }
 
     private static void normalize(Path source, Path output) throws Exception {

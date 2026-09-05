@@ -6,6 +6,7 @@ import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import java.time.LocalDate
+import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
 import org.junit.Assert.assertEquals
@@ -13,6 +14,68 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `population legend uses the approved non medical term`() {
+        val labels = populationWeightChartLegendEntries().map(PetWeightChartLegendEntry::label)
+
+        assertEquals(listOf("▰ Типичный диапазон веса", "— P50"), labels)
+        assertTrue(labels.none { label -> listOf("норм", "идеаль", "медицин", "целев").any { it in label.lowercase() } })
+    }
+
+    @Test fun `monotone smoothing retains knots and never overshoots adjacent values`() {
+        val x = listOf(0L, 10L, 30L, 40L)
+        val y = listOf(2.0, 5.0, 3.0, 4.0)
+
+        val rendered = monotoneSmoothedChartPoints(x, y, samplesPerInterval = 10)
+
+        x.indices.forEach { index ->
+            val renderedIndex = rendered.x.indexOf(x[index])
+            assertTrue(renderedIndex >= 0)
+            assertEquals(y[index], rendered.y[renderedIndex], 0.0)
+        }
+        rendered.x.zip(rendered.y).forEach { (renderedX, renderedY) ->
+            val interval = x.zipWithNext().indexOfFirst { (start, end) -> renderedX in start..end }
+            assertTrue(renderedY in minOf(y[interval], y[interval + 1])..maxOf(y[interval], y[interval + 1]))
+        }
+    }
+
+    @Test fun `population fill boundaries and P50 share local date timestamps outside UTC`() {
+        val zoneId = ZoneId.of("Asia/Yekaterinburg")
+        val dates = listOf(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1))
+        val reference = PetHistoryWeightReference.Available(
+            basis = ReferenceBasis.POPULATION,
+            segments = listOf(
+                dates.mapIndexed { index, date ->
+                    PetHistoryReferencePoint(date, 2.0 + index, 3.0 + index, 3.0 + index, 4.0 + index)
+                },
+            ),
+            approximate = false,
+            ageLabel = "Возраст",
+            basisLabel = "Популяция",
+            sourceLabel = "Источник",
+            citation = "test",
+            license = "CC",
+            constraints = emptyList(),
+            accessibilityLabel = "test population reference",
+            isFittedPopulationPercentiles = true,
+        )
+        val expectedX = dates.map { it.atStartOfDay(zoneId).toInstant().toEpochMilli() }
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, emptyList(), zoneId)
+        val boundaryAndP50 = displayed.filter {
+            it.kind in setOf(
+                PetWeightDisplayedSeriesKind.CATEGORY_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+            )
+        }
+        val band = populationWeightReferenceBands(reference, zoneId).single()
+
+        assertEquals(expectedX, band.points.map(BreedWeightReferenceBandPoint::xEpochMillis))
+        assertEquals(3, boundaryAndP50.size)
+        assertTrue(boundaryAndP50.all { it.x == expectedX })
+        assertTrue(boundaryAndP50.all { series -> series.x == band.points.map(BreedWeightReferenceBandPoint::xEpochMillis) })
+    }
+
     @Test fun `breed interval has one zone legend entry and no center entry`() {
         val series = listOf(
             displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
@@ -262,9 +325,9 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             listOf(
-                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, listOf(firstDate to 8.0, secondDate to 9.0)),
-                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, listOf(firstDate to 12.0, secondDate to 13.0)),
-                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, listOf(firstDate to 10.0, secondDate to 11.0)),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, listOf(firstDate to 8.0, secondDate to 9.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, listOf(firstDate to 12.0, secondDate to 13.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, listOf(firstDate to 10.0, secondDate to 11.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
             ),
             breedWeightReferenceChartSeries(timeline),
         )

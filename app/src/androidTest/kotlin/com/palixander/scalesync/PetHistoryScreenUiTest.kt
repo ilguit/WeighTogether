@@ -52,6 +52,7 @@ import com.palixander.scalesync.ui.profiles.PetHistoryBreedReference
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedChartValue
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedSource
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedReferenceTimelinePoint
+import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -66,6 +67,41 @@ class PetHistoryScreenUiTest {
         setScreen(state(PetHistoryContent.Empty), PetHistoryCallbacks({}, { _, _ -> }, onAddWeightRequested = { additions++ }))
         composeRule.onNodeWithTag(PetProfileScreenTestTags.AddWeight).performScrollTo().assertIsEnabled().performClick()
         composeRule.runOnIdle { assertEquals(1, additions) }
+    }
+
+    @Test fun populationReferenceUsesApprovedLegendSemanticsAndPrimaryPublicationAtNarrowLargeText() {
+        val opened = mutableListOf<String>()
+        val reference = availableReference("Справочные данные по популяции").copy(
+            basis = ReferenceBasis.POPULATION,
+            publicationUrl = "https://doi.org/10.1371/journal.pone.0182064",
+            isFittedPopulationPercentiles = true,
+        )
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(
+                        state(PetHistoryContent.Empty).copy(weightReference = reference),
+                        callbacks(),
+                        PaddingValues(),
+                        {},
+                        sourceLauncher = ReferenceSourceLauncher { url -> opened += url; true },
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithText("▰ Типичный диапазон веса").assertIsDisplayed()
+        composeRule.onNodeWithText("— P50").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assert(hasContentDescription("Сведения справочные и не оценивают здоровье питомца", substring = true))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Publication).performScrollTo().performClick()
+        composeRule.runOnIdle {
+            assertEquals(listOf("https://doi.org/10.1371/journal.pone.0182064"), opened)
+        }
+        listOf("нормальный", "идеальный", "медицинский", "целевой").forEach { forbidden ->
+            composeRule.onNodeWithText(forbidden, substring = true, ignoreCase = true).assertDoesNotExist()
+        }
     }
 
     @Test fun emptyHistoryStillOffersExactPetMeasurementAndPeriodFilter() {

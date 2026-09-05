@@ -49,6 +49,10 @@ _Avoid_: Normal weight, ideal weight, weight target
 An empirical age-based weight reference selected through a dog's adult weight category. It is distinct from a breed weight reference.
 _Avoid_: Breed standard, breed weight reference
 
+**Typical weight range (Типичный диапазон веса)**:
+A sex- and age-specific informational range from a documented reference population. It supports visual comparison and does not assess an individual pet's health.
+_Avoid_: Normal weight, ideal weight, healthy weight, weight target
+
 **Supported breed**:
 A breed for which the current product dataset contains a complete set of usable breed-reference data.
 _Avoid_: Catalog breed
