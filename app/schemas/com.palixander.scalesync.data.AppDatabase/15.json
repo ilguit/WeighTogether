@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "3d5f107328f758ab8e01923fa28e6149",
+    "identityHash": "1f9ea4cf0303e9b755a21eac8d9bf4bb",
     "entities": [
       {
         "tableName": "accounts",
@@ -140,7 +140,7 @@
       },
       {
         "tableName": "measurements",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `measurementType` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `rawWeight` INTEGER NOT NULL, `impedanceOhm` INTEGER, `bmi` REAL, `bodyFatPercent` REAL, `bodyFatMassKg` REAL, `waterPercent` REAL, `waterMassKg` REAL, `muscleMassKg` REAL, `skeletalMuscleMassKg` REAL, `boneMassKg` REAL, `proteinPercent` REAL, `proteinMassKg` REAL, `visceralFatLevel` REAL, `basalMetabolicRateKcal` REAL, `metabolicAge` INTEGER, `leanBodyMassKg` REAL, `algorithmVersion` TEXT, `huaweiStatus` TEXT NOT NULL, `healthConnectStatus` TEXT NOT NULL, `huaweiError` TEXT, `healthConnectError` TEXT, `huaweiWeightSynced` INTEGER NOT NULL, `healthConnectWeightSynced` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `accountId` TEXT NOT NULL, `externalSyncPolicy` TEXT NOT NULL, `sourcePendingId` TEXT, `deduplicationHash` TEXT, `huaweiSyncedCalculatedValues` TEXT, `healthConnectSyncedCalculatedValues` TEXT, `ratingHeightCm` REAL, `ratingHeightOrigin` TEXT NOT NULL DEFAULT 'RESTORED_CURRENT_ACCOUNT', `origin` TEXT NOT NULL DEFAULT 'LEGACY', PRIMARY KEY(`id`), FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `measurementType` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `rawWeight` INTEGER NOT NULL, `impedanceOhm` INTEGER, `bmi` REAL, `bodyFatPercent` REAL, `bodyFatMassKg` REAL, `waterPercent` REAL, `waterMassKg` REAL, `muscleMassKg` REAL, `skeletalMuscleMassKg` REAL, `boneMassKg` REAL, `proteinPercent` REAL, `proteinMassKg` REAL, `visceralFatLevel` REAL, `basalMetabolicRateKcal` REAL, `metabolicAge` INTEGER, `leanBodyMassKg` REAL, `algorithmVersion` TEXT, `healthConnectStatus` TEXT NOT NULL, `healthConnectError` TEXT, `healthConnectWeightSynced` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `accountId` TEXT NOT NULL, `externalSyncPolicy` TEXT NOT NULL, `sourcePendingId` TEXT, `deduplicationHash` TEXT, `healthConnectSyncedCalculatedValues` TEXT, `ratingHeightCm` REAL, `ratingHeightOrigin` TEXT NOT NULL DEFAULT 'RESTORED_CURRENT_ACCOUNT', `origin` TEXT NOT NULL DEFAULT 'LEGACY', PRIMARY KEY(`id`), FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -271,32 +271,15 @@
             "affinity": "TEXT"
           },
           {
-            "fieldPath": "huaweiStatus",
-            "columnName": "huaweiStatus",
-            "affinity": "TEXT",
-            "notNull": true
-          },
-          {
             "fieldPath": "healthConnectStatus",
             "columnName": "healthConnectStatus",
             "affinity": "TEXT",
             "notNull": true
           },
           {
-            "fieldPath": "huaweiError",
-            "columnName": "huaweiError",
-            "affinity": "TEXT"
-          },
-          {
             "fieldPath": "healthConnectError",
             "columnName": "healthConnectError",
             "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "huaweiWeightSynced",
-            "columnName": "huaweiWeightSynced",
-            "affinity": "INTEGER",
-            "notNull": true
           },
           {
             "fieldPath": "healthConnectWeightSynced",
@@ -330,11 +313,6 @@
           {
             "fieldPath": "deduplicationHash",
             "columnName": "deduplicationHash",
-            "affinity": "TEXT"
-          },
-          {
-            "fieldPath": "huaweiSyncedCalculatedValues",
-            "columnName": "huaweiSyncedCalculatedValues",
             "affinity": "TEXT"
           },
           {
@@ -883,7 +861,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3d5f107328f758ab8e01923fa28e6149')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1f9ea4cf0303e9b755a21eac8d9bf4bb')"
     ]
   }
 }
