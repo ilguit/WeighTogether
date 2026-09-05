@@ -37,6 +37,7 @@ sealed interface BackupImportConflict {
     data class AccountName(val normalizedName: String) : BackupImportConflict
     data class MeasurementId(val id: String) : BackupImportConflict
     data class MeasurementFingerprint(val fingerprint: String) : BackupImportConflict
+    data class MeasurementSourcePendingId(val sourcePendingId: String) : BackupImportConflict
     data class MeasurementDeduplicationHash(val hash: String) : BackupImportConflict
     data class PetId(val id: String) : BackupImportConflict
     data class PetName(val normalizedName: String) : BackupImportConflict
@@ -475,58 +476,78 @@ class BackupImportService(
         val conflicts = mutableListOf<BackupImportConflict>()
         val existingAccountsById = current.accounts.associateBy { it.id }
         val existingAccountsByName = current.accounts.associateBy { it.normalizedName }
+        val accountIdMapping = mutableMapOf<String, String>()
         val accountsToAdd = incoming.accounts.filter { account ->
             val byId = existingAccountsById[account.id]
-            if (byId != null) {
-                if (byId != account) conflicts += BackupImportConflict.AccountId(account.id)
+            val byName = existingAccountsByName[account.normalizedName]
+            if (byId != null && byName != null && byId.id != byName.id) {
+                conflicts += BackupImportConflict.AccountId(account.id)
+                conflicts += BackupImportConflict.AccountName(account.normalizedName)
+                // Keep validation deterministic; the accumulated ambiguity is rejected below.
+                accountIdMapping[account.id] = account.id
                 false
             } else {
-                val byName = existingAccountsByName[account.normalizedName]
-                if (byName != null) conflicts += BackupImportConflict.AccountName(account.normalizedName)
-                byName == null
+                val matched = byId ?: byName
+                accountIdMapping[account.id] = matched?.id ?: account.id
+                matched == null
             }
+        }
+        val remappedMeasurements = incoming.measurements.map { measurement ->
+            measurement.copy(accountId = accountIdMapping.getValue(measurement.accountId))
         }
         val byId = current.measurements.associateBy { it.id }
         val byFingerprint = current.measurements.associateBy { it.fingerprint }
+        val bySourcePendingId = current.measurements.mapNotNull { value ->
+            value.sourcePendingId?.let { it to value }
+        }.toMap()
         val byHash = current.measurements.mapNotNull { value -> value.deduplicationHash?.let { it to value } }.toMap()
-        val measurementsToAdd = incoming.measurements.filter { measurement ->
+        val measurementsToAdd = remappedMeasurements.filter { measurement ->
             val matches = listOfNotNull(
                 byId[measurement.id]?.let { BackupImportConflict.MeasurementId(measurement.id) to it },
                 byFingerprint[measurement.fingerprint]?.let { BackupImportConflict.MeasurementFingerprint(measurement.fingerprint) to it },
+                measurement.sourcePendingId?.let { sourcePendingId ->
+                    bySourcePendingId[sourcePendingId]?.let {
+                        BackupImportConflict.MeasurementSourcePendingId(sourcePendingId) to it
+                    }
+                },
                 measurement.deduplicationHash?.let { hash -> byHash[hash]?.let { BackupImportConflict.MeasurementDeduplicationHash(hash) to it } },
             )
-            if (matches.isEmpty()) true else {
-                val identical = matches.all { it.second == measurement }
-                if (!identical) conflicts += matches.filter { it.second != measurement }.map { it.first }
-                false
-            }
+            val matchedIds = matches.map { it.second.id }.distinct()
+            if (matchedIds.size > 1) conflicts += matches.map { it.first }
+            matches.isEmpty()
         }
         val existingPetsById = current.pets.associateBy { it.id }
         val existingPetsByName = current.pets.associateBy { it.normalizedName }
+        val petIdMapping = mutableMapOf<String, String>()
         val petsToAdd = incoming.pets.filter { pet ->
             val byPetId = existingPetsById[pet.id]
-            if (byPetId != null) {
-                if (byPetId != pet) conflicts += BackupImportConflict.PetId(pet.id)
+            val byName = existingPetsByName[pet.normalizedName]
+            if (byPetId != null && byName != null && byPetId.id != byName.id) {
+                conflicts += BackupImportConflict.PetId(pet.id)
+                conflicts += BackupImportConflict.PetName(pet.normalizedName)
+                // Keep validation deterministic; the accumulated ambiguity is rejected below.
+                petIdMapping[pet.id] = pet.id
                 false
             } else {
-                val byName = existingPetsByName[pet.normalizedName]
-                if (byName != null) conflicts += BackupImportConflict.PetName(pet.normalizedName)
-                byName == null
+                val matched = byPetId ?: byName
+                petIdMapping[pet.id] = matched?.id ?: pet.id
+                matched == null
             }
         }
+        val remappedPetMeasurements = incoming.petMeasurements.map { measurement ->
+            measurement.copy(petId = petIdMapping.getValue(measurement.petId))
+        }
         val existingPetMeasurementsById = current.petMeasurements.associateBy { it.id }
-        val petMeasurementsToAdd = incoming.petMeasurements.filter { measurement ->
+        val petMeasurementsToAdd = remappedPetMeasurements.filter { measurement ->
             val existing = existingPetMeasurementsById[measurement.id]
-            if (existing == null) true else {
-                if (existing != measurement) conflicts += BackupImportConflict.PetMeasurementId(measurement.id)
-                false
-            }
+            existing == null
         }
         if (conflicts.isNotEmpty()) throw BackupImportConflicts(conflicts.distinct())
         val result = BackupDatabaseSnapshot(
             accounts = current.accounts + accountsToAdd,
             appState = current.appState.copy(
-                primaryAccountId = current.appState.primaryAccountId ?: incoming.appState.primaryAccountId,
+                primaryAccountId = current.appState.primaryAccountId
+                    ?: incoming.appState.primaryAccountId?.let(accountIdMapping::getValue),
             ),
             measurements = current.measurements + measurementsToAdd,
             pets = current.pets + petsToAdd,
