@@ -356,14 +356,12 @@ class SettingsShellUiTest {
                 scaleAddress = "AA:BB",
                 scaleName = "Mi Body Composition Scale 2",
                 healthConnectSyncEnabled = true,
-                huaweiSyncEnabled = true,
             ),
             healthConnect = HealthConnectPermissionsUiState.snapshot(
                 isAvailable = true,
                 requiredPermissions = permissions,
                 grantedPermissions = permissions,
             ),
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
         )
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleStatusMark).assertExists()
@@ -448,14 +446,8 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun supportedBuildOmitsHuaweiIntegrationAndCannotDispatchItsCallbacks() {
-        var refreshCalls = 0
-        var authorizationCalls = 0
-        setSettingsShell(
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
-            onHuaweiAuthorization = { authorizationCalls++ },
-            onHuaweiPermissionRefresh = { refreshCalls++ },
-        )
+    fun supportedBuildOmitsHuaweiIntegration() {
+        setSettingsShell()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
@@ -465,10 +457,6 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertDoesNotExist()
 
-        composeRule.runOnIdle {
-            assertEquals(0, refreshCalls)
-            assertEquals(0, authorizationCalls)
-        }
     }
 
     @Test
@@ -697,12 +685,9 @@ class SettingsShellUiTest {
     private fun setSettingsShell(
         expandSections: Boolean = true,
         settings: AppSettings = AppSettings(),
-        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
         healthConnectSystemManagementAvailable: Boolean = true,
         account: Account? = completeAccount(),
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
@@ -725,7 +710,6 @@ class SettingsShellUiTest {
                     healthConnect = healthConnect,
                     healthConnectSystemManagementAvailable =
                         healthConnectSystemManagementAvailable,
-                    huawei = huawei,
                     accounts = listOfNotNull(account),
                     accountSettings = AccountSettings(primaryAccountId = account?.id),
                     accountManagement = management.value,
@@ -744,8 +728,6 @@ class SettingsShellUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(
-                    onHuaweiAuthorization = onHuaweiAuthorization,
-                    onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
                     onHealthConnectAuthorization = onHealthConnectAuthorization,
                     onHealthConnectAccessManagement = onHealthConnectAccessManagement,
                     accountManagement = AccountManagementCallbacks.None.copy(
@@ -760,15 +742,11 @@ class SettingsShellUiTest {
     }
 
     private fun settingsCallbacks(
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     ) = SettingsCallbacks(
-        onHuaweiAuthorization = onHuaweiAuthorization,
-        onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualScan = {},

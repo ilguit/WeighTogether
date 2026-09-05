@@ -124,15 +124,6 @@ class SettingsIntegrationDetailScreenTest {
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider).assertExists()
     }
 
-    @Test
-    fun supportedBuildHasNoHuaweiRootDestination() {
-        assertEquals(
-            false,
-            settingsRootDestinations(huaweiEnabled = false)
-                .contains(SettingsDestination.HUAWEI_HEALTH),
-        )
-    }
-
     private fun setDetail(
         destination: SettingsDestination,
         state: MainUiState,
@@ -149,13 +140,10 @@ class SettingsIntegrationDetailScreenTest {
     }
 
     private fun callbacks(
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onDisableHealthConnect: () -> Unit = {},
     ) = SettingsCallbacks(
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualScan = {},

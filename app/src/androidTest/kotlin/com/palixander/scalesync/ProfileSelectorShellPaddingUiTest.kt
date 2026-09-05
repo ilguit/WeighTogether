@@ -122,8 +122,6 @@ class ProfileSelectorShellPaddingUiTest {
     }
 
     private fun settingsCallbacks() = SettingsCallbacks(
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
         onManualScan = {},

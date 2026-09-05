@@ -8,7 +8,6 @@ import org.junit.Test
 class AppIdentityContractTest {
     @Test
     fun supportedBuildKeepsPersonalApplicationId() {
-        assertEquals("", BuildConfig.FLAVOR)
         assertEquals("com.palixander.scalesync.personal", BuildConfig.APPLICATION_ID)
     }
 
