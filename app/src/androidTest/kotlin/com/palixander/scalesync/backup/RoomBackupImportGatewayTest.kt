@@ -153,6 +153,58 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
+    fun mergePreservesLocalOwnersAndPersistsNewMeasurementsWithRemappedReferences() = runBlocking {
+        val localAccount = account("local-account").copy(
+            displayName = "Owner",
+            normalizedName = "owner",
+            heightCm = 180.0,
+            updatedAtEpochMillis = 20,
+        )
+        val localPet = pet("pet").copy(
+            displayName = "Local cat",
+            normalizedName = "local cat",
+            updatedAtEpochMillis = 20,
+        )
+        database.accountDao().insert(localAccount)
+        database.petDao().insertPet(localPet)
+
+        val importedAccount = account("imported-account").copy(
+            displayName = "Imported owner",
+            normalizedName = localAccount.normalizedName,
+            heightCm = 160.0,
+            updatedAtEpochMillis = 200,
+        )
+        val importedPet = pet(localPet.id).copy(
+            displayName = "Imported dog",
+            normalizedName = "imported dog",
+            species = PetSpecies.DOG,
+            updatedAtEpochMillis = 200,
+        )
+
+        apply(
+            preview(
+                BackupImportMode.MERGE,
+                listOf(importedAccount),
+                listOf(measurement("account-m", importedAccount.id, SyncStatus.SYNCED)),
+                listOf(importedPet),
+                listOf(petMeasurement("pet-m", importedPet.id)),
+            ),
+        )
+
+        assertEquals(localAccount, database.accountDao().get(localAccount.id))
+        assertEquals(localPet, database.petDao().getPet(localPet.id))
+        assertEquals(
+            localAccount.id,
+            database.measurementDao().getAllForBackup().single { it.id == "account-m" }.accountId,
+        )
+        val storedPetMeasurement = database.petDao().getMeasurement("pet-m")
+        assertNotNull(storedPetMeasurement)
+        assertEquals(localPet.id, storedPetMeasurement?.petId)
+        assertEquals(localPet, database.petDao().getPet(storedPetMeasurement?.petId.orEmpty()))
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
     fun settingsFailureKeepsCommittedDatabaseAndConcurrentWriterForRecovery() = runBlocking {
         database.accountDao().insert(account("old"))
         database.measurementDao().insert(measurement("old-m", "old", SyncStatus.LOCAL_ONLY))
