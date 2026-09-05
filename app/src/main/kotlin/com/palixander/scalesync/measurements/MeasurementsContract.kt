@@ -556,19 +556,14 @@ data class MeasurementsCallbacks(
 internal fun measurementSyncPresentation(
     healthConnectStatus: String,
     healthConnectError: String?,
-    huaweiStatus: String,
-    huaweiError: String?,
+    @Suppress("UNUSED_PARAMETER") huaweiStatus: String,
+    @Suppress("UNUSED_PARAMETER") huaweiError: String?,
 ): MeasurementSyncPresentation {
     val directions = listOfNotNull(
         syncDirectionPresentation(
             direction = MeasurementSyncDirection.HEALTH_CONNECT,
             rawStatus = healthConnectStatus,
             rawError = healthConnectError,
-        ),
-        syncDirectionPresentation(
-            direction = MeasurementSyncDirection.HUAWEI_HEALTH,
-            rawStatus = huaweiStatus,
-            rawError = huaweiError,
         ),
     )
     val availableDirections = directions.filterNot {
