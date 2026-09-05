@@ -1714,7 +1714,7 @@ private fun DeleteMeasurementDialog(
                 )
                 Text(
                     "Измерение будет удалено без возможности восстановления. " +
-                        "Данные в Health Connect и Huawei Health останутся без изменений.",
+                        "Данные в Health Connect останутся без изменений.",
                 )
             }
         },
