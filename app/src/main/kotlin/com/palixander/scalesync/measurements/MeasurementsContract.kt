@@ -398,8 +398,6 @@ internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(
         sync = measurementSyncPresentation(
             healthConnectStatus = "LOCAL_ONLY",
             healthConnectError = null,
-            huaweiStatus = "DISABLED",
-            huaweiError = null,
         ),
         type = if (composition == null) MeasurementUiType.WEIGHT_ONLY else MeasurementUiType.FULL,
     )
@@ -556,8 +554,6 @@ data class MeasurementsCallbacks(
 internal fun measurementSyncPresentation(
     healthConnectStatus: String,
     healthConnectError: String?,
-    @Suppress("UNUSED_PARAMETER") huaweiStatus: String,
-    @Suppress("UNUSED_PARAMETER") huaweiError: String?,
 ): MeasurementSyncPresentation {
     val directions = listOfNotNull(
         syncDirectionPresentation(
