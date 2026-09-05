@@ -13,6 +13,30 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `population legend uses the approved non medical term`() {
+        val labels = populationWeightChartLegendEntries().map(PetWeightChartLegendEntry::label)
+
+        assertEquals(listOf("▰ Типичный диапазон веса", "— P50"), labels)
+        assertTrue(labels.none { label -> listOf("норм", "идеаль", "медицин", "целев").any { it in label.lowercase() } })
+    }
+
+    @Test fun `monotone smoothing retains knots and never overshoots adjacent values`() {
+        val x = listOf(0L, 10L, 30L, 40L)
+        val y = listOf(2.0, 5.0, 3.0, 4.0)
+
+        val rendered = monotoneSmoothedChartPoints(x, y, samplesPerInterval = 10)
+
+        x.indices.forEach { index ->
+            val renderedIndex = rendered.x.indexOf(x[index])
+            assertTrue(renderedIndex >= 0)
+            assertEquals(y[index], rendered.y[renderedIndex], 0.0)
+        }
+        rendered.x.zip(rendered.y).forEach { (renderedX, renderedY) ->
+            val interval = x.zipWithNext().indexOfFirst { (start, end) -> renderedX in start..end }
+            assertTrue(renderedY in minOf(y[interval], y[interval + 1])..maxOf(y[interval], y[interval + 1]))
+        }
+    }
+
     @Test fun `breed interval has one zone legend entry and no center entry`() {
         val series = listOf(
             displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),

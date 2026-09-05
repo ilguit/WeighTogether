@@ -19,6 +19,7 @@ import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferenceProfileMetadata
+import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.time.Clock
@@ -117,6 +118,8 @@ sealed interface PetHistoryWeightReference {
         val license: String,
         val constraints: List<String>,
         val accessibilityLabel: String,
+        val publicationUrl: String? = null,
+        val isFittedPopulationPercentiles: Boolean = false,
     ) : PetHistoryWeightReference
 
     data class Unavailable(
@@ -197,10 +200,12 @@ class PetHistoryReferencePresenter(
     ): PetHistoryWeightReference.Available {
         val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
         val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
-        val basisLabel = when (metadata.basis) {
+        val basisLabel = if (metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES) {
+            "Справочные данные о весе"
+        } else when (metadata.basis) {
             ReferenceBasis.BREED -> "Эталон по породе"
             ReferenceBasis.WEIGHT_CATEGORY -> "Эталон по весовой категории"
-            ReferenceBasis.POPULATION -> "Эталон по популяции"
+            ReferenceBasis.POPULATION -> "Справочные данные о весе"
         }
         return PetHistoryWeightReference.Available(
             metadata.basis,
@@ -213,6 +218,8 @@ class PetHistoryReferencePresenter(
             metadata.source.license,
             metadata.constraints,
             "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
+            "https://doi.org/${metadata.source.publicationDoi}",
+            metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
         )
     }
 }
