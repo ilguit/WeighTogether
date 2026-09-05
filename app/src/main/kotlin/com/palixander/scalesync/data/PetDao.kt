@@ -25,6 +25,7 @@ data class PetWithLatestMeasurementRow(
     val latestSecondWeightKg: Double?,
     val latestPetWeightKg: Double?,
     val latestOrigin: com.palixander.scalesync.domain.MeasurementOrigin?,
+    val latestIsManuallyEdited: Boolean?,
 )
 
 @Dao
@@ -48,7 +49,8 @@ interface PetDao {
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
             m.secondWeightKg AS latestSecondWeightKg,
-            m.petWeightKg AS latestPetWeightKg, m.origin AS latestOrigin
+            m.petWeightKg AS latestPetWeightKg, m.origin AS latestOrigin,
+            m.isManuallyEdited AS latestIsManuallyEdited
         FROM pets p
         LEFT JOIN pet_measurements m ON m.id = (
             SELECT latest.id FROM pet_measurements latest
@@ -114,6 +116,13 @@ interface PetDao {
 
     @Query("DELETE FROM pet_measurements WHERE petId = :petId AND id = :measurementId")
     suspend fun deleteMeasurement(petId: String, measurementId: String): Int
+
+    @Query("""
+        UPDATE pet_measurements
+        SET petWeightKg = :petWeightKg, isManuallyEdited = 1
+        WHERE petId = :petId AND id = :measurementId
+    """)
+    suspend fun updateMeasurementWeight(petId: String, measurementId: String, petWeightKg: Double): Int
 
     @Query("DELETE FROM pet_measurements")
     suspend fun deleteAllMeasurements()

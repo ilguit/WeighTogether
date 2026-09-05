@@ -31,6 +31,8 @@ data class PetMeasurementEntity(
     val petWeightKg: Double,
     @ColumnInfo(defaultValue = "'LEGACY'")
     val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
+    @ColumnInfo(defaultValue = "0")
+    val isManuallyEdited: Boolean = false,
 ) {
     fun toDomain(): PetMeasurement = PetMeasurement(
         id = id,
@@ -40,5 +42,6 @@ data class PetMeasurementEntity(
         secondWeightKg = secondWeightKg,
         petWeightKg = petWeightKg,
         origin = origin,
+        isManuallyEdited = isManuallyEdited,
     )
 }

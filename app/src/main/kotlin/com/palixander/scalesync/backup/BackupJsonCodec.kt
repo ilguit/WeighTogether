@@ -25,9 +25,12 @@ class BackupJsonCodec(
             throw BackupException.Invalid("$", error.message ?: "invalid value")
         }
         val root = gson.toJsonTree(document).asJsonObject
-        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V5) {
             root.getAsJsonArray("measurements").forEach { it.asJsonObject.remove("origin") }
             root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("origin") }
+        }
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+            root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("isManuallyEdited") }
         }
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
             root.getAsJsonArray("measurements").forEach { element ->
@@ -70,9 +73,12 @@ class BackupJsonCodec(
             root.add("pets", com.google.gson.JsonArray())
             root.add("petMeasurements", com.google.gson.JsonArray())
         }
-        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+        if (supportedVersion < BACKUP_SCHEMA_VERSION_V5) {
             root.array("measurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
             root.array("petMeasurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
+        }
+        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+            root.array("petMeasurements").forEach { it.asJsonObject.addProperty("isManuallyEdited", false) }
         }
         var document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
@@ -119,13 +125,13 @@ class BackupJsonCodec(
         root.array("measurements").forEachIndexed { index, element ->
             element.requiredObject("$.measurements[$index]").apply {
                 val path = "$.measurements[$index]"
-                requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) MEASUREMENT_KEYS_V3 + "origin" else if (version >= BACKUP_SCHEMA_VERSION_V3) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
+                requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION_V5) MEASUREMENT_KEYS_V3 + "origin" else if (version >= BACKUP_SCHEMA_VERSION_V3) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
                 requireStrings(path, MEASUREMENT_STRING_KEYS)
                 requireNullableStrings(
                     path,
                     MEASUREMENT_NULLABLE_STRING_KEYS,
                 )
-                if (version >= BACKUP_SCHEMA_VERSION) requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
+                if (version >= BACKUP_SCHEMA_VERSION_V5) requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
                 if (version >= BACKUP_SCHEMA_VERSION_V3) requireStrings(path, setOf("ratingHeightOrigin"))
                 requireNumbers(path, MEASUREMENT_NUMBER_KEYS)
                 requireNullableNumbers(
@@ -164,15 +170,20 @@ class BackupJsonCodec(
             root.array("petMeasurements").forEachIndexed { index, element ->
                 val path = "$.petMeasurements[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) PET_MEASUREMENT_KEYS + "origin" else PET_MEASUREMENT_KEYS)
+                    requireKeys(path, when {
+                        version >= BACKUP_SCHEMA_VERSION -> PET_MEASUREMENT_KEYS + setOf("origin", "isManuallyEdited")
+                        version >= BACKUP_SCHEMA_VERSION_V5 -> PET_MEASUREMENT_KEYS + "origin"
+                        else -> PET_MEASUREMENT_KEYS
+                    })
                     requireStrings(path, setOf("id", "petId"))
                     requireNumbers(path, setOf("measuredAtEpochSecond", "petWeightKg"))
-                    if (version >= BACKUP_SCHEMA_VERSION) {
+                    if (version >= BACKUP_SCHEMA_VERSION_V5) {
                         requireNullableNumbers(path, setOf("firstWeightKg", "secondWeightKg"))
                         requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
                     } else {
                         requireNumbers(path, setOf("firstWeightKg", "secondWeightKg"))
                     }
+                    if (version >= BACKUP_SCHEMA_VERSION) requireBooleans(path, setOf("isManuallyEdited"))
                 }
             }
         }
@@ -227,7 +238,7 @@ class BackupJsonCodec(
         document.measurements.forEachIndexed { index, measurement ->
             val path = "$.measurements[$index]"
             invalidUnless(measurement.origin != null, "$path.origin", "unknown origin")
-            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V5) {
                 invalidUnless(measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, "$path.origin", "requires v5")
             }
             if (measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL) {
@@ -313,8 +324,11 @@ class BackupJsonCodec(
         unique(document.petMeasurements.map { it.id }, "pet measurement id")
         document.petMeasurements.forEachIndexed { index, measurement ->
             val path = "$.petMeasurements[$index]"
-            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V5) {
                 invalidUnless(measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, "$path.origin", "requires v5")
+            }
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+                invalidUnless(!measurement.isManuallyEdited, "$path.isManuallyEdited", "requires v6")
             }
             if (measurement.petId !in petIds) throw BackupException.MissingPet(measurement.petId)
             invalidUnless(measurement.id.isNotBlank(), "$path.id", "must not be blank")
@@ -324,7 +338,7 @@ class BackupJsonCodec(
                     measurement.id, com.palixander.scalesync.domain.PetId(measurement.petId),
                     java.time.Instant.ofEpochSecond(measurement.measuredAtEpochSecond),
                     measurement.firstWeightKg, measurement.secondWeightKg, measurement.petWeightKg,
-                    measurement.origin,
+                    measurement.origin, measurement.isManuallyEdited,
                 )
             }.isSuccess
             invalidUnless(valid, path, "invalid pet weight or source readings")
@@ -460,6 +474,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V2,
             BACKUP_SCHEMA_VERSION_V3,
             BACKUP_SCHEMA_VERSION_V4,
+            BACKUP_SCHEMA_VERSION_V5,
             BACKUP_SCHEMA_VERSION,
         )
     }

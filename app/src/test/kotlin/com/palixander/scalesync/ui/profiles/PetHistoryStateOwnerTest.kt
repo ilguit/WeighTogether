@@ -714,6 +714,11 @@ private class FakeRepository(
         deleteCalls += petId to measurementId
         deleteBlock(petId, measurementId)
     }
+    override suspend fun updateMeasurementWeight(
+        petId: PetId,
+        measurementId: String,
+        petWeightKg: Double,
+    ): PetMeasurement = error("unused")
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,
