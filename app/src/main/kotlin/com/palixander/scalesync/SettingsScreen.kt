@@ -200,10 +200,6 @@ internal object SettingsScreenTestTags {
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
     const val HealthConnectDetail = "settings-health-connect-detail"
-    const val HuaweiHealthDivider = "settings-huawei-health-divider"
-    const val HuaweiHealthRow = "settings-huawei-health-row"
-    const val HuaweiHealthAction = "settings-huawei-health-action"
-    const val HuaweiHealthDetail = "settings-huawei-health-detail"
     const val ScaleDetail = "settings-scale-detail"
     const val ScaleStatus = "settings-scale-status"
     const val ScaleAction = "settings-scale-action"
@@ -270,7 +266,6 @@ internal object SettingsScreenTestTags {
     const val TrailingChevronSuffix = "-trailing-chevron"
     const val ScaleStatusMark = "settings-scale-status-mark"
     const val HealthConnectStatusMark = "settings-health-connect-status-mark"
-    const val HuaweiHealthStatusMark = "settings-huawei-health-status-mark"
 }
 
 internal object SettingsScreenContentDescriptions {

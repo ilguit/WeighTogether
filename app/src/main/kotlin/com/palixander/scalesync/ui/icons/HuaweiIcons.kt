@@ -223,15 +223,6 @@ object HuaweiIcons {
         )
     }
 
-    val HuaweiHealth: ImageVector by lazy {
-        outlineIcon(
-            "HuaweiHealth",
-            listOf(
-                "M12 21S4 16.2 4 10.1A4.1 4.1 0 0 1 11 7.2L12 8.3L13 7.2A4.1 4.1 0 0 1 20 10.1C20 16.2 12 21 12 21Z",
-            ),
-        )
-    }
-
     val Archive: ImageVector by lazy {
         outlineIcon(
             "Archive",

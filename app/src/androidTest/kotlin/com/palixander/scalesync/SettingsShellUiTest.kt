@@ -368,8 +368,6 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectStatusMark).assertExists()
         composeRule.onNodeWithText("Mi Body Composition Scale 2").assertExists()
         composeRule.onNodeWithText("Подключено · все разрешения выданы").assertExists()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark)
-            .assertDoesNotExist()
     }
 
     @Test
@@ -446,17 +444,13 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun supportedBuildOmitsHuaweiIntegration() {
+    fun supportedBuildOmitsRetiredIntegration() {
         setSettingsShell()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("Huawei Health").assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertDoesNotExist()
-
     }
 
     @Test
