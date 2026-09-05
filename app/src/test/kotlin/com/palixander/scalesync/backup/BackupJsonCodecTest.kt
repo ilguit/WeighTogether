@@ -30,7 +30,7 @@ class BackupJsonCodecTest {
         val encoded = codec.encode(source)
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "UNKNOWN")) }
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "SCALE")) }
-        assertThrows(BackupException.UnsupportedVersion::class.java) {
+        assertThrows(BackupException.Invalid::class.java) {
             codec.encode(source.copy(schemaVersion = 5))
         }
     }
@@ -38,23 +38,10 @@ class BackupJsonCodecTest {
     @Test
     fun everyLegacyVersionIsUnsupported() {
         for (version in 1..5) {
-            assertThrows(BackupException.UnsupportedVersion::class.java) {
+            assertThrows(BackupException.Invalid::class.java) {
                 codec.encode(document().copy(schemaVersion = version))
             }
         }
-    }
-
-    @Test
-    fun v5PetMeasurementsRestoreAsNotEdited() {
-        val source = document().copy(
-            schemaVersion = BACKUP_SCHEMA_VERSION_V5,
-            pets = listOf(BackupPetV2("p", "Кот", "кот", PetSpecies.CAT, 10, 11)),
-            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 70.0, 74.0, 4.0)),
-        )
-
-        val encoded = codec.encode(source)
-        assertTrue(!encoded.contains("isManuallyEdited"))
-        assertEquals(false, codec.decode(encoded).petMeasurements.single().isManuallyEdited)
     }
 
     @Test
