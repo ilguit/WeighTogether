@@ -169,17 +169,9 @@ interface MultiAccountMeasurementDao {
         """
         UPDATE measurements
         SET externalSyncPolicy = 'AUTO',
-            huaweiStatus = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiStatus
-                ELSE 'PENDING'
-            END,
             healthConnectStatus = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectStatus
                 ELSE 'PENDING'
-            END,
-            huaweiError = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiError
-                ELSE NULL
             END,
             healthConnectError = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectError

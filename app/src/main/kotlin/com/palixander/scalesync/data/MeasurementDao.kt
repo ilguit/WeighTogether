@@ -30,20 +30,16 @@ interface MeasurementDao {
 
         val upgraded = measurement.copy(
             id = current.id,
-            huaweiStatus = current.huaweiStatus.requeueUnlessTerminal(),
             healthConnectStatus = current.healthConnectStatus.requeueUnlessTerminal(),
-            huaweiError = current.huaweiError.preserveForTerminalStatus(current.huaweiStatus),
             healthConnectError = current.healthConnectError.preserveForTerminalStatus(
                 current.healthConnectStatus,
             ),
-            huaweiWeightSynced = current.huaweiWeightSynced,
             healthConnectWeightSynced = current.healthConnectWeightSynced,
             createdAtEpochMillis = current.createdAtEpochMillis,
             accountId = current.accountId,
             externalSyncPolicy = current.externalSyncPolicy,
             sourcePendingId = current.sourcePendingId,
             deduplicationHash = current.deduplicationHash,
-            huaweiSyncedCalculatedValues = current.huaweiSyncedCalculatedValues,
             healthConnectSyncedCalculatedValues = current.healthConnectSyncedCalculatedValues,
             ratingHeightCm = current.ratingHeightCm,
             ratingHeightOrigin = current.ratingHeightOrigin,
@@ -116,12 +112,7 @@ interface MeasurementDao {
         """
         UPDATE measurements
         SET externalSyncPolicy = 'USER_LOCAL',
-            huaweiStatus = CASE
-                WHEN huaweiStatus = 'DISABLED' THEN 'DISABLED'
-                ELSE 'LOCAL_ONLY'
-            END,
             healthConnectStatus = 'LOCAL_ONLY',
-            huaweiError = NULL,
             healthConnectError = NULL
         WHERE id = :id
         """,
@@ -133,41 +124,6 @@ interface MeasurementDao {
 
     @Query("DELETE FROM measurements")
     suspend fun deleteAll(): Int
-
-    @Query(
-        """
-        UPDATE measurements
-        SET huaweiStatus = CASE
-                WHEN measurementType = :expectedMeasurementType THEN :status
-                ELSE huaweiStatus
-            END,
-            huaweiError = CASE
-                WHEN measurementType = :expectedMeasurementType THEN :error
-                ELSE huaweiError
-            END,
-            huaweiWeightSynced = CASE
-                WHEN :markWeightSynced THEN 1
-                ELSE huaweiWeightSynced
-            END,
-            huaweiSyncedCalculatedValues = CASE
-                WHEN measurementType = :expectedMeasurementType
-                    AND :syncedCalculatedValues IS NOT NULL
-                    THEN :syncedCalculatedValues
-                ELSE huaweiSyncedCalculatedValues
-            END
-        WHERE id = :id
-            AND externalSyncPolicy = 'AUTO'
-            AND huaweiStatus != 'LOCAL_ONLY'
-        """,
-    )
-    suspend fun applyHuaweiSyncResult(
-        id: String,
-        expectedMeasurementType: String,
-        status: String,
-        error: String?,
-        markWeightSynced: Boolean,
-        syncedCalculatedValues: String? = null,
-    ): Int
 
     @Query(
         """
@@ -224,15 +180,6 @@ interface MeasurementDao {
     )
     suspend fun idsNeedingHealthConnectSync(): List<String>
 
-    @Query(
-        """
-        SELECT id FROM measurements
-        WHERE externalSyncPolicy = 'AUTO'
-            AND huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
-        ORDER BY measuredAtEpochSecond ASC
-        """,
-    )
-    suspend fun idsNeedingHuaweiSync(): List<String>
 }
 
 sealed interface MeasurementUpsertResult {

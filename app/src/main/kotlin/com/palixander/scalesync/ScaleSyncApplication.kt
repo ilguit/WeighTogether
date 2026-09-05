@@ -69,7 +69,6 @@ class AppContainer(application: Application) {
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
         calculator = calculator,
-        huaweiSyncEnabled = false,
     )
     /** Read-side dependency for ingestion. It must not depend on measurement orchestration. */
     val baseAccounts = RoomAccountRepository(database, calculator = calculator)
@@ -80,7 +79,6 @@ class AppContainer(application: Application) {
         { null },
         calculator,
         syncScheduler,
-        false,
         multiAccountPersistence = measurementPersistence,
         accountRepository = baseAccounts,
         pendingDecisionNotifier = pendingMeasurementNotifications,

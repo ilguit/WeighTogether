@@ -70,7 +70,7 @@ import kotlinx.coroutines.withContext
 class MeasurementsViewModel(application: Application) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
     private val manualRepository = com.palixander.scalesync.data.ManualWeightRepository(
-        container.database, false, container.syncScheduler::enqueueInitial,
+        container.database, container.syncScheduler::enqueueInitial,
     )
     val manualWeight = com.palixander.scalesync.ui.manualweight.ManualWeightStateOwner(
         viewModelScope, manualRepository::save,
@@ -621,8 +621,6 @@ internal fun MeasurementEntity.toMeasurementUiItem(
         sync = measurementSyncPresentation(
             healthConnectStatus = healthConnectStatus,
             healthConnectError = healthConnectError,
-            huaweiStatus = huaweiStatus,
-            huaweiError = huaweiError,
         ),
         isManuallyEdited = isManuallyEdited,
         origin = origin,
