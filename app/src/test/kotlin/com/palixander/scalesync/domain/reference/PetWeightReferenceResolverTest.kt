@@ -18,6 +18,35 @@ class PetWeightReferenceResolverTest {
     private val referenceDate = LocalDate.of(2025, 1, 15)
 
     @Test
+    fun `breed category mappings contain only Salt Table 1 evidence`() {
+        assertEquals(
+            listOf(
+                DogBreedAdultWeightCategoryMapping(
+                    BreedId("VBO:0200131"),
+                    DogAdultWeightCategory.III,
+                    DogAdultWeightCategoryEvidence.SALT_2017_TABLE_1,
+                ),
+                DogBreedAdultWeightCategoryMapping(
+                    BreedId("VBO:0200800"),
+                    DogAdultWeightCategory.V,
+                    DogAdultWeightCategoryEvidence.SALT_2017_TABLE_1,
+                ),
+            ),
+            DogBreedAdultWeightCategoryMappings.entries,
+        )
+        assertEquals(
+            DogAdultWeightCategory.III,
+            DogBreedAdultWeightCategoryMappings.find(BreedId("VBO:0200131"))?.category,
+        )
+        assertEquals(
+            DogAdultWeightCategory.V,
+            DogBreedAdultWeightCategoryMappings.find(BreedId("VBO:0200800"))?.category,
+        )
+        assertEquals(null, DogBreedAdultWeightCategoryMappings.find(BreedId("VBO:0200174")))
+        assertEquals(null, DogBreedAdultWeightCategoryMappings.find(null))
+    }
+
+    @Test
     fun `exact dog date resolves explicit category without approximation`() {
         val result = resolveDog(
             birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),

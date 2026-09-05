@@ -67,8 +67,6 @@ internal object PetProfileEditorTestTags {
     const val BreedPicker = "pet-profile-editor-breed-picker"
     const val BreedQuery = "pet-profile-editor-breed-query"
     const val BreedNoResults = "pet-profile-editor-breed-no-results"
-    const val BreedProfileFilter = "pet-profile-editor-breed-profile-filter"
-    const val BreedNoProfiles = "pet-profile-editor-breed-no-profiles"
     const val BreedOther = "pet-profile-editor-breed-other"
     const val BirthPrecisionYear = "pet-profile-editor-birth-precision-year"
     const val BirthPrecisionMonth = "pet-profile-editor-birth-precision-month"
@@ -525,7 +523,7 @@ private fun DogCategoryEditor(
 ) {
     EditorSection("Весовая категория взрослой собаки (необязательно)") {
         Text(
-            "Используется, когда у выбранной породы нет собственного весового профиля.",
+            "Определяет категорийную центильную кривую Salt для возраста от 12 недель до 2 лет.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

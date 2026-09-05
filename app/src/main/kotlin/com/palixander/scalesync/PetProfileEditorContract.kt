@@ -2,7 +2,6 @@ package com.palixander.scalesync
 
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedKind
-import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
@@ -18,6 +17,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.domain.reference.DogBreedAdultWeightCategoryMappings
 import java.time.DateTimeException
 import java.time.LocalDate
 import java.time.Year
@@ -80,7 +80,6 @@ data class PetBreedOption(
     val canonicalName: String,
     val aliases: List<String>,
     val kind: BreedKind,
-    val hasWeightReference: Boolean,
 )
 
 sealed interface PetBreedSelection {
@@ -105,17 +104,10 @@ class PetBreedCatalog(
 ) {
     private val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
     private val supportedBreeds = snapshot?.breeds.orEmpty()
-    private val supportedById = supportedBreeds.associateBy(BreedReferenceBreed::breedId)
-
-    fun hasWeightReferenceProfiles(species: PetSpecies): Boolean =
-        species == PetSpecies.DOG && supportedById.isNotEmpty()
-
     /** Searches only the product-supported dog breeds. The full catalog remains internal. */
     fun search(
         query: String,
         species: PetSpecies,
-        @Suppress("UNUSED_PARAMETER")
-        onlyWithWeightReference: Boolean = false,
     ): List<PetBreedOption> {
         if (species != PetSpecies.DOG) return emptyList()
         val needle = query.trim().lowercase()
@@ -156,7 +148,6 @@ class PetBreedCatalog(
                 .orEmpty()
         },
         kind = BreedKind.VBO,
-        hasWeightReference = true,
     )
 }
 
@@ -207,6 +198,13 @@ data class PendingPetSpeciesChange(
 data class PetProfileEditorState(
     val draft: PetProfileDraft,
     val pendingSpeciesChange: PendingPetSpeciesChange? = null,
+    /** Editor-session provenance only; persisted profiles keep the existing schema. */
+    val automaticallyAssignedDogCategory: AutomaticallyAssignedDogCategory? = null,
+)
+
+data class AutomaticallyAssignedDogCategory(
+    val breedId: BreedId,
+    val category: DogAdultWeightCategory,
 )
 
 sealed interface PetProfileAction {
@@ -239,6 +237,8 @@ object PetProfileReducer {
                             .takeUnless { pending.clearDogAdultWeightCategory },
                     ),
                     pendingSpeciesChange = null,
+                    automaticallyAssignedDogCategory = state.automaticallyAssignedDogCategory
+                        .takeUnless { pending.clearBreed || pending.clearDogAdultWeightCategory },
                 )
                 PetProfileAction.CancelSpeciesChange -> state.copy(pendingSpeciesChange = null)
                 else -> state
@@ -294,24 +294,39 @@ object PetProfileReducer {
         breed: PetBreedSelection?,
     ): PetProfileEditorState {
         if (breed != null && breed.species != state.draft.species) return state
-        val category = state.draft.dogAdultWeightCategory.takeIf {
-            isDogAdultWeightCategoryApplicable(state.draft.species, breed)
+        val mappedCategory = DogBreedAdultWeightCategoryMappings.find(breed?.id)?.category
+        val category = mappedCategory ?: state.draft.dogAdultWeightCategory
+            .takeUnless { state.automaticallyAssignedDogCategory != null }
+            .takeIf {
+                isDogAdultWeightCategoryApplicable(state.draft.species, breed)
+            }
+        val automaticAssignment = mappedCategory?.let {
+            AutomaticallyAssignedDogCategory(requireNotNull(breed).id, it)
         }
-        return state.withDraft {
-            copy(
+        return state.copy(
+            draft = state.draft.copy(
                 breed = breed,
                 dogAdultWeightCategory = category,
-            )
-        }
+            ),
+            automaticallyAssignedDogCategory = automaticAssignment,
+        )
     }
 
     private fun changeDogCategory(
         state: PetProfileEditorState,
         category: DogAdultWeightCategory?,
     ): PetProfileEditorState {
-        if (category == null) return state.withDraft { copy(dogAdultWeightCategory = null) }
+        if (category == null) {
+            return state.copy(
+                draft = state.draft.copy(dogAdultWeightCategory = null),
+                automaticallyAssignedDogCategory = null,
+            )
+        }
         if (!isDogAdultWeightCategoryApplicable(state.draft.species, state.draft.breed)) return state
-        return state.withDraft { copy(dogAdultWeightCategory = category) }
+        return state.copy(
+            draft = state.draft.copy(dogAdultWeightCategory = category),
+            automaticallyAssignedDogCategory = null,
+        )
     }
 
     private inline fun PetProfileEditorState.withDraft(
@@ -536,12 +551,6 @@ fun dogAdultWeightCategoryLabel(category: DogAdultWeightCategory): String = when
 
 private val MonthBirthDateFormatter = DateTimeFormatter.ofPattern("MM.yyyy")
 private val DayBirthDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-
-private fun PetSpecies.toBreedSpecies(): BreedSpecies? = when (this) {
-    PetSpecies.CAT -> BreedSpecies.CAT
-    PetSpecies.DOG -> BreedSpecies.DOG
-    PetSpecies.UNSPECIFIED -> null
-}
 
 private fun PetBirthDateInput.hasBlankComponent(): Boolean = when (this) {
     PetBirthDateInput.Empty -> false
