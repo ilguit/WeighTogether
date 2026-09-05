@@ -1,6 +1,7 @@
 package com.palixander.scalesync.domain.reference
 
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSex
@@ -279,19 +280,30 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `other cat breed uses sex specific DSH population profile`() {
-        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
-        listOf(PetSex.FEMALE to "cat-dsh-female", PetSex.MALE to "cat-dsh-male").forEach { (sex, profileId) ->
-            val result = resolver.resolve(PetSpecies.CAT, sex, null, birthDate, referenceDate).available()
+    fun `other cat breed uses sex specific fitted population profile`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
+        val cases = listOf(
+            CatPopulationCase(PetSex.FEMALE, "cat-population-female", 0.636271, 0.890118, 1.228598),
+            CatPopulationCase(PetSex.MALE, "cat-population-male", 0.567307, 0.861525, 1.265159),
+        )
+        cases.forEach { case ->
+            val result = resolver.resolve(PetSpecies.CAT, case.sex, null, birthDate, referenceDate).available()
 
-            assertEquals(profileId, result.profileId)
-            assertEquals(ReferenceBasis.BREED, result.basis)
+            assertEquals(case.profileId, result.profileId)
+            assertEquals(ReferenceBasis.POPULATION, result.basis)
+            assertEquals(ReferenceKind.FITTED_BCCG_PERCENTILES, snapshot.metadataFor(result.profileId)!!.referenceKind)
+            assertEquals(case.p9, result.bounds.lowerKg, 1e-12)
+            assertEquals(case.p50, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(case.p50, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(case.p91, result.bounds.upperKg, 1e-12)
         }
     }
 
     @Test
-    fun `unsupported and unknown cat breeds use DSH population profile`() {
-        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
+    fun `unsupported and unknown cat breeds use fitted population profile`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
         listOf(BreedId("VBO:0100000"), BreedId("external:cat:future")).forEach { breedId ->
             val result = resolver.resolve(
                 PetSpecies.CAT,
@@ -301,7 +313,13 @@ class PetWeightReferenceResolverTest {
                 referenceDate,
             ).available()
 
-            assertEquals("cat-dsh-male", result.profileId)
+            assertEquals("cat-population-male", result.profileId)
+            assertEquals(ReferenceBasis.POPULATION, result.basis)
+            assertEquals(ReferenceKind.FITTED_BCCG_PERCENTILES, snapshot.metadataFor(result.profileId)!!.referenceKind)
+            assertEquals(0.567307, result.bounds.lowerKg, 1e-12)
+            assertEquals(0.861525, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(0.861525, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(1.265159, result.bounds.upperKg, 1e-12)
         }
     }
 
@@ -375,6 +393,14 @@ class PetWeightReferenceResolverTest {
         birthDate,
         referenceDate,
         dogAdultWeight,
+    )
+
+    private data class CatPopulationCase(
+        val sex: PetSex,
+        val profileId: String,
+        val p9: Double,
+        val p50: Double,
+        val p91: Double,
     )
 
     private fun PetWeightReferenceResolution.available() =

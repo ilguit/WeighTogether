@@ -118,11 +118,11 @@ class PetWeightReferenceResolver(
         } else {
             if (referenceSpecies == ReferenceSpecies.CAT) {
                 snapshot.profiles.singleOrNull {
-                    it.basis == ReferenceBasis.BREED && it.species == ReferenceSpecies.CAT &&
-                        it.sex == referenceSex && it.breedId == DSH_BREED_ID
+                    it.basis == ReferenceBasis.POPULATION && it.species == ReferenceSpecies.CAT &&
+                        it.sex == referenceSex && it.breedId == null
                 } ?: return unavailable(
                     WeightReferenceUnavailableReason.ProfileUnavailable(
-                        "cat-dsh-${referenceSex.name.lowercase()}",
+                        "cat-population-${referenceSex.name.lowercase()}",
                     ),
                 )
             } else {
@@ -208,8 +208,4 @@ class PetWeightReferenceResolver(
 
     private fun unavailable(reason: WeightReferenceUnavailableReason) =
         PetWeightReferenceResolution.Unavailable(reason)
-
-    private companion object {
-        const val DSH_BREED_ID = "VBO:0100119"
-    }
 }
