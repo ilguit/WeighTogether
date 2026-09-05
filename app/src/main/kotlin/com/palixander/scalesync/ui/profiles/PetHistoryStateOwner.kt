@@ -103,7 +103,13 @@ class PetHistoryStateOwner(
         val date = saved.measuredAt.atZone(zoneId).toLocalDate()
         selection.update { current ->
             if (date.isBefore(current.range.startDate) || date.isAfter(current.range.endDateInclusive)) {
-                current.copy(range = ChartDateRange(date, date), rangePreset = ChartRangePreset.CUSTOM)
+                current.copy(
+                    range = ChartDateRange(
+                        startDate = minOf(current.range.startDate, date),
+                        endDateInclusive = maxOf(current.range.endDateInclusive, date),
+                    ),
+                    rangePreset = ChartRangePreset.CUSTOM,
+                )
             } else current
         }
         interaction.update { it.copy(scrollToMeasurementId = saved.measurementId) }

@@ -45,19 +45,30 @@ class PetHistoryStateOwnerTest {
     private val luna = pet("luna", "Луна")
 
     @Test
-    fun `saved old measurement reveals its day and retains scroll target across collector recreation`() = runBlocking {
+    fun `saved earlier measurement expands range and deleting it keeps existing history visible`() = runBlocking {
         val old = measurement("old", luna.id, "1800-01-01T10:00:00Z", 4.125)
+        val existing = measurement("existing", luna.id, "2026-03-20T10:00:00Z", 4.25)
+        val history = MutableStateFlow(listOf(old, existing))
         val scope = testScope()
-        val owner = PetHistoryStateOwner(luna.id,
-            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to MutableStateFlow(listOf(old)))),
-            scope, clock, zone, Locale.US)
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to history)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
         var collector = scope.launch { owner.uiState.collect() }
         yield()
+        val initialEndDate = owner.uiState.value.endDateInclusive
+
         owner.showSavedMeasurement(com.palixander.scalesync.domain.ManualWeightResult.Saved(old.id, old.measuredAt))
         yield()
+
         assertEquals(LocalDate.of(1800, 1, 1), owner.uiState.value.startDate)
-        assertEquals(owner.uiState.value.startDate, owner.uiState.value.endDateInclusive)
-        assertEquals(listOf("old"), owner.uiState.value.measurements.map { it.id })
+        assertEquals(initialEndDate, owner.uiState.value.endDateInclusive)
+        assertEquals(ChartRangePreset.CUSTOM, owner.uiState.value.rangePreset)
+        assertEquals(listOf("existing", "old"), owner.uiState.value.measurements.map { it.id })
         collector.cancelAndJoin()
         collector = scope.launch { owner.uiState.collect() }
         yield()
@@ -65,7 +76,73 @@ class PetHistoryStateOwnerTest {
         owner.callbacks.onScrollToMeasurementHandled()
         yield()
         assertNull(owner.uiState.value.scrollToMeasurementId)
+
+        owner.requestDelete(old.id)
+        owner.confirmDelete()
+        history.value = listOf(existing)
+        yield()
+
+        assertEquals(listOf("existing"), owner.uiState.value.measurements.map { it.id })
+        assertEquals(LocalDate.of(1800, 1, 1), owner.uiState.value.startDate)
+        assertEquals(initialEndDate, owner.uiState.value.endDateInclusive)
         collector.cancelAndJoin()
+        scope.cancel()
+    }
+
+    @Test
+    fun `saved later measurement expands only range end`() = runBlocking {
+        val later = measurement("later", luna.id, "2026-04-10T10:00:00Z", 4.5)
+        val history = MutableStateFlow(listOf(later))
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to history)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+        val initialStartDate = owner.uiState.value.startDate
+
+        owner.showSavedMeasurement(com.palixander.scalesync.domain.ManualWeightResult.Saved(later.id, later.measuredAt))
+        yield()
+
+        assertEquals(initialStartDate, owner.uiState.value.startDate)
+        assertEquals(LocalDate.of(2026, 4, 10), owner.uiState.value.endDateInclusive)
+        assertEquals(ChartRangePreset.CUSTOM, owner.uiState.value.rangePreset)
+        assertEquals(listOf("later"), owner.uiState.value.measurements.map { it.id })
+        assertEquals("later", owner.uiState.value.scrollToMeasurementId)
+        scope.cancel()
+    }
+
+    @Test
+    fun `saved measurement inside range preserves preset and boundaries`() = runBlocking {
+        val inside = measurement("inside", luna.id, "2026-03-20T10:00:00Z", 4.25)
+        val history = MutableStateFlow(listOf(inside))
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to history)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        scope.launch { owner.uiState.collect() }
+        yield()
+        val initialStartDate = owner.uiState.value.startDate
+        val initialEndDate = owner.uiState.value.endDateInclusive
+
+        owner.showSavedMeasurement(com.palixander.scalesync.domain.ManualWeightResult.Saved(inside.id, inside.measuredAt))
+        yield()
+
+        assertEquals(initialStartDate, owner.uiState.value.startDate)
+        assertEquals(initialEndDate, owner.uiState.value.endDateInclusive)
+        assertEquals(ChartRangePreset.LAST_30_DAYS, owner.uiState.value.rangePreset)
+        assertEquals(listOf("inside"), owner.uiState.value.measurements.map { it.id })
+        assertEquals("inside", owner.uiState.value.scrollToMeasurementId)
         scope.cancel()
     }
 
