@@ -157,27 +157,25 @@ class PetWeightReferenceResolver(
         } catch (_: IllegalArgumentException) {
             return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
         }
-        val scope = snapshot.manifest.scopes.single { it.id == profile.id }
-        val supportedMinimum = scope.minimumAgeDays
-        val supportedMaximum = scope.maximumAgeDays
-        if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
+        val supportedMinimum = profile.points.first().ageDays
+        if (age.minimumDays < supportedMinimum) {
             return unavailable(
                 WeightReferenceUnavailableReason.AgeOutOfRange(
                     age.minimumDays,
                     age.maximumDays,
                     supportedMinimum,
-                    supportedMaximum,
+                    Int.MAX_VALUE,
                 ),
             )
         }
         val points = buildList {
-            pointAtAge(profile, supportedMaximum, age.minimumDays.toInt())?.let(::add)
+            snapshot.interpolate(profile.id, age.minimumDays.toInt())?.let(::add)
             profile.points.filterTo(this) { it.ageDays.toLong() in age.minimumDays..age.maximumDays }
             if (age.maximumDays != age.minimumDays) {
-                pointAtAge(profile, supportedMaximum, age.maximumDays.toInt())?.let(::add)
+                snapshot.interpolate(profile.id, age.maximumDays.toInt())?.let(::add)
             }
         }
-        if (points.isEmpty() || !isContinuouslyCovered(profile, age.minimumDays..age.maximumDays)) {
+        if (points.isEmpty()) {
             return unavailable(WeightReferenceUnavailableReason.ReferenceDataGap(profile.id, age.minimumDays..age.maximumDays))
         }
         return PetWeightReferenceResolution.Available(
@@ -198,25 +196,6 @@ class PetWeightReferenceResolver(
         weightKg < 30.0 -> DogAdultWeightCategory.IV
         weightKg <= 40.0 -> DogAdultWeightCategory.V
         else -> null
-    }
-
-    private fun pointAtAge(
-        profile: ReferenceProfile,
-        supportedMaximum: Int,
-        ageDays: Int,
-    ): ReferencePoint? = snapshot.interpolate(profile.id, ageDays)
-        ?: profile.points.last().takeIf {
-            profile.species == ReferenceSpecies.DOG && ageDays in it.ageDays..supportedMaximum
-        }?.copy(ageDays = ageDays)
-
-    private fun isContinuouslyCovered(profile: ReferenceProfile, range: LongRange): Boolean {
-        val relevant = profile.points.filter { it.ageDays.toLong() in range }
-        val ages = buildList {
-            add(range.first)
-            relevant.forEach { add(it.ageDays.toLong()) }
-            add(range.last)
-        }.distinct().sorted()
-        return ages.zipWithNext().all { (first, second) -> second - first <= snapshot.maxInterpolationGapDays }
     }
 
     private fun aggregate(points: List<ReferencePoint>) = ExpectedWeightBounds(

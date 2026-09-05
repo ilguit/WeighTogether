@@ -83,7 +83,7 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
-    fun `interpolation returns exact and in-profile linear values but never extrapolates`() {
+    fun `age lookup interpolates every internal interval and carries the last point forward`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val profile = snapshot.profiles.first()
         val first = profile.points[0]
@@ -95,7 +95,20 @@ class WeightReferenceSnapshotTest {
         val fraction = (age - first.ageDays).toDouble() / (second.ageDays - first.ageDays)
         assertEquals(first.medianKg + (second.medianKg - first.medianKg) * fraction, interpolated.medianKg, 1e-12)
         assertNull(snapshot.interpolate(profile.id, first.ageDays - 1))
-        assertNull(snapshot.interpolate(profile.id, profile.points.last().ageDays + 1))
+        val carriedAge = profile.points.last().ageDays + 10_000
+        assertEquals(profile.points.last().copy(ageDays = carriedAge), snapshot.interpolate(profile.id, carriedAge))
+
+        val sparseProfile = snapshot.profiles.single { it.id == "cat-dsh-female" }
+        val sparsePair = sparseProfile.points.zipWithNext().maxBy { (lower, upper) -> upper.ageDays - lower.ageDays }
+        val sparseAge = (sparsePair.first.ageDays + sparsePair.second.ageDays) / 2
+        val sparse = snapshot.interpolate(sparseProfile.id, sparseAge)!!
+        val sparseFraction = (sparseAge - sparsePair.first.ageDays).toDouble() /
+            (sparsePair.second.ageDays - sparsePair.first.ageDays)
+        assertEquals(
+            sparsePair.first.medianKg + (sparsePair.second.medianKg - sparsePair.first.medianKg) * sparseFraction,
+            sparse.medianKg,
+            1e-12,
+        )
         assertNull(snapshot.interpolate("missing-profile", age))
     }
 

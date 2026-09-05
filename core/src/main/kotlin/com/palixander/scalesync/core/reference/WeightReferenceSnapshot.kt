@@ -83,9 +83,6 @@ class WeightReferenceSnapshot private constructor(
     val manifest: WeightReferenceManifest,
     val profiles: List<ReferenceProfile>,
 ) {
-    /** Maximum distance supported by the weekly-bin derivation. Larger holes are missing data. */
-    val maxInterpolationGapDays: Int = 7
-
     /**
      * Looks up provenance and constraints after a profile has been resolved. The returned list is
      * detached and unmodifiable so presentation code cannot mutate the validated snapshot.
@@ -103,17 +100,20 @@ class WeightReferenceSnapshot private constructor(
         )
     }
 
-    /** Returns an exact or linearly interpolated point within one profile only. Never extrapolates. */
+    /**
+     * Returns no data before the first observation, linearly interpolates between every pair of
+     * observations, and carries the final observation forward without an upper age limit.
+     */
     fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
         val points = profile.points
-        if (ageDays < points.first().ageDays || ageDays > points.last().ageDays) return null
+        if (ageDays < points.first().ageDays) return null
+        if (ageDays >= points.last().ageDays) return points.last().copy(ageDays = ageDays)
         points.binarySearch { it.ageDays.compareTo(ageDays) }.let { index ->
             if (index >= 0) return points[index]
             val upperIndex = -index - 1
             val lower = points[upperIndex - 1]
             val upper = points[upperIndex]
-            if (upper.ageDays - lower.ageDays > maxInterpolationGapDays) return null
             val fraction = (ageDays - lower.ageDays).toDouble() / (upper.ageDays - lower.ageDays)
             fun between(a: Double, b: Double) = a + (b - a) * fraction
             return ReferencePoint(ageDays, between(lower.lowerKg, upper.lowerKg), between(lower.medianKg, upper.medianKg), between(lower.upperKg, upper.upperKg))

@@ -200,6 +200,7 @@ class PetHistoryReferencePresenter(
         val basisLabel = when (metadata.basis) {
             ReferenceBasis.BREED -> "Эталон по породе"
             ReferenceBasis.WEIGHT_CATEGORY -> "Эталон по весовой категории"
+            ReferenceBasis.POPULATION -> "Эталон по популяции"
         }
         return PetHistoryWeightReference.Available(
             metadata.basis,
