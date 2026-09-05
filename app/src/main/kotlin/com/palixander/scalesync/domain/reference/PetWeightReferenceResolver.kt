@@ -9,6 +9,7 @@ import com.palixander.scalesync.core.reference.ReferenceSex
 import com.palixander.scalesync.core.reference.ReferenceSpecies
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
+import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
@@ -16,6 +17,39 @@ import com.palixander.scalesync.domain.ageAt
 import java.time.LocalDate
 
 enum class DogAdultWeightCategory { I, II, III, IV, V }
+
+enum class DogAdultWeightCategoryEvidence {
+    SALT_2017_TABLE_1,
+}
+
+data class DogBreedAdultWeightCategoryMapping(
+    val breedId: BreedId,
+    val category: DogAdultWeightCategory,
+    val evidence: DogAdultWeightCategoryEvidence,
+)
+
+/**
+ * Evidence-backed mappings from named breeds to Salt et al.'s adult-weight categories.
+ * Breeds absent from this table deliberately receive no automatic category.
+ */
+object DogBreedAdultWeightCategoryMappings {
+    val entries: List<DogBreedAdultWeightCategoryMapping> = listOf(
+        DogBreedAdultWeightCategoryMapping(
+            breedId = BreedId("VBO:0200131"),
+            category = DogAdultWeightCategory.III,
+            evidence = DogAdultWeightCategoryEvidence.SALT_2017_TABLE_1,
+        ),
+        DogBreedAdultWeightCategoryMapping(
+            breedId = BreedId("VBO:0200800"),
+            category = DogAdultWeightCategory.V,
+            evidence = DogAdultWeightCategoryEvidence.SALT_2017_TABLE_1,
+        ),
+    )
+
+    private val byBreedId = entries.associateBy(DogBreedAdultWeightCategoryMapping::breedId)
+
+    fun find(breedId: BreedId?): DogBreedAdultWeightCategoryMapping? = breedId?.let(byBreedId::get)
+}
 
 sealed interface DogAdultWeight {
     data class Category(val value: DogAdultWeightCategory) : DogAdultWeight

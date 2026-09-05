@@ -1,6 +1,5 @@
 package com.palixander.scalesync
 
-import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
@@ -169,15 +168,12 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun `catalog marks only breeds backed by a numerical breed profile`() {
-        val catOptions = breedCatalog.search("", PetSpecies.CAT)
+    fun `catalog exposes only supported dog breeds`() {
         val dogOptions = breedCatalog.search("", PetSpecies.DOG)
 
-        assertTrue(catOptions.isEmpty())
         assertEquals(10, dogOptions.size)
-        assertTrue(dogOptions.all { it.hasWeightReference })
-        assertFalse(breedCatalog.hasWeightReferenceProfiles(PetSpecies.CAT))
-        assertTrue(breedCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
+        assertTrue(dogOptions.all { it.species == PetSpecies.DOG })
+        assertTrue(breedCatalog.search("", PetSpecies.CAT).isEmpty())
     }
 
     @Test
@@ -187,7 +183,6 @@ class PetProfileEditorContractTest {
                 snapshotResult = BreedReferenceSnapshotLoadResult.Unavailable(reason),
             )
 
-            assertFalse(unavailableCatalog.hasWeightReferenceProfiles(PetSpecies.DOG))
             assertTrue(unavailableCatalog.search("", PetSpecies.DOG).isEmpty())
             assertTrue(
                 unavailableCatalog.resolve(BreedId("VBO:0200800"), PetSpecies.DOG) is
@@ -200,57 +195,6 @@ class PetProfileEditorContractTest {
                 ).breed,
             )
         }
-    }
-
-    @Test
-    fun `catalog filter keeps only cat breed with its own numerical profile`() {
-        val options = breedCatalog.search(
-            query = "",
-            species = PetSpecies.CAT,
-            onlyWithWeightReference = true,
-        )
-
-        assertTrue(options.isEmpty())
-    }
-
-    @Test
-    fun `catalog filter excludes dogs despite weight category fallback`() {
-        val options = breedCatalog.search(
-            query = "",
-            species = PetSpecies.DOG,
-            onlyWithWeightReference = true,
-        )
-
-        assertEquals(10, options.size)
-    }
-
-    @Test
-    fun `catalog applies query and numerical profile filter together`() {
-        val matching = breedCatalog.search(
-            query = "Labrador Retriever",
-            species = PetSpecies.DOG,
-            onlyWithWeightReference = true,
-        )
-        val ordinaryBreed = breedCatalog.search(
-            query = "Абиссинская",
-            species = PetSpecies.DOG,
-            onlyWithWeightReference = true,
-        )
-
-        assertEquals(1, matching.size)
-        assertTrue(ordinaryBreed.isEmpty())
-    }
-
-    @Test
-    fun `catalog search without filter preserves unknown first and unprofiled breeds`() {
-        val options = breedCatalog.search(
-            query = "",
-            species = PetSpecies.DOG,
-            onlyWithWeightReference = false,
-        )
-
-        assertEquals(10, options.size)
-        assertTrue(options.all { it.kind == BreedKind.VBO && it.hasWeightReference })
     }
 
     @Test
@@ -373,54 +317,165 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun compatibleSpeciesAndBreedChangesNeedNoConfirmationAndKeepDogCategory() {
+    fun mappedBreedSelectionAssignsSaltCategoryAndReplacesPreviousAutomaticValue() {
         var state = PetProfileEditorState(
             PetProfileDraft.create().copy(displayName = "Луна"),
         )
         state = reduce(state, PetProfileAction.SpeciesChangeRequested(PetSpecies.DOG))
-        state = reduce(state, PetProfileAction.BreedChanged(dogMixed))
-        state = reduce(
-            state,
-            PetProfileAction.DogAdultWeightCategoryChanged(DogAdultWeightCategory.V),
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
         )
-        val ordinaryDog = breedCatalog.search("Бигль", PetSpecies.DOG).first()
+        val beagle = PetBreedSelection.Available(
+            breedCatalog.search("Бигль", PetSpecies.DOG).single(),
+        )
 
         assertNull(state.pendingSpeciesChange)
+        state = reduce(state, PetProfileAction.BreedChanged(labrador))
         assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
-        state = reduce(state, PetProfileAction.BreedChanged(PetBreedSelection.Available(ordinaryDog)))
-        assertEquals(DogAdultWeightCategory.V, state.draft.dogAdultWeightCategory)
+        assertEquals(labrador.id, state.automaticallyAssignedDogCategory?.breedId)
+
+        state = reduce(state, PetProfileAction.BreedChanged(beagle))
+        assertEquals(DogAdultWeightCategory.III, state.draft.dogAdultWeightCategory)
+        assertEquals(beagle.id, state.automaticallyAssignedDogCategory?.breedId)
         val saved = validatePetProfileDraft(state.draft, today).newPet
-        assertEquals(ordinaryDog.id, saved?.breedId)
-        assertEquals(DogAdultWeightCategory.V, saved?.dogAdultWeightCategory)
+        assertEquals(beagle.id, saved?.breedId)
+        assertEquals(DogAdultWeightCategory.III, saved?.dogAdultWeightCategory)
     }
 
     @Test
-    fun `breed profile remains independent from dog category`() {
-        val profiledDog = PetBreedSelection.Available(
-            PetBreedOption(
-                id = BreedId("test:profiled-dog"),
-                species = PetSpecies.DOG,
-                displayName = "Порода с профилем",
-                canonicalName = "Profiled Dog",
-                aliases = emptyList(),
-                kind = BreedKind.VBO,
-                hasWeightReference = true,
-            ),
+    fun openingLegacyMappedProfileAssignsCategoryAndRestoresAutomaticProvenanceAfterSave() {
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
         )
-        val initial = PetProfileEditorState(
-            PetProfileDraft.create().copy(
+        val legacyPet = pet(
+            id = "legacy",
+            name = "Луна",
+            species = PetSpecies.DOG,
+            breedId = labrador.id,
+        )
+
+        val opened = PetProfileEditorState.edit(legacyPet, breedCatalog)
+
+        assertEquals(DogAdultWeightCategory.V, opened.draft.dogAdultWeightCategory)
+        assertEquals(
+            AutomaticallyAssignedDogCategory(labrador.id, DogAdultWeightCategory.V),
+            opened.automaticallyAssignedDogCategory,
+        )
+        val savedCategory = validatePetProfileDraft(opened.draft, today).petUpdate
+            ?.dogAdultWeightCategory
+        val reopened = PetProfileEditorState.edit(
+            legacyPet.copy(dogAdultWeightCategory = savedCategory),
+            breedCatalog,
+        )
+        assertEquals(opened.automaticallyAssignedDogCategory, reopened.automaticallyAssignedDogCategory)
+    }
+
+    @Test
+    fun reopenedAutomaticCategoryChangesWithMappedBreedAndClearsForUnmappedOrNoBreed() {
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
+        )
+        val beagle = PetBreedSelection.Available(
+            breedCatalog.search("Бигль", PetSpecies.DOG).single(),
+        )
+        val unmapped = PetBreedSelection.Available(
+            breedCatalog.search("Доберман", PetSpecies.DOG).single(),
+        )
+        val reopened = PetProfileEditorState.edit(
+            pet(
+                id = "saved",
+                name = "Луна",
                 species = PetSpecies.DOG,
-                dogAdultWeightCategory = DogAdultWeightCategory.III,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.V,
+            ),
+            breedCatalog,
+        )
+
+        val mapped = reduce(reopened, PetProfileAction.BreedChanged(beagle))
+        assertEquals(DogAdultWeightCategory.III, mapped.draft.dogAdultWeightCategory)
+        assertEquals(beagle.id, mapped.automaticallyAssignedDogCategory?.breedId)
+
+        val changedToUnmapped = reduce(reopened, PetProfileAction.BreedChanged(unmapped))
+        assertNull(changedToUnmapped.draft.dogAdultWeightCategory)
+        assertNull(changedToUnmapped.automaticallyAssignedDogCategory)
+
+        val cleared = reduce(reopened, PetProfileAction.BreedChanged(null))
+        assertNull(cleared.draft.dogAdultWeightCategory)
+        assertNull(cleared.automaticallyAssignedDogCategory)
+    }
+
+    @Test
+    fun openingManualOrUnmappedCategoryPreservesItWithoutAutomaticProvenance() {
+        val labrador = breedCatalog.search("Лабрадор", PetSpecies.DOG).single()
+        val doberman = breedCatalog.search("Доберман", PetSpecies.DOG).single()
+        val manual = PetProfileEditorState.edit(
+            pet(
+                id = "manual",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.II,
+            ),
+            breedCatalog,
+        )
+        val unmapped = PetProfileEditorState.edit(
+            pet(
+                id = "unmapped",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = doberman.id,
+                category = DogAdultWeightCategory.IV,
+            ),
+            breedCatalog,
+        )
+        val unavailable = PetProfileEditorState.edit(
+            pet(
+                id = "unavailable",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.I,
+            ),
+            PetBreedCatalog(
+                snapshotResult = BreedReferenceSnapshotLoadResult.Unavailable("test"),
             ),
         )
 
-        val selected = reduce(initial, PetProfileAction.BreedChanged(profiledDog))
+        assertEquals(DogAdultWeightCategory.II, manual.draft.dogAdultWeightCategory)
+        assertNull(manual.automaticallyAssignedDogCategory)
+        assertEquals(DogAdultWeightCategory.IV, unmapped.draft.dogAdultWeightCategory)
+        assertNull(unmapped.automaticallyAssignedDogCategory)
+        assertEquals(DogAdultWeightCategory.I, unavailable.draft.dogAdultWeightCategory)
+        assertNull(unavailable.automaticallyAssignedDogCategory)
+    }
 
-        assertEquals(profiledDog, selected.draft.breed)
-        assertEquals(DogAdultWeightCategory.III, selected.draft.dogAdultWeightCategory)
-        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, profiledDog))
-        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, null))
-        assertTrue(isDogAdultWeightCategoryApplicable(PetSpecies.DOG, dogMixed))
+    @Test
+    fun automaticCategoryDoesNotLeakToUnmappedOrOtherBreedButManualCategoryDoes() {
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
+        )
+        val unmapped = PetBreedSelection.Available(
+            breedCatalog.search("Доберман", PetSpecies.DOG).single(),
+        )
+        val initial = PetProfileEditorState(PetProfileDraft.create().copy(species = PetSpecies.DOG))
+
+        val automatic = reduce(initial, PetProfileAction.BreedChanged(labrador))
+        val changedToUnmapped = reduce(automatic, PetProfileAction.BreedChanged(unmapped))
+        assertNull(changedToUnmapped.draft.dogAdultWeightCategory)
+        assertNull(changedToUnmapped.automaticallyAssignedDogCategory)
+
+        val changedToOther = reduce(automatic, PetProfileAction.BreedChanged(null))
+        assertNull(changedToOther.draft.dogAdultWeightCategory)
+        assertNull(changedToOther.automaticallyAssignedDogCategory)
+
+        val manual = reduce(
+            automatic,
+            PetProfileAction.DogAdultWeightCategoryChanged(DogAdultWeightCategory.II),
+        )
+        val manualOnUnmapped = reduce(manual, PetProfileAction.BreedChanged(unmapped))
+        assertEquals(DogAdultWeightCategory.II, manualOnUnmapped.draft.dogAdultWeightCategory)
+        assertNull(manualOnUnmapped.automaticallyAssignedDogCategory)
     }
 
     @Test

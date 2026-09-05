@@ -74,6 +74,10 @@ class PetManagementContractTest {
         assertEquals(pet.breedId, opened.editor?.draft?.breed?.id)
         assertEquals(PetBirthDateInput.Year("2020"), opened.editor?.draft?.birthDate)
         assertEquals(pet.dogAdultWeightCategory, opened.editor?.draft?.dogAdultWeightCategory)
+        assertEquals(
+            AutomaticallyAssignedDogCategory(mixedDog.id, DogAdultWeightCategory.III),
+            opened.editor?.automaticallyAssignedDogCategory,
+        )
     }
 
     @Test
