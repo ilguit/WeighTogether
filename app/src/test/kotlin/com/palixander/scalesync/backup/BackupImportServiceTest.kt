@@ -1116,7 +1116,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `legacy import restores nullable heights from imported owners and never local primary`() {
+    fun `v6 import preserves explicit nullable measurement heights without using local primary`() {
         val base = document()
         val ownerWithHeight = base.accounts.single().copy(
             id = "owner-height",
@@ -1131,7 +1131,7 @@ class BackupImportServiceTest {
             profile = BackupAccountProfileV1(null, null, null, false),
         )
         val legacy = base.copy(
-            schemaVersion = BACKUP_SCHEMA_VERSION_V2,
+            schemaVersion = BACKUP_SCHEMA_VERSION,
             accounts = listOf(ownerWithHeight, ownerWithoutHeight),
             appState = base.appState.copy(primaryAccountId = "owner-null"),
             measurements = listOf(
@@ -1140,8 +1140,8 @@ class BackupImportServiceTest {
                     fingerprint = "height-fingerprint",
                     accountId = "owner-height",
                     deduplicationHash = "height-hash",
-                    ratingHeightCm = null,
-                    ratingHeightOrigin = null,
+                    ratingHeightCm = 166.0,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
                 ),
                 base.measurements.single().copy(
                     id = "null-measurement",
@@ -1149,7 +1149,7 @@ class BackupImportServiceTest {
                     accountId = "owner-null",
                     deduplicationHash = "null-hash",
                     ratingHeightCm = null,
-                    ratingHeightOrigin = null,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
                 ),
             ),
             pets = base.pets.map {
@@ -1192,7 +1192,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `v3 import preserves captured measurement context exactly`() {
+    fun `v6 import preserves captured measurement context exactly`() {
         val source = document().copy(
             measurements = listOf(
                 document().measurements.single().copy(
