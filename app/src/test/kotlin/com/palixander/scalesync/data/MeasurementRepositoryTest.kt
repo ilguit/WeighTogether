@@ -619,7 +619,7 @@ class MeasurementRepositoryTest {
         repository.retryPendingHealthConnect()
         assertEquals(listOf("mixed", "mixed"), scheduler.enqueued)
         assertEquals(listOf("mixed"), scheduler.immediatelyEnqueued)
-        assertEquals(listOf("mixed", "opposite"), dao.idsNeedingSync())
+        assertEquals(listOf("mixed"), dao.idsNeedingSync())
     }
 
     @Test

@@ -17,7 +17,7 @@ class BackupJsonCodecTest {
 
 
     @Test
-    fun v5PreservesManualOriginAndStandalonePetWeight() {
+    fun v6PreservesManualOriginAndStandalonePetWeight() {
         val source = document().copy(
             measurements = listOf(document().measurements.single().copy(
                 weightKg = 4.125, origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
@@ -30,18 +30,17 @@ class BackupJsonCodecTest {
         val encoded = codec.encode(source)
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "UNKNOWN")) }
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "SCALE")) }
-        assertThrows(BackupException.Invalid::class.java) { codec.encode(source.copy(schemaVersion = 4)) }
+        assertThrows(BackupException.UnsupportedVersion::class.java) {
+            codec.encode(source.copy(schemaVersion = 5))
+        }
     }
 
     @Test
-    fun everyLegacyVersionKeepsUnknownOriginIncludingOldManualAddress() {
-        for (version in 1..4) {
-            val source = document().copy(schemaVersion = version,
-                measurements = listOf(document().measurements.single().copy(deviceAddress = "manual")))
-            val encoded = codec.encode(source)
-            assertTrue(!encoded.contains("origin"))
-            val decoded = codec.decode(encoded)
-            assertEquals(com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, decoded.measurements.single().origin)
+    fun everyLegacyVersionIsUnsupported() {
+        for (version in 1..5) {
+            assertThrows(BackupException.UnsupportedVersion::class.java) {
+                codec.encode(document().copy(schemaVersion = version))
+            }
         }
     }
 
@@ -67,8 +66,18 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun v6JsonContainsNoHuaweiFields() {
+        val encoded = codec.encode(document())
+
+        assertTrue(!encoded.contains("huawei", ignoreCase = true))
+        assertEquals(document(), codec.decode(encoded))
+    }
+
+    @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":5", "\"schemaVersion\":6").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document())
+            .replace("\"schemaVersion\":6", "\"schemaVersion\":7")
+            .replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -138,7 +147,7 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v4RoundTripPreservesMeasurementContextAndPets() {
+    fun v6RoundTripPreservesMeasurementContextAndPets() {
         val source = document().copy(
             measurements = listOf(
                 document().measurements.single().copy(
@@ -155,39 +164,8 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v1AndV2RestoreEachMeasurementHeightFromItsImportedOwnerOnly() {
-        val current = document().copy(
-            accounts = listOf(
-                document().accounts.single().copy(id = "a", profile = BackupAccountProfileV1(161.0, null, null, false)),
-                document().accounts.single().copy(id = "b", normalizedName = "account-b", profile = BackupAccountProfileV1(null, null, null, false)),
-            ),
-            measurements = listOf(
-                document().measurements.single().copy(id = "ma", fingerprint = "fa", accountId = "a", deduplicationHash = "da"),
-                document().measurements.single().copy(id = "mb", fingerprint = "fb", accountId = "b", deduplicationHash = "db"),
-            ),
-        )
-        val encoded = codec.encode(current)
-        val legacyMeasurementFields = ",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\""
-
-        listOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION_V2).forEach { version ->
-            var legacyJson = encoded
-                .replace("\"schemaVersion\":5", "\"schemaVersion\":$version")
-                .replace(legacyMeasurementFields, "")
-                .replace(",\"origin\":\"LEGACY\"", "")
-            if (version == BACKUP_SCHEMA_VERSION_V1) {
-                legacyJson = legacyJson.replace(",\"pets\":[],\"petMeasurements\":[]", "")
-            }
-            val decoded = codec.decode(legacyJson)
-            assertEquals(listOf(161.0, null), decoded.measurements.map { it.ratingHeightCm })
-            assertTrue(decoded.measurements.all { it.ratingHeightOrigin == RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT })
-        }
-    }
-
-    @Test
     fun schemaShapesAndMeasurementContextValuesAreStrict() {
         val encoded = codec.encode(document())
-        val v2WithV3Fields = encoded.replace("\"schemaVersion\":5", "\"schemaVersion\":2")
-        assertThrows(BackupException.Invalid::class.java) { codec.decode(v2WithV3Fields) }
         assertThrows(BackupException.Invalid::class.java) {
             codec.decode(encoded.replace(",\"ratingHeightCm\":null", ""))
         }
@@ -200,19 +178,10 @@ class BackupJsonCodecTest {
         assertThrows(BackupException.Invalid::class.java) {
             codec.encode(document().copy(measurements = listOf(document().measurements.single().copy(ratingHeightCm = Double.NaN))))
         }
-
-        val v1Json = encoded.replace("\"schemaVersion\":5", "\"schemaVersion\":1")
-            .replace(",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\"", "")
-            .replace(",\"origin\":\"LEGACY\"", "")
-            .replace(",\"pets\":[],\"petMeasurements\":[]", "")
-        val legacy = codec.decode(v1Json)
-        assertEquals(1, legacy.schemaVersion)
-        assertTrue(legacy.pets.isEmpty())
-        assertTrue(legacy.petMeasurements.isEmpty())
     }
 
     @Test
-    fun v4RoundTripPreservesCompletePetProfile() {
+    fun v6RoundTripPreservesCompletePetProfile() {
         val pet = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11, PetSex.MALE,
             "scalesync:dog:mixed-breed", 2020, 2, 29, DogAdultWeightCategory.III)
         val source = document().copy(pets = listOf(pet))
@@ -220,33 +189,7 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v2AndV3EncodeRejectEveryV4PetProfileField() {
-        val base = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11)
-
-        fun assertRejected(field: String, pet: BackupPetV2) {
-            listOf(BACKUP_SCHEMA_VERSION_V2, BACKUP_SCHEMA_VERSION_V3).forEach { version ->
-                val error = assertThrows(BackupException.Invalid::class.java) {
-                    codec.encode(
-                        document().copy(
-                            schemaVersion = version,
-                            pets = listOf(pet),
-                        ),
-                    )
-                }
-                assertEquals("$.pets[0].$field", error.path)
-            }
-        }
-
-        assertRejected("sex", base.copy(sex = PetSex.MALE))
-        assertRejected("breedId", base.copy(breedId = "scalesync:dog:mixed-breed"))
-        assertRejected("birthYear", base.copy(birthYear = 2020))
-        assertRejected("birthMonth", base.copy(birthMonth = 2))
-        assertRejected("birthDay", base.copy(birthDay = 29))
-        assertRejected("dogAdultWeightCategory", base.copy(dogAdultWeightCategory = DogAdultWeightCategory.III))
-    }
-
-    @Test
-    fun v4RejectsInvalidPetProfileValues() {
+    fun v6RejectsInvalidPetProfileValues() {
         fun json(pet: BackupPetV2) = codec.encode(document().copy(pets = listOf(pet)))
         val base = BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)
         assertThrows(BackupException.Invalid::class.java) {

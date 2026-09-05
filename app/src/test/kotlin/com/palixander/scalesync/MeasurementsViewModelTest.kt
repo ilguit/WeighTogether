@@ -380,7 +380,7 @@ class MeasurementsViewModelTest {
         val item = original.copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
             healthConnectSyncedCalculatedValues = syncedSnapshot,
-            bmi = original.bmi!! + 1.0,
+            bodyFatPercent = original.bodyFatPercent!! + 1.0,
         ).toMeasurementUiItem(false)
 
         assertTrue(item.isManuallyEdited)
