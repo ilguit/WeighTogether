@@ -222,6 +222,7 @@ class BackupJsonCodec(
 
         unique(document.measurements.map { it.id }, "measurement id")
         unique(document.measurements.map { it.fingerprint }, "measurement fingerprint")
+        unique(document.measurements.mapNotNull { it.sourcePendingId }, "measurement source pending id")
         unique(document.measurements.mapNotNull { it.deduplicationHash }, "measurement deduplication hash")
         document.measurements.forEachIndexed { index, measurement ->
             val path = "$.measurements[$index]"
