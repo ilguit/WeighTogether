@@ -343,6 +343,114 @@ class PetProfileEditorContractTest {
     }
 
     @Test
+    fun openingLegacyMappedProfileAssignsCategoryAndRestoresAutomaticProvenanceAfterSave() {
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
+        )
+        val legacyPet = pet(
+            id = "legacy",
+            name = "Луна",
+            species = PetSpecies.DOG,
+            breedId = labrador.id,
+        )
+
+        val opened = PetProfileEditorState.edit(legacyPet, breedCatalog)
+
+        assertEquals(DogAdultWeightCategory.V, opened.draft.dogAdultWeightCategory)
+        assertEquals(
+            AutomaticallyAssignedDogCategory(labrador.id, DogAdultWeightCategory.V),
+            opened.automaticallyAssignedDogCategory,
+        )
+        val savedCategory = validatePetProfileDraft(opened.draft, today).petUpdate
+            ?.dogAdultWeightCategory
+        val reopened = PetProfileEditorState.edit(
+            legacyPet.copy(dogAdultWeightCategory = savedCategory),
+            breedCatalog,
+        )
+        assertEquals(opened.automaticallyAssignedDogCategory, reopened.automaticallyAssignedDogCategory)
+    }
+
+    @Test
+    fun reopenedAutomaticCategoryChangesWithMappedBreedAndClearsForUnmappedOrNoBreed() {
+        val labrador = PetBreedSelection.Available(
+            breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),
+        )
+        val beagle = PetBreedSelection.Available(
+            breedCatalog.search("Бигль", PetSpecies.DOG).single(),
+        )
+        val unmapped = PetBreedSelection.Available(
+            breedCatalog.search("Доберман", PetSpecies.DOG).single(),
+        )
+        val reopened = PetProfileEditorState.edit(
+            pet(
+                id = "saved",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.V,
+            ),
+            breedCatalog,
+        )
+
+        val mapped = reduce(reopened, PetProfileAction.BreedChanged(beagle))
+        assertEquals(DogAdultWeightCategory.III, mapped.draft.dogAdultWeightCategory)
+        assertEquals(beagle.id, mapped.automaticallyAssignedDogCategory?.breedId)
+
+        val changedToUnmapped = reduce(reopened, PetProfileAction.BreedChanged(unmapped))
+        assertNull(changedToUnmapped.draft.dogAdultWeightCategory)
+        assertNull(changedToUnmapped.automaticallyAssignedDogCategory)
+
+        val cleared = reduce(reopened, PetProfileAction.BreedChanged(null))
+        assertNull(cleared.draft.dogAdultWeightCategory)
+        assertNull(cleared.automaticallyAssignedDogCategory)
+    }
+
+    @Test
+    fun openingManualOrUnmappedCategoryPreservesItWithoutAutomaticProvenance() {
+        val labrador = breedCatalog.search("Лабрадор", PetSpecies.DOG).single()
+        val doberman = breedCatalog.search("Доберман", PetSpecies.DOG).single()
+        val manual = PetProfileEditorState.edit(
+            pet(
+                id = "manual",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.II,
+            ),
+            breedCatalog,
+        )
+        val unmapped = PetProfileEditorState.edit(
+            pet(
+                id = "unmapped",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = doberman.id,
+                category = DogAdultWeightCategory.IV,
+            ),
+            breedCatalog,
+        )
+        val unavailable = PetProfileEditorState.edit(
+            pet(
+                id = "unavailable",
+                name = "Луна",
+                species = PetSpecies.DOG,
+                breedId = labrador.id,
+                category = DogAdultWeightCategory.I,
+            ),
+            PetBreedCatalog(
+                snapshotResult = BreedReferenceSnapshotLoadResult.Unavailable("test"),
+            ),
+        )
+
+        assertEquals(DogAdultWeightCategory.II, manual.draft.dogAdultWeightCategory)
+        assertNull(manual.automaticallyAssignedDogCategory)
+        assertEquals(DogAdultWeightCategory.IV, unmapped.draft.dogAdultWeightCategory)
+        assertNull(unmapped.automaticallyAssignedDogCategory)
+        assertEquals(DogAdultWeightCategory.I, unavailable.draft.dogAdultWeightCategory)
+        assertNull(unavailable.automaticallyAssignedDogCategory)
+    }
+
+    @Test
     fun automaticCategoryDoesNotLeakToUnmappedOrOtherBreedButManualCategoryDoes() {
         val labrador = PetBreedSelection.Available(
             breedCatalog.search("Лабрадор", PetSpecies.DOG).single(),

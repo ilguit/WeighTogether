@@ -200,7 +200,29 @@ data class PetProfileEditorState(
     val pendingSpeciesChange: PendingPetSpeciesChange? = null,
     /** Editor-session provenance only; persisted profiles keep the existing schema. */
     val automaticallyAssignedDogCategory: AutomaticallyAssignedDogCategory? = null,
-)
+) {
+    companion object {
+        fun edit(
+            pet: Pet,
+            breedCatalog: PetBreedCatalog = PetBreedCatalog(),
+        ): PetProfileEditorState {
+            val draft = PetProfileDraft.edit(pet, breedCatalog)
+            val availableBreed = (draft.breed as? PetBreedSelection.Available)
+                ?.takeIf { draft.species == PetSpecies.DOG }
+            val mappedCategory = availableBreed?.let {
+                DogBreedAdultWeightCategoryMappings.find(it.id)?.category
+            }
+            val category = draft.dogAdultWeightCategory ?: mappedCategory
+            val automaticAssignment = mappedCategory
+                ?.takeIf { draft.dogAdultWeightCategory == null || draft.dogAdultWeightCategory == it }
+                ?.let { AutomaticallyAssignedDogCategory(requireNotNull(availableBreed).id, it) }
+            return PetProfileEditorState(
+                draft = draft.copy(dogAdultWeightCategory = category),
+                automaticallyAssignedDogCategory = automaticAssignment,
+            )
+        }
+    }
+}
 
 data class AutomaticallyAssignedDogCategory(
     val breedId: BreedId,

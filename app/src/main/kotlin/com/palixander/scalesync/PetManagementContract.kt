@@ -66,7 +66,7 @@ internal object PetManagementController {
         state
     } else {
         PetManagementUiState(
-            editor = PetProfileEditorState(PetProfileDraft.edit(pet, breedCatalog)),
+            editor = PetProfileEditorState.edit(pet, breedCatalog),
             editorSessionId = editorSessionId,
         )
     }
