@@ -259,34 +259,50 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `DSH breed has priority and requires explicitly confirmed intact status`() {
+    fun `supported DSH breed resolves for both sexes without intact status`() {
         val breed = BreedId("VBO:0100119")
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
-        assertReason<WeightReferenceUnavailableReason.DshIntactStatusUnknown>(
-            resolver.resolve(PetSpecies.CAT, PetSex.FEMALE, breed, birthDate, referenceDate),
-        )
-        assertReason<WeightReferenceUnavailableReason.DshNotIntact>(
-            resolver.resolve(
+        listOf(PetSex.FEMALE to "cat-dsh-female", PetSex.MALE to "cat-dsh-male").forEach { (sex, profileId) ->
+            for (intactStatus in IntactStatus.entries) {
+                val result = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breed,
+                    birthDate,
+                    referenceDate,
+                    intactStatus = intactStatus,
+                ).available()
+                assertEquals(profileId, result.profileId)
+                assertEquals(ReferenceBasis.BREED, result.basis)
+            }
+        }
+    }
+
+    @Test
+    fun `other cat breed uses sex specific DSH population profile`() {
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
+        listOf(PetSex.FEMALE to "cat-dsh-female", PetSex.MALE to "cat-dsh-male").forEach { (sex, profileId) ->
+            val result = resolver.resolve(PetSpecies.CAT, sex, null, birthDate, referenceDate).available()
+
+            assertEquals(profileId, result.profileId)
+            assertEquals(ReferenceBasis.BREED, result.basis)
+        }
+    }
+
+    @Test
+    fun `unsupported and unknown cat breeds use DSH population profile`() {
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
+        listOf(BreedId("VBO:0100000"), BreedId("external:cat:future")).forEach { breedId ->
+            val result = resolver.resolve(
                 PetSpecies.CAT,
-                PetSex.FEMALE,
-                breed,
+                PetSex.MALE,
+                breedId,
                 birthDate,
                 referenceDate,
-                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-                intactStatus = IntactStatus.CONFIRMED_NOT_INTACT,
-            ),
-        )
+            ).available()
 
-        val result = resolver.resolve(
-            PetSpecies.CAT,
-            PetSex.FEMALE,
-            breed,
-            birthDate,
-            referenceDate,
-            intactStatus = IntactStatus.CONFIRMED_INTACT,
-        ).available()
-        assertEquals("cat-dsh-female", result.profileId)
-        assertEquals(ReferenceBasis.BREED, result.basis)
+            assertEquals("cat-dsh-male", result.profileId)
+        }
     }
 
     @Test
@@ -301,8 +317,11 @@ class PetWeightReferenceResolverTest {
         assertReason<WeightReferenceUnavailableReason.MissingDogAdultWeight>(
             resolveDog(birthDate = date),
         )
-        assertReason<WeightReferenceUnavailableReason.MissingBreed>(
-            resolver.resolve(PetSpecies.CAT, PetSex.MALE, null, date, referenceDate),
+        assertReason<WeightReferenceUnavailableReason.MissingSex>(
+            resolver.resolve(PetSpecies.CAT, null, null, date, referenceDate),
+        )
+        assertReason<WeightReferenceUnavailableReason.MissingBirthDate>(
+            resolver.resolve(PetSpecies.CAT, PetSex.MALE, null, null, referenceDate),
         )
         assertReason<WeightReferenceUnavailableReason.UnsupportedSpecies>(
             resolver.resolve(PetSpecies.UNSPECIFIED, PetSex.MALE, null, date, referenceDate),
@@ -310,7 +329,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `breed lookup failures species mismatch and unsupported cat breed are distinct`() {
+    fun `dog breed lookup failures and species mismatch remain distinct`() {
         val date = PartialBirthDate.Day(referenceDate.minusDays(100))
         assertReason<WeightReferenceUnavailableReason.UnknownBreed>(
             resolveDog(BreedId("not-in-catalog"), date, DogAdultWeight.Category(DogAdultWeightCategory.I)),
@@ -318,14 +337,13 @@ class PetWeightReferenceResolverTest {
         assertReason<WeightReferenceUnavailableReason.BreedSpeciesMismatch>(
             resolveDog(BreedId("VBO:0100119"), date, DogAdultWeight.Category(DogAdultWeightCategory.I)),
         )
-        assertReason<WeightReferenceUnavailableReason.UnsupportedBreed>(
+        assertReason<WeightReferenceUnavailableReason.BreedSpeciesMismatch>(
             resolver.resolve(
                 PetSpecies.CAT,
                 PetSex.MALE,
-                BreedId("VBO:0100000"),
+                BreedId("VBO:0000661"),
                 date,
                 referenceDate,
-                intactStatus = IntactStatus.CONFIRMED_INTACT,
             ),
         )
     }

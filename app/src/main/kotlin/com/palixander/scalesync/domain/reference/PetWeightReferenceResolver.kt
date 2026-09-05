@@ -100,9 +100,11 @@ class PetWeightReferenceResolver(
 
         val breedProfile = breedId?.let { id ->
             val breed = breedCatalog.findById(id.value)
-                ?: return unavailable(WeightReferenceUnavailableReason.UnknownBreed(id.value))
+            if (breed == null && referenceSpecies == ReferenceSpecies.DOG) {
+                return unavailable(WeightReferenceUnavailableReason.UnknownBreed(id.value))
+            }
             val expectedSpecies = if (referenceSpecies == ReferenceSpecies.CAT) BreedSpecies.CAT else BreedSpecies.DOG
-            if (breed.species != expectedSpecies) {
+            if (breed != null && breed.species != expectedSpecies) {
                 return unavailable(WeightReferenceUnavailableReason.BreedSpeciesMismatch(id.value))
             }
             snapshot.profiles.singleOrNull {
@@ -112,36 +114,35 @@ class PetWeightReferenceResolver(
         }
 
         val profile = if (breedProfile != null) {
-            if (breedProfile.breedId == DSH_BREED_ID) {
-                when (intactStatus) {
-                    IntactStatus.UNKNOWN -> return unavailable(WeightReferenceUnavailableReason.DshIntactStatusUnknown)
-                    IntactStatus.CONFIRMED_NOT_INTACT -> return unavailable(WeightReferenceUnavailableReason.DshNotIntact)
-                    IntactStatus.CONFIRMED_INTACT -> Unit
-                }
-            }
             breedProfile
         } else {
             if (referenceSpecies == ReferenceSpecies.CAT) {
-                val reason = breedId?.let { WeightReferenceUnavailableReason.UnsupportedBreed(it.value) }
-                    ?: WeightReferenceUnavailableReason.MissingBreed
-                return unavailable(reason)
+                snapshot.profiles.singleOrNull {
+                    it.basis == ReferenceBasis.BREED && it.species == ReferenceSpecies.CAT &&
+                        it.sex == referenceSex && it.breedId == DSH_BREED_ID
+                } ?: return unavailable(
+                    WeightReferenceUnavailableReason.ProfileUnavailable(
+                        "cat-dsh-${referenceSex.name.lowercase()}",
+                    ),
+                )
+            } else {
+                val category = when (dogAdultWeight) {
+                    is DogAdultWeight.Category -> dogAdultWeight.value
+                    is DogAdultWeight.ExpectedWeightKg -> categoryFor(dogAdultWeight.value)
+                        ?: return unavailable(
+                            WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum(dogAdultWeight.value),
+                        )
+                    null -> return unavailable(WeightReferenceUnavailableReason.MissingDogAdultWeight)
+                }
+                snapshot.profiles.singleOrNull {
+                    it.basis == ReferenceBasis.WEIGHT_CATEGORY && it.species == ReferenceSpecies.DOG &&
+                        it.sex == referenceSex && it.weightCategory == category.name
+                } ?: return unavailable(
+                    WeightReferenceUnavailableReason.ProfileUnavailable(
+                        "dog-${referenceSex.name.lowercase()}-${category.name}",
+                    ),
+                )
             }
-            val category = when (dogAdultWeight) {
-                is DogAdultWeight.Category -> dogAdultWeight.value
-                is DogAdultWeight.ExpectedWeightKg -> categoryFor(dogAdultWeight.value)
-                    ?: return unavailable(
-                        WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum(dogAdultWeight.value),
-                    )
-                null -> return unavailable(WeightReferenceUnavailableReason.MissingDogAdultWeight)
-            }
-            snapshot.profiles.singleOrNull {
-                it.basis == ReferenceBasis.WEIGHT_CATEGORY && it.species == ReferenceSpecies.DOG &&
-                    it.sex == referenceSex && it.weightCategory == category.name
-            } ?: return unavailable(
-                WeightReferenceUnavailableReason.ProfileUnavailable(
-                    "dog-${referenceSex.name.lowercase()}-${category.name}",
-                ),
-            )
         }
 
         return resolveProfile(profile, birthDate, referenceDate)
