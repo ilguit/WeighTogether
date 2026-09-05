@@ -93,9 +93,7 @@ internal data class BreedWeightReferenceChartSeries(
     val kind: BreedWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
     val showsPointMarkers: Boolean = false,
-    val xEpochMillis: List<Long> = points.map { (date, _) ->
-        date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli()
-    },
+    val xEpochMillis: List<Long>,
 )
 
 internal enum class BreedWeightReferenceSeriesKind {
@@ -596,7 +594,7 @@ internal fun PetWeightReferenceChartCard(
                     displayedSeries = if (isPopulationReference) displayedSeries.filterNot {
                         it.kind == PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER
                     } else displayedSeries,
-                    breedBands = if (isPopulationReference) populationWeightReferenceBands(available) else breedWeightReferenceBands(breedReferenceTimeline),
+                    breedBands = if (isPopulationReference) populationWeightReferenceBands(available, zoneId) else breedWeightReferenceBands(breedReferenceTimeline),
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -870,12 +868,15 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
     }
 }
 
-private fun populationWeightReferenceBands(reference: PetHistoryWeightReference.Available?): List<BreedWeightReferenceBand> =
+internal fun populationWeightReferenceBands(
+    reference: PetHistoryWeightReference.Available?,
+    zoneId: ZoneId,
+): List<BreedWeightReferenceBand> =
     reference?.segments.orEmpty().mapNotNull { segment ->
         segment.takeIf { it.size >= 2 }?.let { points ->
             BreedWeightReferenceBand(points.map { point ->
                 BreedWeightReferenceBandPoint(
-                    point.date.atStartOfDay(ZoneId.of("UTC")).toInstant().toEpochMilli(),
+                    point.date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
                     point.lowerKg,
                     point.upperKg,
                 )
