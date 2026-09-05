@@ -10,8 +10,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.semantics.SemanticsProperties
 import com.palixander.scalesync.data.AppSettings
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeFalse
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -127,35 +125,12 @@ class SettingsIntegrationDetailScreenTest {
     }
 
     @Test
-    fun personalFlavorHasNoHuaweiRootDestination() {
-        assumeFalse(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+    fun supportedBuildHasNoHuaweiRootDestination() {
         assertEquals(
             false,
-            settingsRootDestinations(huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED)
+            settingsRootDestinations(huaweiEnabled = false)
                 .contains(SettingsDestination.HUAWEI_HEALTH),
         )
-    }
-
-    @Test
-    fun enterpriseHuaweiDetailsUseRetryAndAuthorizedDisconnectContracts() {
-        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        var refreshCalls = 0
-        setDetail(
-            SettingsDestination.HUAWEI_HEALTH,
-            MainUiState(huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED)),
-            callbacks(onHuaweiPermissionRefresh = { refreshCalls++ }),
-        )
-        compose.onNodeWithText("Не удалось проверить разрешение").assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).performClick()
-        compose.runOnIdle { assertEquals(1, refreshCalls) }
-
-        setDetail(
-            SettingsDestination.HUAWEI_HEALTH,
-            MainUiState(huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED)),
-        )
-        compose.onNodeWithText("Подключено").assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
-        compose.onNodeWithTag(SettingsScreenTestTags.DisableHuawei).assertExists()
     }
 
     private fun setDetail(

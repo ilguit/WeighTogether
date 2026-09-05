@@ -15,11 +15,10 @@ class ReleaseHistoryPlugin : Plugin<Project> {
             val components = project.extensions.getByType(AndroidComponentsExtension::class.java)
             components.onVariants { variant ->
                 val applicationVariant = variant as ApplicationVariant
-                val flavor = variant.productFlavors.singleOrNull()?.second
-                    ?: throw IllegalStateException("Release history requires exactly one product flavor for ${variant.name}")
-                if (flavor !in setOf("personal", "huaweiEnterprise")) {
-                    throw IllegalStateException("Unsupported release history flavor '$flavor' for ${variant.name}")
+                check(variant.productFlavors.isEmpty()) {
+                    "Release history does not support product flavors for ${variant.name}"
                 }
+                val flavor = "personal"
                 val capitalized = variant.name.replaceFirstChar(Char::uppercaseChar)
                 val task = project.tasks.register(
                     "generate${capitalized}ReleaseHistory",
@@ -65,14 +64,14 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                 variant.sources.java?.addGeneratedSourceDirectory(task, GenerateReleaseHistoryTask::kotlinOutputDirectory)
                 variant.sources.res?.addGeneratedSourceDirectory(task, GenerateReleaseHistoryTask::resourceOutputDirectory)
 
-                if (variant.name == "personalDebug") {
+                if (variant.name == "debug") {
                     val preflight = project.tasks.register(
-                        "verifyPersonalDebugReleaseMetadata",
+                        "verifyDebugReleaseMetadata",
                         VerifyReleaseMetadataTask::class.java,
                     )
                     preflight.configure { configured ->
                         configured.group = "verification"
-                        configured.description = "Verifies release metadata before producing the personal debug APK"
+                        configured.description = "Verifies release metadata before producing the debug APK"
                         configured.headSha.set(task.flatMap(GenerateReleaseHistoryTask::headSha))
                         configured.currentVersion.set(task.flatMap(GenerateReleaseHistoryTask::currentVersion))
                         configured.flavor.set(task.flatMap(GenerateReleaseHistoryTask::flavor))
@@ -81,7 +80,7 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                         configured.baselineFile.set(task.flatMap(GenerateReleaseHistoryTask::baselineFile))
                     }
                     project.tasks.matching {
-                        it.name == "packagePersonalDebug" || it.name == "assemblePersonalDebug"
+                        it.name == "packageDebug" || it.name == "assembleDebug"
                     }.configureEach {
                         it.dependsOn(preflight)
                     }
