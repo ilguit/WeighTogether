@@ -102,7 +102,6 @@ internal fun activePendingEnrichment(
 class RoomMeasurementPersistence(
     private val database: AppDatabase,
     private val calculator: BodyCompositionCalculator,
-    private val huaweiSyncEnabled: Boolean,
     private val accountDao: AccountDao = database.accountDao(),
     private val appStateDao: AppStateDao = database.appStateDao(),
     private val measurementDao: MultiAccountMeasurementDao = database.multiAccountMeasurementDao(),
@@ -443,7 +442,6 @@ class RoomMeasurementPersistence(
         val calculated = calculator.calculate(compositionRaw, profile).toEntity(
             rawPayload = incoming.rawPayload,
             fingerprint = candidate.fingerprint,
-            huaweiSyncEnabled = huaweiSyncEnabled,
             accountId = AccountId(candidate.accountId),
             externalSyncPolicy = ExternalSyncPolicy.valueOf(candidate.externalSyncPolicy),
             sourcePendingId = candidate.sourcePendingId,
@@ -453,20 +451,16 @@ class RoomMeasurementPersistence(
         )
         val upgraded = calculated.copy(
             id = candidate.id,
-            huaweiStatus = candidate.huaweiStatus.requeueUnlessTerminal(),
             healthConnectStatus = candidate.healthConnectStatus.requeueUnlessTerminal(),
-            huaweiError = candidate.huaweiError.preserveForTerminalStatus(candidate.huaweiStatus),
             healthConnectError = candidate.healthConnectError.preserveForTerminalStatus(
                 candidate.healthConnectStatus,
             ),
-            huaweiWeightSynced = candidate.huaweiWeightSynced,
             healthConnectWeightSynced = candidate.healthConnectWeightSynced,
             createdAtEpochMillis = candidate.createdAtEpochMillis,
             accountId = candidate.accountId,
             externalSyncPolicy = candidate.externalSyncPolicy,
             sourcePendingId = candidate.sourcePendingId,
             deduplicationHash = candidate.deduplicationHash,
-            huaweiSyncedCalculatedValues = candidate.huaweiSyncedCalculatedValues,
             healthConnectSyncedCalculatedValues = candidate.healthConnectSyncedCalculatedValues,
             ratingHeightCm = candidate.ratingHeightCm,
             ratingHeightOrigin = candidate.ratingHeightOrigin,
@@ -779,7 +773,6 @@ class RoomMeasurementPersistence(
             calculator.calculate(raw, profile).toEntity(
                 rawPayload = pending.rawPayload,
                 fingerprint = measurementFingerprint(raw),
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 accountId = accountId,
                 externalSyncPolicy = policy,
                 sourcePendingId = pending.id,
@@ -788,7 +781,6 @@ class RoomMeasurementPersistence(
             )
         } else {
             raw.toWeightOnlyEntity(
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 accountId = accountId,
                 externalSyncPolicy = policy,
                 sourcePendingId = pending.id,
@@ -798,13 +790,7 @@ class RoomMeasurementPersistence(
         }.copy(createdAtEpochMillis = now().toEpochMilli())
         if (policy == ExternalSyncPolicy.ACCOUNT_LOCAL) {
             measurement = measurement.copy(
-                huaweiStatus = if (huaweiSyncEnabled) {
-                    SyncStatus.LOCAL_ONLY.name
-                } else {
-                    SyncStatus.DISABLED.name
-                },
                 healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-                huaweiError = if (huaweiSyncEnabled) null else measurement.huaweiError,
                 healthConnectError = null,
             )
         }

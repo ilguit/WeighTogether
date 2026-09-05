@@ -356,13 +356,11 @@ class MeasurementsViewModelTest {
     fun historyFlagsDoNotInferManualEditFromLocalOnlySyncStatus() {
         val accountLocal = measurement(id = "account-local").copy(
             externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL.name,
-            huaweiStatus = "LOCAL_ONLY",
             healthConnectStatus = "LOCAL_ONLY",
         ).toMeasurementUiItem(false)
 
         val userLocal = measurement(id = "user-local").copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
-            huaweiStatus = "SYNCED",
             healthConnectStatus = "SYNCED",
         ).toMeasurementUiItem(false)
 
@@ -376,13 +374,13 @@ class MeasurementsViewModelTest {
     fun historyMismatchMapsSnapshotDivergenceIndependentlyFromManualEdit() {
         val original = measurement(id = "mismatch")
         val syncedSnapshot = original.currentCalculatedValuesSnapshot(
-            ExternalSyncDestination.HUAWEI,
+            ExternalSyncDestination.HEALTH_CONNECT,
         )!!.encode()
 
         val item = original.copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
-            huaweiSyncedCalculatedValues = syncedSnapshot,
-            bmi = original.bmi!! + 1.0,
+            healthConnectSyncedCalculatedValues = syncedSnapshot,
+            bodyFatPercent = original.bodyFatPercent!! + 1.0,
         ).toMeasurementUiItem(false)
 
         assertTrue(item.isManuallyEdited)

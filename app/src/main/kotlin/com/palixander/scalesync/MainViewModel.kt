@@ -103,7 +103,6 @@ data class MainUiState(
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
     val healthConnectSystemManagementAvailable: Boolean = false,
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
-    val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
     val profilesLoaded: Boolean = false,
     val accounts: List<Account> = emptyList(),
     val accountSettings: AccountSettings = AccountSettings(),
@@ -132,7 +131,7 @@ data class MainUiState(
         )
 }
 
-enum class DestructiveSettingsAction { HEALTH_CONNECT, HUAWEI, SCALE }
+enum class DestructiveSettingsAction { HEALTH_CONNECT, SCALE }
 
 private data class AccountsSnapshot(
     val accounts: List<Account>,
@@ -165,7 +164,6 @@ private data class MainCoreState(
     val scaleScanError: String?,
     val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
-    val huawei: HuaweiIntegrationUiState,
     val destructiveActionInProgress: DestructiveSettingsAction?,
 )
 
@@ -193,16 +191,6 @@ class MainViewModel @JvmOverloads constructor(
     fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = petHistoryOwners.getOrPut(petId) {
         PetHistoryStateOwner(initialPetId = petId, repository = container.pets, parentScope = viewModelScope)
     }
-    private val huaweiAuthorization = HuaweiAuthorizationController(
-        gateway = container.huaweiHealth,
-        onExplicitAuthorizationConfirmed = {
-            container.profileStore.setExternalSyncEnabled(
-                ExternalSyncDestination.HUAWEI,
-                true,
-            )
-            container.repository.retryPendingHuawei()
-        },
-    )
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
     private val petScanner = ManualScaleScanner(application)
@@ -270,8 +258,6 @@ class MainViewModel @JvmOverloads constructor(
         )
     }
     private val healthConnect = MutableStateFlow(initialHealthConnectState)
-    private val initialHuaweiState = huaweiAuthorization.initialState
-    private val huawei = MutableStateFlow(initialHuaweiState)
     private val accountsSnapshot = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
@@ -332,9 +318,8 @@ class MainViewModel @JvmOverloads constructor(
         scaleScanningState,
         externalSyncPaused,
         healthConnect,
-        huawei,
         destructiveActionInProgress,
-    ) { scanState, isSyncPaused, healthConnectState, huaweiState, destructiveAction ->
+    ) { scanState, isSyncPaused, healthConnectState, destructiveAction ->
         MainCoreState(
             settings = scanState.settings,
             scanning = scanState.scanning,
@@ -343,7 +328,6 @@ class MainViewModel @JvmOverloads constructor(
             scaleScanError = scanState.error,
             isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
-            huawei = huaweiState,
             destructiveActionInProgress = destructiveAction,
         )
     }
@@ -418,7 +402,6 @@ class MainViewModel @JvmOverloads constructor(
             scaleScanError = core.scaleScanError,
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
-            huawei = core.huawei,
             destructiveActionInProgress = core.destructiveActionInProgress,
             profilesLoaded = accountSnapshot.loaded,
             accounts = accountSnapshot.accounts,
@@ -454,8 +437,6 @@ class MainViewModel @JvmOverloads constructor(
         ),
     )
 
-    val huaweiConfigured: Boolean get() = container.huaweiHealth.isConfigured
-    val huaweiAvailableInBuild: Boolean get() = container.huaweiHealth.isAvailableInBuild
     val healthConnectAvailable: Boolean get() = container.healthConnect.isAvailable()
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
 
@@ -1089,12 +1070,6 @@ class MainViewModel @JvmOverloads constructor(
         "Health Connect отключён в приложении. Разрешения можно отозвать в системных настройках.",
     )
 
-    fun disableHuawei() = disableExternalIntegration(
-        DestructiveSettingsAction.HUAWEI,
-        ExternalSyncDestination.HUAWEI,
-        "Huawei Health отключён в приложении. Доступ можно отозвать в Huawei Health или настройках приложения.",
-    )
-
     private fun disableExternalIntegration(
         action: DestructiveSettingsAction,
         destination: ExternalSyncDestination,
@@ -1120,11 +1095,6 @@ class MainViewModel @JvmOverloads constructor(
                 destructiveActionInProgress.compareAndSet(action, null)
             }
         }
-    }
-
-    fun authorizeHuawei() = viewModelScope.launch {
-        val attempt = huaweiAuthorization.authorize { huawei.value = it }
-        showMessage(huaweiAuthorizationMessage(attempt))
     }
 
     fun retry(id: String) = viewModelScope.launch {
@@ -1171,10 +1141,9 @@ class MainViewModel @JvmOverloads constructor(
         if (allGranted) container.repository.retryPendingHealthConnect()
     }
 
-    /** Re-checks Health Connect and Huawei permissions after returning to the foreground. */
+    /** Re-checks Health Connect permissions after returning to the foreground. */
     fun refreshIntegrations() = viewModelScope.launch {
         updateHealthConnectPermissions(notifyResult = false)
-        huaweiAuthorization.refresh { huawei.value = it }
     }
 
     /** Foreground repair closes Room→WorkManager gaps and restores pending presentation. */
@@ -1186,11 +1155,6 @@ class MainViewModel @JvmOverloads constructor(
             .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
         runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
-        huaweiAuthorization.refresh { huawei.value = it }
-    }
-
-    fun refreshHuaweiAuthorization() = viewModelScope.launch {
-        huaweiAuthorization.refresh { huawei.value = it }
     }
 
     override fun onCleared() {
@@ -1787,21 +1751,6 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun huaweiAuthorizationMessage(attempt: HuaweiAuthorizationAttempt): String {
-        if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
-            return "Huawei Health: разрешение подтверждено, очередь перезапущена"
-        }
-        return when (val request = attempt.requestResult) {
-            SyncResult.Success -> when (attempt.confirmedState.status) {
-                HuaweiIntegrationStatus.CHECK_FAILED ->
-                    "Huawei Health: не удалось подтвердить разрешение"
-                else -> "Huawei Health: разрешение не выдано"
-            }
-            is SyncResult.Disabled -> request.message
-            is SyncResult.Blocked -> request.message
-            is SyncResult.Retryable -> request.message
-        }
-    }
 }
 
 internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =

@@ -56,8 +56,6 @@ import com.palixander.scalesync.ui.accounts.WeightDeltaEditorTestTags
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeFalse
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -215,7 +213,7 @@ class SettingsShellUiTest {
         composeRule.onAllNodesWithTag(
             SettingsScreenTestTags.RootDivider,
             useUnmergedTree = true,
-        ).assertCountEquals(if (BuildConfig.HUAWEI_EXTENDED_ENABLED) 4 else 3)
+        ).assertCountEquals(3)
         composeRule.onNodeWithTag(SettingsScreenTestTags.ConnectionsHeading)
             .assertTextEquals("Весы и синхронизация")
         composeRule.onNodeWithTag(SettingsScreenTestTags.SupportHeading)
@@ -332,7 +330,6 @@ class SettingsShellUiTest {
             add(SettingsScreenTestTags.ProfilesRow)
             add(SettingsScreenTestTags.ScaleRow)
             add(SettingsScreenTestTags.HealthConnectRow)
-            if (BuildConfig.HUAWEI_EXTENDED_ENABLED) add(SettingsScreenTestTags.HuaweiHealthRow)
             add(SettingsScreenTestTags.BackupRow)
             add(SettingsScreenTestTags.DiagnosticsRow)
             add(SettingsScreenTestTags.ChangelogRow)
@@ -359,27 +356,18 @@ class SettingsShellUiTest {
                 scaleAddress = "AA:BB",
                 scaleName = "Mi Body Composition Scale 2",
                 healthConnectSyncEnabled = true,
-                huaweiSyncEnabled = true,
             ),
             healthConnect = HealthConnectPermissionsUiState.snapshot(
                 isAvailable = true,
                 requiredPermissions = permissions,
                 grantedPermissions = permissions,
             ),
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
         )
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ScaleStatusMark).assertExists()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectStatusMark).assertExists()
         composeRule.onNodeWithText("Mi Body Composition Scale 2").assertExists()
         composeRule.onNodeWithText("Подключено · все разрешения выданы").assertExists()
-        if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-            composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark).assertExists()
-            composeRule.onNodeWithText("Подключено").assertExists()
-        } else {
-            composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthStatusMark)
-                .assertDoesNotExist()
-        }
     }
 
     @Test
@@ -431,23 +419,6 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun enterpriseHuaweiDetailReturnsFocusToHuaweiRootRow() {
-        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        setSettingsShell(
-            expandSections = false,
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED),
-        )
-
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow)
-            .performScrollTo()
-            .performClick()
-        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsFocused()
-
-        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).performClick()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertIsFocused()
-    }
-
-    @Test
     fun navigationRowsExposeTheirTextualStatusToAccessibilityServices() {
         val longScaleStatus = "Очень длинное имя весов для узкого экрана и крупного шрифта без потери текста"
         setSettingsShell(
@@ -473,54 +444,13 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun personalFlavorOmitsHuaweiIntegrationAndCannotDispatchItsCallbacks() {
-        assumeFalse(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        var refreshCalls = 0
-        var authorizationCalls = 0
-        setSettingsShell(
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
-            onHuaweiAuthorization = { authorizationCalls++ },
-            onHuaweiPermissionRefresh = { refreshCalls++ },
-        )
+    fun supportedBuildOmitsRetiredIntegration() {
+        setSettingsShell()
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithText("Huawei Health").assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertDoesNotExist()
-
-        composeRule.runOnIdle {
-            assertEquals(0, refreshCalls)
-            assertEquals(0, authorizationCalls)
-        }
-    }
-
-    @Test
-    fun enterpriseFlavorShowsHuaweiIntegrationAndRetriesPermissionRefresh() {
-        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        var refreshCalls = 0
-        var authorizationCalls = 0
-        setSettingsShell(
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
-            onHuaweiAuthorization = { authorizationCalls++ },
-            onHuaweiPermissionRefresh = { refreshCalls++ },
-        )
-
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthRow)
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Huawei Health").assertIsDisplayed()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthDivider).assertIsDisplayed()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction)
-            .assertIsEnabled()
-            .performClick()
-
-        composeRule.runOnIdle {
-            assertEquals(1, refreshCalls)
-            assertEquals(0, authorizationCalls)
-        }
     }
 
     @Test
@@ -656,30 +586,6 @@ class SettingsShellUiTest {
     }
 
     @Test
-    fun locallyDisabledHuaweiShowsReconnectAndHidesDestructiveAction() {
-        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        var authorizationCalls = 0
-        var refreshCalls = 0
-        setSettingsShell(
-            settings = AppSettings(huaweiSyncEnabled = false),
-            huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
-            onHuaweiAuthorization = { authorizationCalls++ },
-            onHuaweiPermissionRefresh = { refreshCalls++ },
-        )
-
-        composeRule.onNodeWithText("Основной: Анна · Отключено в приложении")
-            .performScrollTo()
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).performClick()
-        composeRule.onNodeWithTag(SettingsScreenTestTags.DisableHuawei).assertDoesNotExist()
-
-        composeRule.runOnIdle {
-            assertEquals(1, authorizationCalls)
-            assertEquals(0, refreshCalls)
-        }
-    }
-
-    @Test
     fun missingHealthConnectManagementHandlerHidesOnlyOpenAndDisablesRow() {
         var managementCalls = 0
         val requiredPermissions = setOf("weight", "fat")
@@ -773,12 +679,9 @@ class SettingsShellUiTest {
     private fun setSettingsShell(
         expandSections: Boolean = true,
         settings: AppSettings = AppSettings(),
-        huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
         healthConnectSystemManagementAvailable: Boolean = true,
         account: Account? = completeAccount(),
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
@@ -801,7 +704,6 @@ class SettingsShellUiTest {
                     healthConnect = healthConnect,
                     healthConnectSystemManagementAvailable =
                         healthConnectSystemManagementAvailable,
-                    huawei = huawei,
                     accounts = listOfNotNull(account),
                     accountSettings = AccountSettings(primaryAccountId = account?.id),
                     accountManagement = management.value,
@@ -820,8 +722,6 @@ class SettingsShellUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(
-                    onHuaweiAuthorization = onHuaweiAuthorization,
-                    onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
                     onHealthConnectAuthorization = onHealthConnectAuthorization,
                     onHealthConnectAccessManagement = onHealthConnectAccessManagement,
                     accountManagement = AccountManagementCallbacks.None.copy(
@@ -836,15 +736,11 @@ class SettingsShellUiTest {
     }
 
     private fun settingsCallbacks(
-        onHuaweiAuthorization: () -> Unit = {},
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         accountManagement: AccountManagementCallbacks = AccountManagementCallbacks.None,
         onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     ) = SettingsCallbacks(
-        onHuaweiAuthorization = onHuaweiAuthorization,
-        onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
         onManualScan = {},

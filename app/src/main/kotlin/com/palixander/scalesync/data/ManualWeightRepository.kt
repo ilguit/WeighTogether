@@ -15,7 +15,6 @@ import java.util.UUID
 /** Direct owner-bound persistence; intentionally bypasses scale routing and deduplication. */
 class ManualWeightRepository(
     private val database: AppDatabase,
-    private val huaweiSyncEnabled: Boolean,
     private val enqueueSync: (String) -> Unit,
     private val clock: Clock = Clock.systemDefaultZone(),
 ) {
@@ -78,12 +77,6 @@ class ManualWeightRepository(
             ratingHeightCm = account.heightCm,
             externalSyncPolicy = if (isPrimary) ExternalSyncPolicy.AUTO.name else ExternalSyncPolicy.ACCOUNT_LOCAL.name,
             healthConnectStatus = if (isPrimary) SyncStatus.PENDING.name else SyncStatus.LOCAL_ONLY.name,
-            huaweiStatus = when {
-                !huaweiSyncEnabled -> SyncStatus.DISABLED.name
-                isPrimary -> SyncStatus.PENDING.name
-                else -> SyncStatus.LOCAL_ONLY.name
-            },
-            huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
         )
         check(dao.insert(measurement) != -1L) { "Manual weight insert conflict" }
         return ManualWeightResult.Saved(measurement.id, measurement.measuredAt)

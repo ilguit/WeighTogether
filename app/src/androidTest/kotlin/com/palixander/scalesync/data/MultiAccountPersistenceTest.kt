@@ -75,7 +75,6 @@ class MultiAccountPersistenceTest {
         var stored = database.multiAccountMeasurementDao().get(
             finalized.measurement.measurementId,
         )!!
-        assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, stored.healthConnectStatus)
         assertEquals(completeProfile().heightCm, stored.ratingHeightCm)
         assertEquals(RatingHeightOrigin.CAPTURED, stored.ratingHeightOrigin)
@@ -105,7 +104,6 @@ class MultiAccountPersistenceTest {
 
         stored = database.multiAccountMeasurementDao().get(stored.id)!!
         assertEquals(ExternalSyncPolicy.AUTO.name, stored.externalSyncPolicy)
-        assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
         assertEquals(SyncStatus.PENDING.name, stored.healthConnectStatus)
         val userLocalAfterPromotion = database.multiAccountMeasurementDao().get(userLocal.id)!!
         assertEquals(ExternalSyncPolicy.USER_LOCAL.name, userLocalAfterPromotion.externalSyncPolicy)
@@ -148,7 +146,6 @@ class MultiAccountPersistenceTest {
             unfinished.measurement.measurementId,
         )!!
         assertEquals(ExternalSyncPolicy.ACCOUNT_LOCAL.name, unfinishedEntity.externalSyncPolicy)
-        assertEquals(SyncStatus.DISABLED.name, unfinishedEntity.huaweiStatus)
         assertEquals(SyncStatus.LOCAL_ONLY.name, unfinishedEntity.healthConnectStatus)
         assertEquals(
             ExternalSyncPolicy.AUTO.name,
@@ -554,7 +551,6 @@ class MultiAccountPersistenceTest {
         val token = (persistence.discardPending(inserted.pending.id) as DiscardPendingResult.Discarded)
             .undoToken
         val finalized = raw.toWeightOnlyEntity(
-            huaweiSyncEnabled = false,
             accountId = account.id,
             sourcePendingId = inserted.pending.id.value,
             deduplicationHash = inserted.pending.deduplicationHash,
@@ -797,8 +793,6 @@ class MultiAccountPersistenceTest {
         assertEquals(completeProfile().heightCm, captured.ratingHeightCm)
         assertEquals(RatingHeightOrigin.CAPTURED, captured.ratingHeightOrigin)
         val original = captured.copy(
-            huaweiStatus = SyncStatus.DISABLED.name,
-            huaweiError = "adapter disabled",
             healthConnectStatus = SyncStatus.SYNCED.name,
             healthConnectWeightSynced = true,
             healthConnectSyncedCalculatedValues = "old-snapshot",
@@ -826,8 +820,6 @@ class MultiAccountPersistenceTest {
         assertEquals(original.createdAtEpochMillis, stored.createdAtEpochMillis)
         assertEquals(MeasurementType.FULL, stored.measurementType)
         assertEquals(500, stored.impedanceOhm)
-        assertEquals(SyncStatus.DISABLED.name, stored.huaweiStatus)
-        assertEquals("adapter disabled", stored.huaweiError)
         assertEquals(SyncStatus.PENDING.name, stored.healthConnectStatus)
         assertNull(stored.healthConnectError)
         assertTrue(stored.healthConnectWeightSynced)
@@ -1079,7 +1071,6 @@ class MultiAccountPersistenceTest {
     ) = RoomMeasurementPersistence(
         database = database,
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
-        huaweiSyncEnabled = false,
         pendingDao = pendingDao,
         now = { currentTime },
         newId = { durableId() },
@@ -1090,7 +1081,6 @@ class MultiAccountPersistenceTest {
         profileProvider = { null },
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
         syncScheduler = NoOpSyncScheduler,
-        huaweiSyncEnabled = false,
         multiAccountPersistence = persistence(),
         accountRepository = accountRepository(),
         pendingDecisionNotifier = notifier,

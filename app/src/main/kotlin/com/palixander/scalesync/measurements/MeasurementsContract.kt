@@ -193,7 +193,6 @@ enum class MeasurementSyncDirection(
     val label: String,
 ) {
     HEALTH_CONNECT("Health Connect"),
-    HUAWEI_HEALTH("Huawei Health"),
 }
 
 enum class MeasurementSyncPresentationState(
@@ -398,8 +397,6 @@ internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(
         sync = measurementSyncPresentation(
             healthConnectStatus = "LOCAL_ONLY",
             healthConnectError = null,
-            huaweiStatus = "DISABLED",
-            huaweiError = null,
         ),
         type = if (composition == null) MeasurementUiType.WEIGHT_ONLY else MeasurementUiType.FULL,
     )
@@ -556,19 +553,12 @@ data class MeasurementsCallbacks(
 internal fun measurementSyncPresentation(
     healthConnectStatus: String,
     healthConnectError: String?,
-    huaweiStatus: String,
-    huaweiError: String?,
 ): MeasurementSyncPresentation {
     val directions = listOfNotNull(
         syncDirectionPresentation(
             direction = MeasurementSyncDirection.HEALTH_CONNECT,
             rawStatus = healthConnectStatus,
             rawError = healthConnectError,
-        ),
-        syncDirectionPresentation(
-            direction = MeasurementSyncDirection.HUAWEI_HEALTH,
-            rawStatus = huaweiStatus,
-            rawError = huaweiError,
         ),
     )
     val availableDirections = directions.filterNot {

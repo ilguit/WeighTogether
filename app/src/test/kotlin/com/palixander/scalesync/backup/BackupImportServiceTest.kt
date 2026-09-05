@@ -1094,10 +1094,18 @@ class BackupImportServiceTest {
         accounts = listOf(BackupAccountV1("a", accountDisplayName, "account", BackupAccountProfileV1(null, null, null, false), 1, 2)),
         appState = BackupAppStateV1("a", 3.0, false),
         measurements = listOf(BackupMeasurementV1(
-            "m", "f", MeasurementType.WEIGHT_ONLY, "AA:BB", 3, "00ff", 70.0, 14000,
-            null, null, null, null, null, null, null, null, null, null, null, null, null,
-            null, null, null, SyncStatus.LOCAL_ONLY, SyncStatus.LOCAL_ONLY, null, null, false,
-            false, 4, "a", ExternalSyncPolicy.USER_LOCAL, null, "d", null, null,
+            id = "m", fingerprint = "f", measurementType = MeasurementType.WEIGHT_ONLY,
+            deviceAddress = "AA:BB", measuredAtEpochSecond = 3, rawPayloadHex = "00ff",
+            weightKg = 70.0, rawWeight = 14000, impedanceOhm = null, bmi = null,
+            bodyFatPercent = null, bodyFatMassKg = null, waterPercent = null,
+            waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
+            boneMassKg = null, proteinPercent = null, proteinMassKg = null,
+            visceralFatLevel = null, basalMetabolicRateKcal = null, metabolicAge = null,
+            leanBodyMassKg = null, algorithmVersion = null,
+            healthConnectStatus = SyncStatus.LOCAL_ONLY, healthConnectError = null,
+            healthConnectWeightSynced = false, createdAtEpochMillis = 4, accountId = "a",
+            externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL, sourcePendingId = null,
+            deduplicationHash = "d", healthConnectSyncedCalculatedValues = null,
         )),
         settings = BackupSettingsV1("AA:BB", "Scale", true, emptyList(), emptyList()),
     )
@@ -1108,7 +1116,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `legacy import restores nullable heights from imported owners and never local primary`() {
+    fun `v6 import preserves explicit nullable measurement heights without using local primary`() {
         val base = document()
         val ownerWithHeight = base.accounts.single().copy(
             id = "owner-height",
@@ -1123,7 +1131,7 @@ class BackupImportServiceTest {
             profile = BackupAccountProfileV1(null, null, null, false),
         )
         val legacy = base.copy(
-            schemaVersion = BACKUP_SCHEMA_VERSION_V2,
+            schemaVersion = BACKUP_SCHEMA_VERSION,
             accounts = listOf(ownerWithHeight, ownerWithoutHeight),
             appState = base.appState.copy(primaryAccountId = "owner-null"),
             measurements = listOf(
@@ -1132,8 +1140,8 @@ class BackupImportServiceTest {
                     fingerprint = "height-fingerprint",
                     accountId = "owner-height",
                     deduplicationHash = "height-hash",
-                    ratingHeightCm = null,
-                    ratingHeightOrigin = null,
+                    ratingHeightCm = 166.0,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
                 ),
                 base.measurements.single().copy(
                     id = "null-measurement",
@@ -1141,7 +1149,7 @@ class BackupImportServiceTest {
                     accountId = "owner-null",
                     deduplicationHash = "null-hash",
                     ratingHeightCm = null,
-                    ratingHeightOrigin = null,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
                 ),
             ),
             pets = base.pets.map {
@@ -1184,7 +1192,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `v3 import preserves captured measurement context exactly`() {
+    fun `v6 import preserves captured measurement context exactly`() {
         val source = document().copy(
             measurements = listOf(
                 document().measurements.single().copy(

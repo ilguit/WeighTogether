@@ -192,7 +192,7 @@ run_script "$isolated_repo" publish 0.4.0 "$isolated_sha"
 
 # Keep both workflow contracts testable without executing GitHub Actions.
 build_workflow="${script_dir}/../workflows/manual-personal-apk.yml"
-grep -qF "name: Build personal APK" "$build_workflow" || fail "build workflow was renamed ambiguously"
+grep -qF "name: Build APK" "$build_workflow" || fail "build workflow was renamed ambiguously"
 grep -qF "contents: read" "$build_workflow" || fail "build workflow is not read-only"
 if grep -qF "contents: write" "$build_workflow"; then
     fail "build workflow can write repository contents"
@@ -212,12 +212,12 @@ grep -qF 'previousReleaseTag:' "$build_workflow" || fail "build metadata lacks p
 grep -qF 'artifact_path=${artifact_dir}' "$build_workflow" || fail "build artifact does not include APK and JSON"
 assert_workflow_order "$build_workflow" \
     "- name: Read previous release tag" \
-    "- name: Build personal debug APK" \
+    "- name: Build debug APK" \
     "- name: Prepare APK artifact" \
-    "- name: Upload personal APK"
+    "- name: Upload APK"
 
 release_workflow="${script_dir}/../workflows/release-personal-apk.yml"
-grep -qF "name: Release personal APK" "$release_workflow" || fail "release workflow is not explicitly named"
+grep -qF "name: Release APK" "$release_workflow" || fail "release workflow is not explicitly named"
 grep -qF "expected_version_name:" "$release_workflow" || fail "release workflow lacks version confirmation input"
 grep -qF "required: true" "$release_workflow" || fail "release version confirmation is optional"
 grep -qF '"${version_name}" != "${EXPECTED_VERSION_NAME}"' "$release_workflow" || fail "release workflow does not enforce version confirmation"
@@ -236,9 +236,9 @@ grep -qF 'GIT_COMMITTER_NAME: github-actions[bot]' "$release_workflow" || fail "
 assert_workflow_order "$release_workflow" \
     "- name: Confirm release source and version" \
     "- name: Preflight release tag" \
-    "- name: Build personal release APK" \
+    "- name: Build release APK" \
     "- name: Verify and prepare release artifact" \
-    "- name: Upload personal release APK" \
+    "- name: Upload release APK" \
     "- name: Publish annotated APK release tag"
 
 echo "All release APK tag tests passed."

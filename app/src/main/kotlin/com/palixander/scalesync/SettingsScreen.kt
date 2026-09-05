@@ -88,8 +88,6 @@ import java.util.Locale
 internal data class SettingsCallbacks(
     val onOpenProfile: () -> Unit = {},
     val onOpenChangelog: () -> Unit = {},
-    val onHuaweiAuthorization: () -> Unit,
-    val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
     val onHealthConnectAccessManagement: () -> Unit,
     val onManualScan: () -> Unit,
@@ -112,7 +110,6 @@ internal data class SettingsCallbacks(
     val onConfirmBackupImport: () -> Unit = {},
     val onDismissBackupImport: () -> Unit = {},
     val onDisableHealthConnect: () -> Unit = {},
-    val onDisableHuawei: () -> Unit = {},
     val onForgetScale: () -> Unit = {},
 )
 
@@ -141,16 +138,14 @@ internal enum class SettingsDestination(val title: String) {
     PROFILES("Профили"),
     SCALE("Весы"),
     HEALTH_CONNECT("Health Connect"),
-    HUAWEI_HEALTH("Huawei Health"),
     BACKUP("Резервная копия"),
     DIAGNOSTICS("Диагностика"),
 }
 
-internal fun settingsRootDestinations(huaweiEnabled: Boolean): List<SettingsDestination> = buildList {
+internal fun settingsRootDestinations(): List<SettingsDestination> = buildList {
     add(SettingsDestination.PROFILES)
     add(SettingsDestination.SCALE)
     add(SettingsDestination.HEALTH_CONNECT)
-    if (huaweiEnabled) add(SettingsDestination.HUAWEI_HEALTH)
     add(SettingsDestination.BACKUP)
     add(SettingsDestination.DIAGNOSTICS)
 }
@@ -159,7 +154,6 @@ internal fun settingsRootIcon(destination: SettingsDestination) = when (destinat
     SettingsDestination.PROFILES -> HuaweiIcons.Users
     SettingsDestination.SCALE -> HuaweiIcons.Bluetooth
     SettingsDestination.HEALTH_CONNECT -> HuaweiIcons.HealthConnect
-    SettingsDestination.HUAWEI_HEALTH -> HuaweiIcons.HuaweiHealth
     SettingsDestination.BACKUP -> HuaweiIcons.Archive
     SettingsDestination.DIAGNOSTICS -> HuaweiIcons.Stethoscope
     SettingsDestination.ROOT -> HuaweiIcons.Settings
@@ -174,11 +168,6 @@ internal fun healthRootStatusSuccessful(
 ): Boolean = state.availability == HealthConnectAvailability.AVAILABLE &&
     state.isConnected && locallyEnabled
 
-internal fun huaweiRootStatusSuccessful(
-    state: HuaweiIntegrationUiState,
-    locallyEnabled: Boolean,
-): Boolean = state.status == HuaweiIntegrationStatus.AUTHORIZED && locallyEnabled
-
 internal fun settingsDetailDestructiveAction(
     destination: SettingsDestination,
     state: MainUiState,
@@ -188,10 +177,6 @@ internal fun settingsDetailDestructiveAction(
     }
     SettingsDestination.HEALTH_CONNECT -> DestructiveSettingsAction.HEALTH_CONNECT.takeIf {
         state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-    }
-    SettingsDestination.HUAWEI_HEALTH -> DestructiveSettingsAction.HUAWEI.takeIf {
-        BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
-            state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
     }
     else -> null
 }
@@ -215,10 +200,6 @@ internal object SettingsScreenTestTags {
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
     const val HealthConnectDetail = "settings-health-connect-detail"
-    const val HuaweiHealthDivider = "settings-huawei-health-divider"
-    const val HuaweiHealthRow = "settings-huawei-health-row"
-    const val HuaweiHealthAction = "settings-huawei-health-action"
-    const val HuaweiHealthDetail = "settings-huawei-health-detail"
     const val ScaleDetail = "settings-scale-detail"
     const val ScaleStatus = "settings-scale-status"
     const val ScaleAction = "settings-scale-action"
@@ -285,7 +266,6 @@ internal object SettingsScreenTestTags {
     const val TrailingChevronSuffix = "-trailing-chevron"
     const val ScaleStatusMark = "settings-scale-status-mark"
     const val HealthConnectStatusMark = "settings-health-connect-status-mark"
-    const val HuaweiHealthStatusMark = "settings-huawei-health-status-mark"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -319,7 +299,6 @@ internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? 
     SettingsDestination.PROFILES -> 0
     SettingsDestination.SCALE,
     SettingsDestination.HEALTH_CONNECT,
-    SettingsDestination.HUAWEI_HEALTH,
     -> 2
     SettingsDestination.BACKUP,
     SettingsDestination.DIAGNOSTICS,
@@ -409,40 +388,6 @@ internal fun IntegrationPresentation.withHealthConnectManagementFallback(
     this
 }
 
-internal fun huaweiIntegrationPresentation(
-    state: HuaweiIntegrationUiState,
-    locallyEnabled: Boolean = true,
-): IntegrationPresentation = when (state.status) {
-    HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD -> IntegrationPresentation(
-        supportingText = "Недоступно в personal-сборке",
-    )
-    HuaweiIntegrationStatus.CONFIGURATION_REQUIRED -> IntegrationPresentation(
-        supportingText = "Нужны enterprise appId и write-scope",
-    )
-    HuaweiIntegrationStatus.CHECKING -> IntegrationPresentation(
-        supportingText = "Проверка разрешения…",
-        actionLabel = "Разрешить",
-        actionEnabled = false,
-    )
-    HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED -> IntegrationPresentation(
-        supportingText = "Настроено · требуется авторизация",
-        actionLabel = "Разрешить",
-    )
-    HuaweiIntegrationStatus.AUTHORIZED -> if (locallyEnabled) {
-        IntegrationPresentation(supportingText = "Подключено")
-    } else {
-        IntegrationPresentation(
-            supportingText = "Отключено в приложении",
-            actionLabel = "Подключить снова",
-        )
-    }
-    HuaweiIntegrationStatus.CHECK_FAILED -> IntegrationPresentation(
-        supportingText = "Не удалось проверить разрешение",
-        actionLabel = "Повторить",
-        actionRetriesCheck = true,
-    )
-}
-
 @Composable
 internal fun SettingsScreen(
     state: MainUiState,
@@ -455,7 +400,7 @@ internal fun SettingsScreen(
     var returnFocusDestination by rememberSaveable { mutableStateOf<SettingsDestination?>(null) }
     val rootListState = rememberLazyListState()
     val rootFocusRequesters = remember {
-        settingsRootDestinations(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        settingsRootDestinations()
             .associateWith { FocusRequester() }
     }
     LaunchedEffect(destination) {
@@ -482,14 +427,6 @@ internal fun SettingsScreen(
         SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
         SettingsDestination.SCALE -> SettingsScaleDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.HEALTH_CONNECT -> SettingsHealthConnectDetail(state, callbacks, contentPadding, modifier)
-        SettingsDestination.HUAWEI_HEALTH -> if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-            SettingsHuaweiHealthDetail(state, callbacks, contentPadding, modifier)
-        } else {
-            SettingsRootScreen(
-                state, callbacks, contentPadding, openDestination, rootFocusRequesters,
-                rootListState, modifier,
-            )
-        }
         SettingsDestination.BACKUP -> SettingsBackupDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.DIAGNOSTICS -> SettingsDiagnosticsDetail(
             state = state,
@@ -630,43 +567,6 @@ private fun SettingsHealthConnectDetail(
 }
 
 @Composable
-private fun SettingsHuaweiHealthDetail(
-    state: MainUiState,
-    callbacks: SettingsCallbacks,
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-) {
-    val presentation = huaweiIntegrationPresentation(
-        state.huawei,
-        state.settings.huaweiSyncEnabled,
-    )
-    SettingsActionDetail(
-        state = state,
-        contentPadding = contentPadding,
-        testTag = SettingsScreenTestTags.HuaweiHealthDetail,
-        destructiveAction = settingsDetailDestructiveAction(SettingsDestination.HUAWEI_HEALTH, state),
-        callbacks = callbacks,
-        modifier = modifier,
-    ) {
-        ConnectionDetailContent(
-            title = "Huawei Health",
-            icon = HuaweiIcons.HuaweiHealth,
-            status = presentation.supportingText,
-            identityLabel = "Интеграция",
-            identity = "Huawei Health Kit",
-            actionLabel = presentation.actionLabel,
-            actionEnabled = presentation.actionEnabled,
-            actionTag = SettingsScreenTestTags.HuaweiHealthAction,
-            onAction = if (presentation.actionRetriesCheck) {
-                callbacks.onHuaweiPermissionRefresh
-            } else {
-                callbacks.onHuaweiAuthorization
-            },
-        )
-    }
-}
-
-@Composable
 private fun SettingsActionDetail(
     state: MainUiState,
     contentPadding: PaddingValues,
@@ -724,7 +624,6 @@ private fun SettingsActionDetail(
                 submitted = true
                 when (action) {
                     DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
-                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
                     DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
                 }
             },
@@ -953,7 +852,6 @@ private fun DetailDestructiveAction(
 ) {
     val (label, tag) = when (action) {
         DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect" to SettingsScreenTestTags.DisableHealthConnect
-        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health" to SettingsScreenTestTags.DisableHuawei
         DestructiveSettingsAction.SCALE -> "Забыть выбранные весы" to SettingsScreenTestTags.ForgetScale
     }
     Column(Modifier.testTag(SettingsScreenTestTags.DetailDangerZone)) {
@@ -1029,10 +927,6 @@ private fun SettingsRootScreen(
         state.healthConnect,
         state.settings.healthConnectSyncEnabled,
     ).withHealthConnectManagementFallback(state.healthConnectSystemManagementAvailable)
-    val huaweiPresentation = huaweiIntegrationPresentation(
-        state.huawei,
-        state.settings.huaweiSyncEnabled,
-    )
     Box(
         modifier = modifier.fillMaxSize().padding(contentPadding),
         contentAlignment = Alignment.TopCenter,
@@ -1100,24 +994,6 @@ private fun SettingsRootScreen(
                             )
                         },
                     )
-                    if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-                        SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
-                        SettingsNavigationRow(
-                            SettingsDestination.HUAWEI_HEALTH,
-                            settingsRootIcon(SettingsDestination.HUAWEI_HEALTH),
-                            huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow,
-                            onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH],
-                            status = {
-                                SettingsRootStatusMark(
-                                    huaweiRootStatusSuccessful(
-                                        state.huawei,
-                                        state.settings.huaweiSyncEnabled,
-                                    ),
-                                    SettingsScreenTestTags.HuaweiHealthStatusMark,
-                                )
-                            },
-                        )
-                    }
                 }
             }
             item {
@@ -1415,7 +1291,6 @@ private fun LegacySettingsScreen(
                 destructiveSubmitted = true
                 when (action) {
                     DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
-                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
                     DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
                 }
             },
@@ -1430,9 +1305,7 @@ private fun IntegrationDestructiveActions(
 ) {
     val busy = state.destructiveActionInProgress != null
     val healthEnabled = state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-    val huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
-        state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
-    if (!healthEnabled && !huaweiEnabled) return
+    if (!healthEnabled) return
     Column {
         SettingsDivider()
         HuaweiSurface(
@@ -1450,11 +1323,6 @@ private fun IntegrationDestructiveActions(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHealthConnect),
                 ) { Text("Отключить Health Connect") }
-                if (huaweiEnabled) OutlinedButton(
-                    onClick = { onRequest(DestructiveSettingsAction.HUAWEI) },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHuawei),
-                ) { Text("Отключить Huawei Health") }
             }
         }
     }
@@ -1487,8 +1355,6 @@ private fun DestructiveConfirmationDialog(
     val (title, warning) = when (action) {
         DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect?" to
             "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Системные разрешения отзываются отдельно."
-        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health?" to
-            "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Доступ отзывается отдельно в Huawei Health."
         DestructiveSettingsAction.SCALE -> "Забыть выбранные весы?" to
             "Фоновое сканирование будет остановлено, а привязку весов потребуется настроить заново. Измерения не удалятся."
     }
@@ -1634,18 +1500,7 @@ private fun SettingsIntegrationsContent(
             primaryStatus,
             healthConnectCapabilities.selectedAccountSyncEligible,
         )
-    val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-        huaweiIntegrationPresentation(
-            state.huawei,
-            locallyEnabled = state.settings.huaweiSyncEnabled,
-        ).forPrimaryAccount(
-            primaryStatus,
-            state.canUseExternalIntegrations,
-        )
-    } else {
-        null
-    }
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
                 HuaweiSettingRow(
                     icon = HuaweiIcons.Health,
@@ -1681,31 +1536,6 @@ private fun SettingsIntegrationsContent(
                                     }
                                 },
                         ) { Text(label) }
-                    }
-                }
-                huawei?.let { presentation ->
-                    SettingsDivider(
-                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthDivider),
-                    )
-                    HuaweiSettingRow(
-                        icon = HuaweiIcons.Link,
-                        title = "Huawei Health",
-                        supportingText = presentation.supportingText,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthRow),
-                    ) {
-                        presentation.actionLabel?.let { label ->
-                            TextButton(
-                                onClick = if (presentation.actionRetriesCheck) {
-                                    callbacks.onHuaweiPermissionRefresh
-                                } else {
-                                    callbacks.onHuaweiAuthorization
-                                },
-                                enabled = presentation.actionEnabled,
-                                modifier = Modifier.testTag(
-                                    SettingsScreenTestTags.HuaweiHealthAction,
-                                ),
-                            ) { Text(label) }
-                        }
                     }
                 }
             }

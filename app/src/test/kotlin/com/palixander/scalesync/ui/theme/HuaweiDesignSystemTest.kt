@@ -123,7 +123,6 @@ class HuaweiDesignSystemTest {
             HuaweiIcons.Refresh,
             HuaweiIcons.Users,
             HuaweiIcons.HealthConnect,
-            HuaweiIcons.HuaweiHealth,
             HuaweiIcons.Archive,
             HuaweiIcons.Stethoscope,
             HuaweiIcons.History,

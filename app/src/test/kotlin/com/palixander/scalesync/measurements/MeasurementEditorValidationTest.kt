@@ -119,7 +119,7 @@ class MeasurementEditorValidationTest {
 
     @Test
     fun retryIsHiddenForLocalOnlyRecords() {
-        val item = sampleItem(healthConnectStatus = "LOCAL_ONLY", huaweiStatus = "DISABLED")
+        val item = sampleItem(healthConnectStatus = "LOCAL_ONLY")
 
         assertTrue(item.isLocalOnly)
         assertFalse(item.canRetry)
@@ -127,13 +127,12 @@ class MeasurementEditorValidationTest {
 
     @Test
     fun failedRecordCanBeRetriedButFullySyncedRecordCannot() {
-        assertTrue(sampleItem(healthConnectStatus = "FAILED", huaweiStatus = "DISABLED").canRetry)
-        assertFalse(sampleItem(healthConnectStatus = "SYNCED", huaweiStatus = "DISABLED").canRetry)
+        assertTrue(sampleItem(healthConnectStatus = "FAILED").canRetry)
+        assertFalse(sampleItem(healthConnectStatus = "SYNCED").canRetry)
     }
 
     private fun sampleItem(
         healthConnectStatus: String,
-        huaweiStatus: String,
     ) = MeasurementUiItem(
         id = "measurement-1",
         measuredAtEpochSecond = 0L,
@@ -141,8 +140,6 @@ class MeasurementEditorValidationTest {
         sync = measurementSyncPresentation(
             healthConnectStatus = healthConnectStatus,
             healthConnectError = null,
-            huaweiStatus = huaweiStatus,
-            huaweiError = null,
         ),
     )
 

@@ -23,18 +23,11 @@ class MeasurementSyncWorker(
             val outcome = MeasurementSyncProcessor(
                 loadMeasurement = dao::get,
                 isEligible = eligibility::isEligible,
-                writeHuawei = container.huaweiHealth::write,
                 writeHealthConnect = container.healthConnect::write,
-                applyHuaweiResult = { measurementId, payload, result ->
-                    applyHuaweiResult(dao, measurementId, payload, result)
-                },
                 applyHealthConnectResult = { measurementId, payload, result ->
                     applyHealthConnectResult(dao, measurementId, payload, result)
                 },
                 isPaused = { container.profileStore.externalSyncPaused },
-                isHuaweiEnabled = {
-                    container.profileStore.isExternalSyncEnabled(ExternalSyncDestination.HUAWEI)
-                },
                 isHealthConnectEnabled = {
                     container.profileStore.isExternalSyncEnabled(ExternalSyncDestination.HEALTH_CONNECT)
                 },
@@ -53,26 +46,6 @@ class MeasurementSyncWorker(
                 }
             }
         }
-    }
-
-    private suspend fun applyHuaweiResult(
-        dao: com.palixander.scalesync.data.MeasurementDao,
-        id: String,
-        payload: com.palixander.scalesync.sync.MeasurementSyncPayload,
-        result: SyncResult,
-    ) {
-        val update = result.toStateUpdate()
-        dao.applyHuaweiSyncResult(
-            id = id,
-            expectedMeasurementType = payload.measurement.measurementType.name,
-            status = update.status.name,
-            error = update.error,
-            markWeightSynced = payload.includesWeight && result is SyncResult.Success,
-            syncedCalculatedValues = payload.successfulCalculatedValuesSnapshot(
-                result,
-                ExternalSyncDestination.HUAWEI,
-            ),
-        )
     }
 
     private suspend fun applyHealthConnectResult(

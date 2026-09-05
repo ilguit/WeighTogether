@@ -86,7 +86,6 @@ class ScaleSettingsScreenTest {
     private fun selectedScale() = AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")
 
     private fun callbacks() = SettingsCallbacks(
-        onHuaweiAuthorization = {}, onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {}, onHealthConnectAccessManagement = {},
         onManualScan = {}, onReliabilityMode = {},
         openBatterySettings = {}, openApplicationSettings = {},

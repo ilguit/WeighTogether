@@ -35,7 +35,11 @@ class ManualWeightRepositoryTest {
         database.accountDao().insert(AccountEntity("other", "Другой", "другой", null, null, null, false, 100, 100))
         database.appStateDao().replace(AppStateEntity(primaryAccountId = "human"))
         database.petDao().insertPet(PetEntity("pet", "Кот", "кот", PetSpecies.CAT, 100, 100))
-        repository = ManualWeightRepository(database, false, { throw IllegalStateException("scheduler unavailable") }, Clock.fixed(now, ZoneOffset.UTC))
+        repository = ManualWeightRepository(
+            database,
+            { throw IllegalStateException("scheduler unavailable") },
+            Clock.fixed(now, ZoneOffset.UTC),
+        )
     }
 
     @After fun close() = database.close()
@@ -58,7 +62,6 @@ class ManualWeightRepositoryTest {
         assertNull(row.deduplicationHash)
         assertEquals(ExternalSyncPolicy.AUTO.name, row.externalSyncPolicy)
         assertFalse(row.isManuallyEdited)
-        assertEquals(SyncStatus.DISABLED.name, row.huaweiStatus)
         assertEquals(SyncStatus.PENDING.name, row.healthConnectStatus)
     }
 

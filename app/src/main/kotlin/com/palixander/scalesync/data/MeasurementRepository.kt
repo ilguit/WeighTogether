@@ -37,7 +37,6 @@ class MeasurementRepository(
     private val profileProvider: () -> UserProfile?,
     private val calculator: BodyCompositionCalculator,
     private val syncScheduler: MeasurementSyncScheduler,
-    private val huaweiSyncEnabled: Boolean,
     private val multiAccountPersistence: RoomMeasurementPersistence? = null,
     private val accountRepository: AccountRepository? = null,
     pendingDecisionNotifier: PendingDecisionNotifier = NoOpPendingDecisionNotifier,
@@ -109,12 +108,10 @@ class MeasurementRepository(
             calculator.calculate(raw, profile).toEntity(
                 rawPayload = raw.rawPayload,
                 fingerprint = measurementFingerprint(raw),
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 ratingHeightCm = profile.heightCm,
             )
         } else {
             raw.toWeightOnlyEntity(
-                huaweiSyncEnabled = huaweiSyncEnabled,
                 ratingHeightCm = profile?.heightCm,
             )
         }
@@ -272,16 +269,6 @@ class MeasurementRepository(
         }
     }
 
-    suspend fun retryPendingHuawei() {
-        if (accountRepository == null) {
-            dao.idsNeedingHuaweiSync().forEach(syncScheduler::enqueue)
-        } else {
-            eligiblePendingEntities()
-                .filter { it.huaweiStatus !in HUAWEI_TERMINAL_STATUSES }
-                .forEach { syncScheduler.enqueue(it.id) }
-        }
-    }
-
     suspend fun sweepPendingSync(): Int {
         val ids = currentPendingSyncIds()
         ids.forEach(syncScheduler::enqueue)
@@ -290,7 +277,7 @@ class MeasurementRepository(
 
     suspend fun currentPendingSyncIds(): List<String> =
         if (accountRepository == null) {
-            dao.idsNeedingSync()
+            dao.idsNeedingHealthConnectSync()
         } else {
             eligiblePendingEntities().filter(MeasurementEntity::hasPendingDestination)
                 .map(MeasurementEntity::id)
@@ -421,9 +408,7 @@ class MeasurementRepository(
     ): MeasurementMutationResult {
         val updated = edited.copy(
             rawWeight = current.rawWeight,
-            huaweiStatus = current.huaweiStatus.toLocalOnlyUnlessDisabled(),
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
-            huaweiError = null,
             healthConnectError = null,
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         )
@@ -464,19 +449,12 @@ sealed interface MeasurementMutationResult {
 private fun String.toLocalOnlyUnlessDisabled(): String =
     if (this == SyncStatus.DISABLED.name) this else SyncStatus.LOCAL_ONLY.name
 
-private fun String.isHuaweiRetryable(): Boolean = this !in setOf(
-    SyncStatus.SYNCED.name,
-    SyncStatus.DISABLED.name,
-    SyncStatus.LOCAL_ONLY.name,
-)
-
 private fun String.isHealthRetryable(): Boolean = this !in setOf(
     SyncStatus.SYNCED.name,
     SyncStatus.LOCAL_ONLY.name,
 )
 
-private fun MeasurementEntity.needsSync(): Boolean =
-    huaweiStatus.isHuaweiRetryable() || healthConnectStatus.isHealthRetryable()
+private fun MeasurementEntity.needsSync(): Boolean = healthConnectStatus.isHealthRetryable()
 
 private fun MeasurementValues.isValid(): Boolean {
     val doubleValues = listOf(
@@ -504,14 +482,7 @@ private fun MeasurementValues.isValid(): Boolean {
 }
 
 private fun MeasurementEntity.hasPendingDestination(): Boolean =
-    huaweiStatus !in HUAWEI_TERMINAL_STATUSES ||
-        healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES
-
-private val HUAWEI_TERMINAL_STATUSES = setOf(
-    SyncStatus.SYNCED.name,
-    SyncStatus.DISABLED.name,
-    SyncStatus.LOCAL_ONLY.name,
-)
+    healthConnectStatus !in HEALTH_CONNECT_TERMINAL_STATUSES
 
 private val HEALTH_CONNECT_TERMINAL_STATUSES = setOf(
     SyncStatus.SYNCED.name,

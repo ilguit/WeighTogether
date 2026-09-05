@@ -10,7 +10,7 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 5
+const val BACKUP_SCHEMA_VERSION: Int = 6
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
@@ -113,18 +113,14 @@ data class BackupMeasurementV1(
     val metabolicAge: Int?,
     val leanBodyMassKg: Double?,
     val algorithmVersion: String?,
-    val huaweiStatus: SyncStatus,
     val healthConnectStatus: SyncStatus,
-    val huaweiError: String?,
     val healthConnectError: String?,
-    val huaweiWeightSynced: Boolean,
     val healthConnectWeightSynced: Boolean,
     val createdAtEpochMillis: Long,
     val accountId: String,
     val externalSyncPolicy: ExternalSyncPolicy,
     val sourcePendingId: String?,
     val deduplicationHash: String?,
-    val huaweiSyncedCalculatedValues: String?,
     val healthConnectSyncedCalculatedValues: String?,
     val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
     val ratingHeightCm: Double? = null,
