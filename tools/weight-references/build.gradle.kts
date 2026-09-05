@@ -15,15 +15,16 @@ tasks.test { useJUnitPlatform() }
 
 val generatedSnapshot = layout.buildDirectory.file("verification/weight_references.json")
 val sourceDocument = layout.projectDirectory.file("weight_references.source.json")
+val fittedCatCurves = layout.projectDirectory.file("../../docs/research/97/bccg-curves.csv")
 
 val regenerateSnapshot by tasks.registering(JavaExec::class) {
     group = "verification"
     description = "Normalizes the audited weight-reference source document."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = application.mainClass
-    inputs.file(sourceDocument)
+    inputs.files(sourceDocument, fittedCatCurves)
     outputs.file(generatedSnapshot)
-    args(sourceDocument.asFile.absolutePath, generatedSnapshot.get().asFile.absolutePath)
+    args("--snapshot", sourceDocument.asFile.absolutePath, fittedCatCurves.asFile.absolutePath, generatedSnapshot.get().asFile.absolutePath)
 }
 
 tasks.register("verifySnapshot") {

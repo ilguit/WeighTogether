@@ -3,7 +3,7 @@
     "schemaVersion": 1,
     "snapshotVersion": "2026-08-31.1",
     "snapshotDate": "2026-08-31",
-    "numericalDataSha256": "85fd43c2cdb9f0c6abf1dc701ec17c4c3e2499899bbdee2ecab902d99fbe3fb2",
+    "numericalDataSha256": "7da4e3db2d4eef3b991d9ca6520c8609a4dec4fae904603eb287297926aaf22b",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
@@ -13,7 +13,8 @@
       "dogEligibility": "84-730 days; known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
-      "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. They are visual fallback references only and do not reproduce fitted centiles, smoothing, longitudinal modelling, or clinical standards. Dog rows are not mapped to VBO breeds."
+      "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
+      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only"
     },
     "sources": [
       {
@@ -29,13 +30,16 @@
       },
       {
         "id": "salt-dsh-kitten-2022",
-        "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+        "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
         "publicationDoi": "10.1371/journal.pone.0277531",
         "dataDoi": "10.17638/datacat.liverpool.ac.uk/1456",
         "dataUrl": "https://datacat.liverpool.ac.uk/1456/1/KGC1_dataset.csv",
         "upstreamArtifactSha256": "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094",
         "license": "CC BY 3.0",
-        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/"
+        "licenseUrl": "https://creativecommons.org/licenses/by/3.0/",
+        "derivedArtifact": "docs/research/97/bccg-curves.csv",
+        "derivedArtifactSha256": "fa324dc464c038518d8cebce7dc234d637142c7dbe59b601be77b64212541da1",
+        "derivationSoftware": "docs/research/97/fit_bccg.py with pinned docs/research/97/requirements-bccg.txt"
       }
     ],
     "scopes": [
@@ -235,6 +239,36 @@
           "Domestic Shorthair only",
           "Sexually intact kittens from the USA",
           "Age 8 to 78 weeks"
+        ],
+        "sourceId": "salt-dsh-kitten-2022",
+        "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-population-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "population",
+        "minimumAgeDays": 56,
+        "maximumAgeDays": 546,
+        "constraints": [
+          "Other-breed fallback; source population was Domestic Shorthair",
+          "Sexually intact kittens from the USA",
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+        ],
+        "sourceId": "salt-dsh-kitten-2022",
+        "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-population-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "population",
+        "minimumAgeDays": 56,
+        "maximumAgeDays": 546,
+        "constraints": [
+          "Other-breed fallback; source population was Domestic Shorthair",
+          "Sexually intact kittens from the USA",
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available"
@@ -6014,7 +6048,7 @@
         "Sexually intact kittens from the USA",
         "Age 8 to 78 weeks"
       ],
-      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
       "referenceKind": "empirical_observation_quartiles",
       "minimumBinN": 30,
@@ -6213,7 +6247,7 @@
         "Sexually intact kittens from the USA",
         "Age 8 to 78 weeks"
       ],
-      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(12): e0277531",
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
       "referenceKind": "empirical_observation_quartiles",
       "minimumBinN": 30,
@@ -6385,6 +6419,894 @@
           "lowerKg": 3.92,
           "medianKg": 4.463,
           "upperKg": 5.171
+        }
+      ]
+    },
+    {
+      "id": "cat-population-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "population",
+      "sourceId": "salt-dsh-kitten-2022",
+      "constraints": [
+        "Other-breed fallback; source population was Domestic Shorthair",
+        "Sexually intact kittens from the USA",
+        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+      ],
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
+      "license": "CC BY 3.0",
+      "referenceKind": "fitted_bccg_percentiles",
+      "minimumBinN": 0,
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.636271,
+          "medianKg": 0.890118,
+          "upperKg": 1.228598
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.733777,
+          "medianKg": 1.009312,
+          "upperKg": 1.360569
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 0.829628,
+          "medianKg": 1.123935,
+          "upperKg": 1.487397
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 0.926795,
+          "medianKg": 1.238948,
+          "upperKg": 1.615718
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.026432,
+          "medianKg": 1.35645,
+          "upperKg": 1.748155
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.128036,
+          "medianKg": 1.47616,
+          "upperKg": 1.884248
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.230815,
+          "medianKg": 1.597344,
+          "upperKg": 2.023042
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.331886,
+          "medianKg": 1.716528,
+          "upperKg": 2.160172
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.427687,
+          "medianKg": 1.829324,
+          "upperKg": 2.29016
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.516137,
+          "medianKg": 1.933247,
+          "upperKg": 2.409965
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.598378,
+          "medianKg": 2.0299,
+          "upperKg": 2.521647
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.675982,
+          "medianKg": 2.121351,
+          "upperKg": 2.627803
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 1.749488,
+          "medianKg": 2.208312,
+          "upperKg": 2.729317
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 1.818449,
+          "medianKg": 2.290232,
+          "upperKg": 2.825505
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 1.882448,
+          "medianKg": 2.366595,
+          "upperKg": 2.915726
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 1.941151,
+          "medianKg": 2.43698,
+          "upperKg": 2.999447
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 1.994353,
+          "medianKg": 2.501106,
+          "upperKg": 3.076287
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.042281,
+          "medianKg": 2.55923,
+          "upperKg": 3.146527
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.085371,
+          "medianKg": 2.611865,
+          "upperKg": 3.210759
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.124037,
+          "medianKg": 2.659497,
+          "upperKg": 3.269539
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.158674,
+          "medianKg": 2.702583,
+          "upperKg": 3.323386
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.189648,
+          "medianKg": 2.741546,
+          "upperKg": 3.372784
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.217301,
+          "medianKg": 2.77678,
+          "upperKg": 3.418177
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.24195,
+          "medianKg": 2.808648,
+          "upperKg": 3.459975
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.263887,
+          "medianKg": 2.837481,
+          "upperKg": 3.498552
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.283379,
+          "medianKg": 2.863585,
+          "upperKg": 3.534253
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 2.300673,
+          "medianKg": 2.887241,
+          "upperKg": 3.567393
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 2.315994,
+          "medianKg": 2.908702,
+          "upperKg": 3.598257
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 2.329546,
+          "medianKg": 2.928201,
+          "upperKg": 3.627109
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 2.341519,
+          "medianKg": 2.945951,
+          "upperKg": 3.654186
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 2.352082,
+          "medianKg": 2.962145,
+          "upperKg": 3.679707
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 2.361392,
+          "medianKg": 2.976957,
+          "upperKg": 3.70387
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 2.369589,
+          "medianKg": 2.990549,
+          "upperKg": 3.726855
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 2.376804,
+          "medianKg": 3.003064,
+          "upperKg": 3.748829
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 2.383154,
+          "medianKg": 3.014636,
+          "upperKg": 3.76994
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 2.388744,
+          "medianKg": 3.025385,
+          "upperKg": 3.790327
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 2.393672,
+          "medianKg": 3.035419,
+          "upperKg": 3.810115
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 2.398026,
+          "medianKg": 3.044839,
+          "upperKg": 3.829417
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 2.401885,
+          "medianKg": 3.053733,
+          "upperKg": 3.84834
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 2.405324,
+          "medianKg": 3.062186,
+          "upperKg": 3.866979
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 2.408411,
+          "medianKg": 3.070274,
+          "upperKg": 3.885427
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 2.411208,
+          "medianKg": 3.078069,
+          "upperKg": 3.903769
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 2.413773,
+          "medianKg": 3.085637,
+          "upperKg": 3.922083
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 2.416159,
+          "medianKg": 3.093038,
+          "upperKg": 3.940443
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 2.418412,
+          "medianKg": 3.100325,
+          "upperKg": 3.958916
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 2.420576,
+          "medianKg": 3.107549,
+          "upperKg": 3.977563
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 2.42269,
+          "medianKg": 3.114754,
+          "upperKg": 3.996441
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 2.42479,
+          "medianKg": 3.12198,
+          "upperKg": 4.015605
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 2.426909,
+          "medianKg": 3.129267,
+          "upperKg": 4.035102
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 2.429074,
+          "medianKg": 3.136648,
+          "upperKg": 4.05498
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 2.431315,
+          "medianKg": 3.144154,
+          "upperKg": 4.075282
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 2.433655,
+          "medianKg": 3.151813,
+          "upperKg": 4.096047
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 2.436116,
+          "medianKg": 3.159653,
+          "upperKg": 4.117316
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 2.43872,
+          "medianKg": 3.167697,
+          "upperKg": 4.139123
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 2.441484,
+          "medianKg": 3.175967,
+          "upperKg": 4.161504
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 2.444425,
+          "medianKg": 3.184484,
+          "upperKg": 4.18449
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 2.44756,
+          "medianKg": 3.193266,
+          "upperKg": 4.208114
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 2.450902,
+          "medianKg": 3.20233,
+          "upperKg": 4.232406
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 2.454465,
+          "medianKg": 3.211692,
+          "upperKg": 4.257394
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 2.45826,
+          "medianKg": 3.221367,
+          "upperKg": 4.283107
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 2.462299,
+          "medianKg": 3.231368,
+          "upperKg": 4.309573
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 2.466591,
+          "medianKg": 3.241709,
+          "upperKg": 4.336818
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 2.471147,
+          "medianKg": 3.2524,
+          "upperKg": 4.364869
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 2.475974,
+          "medianKg": 3.263453,
+          "upperKg": 4.393752
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 2.48108,
+          "medianKg": 3.274878,
+          "upperKg": 4.423494
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 2.486473,
+          "medianKg": 3.286684,
+          "upperKg": 4.454119
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 2.492161,
+          "medianKg": 3.298881,
+          "upperKg": 4.485654
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 2.498148,
+          "medianKg": 3.311477,
+          "upperKg": 4.518124
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 2.504442,
+          "medianKg": 3.324481,
+          "upperKg": 4.551556
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 2.511048,
+          "medianKg": 3.337899,
+          "upperKg": 4.585975
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 2.517972,
+          "medianKg": 3.351739,
+          "upperKg": 4.62141
+        }
+      ]
+    },
+    {
+      "id": "cat-population-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "population",
+      "sourceId": "salt-dsh-kitten-2022",
+      "constraints": [
+        "Other-breed fallback; source population was Domestic Shorthair",
+        "Sexually intact kittens from the USA",
+        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+      ],
+      "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
+      "license": "CC BY 3.0",
+      "referenceKind": "fitted_bccg_percentiles",
+      "minimumBinN": 0,
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.567307,
+          "medianKg": 0.861525,
+          "upperKg": 1.265159
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.679661,
+          "medianKg": 1.004796,
+          "upperKg": 1.43389
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 0.800011,
+          "medianKg": 1.157602,
+          "upperKg": 1.615366
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 0.926228,
+          "medianKg": 1.317005,
+          "upperKg": 1.805089
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.056099,
+          "medianKg": 1.480101,
+          "upperKg": 1.999037
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.187405,
+          "medianKg": 1.644074,
+          "upperKg": 2.193534
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.317991,
+          "medianKg": 1.806249,
+          "upperKg": 2.385228
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.446186,
+          "medianKg": 1.964635,
+          "upperKg": 2.571732
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.571124,
+          "medianKg": 2.118325,
+          "upperKg": 2.752087
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.692156,
+          "medianKg": 2.266666,
+          "upperKg": 2.925635
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.808759,
+          "medianKg": 2.409141,
+          "upperKg": 3.091866
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.920522,
+          "medianKg": 2.545353,
+          "upperKg": 3.250399
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 2.02713,
+          "medianKg": 2.675008,
+          "upperKg": 3.400962
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.128359,
+          "medianKg": 2.797907,
+          "upperKg": 3.543387
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.224167,
+          "medianKg": 2.914075,
+          "upperKg": 3.67777
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.314673,
+          "medianKg": 3.02373,
+          "upperKg": 3.804438
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.400037,
+          "medianKg": 3.127124,
+          "upperKg": 3.923742
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.480438,
+          "medianKg": 3.224523,
+          "upperKg": 4.03604
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.556067,
+          "medianKg": 3.316198,
+          "upperKg": 4.141689
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.627127,
+          "medianKg": 3.402425,
+          "upperKg": 4.241041
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.693822,
+          "medianKg": 3.483479,
+          "upperKg": 4.334438
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.756359,
+          "medianKg": 3.559626,
+          "upperKg": 4.422214
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.81494,
+          "medianKg": 3.631128,
+          "upperKg": 4.504687
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.869765,
+          "medianKg": 3.698239,
+          "upperKg": 4.582164
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.921028,
+          "medianKg": 3.7612,
+          "upperKg": 4.654938
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.968917,
+          "medianKg": 3.820246,
+          "upperKg": 4.723285
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 3.013614,
+          "medianKg": 3.875598,
+          "upperKg": 4.787469
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 3.055291,
+          "medianKg": 3.927468,
+          "upperKg": 4.847739
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 3.094115,
+          "medianKg": 3.976057,
+          "upperKg": 4.90433
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 3.130243,
+          "medianKg": 4.021557,
+          "upperKg": 4.957466
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 3.163827,
+          "medianKg": 4.064147,
+          "upperKg": 5.007355
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 3.195009,
+          "medianKg": 4.103999,
+          "upperKg": 5.054194
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 3.223925,
+          "medianKg": 4.141272,
+          "upperKg": 5.09817
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 3.250704,
+          "medianKg": 4.176121,
+          "upperKg": 5.139457
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 3.275466,
+          "medianKg": 4.208687,
+          "upperKg": 5.178219
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 3.298328,
+          "medianKg": 4.239106,
+          "upperKg": 5.21461
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 3.319397,
+          "medianKg": 4.267506,
+          "upperKg": 5.248776
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 3.338776,
+          "medianKg": 4.294006,
+          "upperKg": 5.280853
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 3.356563,
+          "medianKg": 4.31872,
+          "upperKg": 5.310968
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 3.372847,
+          "medianKg": 4.341753,
+          "upperKg": 5.339243
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 3.387717,
+          "medianKg": 4.363206,
+          "upperKg": 5.36579
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 3.401252,
+          "medianKg": 4.383173,
+          "upperKg": 5.390714
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 3.413529,
+          "medianKg": 4.401742,
+          "upperKg": 5.414117
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 3.424621,
+          "medianKg": 4.418998,
+          "upperKg": 5.436092
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 3.434596,
+          "medianKg": 4.435018,
+          "upperKg": 5.456727
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 3.443518,
+          "medianKg": 4.449876,
+          "upperKg": 5.476104
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 3.451447,
+          "medianKg": 4.463643,
+          "upperKg": 5.494301
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 3.45844,
+          "medianKg": 4.476383,
+          "upperKg": 5.511393
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 3.464552,
+          "medianKg": 4.488159,
+          "upperKg": 5.527447
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 3.469832,
+          "medianKg": 4.499027,
+          "upperKg": 5.542528
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 3.474329,
+          "medianKg": 4.509044,
+          "upperKg": 5.556698
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 3.478087,
+          "medianKg": 4.518261,
+          "upperKg": 5.570014
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 3.48115,
+          "medianKg": 4.526726,
+          "upperKg": 5.582529
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 3.483556,
+          "medianKg": 4.534484,
+          "upperKg": 5.594295
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 3.485344,
+          "medianKg": 4.54158,
+          "upperKg": 5.60536
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 3.48655,
+          "medianKg": 4.548054,
+          "upperKg": 5.615768
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 3.487207,
+          "medianKg": 4.553944,
+          "upperKg": 5.625563
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 3.487347,
+          "medianKg": 4.559287,
+          "upperKg": 5.634783
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 3.486999,
+          "medianKg": 4.564116,
+          "upperKg": 5.643468
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 3.486192,
+          "medianKg": 4.568464,
+          "upperKg": 5.651653
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 3.484953,
+          "medianKg": 4.572361,
+          "upperKg": 5.659371
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 3.483306,
+          "medianKg": 4.575836,
+          "upperKg": 5.666653
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 3.481276,
+          "medianKg": 4.578916,
+          "upperKg": 5.673531
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 3.478885,
+          "medianKg": 4.581627,
+          "upperKg": 5.680033
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 3.476154,
+          "medianKg": 4.583992,
+          "upperKg": 5.686184
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 3.473102,
+          "medianKg": 4.586035,
+          "upperKg": 5.69201
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 3.46975,
+          "medianKg": 4.587777,
+          "upperKg": 5.697535
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 3.466115,
+          "medianKg": 4.589238,
+          "upperKg": 5.702782
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 3.462213,
+          "medianKg": 4.590439,
+          "upperKg": 5.707771
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 3.45806,
+          "medianKg": 4.591396,
+          "upperKg": 5.712523
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 3.453672,
+          "medianKg": 4.592127,
+          "upperKg": 5.717056
         }
       ]
     }

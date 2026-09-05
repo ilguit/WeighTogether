@@ -38,17 +38,37 @@ class WeightReferenceSnapshotTest {
         assertTrue(dogScopes.all { it.maximumAdultWeightKg!! <= 40.0 })
         assertTrue(dogScopes.all { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         assertEquals(10, snapshot.profiles.count { it.species == ReferenceSpecies.DOG })
-        assertTrue(snapshot.profiles.all { it.referenceKind == "empirical_observation_quartiles" })
+        assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }.all { it.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_QUARTILES })
     }
 
     @Test
     fun `bundled DSH scope is sex-specific intact and age-limited`() {
         val scopes = WeightReferenceSnapshot.bundled().manifest.scopes.filter { it.species == ReferenceSpecies.CAT }
 
-        assertEquals(2, scopes.size)
-        assertTrue(scopes.all { it.breedId == "VBO:0100119" })
-        assertTrue(scopes.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
-        assertTrue(scopes.all { scope -> scope.constraints.any { "intact" in it.lowercase() } })
+        assertEquals(4, scopes.size)
+        val dsh = scopes.filter { it.breedId == "VBO:0100119" }
+        assertEquals(2, dsh.size)
+        assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
+        assertTrue(dsh.all { scope -> scope.constraints.any { "intact" in it.lowercase() } })
+    }
+
+    @Test
+    fun `bundled population cat profiles expose fitted P9 P50 P91 only`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val profiles = snapshot.profiles.filter { it.id.startsWith("cat-population-") }
+
+        assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), profiles.map { it.sex }.toSet())
+        assertTrue(profiles.all { it.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES })
+        assertTrue(profiles.all { it.minimumBinN == 0 && it.points.size == 71 })
+        assertEquals(ReferencePoint(56, 0.636271, 0.890118, 1.228598), profiles.single { it.sex == ReferenceSex.FEMALE }.points.first())
+        assertEquals(ReferencePoint(546, 2.517972, 3.351739, 4.621410), profiles.single { it.sex == ReferenceSex.FEMALE }.points.last())
+        assertEquals(ReferencePoint(56, 0.567307, 0.861525, 1.265159), profiles.single { it.sex == ReferenceSex.MALE }.points.first())
+        assertEquals(ReferencePoint(546, 3.453672, 4.592127, 5.717056), profiles.single { it.sex == ReferenceSex.MALE }.points.last())
+        assertTrue(profiles.all { profile -> profile.constraints.any { "P9/P50/P91" in it } })
+        val source = snapshot.manifest.sources.single { it.id == "salt-dsh-kitten-2022" }
+        assertEquals("docs/research/97/bccg-curves.csv", source.derivedArtifact)
+        assertEquals("fa324dc464c038518d8cebce7dc234d637142c7dbe59b601be77b64212541da1", source.derivedArtifactSha256)
+        assertTrue(source.derivationSoftware!!.contains("fit_bccg.py"))
     }
 
     @Test
