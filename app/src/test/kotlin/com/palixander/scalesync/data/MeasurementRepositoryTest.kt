@@ -221,7 +221,7 @@ class MeasurementRepositoryTest {
     }
 
     @Test
-    fun pendingDestinationsAreRequeuedAfterPermissionGrant() = runBlocking {
+    fun pendingHealthConnectDestinationsAreRequeuedAfterPermissionGrant() = runBlocking {
         val dao = FakeMeasurementDao()
         dao.values["health-1"] = measurement(
             id = "health-1",
@@ -245,9 +245,7 @@ class MeasurementRepositoryTest {
         val repository = repository(dao, scheduler)
 
         repository.retryPendingHealthConnect()
-        repository.retryPendingHuawei()
-
-        assertEquals(listOf("health-1", "health-2", "huawei-1"), scheduler.enqueued)
+        assertEquals(listOf("health-1", "health-2"), scheduler.enqueued)
     }
 
     @Test
@@ -606,7 +604,6 @@ class MeasurementRepositoryTest {
 
         repository.retry("local")
         repository.retryPendingHealthConnect()
-        repository.retryPendingHuawei()
 
         assertTrue(scheduler.enqueued.isEmpty())
         assertTrue(dao.idsNeedingSync().isEmpty())
@@ -625,7 +622,6 @@ class MeasurementRepositoryTest {
 
                 repository.retry(policy.name)
                 repository.retryPendingHealthConnect()
-                repository.retryPendingHuawei()
                 repository.sweepPendingSync()
 
                 assertTrue("Scheduled $policy", scheduler.enqueued.isEmpty())
@@ -651,9 +647,7 @@ class MeasurementRepositoryTest {
 
         repository.retry("mixed")
         repository.retryPendingHealthConnect()
-        repository.retryPendingHuawei()
-
-        assertEquals(listOf("mixed", "mixed", "opposite"), scheduler.enqueued)
+        assertEquals(listOf("mixed", "mixed"), scheduler.enqueued)
         assertEquals(listOf("mixed"), scheduler.immediatelyEnqueued)
         assertEquals(listOf("mixed", "opposite"), dao.idsNeedingSync())
     }

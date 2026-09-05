@@ -208,10 +208,7 @@ interface MeasurementDao {
         """
         SELECT id FROM measurements
         WHERE externalSyncPolicy = 'AUTO'
-            AND (
-                huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
-                OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
-            )
+            AND healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
         ORDER BY measuredAtEpochSecond ASC
         """,
     )
