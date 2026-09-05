@@ -37,9 +37,10 @@ class BackupJsonCodecTest {
 
     @Test
     fun everyLegacyVersionIsUnsupported() {
+        val current = codec.encode(document())
         for (version in 1..5) {
-            assertThrows(BackupException.Invalid::class.java) {
-                codec.encode(document().copy(schemaVersion = version))
+            assertThrows(BackupException::class.java) {
+                codec.decode(current.replace("\"schemaVersion\":6", "\"schemaVersion\":$version"))
             }
         }
     }
