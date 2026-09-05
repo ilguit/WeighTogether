@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
+
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
@@ -19,6 +21,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -625,34 +628,39 @@ private fun MeasurementSummaryCard(
             val weightReference = referenceMetrics.firstOrNull {
                 it.definition.metric == BodyMetric.WEIGHT
             }
-            if (!expanded && weightReference != null) {
-                CompactSummaryReferenceMetric(
-                    presentation = weightReference,
-                    primary = true,
-                    modifier = Modifier.padding(top = 4.dp),
-                )
-            } else if (weightReference == null) {
-                Row(
-                    modifier = Modifier.padding(top = 4.dp),
-                    verticalAlignment = Alignment.Bottom,
-                ) {
-                    Text(
-                        text = formatDisplayValue(
-                            MeasurementField.WEIGHT_KG,
-                            summary.latest.values.weightKg,
-                        ),
-                        fontSize = 32.sp,
-                        lineHeight = 36.sp,
-                        fontWeight = FontWeight.Medium,
-                        letterSpacing = (-1).sp,
-                    )
-                    Text(
-                        text = " кг",
-                        modifier = Modifier.padding(bottom = 4.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    if (!expanded && weightReference != null) {
+                        CompactSummaryReferenceMetric(
+                            presentation = weightReference,
+                            primary = true,
+                            modifier = Modifier.padding(top = 4.dp),
+                        )
+                    } else if (weightReference == null) {
+                        Row(
+                            modifier = Modifier.padding(top = 4.dp),
+                            verticalAlignment = Alignment.Bottom,
+                        ) {
+                            Text(
+                                text = formatDisplayValue(
+                                    MeasurementField.WEIGHT_KG,
+                                    summary.latest.values.weightKg,
+                                ),
+                                fontSize = 32.sp,
+                                lineHeight = 36.sp,
+                                fontWeight = FontWeight.Medium,
+                                letterSpacing = (-1).sp,
+                            )
+                            Text(
+                                text = " кг",
+                                modifier = Modifier.padding(bottom = 4.dp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.bodyLarge,
+                            )
+                        }
+                    }
                 }
+                ManualOriginIndicator(summary.latest.origin, Modifier.testTag("summary-manual-origin"))
             }
             if (summary.latest.isWeightOnly) {
                 Text(
@@ -990,7 +998,16 @@ private fun MeasurementHistoryScreen(
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
+        val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
+        if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
+            listState.scrollToItem(index + 1)
+            callbacks.onScrollToMeasurementHandled()
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier
             .widthIn(max = 680.dp)
             .fillMaxHeight()
@@ -1005,6 +1022,8 @@ private fun MeasurementHistoryScreen(
         item {
             NestedScreenHeader(
                 title = "История",
+                onAdd = callbacks.onAddWeightRequested,
+                addEnabled = state.accountSelector.selectedAccountId != null,
                 backContentDescription = "Назад к последнему измерению",
                 onBack = callbacks.onBackRequested,
             )
@@ -1084,11 +1103,15 @@ private fun MeasurementHistoryCard(
                             style = MaterialTheme.typography.titleSmall,
                         )
                         if (!expanded || item.isWeightOnly) {
-                            Text(
-                                text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
-                                modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
-                                style = MaterialTheme.typography.titleMedium,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
+                                    modifier = Modifier.weight(1f, fill = false).testTag("history-header-weight-${item.presentationKey}"),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    softWrap = true,
+                                )
+                                ManualOriginIndicator(item.origin, Modifier.testTag("history-manual-origin-${item.id}"))
+                            }
                         }
                         if (item.isWeightOnly) {
                             Text(
@@ -1578,6 +1601,8 @@ private fun NestedScreenHeader(
     backContentDescription: String,
     onBack: () -> Unit,
     enabled: Boolean = true,
+    onAdd: (() -> Unit)? = null,
+    addEnabled: Boolean = true,
 ) {
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TopBarHeight),
@@ -1591,9 +1616,15 @@ private fun NestedScreenHeader(
         )
         Text(
             title,
-            modifier = Modifier.semantics { heading() },
+            modifier = Modifier.weight(1f).semantics { heading() },
             style = MaterialTheme.typography.titleLarge,
         )
+        onAdd?.let { action ->
+            TextButton(onClick = action, enabled = addEnabled, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
+                .testTag("measurement-history-add").semantics { contentDescription = "Добавить вес" }) {
+                Text("+", style = MaterialTheme.typography.headlineMedium)
+            }
+        }
     }
 }
 
@@ -1755,6 +1786,7 @@ private fun historySubtitle(item: MeasurementUiItem): String = listOf(
 
 private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
     if (value == null) return MissingMeasurementValue
+    if (field == MeasurementField.WEIGHT_KG) return formatWeight(value, locale)
     val formatted = formatDisplayValue(field, value, locale)
     return when (unit) {
         "" -> formatted
@@ -1779,6 +1811,7 @@ private fun formatDisplayValue(
     locale: Locale = Locale.getDefault(),
 ): String {
     if (value == null) return MissingMeasurementValue
+    if (field == MeasurementField.WEIGHT_KG) return formatWeight(value, locale)
     return NumberFormat.getNumberInstance(locale).run {
         minimumFractionDigits = 0
         maximumFractionDigits = field.decimalPlaces

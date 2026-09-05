@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui.reference
 
+import com.palixander.scalesync.measurements.formatWeight
+
 import android.content.res.Resources
 import androidx.annotation.StringRes
 import com.palixander.scalesync.R
@@ -152,10 +154,12 @@ class ReferencePresentationFactory(
         val title = resources.getString(definition.nameRes)
         val visibleUnit = resources.getString(definition.visibleUnitRes)
         val displayableValue = value?.takeIf { it.isFinite() && it >= 0.0 }
-        val visualNumber = displayableValue?.let { formatValue(it, definition.decimalPlaces) }
+        val visualNumber = displayableValue?.let {
+            if (definition.metric == BodyMetric.WEIGHT) formatWeight(it, locale) else formatValue(it, definition.decimalPlaces)
+        }
         val spokenValue = displayableValue?.let {
             val displayedValue = BigDecimal.valueOf(it)
-                .setScale(definition.decimalPlaces, RoundingMode.HALF_EVEN)
+                .setScale(if (definition.metric == BodyMetric.WEIGHT) 3 else definition.decimalPlaces, RoundingMode.HALF_EVEN)
                 .toDouble()
             "$visualNumber ${spokenUnit(definition.unitKind, displayedValue)}"
         }

@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.domain.MeasurementOrigin
+
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartMetricOption
 import com.palixander.scalesync.charts.ChartPoint
@@ -43,6 +45,7 @@ data class PetHistoryMeasurementUi(
     val measuredAtText: String,
     val weightKg: Double,
     val weightText: String,
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 )
 
 data class PetHistoryDeleteConfirmation(
@@ -71,6 +74,7 @@ data class PetHistoryUiState(
     val errorMessage: String? = null,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
     val actionErrorMessage: String? = null,
+    val scrollToMeasurementId: String? = null,
 ) {
     init {
         require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
@@ -237,6 +241,8 @@ data class PetHistoryCallbacks(
     val confirmDelete: () -> Unit = {},
     val dismissDelete: () -> Unit = {},
     val dismissActionError: () -> Unit = {},
+    val onAddWeightRequested: () -> Unit = {},
+    val onScrollToMeasurementHandled: () -> Unit = {},
 )
 
 internal fun petHistoryPresentation(
@@ -263,6 +269,7 @@ internal fun petHistoryPresentation(
             measuredAtEpochSecond = measurement.measuredAt.epochSecond,
             measuredAtText = formatMeasurementDateTime(measurement.measuredAt, zoneId, locale),
             weightKg = measurement.petWeightKg,
+            origin = measurement.origin,
             weightText = formatChartCurrentValue(measurement.petWeightKg, PetWeightChartMetric, locale),
         )
     }

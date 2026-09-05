@@ -25,6 +25,10 @@ class BackupJsonCodec(
             throw BackupException.Invalid("$", error.message ?: "invalid value")
         }
         val root = gson.toJsonTree(document).asJsonObject
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+            root.getAsJsonArray("measurements").forEach { it.asJsonObject.remove("origin") }
+            root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("origin") }
+        }
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
             root.getAsJsonArray("measurements").forEach { element ->
                 (MEASUREMENT_KEYS_V3 - MEASUREMENT_KEYS_V1_V2).forEach(element.asJsonObject::remove)
@@ -65,6 +69,10 @@ class BackupJsonCodec(
         if (supportedVersion == BACKUP_SCHEMA_VERSION_V1) {
             root.add("pets", com.google.gson.JsonArray())
             root.add("petMeasurements", com.google.gson.JsonArray())
+        }
+        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+            root.array("measurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
+            root.array("petMeasurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
         }
         var document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
@@ -111,12 +119,13 @@ class BackupJsonCodec(
         root.array("measurements").forEachIndexed { index, element ->
             element.requiredObject("$.measurements[$index]").apply {
                 val path = "$.measurements[$index]"
-                requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION_V3) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
+                requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) MEASUREMENT_KEYS_V3 + "origin" else if (version >= BACKUP_SCHEMA_VERSION_V3) MEASUREMENT_KEYS_V3 else MEASUREMENT_KEYS_V1_V2)
                 requireStrings(path, MEASUREMENT_STRING_KEYS)
                 requireNullableStrings(
                     path,
                     MEASUREMENT_NULLABLE_STRING_KEYS,
                 )
+                if (version >= BACKUP_SCHEMA_VERSION) requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
                 if (version >= BACKUP_SCHEMA_VERSION_V3) requireStrings(path, setOf("ratingHeightOrigin"))
                 requireNumbers(path, MEASUREMENT_NUMBER_KEYS)
                 requireNullableNumbers(
@@ -140,11 +149,11 @@ class BackupJsonCodec(
             root.array("pets").forEachIndexed { index, element ->
                 val path = "$.pets[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, if (version < BACKUP_SCHEMA_VERSION) PET_KEYS_V2 else PET_KEYS_V3)
+                    requireKeys(path, if (version < BACKUP_SCHEMA_VERSION_V4) PET_KEYS_V2 else PET_KEYS_V3)
                     requireStrings(path, setOf("id", "displayName", "normalizedName", "species"))
                     requireEnum(path, "species", setOf("CAT", "DOG", "UNSPECIFIED"))
                     requireNumbers(path, setOf("createdAtEpochMillis", "updatedAtEpochMillis"))
-                    if (version == BACKUP_SCHEMA_VERSION) {
+                    if (version >= BACKUP_SCHEMA_VERSION_V4) {
                         requireNullableStrings(path, setOf("sex", "breedId", "dogAdultWeightCategory"))
                         requireNullableNumbers(path, setOf("birthYear", "birthMonth", "birthDay"))
                         requireNullableEnum(path, "sex", setOf("MALE", "FEMALE"))
@@ -155,9 +164,15 @@ class BackupJsonCodec(
             root.array("petMeasurements").forEachIndexed { index, element ->
                 val path = "$.petMeasurements[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, PET_MEASUREMENT_KEYS)
+                    requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) PET_MEASUREMENT_KEYS + "origin" else PET_MEASUREMENT_KEYS)
                     requireStrings(path, setOf("id", "petId"))
-                    requireNumbers(path, setOf("measuredAtEpochSecond", "firstWeightKg", "secondWeightKg", "petWeightKg"))
+                    requireNumbers(path, setOf("measuredAtEpochSecond", "petWeightKg"))
+                    if (version >= BACKUP_SCHEMA_VERSION) {
+                        requireNullableNumbers(path, setOf("firstWeightKg", "secondWeightKg"))
+                        requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
+                    } else {
+                        requireNumbers(path, setOf("firstWeightKg", "secondWeightKg"))
+                    }
                 }
             }
         }
@@ -210,6 +225,13 @@ class BackupJsonCodec(
         unique(document.measurements.mapNotNull { it.deduplicationHash }, "measurement deduplication hash")
         document.measurements.forEachIndexed { index, measurement ->
             val path = "$.measurements[$index]"
+            invalidUnless(measurement.origin != null, "$path.origin", "unknown origin")
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+                invalidUnless(measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, "$path.origin", "requires v5")
+            }
+            if (measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL) {
+                invalidUnless(measurement.measurementType == MeasurementType.WEIGHT_ONLY, "$path.measurementType", "manual input is weight only")
+            }
             if (measurement.accountId !in accountIds) throw BackupException.MissingAccount(measurement.accountId)
             invalidUnless(measurement.id.isNotBlank(), "$path.id", "must not be blank")
             invalidUnless(measurement.fingerprint.isNotBlank(), "$path.fingerprint", "must not be blank")
@@ -290,13 +312,21 @@ class BackupJsonCodec(
         unique(document.petMeasurements.map { it.id }, "pet measurement id")
         document.petMeasurements.forEachIndexed { index, measurement ->
             val path = "$.petMeasurements[$index]"
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+                invalidUnless(measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, "$path.origin", "requires v5")
+            }
             if (measurement.petId !in petIds) throw BackupException.MissingPet(measurement.petId)
             invalidUnless(measurement.id.isNotBlank(), "$path.id", "must not be blank")
             invalidUnless(measurement.petId.isNotBlank(), "$path.petId", "must not be blank")
-            val values = listOf(measurement.firstWeightKg, measurement.secondWeightKg, measurement.petWeightKg)
-            invalidUnless(values.all { it.isFinite() && it >= 0.0 }, path, "weights must be non-negative and finite")
-            invalidUnless(kotlin.math.abs(kotlin.math.abs(measurement.secondWeightKg - measurement.firstWeightKg) - measurement.petWeightKg) < 0.000_001,
-                "$path.petWeightKg", "does not match source readings")
+            val valid = runCatching {
+                com.palixander.scalesync.domain.PetMeasurement(
+                    measurement.id, com.palixander.scalesync.domain.PetId(measurement.petId),
+                    java.time.Instant.ofEpochSecond(measurement.measuredAtEpochSecond),
+                    measurement.firstWeightKg, measurement.secondWeightKg, measurement.petWeightKg,
+                    measurement.origin,
+                )
+            }.isSuccess
+            invalidUnless(valid, path, "invalid pet weight or source readings")
         }
     }
 
@@ -428,6 +458,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V1,
             BACKUP_SCHEMA_VERSION_V2,
             BACKUP_SCHEMA_VERSION_V3,
+            BACKUP_SCHEMA_VERSION_V4,
             BACKUP_SCHEMA_VERSION,
         )
     }

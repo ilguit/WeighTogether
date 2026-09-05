@@ -9,6 +9,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class HuaweiPointBuilderTest {
+    @Test fun manualOriginPreservesExternalIdAndUsesStableMetadata() {
+        val row = huaweiWeightOnlyMeasurement()
+        val scale = buildHuaweiPointSpecs(MeasurementSyncPayload(row, true)).single()
+        val payload = MeasurementSyncPayload(row.copy(origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL), true)
+        val manual = buildHuaweiPointSpecs(payload).single()
+        assertEquals(scale.externalId, manual.externalId)
+        assertEquals(scale.externalId + ";origin=MANUAL", manual.metadata)
+        assertEquals(manual, buildHuaweiPointSpecs(payload).single())
+        assertEquals(scale.externalId, scale.metadata)
+    }
+
     @Test
     fun `weight-only payload creates exactly one Huawei weight point`() {
         val points = buildHuaweiPointSpecs(

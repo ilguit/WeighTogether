@@ -4,6 +4,22 @@ ScaleSync records people, pets, and their weight measurements while preserving t
 
 ## Language
 
+**Measurement origin**:
+How a weight record was created: received from a scale, entered manually, or unknown for legacy records. Origin is independent of later edits.
+
+**Entered manually (Введено вручную)**:
+A weight supplied by the user for a selected person or pet, with its measurement date and time.
+_Avoid_: Manually edited
+
+**Manually edited (Изменено вручную)**:
+A later change to a saved measurement. It does not change how the original record was created.
+
+**Measurement date and time**:
+When the recorded weight applies, which may precede the time the record was saved.
+
+**Direct pet weight**:
+A pet's weight entered as a standalone measurement, with no pair of source weighings.
+
 **Pet**:
 An animal whose weight measurements are kept separately from human accounts.
 

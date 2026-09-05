@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.domain.MeasurementOrigin
+
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -243,6 +245,7 @@ data class MeasurementUiItem(
     val ratingHeightCm: Double? = null,
     val referenceAge: Int? = null,
     val hasRestoredRatingHeight: Boolean = false,
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     init {
         require(presentationKey.isNotBlank()) { "Presentation key must not be blank" }
@@ -472,6 +475,7 @@ val MeasurementDeleteConfirmation.measuredAt: Instant
     get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
 data class MeasurementsUiState(
+    val scrollToMeasurementId: String? = null,
     val destination: MeasurementsDestination = MeasurementsDestination.SUMMARY,
     val editorOrigin: MeasurementEditorOrigin = MeasurementEditorOrigin.SUMMARY,
     val measurements: List<MeasurementUiItem> = emptyList(),
@@ -496,6 +500,10 @@ data class MeasurementsUiState(
 
 /** One-shot effects that an integrating ViewModel can expose through a Channel/SharedFlow. */
 sealed interface MeasurementsUiEvent {
+    data class ManualWeightSaved(
+        val owner: com.palixander.scalesync.domain.ManualWeightOwner,
+        val result: com.palixander.scalesync.domain.ManualWeightResult.Saved,
+    ) : MeasurementsUiEvent
     data class ShowSnackbar(
         val message: String,
     ) : MeasurementsUiEvent
@@ -514,6 +522,8 @@ data class MeasurementsCallbacks(
     val onDeleteConfirmed: (measurementId: String) -> Unit,
     val onDeleteDismissed: () -> Unit,
     val onRetryRequested: (measurementId: String) -> Unit,
+    val onAddWeightRequested: () -> Unit = {},
+    val onScrollToMeasurementHandled: () -> Unit = {},
     val onAccountSelected: (AccountId) -> Unit = {},
     val onPendingAssignRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},

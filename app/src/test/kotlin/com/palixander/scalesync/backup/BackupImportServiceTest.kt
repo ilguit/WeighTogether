@@ -29,6 +29,30 @@ class BackupImportServiceTest {
     private val emptySettings = PortableProfileSettings(null, null, false, null, null)
 
     @Test
+    fun `v5 import retains manual provenance and flags origin conflicts`() {
+        val document = document().copy(
+            measurements = listOf(document().measurements.single().copy(
+                origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
+                measurementType = MeasurementType.WEIGHT_ONLY,
+            )),
+            pets = listOf(BackupPetV2("pet", "Кот", "кот", PetSpecies.CAT, 1, 1)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "pet", -60, null, null, 4.125,
+                com.palixander.scalesync.domain.MeasurementOrigin.MANUAL)),
+        )
+        val imported = service.preview(document, emptySnapshot(), emptySettings, BackupImportMode.MERGE)
+        assertEquals(com.palixander.scalesync.domain.MeasurementOrigin.MANUAL, imported.result.measurements.single().origin)
+        assertEquals(com.palixander.scalesync.domain.MeasurementOrigin.MANUAL, imported.result.petMeasurements.single().origin)
+        assertEquals(4.125, imported.result.petMeasurements.single().toDomain().petWeightKg, 0.0)
+        val repeated = service.preview(document, imported.result, emptySettings, BackupImportMode.MERGE)
+        assertEquals(0, repeated.counts.measurementsAdded)
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(document.copy(measurements = listOf(document.measurements.single().copy(
+                origin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
+            ))), imported.result, emptySettings, BackupImportMode.MERGE)
+        }
+    }
+
+    @Test
     fun `read uses codec validation and enforces byte limit without closing stream`() {
         val json = BackupJsonCodec().encode(document())
         val input = TrackingInputStream(json.toByteArray())

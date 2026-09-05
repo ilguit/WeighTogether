@@ -85,7 +85,9 @@ internal fun buildHealthConnectRecords(
         model = "Mi Body Composition Scale 2 (XMTZC05HM)",
         type = Device.TYPE_SCALE,
     )
-    fun metadata(recordType: String) = Metadata.autoRecorded(
+    fun metadata(recordType: String) = if (value.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL) {
+        Metadata.manualEntry(clientRecordId = "${value.id}:$recordType", clientRecordVersion = 0)
+    } else Metadata.autoRecorded(
         clientRecordId = "${value.id}:$recordType",
         clientRecordVersion = 0,
         device = scale,

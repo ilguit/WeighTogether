@@ -15,6 +15,36 @@ import org.junit.Test
 class BackupJsonCodecTest {
     private val codec = BackupJsonCodec()
 
+
+    @Test
+    fun v5PreservesManualOriginAndStandalonePetWeight() {
+        val source = document().copy(
+            measurements = listOf(document().measurements.single().copy(
+                weightKg = 4.125, origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
+            )),
+            pets = listOf(BackupPetV2("p", "Кот", "кот", PetSpecies.CAT, 10, 11)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", -60, null, null, 4.125,
+                com.palixander.scalesync.domain.MeasurementOrigin.MANUAL)),
+        )
+        assertEquals(source, codec.decode(codec.encode(source)))
+        val encoded = codec.encode(source)
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "UNKNOWN")) }
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "SCALE")) }
+        assertThrows(BackupException.Invalid::class.java) { codec.encode(source.copy(schemaVersion = 4)) }
+    }
+
+    @Test
+    fun everyLegacyVersionKeepsUnknownOriginIncludingOldManualAddress() {
+        for (version in 1..4) {
+            val source = document().copy(schemaVersion = version,
+                measurements = listOf(document().measurements.single().copy(deviceAddress = "manual")))
+            val encoded = codec.encode(source)
+            assertTrue(!encoded.contains("origin"))
+            val decoded = codec.decode(encoded)
+            assertEquals(com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, decoded.measurements.single().origin)
+        }
+    }
+
     @Test
     fun roundTripPreservesUnicodeAndEmptyOptionalCollections() {
         val source = document(accountName = "Иван ⚖")
@@ -38,7 +68,7 @@ class BackupJsonCodecTest {
 
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":4", "\"schemaVersion\":5").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document()).replace("\"schemaVersion\":5", "\"schemaVersion\":6").replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -124,8 +154,9 @@ class BackupJsonCodecTest {
 
         listOf(BACKUP_SCHEMA_VERSION_V1, BACKUP_SCHEMA_VERSION_V2).forEach { version ->
             var legacyJson = encoded
-                .replace("\"schemaVersion\":4", "\"schemaVersion\":$version")
+                .replace("\"schemaVersion\":5", "\"schemaVersion\":$version")
                 .replace(legacyMeasurementFields, "")
+                .replace(",\"origin\":\"LEGACY\"", "")
             if (version == BACKUP_SCHEMA_VERSION_V1) {
                 legacyJson = legacyJson.replace(",\"pets\":[],\"petMeasurements\":[]", "")
             }
@@ -138,7 +169,7 @@ class BackupJsonCodecTest {
     @Test
     fun schemaShapesAndMeasurementContextValuesAreStrict() {
         val encoded = codec.encode(document())
-        val v2WithV3Fields = encoded.replace("\"schemaVersion\":4", "\"schemaVersion\":2")
+        val v2WithV3Fields = encoded.replace("\"schemaVersion\":5", "\"schemaVersion\":2")
         assertThrows(BackupException.Invalid::class.java) { codec.decode(v2WithV3Fields) }
         assertThrows(BackupException.Invalid::class.java) {
             codec.decode(encoded.replace(",\"ratingHeightCm\":null", ""))
@@ -153,8 +184,9 @@ class BackupJsonCodecTest {
             codec.encode(document().copy(measurements = listOf(document().measurements.single().copy(ratingHeightCm = Double.NaN))))
         }
 
-        val v1Json = encoded.replace("\"schemaVersion\":4", "\"schemaVersion\":1")
+        val v1Json = encoded.replace("\"schemaVersion\":5", "\"schemaVersion\":1")
             .replace(",\"ratingHeightCm\":null,\"ratingHeightOrigin\":\"CAPTURED\"", "")
+            .replace(",\"origin\":\"LEGACY\"", "")
             .replace(",\"pets\":[],\"petMeasurements\":[]", "")
         val legacy = codec.decode(v1Json)
         assertEquals(1, legacy.schemaVersion)

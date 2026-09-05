@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -43,6 +45,7 @@ object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
     fun shell(petId: String) = "$Shell-$petId"
     const val StartMeasurement = "pet-history-start-measurement"
+    const val AddWeight = "pet-history-add-weight"
     const val Summary = "pet-profile-summary"
     const val Edit = "pet-profile-edit"
     const val PeriodFilter = "pet-history-period-filter"
@@ -77,7 +80,18 @@ internal fun PetProfileScreen(
             onDismiss = callbacks.dismissDelete,
         )
     }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    androidx.compose.runtime.LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
+        val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
+        if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
+            val precedingItems = 5 + (if (state.pet != null && !state.isNotFound) 1 else 0) +
+                (if (state.actionErrorMessage != null && state.deleteConfirmation == null) 1 else 0)
+            listState.scrollToItem(precedingItems + index)
+            callbacks.onScrollToMeasurementHandled()
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize().padding(contentPadding)
             .padding(horizontal = HuaweiDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.shell(state.petId.value))
@@ -173,10 +187,19 @@ internal fun PetProfileScreen(
                         )
                     }
                 }
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Измерения", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
+                        TextButton(onClick = callbacks.onAddWeightRequested,
+                            enabled = state.pet != null && !state.isNotFound,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag(PetProfileScreenTestTags.AddWeight)
+                                .semantics { contentDescription = "Добавить вес питомца" },
+                        ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
+                    }
+                }
                 if (state.measurements.isEmpty()) item {
                     Text("Нет измерений за выбранный период", modifier = Modifier.testTag(PetProfileScreenTestTags.Empty))
                 } else {
-                    item { Text("Измерения", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
                     items(state.measurements, key = { it.id }) { measurement ->
                         HuaweiSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.measurement(measurement.id))
@@ -189,7 +212,10 @@ internal fun PetProfileScreen(
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(measurement.measuredAtText)
-                                    Text(measurement.weightText, style = MaterialTheme.typography.titleMedium)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                                        ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
+                                    }
                                 }
                                 HuaweiIconButton(
                                     icon = HuaweiIcons.Delete,

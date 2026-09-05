@@ -173,22 +173,24 @@ data class PetMeasurement(
     val id: String,
     val petId: PetId,
     val measuredAt: Instant,
-    val firstWeightKg: Double,
-    val secondWeightKg: Double,
+    val firstWeightKg: Double?,
+    val secondWeightKg: Double?,
+    val petWeightKg: Double = abs(requireNotNull(secondWeightKg) - requireNotNull(firstWeightKg)),
+    val origin: MeasurementOrigin = MeasurementOrigin.SCALE,
 ) {
     init {
         require(id.isNotBlank()) { "Pet measurement id must not be blank" }
-        require(firstWeightKg.isFinite() && firstWeightKg > 0.0) {
-            "First stable weight must be finite and positive"
+        require(petWeightKg.isFinite() && petWeightKg > 0.0) { "Pet weight must be finite and positive" }
+        if (origin == MeasurementOrigin.MANUAL) {
+            require(firstWeightKg == null && secondWeightKg == null) { "Manual weight has no source readings" }
+        } else {
+            require(firstWeightKg != null && firstWeightKg.isFinite() && firstWeightKg > 0.0)
+            require(secondWeightKg != null && secondWeightKg.isFinite() && secondWeightKg > 0.0)
+            require(abs(abs(secondWeightKg - firstWeightKg) - petWeightKg) < 0.000_001) {
+                "Stored pet weight does not match source readings"
+            }
         }
-        require(secondWeightKg.isFinite() && secondWeightKg > 0.0) {
-            "Second stable weight must be finite and positive"
-        }
-        require(petWeightKg > 0.0) { "Pet weight must be positive" }
     }
-
-    val petWeightKg: Double
-        get() = abs(secondWeightKg - firstWeightKg)
 }
 
 data class PetWithLatestWeight(

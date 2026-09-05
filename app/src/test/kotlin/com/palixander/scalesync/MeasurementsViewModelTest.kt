@@ -38,6 +38,22 @@ import kotlinx.coroutines.runBlocking
 
 class MeasurementsViewModelTest {
     @Test
+    fun manualOriginSurvivesEditedLocalOnlyPresentation() {
+        for (origin in com.palixander.scalesync.domain.MeasurementOrigin.entries) {
+            val item = measurement("origin").copy(
+                origin = origin,
+                measurementType = com.palixander.scalesync.data.MeasurementType.WEIGHT_ONLY,
+                weightKg = 4.125,
+                externalSyncPolicy = "USER_LOCAL",
+            ).toMeasurementUiItem(false)
+            assertEquals(origin, item.origin)
+            assertTrue(item.isManuallyEdited)
+            assertTrue(item.isWeightOnly)
+            assertEquals(4.125, item.values.weightKg, 0.0)
+        }
+    }
+
+    @Test
     fun delayedOldHeavyPresentationCannotAppearUnderNewAccountSelector() = runBlocking {
         val accountA = account("account-a")
         val accountB = account("account-b")

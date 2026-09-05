@@ -1,5 +1,7 @@
 package com.palixander.scalesync.charts
 
+import com.palixander.scalesync.measurements.formatWeight
+
 import androidx.compose.runtime.Immutable
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
@@ -22,6 +24,9 @@ data class ChartMetricOption(
     val decimalPlaces: Int,
     val deltaUnit: String = unit,
 )
+
+private val ChartMetricOption.isWeight: Boolean
+    get() = key == "WEIGHT_KG" || key == "petWeightKg" || key == "weight_kg"
 
 enum class ChartRangePreset {
     LAST_7_DAYS,
@@ -251,7 +256,7 @@ private fun formatChartMarkerText(
     locale: Locale,
 ): String {
     val dateTime = formatMeasurementDateTime(measuredAt, zoneId, locale)
-    val formattedValue = decimalFormat(metric.decimalPlaces, locale).format(value)
+    val formattedValue = if (metric.isWeight) formatWeight(value, locale) else decimalFormat(metric.decimalPlaces, locale).format(value)
     return buildString {
         append(dateTime)
         append('\n')
@@ -290,13 +295,15 @@ fun formatChartCurrentValue(
     value: Double?,
     metric: ChartMetricOption,
     locale: Locale = Locale.getDefault(),
-): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+): String = if (metric.isWeight && value != null) "${formatWeight(value, locale)} ${metric.unit}" else
+    formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
 
 fun formatChartStatistic(
     value: Double?,
     metric: ChartMetricOption,
     locale: Locale = Locale.getDefault(),
-): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+): String = if (metric.isWeight && value != null) "${formatWeight(value, locale)} ${metric.unit}" else
+    formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
 
 fun formatChartDelta(
     delta: Double?,

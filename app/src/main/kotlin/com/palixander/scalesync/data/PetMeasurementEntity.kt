@@ -1,5 +1,7 @@
 package com.palixander.scalesync.data
 
+import androidx.room.ColumnInfo
+import com.palixander.scalesync.domain.MeasurementOrigin
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
@@ -24,9 +26,11 @@ data class PetMeasurementEntity(
     @PrimaryKey val id: String,
     val petId: String,
     val measuredAtEpochSecond: Long,
-    val firstWeightKg: Double,
-    val secondWeightKg: Double,
+    val firstWeightKg: Double?,
+    val secondWeightKg: Double?,
     val petWeightKg: Double,
+    @ColumnInfo(defaultValue = "'LEGACY'")
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     fun toDomain(): PetMeasurement = PetMeasurement(
         id = id,
@@ -34,7 +38,7 @@ data class PetMeasurementEntity(
         measuredAt = Instant.ofEpochSecond(measuredAtEpochSecond),
         firstWeightKg = firstWeightKg,
         secondWeightKg = secondWeightKg,
-    ).also {
-        check(it.petWeightKg == petWeightKg) { "Stored pet weight does not match source readings" }
-    }
+        petWeightKg = petWeightKg,
+        origin = origin,
+    )
 }
