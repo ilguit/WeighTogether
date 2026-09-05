@@ -1505,7 +1505,7 @@ private fun SettingsIntegrationsContent(
             primaryStatus,
             healthConnectCapabilities.selectedAccountSyncEligible,
         )
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
                 HuaweiSettingRow(
                     icon = HuaweiIcons.Health,
