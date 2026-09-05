@@ -213,32 +213,26 @@ class ProfileHistoryRecalculationTest {
         val other = repository.createAccount(NewAccount("Bob", ORIGINAL_PROFILE))
         val autoPacket = raw("2026-08-15T10:00:00Z", 72.35, 517)
         val originalAutoValues = expectedValues(autoPacket, ORIGINAL_PROFILE)
-        val huaweiSnapshot = requireNotNull(originalAutoValues).toCalculatedValuesSnapshot(
-            ExternalSyncDestination.HUAWEI,
+        val healthConnectSnapshot = requireNotNull(originalAutoValues).toCalculatedValuesSnapshot(
+            ExternalSyncDestination.HEALTH_CONNECT,
         ).encode()
         val auto = entity(autoPacket, account.id, ORIGINAL_PROFILE).copy(
-            huaweiStatus = SyncStatus.SYNCED.name,
-            healthConnectStatus = SyncStatus.FAILED.name,
-            huaweiError = "terminal detail",
-            healthConnectError = "temporary outage",
-            huaweiWeightSynced = true,
+            healthConnectStatus = SyncStatus.SYNCED.name,
+            healthConnectError = "terminal detail",
             healthConnectWeightSynced = true,
             sourcePendingId = "pending-auto",
             deduplicationHash = "dedup-auto",
-            huaweiSyncedCalculatedValues = huaweiSnapshot,
-            healthConnectSyncedCalculatedValues = null,
+            healthConnectSyncedCalculatedValues = healthConnectSnapshot,
             createdAtEpochMillis = 123_456L,
         )
         val accountLocalPacket = raw("2026-08-15T10:01:00Z", 73.1, 530)
         val accountLocal = entity(accountLocalPacket, account.id, ORIGINAL_PROFILE).copy(
             externalSyncPolicy = ExternalSyncPolicy.ACCOUNT_LOCAL.name,
-            huaweiStatus = SyncStatus.LOCAL_ONLY.name,
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         )
         val manualPacket = raw("2026-08-15T10:02:00Z", 74.0, 540)
         val manual = entity(manualPacket, account.id, ORIGINAL_PROFILE).copy(
             externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
-            huaweiStatus = SyncStatus.LOCAL_ONLY.name,
             healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         )
         val weightOnly = raw("2026-08-15T10:03:00Z", 75.0, 0).copy(
@@ -296,11 +290,9 @@ class ProfileHistoryRecalculationTest {
         assertEquals(otherAccount, database.measurementDao().get(otherAccount.id))
 
         assertTrue(recalculatedAuto.hasProfileSyncMismatch)
-        assertEquals(huaweiSnapshot, recalculatedAuto.huaweiSyncedCalculatedValues)
-        assertEquals(SyncStatus.SYNCED.name, recalculatedAuto.huaweiStatus)
-        assertEquals(SyncStatus.FAILED.name, recalculatedAuto.healthConnectStatus)
-        assertFalse(database.measurementDao().idsNeedingHuaweiSync().contains(auto.id))
-        assertTrue(database.measurementDao().idsNeedingHealthConnectSync().contains(auto.id))
+        assertEquals(healthConnectSnapshot, recalculatedAuto.healthConnectSyncedCalculatedValues)
+        assertEquals(SyncStatus.SYNCED.name, recalculatedAuto.healthConnectStatus)
+        assertFalse(database.measurementDao().idsNeedingHealthConnectSync().contains(auto.id))
         assertEquals(
             recalculatedAuto.currentCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT),
             recalculatedAuto.fullValues?.toCalculatedValuesSnapshot(
@@ -310,19 +302,17 @@ class ProfileHistoryRecalculationTest {
     }
 
     @Test
-    fun recalculationBackfillsOnlyMissingSnapshotsForSyncedDestinations() = runBlocking {
+    fun recalculationBackfillsMissingSnapshotForSyncedHealthConnect() = runBlocking {
         val repository = repository()
         val account = repository.createAccount(NewAccount("Alice", ORIGINAL_PROFILE))
         val packet = raw("2026-08-15T10:00:00Z", 72.35, 517)
         val original = entity(packet, account.id, ORIGINAL_PROFILE).copy(
-            huaweiStatus = SyncStatus.SYNCED.name,
-            healthConnectStatus = SyncStatus.PENDING.name,
-            huaweiSyncedCalculatedValues = null,
+            healthConnectStatus = SyncStatus.SYNCED.name,
             healthConnectSyncedCalculatedValues = null,
         )
         assertTrue(database.multiAccountMeasurementDao().insert(original) != -1L)
-        val oldHuaweiSnapshot = requireNotNull(original.fullValues)
-            .toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI)
+        val oldHealthConnectSnapshot = requireNotNull(original.fullValues)
+            .toCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT)
             .encode()
 
         repository.updateAccount(
@@ -335,10 +325,8 @@ class ProfileHistoryRecalculationTest {
         )
 
         val recalculated = requireNotNull(database.measurementDao().get(original.id))
-        assertEquals(oldHuaweiSnapshot, recalculated.huaweiSyncedCalculatedValues)
-        assertEquals(null, recalculated.healthConnectSyncedCalculatedValues)
-        assertEquals(SyncStatus.SYNCED.name, recalculated.huaweiStatus)
-        assertEquals(SyncStatus.PENDING.name, recalculated.healthConnectStatus)
+        assertEquals(oldHealthConnectSnapshot, recalculated.healthConnectSyncedCalculatedValues)
+        assertEquals(SyncStatus.SYNCED.name, recalculated.healthConnectStatus)
         assertNotEquals(original.fullValues, recalculated.fullValues)
         assertTrue(recalculated.hasProfileSyncMismatch)
     }

@@ -431,7 +431,6 @@ class MeasurementDeduplicationPersistenceTest {
     private fun persistence() = RoomMeasurementPersistence(
         database = database,
         calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
-        huaweiSyncEnabled = false,
         now = { now },
         newId = ::newId,
     )

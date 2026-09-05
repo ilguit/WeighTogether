@@ -66,8 +66,8 @@ class RoomBackupImportGatewayTest {
         assertEquals(listOf("a", "b"), database.accountDao().getAll().map { it.id })
         val rows = database.measurementDao().getAllForBackup()
         assertEquals(2, rows.size)
-        assertEquals(SyncStatus.SYNCED.name, rows.single { it.id == "m" }.huaweiStatus)
-        assertEquals(SyncStatus.FAILED.name, rows.single { it.id == "n" }.huaweiStatus)
+        assertEquals(SyncStatus.SYNCED.name, rows.single { it.id == "m" }.healthConnectStatus)
+        assertEquals(SyncStatus.FAILED.name, rows.single { it.id == "n" }.healthConnectStatus)
     }
 
     @Test
@@ -514,7 +514,7 @@ class RoomBackupImportGatewayTest {
         waterPercent = null, waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
         boneMassKg = null, proteinPercent = null, proteinMassKg = null, visceralFatLevel = null,
         basalMetabolicRateKcal = null, metabolicAge = null, leanBodyMassKg = null,
-        algorithmVersion = null, huaweiStatus = status.name, healthConnectStatus = status.name,
+        algorithmVersion = null, healthConnectStatus = status.name,
         accountId = accountId, externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         deduplicationHash = "hash-$id",
     )
