@@ -71,6 +71,26 @@ class RoomBackupImportGatewayTest {
     }
 
     @Test
+    fun mergeSkipsMeasurementCollidingOnlyBySourcePendingId() = runBlocking {
+        val account = account("a")
+        val local = measurement("local", account.id, SyncStatus.SYNCED).copy(
+            sourcePendingId = "pending-stable",
+        )
+        database.accountDao().insert(account)
+        database.measurementDao().insert(local)
+        val incoming = measurement("incoming", account.id, SyncStatus.FAILED).copy(
+            sourcePendingId = local.sourcePendingId,
+        )
+
+        val preview = preview(BackupImportMode.MERGE, listOf(account), listOf(incoming))
+        apply(preview)
+
+        assertEquals(0, preview.counts.measurementsAdded)
+        assertEquals(1, preview.counts.measurementsSkipped)
+        assertEquals(listOf(local), database.measurementDao().getAllForBackup())
+    }
+
+    @Test
     fun v3MeasurementContextPersistsExactlyThroughRoomGateway() = runBlocking {
         val owner = account("owner").copy(heightCm = 190.0)
         val imported = measurement("context", owner.id, SyncStatus.LOCAL_ONLY).copy(

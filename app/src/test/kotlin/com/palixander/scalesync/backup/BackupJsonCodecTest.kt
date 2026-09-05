@@ -110,6 +110,23 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun duplicateNonNullMeasurementSourcePendingIdsAreRejected() {
+        val measurement = document().measurements.single().copy(sourcePendingId = "pending-stable")
+        val duplicate = measurement.copy(
+            id = "other-id",
+            fingerprint = "other-fingerprint",
+            deduplicationHash = "other-hash",
+        )
+
+        val error = assertThrows(BackupException.Duplicate::class.java) {
+            codec.encode(document().copy(measurements = listOf(measurement, duplicate)))
+        }
+
+        assertEquals("measurement source pending id", error.path)
+        assertEquals("pending-stable", error.value)
+    }
+
+    @Test
     fun collectionLimitsAreRejected() {
         val account = document().accounts.single()
         assertThrows(BackupException.Limits::class.java) {

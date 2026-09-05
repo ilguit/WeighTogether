@@ -37,6 +37,7 @@ sealed interface BackupImportConflict {
     data class AccountName(val normalizedName: String) : BackupImportConflict
     data class MeasurementId(val id: String) : BackupImportConflict
     data class MeasurementFingerprint(val fingerprint: String) : BackupImportConflict
+    data class MeasurementSourcePendingId(val sourcePendingId: String) : BackupImportConflict
     data class MeasurementDeduplicationHash(val hash: String) : BackupImportConflict
     data class PetId(val id: String) : BackupImportConflict
     data class PetName(val normalizedName: String) : BackupImportConflict
@@ -496,11 +497,19 @@ class BackupImportService(
         }
         val byId = current.measurements.associateBy { it.id }
         val byFingerprint = current.measurements.associateBy { it.fingerprint }
+        val bySourcePendingId = current.measurements.mapNotNull { value ->
+            value.sourcePendingId?.let { it to value }
+        }.toMap()
         val byHash = current.measurements.mapNotNull { value -> value.deduplicationHash?.let { it to value } }.toMap()
         val measurementsToAdd = remappedMeasurements.filter { measurement ->
             val matches = listOfNotNull(
                 byId[measurement.id]?.let { BackupImportConflict.MeasurementId(measurement.id) to it },
                 byFingerprint[measurement.fingerprint]?.let { BackupImportConflict.MeasurementFingerprint(measurement.fingerprint) to it },
+                measurement.sourcePendingId?.let { sourcePendingId ->
+                    bySourcePendingId[sourcePendingId]?.let {
+                        BackupImportConflict.MeasurementSourcePendingId(sourcePendingId) to it
+                    }
+                },
                 measurement.deduplicationHash?.let { hash -> byHash[hash]?.let { BackupImportConflict.MeasurementDeduplicationHash(hash) to it } },
             )
             val matchedIds = matches.map { it.second.id }.distinct()

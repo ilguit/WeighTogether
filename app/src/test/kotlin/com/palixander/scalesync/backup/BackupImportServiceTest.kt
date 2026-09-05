@@ -127,6 +127,87 @@ class BackupImportServiceTest {
     }
 
     @Test
+    fun `merge keeps local measurement on matching source pending id and stays idempotent`() {
+        val localDocument = document().copy(
+            measurements = listOf(
+                document().measurements.single().copy(sourcePendingId = "pending-stable"),
+            ),
+        )
+        val local = service.preview(
+            localDocument,
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+        val incoming = localDocument.copy(
+            measurements = listOf(
+                localDocument.measurements.single().copy(
+                    id = "incoming-id",
+                    fingerprint = "incoming-fingerprint",
+                    deduplicationHash = "incoming-hash",
+                    weightKg = 71.0,
+                ),
+            ),
+        )
+
+        val first = service.preview(incoming, local, emptySettings, BackupImportMode.MERGE)
+        val repeated = service.preview(incoming, first.result, emptySettings, BackupImportMode.MERGE)
+
+        assertEquals(0, first.counts.measurementsAdded)
+        assertEquals(1, first.counts.measurementsSkipped)
+        assertEquals(local.measurements, first.result.measurements)
+        assertEquals(0, repeated.counts.measurementsAdded)
+        assertEquals(1, repeated.counts.measurementsSkipped)
+        assertEquals(local.measurements, repeated.result.measurements)
+    }
+
+    @Test
+    fun `merge rejects source pending id matching a different local measurement key`() {
+        val source = document()
+        val current = service.preview(
+            source.copy(
+                measurements = listOf(
+                    source.measurements.single().copy(sourcePendingId = "pending-one"),
+                    source.measurements.single().copy(
+                        id = "m2",
+                        fingerprint = "f2",
+                        sourcePendingId = "pending-two",
+                        deduplicationHash = "d2",
+                    ),
+                ),
+            ),
+            emptySnapshot(),
+            emptySettings,
+            BackupImportMode.MERGE,
+        ).result
+
+        val error = assertThrows(BackupImportConflicts::class.java) {
+            service.preview(
+                source.copy(
+                    measurements = listOf(
+                        source.measurements.single().copy(
+                            fingerprint = "incoming-fingerprint",
+                            sourcePendingId = "pending-two",
+                            deduplicationHash = "incoming-hash",
+                        ),
+                    ),
+                ),
+                current,
+                emptySettings,
+                BackupImportMode.MERGE,
+            )
+        }
+
+        assertEquals(true, error.conflicts.contains(BackupImportConflict.MeasurementId("m")))
+        assertEquals(
+            true,
+            error.conflicts.contains(
+                BackupImportConflict.MeasurementSourcePendingId("pending-two"),
+            ),
+        )
+    }
+
+    @Test
     fun `merge remaps matched owners and stays idempotent with correct counts`() {
         val localAccount = document().accounts.single().let {
             AccountEntity(
