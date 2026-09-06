@@ -28,6 +28,7 @@ private val ChartMetricOption.isWeight: Boolean
     get() = key == "WEIGHT_KG" || key == "petWeightKg" || key == "weight_kg"
 
 enum class ChartRangePreset {
+    ALL,
     LAST_7_DAYS,
     LAST_30_DAYS,
     LAST_3_MONTHS,
@@ -36,6 +37,7 @@ enum class ChartRangePreset {
     ;
 
     fun rangeEndingOn(today: LocalDate): ChartDateRange? = when (this) {
+        ALL -> null
         LAST_7_DAYS -> ChartDateRange(today.minusDays(6), today)
         LAST_30_DAYS -> ChartDateRange(today.minusDays(29), today)
         LAST_3_MONTHS -> ChartDateRange(today.minusMonths(3).plusDays(1), today)

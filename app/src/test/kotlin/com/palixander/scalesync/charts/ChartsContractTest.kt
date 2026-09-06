@@ -80,6 +80,7 @@ class ChartsContractTest {
             ChartRangePreset.YEAR_TO_DATE.rangeEndingOn(today),
         )
         assertNull(ChartRangePreset.CUSTOM.rangeEndingOn(today))
+        assertNull(ChartRangePreset.ALL.rangeEndingOn(today))
     }
 
     @Test

@@ -791,6 +791,7 @@ private fun rangeLabel(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
 ): String = when (preset) {
+    ChartRangePreset.ALL -> "Всё"
     ChartRangePreset.LAST_7_DAYS -> "7 дней"
     ChartRangePreset.LAST_30_DAYS -> "30 дней"
     ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
@@ -800,6 +801,7 @@ private fun rangeLabel(
 }
 
 private fun ChartRangePreset.title(): String = when (this) {
+    ChartRangePreset.ALL -> "Всё"
     ChartRangePreset.LAST_7_DAYS -> "7 дней"
     ChartRangePreset.LAST_30_DAYS -> "30 дней"
     ChartRangePreset.LAST_3_MONTHS -> "3 месяца"

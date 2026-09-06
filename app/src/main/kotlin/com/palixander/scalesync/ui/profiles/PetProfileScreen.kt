@@ -146,7 +146,12 @@ internal fun PetProfileScreen(
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.PeriodFilter),
                 horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
-                listOf(ChartRangePreset.LAST_7_DAYS, ChartRangePreset.LAST_30_DAYS, ChartRangePreset.LAST_3_MONTHS)
+                listOf(
+                    ChartRangePreset.ALL,
+                    ChartRangePreset.LAST_7_DAYS,
+                    ChartRangePreset.LAST_30_DAYS,
+                    ChartRangePreset.LAST_3_MONTHS,
+                )
                     .forEach { preset ->
                         FilterChip(
                             selected = state.rangePreset == preset,
@@ -469,6 +474,7 @@ private fun PetHistoryDeleteDialog(
 }
 
 private fun ChartRangePreset.petTitle() = when (this) {
+    ChartRangePreset.ALL -> "Всё"
     ChartRangePreset.LAST_7_DAYS -> "7 дней"
     ChartRangePreset.LAST_30_DAYS -> "30 дней"
     ChartRangePreset.LAST_3_MONTHS -> "3 месяца"

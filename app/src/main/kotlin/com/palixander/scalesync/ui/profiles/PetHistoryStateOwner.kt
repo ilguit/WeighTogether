@@ -4,6 +4,7 @@ import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetMeasurement
 import com.palixander.scalesync.domain.PetRepository
 import com.palixander.scalesync.domain.PetMeasurementNotFoundException
 import java.time.Clock
@@ -176,7 +177,9 @@ class PetHistoryStateOwner(
     fun showSavedMeasurement(saved: com.palixander.scalesync.domain.ManualWeightResult.Saved) {
         val date = saved.measuredAt.atZone(zoneId).toLocalDate()
         selection.update { current ->
-            if (date.isBefore(current.range.startDate) || date.isAfter(current.range.endDateInclusive)) {
+            if (current.rangePreset != ChartRangePreset.ALL &&
+                (date.isBefore(current.range.startDate) || date.isAfter(current.range.endDateInclusive))
+            ) {
                 current.copy(
                     range = ChartDateRange(
                         startDate = minOf(current.range.startDate, date),
@@ -255,7 +258,8 @@ class PetHistoryStateOwner(
 
     fun selectRangePreset(preset: ChartRangePreset) {
         if (preset == ChartRangePreset.CUSTOM) return
-        val range = requireNotNull(preset.rangeEndingOn(LocalDate.now(clock)))
+        val today = LocalDate.now(clock)
+        val range = preset.rangeEndingOn(today) ?: ChartDateRange(today, today)
         selection.update { it.copy(range = range, rangePreset = preset) }
     }
 
@@ -281,18 +285,23 @@ class PetHistoryStateOwner(
                 if (observedPet == null) {
                     current.notFoundState()
                 } else {
+                    val presentationRange = if (current.rangePreset == ChartRangePreset.ALL) {
+                        measurements.allHistoryRange(LocalDate.now(clock), zoneId)
+                    } else {
+                        current.range
+                    }
                     val (content, series) = petHistoryPresentation(
                         measurements = measurements,
-                        range = current.range,
+                        range = presentationRange,
                         zoneId = zoneId,
                         locale = locale,
                     )
-                    current.baseState().copy(
+                    current.baseState(presentationRange).copy(
                         pet = observedPet,
                         profileSummary = petProfileSummary(observedPet, breedCatalog),
                         content = content,
                         series = series,
-                        weightReference = referencePresenter.present(observedPet, current.range),
+                        weightReference = referencePresenter.present(observedPet, presentationRange),
                         breedReference = breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = breedReferencePresenter.presentTimeline(
                             observedPet,
@@ -314,10 +323,10 @@ class PetHistoryStateOwner(
         emit(current.baseState().copy(isLoading = false, errorMessage = error.message ?: "Не удалось загрузить историю"))
     }
 
-    private fun PetHistorySelection.baseState() = PetHistoryUiState(
+    private fun PetHistorySelection.baseState(displayRange: ChartDateRange = range) = PetHistoryUiState(
         petId = petId,
-        startDate = range.startDate,
-        endDateInclusive = range.endDateInclusive,
+        startDate = displayRange.startDate,
+        endDateInclusive = displayRange.endDateInclusive,
         rangePreset = rangePreset,
     )
 
@@ -327,4 +336,10 @@ class PetHistoryStateOwner(
         isLoading = false,
         isNotFound = true,
     )
+}
+
+private fun List<PetMeasurement>.allHistoryRange(today: LocalDate, zoneId: ZoneId): ChartDateRange {
+    if (isEmpty()) return ChartDateRange(today, today)
+    val dates = map { it.measuredAt.atZone(zoneId).toLocalDate() }
+    return ChartDateRange(dates.minOrNull() ?: today, dates.maxOrNull() ?: today)
 }
