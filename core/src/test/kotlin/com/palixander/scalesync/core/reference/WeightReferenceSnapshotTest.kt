@@ -45,7 +45,7 @@ class WeightReferenceSnapshotTest {
     fun `bundled DSH scope is sex-specific intact and age-limited`() {
         val scopes = WeightReferenceSnapshot.bundled().manifest.scopes.filter { it.species == ReferenceSpecies.CAT }
 
-        assertEquals(4, scopes.size)
+        assertEquals(4, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         val dsh = scopes.filter { it.breedId == "VBO:0100119" }
         assertEquals(2, dsh.size)
         assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
@@ -134,35 +134,29 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
-    fun `five target breeds can declare sex-specific typed unavailable scopes without profiles`() {
-        val root = bundledJson()
-        val scopes = root.getAsJsonObject("manifest").getAsJsonArray("scopes")
-        val sourceId = root.getAsJsonObject("manifest").getAsJsonArray("sources")[0].asJsonObject.get("id").asString
-        val breedIds = listOf("VBO:0100052", "VBO:0100209", "VBO:0100221", "VBO:0100154", "VBO:0100223")
-        breedIds.forEach { breedId ->
-            listOf("female", "male").forEach { sex ->
-                scopes.add(com.google.gson.JsonObject().apply {
-                    addProperty("id", "unavailable-$breedId-$sex")
-                    addProperty("species", "cat")
-                    addProperty("sex", sex)
-                    addProperty("basis", "breed")
-                    addProperty("breedId", breedId)
-                    addProperty("minimumAgeDays", 1)
-                    addProperty("maximumAgeDays", 2)
-                    add("constraints", com.google.gson.JsonArray().apply { add("Eligibility decision pending") })
-                    addProperty("sourceId", sourceId)
-                    addProperty("numericalAvailability", "not_reproducible_from_published_artifacts")
-                    addProperty("unavailabilityReason", "insufficient_age_series")
-                })
-            }
-        }
+    fun `bundled eligibility matrix rejects incompatible evidence for five target breeds and both sexes`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val expectedReasons = mapOf(
+            "VBO:0100052" to NumericalUnavailabilityReason.UNSUPPORTED_STATISTIC,
+            "VBO:0100209" to NumericalUnavailabilityReason.UNSUPPORTED_STATISTIC,
+            "VBO:0100221" to NumericalUnavailabilityReason.MIXED_BREED_GROUP,
+            "VBO:0100154" to NumericalUnavailabilityReason.UNSUPPORTED_STATISTIC,
+            "VBO:0100223" to NumericalUnavailabilityReason.INSUFFICIENT_AGE_SERIES,
+        )
+        val targetScopes = snapshot.manifest.scopes.filter { it.breedId in expectedReasons.keys }
 
-        val snapshot = WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
-        val targetScopes = snapshot.manifest.scopes.filter { it.breedId in breedIds }
-
+        assertEquals("2026-09-06.1", snapshot.manifest.snapshotVersion)
         assertEquals(10, targetScopes.size)
-        assertTrue(targetScopes.all { it.unavailabilityReason == NumericalUnavailabilityReason.INSUFFICIENT_AGE_SERIES })
-        assertTrue(targetScopes.none { scope -> snapshot.profiles.any { it.id == scope.id } })
+        expectedReasons.forEach { (breedId, reason) ->
+            val breedScopes = targetScopes.filter { it.breedId == breedId }
+            assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), breedScopes.map { it.sex }.toSet())
+            assertTrue(breedScopes.all { it.numericalAvailability == NumericalAvailability.NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS })
+            assertTrue(breedScopes.all { it.unavailabilityReason == reason })
+            assertTrue(breedScopes.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
+            assertTrue(breedScopes.all { it.sourceId == null })
+            assertTrue(breedScopes.all { scope -> snapshot.profiles.none { it.id == scope.id } })
+        }
+        assertTrue(snapshot.manifest.sources.none { source -> "Kienzle" in source.citation || "TICA" in source.citation })
     }
 
     @Test

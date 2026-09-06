@@ -1,8 +1,8 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026-08-31.1",
-    "snapshotDate": "2026-08-31",
+    "snapshotVersion": "2026-09-06.1",
+    "snapshotDate": "2026-09-06",
     "numericalDataSha256": "7da4e3db2d4eef3b991d9ca6520c8609a4dec4fae904603eb287297926aaf22b",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
@@ -272,6 +272,166 @@
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-british-shorthair-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100052",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
+          "British birth observations do not distinguish British Shorthair from British Longhair"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-british-shorthair-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100052",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
+          "British birth observations do not distinguish British Shorthair from British Longhair"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-scottish-fold-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100209",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Adult observations report mean plus SD for only four females; SD is not a reference boundary",
+          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-scottish-fold-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100209",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Adult observations report mean plus SD for only three males; SD is not a reference boundary",
+          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-siamese-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100221",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
+          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "mixed_breed_group"
+      },
+      {
+        "id": "cat-siamese-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100221",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
+          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "mixed_breed_group"
+      },
+      {
+        "id": "cat-maine-coon-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100154",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Published birth, day 28, day 84, and adult values are means with SD; mean is not a median and SD is not a boundary",
+          "Later growth is graphical or relative only, and TICA typical ranges are not measured percentiles"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-maine-coon-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100154",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Published birth, day 28, day 84, and adult values are means with SD; mean is not a median and SD is not a boundary",
+          "Later growth is graphical or relative only, and TICA typical ranges are not measured percentiles"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-siberian-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100223",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Only a combined-sex birth mean plus SD and a small adult mean plus SD are published",
+          "No sex-specific juvenile age series exists and TICA publishes no numerical weight range"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "insufficient_age_series"
+      },
+      {
+        "id": "cat-siberian-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100223",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Only a combined-sex birth mean plus SD and a small adult mean plus SD are published",
+          "No sex-specific juvenile age series exists and TICA publishes no numerical weight range"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "insufficient_age_series"
       }
     ]
   },

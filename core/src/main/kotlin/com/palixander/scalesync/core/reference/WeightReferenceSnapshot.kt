@@ -49,7 +49,7 @@ data class ReferenceScope(
     val minimumAgeDays: Int,
     val maximumAgeDays: Int,
     val constraints: List<String>,
-    val sourceId: String,
+    val sourceId: String?,
     val numericalAvailability: NumericalAvailability,
     val ageAvailability: ReferenceAgeAvailability = ReferenceAgeAvailability.CARRY_FORWARD,
     val unavailabilityReason: NumericalUnavailabilityReason? = null,
@@ -193,7 +193,11 @@ class WeightReferenceSnapshot private constructor(
     }
 
     private fun validateScope(scope: ReferenceScope, sources: Map<String, ReferenceSource>, breeds: BreedCatalog) {
-        require(scope.sourceId in sources) { "Unknown source in scope ${scope.id}" }
+        if (scope.numericalAvailability == NumericalAvailability.AVAILABLE) {
+            require(scope.sourceId != null && scope.sourceId in sources) { "Available scope ${scope.id} requires a known source" }
+        } else {
+            require(scope.sourceId == null || scope.sourceId in sources) { "Unknown source in scope ${scope.id}" }
+        }
         require(scope.minimumAgeDays > 0 && scope.maximumAgeDays > scope.minimumAgeDays) { "Invalid age range in scope ${scope.id}" }
         require(scope.constraints.isNotEmpty() && scope.constraints.none(String::isBlank)) { "Scope ${scope.id} requires constraints" }
         when (scope.numericalAvailability) {
@@ -252,7 +256,7 @@ private data class ManifestJson(val schemaVersion: Int, val snapshotVersion: Str
 private data class SourceJson(val id: String, val citation: String, val publicationDoi: String, val dataDoi: String, val dataUrl: String, val upstreamArtifactSha256: String, val license: String, val licenseUrl: String, val correctionDoi: String?, val derivedArtifact: String?, val derivedArtifactSha256: String?, val derivationSoftware: String?) {
     fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware)
 }
-private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
+private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String?, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
     fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, unavailabilityReason?.let(::enumValue))
 }
 private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val referenceKind: String, val minimumBinN: Int, val points: List<PointJson>, val ageAvailability: String?) {
