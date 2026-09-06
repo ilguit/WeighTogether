@@ -254,7 +254,7 @@ Canin и породные таблицы сайтов заводчиков та�
    печатная p. 118 (PDF p. 125). Это тезисы конференции, не полнотекстовая
    рецензируемая статья.
 8. TICA: официальный [сборник стандартов
-   пород](https://tica.org/wp-content/uploads/2025/05/AllBreedStandards1.pdf),
+   пород](https://tica.org/wp-content/uploads/2025/04/MaineCoonMCP.pdf),
    стандарт Maine Coon, раздел `General Description` (полная зрелость в 4–5
    лет); отдельные породные страницы [British
    Shorthair](https://tica.org/breed/british-shorthair/),
