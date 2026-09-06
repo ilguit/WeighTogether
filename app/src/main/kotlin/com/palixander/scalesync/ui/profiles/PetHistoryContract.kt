@@ -162,7 +162,14 @@ class PetHistoryReferencePresenter(
             )
         }
 
-        val dated = referenceSampleDates(range, pet, snapshot).map { date ->
+        val sampleDates = referenceSampleDates(range, pet, snapshot)
+        if (sampleDates.isEmpty()) {
+            val profileId = (endResolution as? PetWeightReferenceResolution.Available)
+                ?.reference?.profileId ?: "unknown"
+            val reason = WeightReferenceUnavailableReason.ProfileUnavailable(profileId)
+            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
+        }
+        val dated = sampleDates.map { date ->
             date to if (date == range.endDateInclusive) endResolution else resolve(pet, date)
         }
 
@@ -279,6 +286,11 @@ internal fun referenceSampleDates(
     val semanticDates = if (pet == null || snapshot == null) emptySet() else {
         referenceSemanticDates(pet, snapshot, range)
     }
+    // Every semantic date is needed to preserve a published point or a gap boundary. If a future
+    // valid snapshot cannot fit those dates, omit the overlay instead of throwing or drawing a
+    // misleading line. A valid range itself is never empty, so [] is an unambiguous fail-closed
+    // signal to the presenter.
+    if (semanticDates.size > MAX_REFERENCE_CHART_SAMPLES) return emptyList()
     val remaining = (MAX_REFERENCE_CHART_SAMPLES - semanticDates.size).coerceAtLeast(2)
     val sampled = List(remaining) { index ->
         val offset = spanDays * index / (remaining - 1)
@@ -349,9 +361,6 @@ private fun LocalDate.safePlusDays(days: Long): LocalDate? = runCatching { plusD
 
 private fun List<LocalDate>.takeBoundedPreservingSemantic(semantic: Set<LocalDate>): List<LocalDate> {
     if (size <= MAX_REFERENCE_CHART_SAMPLES) return this
-    // Current validated snapshots fit all semantic boundaries. Fail closed if a future snapshot
-    // exceeds the chart contract rather than silently bridging an unrepresented data gap.
-    require(semantic.size <= MAX_REFERENCE_CHART_SAMPLES) { "Reference boundaries exceed chart capacity" }
     val sampled = filterNot(semantic::contains)
     val slots = MAX_REFERENCE_CHART_SAMPLES - semantic.size
     val retained = if (slots <= 0) emptyList() else List(slots) { index ->

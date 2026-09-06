@@ -1,7 +1,11 @@
 package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.charts.ChartDateRange
+import com.google.gson.JsonArray
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetId
@@ -9,11 +13,15 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
 import java.time.Instant
 import java.time.LocalDate
+import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -118,6 +126,24 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `future snapshot exceeding semantic date capacity omits overlay without throwing`() {
+        val snapshot = snapshotWithDailyDogProfile(pointCount = MAX_REFERENCE_CHART_SAMPLES + 1)
+        val customPresenter = PetHistoryReferencePresenter(
+            resolver = PetWeightReferenceResolver(snapshot),
+            snapshot = snapshot,
+        )
+        val birth = LocalDate.of(2025, 1, 1)
+
+        val result = customPresenter.present(
+            dog(PartialBirthDate.Day(birth)),
+            ChartDateRange(LocalDate.of(1800, 1, 1), birth.plusDays(730)),
+        ) as PetHistoryWeightReference.Unavailable
+
+        assertEquals(WeightReferenceUnavailableReason.ProfileUnavailable("dog-male-III"), result.reason)
+        assertTrue(result.explanation.contains("dog-male-III"))
+    }
+
+    @Test
     fun `unavailable presentation retains typed reason and concrete explanation`() {
         val date = LocalDate.of(2025, 1, 15)
         val pet = dog(PartialBirthDate.Day(date.minusDays(100))).copy(sex = null)
@@ -187,4 +213,30 @@ class PetHistoryReferencePresenterTest {
         birthDate = birthDate,
         dogAdultWeightCategory = DogAdultWeightCategory.III,
     )
+
+    private fun snapshotWithDailyDogProfile(pointCount: Int): WeightReferenceSnapshot {
+        val root = JsonParser.parseReader(
+            javaClass.classLoader!!.getResourceAsStream(WeightReferenceSnapshot.RESOURCE_PATH)!!
+                .bufferedReader(),
+        ).asJsonObject
+        val profile = root.getAsJsonArray("profiles")
+            .first { it.asJsonObject.get("id").asString == "dog-male-III" }.asJsonObject
+        profile.add("points", JsonArray().apply {
+            repeat(pointCount) { index ->
+                add(JsonObject().apply {
+                    addProperty("ageDays", 84 + index)
+                    addProperty("lowerKg", 8.0)
+                    addProperty("medianKg", 10.0)
+                    addProperty("upperKg", 12.0)
+                })
+            }
+        })
+        val canonicalProfiles = root.getAsJsonArray("profiles").toString().toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalProfiles)
+            .joinToString("") { "%02x".format(Locale.ROOT, it) }
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
+        return WeightReferenceSnapshot.load(streamProvider = {
+            ByteArrayInputStream(root.toString().toByteArray())
+        })
+    }
 }
