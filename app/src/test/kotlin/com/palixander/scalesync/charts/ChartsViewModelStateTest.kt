@@ -6,6 +6,7 @@ import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -79,6 +80,26 @@ class ChartsViewModelStateTest {
         assertEquals(ChartRangePreset.CUSTOM, result.rangePreset)
         assertEquals(today.minusDays(7), result.startDate)
         assertEquals(today.minusDays(1), result.endDateInclusive)
+    }
+
+    @Test
+    fun `future capped shift keeps current preset unchanged`() {
+        val state = initial()
+
+        val result = state.shiftDateWindowByDays(days = 1, today = today)
+
+        assertSame(state, result)
+        assertEquals(ChartRangePreset.LAST_7_DAYS, result.rangePreset)
+    }
+
+    @Test
+    fun `zero day shift keeps custom state unchanged`() {
+        val state = initial().confirmCustomDateRange(
+            LocalDate.of(2026, 8, 1),
+            LocalDate.of(2026, 8, 7),
+        )
+
+        assertSame(state, state.shiftDateWindowByDays(days = 0, today = today))
     }
 
     @Test

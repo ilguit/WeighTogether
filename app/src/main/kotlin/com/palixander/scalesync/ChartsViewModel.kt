@@ -54,6 +54,8 @@ internal data class ChartFilters(
             else -> startEpochDay + days
         }.coerceIn(LocalDate.MIN.toEpochDay(), latestStartEpochDay)
 
+        if (shiftedStartEpochDay == startEpochDay) return this
+
         return copy(
             startDate = LocalDate.ofEpochDay(shiftedStartEpochDay),
             endDateInclusive = LocalDate.ofEpochDay(shiftedStartEpochDay + windowLengthMinusOne),
