@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -36,12 +37,31 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun everyLegacyVersionIsUnsupported() {
-        val current = codec.encode(document())
+    fun everyLegacyVersionImportsKnownHuaweiFieldsWithoutKeepingThem() {
         for (version in 1..5) {
-            assertThrows(BackupException::class.java) {
-                codec.decode(current.replace("\"schemaVersion\":6", "\"schemaVersion\":$version"))
-            }
+            val decoded = codec.decode(legacyJson(version))
+
+            assertEquals(version, decoded.schemaVersion)
+            assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+            assertEquals("health error", decoded.measurements.single().healthConnectError)
+            assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+            assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            assertEquals(listOf("weight", "bmi"), decoded.settings.selectedChartMetricKeys)
+            assertEquals("Legacy account", decoded.accounts.single().displayName)
+            if (version >= 2) assertEquals("Legacy pet", decoded.pets.single().displayName)
+            assertTrue(!codec.encode(decoded.copy(schemaVersion = BACKUP_SCHEMA_VERSION)).contains("huawei", ignoreCase = true))
+        }
+    }
+
+    @Test
+    fun realisticV5HuaweiFieldsRemainStrictlyTypedAndUnknownFieldsAreRejected() {
+        val legacy = legacyJson(5)
+
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(legacy.replace("\"huaweiWeightSynced\":true", "\"huaweiWeightSynced\":\"true\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(legacy.replace("\"huaweiStatus\":\"FAILED\"", "\"huaweiStatus\":\"FAILED\",\"huaweiFuture\":false"))
         }
     }
 
@@ -289,4 +309,48 @@ class BackupJsonCodecTest {
         ),
         settings = BackupSettingsV1("AA:BB", "Весы", true, emptyList(), emptyList()),
     )
+
+    private fun legacyJson(version: Int): String {
+        val root = JsonParser.parseString(codec.encode(document("Legacy account").copy(
+            settings = BackupSettingsV1("AA:BB", "Legacy scale", true, listOf("weight", "bmi"), listOf("weight")),
+            pets = listOf(BackupPetV2("pet", "Legacy pet", "legacy pet", PetSpecies.CAT, 5, 6)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "pet", 7, 75.0, 70.0, 5.0)),
+            measurements = listOf(document().measurements.single().copy(
+                healthConnectStatus = SyncStatus.SYNCED,
+                healthConnectError = "health error",
+                healthConnectWeightSynced = true,
+                healthConnectSyncedCalculatedValues = "health-values",
+            )),
+        ))).asJsonObject
+        root.addProperty("schemaVersion", version)
+        root.getAsJsonArray("measurements").forEach { element ->
+            element.asJsonObject.apply {
+                addProperty("huaweiStatus", "FAILED")
+                addProperty("huaweiError", "retired service error")
+                addProperty("huaweiWeightSynced", true)
+                addProperty("huaweiSyncedCalculatedValues", "retired-values")
+                if (version < 5) remove("origin")
+                if (version < 3) {
+                    remove("ratingHeightCm")
+                    remove("ratingHeightOrigin")
+                }
+            }
+        }
+        if (version == 1) {
+            root.remove("pets")
+            root.remove("petMeasurements")
+        } else {
+            root.getAsJsonArray("petMeasurements").forEach { element ->
+                element.asJsonObject.remove("isManuallyEdited")
+                if (version < 5) element.asJsonObject.remove("origin")
+            }
+            if (version < 4) {
+                root.getAsJsonArray("pets").forEach { element ->
+                    listOf("sex", "breedId", "birthYear", "birthMonth", "birthDay", "dogAdultWeightCategory")
+                        .forEach(element.asJsonObject::remove)
+                }
+            }
+        }
+        return root.toString()
+    }
 }

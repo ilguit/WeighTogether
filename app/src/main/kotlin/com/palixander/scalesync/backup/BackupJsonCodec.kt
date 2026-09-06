@@ -69,6 +69,11 @@ class BackupJsonCodec(
         val supportedVersion = requireNotNull(version)
 
         checkShape(root, supportedVersion)
+        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+            root.array("measurements").forEach { element ->
+                LEGACY_HUAWEI_MEASUREMENT_KEYS.forEach(element.asJsonObject::remove)
+            }
+        }
         if (supportedVersion == BACKUP_SCHEMA_VERSION_V1) {
             root.add("pets", com.google.gson.JsonArray())
             root.add("petMeasurements", com.google.gson.JsonArray())
@@ -469,6 +474,9 @@ class BackupJsonCodec(
         )
         val MEASUREMENT_KEYS_V3 = MEASUREMENT_KEYS_V1_V2 + setOf("ratingHeightCm", "ratingHeightOrigin")
         val MEASUREMENT_KEYS_CURRENT = MEASUREMENT_KEYS_V3 - setOf(
+            "huaweiStatus", "huaweiError", "huaweiWeightSynced", "huaweiSyncedCalculatedValues",
+        )
+        val LEGACY_HUAWEI_MEASUREMENT_KEYS = setOf(
             "huaweiStatus", "huaweiError", "huaweiWeightSynced", "huaweiSyncedCalculatedValues",
         )
         val MEASUREMENT_STRING_KEYS_LEGACY = setOf("id", "fingerprint", "measurementType", "deviceAddress", "rawPayloadHex", "huaweiStatus", "healthConnectStatus", "accountId", "externalSyncPolicy")
