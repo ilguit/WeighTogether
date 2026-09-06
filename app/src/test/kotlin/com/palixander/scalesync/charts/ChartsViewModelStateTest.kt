@@ -17,6 +17,71 @@ class ChartsViewModelStateTest {
     )
 
     @Test
+    fun `date window shifts in both directions by exact calendar days`() {
+        val state = initial().confirmCustomDateRange(
+            LocalDate.of(2026, 2, 27),
+            LocalDate.of(2026, 3, 5),
+        )
+
+        val earlier = state.shiftDateWindowByDays(days = -7, today = today)
+        val later = earlier.shiftDateWindowByDays(days = 7, today = today)
+
+        assertEquals(LocalDate.of(2026, 2, 20), earlier.startDate)
+        assertEquals(LocalDate.of(2026, 2, 26), earlier.endDateInclusive)
+        assertEquals(state.startDate, later.startDate)
+        assertEquals(state.endDateInclusive, later.endDateInclusive)
+    }
+
+    @Test
+    fun `date window keeps exact inclusive duration`() {
+        val state = initial().confirmCustomDateRange(
+            LocalDate.of(2024, 2, 28),
+            LocalDate.of(2024, 3, 1),
+        )
+
+        val result = state.shiftDateWindowByDays(days = 365, today = today)
+
+        assertEquals(LocalDate.of(2025, 2, 27), result.startDate)
+        assertEquals(LocalDate.of(2025, 3, 1), result.endDateInclusive)
+        assertEquals(2L, result.endDateInclusive.toEpochDay() - result.startDate.toEpochDay())
+    }
+
+    @Test
+    fun `future shift caps at supplied today and keeps duration`() {
+        val state = initial().confirmCustomDateRange(
+            LocalDate.of(2026, 8, 1),
+            LocalDate.of(2026, 8, 7),
+        )
+
+        val result = state.shiftDateWindowByDays(days = 30, today = today)
+
+        assertEquals(LocalDate.of(2026, 8, 9), result.startDate)
+        assertEquals(today, result.endDateInclusive)
+    }
+
+    @Test
+    fun `large shifts saturate at supported past and supplied today`() {
+        val state = initial()
+
+        val earliest = state.shiftDateWindowByDays(days = Long.MIN_VALUE, today = today)
+        val latest = earliest.shiftDateWindowByDays(days = Long.MAX_VALUE, today = today)
+
+        assertEquals(LocalDate.MIN, earliest.startDate)
+        assertEquals(LocalDate.MIN.plusDays(6), earliest.endDateInclusive)
+        assertEquals(today.minusDays(6), latest.startDate)
+        assertEquals(today, latest.endDateInclusive)
+    }
+
+    @Test
+    fun `shifting preset window marks it custom`() {
+        val result = initial().shiftDateWindowByDays(days = -1, today = today)
+
+        assertEquals(ChartRangePreset.CUSTOM, result.rangePreset)
+        assertEquals(today.minusDays(7), result.startDate)
+        assertEquals(today.minusDays(1), result.endDateInclusive)
+    }
+
+    @Test
     fun `presets preserve identity and exact dates in ViewModel filter state`() {
         val expected = listOf(
             ChartRangePreset.LAST_30_DAYS to LocalDate.of(2026, 7, 17),
