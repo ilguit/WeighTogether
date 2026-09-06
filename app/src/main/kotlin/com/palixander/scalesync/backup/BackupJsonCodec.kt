@@ -127,11 +127,15 @@ class BackupJsonCodec(
                 val path = "$.measurements[$index]"
                 val expectedKeys = when {
                     version >= BACKUP_SCHEMA_VERSION -> MEASUREMENT_KEYS_CURRENT + "origin"
-                    version >= BACKUP_SCHEMA_VERSION_V5 -> MEASUREMENT_KEYS_V3 + "origin"
-                    version >= BACKUP_SCHEMA_VERSION_V3 -> MEASUREMENT_KEYS_V3
-                    else -> MEASUREMENT_KEYS_V1_V2
+                    version >= BACKUP_SCHEMA_VERSION_V5 -> MEASUREMENT_KEYS_CURRENT + setOf("ratingHeightCm", "ratingHeightOrigin", "origin")
+                    version >= BACKUP_SCHEMA_VERSION_V3 -> MEASUREMENT_KEYS_CURRENT + setOf("ratingHeightCm", "ratingHeightOrigin")
+                    else -> MEASUREMENT_KEYS_CURRENT - setOf("ratingHeightCm", "ratingHeightOrigin")
                 }
-                requireKeys(path, expectedKeys)
+                if (version < BACKUP_SCHEMA_VERSION) {
+                    requireKeys(path, expectedKeys, LEGACY_HUAWEI_MEASUREMENT_KEYS)
+                } else {
+                    requireKeys(path, expectedKeys)
+                }
                 if (version < BACKUP_SCHEMA_VERSION) {
                     LEGACY_HUAWEI_MEASUREMENT_KEYS.forEach(::remove)
                 }
@@ -389,9 +393,13 @@ class BackupJsonCodec(
     }
 
     private fun JsonObject.requireKeys(path: String, expected: Set<String>) {
+        requireKeys(path, expected, emptySet())
+    }
+
+    private fun JsonObject.requireKeys(path: String, expected: Set<String>, optional: Set<String>) {
         val missing = expected - keySet()
         if (missing.isNotEmpty()) throw BackupException.Invalid(path, "missing ${missing.first()}")
-        val unknown = keySet() - expected
+        val unknown = keySet() - expected - optional
         if (unknown.isNotEmpty()) throw BackupException.Invalid(path, "unknown ${unknown.first()}")
     }
 
