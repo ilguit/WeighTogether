@@ -22,6 +22,9 @@ import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import com.palixander.scalesync.core.reference.ReferenceProfileMetadata
 import com.palixander.scalesync.core.reference.ReferenceKind
+import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
+import com.palixander.scalesync.core.reference.ReferenceSex
+import com.palixander.scalesync.core.reference.ReferenceSpecies
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.time.Clock
@@ -159,7 +162,7 @@ class PetHistoryReferencePresenter(
             )
         }
 
-        val dated = referenceSampleDates(range).map { date ->
+        val dated = referenceSampleDates(range, pet, snapshot).map { date ->
             date to if (date == range.endDateInclusive) endResolution else resolve(pet, date)
         }
 
@@ -263,16 +266,98 @@ class PetHistoryReferencePresenter(
 internal const val MAX_REFERENCE_CHART_SAMPLES = 512
 
 /** Daily for normal filters; evenly bounded for imported histories spanning many years. */
-internal fun referenceSampleDates(range: ChartDateRange): List<LocalDate> {
+internal fun referenceSampleDates(
+    range: ChartDateRange,
+    pet: Pet? = null,
+    snapshot: WeightReferenceSnapshot? = null,
+): List<LocalDate> {
     val spanDays = ChronoUnit.DAYS.between(range.startDate, range.endDateInclusive)
     val dayCount = spanDays + 1
     if (dayCount <= MAX_REFERENCE_CHART_SAMPLES) {
         return List(dayCount.toInt()) { offset -> range.startDate.plusDays(offset.toLong()) }
     }
-    return List(MAX_REFERENCE_CHART_SAMPLES) { index ->
-        val offset = spanDays * index / (MAX_REFERENCE_CHART_SAMPLES - 1)
+    val semanticDates = if (pet == null || snapshot == null) emptySet() else {
+        referenceSemanticDates(pet, snapshot, range)
+    }
+    val remaining = (MAX_REFERENCE_CHART_SAMPLES - semanticDates.size).coerceAtLeast(2)
+    val sampled = List(remaining) { index ->
+        val offset = spanDays * index / (remaining - 1)
         range.startDate.plusDays(offset)
-    }.distinct()
+    }
+    return (semanticDates + sampled).sorted().takeBoundedPreservingSemantic(semanticDates)
+}
+
+private fun referenceSemanticDates(
+    pet: Pet,
+    snapshot: WeightReferenceSnapshot,
+    range: ChartDateRange,
+): Set<LocalDate> {
+    val birthDate = pet.birthDate ?: return emptySet()
+    val births = when (birthDate) {
+        is com.palixander.scalesync.domain.PartialBirthDate.Day -> listOf(birthDate.value)
+        is com.palixander.scalesync.domain.PartialBirthDate.Month -> listOf(birthDate.value.atDay(1), birthDate.value.atEndOfMonth())
+        is com.palixander.scalesync.domain.PartialBirthDate.Year -> listOf(birthDate.value.atDay(1), birthDate.value.atMonth(12).atEndOfMonth())
+    }
+    val species = when (pet.species) {
+        com.palixander.scalesync.domain.PetSpecies.CAT -> ReferenceSpecies.CAT
+        com.palixander.scalesync.domain.PetSpecies.DOG -> ReferenceSpecies.DOG
+        com.palixander.scalesync.domain.PetSpecies.UNSPECIFIED -> return emptySet()
+    }
+    val sex = when (pet.sex) {
+        com.palixander.scalesync.domain.PetSex.FEMALE -> ReferenceSex.FEMALE
+        com.palixander.scalesync.domain.PetSex.MALE -> ReferenceSex.MALE
+        null -> return emptySet()
+    }
+    val profiles = snapshot.profiles.filter { profile ->
+        profile.species == species && profile.sex == sex && when (profile.basis) {
+            ReferenceBasis.BREED -> profile.breedId == pet.breedId?.value
+            ReferenceBasis.POPULATION -> species == ReferenceSpecies.CAT && profile.breedId == null
+            ReferenceBasis.WEIGHT_CATEGORY -> species == ReferenceSpecies.DOG &&
+                profile.weightCategory == pet.dogAdultWeightCategory?.name
+        }
+    }
+    return buildSet {
+        profiles.forEach { profile ->
+            val ages = buildSet {
+                profile.points.forEach { point -> add(point.ageDays) }
+                val scope = snapshot.manifest.scopes.singleOrNull { it.id == profile.id }
+                scope?.let { add(it.minimumAgeDays); add(it.maximumAgeDays) }
+            }
+            ages.forEach { age ->
+                val offsets = if (profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS) {
+                    listOf(-1, 0, 1)
+                } else {
+                    listOf(0)
+                }
+                births.forEach { birth -> offsets.forEach { delta ->
+                    birth.safePlusDays(age.toLong() + delta)?.takeIf { it in range.startDate..range.endDateInclusive }?.let(::add)
+                } }
+            }
+            val scope = snapshot.manifest.scopes.singleOrNull { it.id == profile.id }
+            scope?.let {
+                births.forEach { birth ->
+                    listOf(it.minimumAgeDays.toLong() - 1, it.maximumAgeDays.toLong() + 1).forEach { age ->
+                        birth.safePlusDays(age)?.takeIf { date -> date in range.startDate..range.endDateInclusive }?.let(::add)
+                    }
+                }
+            }
+        }
+    }
+}
+
+private fun LocalDate.safePlusDays(days: Long): LocalDate? = runCatching { plusDays(days) }.getOrNull()
+
+private fun List<LocalDate>.takeBoundedPreservingSemantic(semantic: Set<LocalDate>): List<LocalDate> {
+    if (size <= MAX_REFERENCE_CHART_SAMPLES) return this
+    // Current validated snapshots fit all semantic boundaries. Fail closed if a future snapshot
+    // exceeds the chart contract rather than silently bridging an unrepresented data gap.
+    require(semantic.size <= MAX_REFERENCE_CHART_SAMPLES) { "Reference boundaries exceed chart capacity" }
+    val sampled = filterNot(semantic::contains)
+    val slots = MAX_REFERENCE_CHART_SAMPLES - semantic.size
+    val retained = if (slots <= 0) emptyList() else List(slots) { index ->
+        sampled[index * (sampled.size - 1) / (slots - 1).coerceAtLeast(1)]
+    }
+    return (semantic + retained).sorted()
 }
 
 fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReason): String = when (reason) {
@@ -342,6 +427,7 @@ internal fun petHistoryPresentation(
     range: ChartDateRange,
     zoneId: ZoneId,
     locale: Locale,
+    includeAll: Boolean = false,
 ): Pair<PetHistoryContent, ChartSeries> {
     val epochRange = inclusiveDateRangeToEpochRange(
         range.startDate,
@@ -352,14 +438,16 @@ internal fun petHistoryPresentation(
     val endExclusive = java.time.Instant.ofEpochSecond(epochRange.endExclusiveEpochSecond)
     val ordered = measurements
         .asSequence()
-        .filter { !it.measuredAt.isBefore(start) && it.measuredAt.isBefore(endExclusive) }
+        .filter { includeAll || (!it.measuredAt.isBefore(start) && it.measuredAt.isBefore(endExclusive)) }
         .sortedWith(compareByDescending<PetMeasurement> { it.measuredAt }.thenByDescending { it.id })
         .toList()
     val rows = ordered.map { measurement ->
         PetHistoryMeasurementUi(
             id = measurement.id,
             measuredAtEpochSecond = measurement.measuredAt.epochSecond,
-            measuredAtText = formatMeasurementDateTime(measurement.measuredAt, zoneId, locale),
+            measuredAtText = runCatching {
+                formatMeasurementDateTime(measurement.measuredAt, zoneId, locale)
+            }.getOrElse { measurement.measuredAt.toString() },
             weightKg = measurement.petWeightKg,
             origin = measurement.origin,
             weightText = formatChartCurrentValue(measurement.petWeightKg, PetWeightChartMetric, locale),

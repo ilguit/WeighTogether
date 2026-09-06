@@ -82,6 +82,42 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `bounded full history includes interior reference window when endpoints are unavailable`() {
+        val birth = LocalDate.of(2025, 1, 1)
+        val pet = Pet(
+            id = PetId("cat"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100223"),
+        )
+        val range = ChartDateRange(LocalDate.of(1800, 1, 1), LocalDate.of(2500, 1, 1))
+
+        val result = presenter.present(pet, range) as PetHistoryWeightReference.Available
+        val dates = result.segments.flatten().map { it.date }
+
+        assertTrue(dates.size <= MAX_REFERENCE_CHART_SAMPLES)
+        assertTrue(birth in dates)
+        assertTrue(birth.plusDays(56) in dates)
+    }
+
+    @Test
+    fun `exact observation gap is not bridged by bounded sampling`() {
+        val birth = LocalDate.of(2025, 1, 1)
+        val pet = Pet(
+            id = PetId("cat"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100223"),
+        )
+
+        val result = presenter.present(
+            pet,
+            ChartDateRange(LocalDate.of(1800, 1, 1), LocalDate.of(2500, 1, 1)),
+        ) as PetHistoryWeightReference.Available
+
+        assertEquals(birth, result.segments.first().single().date)
+        assertEquals(birth.plusDays(56), result.segments[1].first().date)
+    }
+
+    @Test
     fun `unavailable presentation retains typed reason and concrete explanation`() {
         val date = LocalDate.of(2025, 1, 15)
         val pet = dog(PartialBirthDate.Day(date.minusDays(100))).copy(sex = null)

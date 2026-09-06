@@ -10,6 +10,7 @@ import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
@@ -200,7 +201,11 @@ fun inclusiveDateRangeToEpochRange(
     require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
     return MeasurementEpochRange(
         startInclusiveEpochSecond = startDate.atStartOfDay(zoneId).toEpochSecond(),
-        endExclusiveEpochSecond = endDateInclusive.plusDays(1).atStartOfDay(zoneId).toEpochSecond(),
+        endExclusiveEpochSecond = if (endDateInclusive == LocalDate.MAX) {
+            endDateInclusive.atTime(LocalTime.MAX).atZone(zoneId).toEpochSecond() + 1
+        } else {
+            endDateInclusive.plusDays(1).atStartOfDay(zoneId).toEpochSecond()
+        },
     )
 }
 

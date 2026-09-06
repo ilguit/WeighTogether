@@ -289,6 +289,25 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
+    fun `all presentation retains imported instants outside zoned local date range`() {
+        val ordinary = measurement("ordinary", luna.id, "2026-03-20T10:00:00Z", 4.25)
+        val extreme = ordinary.copy(id = "extreme", measuredAt = java.time.Instant.MAX)
+
+        val (content, series) = petHistoryPresentation(
+            listOf(ordinary, extreme),
+            ChartDateRange(LocalDate.of(2026, 3, 20), LocalDate.MAX),
+            ZoneOffset.UTC,
+            Locale.US,
+            includeAll = true,
+        )
+
+        val rows = (content as PetHistoryContent.Multiple).measurements
+        assertEquals(listOf("extreme", "ordinary"), rows.map { it.id })
+        assertEquals(2, series.points.size)
+        assertTrue(rows.first().measuredAtText.isNotBlank())
+    }
+
+    @Test
     fun `range uses local calendar boundaries across DST`() {
         val range = ChartDateRange(LocalDate.of(2026, 3, 29), LocalDate.of(2026, 3, 29))
         val includedAtStart = measurement("start", luna.id, "2026-03-28T23:00:00Z", 4.0)

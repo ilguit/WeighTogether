@@ -148,6 +148,13 @@ class ChartsContractTest {
     }
 
     @Test
+    fun `maximum local date has an overflow safe exclusive endpoint`() {
+        val range = inclusiveDateRangeToEpochRange(LocalDate.MAX, LocalDate.MAX, ZoneId.of("UTC"))
+
+        assertTrue(range.endExclusiveEpochSecond > range.startInclusiveEpochSecond)
+    }
+
+    @Test
     fun `multi day x range includes the complete final date`() {
         val zone = ZoneId.of("Europe/Berlin")
         val startDate = LocalDate.of(2026, 8, 10)

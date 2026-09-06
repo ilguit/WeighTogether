@@ -295,6 +295,7 @@ class PetHistoryStateOwner(
                         range = presentationRange,
                         zoneId = zoneId,
                         locale = locale,
+                        includeAll = current.rangePreset == ChartRangePreset.ALL,
                     )
                     current.baseState(presentationRange).copy(
                         pet = observedPet,
@@ -340,6 +341,10 @@ class PetHistoryStateOwner(
 
 private fun List<PetMeasurement>.allHistoryRange(today: LocalDate, zoneId: ZoneId): ChartDateRange {
     if (isEmpty()) return ChartDateRange(today, today)
-    val dates = map { it.measuredAt.atZone(zoneId).toLocalDate() }
+    val dates = map { measurement ->
+        runCatching { measurement.measuredAt.atZone(zoneId).toLocalDate() }.getOrElse {
+            if (measurement.measuredAt.isBefore(java.time.Instant.EPOCH)) LocalDate.MIN else LocalDate.MAX
+        }
+    }
     return ChartDateRange(dates.minOrNull() ?: today, dates.maxOrNull() ?: today)
 }
