@@ -1,7 +1,8 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -38,8 +39,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -532,7 +535,62 @@ internal fun MetricChartCard(
     val average = remember(statistics?.average, series.metric) {
         formatChartStatistic(statistics?.average, series.metric)
     }
-    HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
+    val currentShiftCallback by rememberUpdatedState(onShiftDateWindowByDays)
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(MetricChartTestTags.PanArea)
+            .pointerInput(startDate, endDateInclusive) {
+                awaitEachGesture {
+                    val down = awaitFirstDown(
+                        requireUnconsumed = false,
+                        pass = PointerEventPass.Initial,
+                    )
+                    val pointerId = down.id
+                    val startPosition = down.position
+                    var horizontalPan = false
+                    var disqualified = false
+                    var dragDistance = 0f
+
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Initial)
+                        if (event.changes.size > 1) disqualified = true
+                        val change = event.changes.firstOrNull { it.id == pointerId } ?: break
+                        if (!change.pressed) {
+                            if (horizontalPan && !disqualified) {
+                                shiftChartWindowForDrag(
+                                    dragDistancePx = dragDistance,
+                                    chartWidthPx = size.width.toFloat(),
+                                    startDate = startDate,
+                                    endDateInclusive = endDateInclusive,
+                                    onShiftDateWindowByDays = currentShiftCallback,
+                                )
+                            }
+                            break
+                        }
+
+                        val offset = change.position - startPosition
+                        if (!horizontalPan && !disqualified) {
+                            val horizontalDistance = abs(offset.x)
+                            val verticalDistance = abs(offset.y)
+                            if (verticalDistance > viewConfiguration.touchSlop &&
+                                verticalDistance >= horizontalDistance
+                            ) {
+                                disqualified = true
+                            } else if (horizontalDistance > viewConfiguration.touchSlop &&
+                                horizontalDistance > verticalDistance
+                            ) {
+                                horizontalPan = true
+                            }
+                        }
+                        if (horizontalPan && !disqualified) {
+                            dragDistance = offset.x
+                            change.consume()
+                        }
+                    }
+                }
+            },
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -605,7 +663,6 @@ internal fun MetricChartCard(
                             append("Последнее значение: $currentValue. ")
                             append("Изменение к предыдущему: $delta")
                         },
-                        onShiftDateWindowByDays = onShiftDateWindowByDays,
                         modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                     )
                 }
@@ -615,6 +672,7 @@ internal fun MetricChartCard(
 }
 
 object MetricChartTestTags {
+    const val PanArea = "metric-chart-pan-area"
     const val ChartHost = "metric-chart-host"
     const val InsufficientInterval = "metric-chart-insufficient-interval"
 }
@@ -649,7 +707,6 @@ internal fun MetricLineChart(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
-    onShiftDateWindowByDays: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
@@ -737,33 +794,8 @@ internal fun MetricLineChart(
         modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
-            .pointerInput(startDate, endDateInclusive, onShiftDateWindowByDays) {
-                var dragDistance = 0f
-                var dragStartX = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { start ->
-                        dragStartX = start.x
-                        dragDistance = 0f
-                    },
-                    onHorizontalDrag = { change, _ ->
-                        change.consume()
-                        dragDistance = change.position.x - dragStartX
-                    },
-                    onDragCancel = { dragDistance = 0f },
-                    onDragEnd = {
-                        shiftChartWindowForDrag(
-                            dragDistancePx = dragDistance,
-                            chartWidthPx = size.width.toFloat(),
-                            startDate = startDate,
-                            endDateInclusive = endDateInclusive,
-                            onShiftDateWindowByDays = onShiftDateWindowByDays,
-                        )
-                        dragDistance = 0f
-                    },
-                )
-            }
             .semantics { this.contentDescription = contentDescription },
-        // Date-window panning is owned by the gesture handler above. Keeping Vico scrolling
+        // Date-window panning is owned by MetricChartCard. Keeping Vico scrolling
         // disabled prevents the same horizontal drag from driving two independent pan paths.
         scrollState = rememberVicoScrollState(scrollEnabled = false),
         zoomState = zoomState,
