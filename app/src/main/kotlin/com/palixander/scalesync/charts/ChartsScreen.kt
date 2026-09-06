@@ -170,6 +170,7 @@ fun ChartsScreen(
                         endDateInclusive = state.endDateInclusive,
                         zoneId = zoneId,
                         onShiftDateWindowByDays = callbacks.shiftDateWindowByDays,
+                        today = state.currentDate,
                     )
                 }
             }
@@ -630,7 +631,11 @@ internal fun MetricChartCard(
                     contentDescription = "Следующий период",
                     onClick = { onShiftDateWindowByDays(windowLengthDays) },
                     modifier = Modifier.testTag(MetricChartTestTags.NextPeriod),
-                    enabled = endDateInclusive.isBefore(today),
+                    enabled = canShiftChartWindowForward(
+                        startDate = startDate,
+                        endDateInclusive = endDateInclusive,
+                        today = today,
+                    ),
                 )
             }
         }
@@ -773,6 +778,13 @@ internal fun chartWindowLengthDays(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
 ): Long = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
+
+internal fun canShiftChartWindowForward(
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    today: LocalDate,
+): Boolean = endDateInclusive.toEpochDay() <=
+    today.toEpochDay() - chartWindowLengthDays(startDate, endDateInclusive)
 
 private fun rangeLabel(
     preset: ChartRangePreset,

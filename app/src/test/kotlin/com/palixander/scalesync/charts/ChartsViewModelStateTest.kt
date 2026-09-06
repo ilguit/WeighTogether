@@ -48,7 +48,7 @@ class ChartsViewModelStateTest {
     }
 
     @Test
-    fun `future shift caps at supplied today and keeps duration`() {
+    fun `future shift is rejected when the complete window does not fit`() {
         val state = initial().confirmCustomDateRange(
             LocalDate.of(2026, 8, 1),
             LocalDate.of(2026, 8, 7),
@@ -56,8 +56,7 @@ class ChartsViewModelStateTest {
 
         val result = state.shiftDateWindowByDays(days = 30, today = today)
 
-        assertEquals(LocalDate.of(2026, 8, 9), result.startDate)
-        assertEquals(today, result.endDateInclusive)
+        assertSame(state, result)
     }
 
     @Test
@@ -65,7 +64,10 @@ class ChartsViewModelStateTest {
         val state = initial()
 
         val earliest = state.shiftDateWindowByDays(days = Long.MIN_VALUE, today = today)
-        val latest = earliest.shiftDateWindowByDays(days = Long.MAX_VALUE, today = today)
+        val latest = earliest.shiftDateWindowByDays(
+            days = today.minusDays(6).toEpochDay() - LocalDate.MIN.toEpochDay(),
+            today = today,
+        )
 
         assertEquals(LocalDate.MIN, earliest.startDate)
         assertEquals(LocalDate.MIN.plusDays(6), earliest.endDateInclusive)

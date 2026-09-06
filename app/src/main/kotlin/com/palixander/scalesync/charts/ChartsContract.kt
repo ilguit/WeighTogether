@@ -116,6 +116,7 @@ data class ChartStatistics(
 data class ChartsUiState(
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
+    val currentDate: LocalDate,
     val metricOptions: List<ChartMetricOption>,
     val selectedMetricKeys: Set<String>,
     val series: List<ChartSeries>,
@@ -148,6 +149,7 @@ data class ChartsUiState(
             return ChartsUiState(
                 startDate = range.startDate,
                 endDateInclusive = range.endDateInclusive,
+                currentDate = today,
                 metricOptions = metricOptions,
                 selectedMetricKeys = defaultMetricKeys,
                 series = emptyList(),

@@ -338,6 +338,7 @@ class ChartsScreenTest {
     ): ChartsUiState = ChartsUiState(
         startDate = LocalDate.of(2026, 8, 9),
         endDateInclusive = FixedToday,
+        currentDate = FixedToday,
         metricOptions = chartMetricOptions(),
         selectedMetricKeys = selectedMetricKeys,
         series = emptyList(),

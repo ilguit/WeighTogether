@@ -115,6 +115,19 @@ class ChartVisualComponentsTest {
     }
 
     @Test
+    fun nextPeriodButtonIsDisabledWhenOnlyPartOfWindowFitsBeforeToday() {
+        setInteractiveChartContent(
+            endDate = LocalDate.of(2026, 8, 15),
+            today = LocalDate.of(2026, 8, 20),
+            onShiftDateWindowByDays = {},
+        )
+
+        composeRule.onNodeWithTag(MetricChartTestTags.NextPeriod)
+            .assertIsDisplayed()
+            .assertIsNotEnabled()
+    }
+
+    @Test
     fun periodButtonsAreAvailableForInsufficientSeries() {
         val shifts = mutableListOf<Long>()
         val date = LocalDate.of(2026, 8, 12)
@@ -147,7 +160,7 @@ class ChartVisualComponentsTest {
     private fun setInteractiveChartContent(
         points: List<ChartPoint>? = null,
         endDate: LocalDate = LocalDate.of(2026, 8, 15),
-        today: LocalDate = LocalDate.of(2026, 8, 20),
+        today: LocalDate = LocalDate.of(2026, 8, 22),
         onShiftDateWindowByDays: (Long) -> Unit,
     ) {
         val startDate = LocalDate.of(2026, 8, 9)
