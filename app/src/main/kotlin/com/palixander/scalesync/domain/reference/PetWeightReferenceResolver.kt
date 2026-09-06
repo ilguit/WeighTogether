@@ -195,10 +195,11 @@ class PetWeightReferenceResolver(
         }
         val supportedMinimum = profile.points.first().ageDays
         val scope = snapshot.manifest.scopes.single { it.id == profile.id }
-        val supportedMaximum = if (profile.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY) {
-            scope.maximumAgeDays
-        } else {
-            Int.MAX_VALUE
+        val supportedMaximum = when (profile.ageAvailability) {
+            ReferenceAgeAvailability.CARRY_FORWARD -> Int.MAX_VALUE
+            ReferenceAgeAvailability.DECLARED_RANGE_ONLY,
+            ReferenceAgeAvailability.EXACT_OBSERVATIONS,
+            -> scope.maximumAgeDays
         }
         if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
             return unavailable(
