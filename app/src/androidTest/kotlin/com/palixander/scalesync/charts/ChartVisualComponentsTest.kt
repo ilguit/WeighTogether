@@ -1,8 +1,6 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -86,7 +84,7 @@ class ChartVisualComponentsTest {
         val shifts = mutableListOf<Long>()
         setInteractiveChartContent(onShiftDateWindowByDays = shifts::add)
 
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).performTouchInput { swipeLeft() }
+        composeRule.onNodeWithTag(MetricChartTestTags.PanArea).performTouchInput { swipeLeft() }
 
         composeRule.runOnIdle {
             assertEquals(1, shifts.size)
@@ -99,29 +97,64 @@ class ChartVisualComponentsTest {
         val shifts = mutableListOf<Long>()
         setInteractiveChartContent(onShiftDateWindowByDays = shifts::add)
 
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).performTouchInput { swipeUp() }
+        composeRule.onNodeWithTag(MetricChartTestTags.PanArea).performTouchInput { swipeUp() }
 
         composeRule.runOnIdle { assertTrue(shifts.isEmpty()) }
     }
 
-    private fun setInteractiveChartContent(onShiftDateWindowByDays: (Long) -> Unit) {
+    @Test
+    fun horizontalSwipeShiftsDateWindowForInsufficientSeries() {
+        val shifts = mutableListOf<Long>()
+        val date = LocalDate.of(2026, 8, 12)
+        setInteractiveChartContent(
+            points = listOf(
+                ChartPoint(date.atTime(12, 0).toEpochSecond(ZoneOffset.UTC), 70.0),
+            ),
+            onShiftDateWindowByDays = shifts::add,
+        )
+
+        composeRule.onNodeWithTag(MetricChartTestTags.PanArea).performTouchInput { swipeLeft() }
+
+        composeRule.runOnIdle {
+            assertEquals(1, shifts.size)
+            assertTrue(shifts.single() > 0L)
+        }
+    }
+
+    @Test
+    fun horizontalSwipeShiftsDateWindowForEmptySeries() {
+        val shifts = mutableListOf<Long>()
+        setInteractiveChartContent(points = emptyList(), onShiftDateWindowByDays = shifts::add)
+
+        composeRule.onNodeWithTag(MetricChartTestTags.PanArea).performTouchInput { swipeLeft() }
+
+        composeRule.runOnIdle {
+            assertEquals(1, shifts.size)
+            assertTrue(shifts.single() > 0L)
+        }
+    }
+
+    private fun setInteractiveChartContent(
+        points: List<ChartPoint>? = null,
+        onShiftDateWindowByDays: (Long) -> Unit,
+    ) {
         val startDate = LocalDate.of(2026, 8, 9)
         val endDate = LocalDate.of(2026, 8, 15)
-        val points = listOf(
+        val chartPoints = points ?: listOf(
             ChartPoint(startDate.atTime(12, 0).toEpochSecond(ZoneOffset.UTC), 70.0),
             ChartPoint(endDate.atTime(12, 0).toEpochSecond(ZoneOffset.UTC), 71.0),
         )
         composeRule.setContent {
             ScaleSyncTheme {
-                MetricLineChart(
-                    metric = ChartMetricOption("weight", "Вес", "кг", 1),
-                    points = points,
+                MetricChartCard(
+                    series = ChartSeries(
+                        metric = ChartMetricOption("weight", "Вес", "кг", 1),
+                        points = chartPoints,
+                    ),
                     startDate = startDate,
                     endDateInclusive = endDate,
                     zoneId = ZoneOffset.UTC,
-                    contentDescription = "График: Вес",
                     onShiftDateWindowByDays = onShiftDateWindowByDays,
-                    modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                 )
             }
         }
