@@ -27,6 +27,7 @@ import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 val PetWeightChartMetric = ChartMetricOption(
@@ -145,9 +146,22 @@ class PetHistoryReferencePresenter(
     private val snapshot: WeightReferenceSnapshot = WeightReferenceSnapshot.bundled(),
 ) {
     fun present(pet: Pet, range: ChartDateRange): PetHistoryWeightReference {
-        val dated = generateSequence(range.startDate) { previous ->
-            previous.plusDays(1).takeUnless { it.isAfter(range.endDateInclusive) }
-        }.map { date -> date to resolve(pet, date) }.toList()
+        // Missing profile data cannot become available later in the selected range. Resolve the
+        // newest date first so an invalid imported historical date does not cause an unbounded
+        // walk before discovering that there is no overlay to draw at all.
+        val endResolution = resolve(pet, range.endDateInclusive)
+        val staticUnavailable = (endResolution as? PetWeightReferenceResolution.Unavailable)
+            ?.takeIf { it.reason.isRangeInvariant() }
+        if (staticUnavailable != null) {
+            return PetHistoryWeightReference.Unavailable(
+                staticUnavailable.reason,
+                weightReferenceUnavailableExplanation(staticUnavailable.reason),
+            )
+        }
+
+        val dated = referenceSampleDates(range).map { date ->
+            date to if (date == range.endDateInclusive) endResolution else resolve(pet, date)
+        }
 
         val available = dated.mapNotNull { (date, result) ->
             (result as? PetWeightReferenceResolution.Available)?.reference?.let { date to it }
@@ -163,11 +177,17 @@ class PetHistoryReferencePresenter(
                 weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId)),
             )
         val segments = mutableListOf<MutableList<PetHistoryReferencePoint>>()
-        var previousDate: LocalDate? = null
         var previousProfileId: String? = null
-        available.forEach { (date, reference) ->
-            if (previousDate?.plusDays(1) != date || previousProfileId != reference.profileId) {
-                segments.add(mutableListOf())
+        var gapBeforeNextPoint = true
+        dated.forEach { (date, resolution) ->
+            val reference = (resolution as? PetWeightReferenceResolution.Available)?.reference
+            if (reference == null) {
+                gapBeforeNextPoint = true
+                previousProfileId = null
+                return@forEach
+            }
+            if (gapBeforeNextPoint || previousProfileId != reference.profileId) {
+                segments += mutableListOf<PetHistoryReferencePoint>()
             }
             segments.last() += PetHistoryReferencePoint(
                 date,
@@ -176,13 +196,21 @@ class PetHistoryReferencePresenter(
                 reference.bounds.medianUpperKg,
                 reference.bounds.upperKg,
             )
-            previousDate = date
             previousProfileId = reference.profileId
+            gapBeforeNextPoint = false
         }
         val approximate = available.any { it.second.approximate }
         val minAge = available.minOf { it.second.ageDays.first }
         val maxAge = available.maxOf { it.second.ageDays.last }
         return availablePresentation(metadata, segments.map(List<PetHistoryReferencePoint>::toList), approximate, minAge, maxAge)
+    }
+
+    private fun WeightReferenceUnavailableReason.isRangeInvariant(): Boolean = when (this) {
+        WeightReferenceUnavailableReason.InvalidBirthDate,
+        is WeightReferenceUnavailableReason.AgeOutOfRange,
+        is WeightReferenceUnavailableReason.ReferenceDataGap,
+        -> false
+        else -> true
     }
 
     private fun resolve(pet: Pet, date: LocalDate) = resolver.resolve(
@@ -230,6 +258,21 @@ class PetHistoryReferencePresenter(
             metadata.boundsStatistic,
         )
     }
+}
+
+internal const val MAX_REFERENCE_CHART_SAMPLES = 512
+
+/** Daily for normal filters; evenly bounded for imported histories spanning many years. */
+internal fun referenceSampleDates(range: ChartDateRange): List<LocalDate> {
+    val spanDays = ChronoUnit.DAYS.between(range.startDate, range.endDateInclusive)
+    val dayCount = spanDays + 1
+    if (dayCount <= MAX_REFERENCE_CHART_SAMPLES) {
+        return List(dayCount.toInt()) { offset -> range.startDate.plusDays(offset.toLong()) }
+    }
+    return List(MAX_REFERENCE_CHART_SAMPLES) { index ->
+        val offset = spanDays * index / (MAX_REFERENCE_CHART_SAMPLES - 1)
+        range.startDate.plusDays(offset)
+    }.distinct()
 }
 
 fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReason): String = when (reason) {

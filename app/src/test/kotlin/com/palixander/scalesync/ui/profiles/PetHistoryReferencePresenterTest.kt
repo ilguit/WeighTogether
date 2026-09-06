@@ -66,6 +66,22 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `history beginning in 1800 keeps reference sampling bounded`() {
+        val end = LocalDate.of(2026, 3, 20)
+        val pet = dog(PartialBirthDate.Day(end.minusDays(100)))
+        val range = ChartDateRange(LocalDate.of(1800, 1, 1), end)
+
+        val dates = referenceSampleDates(range)
+        val result = presenter.present(pet, range) as PetHistoryWeightReference.Available
+
+        assertEquals(MAX_REFERENCE_CHART_SAMPLES, dates.size)
+        assertEquals(range.startDate, dates.first())
+        assertEquals(range.endDateInclusive, dates.last())
+        assertTrue(result.segments.flatten().size <= MAX_REFERENCE_CHART_SAMPLES)
+        assertEquals(end, result.segments.last().last().date)
+    }
+
+    @Test
     fun `unavailable presentation retains typed reason and concrete explanation`() {
         val date = LocalDate.of(2025, 1, 15)
         val pet = dog(PartialBirthDate.Day(date.minusDays(100))).copy(sex = null)
