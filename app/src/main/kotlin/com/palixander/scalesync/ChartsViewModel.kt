@@ -152,6 +152,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     internal val initialUiState = ChartsUiState.initial(
         metricOptions = metricOptionList,
         defaultMetricKeys = initialSelectedMetrics.toPersistedChartMetricKeys(),
+        today = today,
     )
     private val filters = MutableStateFlow(
         ChartFilters.initial(

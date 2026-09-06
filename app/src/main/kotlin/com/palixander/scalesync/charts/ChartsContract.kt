@@ -8,7 +8,6 @@ import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -142,9 +141,8 @@ data class ChartsUiState(
         fun initial(
             metricOptions: List<ChartMetricOption>,
             defaultMetricKeys: Set<String>,
-            clock: Clock = Clock.systemDefaultZone(),
+            today: LocalDate = LocalDate.now(),
         ): ChartsUiState {
-            val today = LocalDate.now(clock)
             val range = requireNotNull(ChartRangePreset.LAST_7_DAYS.rangeEndingOn(today))
             return ChartsUiState(
                 startDate = range.startDate,
