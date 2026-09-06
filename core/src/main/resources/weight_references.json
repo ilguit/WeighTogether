@@ -1,9 +1,9 @@
 {
   "manifest": {
-    "schemaVersion": 1,
-    "snapshotVersion": "2026-09-06.1",
+    "schemaVersion": 2,
+    "snapshotVersion": "2026-09-06.2",
     "snapshotDate": "2026-09-06",
-    "numericalDataSha256": "7da4e3db2d4eef3b991d9ca6520c8609a4dec4fae904603eb287297926aaf22b",
+    "numericalDataSha256": "02d641bfc7cbd910a19abcfbb7f59ef9077805751cf9a498baf1aba49c350f65",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
@@ -40,6 +40,16 @@
         "derivedArtifact": "docs/research/97/bccg-curves.csv",
         "derivedArtifactSha256": "fa324dc464c038518d8cebce7dc234d637142c7dbe59b601be77b64212541da1",
         "derivationSoftware": "docs/research/97/fit_bccg.py with pinned docs/research/97/requirements-bccg.txt"
+      },
+      {
+        "id": "mugnier-cat-birth-weight-2023",
+        "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+        "publicationDoi": "10.3390/ani13111822",
+        "dataDoi": "10.3390/ani13111822",
+        "dataUrl": "https://mdpi-res.com/d_attachment/animals/animals-13-01822/article_deploy/animals-13-01822.xml",
+        "upstreamArtifactSha256": "fa4bfd1fa294935a715e72f4e736068cb3b05d95c0548e09e2f9a75e5f2d581d",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
       }
     ],
     "scopes": [
@@ -375,15 +385,17 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100154",
-        "minimumAgeDays": 1,
-        "maximumAgeDays": 730,
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
         "constraints": [
-          "Published birth, day 28, day 84, and adult values are means with SD; mean is not a median and SD is not a boundary",
-          "Later growth is graphical or relative only, and TICA typical ranges are not measured percentiles"
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations",
+        "sourceId": "mugnier-cat-birth-weight-2023"
       },
       {
         "id": "cat-maine-coon-male",
@@ -391,15 +403,17 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100154",
-        "minimumAgeDays": 1,
-        "maximumAgeDays": 730,
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
         "constraints": [
-          "Published birth, day 28, day 84, and adult values are means with SD; mean is not a median and SD is not a boundary",
-          "Later growth is graphical or relative only, and TICA typical ranges are not measured percentiles"
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations",
+        "sourceId": "mugnier-cat-birth-weight-2023"
       },
       {
         "id": "cat-siberian-female",
@@ -407,15 +421,17 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100223",
-        "minimumAgeDays": 1,
-        "maximumAgeDays": 730,
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
         "constraints": [
-          "Only a combined-sex birth mean plus SD and a small adult mean plus SD are published",
-          "No sex-specific juvenile age series exists and TICA publishes no numerical weight range"
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "insufficient_age_series"
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations",
+        "sourceId": "mugnier-cat-birth-weight-2023"
       },
       {
         "id": "cat-siberian-male",
@@ -423,15 +439,17 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100223",
-        "minimumAgeDays": 1,
-        "maximumAgeDays": 730,
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
         "constraints": [
-          "Only a combined-sex birth mean plus SD and a small adult mean plus SD are published",
-          "No sex-specific juvenile age series exists and TICA publishes no numerical weight range"
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "insufficient_age_series"
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations",
+        "sourceId": "mugnier-cat-birth-weight-2023"
       }
     ]
   },
@@ -7467,6 +7485,122 @@
           "lowerKg": 3.453672,
           "medianKg": 4.592127,
           "upperKg": 5.717056
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 892,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 892,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 419,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 419,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116
         }
       ]
     }

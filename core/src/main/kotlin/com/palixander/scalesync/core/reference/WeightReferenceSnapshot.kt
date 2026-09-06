@@ -12,9 +12,11 @@ import java.util.Collections
 enum class ReferenceSpecies { CAT, DOG }
 enum class ReferenceSex { FEMALE, MALE }
 enum class ReferenceBasis { BREED, WEIGHT_CATEGORY, POPULATION }
-enum class ReferenceKind { EMPIRICAL_OBSERVATION_QUARTILES, FITTED_BCCG_PERCENTILES }
+enum class ReferenceKind { EMPIRICAL_OBSERVATION_QUARTILES, EMPIRICAL_OBSERVATION_MEAN_SD, FITTED_BCCG_PERCENTILES }
+enum class ReferenceCenterStatistic { MEDIAN, MEAN }
+enum class ReferenceBoundsStatistic { QUARTILES, ONE_STANDARD_DEVIATION, P9_P91 }
 enum class NumericalAvailability { AVAILABLE, NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS }
-enum class ReferenceAgeAvailability { CARRY_FORWARD, DECLARED_RANGE_ONLY }
+enum class ReferenceAgeAvailability { CARRY_FORWARD, DECLARED_RANGE_ONLY, EXACT_OBSERVATIONS }
 enum class NumericalUnavailabilityReason {
     UNSUPPORTED_STATISTIC,
     MIXED_BREED_GROUP,
@@ -69,6 +71,8 @@ data class ReferenceProfile(
     val minimumBinN: Int,
     val points: List<ReferencePoint>,
     val ageAvailability: ReferenceAgeAvailability = ReferenceAgeAvailability.CARRY_FORWARD,
+    val centerStatistic: ReferenceCenterStatistic = ReferenceCenterStatistic.MEDIAN,
+    val boundsStatistic: ReferenceBoundsStatistic = ReferenceBoundsStatistic.QUARTILES,
 )
 data class WeightReferenceManifest(
     val schemaVersion: Int,
@@ -87,6 +91,8 @@ data class ReferenceProfileMetadata(
     val constraints: List<String>,
     val referenceKind: ReferenceKind,
     val minimumBinN: Int,
+    val centerStatistic: ReferenceCenterStatistic,
+    val boundsStatistic: ReferenceBoundsStatistic,
 )
 
 class WeightReferenceSnapshot private constructor(
@@ -107,17 +113,22 @@ class WeightReferenceSnapshot private constructor(
             constraints = Collections.unmodifiableList(profile.constraints.toList()),
             referenceKind = profile.referenceKind,
             minimumBinN = profile.minimumBinN,
+            centerStatistic = profile.centerStatistic,
+            boundsStatistic = profile.boundsStatistic,
         )
     }
 
     /**
      * Returns no data before the first observation, linearly interpolates between every pair of
-     * observations. Legacy profiles carry the final observation forward; profiles which opt in to
-     * [ReferenceAgeAvailability.DECLARED_RANGE_ONLY] stop at their final published point.
+     * observations. Legacy profiles carry the final observation forward; declared-range profiles
+     * stop at their final point, while exact-observation profiles resolve published ages only.
      */
     fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
         val points = profile.points
+        if (profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS) {
+            return points.singleOrNull { it.ageDays == ageDays }
+        }
         if (ageDays < points.first().ageDays) return null
         if (ageDays > points.last().ageDays && profile.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY) return null
         if (ageDays >= points.last().ageDays) return points.last().copy(ageDays = ageDays)
@@ -134,7 +145,7 @@ class WeightReferenceSnapshot private constructor(
 
     companion object {
         const val RESOURCE_PATH = "weight_references.json"
-        const val SUPPORTED_SCHEMA_VERSION = 1
+        const val SUPPORTED_SCHEMA_VERSION = 2
         private val sha256Pattern = Regex("[0-9a-f]{64}")
 
         fun bundled(breedCatalog: BreedCatalog = BreedCatalog.bundled()): WeightReferenceSnapshot = load(
@@ -198,7 +209,7 @@ class WeightReferenceSnapshot private constructor(
         } else {
             require(scope.sourceId == null || scope.sourceId in sources) { "Unknown source in scope ${scope.id}" }
         }
-        require(scope.minimumAgeDays > 0 && scope.maximumAgeDays > scope.minimumAgeDays) { "Invalid age range in scope ${scope.id}" }
+        require(scope.minimumAgeDays >= 0 && scope.maximumAgeDays >= scope.minimumAgeDays) { "Invalid age range in scope ${scope.id}" }
         require(scope.constraints.isNotEmpty() && scope.constraints.none(String::isBlank)) { "Scope ${scope.id} requires constraints" }
         when (scope.numericalAvailability) {
             NumericalAvailability.AVAILABLE -> require(scope.unavailabilityReason == null) {
@@ -231,14 +242,28 @@ class WeightReferenceSnapshot private constructor(
         require(profile.constraints.isNotEmpty()) { "Profile ${profile.id} requires constraints" }
         when (profile.referenceKind) {
             ReferenceKind.EMPIRICAL_OBSERVATION_QUARTILES -> require(profile.minimumBinN > 0) { "Profile ${profile.id} must declare its empirical derivation" }
+            ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD -> require(profile.minimumBinN > 0) { "Profile ${profile.id} must declare its empirical sample size" }
             ReferenceKind.FITTED_BCCG_PERCENTILES -> require(profile.minimumBinN == 0) { "Profile ${profile.id} fitted reference must not claim a bin minimum" }
+        }
+        when (profile.referenceKind) {
+            ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD -> require(
+                profile.centerStatistic == ReferenceCenterStatistic.MEAN &&
+                    profile.boundsStatistic == ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION &&
+                    profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS,
+            ) { "Mean/SD profile ${profile.id} must expose exact mean plus or minus one SD observations" }
+            ReferenceKind.EMPIRICAL_OBSERVATION_QUARTILES -> require(
+                profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.QUARTILES,
+            ) { "Quartile profile ${profile.id} must expose median and quartiles" }
+            ReferenceKind.FITTED_BCCG_PERCENTILES -> require(
+                profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.P9_P91,
+            ) { "Fitted profile ${profile.id} must expose P50 and P9/P91" }
         }
         val scope = scopes[profile.id] ?: error("Profile ${profile.id} has no declared scope")
         require(scope.numericalAvailability == NumericalAvailability.AVAILABLE) { "Profile ${profile.id} scope is not numerically available" }
         require(profile.species == scope.species && profile.sex == scope.sex && profile.basis == scope.basis && profile.weightCategory == scope.weightCategory && profile.breedId == scope.breedId && profile.sourceId == scope.sourceId && profile.constraints == scope.constraints && profile.ageAvailability == scope.ageAvailability) { "Profile ${profile.id} differs from its declared scope" }
         validateScope(scope, sources, breeds)
         require(profile.points.isNotEmpty()) { "Profile ${profile.id} contains no points" }
-        var previousAge = 0
+        var previousAge = -1
         profile.points.forEach { point ->
             require(point.ageDays > previousAge) { "Profile ${profile.id} ages must be strictly increasing" }
             require(point.ageDays in scope.minimumAgeDays..scope.maximumAgeDays) { "Profile ${profile.id} point is outside its declared age range" }
@@ -259,8 +284,11 @@ private data class SourceJson(val id: String, val citation: String, val publicat
 private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String?, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
     fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, unavailabilityReason?.let(::enumValue))
 }
-private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val referenceKind: String, val minimumBinN: Int, val points: List<PointJson>, val ageAvailability: String?) {
-    fun toModel() = ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, enumValue(referenceKind), minimumBinN, points.map(PointJson::toModel), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD)
+private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val referenceKind: String, val minimumBinN: Int, val points: List<PointJson>, val ageAvailability: String?, val centerStatistic: String?, val boundsStatistic: String?) {
+    fun toModel(): ReferenceProfile {
+        val kind = enumValue<ReferenceKind>(referenceKind)
+        return ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, kind, minimumBinN, points.map(PointJson::toModel), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, centerStatistic?.let(::enumValue) ?: ReferenceCenterStatistic.MEDIAN, boundsStatistic?.let(::enumValue) ?: if (kind == ReferenceKind.FITTED_BCCG_PERCENTILES) ReferenceBoundsStatistic.P9_P91 else ReferenceBoundsStatistic.QUARTILES)
+    }
 }
 private data class PointJson(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double) { fun toModel() = ReferencePoint(ageDays, lowerKg, medianKg, upperKg) }
 private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value.uppercase(Locale.ROOT))

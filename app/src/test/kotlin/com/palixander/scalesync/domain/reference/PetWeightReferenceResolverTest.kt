@@ -363,6 +363,40 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `licensed breed birth observations resolve only on the exact day`() {
+        val cases = listOf(
+            BreedId("VBO:0100154") to listOf(0.1004, 0.1191, 0.1378),
+            BreedId("VBO:0100223") to listOf(0.0826, 0.0993, 0.116),
+        )
+        cases.forEach { (breedId, weights) ->
+            for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+                val atBirth = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breedId,
+                    PartialBirthDate.Day(referenceDate),
+                    referenceDate,
+                ).available()
+                assertEquals(ReferenceBasis.BREED, atBirth.basis)
+                assertEquals(weights[0], atBirth.bounds.lowerKg, 1e-12)
+                assertEquals(weights[1], atBirth.bounds.medianLowerKg, 1e-12)
+                assertEquals(weights[1], atBirth.bounds.medianUpperKg, 1e-12)
+                assertEquals(weights[2], atBirth.bounds.upperKg, 1e-12)
+
+                assertReason<WeightReferenceUnavailableReason.AgeOutOfRange>(
+                    resolver.resolve(
+                        PetSpecies.CAT,
+                        sex,
+                        breedId,
+                        PartialBirthDate.Day(referenceDate.minusDays(1)),
+                        referenceDate,
+                    ),
+                )
+            }
+        }
+    }
+
+    @Test
     fun `other cat breed uses sex specific fitted population profile`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
