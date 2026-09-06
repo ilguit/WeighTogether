@@ -21,4 +21,14 @@ class ChartDragNavigationTest {
         assertEquals(0L, chartDragDistanceToDays(100f, 0f, start, end))
         assertEquals(0L, chartDragDistanceToDays(Float.NaN, 300f, start, end))
     }
+
+    @Test
+    fun `completed drag routes nonzero shift to callback`() {
+        val shifts = mutableListOf<Long>()
+
+        shiftChartWindowForDrag(-300f, 300f, start, end, shifts::add)
+        shiftChartWindowForDrag(10f, 300f, start, end, shifts::add)
+
+        assertEquals(listOf(7L), shifts)
+    }
 }

@@ -71,6 +71,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.abs
 import kotlin.math.roundToLong
 
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
@@ -750,13 +751,13 @@ internal fun MetricLineChart(
                     },
                     onDragCancel = { dragDistance = 0f },
                     onDragEnd = {
-                        val days = chartDragDistanceToDays(
+                        shiftChartWindowForDrag(
                             dragDistancePx = dragDistance,
                             chartWidthPx = size.width.toFloat(),
                             startDate = startDate,
                             endDateInclusive = endDateInclusive,
+                            onShiftDateWindowByDays = onShiftDateWindowByDays,
                         )
-                        if (days != 0L) onShiftDateWindowByDays(days)
                         dragDistance = 0f
                     },
                 )
@@ -776,7 +777,26 @@ internal fun chartDragDistanceToDays(
     if (chartWidthPx <= 0f || !dragDistancePx.isFinite()) return 0L
     val inclusiveDayCount = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
     if (inclusiveDayCount <= 0L) return 0L
-    return (-dragDistancePx / chartWidthPx * inclusiveDayCount).roundToLong()
+    val scaledDays = (
+        -dragDistancePx.toDouble() / chartWidthPx.toDouble() * inclusiveDayCount.toDouble()
+    )
+    return if (scaledDays < 0) -abs(scaledDays).roundToLong() else scaledDays.roundToLong()
+}
+
+internal fun shiftChartWindowForDrag(
+    dragDistancePx: Float,
+    chartWidthPx: Float,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    onShiftDateWindowByDays: (Long) -> Unit,
+) {
+    val days = chartDragDistanceToDays(
+        dragDistancePx = dragDistancePx,
+        chartWidthPx = chartWidthPx,
+        startDate = startDate,
+        endDateInclusive = endDateInclusive,
+    )
+    if (days != 0L) onShiftDateWindowByDays(days)
 }
 
 private fun rangeLabel(
