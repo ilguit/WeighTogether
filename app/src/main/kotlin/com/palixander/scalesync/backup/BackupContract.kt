@@ -15,6 +15,7 @@ const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
 const val BACKUP_SCHEMA_VERSION_V4: Int = 4
+const val BACKUP_SCHEMA_VERSION_V5: Int = 5
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -56,6 +57,7 @@ data class BackupPetMeasurementV2(
     val secondWeightKg: Double?,
     val petWeightKg: Double,
     val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
+    val isManuallyEdited: Boolean = false,
 )
 
 data class BackupAccountV1(

@@ -103,6 +103,20 @@ class RoomPetRepository(
         }
     }
 
+    override suspend fun updateMeasurementWeight(
+        petId: PetId,
+        measurementId: String,
+        petWeightKg: Double,
+    ): PetMeasurement = database.withTransaction {
+        require(petWeightKg.isFinite() && petWeightKg > 0.0) {
+            "Pet weight must be finite and positive"
+        }
+        if (dao.updateMeasurementWeight(petId.value, measurementId, petWeightKg) != 1) {
+            throw PetMeasurementNotFoundException(petId, measurementId)
+        }
+        checkNotNull(dao.getMeasurement(measurementId)).toDomain()
+    }
+
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,
@@ -179,6 +193,7 @@ private fun PetMeasurement.toEntity(): PetMeasurementEntity = PetMeasurementEnti
     secondWeightKg = secondWeightKg,
     petWeightKg = petWeightKg,
     origin = origin,
+    isManuallyEdited = isManuallyEdited,
 )
 
 private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
@@ -205,6 +220,7 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
             secondWeightKg = latestSecondWeightKg,
             petWeightKg = requireNotNull(latestPetWeightKg),
             origin = requireNotNull(latestOrigin),
+            isManuallyEdited = requireNotNull(latestIsManuallyEdited),
         ).toDomain()
     }
     return PetWithLatestWeight(pet = pet, latestMeasurement = latest)

@@ -22,6 +22,13 @@ interface PetRepository {
 
     suspend fun deleteMeasurement(petId: PetId, measurementId: String)
 
+    /** Updates only the selected measurement's final weight and permanently marks it as edited. */
+    suspend fun updateMeasurementWeight(
+        petId: PetId,
+        measurementId: String,
+        petWeightKg: Double,
+    ): PetMeasurement
+
     /** Atomically persists both stable scale readings and marks the pet as updated. */
     suspend fun recordCompletedMeasurement(
         petId: PetId,

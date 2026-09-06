@@ -613,7 +613,8 @@ private fun BackupDocumentV1.toSnapshot(
             it.dogAdultWeightCategory)
     },
     petMeasurements = petMeasurements.map {
-        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg, it.origin)
+        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg,
+            it.petWeightKg, it.origin, it.isManuallyEdited)
     },
     )
 }

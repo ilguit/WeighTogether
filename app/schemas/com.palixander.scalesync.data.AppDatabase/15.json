@@ -2,7 +2,7 @@
   "formatVersion": 1,
   "database": {
     "version": 15,
-    "identityHash": "ec9421cc7b404249ee3150b33c28397f",
+    "identityHash": "1f9ea4cf0303e9b755a21eac8d9bf4bb",
     "entities": [
       {
         "tableName": "accounts",
@@ -703,7 +703,7 @@
       },
       {
         "tableName": "pet_measurements",
-        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `petId` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `firstWeightKg` REAL, `secondWeightKg` REAL, `petWeightKg` REAL NOT NULL, `origin` TEXT NOT NULL DEFAULT 'LEGACY', PRIMARY KEY(`id`), FOREIGN KEY(`petId`) REFERENCES `pets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `petId` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `firstWeightKg` REAL, `secondWeightKg` REAL, `petWeightKg` REAL NOT NULL, `origin` TEXT NOT NULL DEFAULT 'LEGACY', `isManuallyEdited` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`), FOREIGN KEY(`petId`) REFERENCES `pets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
         "fields": [
           {
             "fieldPath": "id",
@@ -745,6 +745,13 @@
             "affinity": "TEXT",
             "notNull": true,
             "defaultValue": "'LEGACY'"
+          },
+          {
+            "fieldPath": "isManuallyEdited",
+            "columnName": "isManuallyEdited",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
           }
         ],
         "primaryKey": {
@@ -854,7 +861,7 @@
     ],
     "setupQueries": [
       "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
-      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, 'ec9421cc7b404249ee3150b33c28397f')"
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '1f9ea4cf0303e9b755a21eac8d9bf4bb')"
     ]
   }
 }

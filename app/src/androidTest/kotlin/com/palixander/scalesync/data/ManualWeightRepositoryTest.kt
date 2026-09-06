@@ -214,4 +214,55 @@ class ManualWeightRepositoryTest {
             close()
         }
     }
+
+    @Test fun editedPetWeightKeepsIdentityOriginTimeAndSourceReadings() = runBlocking {
+        database.petDao().insertMeasurement(
+            PetMeasurementEntity("scale", "pet", -60, 70.0, 74.125, 4.125, MeasurementOrigin.SCALE),
+        )
+
+        val edited = RoomPetRepository(database).updateMeasurementWeight(PetId("pet"), "scale", 4.2)
+
+        assertEquals("scale", edited.id)
+        assertEquals(PetId("pet"), edited.petId)
+        assertEquals(Instant.ofEpochSecond(-60), edited.measuredAt)
+        assertEquals(70.0, edited.firstWeightKg!!, 0.0)
+        assertEquals(74.125, edited.secondWeightKg!!, 0.0)
+        assertEquals(4.2, edited.petWeightKg, 0.0)
+        assertEquals(MeasurementOrigin.SCALE, edited.origin)
+        assertTrue(edited.isManuallyEdited)
+
+        val restored = RoomPetRepository(database).updateMeasurementWeight(PetId("pet"), "scale", 4.125)
+        assertTrue(restored.isManuallyEdited)
+    }
+
+    @Test fun updatePetWeightCannotChangeAnotherPetsMeasurement() = runBlocking {
+        database.petDao().insertPet(PetEntity("other-pet", "Пёс", "пёс", PetSpecies.DOG, 100, 100))
+        database.petDao().insertMeasurement(
+            PetMeasurementEntity("scale", "pet", -60, 70.0, 74.125, 4.125, MeasurementOrigin.SCALE),
+        )
+
+        assertThrows(PetMeasurementNotFoundException::class.java) {
+            runBlocking {
+                RoomPetRepository(database).updateMeasurementWeight(PetId("other-pet"), "scale", 5.0)
+            }
+        }
+        assertEquals(4.125, database.petDao().getMeasurement("scale")!!.petWeightKg, 0.0)
+    }
+
+    @Test fun migration14To15MarksExistingPetMeasurementsAsNotEdited() {
+        val name = "pet-edited-migration"
+        helper.createDatabase(name, 14).apply {
+            execSQL("INSERT INTO pets (id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis) VALUES ('pet','Кот','кот','CAT',100,100)")
+            execSQL("INSERT INTO pet_measurements VALUES ('old','pet',-60,70.0,74.125,4.125,'SCALE')")
+            close()
+        }
+
+        helper.runMigrationsAndValidate(name, 15, true, AppDatabase.MIGRATION_14_15).apply {
+            query("SELECT isManuallyEdited FROM pet_measurements WHERE id = 'old'").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+            close()
+        }
+    }
 }

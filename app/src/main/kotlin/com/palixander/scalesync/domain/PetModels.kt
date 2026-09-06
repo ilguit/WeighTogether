@@ -177,6 +177,7 @@ data class PetMeasurement(
     val secondWeightKg: Double?,
     val petWeightKg: Double = abs(requireNotNull(secondWeightKg) - requireNotNull(firstWeightKg)),
     val origin: MeasurementOrigin = MeasurementOrigin.SCALE,
+    val isManuallyEdited: Boolean = false,
 ) {
     init {
         require(id.isNotBlank()) { "Pet measurement id must not be blank" }
@@ -186,7 +187,7 @@ data class PetMeasurement(
         } else {
             require(firstWeightKg != null && firstWeightKg.isFinite() && firstWeightKg > 0.0)
             require(secondWeightKg != null && secondWeightKg.isFinite() && secondWeightKg > 0.0)
-            require(abs(abs(secondWeightKg - firstWeightKg) - petWeightKg) < 0.000_001) {
+            require(isManuallyEdited || abs(abs(secondWeightKg - firstWeightKg) - petWeightKg) < 0.000_001) {
                 "Stored pet weight does not match source readings"
             }
         }

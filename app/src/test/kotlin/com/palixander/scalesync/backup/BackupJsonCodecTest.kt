@@ -17,29 +17,30 @@ class BackupJsonCodecTest {
 
 
     @Test
-    fun v6PreservesManualOriginAndStandalonePetWeight() {
+    fun v6PreservesManualOriginStandalonePetWeightAndEditedFlag() {
         val source = document().copy(
             measurements = listOf(document().measurements.single().copy(
                 weightKg = 4.125, origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
             )),
             pets = listOf(BackupPetV2("p", "Кот", "кот", PetSpecies.CAT, 10, 11)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", -60, null, null, 4.125,
-                com.palixander.scalesync.domain.MeasurementOrigin.MANUAL)),
+                com.palixander.scalesync.domain.MeasurementOrigin.MANUAL, true)),
         )
         assertEquals(source, codec.decode(codec.encode(source)))
         val encoded = codec.encode(source)
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "UNKNOWN")) }
         assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "SCALE")) }
-        assertThrows(BackupException.UnsupportedVersion::class.java) {
+        assertThrows(BackupException.Invalid::class.java) {
             codec.encode(source.copy(schemaVersion = 5))
         }
     }
 
     @Test
     fun everyLegacyVersionIsUnsupported() {
+        val current = codec.encode(document())
         for (version in 1..5) {
-            assertThrows(BackupException.UnsupportedVersion::class.java) {
-                codec.encode(document().copy(schemaVersion = version))
+            assertThrows(BackupException::class.java) {
+                codec.decode(current.replace("\"schemaVersion\":6", "\"schemaVersion\":$version"))
             }
         }
     }
