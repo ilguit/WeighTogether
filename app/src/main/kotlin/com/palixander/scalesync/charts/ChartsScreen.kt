@@ -763,7 +763,9 @@ internal fun MetricLineChart(
                 )
             }
             .semantics { this.contentDescription = contentDescription },
-        scrollState = rememberVicoScrollState(scrollEnabled = true),
+        // Date-window panning is owned by the gesture handler above. Keeping Vico scrolling
+        // disabled prevents the same horizontal drag from driving two independent pan paths.
+        scrollState = rememberVicoScrollState(scrollEnabled = false),
         zoomState = zoomState,
     )
 }

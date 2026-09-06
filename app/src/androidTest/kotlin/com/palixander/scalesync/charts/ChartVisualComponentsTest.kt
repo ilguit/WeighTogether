@@ -1,9 +1,14 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
+import androidx.compose.ui.test.swipeUp
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import java.time.LocalDate
@@ -74,6 +79,52 @@ class ChartVisualComponentsTest {
             }
         }
         composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
+    }
+
+    @Test
+    fun horizontalSwipeShiftsDateWindowExactlyOnce() {
+        val shifts = mutableListOf<Long>()
+        setInteractiveChartContent(onShiftDateWindowByDays = shifts::add)
+
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).performTouchInput { swipeLeft() }
+
+        composeRule.runOnIdle {
+            assertEquals(1, shifts.size)
+            assertTrue(shifts.single() > 0L)
+        }
+    }
+
+    @Test
+    fun verticalSwipeDoesNotShiftDateWindow() {
+        val shifts = mutableListOf<Long>()
+        setInteractiveChartContent(onShiftDateWindowByDays = shifts::add)
+
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).performTouchInput { swipeUp() }
+
+        composeRule.runOnIdle { assertTrue(shifts.isEmpty()) }
+    }
+
+    private fun setInteractiveChartContent(onShiftDateWindowByDays: (Long) -> Unit) {
+        val startDate = LocalDate.of(2026, 8, 9)
+        val endDate = LocalDate.of(2026, 8, 15)
+        val points = listOf(
+            ChartPoint(startDate.atTime(12, 0).toEpochSecond(ZoneOffset.UTC), 70.0),
+            ChartPoint(endDate.atTime(12, 0).toEpochSecond(ZoneOffset.UTC), 71.0),
+        )
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MetricLineChart(
+                    metric = ChartMetricOption("weight", "Вес", "кг", 1),
+                    points = points,
+                    startDate = startDate,
+                    endDateInclusive = endDate,
+                    zoneId = ZoneOffset.UTC,
+                    contentDescription = "График: Вес",
+                    onShiftDateWindowByDays = onShiftDateWindowByDays,
+                    modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
+                )
+            }
+        }
     }
 
     private fun LineCartesianLayer.Line.areaFillForTest(): Any? =
