@@ -1,7 +1,6 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -35,12 +34,10 @@ import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -71,8 +68,6 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import kotlin.math.abs
-import kotlin.math.roundToLong
 
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
@@ -175,6 +170,7 @@ fun ChartsScreen(
                         endDateInclusive = state.endDateInclusive,
                         zoneId = zoneId,
                         onShiftDateWindowByDays = callbacks.shiftDateWindowByDays,
+                        today = state.currentDate,
                     )
                 }
             }
@@ -513,6 +509,7 @@ internal fun MetricChartCard(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     onShiftDateWindowByDays: (Long) -> Unit = {},
+    today: LocalDate = LocalDate.now(zoneId),
 ) {
     val points = remember(series.points) { orderedChartPoints(series.points) }
     val summary = remember(points) { chartValueSummary(points) }
@@ -532,7 +529,12 @@ internal fun MetricChartCard(
     val average = remember(statistics?.average, series.metric) {
         formatChartStatistic(statistics?.average, series.metric)
     }
-    HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
+    val windowLengthDays = chartWindowLengthDays(startDate, endDateInclusive)
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(MetricChartTestTags.Card),
+    ) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -578,45 +580,74 @@ internal fun MetricChartCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            when {
-                points.isEmpty() -> Text(
-                    text = "Нет данных за выбранный период",
-                    modifier = Modifier.padding(vertical = 28.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Back,
+                    contentDescription = "Предыдущий период",
+                    onClick = { onShiftDateWindowByDays(-windowLengthDays) },
+                    modifier = Modifier.testTag(MetricChartTestTags.PreviousPeriod),
                 )
+                Box(
+                    modifier = Modifier.weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    when {
+                        points.isEmpty() -> Text(
+                            text = "Нет данных за выбранный период",
+                            modifier = Modifier.padding(vertical = 28.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
 
-                !isChartRenderable(points) -> Text(
-                    text = "Недостаточно данных для графика: нужно минимум два измерения в разное время",
-                    modifier = Modifier.testTag(MetricChartTestTags.InsufficientInterval),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                        !isChartRenderable(points) -> Text(
+                            text = "Недостаточно данных для графика: нужно минимум два измерения в разное время",
+                            modifier = Modifier.testTag(MetricChartTestTags.InsufficientInterval),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                            textAlign = TextAlign.Center,
+                        )
 
-                else -> {
-                    MetricLineChart(
-                        metric = series.metric,
-                        points = points,
+                        else -> MetricLineChart(
+                            metric = series.metric,
+                            points = points,
+                            startDate = startDate,
+                            endDateInclusive = endDateInclusive,
+                            zoneId = zoneId,
+                            contentDescription = buildString {
+                                append("График: ${series.metric.displayName}. ")
+                                append("Последнее значение: $currentValue. ")
+                                append("Изменение к предыдущему: $delta")
+                            },
+                            modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
+                        )
+                    }
+                }
+                HuaweiIconButton(
+                    icon = HuaweiIcons.ChevronRight,
+                    contentDescription = "Следующий период",
+                    onClick = { onShiftDateWindowByDays(windowLengthDays) },
+                    modifier = Modifier.testTag(MetricChartTestTags.NextPeriod),
+                    enabled = canShiftChartWindowForward(
                         startDate = startDate,
                         endDateInclusive = endDateInclusive,
-                        zoneId = zoneId,
-                        contentDescription = buildString {
-                            append("График: ${series.metric.displayName}. ")
-                            append("Последнее значение: $currentValue. ")
-                            append("Изменение к предыдущему: $delta")
-                        },
-                        onShiftDateWindowByDays = onShiftDateWindowByDays,
-                        modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
-                    )
-                }
+                        today = today,
+                    ),
+                )
             }
         }
     }
 }
 
 object MetricChartTestTags {
+    const val Card = "metric-chart-card"
     const val ChartHost = "metric-chart-host"
     const val InsufficientInterval = "metric-chart-insufficient-interval"
+    const val PreviousPeriod = "metric-chart-previous-period"
+    const val NextPeriod = "metric-chart-next-period"
 }
 
 @Composable
@@ -649,7 +680,6 @@ internal fun MetricLineChart(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
-    onShiftDateWindowByDays: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
@@ -737,69 +767,24 @@ internal fun MetricLineChart(
         modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
-            .pointerInput(startDate, endDateInclusive, onShiftDateWindowByDays) {
-                var dragDistance = 0f
-                var dragStartX = 0f
-                detectHorizontalDragGestures(
-                    onDragStart = { start ->
-                        dragStartX = start.x
-                        dragDistance = 0f
-                    },
-                    onHorizontalDrag = { change, _ ->
-                        change.consume()
-                        dragDistance = change.position.x - dragStartX
-                    },
-                    onDragCancel = { dragDistance = 0f },
-                    onDragEnd = {
-                        shiftChartWindowForDrag(
-                            dragDistancePx = dragDistance,
-                            chartWidthPx = size.width.toFloat(),
-                            startDate = startDate,
-                            endDateInclusive = endDateInclusive,
-                            onShiftDateWindowByDays = onShiftDateWindowByDays,
-                        )
-                        dragDistance = 0f
-                    },
-                )
-            }
             .semantics { this.contentDescription = contentDescription },
-        // Date-window panning is owned by the gesture handler above. Keeping Vico scrolling
-        // disabled prevents the same horizontal drag from driving two independent pan paths.
+        // Date-window navigation is provided by the adjacent explicit buttons.
         scrollState = rememberVicoScrollState(scrollEnabled = false),
         zoomState = zoomState,
     )
 }
 
-internal fun chartDragDistanceToDays(
-    dragDistancePx: Float,
-    chartWidthPx: Float,
+internal fun chartWindowLengthDays(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
-): Long {
-    if (chartWidthPx <= 0f || !dragDistancePx.isFinite()) return 0L
-    val inclusiveDayCount = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
-    if (inclusiveDayCount <= 0L) return 0L
-    val scaledDays = (
-        -dragDistancePx.toDouble() / chartWidthPx.toDouble() * inclusiveDayCount.toDouble()
-    )
-    return if (scaledDays < 0) -abs(scaledDays).roundToLong() else scaledDays.roundToLong()
-}
+): Long = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
 
-internal fun shiftChartWindowForDrag(
-    dragDistancePx: Float,
-    chartWidthPx: Float,
+internal fun canShiftChartWindowForward(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
-    onShiftDateWindowByDays: (Long) -> Unit,
-) {
-    val days = chartDragDistanceToDays(
-        dragDistancePx = dragDistancePx,
-        chartWidthPx = chartWidthPx,
-        startDate = startDate,
-        endDateInclusive = endDateInclusive,
-    )
-    if (days != 0L) onShiftDateWindowByDays(days)
-}
+    today: LocalDate,
+): Boolean = endDateInclusive.toEpochDay() <=
+    today.toEpochDay() - chartWindowLengthDays(startDate, endDateInclusive)
 
 private fun rangeLabel(
     preset: ChartRangePreset,
