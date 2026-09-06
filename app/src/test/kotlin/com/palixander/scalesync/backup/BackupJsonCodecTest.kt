@@ -15,6 +15,12 @@ import org.junit.Test
 
 class BackupJsonCodecTest {
     private val codec = BackupJsonCodec()
+    private val legacyHuaweiKeys = setOf(
+        "huaweiStatus",
+        "huaweiError",
+        "huaweiWeightSynced",
+        "huaweiSyncedCalculatedValues",
+    )
 
 
     @Test
@@ -54,12 +60,25 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun realisticV5HuaweiFieldsRemainStrictlyTypedAndUnknownFieldsAreRejected() {
-        val legacy = legacyJson(5)
+    fun legacyHuaweiFieldValuesAreIgnoredButUnknownFieldsAreRejected() {
+        val arbitraryValues = listOf("null", "false", "42", "\"arbitrary\"", "{}", "[]")
+        for (version in 1..5) {
+            for (value in arbitraryValues) {
+                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
+                root.getAsJsonArray("measurements").single().asJsonObject.apply {
+                    legacyHuaweiKeys.forEach { add(it, JsonParser.parseString(value)) }
+                }
 
-        assertThrows(BackupException.Invalid::class.java) {
-            codec.decode(legacy.replace("\"huaweiWeightSynced\":true", "\"huaweiWeightSynced\":\"true\""))
+                val decoded = codec.decode(root.toString())
+
+                assertEquals("Legacy account", decoded.accounts.single().displayName)
+                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+                assertEquals("health error", decoded.measurements.single().healthConnectError)
+                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            }
         }
+        val legacy = legacyJson(5)
         assertThrows(BackupException.Invalid::class.java) {
             codec.decode(legacy.replace("\"huaweiStatus\":\"FAILED\"", "\"huaweiStatus\":\"FAILED\",\"huaweiFuture\":false"))
         }
