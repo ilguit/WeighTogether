@@ -1,5 +1,7 @@
 package com.palixander.scalesync.domain.reference
 
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
@@ -11,6 +13,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
+import java.security.MessageDigest
 import java.time.LocalDate
 import java.time.YearMonth
 
@@ -109,6 +113,56 @@ class PetWeightReferenceResolverTest {
                 birthDate = PartialBirthDate.Day(referenceDate.minusDays(83)),
                 dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
             ),
+        )
+    }
+
+    @Test
+    fun `resolver enforces opt-in declared age range without changing legacy carry forward`() {
+        val root = javaClass.classLoader.getResourceAsStream(WeightReferenceSnapshot.RESOURCE_PATH)!!
+            .bufferedReader().use { JsonParser.parseString(it.readText()).asJsonObject }
+        val profile = root.getAsJsonArray("profiles")
+            .first { it.asJsonObject.get("id").asString == "dog-male-I" }.asJsonObject
+        val lastAge = profile.getAsJsonArray("points").last().asJsonObject.get("ageDays").asInt
+        profile.addProperty("ageAvailability", "declared_range_only")
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-I" }.asJsonObject.apply {
+                addProperty("ageAvailability", "declared_range_only")
+                addProperty("maximumAgeDays", lastAge)
+            }
+        val canonical = root.getAsJsonArray("profiles").toString().toByteArray()
+        root.getAsJsonObject("manifest").addProperty(
+            "numericalDataSha256",
+            MessageDigest.getInstance("SHA-256").digest(canonical).joinToString("") { "%02x".format(it) },
+        )
+        val boundedResolver = PetWeightReferenceResolver(
+            WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) }),
+        )
+
+        val boundary = boundedResolver.resolve(
+            PetSpecies.DOG,
+            PetSex.MALE,
+            null,
+            PartialBirthDate.Day(referenceDate.minusDays(lastAge.toLong())),
+            referenceDate,
+            DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).available()
+        assertEquals(lastAge.toLong()..lastAge.toLong(), boundary.ageDays)
+
+        val after = boundedResolver.resolve(
+            PetSpecies.DOG,
+            PetSex.MALE,
+            null,
+            PartialBirthDate.Day(referenceDate.minusDays(lastAge + 1L)),
+            referenceDate,
+            DogAdultWeight.Category(DogAdultWeightCategory.I),
+        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
+        assertEquals(lastAge, after.supportedMaximumDays)
+
+        assertTrue(
+            resolveDog(
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(10_000)),
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
+            ) is PetWeightReferenceResolution.Available,
         )
     }
 

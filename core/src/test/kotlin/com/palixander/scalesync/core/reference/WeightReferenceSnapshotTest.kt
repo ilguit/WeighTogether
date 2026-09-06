@@ -113,6 +113,74 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
+    fun `declared-range profile does not carry its final point forward`() {
+        val root = bundledJson()
+        val profile = root.getAsJsonArray("profiles")[0].asJsonObject
+        val id = profile.get("id").asString
+        profile.addProperty("ageAvailability", "declared_range_only")
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
+            .addProperty("ageAvailability", "declared_range_only")
+        refreshChecksum(root)
+        val snapshot = WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
+        val last = snapshot.profiles.single { it.id == id }.points.last()
+
+        assertEquals(last, snapshot.interpolate(id, last.ageDays))
+        assertNull(snapshot.interpolate(id, last.ageDays + 1))
+        assertEquals(
+            ReferenceAgeAvailability.CARRY_FORWARD,
+            WeightReferenceSnapshot.bundled().profiles.single { it.id == id }.ageAvailability,
+        )
+    }
+
+    @Test
+    fun `five target breeds can declare sex-specific typed unavailable scopes without profiles`() {
+        val root = bundledJson()
+        val scopes = root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+        val sourceId = root.getAsJsonObject("manifest").getAsJsonArray("sources")[0].asJsonObject.get("id").asString
+        val breedIds = listOf("VBO:0100052", "VBO:0100209", "VBO:0100221", "VBO:0100154", "VBO:0100223")
+        breedIds.forEach { breedId ->
+            listOf("female", "male").forEach { sex ->
+                scopes.add(com.google.gson.JsonObject().apply {
+                    addProperty("id", "unavailable-$breedId-$sex")
+                    addProperty("species", "cat")
+                    addProperty("sex", sex)
+                    addProperty("basis", "breed")
+                    addProperty("breedId", breedId)
+                    addProperty("minimumAgeDays", 1)
+                    addProperty("maximumAgeDays", 2)
+                    add("constraints", com.google.gson.JsonArray().apply { add("Eligibility decision pending") })
+                    addProperty("sourceId", sourceId)
+                    addProperty("numericalAvailability", "not_reproducible_from_published_artifacts")
+                    addProperty("unavailabilityReason", "insufficient_age_series")
+                })
+            }
+        }
+
+        val snapshot = WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
+        val targetScopes = snapshot.manifest.scopes.filter { it.breedId in breedIds }
+
+        assertEquals(10, targetScopes.size)
+        assertTrue(targetScopes.all { it.unavailabilityReason == NumericalUnavailabilityReason.INSUFFICIENT_AGE_SERIES })
+        assertTrue(targetScopes.none { scope -> snapshot.profiles.any { it.id == scope.id } })
+    }
+
+    @Test
+    fun `unavailable scope requires typed reason`() {
+        val root = bundledJson()
+        val id = root.getAsJsonArray("profiles")[0].asJsonObject.get("id").asString
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
+            .addProperty("numericalAvailability", "not_reproducible_from_published_artifacts")
+        root.getAsJsonArray("profiles").remove(0)
+        refreshChecksum(root)
+
+        assertFailsWith<IllegalArgumentException> {
+            WeightReferenceSnapshot.load(streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
+        }
+    }
+
+    @Test
     fun `unknown VBO identifier is rejected`() {
         val original = javaClass.classLoader.getResourceAsStream(WeightReferenceSnapshot.RESOURCE_PATH)!!
             .bufferedReader().use { it.readText() }

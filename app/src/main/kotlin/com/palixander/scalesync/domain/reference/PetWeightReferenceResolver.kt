@@ -3,6 +3,7 @@ package com.palixander.scalesync.domain.reference
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
 import com.palixander.scalesync.core.reference.ReferencePoint
 import com.palixander.scalesync.core.reference.ReferenceProfile
 import com.palixander.scalesync.core.reference.ReferenceSex
@@ -193,13 +194,19 @@ class PetWeightReferenceResolver(
             return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
         }
         val supportedMinimum = profile.points.first().ageDays
-        if (age.minimumDays < supportedMinimum) {
+        val scope = snapshot.manifest.scopes.single { it.id == profile.id }
+        val supportedMaximum = if (profile.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY) {
+            scope.maximumAgeDays
+        } else {
+            Int.MAX_VALUE
+        }
+        if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
             return unavailable(
                 WeightReferenceUnavailableReason.AgeOutOfRange(
                     age.minimumDays,
                     age.maximumDays,
                     supportedMinimum,
-                    Int.MAX_VALUE,
+                    supportedMaximum,
                 ),
             )
         }
