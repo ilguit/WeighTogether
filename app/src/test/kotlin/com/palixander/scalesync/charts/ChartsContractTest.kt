@@ -80,6 +80,7 @@ class ChartsContractTest {
             ChartRangePreset.YEAR_TO_DATE.rangeEndingOn(today),
         )
         assertNull(ChartRangePreset.CUSTOM.rangeEndingOn(today))
+        assertNull(ChartRangePreset.ALL.rangeEndingOn(today))
     }
 
     @Test
@@ -144,6 +145,13 @@ class ChartsContractTest {
             range.maxX,
             0.0,
         )
+    }
+
+    @Test
+    fun `maximum local date has an overflow safe exclusive endpoint`() {
+        val range = inclusiveDateRangeToEpochRange(LocalDate.MAX, LocalDate.MAX, ZoneId.of("UTC"))
+
+        assertTrue(range.endExclusiveEpochSecond > range.startInclusiveEpochSecond)
     }
 
     @Test

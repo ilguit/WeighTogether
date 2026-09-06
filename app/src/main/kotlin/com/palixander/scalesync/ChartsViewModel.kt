@@ -88,6 +88,7 @@ internal data class ChartFilters(
     fun dismissFilterSheet(): ChartFilters = copy(activeFilterSheet = null)
 
     fun selectRangePreset(preset: ChartRangePreset, today: LocalDate): ChartFilters {
+        if (preset == ChartRangePreset.ALL) return this
         if (preset == ChartRangePreset.CUSTOM) {
             return copy(activeFilterSheet = null, isCustomDatePickerOpen = true)
         }
