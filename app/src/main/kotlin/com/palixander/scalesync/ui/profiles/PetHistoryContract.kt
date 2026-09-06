@@ -18,6 +18,8 @@ import com.palixander.scalesync.domain.reference.PetWeightReferenceResolution
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
+import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import com.palixander.scalesync.core.reference.ReferenceProfileMetadata
 import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
@@ -120,6 +122,8 @@ sealed interface PetHistoryWeightReference {
         val accessibilityLabel: String,
         val publicationUrl: String? = null,
         val isFittedPopulationPercentiles: Boolean = false,
+        val centerStatistic: ReferenceCenterStatistic = ReferenceCenterStatistic.MEDIAN,
+        val boundsStatistic: ReferenceBoundsStatistic = ReferenceBoundsStatistic.QUARTILES,
     ) : PetHistoryWeightReference
 
     data class Unavailable(
@@ -202,6 +206,8 @@ class PetHistoryReferencePresenter(
         val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
         val basisLabel = if (metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES) {
             "Справочные данные о весе"
+        } else if (metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
+            "Наблюдение по породе: среднее ± одно стандартное отклонение"
         } else when (metadata.basis) {
             ReferenceBasis.BREED -> "Эталон по породе"
             ReferenceBasis.WEIGHT_CATEGORY -> "Эталон по весовой категории"
@@ -220,6 +226,8 @@ class PetHistoryReferencePresenter(
             "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
             "https://doi.org/${metadata.source.publicationDoi}",
             metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
+            metadata.centerStatistic,
+            metadata.boundsStatistic,
         )
     }
 }

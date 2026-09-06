@@ -3,12 +3,15 @@ package com.palixander.scalesync.ui.profiles
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.Pet
+import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
+import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -97,6 +100,29 @@ class PetHistoryReferencePresenterTest {
         reasons.forEach { reason ->
             assertTrue(weightReferenceUnavailableExplanation(reason).startsWith("Эталон недоступен:"))
         }
+    }
+
+    @Test
+    fun `breed observation presentation identifies mean and standard deviation`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val pet = Pet(
+            id = PetId("kitten"),
+            displayName = "Барсик",
+            species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH,
+            updatedAt = Instant.EPOCH,
+            sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(date),
+            breedId = BreedId("VBO:0100223"),
+        )
+
+        val result = presenter.present(pet, ChartDateRange(date, date))
+            as PetHistoryWeightReference.Available
+
+        assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
+        assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
+        assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
+        assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
     }
 
     private fun dog(birthDate: PartialBirthDate) = Pet(

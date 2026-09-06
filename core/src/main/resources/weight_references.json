@@ -1,9 +1,9 @@
 {
   "manifest": {
-    "schemaVersion": 1,
-    "snapshotVersion": "2026-08-31.1",
-    "snapshotDate": "2026-08-31",
-    "numericalDataSha256": "7da4e3db2d4eef3b991d9ca6520c8609a4dec4fae904603eb287297926aaf22b",
+    "schemaVersion": 2,
+    "snapshotVersion": "2026-09-06.2",
+    "snapshotDate": "2026-09-06",
+    "numericalDataSha256": "ea53ada92f6055a96a57eb63a40186557c7084eadd7a3f5f761d18beceba5aec",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
@@ -40,6 +40,16 @@
         "derivedArtifact": "docs/research/97/bccg-curves.csv",
         "derivedArtifactSha256": "fa324dc464c038518d8cebce7dc234d637142c7dbe59b601be77b64212541da1",
         "derivationSoftware": "docs/research/97/fit_bccg.py with pinned docs/research/97/requirements-bccg.txt"
+      },
+      {
+        "id": "mugnier-cat-birth-weight-2023",
+        "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+        "publicationDoi": "10.3390/ani13111822",
+        "dataDoi": "10.3390/ani13111822",
+        "dataUrl": "https://mdpi-res.com/d_attachment/animals/animals-13-01822/article_deploy/animals-13-01822.xml",
+        "upstreamArtifactSha256": "fa4bfd1fa294935a715e72f4e736068cb3b05d95c0548e09e2f9a75e5f2d581d",
+        "license": "CC BY 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
       }
     ],
     "scopes": [
@@ -272,6 +282,174 @@
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available"
+      },
+      {
+        "id": "cat-british-shorthair-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100052",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
+          "British birth observations do not distinguish British Shorthair from British Longhair"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-british-shorthair-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100052",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
+          "British birth observations do not distinguish British Shorthair from British Longhair"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-scottish-fold-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100209",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Adult observations report mean plus SD for only four females; SD is not a reference boundary",
+          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-scottish-fold-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100209",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Adult observations report mean plus SD for only three males; SD is not a reference boundary",
+          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "unsupported_statistic"
+      },
+      {
+        "id": "cat-siamese-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100221",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
+          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "mixed_breed_group"
+      },
+      {
+        "id": "cat-siamese-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100221",
+        "minimumAgeDays": 1,
+        "maximumAgeDays": 730,
+        "constraints": [
+          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
+          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+        ],
+        "numericalAvailability": "not_reproducible_from_published_artifacts",
+        "ageAvailability": "declared_range_only",
+        "unavailabilityReason": "mixed_breed_group"
+      },
+      {
+        "id": "cat-maine-coon-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100154",
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
+        "constraints": [
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+        ],
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations"
+      },
+      {
+        "id": "cat-maine-coon-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100154",
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
+        "constraints": [
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+        ],
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations"
+      },
+      {
+        "id": "cat-siberian-female",
+        "species": "cat",
+        "sex": "female",
+        "basis": "breed",
+        "breedId": "VBO:0100223",
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
+        "constraints": [
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+        ],
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations"
+      },
+      {
+        "id": "cat-siberian-male",
+        "species": "cat",
+        "sex": "male",
+        "basis": "breed",
+        "breedId": "VBO:0100223",
+        "minimumAgeDays": 0,
+        "maximumAgeDays": 0,
+        "constraints": [
+          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+        ],
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "numericalAvailability": "available",
+        "ageAvailability": "exact_observations"
       }
     ]
   },
@@ -6419,6 +6597,122 @@
           "lowerKg": 3.92,
           "medianKg": 4.463,
           "upperKg": 5.171
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 892,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 892,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 419,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "mugnier-cat-birth-weight-2023",
+      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
+      "license": "CC BY 4.0",
+      "constraints": [
+        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
+        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
+        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
+        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+      ],
+      "referenceKind": "empirical_observation_mean_sd",
+      "minimumBinN": 419,
+      "ageAvailability": "exact_observations",
+      "centerStatistic": "mean",
+      "boundsStatistic": "one_standard_deviation",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116
         }
       ]
     },

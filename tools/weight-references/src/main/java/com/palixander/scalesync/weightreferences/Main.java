@@ -22,6 +22,7 @@ import java.util.zip.ZipInputStream;
 
 public final class Main {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
+    private static final int SUPPORTED_SCHEMA_VERSION = 2;
 
     private Main() {}
 
@@ -40,6 +41,7 @@ public final class Main {
 
     private static void snapshot(Path source, Path fittedCatCurves, Path output) throws Exception {
         JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+        validateSchema(root);
         JsonObject catSource = root.getAsJsonObject("manifest").getAsJsonArray("sources").asList().stream()
             .map(value -> value.getAsJsonObject())
             .filter(value -> value.get("id").getAsString().equals("salt-dsh-kitten-2022"))
@@ -96,6 +98,7 @@ public final class Main {
 
     private static void normalize(Path source, Path output) throws Exception {
         JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+        validateSchema(root);
         JsonArray profiles = root.getAsJsonArray("profiles");
         String checksum = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
             .digest(profiles.toString().getBytes(StandardCharsets.UTF_8)));
@@ -107,6 +110,7 @@ public final class Main {
 
     private static void derive(Path source, Path dogZip, Path kittenCsv, Path output) throws Exception {
         JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
+        validateSchema(root);
         verify(dogZip, "a494c1c1bc6841ab3840d5757f34a20892e025a8f9da7e9cbb3b9d6086b07ff7");
         verify(kittenCsv, "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094");
         JsonArray profiles = new JsonArray();
@@ -211,6 +215,12 @@ public final class Main {
         return values.get(low) + (values.get(high) - values.get(low)) * (index - low);
     }
     private static double round(double value) { return Math.round(value * 1000.0) / 1000.0; }
+    private static void validateSchema(JsonObject root) {
+        int schemaVersion = root.getAsJsonObject("manifest").get("schemaVersion").getAsInt();
+        if (schemaVersion != SUPPORTED_SCHEMA_VERSION) {
+            throw new IllegalArgumentException("Unsupported weight reference schema: " + schemaVersion);
+        }
+    }
     private static void verify(Path path, String expected) throws Exception {
         MessageDigest digest = MessageDigest.getInstance("SHA-256");
         try (InputStream input = Files.newInputStream(path)) {

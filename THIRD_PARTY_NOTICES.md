@@ -24,3 +24,17 @@ ScaleSync records the upstream CSV SHA-256
 `76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094`.
 The CSV contains raw observations, not fitted centile tables or models;
 ScaleSync therefore does not redistribute or infer numerical kitten curves.
+
+## Mugnier breed-specific kitten birth-weight observations
+
+Mugnier A, Gaillard V, and Chastant S. (2023), “Association between Birth
+Weight and Mortality over the Two First Months after Birth in Feline Species:
+Definition of Breed-Specific Thresholds,” Animals 13(11):1822, DOI
+10.3390/ani13111822, licensed CC BY 4.0.
+
+ScaleSync reproduces the Maine Coon and Siberian pure-breed birth-weight mean,
+standard deviation, and sample size from Table 1. The values combine both sexes
+and are exposed only at the exact observation age; they are not medians,
+percentiles, interpolated curves, or clinical standards. ScaleSync records the
+upstream article XML SHA-256
+`fa4bfd1fa294935a715e72f4e736068cb3b05d95c0548e09e2f9a75e5f2d581d`.
