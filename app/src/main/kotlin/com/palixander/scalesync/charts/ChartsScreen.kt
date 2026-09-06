@@ -1,6 +1,7 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -69,6 +71,7 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import kotlin.math.roundToLong
 
 private val DateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 private val AxisDateTimeFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss")
@@ -170,6 +173,7 @@ fun ChartsScreen(
                         startDate = state.startDate,
                         endDateInclusive = state.endDateInclusive,
                         zoneId = zoneId,
+                        onShiftDateWindowByDays = callbacks.shiftDateWindowByDays,
                     )
                 }
             }
@@ -507,6 +511,7 @@ internal fun MetricChartCard(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
+    onShiftDateWindowByDays: (Long) -> Unit = {},
 ) {
     val points = remember(series.points) { orderedChartPoints(series.points) }
     val summary = remember(points) { chartValueSummary(points) }
@@ -599,6 +604,7 @@ internal fun MetricChartCard(
                             append("Последнее значение: $currentValue. ")
                             append("Изменение к предыдущему: $delta")
                         },
+                        onShiftDateWindowByDays = onShiftDateWindowByDays,
                         modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                     )
                 }
@@ -642,6 +648,7 @@ internal fun MetricLineChart(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
     contentDescription: String,
+    onShiftDateWindowByDays: (Long) -> Unit = {},
     modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
@@ -729,10 +736,47 @@ internal fun MetricLineChart(
         modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
+            .pointerInput(startDate, endDateInclusive, onShiftDateWindowByDays) {
+                var dragDistance = 0f
+                var dragStartX = 0f
+                detectHorizontalDragGestures(
+                    onDragStart = { start ->
+                        dragStartX = start.x
+                        dragDistance = 0f
+                    },
+                    onHorizontalDrag = { change, _ ->
+                        change.consume()
+                        dragDistance = change.position.x - dragStartX
+                    },
+                    onDragCancel = { dragDistance = 0f },
+                    onDragEnd = {
+                        val days = chartDragDistanceToDays(
+                            dragDistancePx = dragDistance,
+                            chartWidthPx = size.width.toFloat(),
+                            startDate = startDate,
+                            endDateInclusive = endDateInclusive,
+                        )
+                        if (days != 0L) onShiftDateWindowByDays(days)
+                        dragDistance = 0f
+                    },
+                )
+            }
             .semantics { this.contentDescription = contentDescription },
         scrollState = rememberVicoScrollState(scrollEnabled = true),
         zoomState = zoomState,
     )
+}
+
+internal fun chartDragDistanceToDays(
+    dragDistancePx: Float,
+    chartWidthPx: Float,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+): Long {
+    if (chartWidthPx <= 0f || !dragDistancePx.isFinite()) return 0L
+    val inclusiveDayCount = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
+    if (inclusiveDayCount <= 0L) return 0L
+    return (-dragDistancePx / chartWidthPx * inclusiveDayCount).roundToLong()
 }
 
 private fun rangeLabel(

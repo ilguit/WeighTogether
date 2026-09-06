@@ -231,6 +231,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         selectAll = ::selectAll,
         clearSelection = ::clearSelection,
         doneSelectingMetrics = ::doneSelectingMetrics,
+        shiftDateWindowByDays = ::shiftDateWindowByDays,
         onAccountSelected = ::selectAccount,
     )
 
@@ -287,6 +288,11 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
 
     fun doneSelectingMetrics() {
         filters.update(ChartFilters::doneSelectingMetrics)
+    }
+
+    fun shiftDateWindowByDays(days: Long) {
+        if (days == 0L) return
+        filters.update { it.shiftDateWindowByDays(days, LocalDate.now(zoneId)) }
     }
 
     private fun setSelectedMetrics(selectedMetrics: Set<MeasurementMetric>) {
