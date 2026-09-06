@@ -9,6 +9,7 @@ import com.palixander.scalesync.core.reference.ReferenceProfile
 import com.palixander.scalesync.core.reference.ReferenceSex
 import com.palixander.scalesync.core.reference.ReferenceSpecies
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
+import com.palixander.scalesync.domain.AgeInterval
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSex
@@ -132,6 +133,11 @@ class PetWeightReferenceResolver(
             null -> return unavailable(WeightReferenceUnavailableReason.MissingSex)
         }
         birthDate ?: return unavailable(WeightReferenceUnavailableReason.MissingBirthDate)
+        val age = try {
+            birthDate.ageAt(referenceDate)
+        } catch (_: IllegalArgumentException) {
+            return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
+        }
 
         val breedProfile = breedId?.let { id ->
             val breed = breedCatalog.findById(id.value)
@@ -145,7 +151,7 @@ class PetWeightReferenceResolver(
             snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.BREED && it.species == referenceSpecies &&
                     it.sex == referenceSex && it.breedId == id.value
-            }
+            }?.takeIf { it.supports(age) }
         }
 
         val profile = if (breedProfile != null) {
@@ -180,27 +186,16 @@ class PetWeightReferenceResolver(
             }
         }
 
-        return resolveProfile(profile, birthDate, referenceDate)
+        return resolveProfile(profile, birthDate, age)
     }
 
     private fun resolveProfile(
         profile: ReferenceProfile,
         birthDate: PartialBirthDate,
-        referenceDate: LocalDate,
+        age: AgeInterval,
     ): PetWeightReferenceResolution {
-        val age = try {
-            birthDate.ageAt(referenceDate)
-        } catch (_: IllegalArgumentException) {
-            return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
-        }
         val supportedMinimum = profile.points.first().ageDays
-        val scope = snapshot.manifest.scopes.single { it.id == profile.id }
-        val supportedMaximum = when (profile.ageAvailability) {
-            ReferenceAgeAvailability.CARRY_FORWARD -> Int.MAX_VALUE
-            ReferenceAgeAvailability.DECLARED_RANGE_ONLY,
-            ReferenceAgeAvailability.EXACT_OBSERVATIONS,
-            -> scope.maximumAgeDays
-        }
+        val supportedMaximum = profile.supportedMaximumAgeDays()
         if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
             return unavailable(
                 WeightReferenceUnavailableReason.AgeOutOfRange(
@@ -230,6 +225,16 @@ class PetWeightReferenceResolver(
                 approximate = birthDate.precision != BirthDatePrecision.DAY,
             ),
         )
+    }
+
+    private fun ReferenceProfile.supports(age: AgeInterval): Boolean =
+        age.minimumDays >= points.first().ageDays && age.maximumDays <= supportedMaximumAgeDays()
+
+    private fun ReferenceProfile.supportedMaximumAgeDays(): Int = when (ageAvailability) {
+        ReferenceAgeAvailability.CARRY_FORWARD -> Int.MAX_VALUE
+        ReferenceAgeAvailability.DECLARED_RANGE_ONLY,
+        ReferenceAgeAvailability.EXACT_OBSERVATIONS,
+        -> snapshot.manifest.scopes.single { it.id == id }.maximumAgeDays
     }
 
     private fun categoryFor(weightKg: Double): DogAdultWeightCategory? = when {

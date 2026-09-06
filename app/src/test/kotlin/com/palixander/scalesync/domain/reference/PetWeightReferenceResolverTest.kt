@@ -397,6 +397,29 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `licensed breed falls back to population after its birth observation`() {
+        val cases = listOf(
+            BreedId("VBO:0100154"),
+            BreedId("VBO:0100223"),
+        )
+        cases.forEach { breedId ->
+            for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+                val result = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breedId,
+                    PartialBirthDate.Day(referenceDate.minusDays(56)),
+                    referenceDate,
+                ).available()
+
+                assertEquals("cat-population-${sex.name.lowercase()}", result.profileId)
+                assertEquals(ReferenceBasis.POPULATION, result.basis)
+                assertEquals(56L..56L, result.ageDays)
+            }
+        }
+    }
+
+    @Test
     fun `other cat breed uses sex specific fitted population profile`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
