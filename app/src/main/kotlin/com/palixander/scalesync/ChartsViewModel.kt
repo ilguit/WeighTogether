@@ -41,6 +41,28 @@ internal data class ChartFilters(
     val activeFilterSheet: ChartFilterSheet? = null,
     val isCustomDatePickerOpen: Boolean = false,
 ) {
+    fun shiftDateWindowByDays(days: Long, today: LocalDate): ChartFilters {
+        val startEpochDay = startDate.toEpochDay()
+        val windowLengthMinusOne = endDateInclusive.toEpochDay() - startEpochDay
+        val latestStartEpochDay = today.toEpochDay() - windowLengthMinusOne
+        require(latestStartEpochDay >= LocalDate.MIN.toEpochDay()) {
+            "The date window must fit on or before today."
+        }
+        val shiftedStartEpochDay = when {
+            days > 0 && startEpochDay > Long.MAX_VALUE - days -> Long.MAX_VALUE
+            days < 0 && startEpochDay < Long.MIN_VALUE - days -> Long.MIN_VALUE
+            else -> startEpochDay + days
+        }.coerceIn(LocalDate.MIN.toEpochDay(), latestStartEpochDay)
+
+        if (shiftedStartEpochDay == startEpochDay) return this
+
+        return copy(
+            startDate = LocalDate.ofEpochDay(shiftedStartEpochDay),
+            endDateInclusive = LocalDate.ofEpochDay(shiftedStartEpochDay + windowLengthMinusOne),
+            rangePreset = ChartRangePreset.CUSTOM,
+        )
+    }
+
     fun confirmCustomDateRange(startDate: LocalDate, endDateInclusive: LocalDate): ChartFilters =
         if (endDateInclusive.isBefore(startDate)) {
             this
@@ -211,6 +233,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         selectAll = ::selectAll,
         clearSelection = ::clearSelection,
         doneSelectingMetrics = ::doneSelectingMetrics,
+        shiftDateWindowByDays = ::shiftDateWindowByDays,
         onAccountSelected = ::selectAccount,
     )
 
@@ -267,6 +290,11 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
 
     fun doneSelectingMetrics() {
         filters.update(ChartFilters::doneSelectingMetrics)
+    }
+
+    fun shiftDateWindowByDays(days: Long) {
+        if (days == 0L) return
+        filters.update { it.shiftDateWindowByDays(days, LocalDate.now(zoneId)) }
     }
 
     private fun setSelectedMetrics(selectedMetrics: Set<MeasurementMetric>) {
