@@ -60,6 +60,35 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun everyLegacyVersionImportsWhenHuaweiFieldsAreAbsentOrPartiallyPresent() {
+        val subsets = listOf(
+            emptySet(),
+            setOf("huaweiStatus"),
+            setOf("huaweiError", "huaweiWeightSynced"),
+            setOf("huaweiStatus", "huaweiSyncedCalculatedValues"),
+            legacyHuaweiKeys,
+        )
+        for (version in 1..5) {
+            for (presentKeys in subsets) {
+                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
+                root.getAsJsonArray("measurements").single().asJsonObject.apply {
+                    legacyHuaweiKeys.filterNot(presentKeys::contains).forEach(::remove)
+                    presentKeys.forEach { add(it, JsonParser.parseString("{\"ignored\":true}")) }
+                }
+
+                val decoded = codec.decode(root.toString())
+
+                assertEquals(version, decoded.schemaVersion)
+                assertEquals("Legacy account", decoded.accounts.single().displayName)
+                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+                assertEquals("health error", decoded.measurements.single().healthConnectError)
+                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            }
+        }
+    }
+
+    @Test
     fun legacyHuaweiFieldValuesAreIgnoredButUnknownFieldsAreRejected() {
         val arbitraryValues = listOf("null", "false", "42", "\"arbitrary\"", "{}", "[]")
         for (version in 1..5) {
