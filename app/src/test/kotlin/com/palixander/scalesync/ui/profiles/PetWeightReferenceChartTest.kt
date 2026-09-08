@@ -74,6 +74,58 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `cat breed curve and legacy dog timeline share breed roles styles and band semantics`() {
+        val dates = listOf(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1))
+        val points = dates.mapIndexed { index, date ->
+            PetHistoryReferencePoint(
+                date = date,
+                lowerKg = 2.0 + index,
+                medianLowerKg = 3.0 + index,
+                medianUpperKg = 3.0 + index,
+                upperKg = 4.0 + index,
+            )
+        }
+        val catCurve = availableSegments(
+            segments = listOf(points),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+        )
+        val dogTimeline = points.map { point ->
+            timelinePoint(
+                point.date,
+                PetHistoryBreedChartValue.Interval(
+                    lowerKg = point.lowerKg,
+                    upperKg = point.upperKg,
+                    centerKg = point.medianLowerKg,
+                    statisticLabel = "Диапазон",
+                    accessibilityLabel = "Породный диапазон",
+                    seriesId = "breed-range",
+                ),
+            )
+        }
+        val legacyReference = availableSegments(segments = listOf(points))
+
+        val catSeries = petWeightDisplayedSeries(emptyList(), catCurve, emptyList(), ZoneOffset.UTC)
+        val dogSeries = petWeightDisplayedSeries(emptyList(), legacyReference, dogTimeline, ZoneOffset.UTC)
+        fun visualContract(series: List<PetWeightDisplayedSeries>) = series.associate { displayed ->
+            displayed.kind to Triple(displayed.style, displayed.x, displayed.y)
+        }
+
+        assertEquals(visualContract(dogSeries), visualContract(catSeries))
+        assertEquals(
+            breedWeightReferenceBands(dogTimeline),
+            populationWeightReferenceBands(catCurve, ZoneOffset.UTC),
+        )
+        assertTrue((catSeries + dogSeries).none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
+        assertEquals(
+            setOf(
+                PetWeightDisplayedSeriesKind.BREED_LOWER,
+                PetWeightDisplayedSeriesKind.BREED_CENTER,
+                PetWeightDisplayedSeriesKind.BREED_UPPER,
+            ),
+            catSeries.map(PetWeightDisplayedSeries::kind).toSet(),
+        )
+    }
+
     @Test fun `breed model bands preserve gaps and never invent a singleton fill`() {
         val first = LocalDate.of(2026, 1, 1)
         val reference = availableSegments(

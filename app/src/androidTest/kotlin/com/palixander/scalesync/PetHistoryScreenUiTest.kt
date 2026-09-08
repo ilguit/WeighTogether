@@ -362,11 +362,16 @@ class PetHistoryScreenUiTest {
 
         composeRule.onNodeWithText("▰ Светло-зелёная зона — модельный породный диапазон").assertIsDisplayed()
         composeRule.onNodeWithText("— Центр породной модели").assertIsDisplayed()
+        composeRule.onNodeWithText("— Нижняя граница эталона").assertDoesNotExist()
+        composeRule.onNodeWithText("— Нижняя медианная граница").assertDoesNotExist()
+        composeRule.onNodeWithText("— Верхняя медианная граница").assertDoesNotExist()
+        composeRule.onNodeWithText("— Верхняя граница эталона").assertDoesNotExist()
         composeRule.onNodeWithText(
             "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модели. Это расчётная модель, а не наблюдаемая кривая роста породы.",
         ).assertIsDisplayed()
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assert(hasContentDescription("модельный породный диапазон", substring = true))
+            .assert(hasContentDescription("четырьмя линиями", substring = true).not())
     }
 
     @Test fun exactBirthObservationUsesWhiskerLegendWithoutAFalseBand() {
