@@ -220,25 +220,27 @@ internal fun PetProfileEditorDialog(
                     }
                 }
 
-                if (draft.species == PetSpecies.DOG) EditorSection("Порода") {
-                    OutlinedButton(
-                        onClick = { breedPickerOpen = true },
-                        enabled = !locked,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 48.dp)
-                            .testTag(PetProfileEditorTestTags.BreedField)
-                            .semantics {
-                                contentDescription = "Выбрать породу. ${petBreedLabel(draft.breed)}"
-                            },
-                    ) {
-                        Text(
-                            text = petBreedLabel(draft.breed),
-                            modifier = Modifier.weight(1f),
-                        )
-                    }
-                    fieldErrors.breed?.let {
-                        FieldError("Порода не соответствует выбранному виду питомца")
+                if (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) {
+                    EditorSection("Порода") {
+                        OutlinedButton(
+                            onClick = { breedPickerOpen = true },
+                            enabled = !locked,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 48.dp)
+                                .testTag(PetProfileEditorTestTags.BreedField)
+                                .semantics {
+                                    contentDescription = "Выбрать породу. ${petBreedLabel(draft.breed)}"
+                                },
+                        ) {
+                            Text(
+                                text = petBreedLabel(draft.breed),
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        fieldErrors.breed?.let {
+                            FieldError("Порода не соответствует выбранному виду питомца")
+                        }
                     }
                 }
 
@@ -328,7 +330,11 @@ internal fun PetProfileEditorDialog(
         },
     )
 
-    if (breedPickerOpen && draft.species == PetSpecies.DOG && !locked) {
+    if (
+        breedPickerOpen &&
+        (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) &&
+        !locked
+    ) {
         BreedPickerDialog(
             species = draft.species,
             selected = draft.breed,

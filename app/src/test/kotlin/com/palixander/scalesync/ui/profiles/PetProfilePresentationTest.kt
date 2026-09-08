@@ -75,13 +75,36 @@ class PetProfilePresentationTest {
     }
 
     @Test
-    fun `cat breed row is hidden`() {
+    fun `cat breed row shows localized supported breed`() {
+        val breed = catalog.search("Maine Coon Cat", PetSpecies.CAT).single()
+        val summary = petProfileSummary(
+            pet(breedId = breed.id),
+            catalog,
+        )
+
+        assertEquals(
+            listOf(PetProfileSummaryItem("Порода", breed.displayName)),
+            summary.items,
+        )
+        assertEquals("Порода: ${breed.displayName}", summary.contentDescription)
+    }
+
+    @Test
+    fun `unavailable cat breed id stays visible`() {
         val summary = petProfileSummary(
             pet(breedId = BreedId("retired:cat:very-long-id")),
             catalog,
         )
 
-        assertTrue(summary.items.isEmpty())
+        assertEquals(
+            listOf(
+                PetProfileSummaryItem(
+                    "Порода",
+                    "Недоступна: retired:cat:very-long-id",
+                ),
+            ),
+            summary.items,
+        )
     }
 
     @Test

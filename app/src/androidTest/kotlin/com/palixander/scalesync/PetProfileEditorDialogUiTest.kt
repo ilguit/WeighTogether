@@ -133,6 +133,41 @@ class PetProfileEditorDialogUiTest {
     }
 
     @Test
+    fun catBreedPickerSelectsCatAndDoesNotExposeDogBreeds() {
+        val state = mutableStateOf(
+            PetProfileEditorState(
+                PetProfileDraft.create().copy(
+                    displayName = "Мурка",
+                    species = PetSpecies.CAT,
+                ),
+            ),
+        )
+        val cat = catalog.search("Maine Coon Cat", PetSpecies.CAT).single()
+        val dog = catalog.search("Лабрадор", PetSpecies.DOG).single()
+        setEditor(state)
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput("Maine Coon Cat")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(cat.id.value))
+            .assertIsDisplayed()
+            .performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(cat.id, state.value.draft.breed?.id)
+            assertEquals(PetSpecies.CAT, state.value.draft.breed?.species)
+            assertNull(state.value.draft.dogAdultWeightCategory)
+        }
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextInput("Лабрадор")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(dog.id.value))
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedNoResults).assertIsDisplayed()
+    }
+
+    @Test
     fun yearMonthAndDayInputsDispatchTypedPrecisionWithoutInventingParts() {
         val state = mutableStateOf(
             PetProfileEditorState(
