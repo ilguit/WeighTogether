@@ -1189,7 +1189,11 @@ class MainViewModel @JvmOverloads constructor(
         petMeasurementCoordinator.showCreating()
     }
 
-    fun createPetAndStartMeasurement(displayName: String, species: PetSpecies) {
+    fun createPetAndStartMeasurement(
+        displayName: String,
+        species: PetSpecies,
+        onCreated: (com.palixander.scalesync.domain.Pet) -> Unit,
+    ) {
         if (petCreationInProgress || petMeasurementCoordinator.isActive) return
         petCreationInProgress = true
         viewModelScope.launch {
@@ -1206,7 +1210,7 @@ class MainViewModel @JvmOverloads constructor(
                 return@launch
             }
             petCreationInProgress = false
-            startPetMeasurement(pet.id)
+            onCreated(pet)
         }
     }
 

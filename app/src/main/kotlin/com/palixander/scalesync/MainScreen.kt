@@ -313,18 +313,36 @@ fun ScaleSyncApp(
         petMeasurementCallbacks = PetMeasurementCallbacks(
             onOpen = viewModel::openPetMeasurement,
             onShowCreate = viewModel::showCreatePet,
-            onCreateAndStart = viewModel::createPetAndStartMeasurement,
-            onStart = { petId ->
-                when (petProfileMeasurementStartRoute(state.settings.scaleAddress)) {
-                    PetProfileMeasurementStartRoute.MANUAL_WEIGHT -> {
-                        state.pets.firstOrNull { it.pet.id == petId }?.pet?.let { pet ->
+            onCreateAndStart = { displayName, species ->
+                viewModel.createPetAndStartMeasurement(displayName, species) { pet ->
+                    startPetProfileMeasurement(
+                        pet = pet,
+                        scaleAddress = state.settings.scaleAddress,
+                        dismissPetMeasurement = viewModel::cancelPetMeasurement,
+                        openManualWeight = { createdPet ->
                             measurementsViewModel.manualWeight.open(
-                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(pet.id),
-                                pet.displayName,
+                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(createdPet.id),
+                                createdPet.displayName,
                             )
-                        }
-                    }
-                    PetProfileMeasurementStartRoute.BLE -> viewModel.startPetMeasurement(petId)
+                        },
+                        startBleMeasurement = viewModel::startPetMeasurement,
+                    )
+                }
+            },
+            onStart = { petId ->
+                state.pets.firstOrNull { it.pet.id == petId }?.pet?.let { pet ->
+                    startPetProfileMeasurement(
+                        pet = pet,
+                        scaleAddress = state.settings.scaleAddress,
+                        dismissPetMeasurement = viewModel::cancelPetMeasurement,
+                        openManualWeight = { selectedPet ->
+                            measurementsViewModel.manualWeight.open(
+                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(selectedPet.id),
+                                selectedPet.displayName,
+                            )
+                        },
+                        startBleMeasurement = viewModel::startPetMeasurement,
+                    )
                 }
             },
             onCancel = viewModel::cancelPetMeasurement,

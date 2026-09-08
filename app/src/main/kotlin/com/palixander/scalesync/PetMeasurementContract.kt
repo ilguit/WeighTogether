@@ -23,6 +23,22 @@ internal fun petProfileMeasurementStartRoute(scaleAddress: String?): PetProfileM
         PetProfileMeasurementStartRoute.BLE
     }
 
+internal fun startPetProfileMeasurement(
+    pet: Pet,
+    scaleAddress: String?,
+    dismissPetMeasurement: () -> Unit,
+    openManualWeight: (Pet) -> Unit,
+    startBleMeasurement: (PetId) -> Unit,
+) {
+    when (petProfileMeasurementStartRoute(scaleAddress)) {
+        PetProfileMeasurementStartRoute.MANUAL_WEIGHT -> {
+            dismissPetMeasurement()
+            openManualWeight(pet)
+        }
+        PetProfileMeasurementStartRoute.BLE -> startBleMeasurement(pet.id)
+    }
+}
+
 sealed interface PetMeasurementUiState {
     data object Idle : PetMeasurementUiState
     data object SelectingPet : PetMeasurementUiState
