@@ -258,9 +258,10 @@ class PetHistoryReferencePresenter(
     ): PetHistoryWeightReference.Available {
         val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
         val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
+        val isExactBreedObservation = provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION
         val basisLabel = if (metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES) {
             "Справочные данные о весе"
-        } else if (metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
+        } else if (isExactBreedObservation || metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
             "Наблюдение по породе: среднее ± одно стандартное отклонение"
         } else when (metadata.basis) {
             ReferenceBasis.BREED -> "Эталон по породе"
@@ -279,18 +280,34 @@ class PetHistoryReferencePresenter(
             "Источник: ${metadata.source.citation}",
             metadata.source.citation,
             metadata.source.license,
-            metadata.constraints,
+            metadata.constraints.map(::localizedReferenceConstraint),
             "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
             "https://doi.org/${metadata.source.publicationDoi}",
             metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
-            metadata.centerStatistic,
-            metadata.boundsStatistic,
+            if (isExactBreedObservation) ReferenceCenterStatistic.MEAN else metadata.centerStatistic,
+            if (isExactBreedObservation) ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION else metadata.boundsStatistic,
         )
     }
 }
 
+internal fun localizedReferenceConstraint(constraint: String): String = when (constraint) {
+    "Domestic Shorthair only" -> "Только домашние короткошёрстные кошки"
+    "Sexually intact kittens from the USA" -> "Нестерилизованные котята из США"
+    "Age 8 to 78 weeks" -> "Возраст от 8 до 78 недель"
+    "Other-breed fallback; source population was Domestic Shorthair" ->
+        "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
+    "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
+        "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
+    "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+        "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+    "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+        "18–22 фунта преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+    else -> constraint
+}
+
 fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): String? = when (provenance) {
-    WeightReferenceProvenance.BREED_CURVE -> "Показан полноценный возрастной диапазон выбранной породы."
+    WeightReferenceProvenance.BREED_CURVE ->
+        "Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая."
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
         "Для выбранной породы опубликовано только точечное наблюдение веса при рождении."
     WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED ->

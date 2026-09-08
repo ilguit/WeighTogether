@@ -39,6 +39,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.ui.profiles.PetHistoryCallbacks
 import com.palixander.scalesync.ui.profiles.PetHistoryContent
 import com.palixander.scalesync.ui.profiles.PetHistoryDeleteConfirmation
@@ -347,6 +348,38 @@ class PetHistoryScreenUiTest {
             .assert(hasContentDescription("Источник: Test veterinary source", substring = true))
             .assert(hasContentDescription("Ограничение: Только здоровые животные", substring = true))
             .assert(hasContentDescription("не ставит диагноз", substring = true))
+    }
+
+    @Test fun modelledCatBreedUsesRussianHonestLegendAndExplanation() {
+        val reference = availableReference("Эталон по породе").copy(
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+            provenanceExplanation = "Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая.",
+            constraints = listOf("Модель основана на популяционной кривой кошек того же пола"),
+        )
+
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+
+        composeRule.onNodeWithText("▰ Светло-зелёная зона — модельный породный диапазон").assertIsDisplayed()
+        composeRule.onNodeWithText("— Центр породной модели").assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модели. Это расчётная модель, а не наблюдаемая кривая роста породы.",
+        ).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assert(hasContentDescription("модельный породный диапазон", substring = true))
+    }
+
+    @Test fun exactBirthObservationUsesWhiskerLegendWithoutAFalseBand() {
+        val date = LocalDate.of(2026, 8, 1)
+        val reference = availableReference("Наблюдение по породе: среднее ± одно стандартное отклонение").copy(
+            provenance = WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
+            segments = listOf(listOf(PetHistoryReferencePoint(date, 0.1, 0.12, 0.12, 0.14))),
+        )
+
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+
+        composeRule.onNodeWithText("↕ Диапазон наблюдения породы в дату рождения").assertIsDisplayed()
+        composeRule.onNodeWithText("● Средний вес породы в дату рождения").assertIsDisplayed()
+        composeRule.onNodeWithText("▰ Светло-зелёная зона — модельный породный диапазон").assertDoesNotExist()
     }
 
     @Test fun breedLayerRendersWithoutMeasurementsAndExposesShapeIndependentSemanticsAtNarrowLargeText() {

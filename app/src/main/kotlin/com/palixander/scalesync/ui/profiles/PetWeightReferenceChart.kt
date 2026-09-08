@@ -242,8 +242,8 @@ internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntr
 
 internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE -> listOf(
-        PetWeightChartLegendEntry("▰ Светло-зелёная зона — породный диапазон P9–P91", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— P50 породы", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry("▰ Светло-зелёная зона — модельный породный диапазон", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("— Центр породной модели", PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
         PetWeightChartLegendEntry("↕ Диапазон наблюдения породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
@@ -374,12 +374,14 @@ internal fun petWeightDisplayedSeries(
             )
         }
     } else if ((reference as? PetHistoryWeightReference.Available)?.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
+        val isBreedModel = (reference as PetHistoryWeightReference.Available).provenance == WeightReferenceProvenance.BREED_CURVE
         petWeightReferenceChartSeries(reference).forEachIndexed { index, series ->
+            if (isBreedModel && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
-                PetWeightReferenceSeriesKind.LOWER -> PetWeightDisplayedSeriesKind.CATEGORY_LOWER to "Нижняя граница эталона"
-                PetWeightReferenceSeriesKind.MEDIAN_LOWER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER to "Нижняя медианная граница"
+                PetWeightReferenceSeriesKind.LOWER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to (if (isBreedModel) "Нижняя граница модели" else "Нижняя граница эталона")
+                PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to (if (isBreedModel) "Центр породной модели" else "Нижняя медианная граница")
                 PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Верхняя медианная граница"
-                PetWeightReferenceSeriesKind.UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_UPPER to "Верхняя граница эталона"
+                PetWeightReferenceSeriesKind.UPPER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to (if (isBreedModel) "Верхняя граница модели" else "Верхняя граница эталона")
             }
             add(
                 PetWeightDisplayedSeries(
@@ -388,7 +390,9 @@ internal fun petWeightDisplayedSeries(
                     label = label,
                     x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                     y = series.points.map { it.second },
-                    style = PetWeightDisplayedSeriesStyle.CATEGORY,
+                    style = if (!isBreedModel) PetWeightDisplayedSeriesStyle.CATEGORY
+                    else if (kind == PetWeightDisplayedSeriesKind.BREED_CENTER) PetWeightDisplayedSeriesStyle.BREED_CENTER
+                    else PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 ),
             )
         }
@@ -597,11 +601,15 @@ internal fun PetWeightReferenceChartCard(
                 add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
-        } else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) buildList {
+        } else if (available?.provenance in setOf(
+                WeightReferenceProvenance.BREED_CURVE,
+                WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
+            )
+        ) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
                 add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
             }
-            addAll(referenceWeightChartLegendEntries(available.provenance))
+            addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else petWeightChartLegendEntries(displayedSeries)
     }
     val yRange = remember(displayedSeries) {
@@ -624,7 +632,7 @@ internal fun PetWeightReferenceChartCard(
         if (showReferenceExplanation && !hasBreedTimeline) {
             append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
             if (available != null) append(
-                if (available?.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; породный диапазон — светло-зелёной зоной P9–P91 и линией P50."
+                if (available?.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
                 else if (available?.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
                 else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
                 else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
@@ -656,6 +664,7 @@ internal fun PetWeightReferenceChartCard(
                     } else displayedSeries,
                     breedBands = when {
                         isPopulationReference -> populationWeightReferenceBands(available, zoneId)
+                        available?.provenance == WeightReferenceProvenance.BREED_CURVE -> populationWeightReferenceBands(available, zoneId)
                         available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> emptyList()
                         else -> breedWeightReferenceBands(breedReferenceTimeline)
                     },
@@ -950,7 +959,17 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
         ) {
             Text(if (reference.isFittedPopulationPercentiles) "Как читать справочные данные" else "Как читать эталон", style = MaterialTheme.typography.titleSmall)
             Text("${reference.basisLabel} · ${reference.ageLabel}")
-            Text(if (reference.isFittedPopulationPercentiles) "Светло-зелёная зона показывает P9–P91, тонкая линия — P50." else "Внешние линии показывают общий диапазон, две внутренние — медианный диапазон.")
+            Text(
+                when {
+                    reference.provenance == WeightReferenceProvenance.BREED_CURVE ->
+                        "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модели. Это расчётная модель, а не наблюдаемая кривая роста породы."
+                    reference.isFittedPopulationPercentiles ->
+                        "Светло-зелёная зона показывает P9–P91, тонкая линия — P50."
+                    reference.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
+                        "Вертикальный отрезок показывает среднее ± одно стандартное отклонение, точка — средний вес в дату рождения."
+                    else -> "Внешние линии показывают общий диапазон, две внутренние — медианный диапазон."
+                },
+            )
             Text(reference.sourceLabel, style = MaterialTheme.typography.bodySmall)
             Text("Лицензия: ${reference.license}", style = MaterialTheme.typography.bodySmall)
             reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }

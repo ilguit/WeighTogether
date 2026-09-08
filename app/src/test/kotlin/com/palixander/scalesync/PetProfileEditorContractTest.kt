@@ -229,6 +229,21 @@ class PetProfileEditorContractTest {
     }
 
     @Test
+    fun `supported cat names are Russian while canonical names and aliases remain searchable`() {
+        val expected = mapOf(
+            "Domestic Shorthair" to "Домашняя короткошёрстная",
+            "Scottish Fold" to "Шотландская вислоухая",
+            "Siberian Forest Cat" to "Сибирская",
+        )
+
+        expected.forEach { (query, displayName) ->
+            val option = breedCatalog.search(query, PetSpecies.CAT).single()
+            assertEquals(displayName, option.displayName)
+            assertTrue(option.canonicalName.first().isUpperCase())
+        }
+    }
+
+    @Test
     fun `catalog keeps the supported dog set independent from cat options`() {
         val dogOptions = breedCatalog.search("", PetSpecies.DOG)
 

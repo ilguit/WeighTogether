@@ -29,13 +29,42 @@ class PetWeightReferenceChartTest {
         val displayed = petWeightDisplayedSeries(emptyList(), reference, legacy, ZoneOffset.UTC)
         val band = populationWeightReferenceBands(reference, ZoneOffset.UTC).single()
 
-        assertEquals(4, displayed.size)
+        assertEquals(3, displayed.size)
+        assertEquals(
+            listOf(
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+                PetWeightDisplayedSeriesStyle.BREED_CENTER,
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+            ),
+            displayed.map(PetWeightDisplayedSeries::style),
+        )
         assertTrue(displayed.none { 99.0 in it.y })
         assertEquals(dates.size, band.points.size)
         assertEquals(
-            listOf("▰ Светло-зелёная зона — породный диапазон P9–P91", "— P50 породы"),
+            listOf("▰ Светло-зелёная зона — модельный породный диапазон", "— Центр породной модели"),
             referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
         )
+    }
+
+    @Test fun `breed model bands preserve gaps and never invent a singleton fill`() {
+        val first = LocalDate.of(2026, 1, 1)
+        val reference = availableSegments(
+            segments = listOf(
+                listOf(
+                    PetHistoryReferencePoint(first, 1.0, 2.0, 2.0, 3.0),
+                    PetHistoryReferencePoint(first.plusDays(1), 1.1, 2.1, 2.1, 3.1),
+                ),
+                listOf(PetHistoryReferencePoint(first.plusDays(56), 1.5, 2.5, 2.5, 3.5)),
+            ),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+        )
+
+        val bands = populationWeightReferenceBands(reference, ZoneOffset.UTC)
+
+        assertEquals(1, bands.size)
+        assertEquals(listOf(first, first.plusDays(1)), bands.single().points.map {
+            java.time.Instant.ofEpochMilli(it.xEpochMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        })
     }
 
     @Test fun `exact breed observation becomes single date whisker and mean without chart lines`() {

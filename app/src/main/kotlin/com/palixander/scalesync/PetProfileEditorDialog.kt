@@ -627,7 +627,7 @@ private fun BreedPickerDialog(
                         ) { option ->
                             SelectionRow(
                                 label = option.displayName,
-                                supportingLabel = option.canonicalName,
+                                supportingLabel = option.canonicalName.takeIf { option.species == PetSpecies.DOG },
                                 selected = selected?.id == option.id,
                                 enabled = true,
                                 tag = PetProfileEditorTestTags.breedOption(option.id.value),

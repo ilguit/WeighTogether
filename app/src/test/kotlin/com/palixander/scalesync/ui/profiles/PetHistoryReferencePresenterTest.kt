@@ -184,31 +184,33 @@ class PetHistoryReferencePresenterTest {
     @Test
     fun `breed observation presentation identifies mean and standard deviation`() {
         val date = LocalDate.of(2026, 9, 6)
-        val pet = Pet(
-            id = PetId("kitten"),
-            displayName = "Барсик",
-            species = PetSpecies.CAT,
-            createdAt = Instant.EPOCH,
-            updatedAt = Instant.EPOCH,
-            sex = PetSex.MALE,
-            birthDate = PartialBirthDate.Day(date),
-            breedId = BreedId("VBO:0100223"),
-        )
+        listOf(BreedId("VBO:0100154"), BreedId("VBO:0100223")).forEach { breedId ->
+            val pet = Pet(
+                id = PetId("kitten-${breedId.value}"),
+                displayName = "Барсик",
+                species = PetSpecies.CAT,
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+                sex = PetSex.MALE,
+                birthDate = PartialBirthDate.Day(date),
+                breedId = breedId,
+            )
 
-        val result = presenter.present(pet, ChartDateRange(date, date))
-            as PetHistoryWeightReference.Available
+            val result = presenter.present(pet, ChartDateRange(date, date))
+                as PetHistoryWeightReference.Available
 
-        assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
-        assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
-        assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
-        assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
-        assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, result.provenance)
-        assertEquals(pet.breedId, result.selectedBreedId)
-        assertTrue(result.provenanceExplanation!!.contains("только точечное наблюдение"))
+            assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
+            assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
+            assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
+            assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
+            assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, result.provenance)
+            assertEquals(pet.breedId, result.selectedBreedId)
+            assertTrue(result.provenanceExplanation!!.contains("только точечное наблюдение"))
+        }
     }
 
     @Test
-    fun `presenter retains selected breed and explains population fallback in Russian`() {
+    fun `all five modelled breeds expose breed curves from day 56 through day 730`() {
         val date = LocalDate.of(2026, 9, 6)
         val cases = listOf(
             BreedId("VBO:0100052"),
@@ -224,15 +226,22 @@ class PetHistoryReferencePresenterTest {
                 createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
                 birthDate = PartialBirthDate.Day(date.minusDays(56)), breedId = breedId,
             )
-            val result = presenter.present(pet, ChartDateRange(date, date))
+            val result = presenter.present(pet, ChartDateRange(date, date.plusDays(674)))
                 as PetHistoryWeightReference.Available
 
-            assertEquals(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED, result.provenance)
+            assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
             assertEquals(breedId, result.selectedBreedId)
-            assertEquals(
-                "Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек.",
-                result.provenanceExplanation,
-            )
+            assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+            assertEquals(date, result.segments.last().first().date)
+            assertEquals(date.plusDays(674), result.segments.last().last().date)
+            assertTrue(result.segments.last().all { point ->
+                point.lowerKg <= point.medianLowerKg &&
+                    point.medianLowerKg == point.medianUpperKg &&
+                    point.medianUpperKg <= point.upperKg
+            })
+            assertTrue(result.constraints.all { constraint ->
+                constraint.none { character -> character in 'A'..'Z' || character in 'a'..'z' }
+            })
         }
     }
 
@@ -251,7 +260,15 @@ class PetHistoryReferencePresenterTest {
 
         assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
         assertEquals(breedId, result.selectedBreedId)
-        assertEquals("Показан полноценный возрастной диапазон выбранной породы.", result.provenanceExplanation)
+        assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+        assertEquals(
+            listOf(
+                "Только домашние короткошёрстные кошки",
+                "Нестерилизованные котята из США",
+                "Возраст от 8 до 78 недель",
+            ),
+            result.constraints,
+        )
     }
 
     private fun dog(birthDate: PartialBirthDate) = Pet(
