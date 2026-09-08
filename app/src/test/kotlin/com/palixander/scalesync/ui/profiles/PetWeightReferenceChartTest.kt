@@ -106,10 +106,17 @@ class PetWeightReferenceChartTest {
 
         val catSeries = petWeightDisplayedSeries(emptyList(), catCurve, emptyList(), ZoneOffset.UTC)
         val dogSeries = petWeightDisplayedSeries(emptyList(), legacyReference, dogTimeline, ZoneOffset.UTC)
-        fun visualContract(series: List<PetWeightDisplayedSeries>) = series.associate { displayed ->
-            displayed.kind to Triple(displayed.style, displayed.x, displayed.y)
-        }
+        val breedRoleOrder = listOf(
+            PetWeightDisplayedSeriesKind.BREED_LOWER,
+            PetWeightDisplayedSeriesKind.BREED_CENTER,
+            PetWeightDisplayedSeriesKind.BREED_UPPER,
+        )
+        fun visualContract(series: List<PetWeightDisplayedSeries>) = series
+            .sortedBy { displayed -> breedRoleOrder.indexOf(displayed.kind) }
+            .map { displayed -> displayed.kind to Triple(displayed.style, displayed.x, displayed.y) }
 
+        assertEquals(3, catSeries.size)
+        assertEquals(3, dogSeries.size)
         assertEquals(visualContract(dogSeries), visualContract(catSeries))
         assertEquals(
             breedWeightReferenceBands(dogTimeline),
