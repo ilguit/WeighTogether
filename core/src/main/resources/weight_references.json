@@ -1,9 +1,9 @@
 {
   "manifest": {
-    "schemaVersion": 2,
-    "snapshotVersion": "2026-09-06.2",
-    "snapshotDate": "2026-09-06",
-    "numericalDataSha256": "ea53ada92f6055a96a57eb63a40186557c7084eadd7a3f5f761d18beceba5aec",
+    "schemaVersion": 3,
+    "snapshotVersion": "2026-09-08.1",
+    "snapshotDate": "2026-09-08",
+    "numericalDataSha256": "73780a1f038e92bde00a7fb63d267178e749263be0614e0c3d25c4b81cbb6c62",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
@@ -14,7 +14,8 @@
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
       "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
-      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only"
+      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only",
+      "modelledBreedRuntime": "Normalize the matching-sex fitted population P50 by its final 546-day value, multiply that shape by the adult breed lower/midpoint/upper range, and append the exact adult range at 730 days. This is a model, not observed breed growth data. For Maine Coon and Siberian the empirical day-0 mean±SD point is retained separately and ages 1-55 are deliberately unavailable."
     },
     "sources": [
       {
@@ -50,6 +51,61 @@
         "upstreamArtifactSha256": "fa4bfd1fa294935a715e72f4e736068cb3b05d95c0548e09e2f9a75e5f2d581d",
         "license": "CC BY 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      {
+        "id": "wikipedia-fr-british-shorthair-38446796",
+        "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://fr.wikipedia.org/w/index.php?title=British_Shorthair&oldid=38446796",
+        "upstreamArtifactSha256": "fbfb06456c5db7f6caa8f15fe3addf29f4af6236a36b2a46458d319648368923",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-en-scottish-fold-1369070582",
+        "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://en.wikipedia.org/w/index.php?title=Scottish_Fold&oldid=1369070582",
+        "upstreamArtifactSha256": "240ff5bf33d60fa6621fdb55329ba88d417477373a1ccec419ca3b1c290721bb",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-de-siamkatze-269975201",
+        "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://de.wikipedia.org/w/index.php?title=Siamkatze&oldid=269975201",
+        "upstreamArtifactSha256": "5807b1cc2b15419b996a6d45cf0823219c3f3384f973b6035ff2059caff91ca6",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-en-maine-coon-1372828795",
+        "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://en.wikipedia.org/w/index.php?title=Maine_Coon&oldid=1372828795",
+        "upstreamArtifactSha256": "a3319bfda480cd41799ae6a46f8e868081218e37255ddced1aab9f346c091236",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-de-sibirische-katze-269975535",
+        "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://de.wikipedia.org/w/index.php?title=Sibirische_Katze&oldid=269975535",
+        "upstreamArtifactSha256": "44d53d26fdac69b0807340af7e97b138f4124a3b663c1168c743a3147229f40b",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
       }
     ],
     "scopes": [
@@ -289,15 +345,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100052",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
-          "British birth observations do not distinguish British Shorthair from British Longhair"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-fr-british-shorthair-38446796",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-british-shorthair-male",
@@ -305,15 +360,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100052",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
-          "British birth observations do not distinguish British Shorthair from British Longhair"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-fr-british-shorthair-38446796",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-scottish-fold-female",
@@ -321,15 +375,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100209",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Adult observations report mean plus SD for only four females; SD is not a reference boundary",
-          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-en-scottish-fold-1369070582",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-scottish-fold-male",
@@ -337,15 +390,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100209",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Adult observations report mean plus SD for only three males; SD is not a reference boundary",
-          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-en-scottish-fold-1369070582",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-siamese-female",
@@ -353,15 +405,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100221",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
-          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "mixed_breed_group"
+        "sourceId": "wikipedia-de-siamkatze-269975201",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-siamese-male",
@@ -369,15 +420,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100221",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
-          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "mixed_breed_group"
+        "sourceId": "wikipedia-de-siamkatze-269975201",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-maine-coon-female",
@@ -386,16 +436,15 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 12–15 фунтов",
+          "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-maine-coon-male",
@@ -404,16 +453,15 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 18–22 фунта",
+          "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-siberian-female",
@@ -422,16 +470,14 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 3–6 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-siberian-male",
@@ -440,19 +486,111 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 4,5–8 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       }
     ]
   },
+  "modelledBreedRanges": [
+    {
+      "id": "cat-british-shorthair-female",
+      "sourceId": "wikipedia-fr-british-shorthair-38446796",
+      "adultLowerKg": 3.0,
+      "adultUpperKg": 4.0
+    },
+    {
+      "id": "cat-british-shorthair-male",
+      "sourceId": "wikipedia-fr-british-shorthair-38446796",
+      "adultLowerKg": 5.0,
+      "adultUpperKg": 8.0
+    },
+    {
+      "id": "cat-scottish-fold-female",
+      "sourceId": "wikipedia-en-scottish-fold-1369070582",
+      "adultLowerKg": 2.7,
+      "adultUpperKg": 4.0
+    },
+    {
+      "id": "cat-scottish-fold-male",
+      "sourceId": "wikipedia-en-scottish-fold-1369070582",
+      "adultLowerKg": 4.0,
+      "adultUpperKg": 6.0
+    },
+    {
+      "id": "cat-siamese-female",
+      "sourceId": "wikipedia-de-siamkatze-269975201",
+      "adultLowerKg": 3.0,
+      "adultUpperKg": 4.0
+    },
+    {
+      "id": "cat-siamese-male",
+      "sourceId": "wikipedia-de-siamkatze-269975201",
+      "adultLowerKg": 4.0,
+      "adultUpperKg": 5.0
+    },
+    {
+      "id": "cat-maine-coon-female",
+      "sourceId": "wikipedia-en-maine-coon-1372828795",
+      "adultLowerKg": 5.44310844,
+      "adultUpperKg": 6.80388555,
+      "birthObservation": {
+        "ageDays": 0,
+        "lowerKg": 0.1004,
+        "medianKg": 0.1191,
+        "upperKg": 0.1378,
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "empirical": true
+      }
+    },
+    {
+      "id": "cat-maine-coon-male",
+      "sourceId": "wikipedia-en-maine-coon-1372828795",
+      "adultLowerKg": 8.16466266,
+      "adultUpperKg": 9.97903214,
+      "birthObservation": {
+        "ageDays": 0,
+        "lowerKg": 0.1004,
+        "medianKg": 0.1191,
+        "upperKg": 0.1378,
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "empirical": true
+      }
+    },
+    {
+      "id": "cat-siberian-female",
+      "sourceId": "wikipedia-de-sibirische-katze-269975535",
+      "adultLowerKg": 3.0,
+      "adultUpperKg": 6.0,
+      "birthObservation": {
+        "ageDays": 0,
+        "lowerKg": 0.0826,
+        "medianKg": 0.0993,
+        "upperKg": 0.116,
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "empirical": true
+      }
+    },
+    {
+      "id": "cat-siberian-male",
+      "sourceId": "wikipedia-de-sibirische-katze-269975535",
+      "adultLowerKg": 4.5,
+      "adultUpperKg": 8.0,
+      "birthObservation": {
+        "ageDays": 0,
+        "lowerKg": 0.0826,
+        "medianKg": 0.0993,
+        "upperKg": 0.116,
+        "sourceId": "mugnier-cat-birth-weight-2023",
+        "empirical": true
+      }
+    }
+  ],
   "profiles": [
     {
       "id": "dog-female-I",
@@ -6601,122 +6739,6 @@
       ]
     },
     {
-      "id": "cat-maine-coon-female",
-      "species": "cat",
-      "sex": "female",
-      "basis": "breed",
-      "breedId": "VBO:0100154",
-      "sourceId": "mugnier-cat-birth-weight-2023",
-      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
-      "license": "CC BY 4.0",
-      "constraints": [
-        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
-      ],
-      "referenceKind": "empirical_observation_mean_sd",
-      "minimumBinN": 892,
-      "ageAvailability": "exact_observations",
-      "centerStatistic": "mean",
-      "boundsStatistic": "one_standard_deviation",
-      "points": [
-        {
-          "ageDays": 0,
-          "lowerKg": 0.1004,
-          "medianKg": 0.1191,
-          "upperKg": 0.1378
-        }
-      ]
-    },
-    {
-      "id": "cat-maine-coon-male",
-      "species": "cat",
-      "sex": "male",
-      "basis": "breed",
-      "breedId": "VBO:0100154",
-      "sourceId": "mugnier-cat-birth-weight-2023",
-      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
-      "license": "CC BY 4.0",
-      "constraints": [
-        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
-      ],
-      "referenceKind": "empirical_observation_mean_sd",
-      "minimumBinN": 892,
-      "ageAvailability": "exact_observations",
-      "centerStatistic": "mean",
-      "boundsStatistic": "one_standard_deviation",
-      "points": [
-        {
-          "ageDays": 0,
-          "lowerKg": 0.1004,
-          "medianKg": 0.1191,
-          "upperKg": 0.1378
-        }
-      ]
-    },
-    {
-      "id": "cat-siberian-female",
-      "species": "cat",
-      "sex": "female",
-      "basis": "breed",
-      "breedId": "VBO:0100223",
-      "sourceId": "mugnier-cat-birth-weight-2023",
-      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
-      "license": "CC BY 4.0",
-      "constraints": [
-        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
-      ],
-      "referenceKind": "empirical_observation_mean_sd",
-      "minimumBinN": 419,
-      "ageAvailability": "exact_observations",
-      "centerStatistic": "mean",
-      "boundsStatistic": "one_standard_deviation",
-      "points": [
-        {
-          "ageDays": 0,
-          "lowerKg": 0.0826,
-          "medianKg": 0.0993,
-          "upperKg": 0.116
-        }
-      ]
-    },
-    {
-      "id": "cat-siberian-male",
-      "species": "cat",
-      "sex": "male",
-      "basis": "breed",
-      "breedId": "VBO:0100223",
-      "sourceId": "mugnier-cat-birth-weight-2023",
-      "citation": "Mugnier A, Gaillard V, Chastant S. (2023), Association between Birth Weight and Mortality over the Two First Months after Birth in Feline Species: Definition of Breed-Specific Thresholds, Animals 13(11):1822",
-      "license": "CC BY 4.0",
-      "constraints": [
-        "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-        "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-        "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-        "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
-      ],
-      "referenceKind": "empirical_observation_mean_sd",
-      "minimumBinN": 419,
-      "ageAvailability": "exact_observations",
-      "centerStatistic": "mean",
-      "boundsStatistic": "one_standard_deviation",
-      "points": [
-        {
-          "ageDays": 0,
-          "lowerKg": 0.0826,
-          "medianKg": 0.0993,
-          "upperKg": 0.116
-        }
-      ]
-    },
-    {
       "id": "cat-population-female",
       "species": "cat",
       "sex": "female",
@@ -7601,6 +7623,5284 @@
           "lowerKg": 3.453672,
           "medianKg": 4.592127,
           "upperKg": 5.717056
+        }
+      ]
+    },
+    {
+      "id": "cat-british-shorthair-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100052",
+      "sourceId": "wikipedia-fr-british-shorthair-38446796",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии"
+      ],
+      "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.797,
+          "medianKg": 0.929,
+          "upperKg": 1.062,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.903,
+          "medianKg": 1.054,
+          "upperKg": 1.205,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.006,
+          "medianKg": 1.174,
+          "upperKg": 1.341,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.109,
+          "medianKg": 1.294,
+          "upperKg": 1.479,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.214,
+          "medianKg": 1.416,
+          "upperKg": 1.619,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.321,
+          "medianKg": 1.541,
+          "upperKg": 1.762,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.43,
+          "medianKg": 1.668,
+          "upperKg": 1.906,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.536,
+          "medianKg": 1.792,
+          "upperKg": 2.049,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.637,
+          "medianKg": 1.91,
+          "upperKg": 2.183,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.73,
+          "medianKg": 2.019,
+          "upperKg": 2.307,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.817,
+          "medianKg": 2.12,
+          "upperKg": 2.423,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.899,
+          "medianKg": 2.215,
+          "upperKg": 2.532,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 1.977,
+          "medianKg": 2.306,
+          "upperKg": 2.635,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.05,
+          "medianKg": 2.392,
+          "upperKg": 2.733,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.118,
+          "medianKg": 2.471,
+          "upperKg": 2.824,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.181,
+          "medianKg": 2.545,
+          "upperKg": 2.908,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.239,
+          "medianKg": 2.612,
+          "upperKg": 2.985,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.291,
+          "medianKg": 2.672,
+          "upperKg": 3.054,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.338,
+          "medianKg": 2.727,
+          "upperKg": 3.117,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.38,
+          "medianKg": 2.777,
+          "upperKg": 3.174,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.419,
+          "medianKg": 2.822,
+          "upperKg": 3.225,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.454,
+          "medianKg": 2.863,
+          "upperKg": 3.272,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.485,
+          "medianKg": 2.9,
+          "upperKg": 3.314,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.514,
+          "medianKg": 2.933,
+          "upperKg": 3.352,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.54,
+          "medianKg": 2.963,
+          "upperKg": 3.386,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.563,
+          "medianKg": 2.99,
+          "upperKg": 3.417,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 2.584,
+          "medianKg": 3.015,
+          "upperKg": 3.446,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 2.603,
+          "medianKg": 3.037,
+          "upperKg": 3.471,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 2.621,
+          "medianKg": 3.058,
+          "upperKg": 3.495,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 2.637,
+          "medianKg": 3.076,
+          "upperKg": 3.516,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 2.651,
+          "medianKg": 3.093,
+          "upperKg": 3.535,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 2.665,
+          "medianKg": 3.109,
+          "upperKg": 3.553,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 2.677,
+          "medianKg": 3.123,
+          "upperKg": 3.569,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 2.688,
+          "medianKg": 3.136,
+          "upperKg": 3.584,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 2.698,
+          "medianKg": 3.148,
+          "upperKg": 3.598,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 2.708,
+          "medianKg": 3.159,
+          "upperKg": 3.611,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 2.717,
+          "medianKg": 3.17,
+          "upperKg": 3.623,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 2.725,
+          "medianKg": 3.18,
+          "upperKg": 3.634,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 2.733,
+          "medianKg": 3.189,
+          "upperKg": 3.644,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 2.741,
+          "medianKg": 3.198,
+          "upperKg": 3.654,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 2.748,
+          "medianKg": 3.206,
+          "upperKg": 3.664,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 2.755,
+          "medianKg": 3.214,
+          "upperKg": 3.673,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 2.762,
+          "medianKg": 3.222,
+          "upperKg": 3.682,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 2.768,
+          "medianKg": 3.23,
+          "upperKg": 3.691,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 2.775,
+          "medianKg": 3.237,
+          "upperKg": 3.7,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 2.781,
+          "medianKg": 3.245,
+          "upperKg": 3.709,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 2.788,
+          "medianKg": 3.253,
+          "upperKg": 3.717,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 2.794,
+          "medianKg": 3.26,
+          "upperKg": 3.726,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 2.801,
+          "medianKg": 3.268,
+          "upperKg": 3.734,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 2.807,
+          "medianKg": 3.275,
+          "upperKg": 3.743,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 2.814,
+          "medianKg": 3.283,
+          "upperKg": 3.752,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 2.821,
+          "medianKg": 3.291,
+          "upperKg": 3.761,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 2.828,
+          "medianKg": 3.299,
+          "upperKg": 3.771,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 2.835,
+          "medianKg": 3.308,
+          "upperKg": 3.78,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 2.843,
+          "medianKg": 3.316,
+          "upperKg": 3.79,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 2.85,
+          "medianKg": 3.325,
+          "upperKg": 3.8,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 2.858,
+          "medianKg": 3.335,
+          "upperKg": 3.811,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 2.866,
+          "medianKg": 3.344,
+          "upperKg": 3.822,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 2.875,
+          "medianKg": 3.354,
+          "upperKg": 3.833,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 2.883,
+          "medianKg": 3.364,
+          "upperKg": 3.844,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 2.892,
+          "medianKg": 3.374,
+          "upperKg": 3.856,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 2.902,
+          "medianKg": 3.385,
+          "upperKg": 3.869,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 2.911,
+          "medianKg": 3.396,
+          "upperKg": 3.881,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 2.921,
+          "medianKg": 3.408,
+          "upperKg": 3.895,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 2.931,
+          "medianKg": 3.42,
+          "upperKg": 3.908,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 2.942,
+          "medianKg": 3.432,
+          "upperKg": 3.922,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 2.953,
+          "medianKg": 3.445,
+          "upperKg": 3.937,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 2.964,
+          "medianKg": 3.458,
+          "upperKg": 3.952,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 2.976,
+          "medianKg": 3.472,
+          "upperKg": 3.967,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 2.988,
+          "medianKg": 3.486,
+          "upperKg": 3.983,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 3.0,
+          "medianKg": 3.5,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 3.0,
+          "medianKg": 3.5,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        }
+      ]
+    },
+    {
+      "id": "cat-british-shorthair-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100052",
+      "sourceId": "wikipedia-fr-british-shorthair-38446796",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии"
+      ],
+      "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.938,
+          "medianKg": 1.219,
+          "upperKg": 1.501,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 1.094,
+          "medianKg": 1.422,
+          "upperKg": 1.75,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.26,
+          "medianKg": 1.639,
+          "upperKg": 2.017,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.434,
+          "medianKg": 1.864,
+          "upperKg": 2.294,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.612,
+          "medianKg": 2.095,
+          "upperKg": 2.579,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.79,
+          "medianKg": 2.327,
+          "upperKg": 2.864,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.967,
+          "medianKg": 2.557,
+          "upperKg": 3.147,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 2.139,
+          "medianKg": 2.781,
+          "upperKg": 3.423,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 2.306,
+          "medianKg": 2.998,
+          "upperKg": 3.69,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 2.468,
+          "medianKg": 3.208,
+          "upperKg": 3.949,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 2.623,
+          "medianKg": 3.41,
+          "upperKg": 4.197,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 2.771,
+          "medianKg": 3.603,
+          "upperKg": 4.434,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 2.913,
+          "medianKg": 3.786,
+          "upperKg": 4.66,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 3.046,
+          "medianKg": 3.96,
+          "upperKg": 4.874,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 3.173,
+          "medianKg": 4.125,
+          "upperKg": 5.077,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 3.292,
+          "medianKg": 4.28,
+          "upperKg": 5.268,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 3.405,
+          "medianKg": 4.426,
+          "upperKg": 5.448,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 3.511,
+          "medianKg": 4.564,
+          "upperKg": 5.617,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 3.611,
+          "medianKg": 4.694,
+          "upperKg": 5.777,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 3.705,
+          "medianKg": 4.816,
+          "upperKg": 5.927,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 3.793,
+          "medianKg": 4.931,
+          "upperKg": 6.069,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 3.876,
+          "medianKg": 5.039,
+          "upperKg": 6.201,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 3.954,
+          "medianKg": 5.14,
+          "upperKg": 6.326,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 4.027,
+          "medianKg": 5.235,
+          "upperKg": 6.443,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 4.095,
+          "medianKg": 5.324,
+          "upperKg": 6.552,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 4.16,
+          "medianKg": 5.407,
+          "upperKg": 6.655,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 4.22,
+          "medianKg": 5.486,
+          "upperKg": 6.752,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 4.276,
+          "medianKg": 5.559,
+          "upperKg": 6.842,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 4.329,
+          "medianKg": 5.628,
+          "upperKg": 6.927,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 4.379,
+          "medianKg": 5.692,
+          "upperKg": 7.006,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 4.425,
+          "medianKg": 5.753,
+          "upperKg": 7.08,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 4.469,
+          "medianKg": 5.809,
+          "upperKg": 7.15,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 4.509,
+          "medianKg": 5.862,
+          "upperKg": 7.215,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 4.547,
+          "medianKg": 5.911,
+          "upperKg": 7.275,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 4.583,
+          "medianKg": 5.957,
+          "upperKg": 7.332,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 4.616,
+          "medianKg": 6.0,
+          "upperKg": 7.385,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 4.647,
+          "medianKg": 6.041,
+          "upperKg": 7.434,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 4.675,
+          "medianKg": 6.078,
+          "upperKg": 7.481,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 4.702,
+          "medianKg": 6.113,
+          "upperKg": 7.524,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 4.727,
+          "medianKg": 6.146,
+          "upperKg": 7.564,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 4.751,
+          "medianKg": 6.176,
+          "upperKg": 7.601,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 4.772,
+          "medianKg": 6.204,
+          "upperKg": 7.636,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 4.793,
+          "medianKg": 6.231,
+          "upperKg": 7.668,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 4.811,
+          "medianKg": 6.255,
+          "upperKg": 7.698,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 4.829,
+          "medianKg": 6.278,
+          "upperKg": 7.726,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 4.845,
+          "medianKg": 6.299,
+          "upperKg": 7.752,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 4.86,
+          "medianKg": 6.318,
+          "upperKg": 7.776,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 4.874,
+          "medianKg": 6.336,
+          "upperKg": 7.798,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 4.887,
+          "medianKg": 6.353,
+          "upperKg": 7.819,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 4.899,
+          "medianKg": 6.368,
+          "upperKg": 7.838,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 4.91,
+          "medianKg": 6.382,
+          "upperKg": 7.855,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 4.92,
+          "medianKg": 6.395,
+          "upperKg": 7.871,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 4.929,
+          "medianKg": 6.407,
+          "upperKg": 7.886,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 4.937,
+          "medianKg": 6.418,
+          "upperKg": 7.9,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 4.945,
+          "medianKg": 6.428,
+          "upperKg": 7.912,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 4.952,
+          "medianKg": 6.438,
+          "upperKg": 7.923,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 4.958,
+          "medianKg": 6.446,
+          "upperKg": 7.933,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 4.964,
+          "medianKg": 6.454,
+          "upperKg": 7.943,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 4.97,
+          "medianKg": 6.46,
+          "upperKg": 7.951,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 4.974,
+          "medianKg": 6.467,
+          "upperKg": 7.959,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 4.978,
+          "medianKg": 6.472,
+          "upperKg": 7.966,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 4.982,
+          "medianKg": 6.477,
+          "upperKg": 7.972,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 4.986,
+          "medianKg": 6.481,
+          "upperKg": 7.977,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 4.989,
+          "medianKg": 6.485,
+          "upperKg": 7.982,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 4.991,
+          "medianKg": 6.488,
+          "upperKg": 7.986,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 4.993,
+          "medianKg": 6.491,
+          "upperKg": 7.989,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 4.995,
+          "medianKg": 6.494,
+          "upperKg": 7.992,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 4.997,
+          "medianKg": 6.496,
+          "upperKg": 7.995,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 4.998,
+          "medianKg": 6.498,
+          "upperKg": 7.997,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 4.999,
+          "medianKg": 6.499,
+          "upperKg": 7.999,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 5.0,
+          "medianKg": 6.5,
+          "upperKg": 8.0,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 5.0,
+          "medianKg": 6.5,
+          "upperKg": 8.0,
+          "sourceId": "wikipedia-fr-british-shorthair-38446796"
+        }
+      ]
+    },
+    {
+      "id": "cat-scottish-fold-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100209",
+      "sourceId": "wikipedia-en-scottish-fold-1369070582",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии"
+      ],
+      "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.717,
+          "medianKg": 0.89,
+          "upperKg": 1.062,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.813,
+          "medianKg": 1.009,
+          "upperKg": 1.205,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 0.905,
+          "medianKg": 1.123,
+          "upperKg": 1.341,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 0.998,
+          "medianKg": 1.238,
+          "upperKg": 1.479,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.093,
+          "medianKg": 1.356,
+          "upperKg": 1.619,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.189,
+          "medianKg": 1.475,
+          "upperKg": 1.762,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.287,
+          "medianKg": 1.597,
+          "upperKg": 1.906,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.383,
+          "medianKg": 1.716,
+          "upperKg": 2.049,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.474,
+          "medianKg": 1.828,
+          "upperKg": 2.183,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.557,
+          "medianKg": 1.932,
+          "upperKg": 2.307,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.635,
+          "medianKg": 2.029,
+          "upperKg": 2.423,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.709,
+          "medianKg": 2.12,
+          "upperKg": 2.532,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 1.779,
+          "medianKg": 2.207,
+          "upperKg": 2.635,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 1.845,
+          "medianKg": 2.289,
+          "upperKg": 2.733,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 1.906,
+          "medianKg": 2.365,
+          "upperKg": 2.824,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 1.963,
+          "medianKg": 2.436,
+          "upperKg": 2.908,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.015,
+          "medianKg": 2.5,
+          "upperKg": 2.985,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.062,
+          "medianKg": 2.558,
+          "upperKg": 3.054,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.104,
+          "medianKg": 2.611,
+          "upperKg": 3.117,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.142,
+          "medianKg": 2.658,
+          "upperKg": 3.174,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.177,
+          "medianKg": 2.701,
+          "upperKg": 3.225,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.208,
+          "medianKg": 2.74,
+          "upperKg": 3.272,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.237,
+          "medianKg": 2.775,
+          "upperKg": 3.314,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.263,
+          "medianKg": 2.807,
+          "upperKg": 3.352,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.286,
+          "medianKg": 2.836,
+          "upperKg": 3.386,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.307,
+          "medianKg": 2.862,
+          "upperKg": 3.417,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 2.326,
+          "medianKg": 2.886,
+          "upperKg": 3.446,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 2.343,
+          "medianKg": 2.907,
+          "upperKg": 3.471,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 2.359,
+          "medianKg": 2.927,
+          "upperKg": 3.495,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 2.373,
+          "medianKg": 2.944,
+          "upperKg": 3.516,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 2.386,
+          "medianKg": 2.961,
+          "upperKg": 3.535,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 2.398,
+          "medianKg": 2.975,
+          "upperKg": 3.553,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 2.409,
+          "medianKg": 2.989,
+          "upperKg": 3.569,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 2.419,
+          "medianKg": 3.002,
+          "upperKg": 3.584,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 2.428,
+          "medianKg": 3.013,
+          "upperKg": 3.598,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 2.437,
+          "medianKg": 3.024,
+          "upperKg": 3.611,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 2.445,
+          "medianKg": 3.034,
+          "upperKg": 3.623,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 2.453,
+          "medianKg": 3.043,
+          "upperKg": 3.634,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 2.46,
+          "medianKg": 3.052,
+          "upperKg": 3.644,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 2.467,
+          "medianKg": 3.061,
+          "upperKg": 3.654,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 2.473,
+          "medianKg": 3.069,
+          "upperKg": 3.664,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 2.48,
+          "medianKg": 3.076,
+          "upperKg": 3.673,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 2.486,
+          "medianKg": 3.084,
+          "upperKg": 3.682,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 2.492,
+          "medianKg": 3.091,
+          "upperKg": 3.691,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 2.497,
+          "medianKg": 3.099,
+          "upperKg": 3.7,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 2.503,
+          "medianKg": 3.106,
+          "upperKg": 3.709,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 2.509,
+          "medianKg": 3.113,
+          "upperKg": 3.717,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 2.515,
+          "medianKg": 3.12,
+          "upperKg": 3.726,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 2.521,
+          "medianKg": 3.128,
+          "upperKg": 3.734,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 2.527,
+          "medianKg": 3.135,
+          "upperKg": 3.743,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 2.533,
+          "medianKg": 3.143,
+          "upperKg": 3.752,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 2.539,
+          "medianKg": 3.15,
+          "upperKg": 3.761,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 2.545,
+          "medianKg": 3.158,
+          "upperKg": 3.771,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 2.552,
+          "medianKg": 3.166,
+          "upperKg": 3.78,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 2.558,
+          "medianKg": 3.174,
+          "upperKg": 3.79,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 2.565,
+          "medianKg": 3.183,
+          "upperKg": 3.8,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 2.572,
+          "medianKg": 3.192,
+          "upperKg": 3.811,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 2.58,
+          "medianKg": 3.201,
+          "upperKg": 3.822,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 2.587,
+          "medianKg": 3.21,
+          "upperKg": 3.833,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 2.595,
+          "medianKg": 3.22,
+          "upperKg": 3.844,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 2.603,
+          "medianKg": 3.23,
+          "upperKg": 3.856,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 2.611,
+          "medianKg": 3.24,
+          "upperKg": 3.869,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 2.62,
+          "medianKg": 3.251,
+          "upperKg": 3.881,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 2.629,
+          "medianKg": 3.262,
+          "upperKg": 3.895,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 2.638,
+          "medianKg": 3.273,
+          "upperKg": 3.908,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 2.648,
+          "medianKg": 3.285,
+          "upperKg": 3.922,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 2.657,
+          "medianKg": 3.297,
+          "upperKg": 3.937,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 2.668,
+          "medianKg": 3.31,
+          "upperKg": 3.952,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 2.678,
+          "medianKg": 3.323,
+          "upperKg": 3.967,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 2.689,
+          "medianKg": 3.336,
+          "upperKg": 3.983,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 2.7,
+          "medianKg": 3.35,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 2.7,
+          "medianKg": 3.35,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        }
+      ]
+    },
+    {
+      "id": "cat-scottish-fold-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100209",
+      "sourceId": "wikipedia-en-scottish-fold-1369070582",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии"
+      ],
+      "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.75,
+          "medianKg": 0.938,
+          "upperKg": 1.126,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.875,
+          "medianKg": 1.094,
+          "upperKg": 1.313,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.008,
+          "medianKg": 1.26,
+          "upperKg": 1.513,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.147,
+          "medianKg": 1.434,
+          "upperKg": 1.721,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.289,
+          "medianKg": 1.612,
+          "upperKg": 1.934,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.432,
+          "medianKg": 1.79,
+          "upperKg": 2.148,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.573,
+          "medianKg": 1.967,
+          "upperKg": 2.36,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.711,
+          "medianKg": 2.139,
+          "upperKg": 2.567,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.845,
+          "medianKg": 2.306,
+          "upperKg": 2.768,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.974,
+          "medianKg": 2.468,
+          "upperKg": 2.962,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 2.098,
+          "medianKg": 2.623,
+          "upperKg": 3.148,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 2.217,
+          "medianKg": 2.771,
+          "upperKg": 3.326,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 2.33,
+          "medianKg": 2.913,
+          "upperKg": 3.495,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.437,
+          "medianKg": 3.046,
+          "upperKg": 3.656,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.538,
+          "medianKg": 3.173,
+          "upperKg": 3.807,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.634,
+          "medianKg": 3.292,
+          "upperKg": 3.951,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.724,
+          "medianKg": 3.405,
+          "upperKg": 4.086,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.809,
+          "medianKg": 3.511,
+          "upperKg": 4.213,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.889,
+          "medianKg": 3.611,
+          "upperKg": 4.333,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.964,
+          "medianKg": 3.705,
+          "upperKg": 4.446,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 3.034,
+          "medianKg": 3.793,
+          "upperKg": 4.551,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 3.101,
+          "medianKg": 3.876,
+          "upperKg": 4.651,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 3.163,
+          "medianKg": 3.954,
+          "upperKg": 4.744,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 3.221,
+          "medianKg": 4.027,
+          "upperKg": 4.832,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 3.276,
+          "medianKg": 4.095,
+          "upperKg": 4.914,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 3.328,
+          "medianKg": 4.16,
+          "upperKg": 4.991,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 3.376,
+          "medianKg": 4.22,
+          "upperKg": 5.064,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 3.421,
+          "medianKg": 4.276,
+          "upperKg": 5.132,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 3.463,
+          "medianKg": 4.329,
+          "upperKg": 5.195,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 3.503,
+          "medianKg": 4.379,
+          "upperKg": 5.255,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 3.54,
+          "medianKg": 4.425,
+          "upperKg": 5.31,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 3.575,
+          "medianKg": 4.469,
+          "upperKg": 5.362,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 3.607,
+          "medianKg": 4.509,
+          "upperKg": 5.411,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 3.638,
+          "medianKg": 4.547,
+          "upperKg": 5.456,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 3.666,
+          "medianKg": 4.583,
+          "upperKg": 5.499,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 3.692,
+          "medianKg": 4.616,
+          "upperKg": 5.539,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 3.717,
+          "medianKg": 4.647,
+          "upperKg": 5.576,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 3.74,
+          "medianKg": 4.675,
+          "upperKg": 5.61,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 3.762,
+          "medianKg": 4.702,
+          "upperKg": 5.643,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 3.782,
+          "medianKg": 4.727,
+          "upperKg": 5.673,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 3.801,
+          "medianKg": 4.751,
+          "upperKg": 5.701,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 3.818,
+          "medianKg": 4.772,
+          "upperKg": 5.727,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 3.834,
+          "medianKg": 4.793,
+          "upperKg": 5.751,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 3.849,
+          "medianKg": 4.811,
+          "upperKg": 5.774,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 3.863,
+          "medianKg": 4.829,
+          "upperKg": 5.795,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 3.876,
+          "medianKg": 4.845,
+          "upperKg": 5.814,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 3.888,
+          "medianKg": 4.86,
+          "upperKg": 5.832,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 3.899,
+          "medianKg": 4.874,
+          "upperKg": 5.849,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 3.909,
+          "medianKg": 4.887,
+          "upperKg": 5.864,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 3.919,
+          "medianKg": 4.899,
+          "upperKg": 5.878,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 3.928,
+          "medianKg": 4.91,
+          "upperKg": 5.891,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 3.936,
+          "medianKg": 4.92,
+          "upperKg": 5.903,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 3.943,
+          "medianKg": 4.929,
+          "upperKg": 5.915,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 3.95,
+          "medianKg": 4.937,
+          "upperKg": 5.925,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 3.956,
+          "medianKg": 4.945,
+          "upperKg": 5.934,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 3.962,
+          "medianKg": 4.952,
+          "upperKg": 5.942,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 3.967,
+          "medianKg": 4.958,
+          "upperKg": 5.95,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 3.971,
+          "medianKg": 4.964,
+          "upperKg": 5.957,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 3.976,
+          "medianKg": 4.97,
+          "upperKg": 5.963,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 3.979,
+          "medianKg": 4.974,
+          "upperKg": 5.969,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 3.983,
+          "medianKg": 4.978,
+          "upperKg": 5.974,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 3.986,
+          "medianKg": 4.982,
+          "upperKg": 5.979,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 3.988,
+          "medianKg": 4.986,
+          "upperKg": 5.983,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 3.991,
+          "medianKg": 4.989,
+          "upperKg": 5.986,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 3.993,
+          "medianKg": 4.991,
+          "upperKg": 5.989,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 3.995,
+          "medianKg": 4.993,
+          "upperKg": 5.992,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 3.996,
+          "medianKg": 4.995,
+          "upperKg": 5.994,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 3.997,
+          "medianKg": 4.997,
+          "upperKg": 5.996,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 3.999,
+          "medianKg": 4.998,
+          "upperKg": 5.998,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 3.999,
+          "medianKg": 4.999,
+          "upperKg": 5.999,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 4.0,
+          "medianKg": 5.0,
+          "upperKg": 6.0,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 4.0,
+          "medianKg": 5.0,
+          "upperKg": 6.0,
+          "sourceId": "wikipedia-en-scottish-fold-1369070582"
+        }
+      ]
+    },
+    {
+      "id": "cat-siamese-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100221",
+      "sourceId": "wikipedia-de-siamkatze-269975201",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии"
+      ],
+      "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.797,
+          "medianKg": 0.929,
+          "upperKg": 1.062,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.903,
+          "medianKg": 1.054,
+          "upperKg": 1.205,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.006,
+          "medianKg": 1.174,
+          "upperKg": 1.341,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.109,
+          "medianKg": 1.294,
+          "upperKg": 1.479,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.214,
+          "medianKg": 1.416,
+          "upperKg": 1.619,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.321,
+          "medianKg": 1.541,
+          "upperKg": 1.762,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.43,
+          "medianKg": 1.668,
+          "upperKg": 1.906,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.536,
+          "medianKg": 1.792,
+          "upperKg": 2.049,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.637,
+          "medianKg": 1.91,
+          "upperKg": 2.183,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.73,
+          "medianKg": 2.019,
+          "upperKg": 2.307,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.817,
+          "medianKg": 2.12,
+          "upperKg": 2.423,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.899,
+          "medianKg": 2.215,
+          "upperKg": 2.532,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 1.977,
+          "medianKg": 2.306,
+          "upperKg": 2.635,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.05,
+          "medianKg": 2.392,
+          "upperKg": 2.733,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.118,
+          "medianKg": 2.471,
+          "upperKg": 2.824,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.181,
+          "medianKg": 2.545,
+          "upperKg": 2.908,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.239,
+          "medianKg": 2.612,
+          "upperKg": 2.985,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.291,
+          "medianKg": 2.672,
+          "upperKg": 3.054,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.338,
+          "medianKg": 2.727,
+          "upperKg": 3.117,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.38,
+          "medianKg": 2.777,
+          "upperKg": 3.174,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.419,
+          "medianKg": 2.822,
+          "upperKg": 3.225,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.454,
+          "medianKg": 2.863,
+          "upperKg": 3.272,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.485,
+          "medianKg": 2.9,
+          "upperKg": 3.314,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.514,
+          "medianKg": 2.933,
+          "upperKg": 3.352,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.54,
+          "medianKg": 2.963,
+          "upperKg": 3.386,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.563,
+          "medianKg": 2.99,
+          "upperKg": 3.417,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 2.584,
+          "medianKg": 3.015,
+          "upperKg": 3.446,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 2.603,
+          "medianKg": 3.037,
+          "upperKg": 3.471,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 2.621,
+          "medianKg": 3.058,
+          "upperKg": 3.495,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 2.637,
+          "medianKg": 3.076,
+          "upperKg": 3.516,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 2.651,
+          "medianKg": 3.093,
+          "upperKg": 3.535,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 2.665,
+          "medianKg": 3.109,
+          "upperKg": 3.553,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 2.677,
+          "medianKg": 3.123,
+          "upperKg": 3.569,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 2.688,
+          "medianKg": 3.136,
+          "upperKg": 3.584,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 2.698,
+          "medianKg": 3.148,
+          "upperKg": 3.598,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 2.708,
+          "medianKg": 3.159,
+          "upperKg": 3.611,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 2.717,
+          "medianKg": 3.17,
+          "upperKg": 3.623,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 2.725,
+          "medianKg": 3.18,
+          "upperKg": 3.634,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 2.733,
+          "medianKg": 3.189,
+          "upperKg": 3.644,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 2.741,
+          "medianKg": 3.198,
+          "upperKg": 3.654,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 2.748,
+          "medianKg": 3.206,
+          "upperKg": 3.664,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 2.755,
+          "medianKg": 3.214,
+          "upperKg": 3.673,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 2.762,
+          "medianKg": 3.222,
+          "upperKg": 3.682,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 2.768,
+          "medianKg": 3.23,
+          "upperKg": 3.691,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 2.775,
+          "medianKg": 3.237,
+          "upperKg": 3.7,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 2.781,
+          "medianKg": 3.245,
+          "upperKg": 3.709,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 2.788,
+          "medianKg": 3.253,
+          "upperKg": 3.717,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 2.794,
+          "medianKg": 3.26,
+          "upperKg": 3.726,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 2.801,
+          "medianKg": 3.268,
+          "upperKg": 3.734,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 2.807,
+          "medianKg": 3.275,
+          "upperKg": 3.743,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 2.814,
+          "medianKg": 3.283,
+          "upperKg": 3.752,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 2.821,
+          "medianKg": 3.291,
+          "upperKg": 3.761,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 2.828,
+          "medianKg": 3.299,
+          "upperKg": 3.771,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 2.835,
+          "medianKg": 3.308,
+          "upperKg": 3.78,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 2.843,
+          "medianKg": 3.316,
+          "upperKg": 3.79,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 2.85,
+          "medianKg": 3.325,
+          "upperKg": 3.8,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 2.858,
+          "medianKg": 3.335,
+          "upperKg": 3.811,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 2.866,
+          "medianKg": 3.344,
+          "upperKg": 3.822,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 2.875,
+          "medianKg": 3.354,
+          "upperKg": 3.833,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 2.883,
+          "medianKg": 3.364,
+          "upperKg": 3.844,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 2.892,
+          "medianKg": 3.374,
+          "upperKg": 3.856,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 2.902,
+          "medianKg": 3.385,
+          "upperKg": 3.869,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 2.911,
+          "medianKg": 3.396,
+          "upperKg": 3.881,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 2.921,
+          "medianKg": 3.408,
+          "upperKg": 3.895,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 2.931,
+          "medianKg": 3.42,
+          "upperKg": 3.908,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 2.942,
+          "medianKg": 3.432,
+          "upperKg": 3.922,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 2.953,
+          "medianKg": 3.445,
+          "upperKg": 3.937,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 2.964,
+          "medianKg": 3.458,
+          "upperKg": 3.952,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 2.976,
+          "medianKg": 3.472,
+          "upperKg": 3.967,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 2.988,
+          "medianKg": 3.486,
+          "upperKg": 3.983,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 3.0,
+          "medianKg": 3.5,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 3.0,
+          "medianKg": 3.5,
+          "upperKg": 4.0,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        }
+      ]
+    },
+    {
+      "id": "cat-siamese-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100221",
+      "sourceId": "wikipedia-de-siamkatze-269975201",
+      "constraints": [
+        "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+        "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии"
+      ],
+      "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 56,
+          "lowerKg": 0.75,
+          "medianKg": 0.844,
+          "upperKg": 0.938,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.875,
+          "medianKg": 0.985,
+          "upperKg": 1.094,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.008,
+          "medianKg": 1.134,
+          "upperKg": 1.26,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.147,
+          "medianKg": 1.291,
+          "upperKg": 1.434,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.289,
+          "medianKg": 1.45,
+          "upperKg": 1.612,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.432,
+          "medianKg": 1.611,
+          "upperKg": 1.79,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.573,
+          "medianKg": 1.77,
+          "upperKg": 1.967,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.711,
+          "medianKg": 1.925,
+          "upperKg": 2.139,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.845,
+          "medianKg": 2.076,
+          "upperKg": 2.306,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.974,
+          "medianKg": 2.221,
+          "upperKg": 2.468,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 2.098,
+          "medianKg": 2.361,
+          "upperKg": 2.623,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 2.217,
+          "medianKg": 2.494,
+          "upperKg": 2.771,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 2.33,
+          "medianKg": 2.621,
+          "upperKg": 2.913,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.437,
+          "medianKg": 2.742,
+          "upperKg": 3.046,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.538,
+          "medianKg": 2.856,
+          "upperKg": 3.173,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.634,
+          "medianKg": 2.963,
+          "upperKg": 3.292,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.724,
+          "medianKg": 3.064,
+          "upperKg": 3.405,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.809,
+          "medianKg": 3.16,
+          "upperKg": 3.511,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.889,
+          "medianKg": 3.25,
+          "upperKg": 3.611,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.964,
+          "medianKg": 3.334,
+          "upperKg": 3.705,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 3.034,
+          "medianKg": 3.414,
+          "upperKg": 3.793,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 3.101,
+          "medianKg": 3.488,
+          "upperKg": 3.876,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 3.163,
+          "medianKg": 3.558,
+          "upperKg": 3.954,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 3.221,
+          "medianKg": 3.624,
+          "upperKg": 4.027,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 3.276,
+          "medianKg": 3.686,
+          "upperKg": 4.095,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 3.328,
+          "medianKg": 3.744,
+          "upperKg": 4.16,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 3.376,
+          "medianKg": 3.798,
+          "upperKg": 4.22,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 3.421,
+          "medianKg": 3.849,
+          "upperKg": 4.276,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 3.463,
+          "medianKg": 3.896,
+          "upperKg": 4.329,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 3.503,
+          "medianKg": 3.941,
+          "upperKg": 4.379,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 3.54,
+          "medianKg": 3.983,
+          "upperKg": 4.425,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 3.575,
+          "medianKg": 4.022,
+          "upperKg": 4.469,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 3.607,
+          "medianKg": 4.058,
+          "upperKg": 4.509,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 3.638,
+          "medianKg": 4.092,
+          "upperKg": 4.547,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 3.666,
+          "medianKg": 4.124,
+          "upperKg": 4.583,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 3.692,
+          "medianKg": 4.154,
+          "upperKg": 4.616,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 3.717,
+          "medianKg": 4.182,
+          "upperKg": 4.647,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 3.74,
+          "medianKg": 4.208,
+          "upperKg": 4.675,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 3.762,
+          "medianKg": 4.232,
+          "upperKg": 4.702,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 3.782,
+          "medianKg": 4.255,
+          "upperKg": 4.727,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 3.801,
+          "medianKg": 4.276,
+          "upperKg": 4.751,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 3.818,
+          "medianKg": 4.295,
+          "upperKg": 4.772,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 3.834,
+          "medianKg": 4.313,
+          "upperKg": 4.793,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 3.849,
+          "medianKg": 4.33,
+          "upperKg": 4.811,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 3.863,
+          "medianKg": 4.346,
+          "upperKg": 4.829,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 3.876,
+          "medianKg": 4.361,
+          "upperKg": 4.845,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 3.888,
+          "medianKg": 4.374,
+          "upperKg": 4.86,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 3.899,
+          "medianKg": 4.387,
+          "upperKg": 4.874,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 3.909,
+          "medianKg": 4.398,
+          "upperKg": 4.887,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 3.919,
+          "medianKg": 4.409,
+          "upperKg": 4.899,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 3.928,
+          "medianKg": 4.419,
+          "upperKg": 4.91,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 3.936,
+          "medianKg": 4.428,
+          "upperKg": 4.92,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 3.943,
+          "medianKg": 4.436,
+          "upperKg": 4.929,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 3.95,
+          "medianKg": 4.444,
+          "upperKg": 4.937,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 3.956,
+          "medianKg": 4.45,
+          "upperKg": 4.945,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 3.962,
+          "medianKg": 4.457,
+          "upperKg": 4.952,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 3.967,
+          "medianKg": 4.463,
+          "upperKg": 4.958,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 3.971,
+          "medianKg": 4.468,
+          "upperKg": 4.964,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 3.976,
+          "medianKg": 4.473,
+          "upperKg": 4.97,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 3.979,
+          "medianKg": 4.477,
+          "upperKg": 4.974,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 3.983,
+          "medianKg": 4.481,
+          "upperKg": 4.978,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 3.986,
+          "medianKg": 4.484,
+          "upperKg": 4.982,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 3.988,
+          "medianKg": 4.487,
+          "upperKg": 4.986,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 3.991,
+          "medianKg": 4.49,
+          "upperKg": 4.989,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 3.993,
+          "medianKg": 4.492,
+          "upperKg": 4.991,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 3.995,
+          "medianKg": 4.494,
+          "upperKg": 4.993,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 3.996,
+          "medianKg": 4.496,
+          "upperKg": 4.995,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 3.997,
+          "medianKg": 4.497,
+          "upperKg": 4.997,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 3.999,
+          "medianKg": 4.498,
+          "upperKg": 4.998,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 3.999,
+          "medianKg": 4.499,
+          "upperKg": 4.999,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 4.0,
+          "medianKg": 4.5,
+          "upperKg": 5.0,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 4.0,
+          "medianKg": 4.5,
+          "upperKg": 5.0,
+          "sourceId": "wikipedia-de-siamkatze-269975201"
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "wikipedia-en-maine-coon-1372828795",
+      "constraints": [
+        "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 12–15 фунтов",
+        "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+      ],
+      "ageAvailability": "carry_forward",
+      "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378,
+          "sourceId": "mugnier-cat-birth-weight-2023",
+          "empirical": true
+        },
+        {
+          "ageDays": 56,
+          "lowerKg": 1.446,
+          "medianKg": 1.626,
+          "upperKg": 1.807,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 1.639,
+          "medianKg": 1.844,
+          "upperKg": 2.049,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.825,
+          "medianKg": 2.053,
+          "upperKg": 2.282,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 2.012,
+          "medianKg": 2.264,
+          "upperKg": 2.515,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 2.203,
+          "medianKg": 2.478,
+          "upperKg": 2.754,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 2.397,
+          "medianKg": 2.697,
+          "upperKg": 2.997,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 2.594,
+          "medianKg": 2.918,
+          "upperKg": 3.243,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 2.788,
+          "medianKg": 3.136,
+          "upperKg": 3.484,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 2.971,
+          "medianKg": 3.342,
+          "upperKg": 3.713,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 3.14,
+          "medianKg": 3.532,
+          "upperKg": 3.924,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 3.296,
+          "medianKg": 3.709,
+          "upperKg": 4.121,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 3.445,
+          "medianKg": 3.876,
+          "upperKg": 4.306,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 3.586,
+          "medianKg": 4.035,
+          "upperKg": 4.483,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 3.719,
+          "medianKg": 4.184,
+          "upperKg": 4.649,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 3.843,
+          "medianKg": 4.324,
+          "upperKg": 4.804,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 3.958,
+          "medianKg": 4.452,
+          "upperKg": 4.947,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 4.062,
+          "medianKg": 4.569,
+          "upperKg": 5.077,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 4.156,
+          "medianKg": 4.676,
+          "upperKg": 5.195,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 4.242,
+          "medianKg": 4.772,
+          "upperKg": 5.302,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 4.319,
+          "medianKg": 4.859,
+          "upperKg": 5.399,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 4.389,
+          "medianKg": 4.938,
+          "upperKg": 5.486,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 4.452,
+          "medianKg": 5.009,
+          "upperKg": 5.565,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 4.509,
+          "medianKg": 5.073,
+          "upperKg": 5.637,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 4.561,
+          "medianKg": 5.131,
+          "upperKg": 5.701,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 4.608,
+          "medianKg": 5.184,
+          "upperKg": 5.76,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 4.65,
+          "medianKg": 5.232,
+          "upperKg": 5.813,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 4.689,
+          "medianKg": 5.275,
+          "upperKg": 5.861,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 4.724,
+          "medianKg": 5.314,
+          "upperKg": 5.905,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 4.755,
+          "medianKg": 5.35,
+          "upperKg": 5.944,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 4.784,
+          "medianKg": 5.382,
+          "upperKg": 5.98,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 4.81,
+          "medianKg": 5.412,
+          "upperKg": 6.013,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 4.834,
+          "medianKg": 5.439,
+          "upperKg": 6.043,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 4.857,
+          "medianKg": 5.464,
+          "upperKg": 6.071,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 4.877,
+          "medianKg": 5.486,
+          "upperKg": 6.096,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 4.896,
+          "medianKg": 5.508,
+          "upperKg": 6.12,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 4.913,
+          "medianKg": 5.527,
+          "upperKg": 6.141,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 4.929,
+          "medianKg": 5.546,
+          "upperKg": 6.162,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 4.945,
+          "medianKg": 5.563,
+          "upperKg": 6.181,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 4.959,
+          "medianKg": 5.579,
+          "upperKg": 6.199,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 4.973,
+          "medianKg": 5.594,
+          "upperKg": 6.216,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 4.986,
+          "medianKg": 5.609,
+          "upperKg": 6.233,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 4.999,
+          "medianKg": 5.624,
+          "upperKg": 6.248,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 5.011,
+          "medianKg": 5.637,
+          "upperKg": 6.264,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 5.023,
+          "medianKg": 5.651,
+          "upperKg": 6.279,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 5.035,
+          "medianKg": 5.664,
+          "upperKg": 6.294,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 5.047,
+          "medianKg": 5.677,
+          "upperKg": 6.308,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 5.058,
+          "medianKg": 5.691,
+          "upperKg": 6.323,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 5.07,
+          "medianKg": 5.704,
+          "upperKg": 6.337,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 5.082,
+          "medianKg": 5.717,
+          "upperKg": 6.352,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 5.094,
+          "medianKg": 5.731,
+          "upperKg": 6.367,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 5.106,
+          "medianKg": 5.744,
+          "upperKg": 6.382,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 5.118,
+          "medianKg": 5.758,
+          "upperKg": 6.398,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 5.131,
+          "medianKg": 5.773,
+          "upperKg": 6.414,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 5.144,
+          "medianKg": 5.787,
+          "upperKg": 6.43,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 5.158,
+          "medianKg": 5.802,
+          "upperKg": 6.447,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 5.171,
+          "medianKg": 5.818,
+          "upperKg": 6.464,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 5.186,
+          "medianKg": 5.834,
+          "upperKg": 6.482,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 5.2,
+          "medianKg": 5.851,
+          "upperKg": 6.501,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 5.216,
+          "medianKg": 5.868,
+          "upperKg": 6.52,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 5.231,
+          "medianKg": 5.885,
+          "upperKg": 6.539,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 5.248,
+          "medianKg": 5.904,
+          "upperKg": 6.56,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 5.264,
+          "medianKg": 5.922,
+          "upperKg": 6.581,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 5.282,
+          "medianKg": 5.942,
+          "upperKg": 6.602,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 5.3,
+          "medianKg": 5.962,
+          "upperKg": 6.625,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 5.318,
+          "medianKg": 5.983,
+          "upperKg": 6.648,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 5.337,
+          "medianKg": 6.005,
+          "upperKg": 6.672,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 5.357,
+          "medianKg": 6.027,
+          "upperKg": 6.697,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 5.378,
+          "medianKg": 6.05,
+          "upperKg": 6.722,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 5.399,
+          "medianKg": 6.074,
+          "upperKg": 6.749,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 5.421,
+          "medianKg": 6.098,
+          "upperKg": 6.776,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 5.443,
+          "medianKg": 6.123,
+          "upperKg": 6.804,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 5.44310844,
+          "medianKg": 6.123496995,
+          "upperKg": 6.80388555,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        }
+      ]
+    },
+    {
+      "id": "cat-maine-coon-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100154",
+      "sourceId": "wikipedia-en-maine-coon-1372828795",
+      "constraints": [
+        "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 18–22 фунта",
+        "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+      ],
+      "ageAvailability": "carry_forward",
+      "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.1004,
+          "medianKg": 0.1191,
+          "upperKg": 0.1378,
+          "sourceId": "mugnier-cat-birth-weight-2023",
+          "empirical": true
+        },
+        {
+          "ageDays": 56,
+          "lowerKg": 1.532,
+          "medianKg": 1.702,
+          "upperKg": 1.872,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 1.786,
+          "medianKg": 1.985,
+          "upperKg": 2.183,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 2.058,
+          "medianKg": 2.287,
+          "upperKg": 2.516,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 2.342,
+          "medianKg": 2.602,
+          "upperKg": 2.862,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 2.632,
+          "medianKg": 2.924,
+          "upperKg": 3.216,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 2.923,
+          "medianKg": 3.248,
+          "upperKg": 3.573,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 3.211,
+          "medianKg": 3.568,
+          "upperKg": 3.925,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 3.493,
+          "medianKg": 3.881,
+          "upperKg": 4.269,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 3.766,
+          "medianKg": 4.185,
+          "upperKg": 4.603,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 4.03,
+          "medianKg": 4.478,
+          "upperKg": 4.926,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 4.283,
+          "medianKg": 4.759,
+          "upperKg": 5.235,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 4.526,
+          "medianKg": 5.028,
+          "upperKg": 5.531,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 4.756,
+          "medianKg": 5.285,
+          "upperKg": 5.813,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 4.975,
+          "medianKg": 5.527,
+          "upperKg": 6.08,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 5.181,
+          "medianKg": 5.757,
+          "upperKg": 6.333,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 5.376,
+          "medianKg": 5.973,
+          "upperKg": 6.571,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 5.56,
+          "medianKg": 6.178,
+          "upperKg": 6.795,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 5.733,
+          "medianKg": 6.37,
+          "upperKg": 7.007,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 5.896,
+          "medianKg": 6.551,
+          "upperKg": 7.206,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 6.049,
+          "medianKg": 6.722,
+          "upperKg": 7.394,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 6.194,
+          "medianKg": 6.882,
+          "upperKg": 7.57,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 6.329,
+          "medianKg": 7.032,
+          "upperKg": 7.735,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 6.456,
+          "medianKg": 7.173,
+          "upperKg": 7.891,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 6.575,
+          "medianKg": 7.306,
+          "upperKg": 8.037,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 6.687,
+          "medianKg": 7.43,
+          "upperKg": 8.173,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 6.792,
+          "medianKg": 7.547,
+          "upperKg": 8.302,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 6.891,
+          "medianKg": 7.656,
+          "upperKg": 8.422,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 6.983,
+          "medianKg": 7.759,
+          "upperKg": 8.535,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 7.069,
+          "medianKg": 7.855,
+          "upperKg": 8.64,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 7.15,
+          "medianKg": 7.945,
+          "upperKg": 8.739,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 7.226,
+          "medianKg": 8.029,
+          "upperKg": 8.832,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 7.297,
+          "medianKg": 8.108,
+          "upperKg": 8.918,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 7.363,
+          "medianKg": 8.181,
+          "upperKg": 8.999,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 7.425,
+          "medianKg": 8.25,
+          "upperKg": 9.075,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 7.483,
+          "medianKg": 8.314,
+          "upperKg": 9.146,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 7.537,
+          "medianKg": 8.374,
+          "upperKg": 9.212,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 7.587,
+          "medianKg": 8.431,
+          "upperKg": 9.274,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 7.635,
+          "medianKg": 8.483,
+          "upperKg": 9.331,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 7.679,
+          "medianKg": 8.532,
+          "upperKg": 9.385,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 7.72,
+          "medianKg": 8.577,
+          "upperKg": 9.435,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 7.758,
+          "medianKg": 8.62,
+          "upperKg": 9.482,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 7.793,
+          "medianKg": 8.659,
+          "upperKg": 9.525,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 7.826,
+          "medianKg": 8.696,
+          "upperKg": 9.565,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 7.857,
+          "medianKg": 8.73,
+          "upperKg": 9.603,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 7.885,
+          "medianKg": 8.761,
+          "upperKg": 9.638,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 7.912,
+          "medianKg": 8.791,
+          "upperKg": 9.67,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 7.936,
+          "medianKg": 8.818,
+          "upperKg": 9.7,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 7.959,
+          "medianKg": 8.843,
+          "upperKg": 9.728,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 7.98,
+          "medianKg": 8.866,
+          "upperKg": 9.753,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 7.999,
+          "medianKg": 8.888,
+          "upperKg": 9.777,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 8.017,
+          "medianKg": 8.908,
+          "upperKg": 9.798,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 8.033,
+          "medianKg": 8.926,
+          "upperKg": 9.819,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 8.048,
+          "medianKg": 8.943,
+          "upperKg": 9.837,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 8.062,
+          "medianKg": 8.958,
+          "upperKg": 9.854,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 8.075,
+          "medianKg": 8.972,
+          "upperKg": 9.869,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 8.086,
+          "medianKg": 8.985,
+          "upperKg": 9.883,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 8.097,
+          "medianKg": 8.996,
+          "upperKg": 9.896,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 8.106,
+          "medianKg": 9.007,
+          "upperKg": 9.908,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 8.115,
+          "medianKg": 9.017,
+          "upperKg": 9.918,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 8.123,
+          "medianKg": 9.025,
+          "upperKg": 9.928,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 8.13,
+          "medianKg": 9.033,
+          "upperKg": 9.936,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 8.136,
+          "medianKg": 9.04,
+          "upperKg": 9.944,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 8.141,
+          "medianKg": 9.046,
+          "upperKg": 9.95,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 8.146,
+          "medianKg": 9.051,
+          "upperKg": 9.956,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 8.15,
+          "medianKg": 9.056,
+          "upperKg": 9.961,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 8.154,
+          "medianKg": 9.06,
+          "upperKg": 9.966,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 8.157,
+          "medianKg": 9.063,
+          "upperKg": 9.97,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 8.16,
+          "medianKg": 9.066,
+          "upperKg": 9.973,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 8.162,
+          "medianKg": 9.069,
+          "upperKg": 9.975,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 8.163,
+          "medianKg": 9.07,
+          "upperKg": 9.977,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 8.165,
+          "medianKg": 9.072,
+          "upperKg": 9.979,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 8.16466266,
+          "medianKg": 9.0718474,
+          "upperKg": 9.97903214,
+          "sourceId": "wikipedia-en-maine-coon-1372828795"
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-female",
+      "species": "cat",
+      "sex": "female",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "wikipedia-de-sibirische-katze-269975535",
+      "constraints": [
+        "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 3–6 кг",
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+      ],
+      "ageAvailability": "carry_forward",
+      "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116,
+          "sourceId": "mugnier-cat-birth-weight-2023",
+          "empirical": true
+        },
+        {
+          "ageDays": 56,
+          "lowerKg": 0.797,
+          "medianKg": 1.195,
+          "upperKg": 1.593,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.903,
+          "medianKg": 1.355,
+          "upperKg": 1.807,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.006,
+          "medianKg": 1.509,
+          "upperKg": 2.012,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.109,
+          "medianKg": 1.663,
+          "upperKg": 2.218,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.214,
+          "medianKg": 1.821,
+          "upperKg": 2.428,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.321,
+          "medianKg": 1.982,
+          "upperKg": 2.642,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.43,
+          "medianKg": 2.145,
+          "upperKg": 2.859,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.536,
+          "medianKg": 2.305,
+          "upperKg": 3.073,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 1.637,
+          "medianKg": 2.456,
+          "upperKg": 3.275,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 1.73,
+          "medianKg": 2.596,
+          "upperKg": 3.461,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 1.817,
+          "medianKg": 2.725,
+          "upperKg": 3.634,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 1.899,
+          "medianKg": 2.848,
+          "upperKg": 3.797,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 1.977,
+          "medianKg": 2.965,
+          "upperKg": 3.953,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.05,
+          "medianKg": 3.075,
+          "upperKg": 4.1,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.118,
+          "medianKg": 3.177,
+          "upperKg": 4.236,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.181,
+          "medianKg": 3.272,
+          "upperKg": 4.362,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 2.239,
+          "medianKg": 3.358,
+          "upperKg": 4.477,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 2.291,
+          "medianKg": 3.436,
+          "upperKg": 4.581,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 2.338,
+          "medianKg": 3.507,
+          "upperKg": 4.676,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 2.38,
+          "medianKg": 3.571,
+          "upperKg": 4.761,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 2.419,
+          "medianKg": 3.628,
+          "upperKg": 4.838,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 2.454,
+          "medianKg": 3.681,
+          "upperKg": 4.908,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 2.485,
+          "medianKg": 3.728,
+          "upperKg": 4.971,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 2.514,
+          "medianKg": 3.771,
+          "upperKg": 5.028,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 2.54,
+          "medianKg": 3.81,
+          "upperKg": 5.079,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 2.563,
+          "medianKg": 3.845,
+          "upperKg": 5.126,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 2.584,
+          "medianKg": 3.876,
+          "upperKg": 5.168,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 2.603,
+          "medianKg": 3.905,
+          "upperKg": 5.207,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 2.621,
+          "medianKg": 3.931,
+          "upperKg": 5.242,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 2.637,
+          "medianKg": 3.955,
+          "upperKg": 5.274,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 2.651,
+          "medianKg": 3.977,
+          "upperKg": 5.303,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 2.665,
+          "medianKg": 3.997,
+          "upperKg": 5.329,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 2.677,
+          "medianKg": 4.015,
+          "upperKg": 5.353,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 2.688,
+          "medianKg": 4.032,
+          "upperKg": 5.376,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 2.698,
+          "medianKg": 4.047,
+          "upperKg": 5.397,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 2.708,
+          "medianKg": 4.062,
+          "upperKg": 5.416,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 2.717,
+          "medianKg": 4.075,
+          "upperKg": 5.434,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 2.725,
+          "medianKg": 4.088,
+          "upperKg": 5.451,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 2.733,
+          "medianKg": 4.1,
+          "upperKg": 5.467,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 2.741,
+          "medianKg": 4.111,
+          "upperKg": 5.482,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 2.748,
+          "medianKg": 4.122,
+          "upperKg": 5.496,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 2.755,
+          "medianKg": 4.133,
+          "upperKg": 5.51,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 2.762,
+          "medianKg": 4.143,
+          "upperKg": 5.524,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 2.768,
+          "medianKg": 4.153,
+          "upperKg": 5.537,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 2.775,
+          "medianKg": 4.162,
+          "upperKg": 5.55,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 2.781,
+          "medianKg": 4.172,
+          "upperKg": 5.563,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 2.788,
+          "medianKg": 4.182,
+          "upperKg": 5.576,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 2.794,
+          "medianKg": 4.192,
+          "upperKg": 5.589,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 2.801,
+          "medianKg": 4.201,
+          "upperKg": 5.602,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 2.807,
+          "medianKg": 4.211,
+          "upperKg": 5.615,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 2.814,
+          "medianKg": 4.221,
+          "upperKg": 5.628,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 2.821,
+          "medianKg": 4.232,
+          "upperKg": 5.642,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 2.828,
+          "medianKg": 4.242,
+          "upperKg": 5.656,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 2.835,
+          "medianKg": 4.253,
+          "upperKg": 5.671,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 2.843,
+          "medianKg": 4.264,
+          "upperKg": 5.685,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 2.85,
+          "medianKg": 4.275,
+          "upperKg": 5.701,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 2.858,
+          "medianKg": 4.287,
+          "upperKg": 5.716,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 2.866,
+          "medianKg": 4.299,
+          "upperKg": 5.733,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 2.875,
+          "medianKg": 4.312,
+          "upperKg": 5.749,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 2.883,
+          "medianKg": 4.325,
+          "upperKg": 5.767,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 2.892,
+          "medianKg": 4.338,
+          "upperKg": 5.785,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 2.902,
+          "medianKg": 4.352,
+          "upperKg": 5.803,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 2.911,
+          "medianKg": 4.367,
+          "upperKg": 5.822,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 2.921,
+          "medianKg": 4.381,
+          "upperKg": 5.842,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 2.931,
+          "medianKg": 4.397,
+          "upperKg": 5.862,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 2.942,
+          "medianKg": 4.413,
+          "upperKg": 5.884,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 2.953,
+          "medianKg": 4.429,
+          "upperKg": 5.905,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 2.964,
+          "medianKg": 4.446,
+          "upperKg": 5.928,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 2.976,
+          "medianKg": 4.463,
+          "upperKg": 5.951,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 2.988,
+          "medianKg": 4.481,
+          "upperKg": 5.975,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 3.0,
+          "medianKg": 4.5,
+          "upperKg": 6.0,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 3.0,
+          "medianKg": 4.5,
+          "upperKg": 6.0,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        }
+      ]
+    },
+    {
+      "id": "cat-siberian-male",
+      "species": "cat",
+      "sex": "male",
+      "basis": "breed",
+      "breedId": "VBO:0100223",
+      "sourceId": "wikipedia-de-sibirische-katze-269975535",
+      "constraints": [
+        "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 4,5–8 кг",
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+      ],
+      "ageAvailability": "carry_forward",
+      "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
+      "license": "CC BY-SA 4.0",
+      "referenceKind": "modelled_breed_adult_range",
+      "minimumBinN": 0,
+      "centerStatistic": "median",
+      "boundsStatistic": "adult_typical_range",
+      "points": [
+        {
+          "ageDays": 0,
+          "lowerKg": 0.0826,
+          "medianKg": 0.0993,
+          "upperKg": 0.116,
+          "sourceId": "mugnier-cat-birth-weight-2023",
+          "empirical": true
+        },
+        {
+          "ageDays": 56,
+          "lowerKg": 0.844,
+          "medianKg": 1.173,
+          "upperKg": 1.501,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 63,
+          "lowerKg": 0.985,
+          "medianKg": 1.368,
+          "upperKg": 1.75,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 70,
+          "lowerKg": 1.134,
+          "medianKg": 1.576,
+          "upperKg": 2.017,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 77,
+          "lowerKg": 1.291,
+          "medianKg": 1.792,
+          "upperKg": 2.294,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 84,
+          "lowerKg": 1.45,
+          "medianKg": 2.014,
+          "upperKg": 2.579,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 91,
+          "lowerKg": 1.611,
+          "medianKg": 2.238,
+          "upperKg": 2.864,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 98,
+          "lowerKg": 1.77,
+          "medianKg": 2.458,
+          "upperKg": 3.147,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 105,
+          "lowerKg": 1.925,
+          "medianKg": 2.674,
+          "upperKg": 3.423,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 112,
+          "lowerKg": 2.076,
+          "medianKg": 2.883,
+          "upperKg": 3.69,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 119,
+          "lowerKg": 2.221,
+          "medianKg": 3.085,
+          "upperKg": 3.949,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 126,
+          "lowerKg": 2.361,
+          "medianKg": 3.279,
+          "upperKg": 4.197,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 133,
+          "lowerKg": 2.494,
+          "medianKg": 3.464,
+          "upperKg": 4.434,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 140,
+          "lowerKg": 2.621,
+          "medianKg": 3.641,
+          "upperKg": 4.66,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 147,
+          "lowerKg": 2.742,
+          "medianKg": 3.808,
+          "upperKg": 4.874,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 154,
+          "lowerKg": 2.856,
+          "medianKg": 3.966,
+          "upperKg": 5.077,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 161,
+          "lowerKg": 2.963,
+          "medianKg": 4.115,
+          "upperKg": 5.268,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 168,
+          "lowerKg": 3.064,
+          "medianKg": 4.256,
+          "upperKg": 5.448,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 175,
+          "lowerKg": 3.16,
+          "medianKg": 4.389,
+          "upperKg": 5.617,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 182,
+          "lowerKg": 3.25,
+          "medianKg": 4.513,
+          "upperKg": 5.777,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 189,
+          "lowerKg": 3.334,
+          "medianKg": 4.631,
+          "upperKg": 5.927,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 196,
+          "lowerKg": 3.414,
+          "medianKg": 4.741,
+          "upperKg": 6.069,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 203,
+          "lowerKg": 3.488,
+          "medianKg": 4.845,
+          "upperKg": 6.201,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 210,
+          "lowerKg": 3.558,
+          "medianKg": 4.942,
+          "upperKg": 6.326,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 217,
+          "lowerKg": 3.624,
+          "medianKg": 5.033,
+          "upperKg": 6.443,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 224,
+          "lowerKg": 3.686,
+          "medianKg": 5.119,
+          "upperKg": 6.552,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 231,
+          "lowerKg": 3.744,
+          "medianKg": 5.199,
+          "upperKg": 6.655,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 238,
+          "lowerKg": 3.798,
+          "medianKg": 5.275,
+          "upperKg": 6.752,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 245,
+          "lowerKg": 3.849,
+          "medianKg": 5.345,
+          "upperKg": 6.842,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 252,
+          "lowerKg": 3.896,
+          "medianKg": 5.412,
+          "upperKg": 6.927,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 259,
+          "lowerKg": 3.941,
+          "medianKg": 5.473,
+          "upperKg": 7.006,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 266,
+          "lowerKg": 3.983,
+          "medianKg": 5.531,
+          "upperKg": 7.08,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 273,
+          "lowerKg": 4.022,
+          "medianKg": 5.586,
+          "upperKg": 7.15,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 280,
+          "lowerKg": 4.058,
+          "medianKg": 5.636,
+          "upperKg": 7.215,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 287,
+          "lowerKg": 4.092,
+          "medianKg": 5.684,
+          "upperKg": 7.275,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 294,
+          "lowerKg": 4.124,
+          "medianKg": 5.728,
+          "upperKg": 7.332,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 301,
+          "lowerKg": 4.154,
+          "medianKg": 5.77,
+          "upperKg": 7.385,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 308,
+          "lowerKg": 4.182,
+          "medianKg": 5.808,
+          "upperKg": 7.434,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 315,
+          "lowerKg": 4.208,
+          "medianKg": 5.844,
+          "upperKg": 7.481,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 322,
+          "lowerKg": 4.232,
+          "medianKg": 5.878,
+          "upperKg": 7.524,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 329,
+          "lowerKg": 4.255,
+          "medianKg": 5.909,
+          "upperKg": 7.564,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 336,
+          "lowerKg": 4.276,
+          "medianKg": 5.938,
+          "upperKg": 7.601,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 343,
+          "lowerKg": 4.295,
+          "medianKg": 5.966,
+          "upperKg": 7.636,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 350,
+          "lowerKg": 4.313,
+          "medianKg": 5.991,
+          "upperKg": 7.668,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 357,
+          "lowerKg": 4.33,
+          "medianKg": 6.014,
+          "upperKg": 7.698,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 364,
+          "lowerKg": 4.346,
+          "medianKg": 6.036,
+          "upperKg": 7.726,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 371,
+          "lowerKg": 4.361,
+          "medianKg": 6.056,
+          "upperKg": 7.752,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 378,
+          "lowerKg": 4.374,
+          "medianKg": 6.075,
+          "upperKg": 7.776,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 385,
+          "lowerKg": 4.387,
+          "medianKg": 6.092,
+          "upperKg": 7.798,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 392,
+          "lowerKg": 4.398,
+          "medianKg": 6.108,
+          "upperKg": 7.819,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 399,
+          "lowerKg": 4.409,
+          "medianKg": 6.123,
+          "upperKg": 7.838,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 406,
+          "lowerKg": 4.419,
+          "medianKg": 6.137,
+          "upperKg": 7.855,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 413,
+          "lowerKg": 4.428,
+          "medianKg": 6.149,
+          "upperKg": 7.871,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 420,
+          "lowerKg": 4.436,
+          "medianKg": 6.161,
+          "upperKg": 7.886,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 427,
+          "lowerKg": 4.444,
+          "medianKg": 6.172,
+          "upperKg": 7.9,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 434,
+          "lowerKg": 4.45,
+          "medianKg": 6.181,
+          "upperKg": 7.912,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 441,
+          "lowerKg": 4.457,
+          "medianKg": 6.19,
+          "upperKg": 7.923,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 448,
+          "lowerKg": 4.463,
+          "medianKg": 6.198,
+          "upperKg": 7.933,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 455,
+          "lowerKg": 4.468,
+          "medianKg": 6.205,
+          "upperKg": 7.943,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 462,
+          "lowerKg": 4.473,
+          "medianKg": 6.212,
+          "upperKg": 7.951,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 469,
+          "lowerKg": 4.477,
+          "medianKg": 6.218,
+          "upperKg": 7.959,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 476,
+          "lowerKg": 4.481,
+          "medianKg": 6.223,
+          "upperKg": 7.966,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 483,
+          "lowerKg": 4.484,
+          "medianKg": 6.228,
+          "upperKg": 7.972,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 490,
+          "lowerKg": 4.487,
+          "medianKg": 6.232,
+          "upperKg": 7.977,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 497,
+          "lowerKg": 4.49,
+          "medianKg": 6.236,
+          "upperKg": 7.982,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 504,
+          "lowerKg": 4.492,
+          "medianKg": 6.239,
+          "upperKg": 7.986,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 511,
+          "lowerKg": 4.494,
+          "medianKg": 6.242,
+          "upperKg": 7.989,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 518,
+          "lowerKg": 4.496,
+          "medianKg": 6.244,
+          "upperKg": 7.992,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 525,
+          "lowerKg": 4.497,
+          "medianKg": 6.246,
+          "upperKg": 7.995,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 532,
+          "lowerKg": 4.498,
+          "medianKg": 6.248,
+          "upperKg": 7.997,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 539,
+          "lowerKg": 4.499,
+          "medianKg": 6.249,
+          "upperKg": 7.999,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 546,
+          "lowerKg": 4.5,
+          "medianKg": 6.25,
+          "upperKg": 8.0,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
+        },
+        {
+          "ageDays": 730,
+          "lowerKg": 4.5,
+          "medianKg": 6.25,
+          "upperKg": 8.0,
+          "sourceId": "wikipedia-de-sibirische-katze-269975535"
         }
       ]
     }

@@ -1,8 +1,8 @@
 {
   "manifest": {
-    "schemaVersion": 2,
-    "snapshotVersion": "2026-09-06.2",
-    "snapshotDate": "2026-09-06",
+    "schemaVersion": 3,
+    "snapshotVersion": "2026-09-08.1",
+    "snapshotDate": "2026-09-08",
     "numericalDataSha256": "generated",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
@@ -14,7 +14,8 @@
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
       "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
-      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only"
+      "fittedCatRuntime": "Generate weekly P9/P50/P91 points from docs/research/97/bccg-curves.csv; P2/P98 and BCCG parameters remain research-only",
+      "modelledBreedRuntime": "Normalize the matching-sex fitted population P50 by its final 546-day value, multiply that shape by the adult breed lower/midpoint/upper range, and append the exact adult range at 730 days. This is a model, not observed breed growth data. For Maine Coon and Siberian the empirical day-0 mean±SD point is retained separately and ages 1-55 are deliberately unavailable."
     },
     "sources": [
       {
@@ -50,6 +51,61 @@
         "upstreamArtifactSha256": "fa4bfd1fa294935a715e72f4e736068cb3b05d95c0548e09e2f9a75e5f2d581d",
         "license": "CC BY 4.0",
         "licenseUrl": "https://creativecommons.org/licenses/by/4.0/"
+      },
+      {
+        "id": "wikipedia-fr-british-shorthair-38446796",
+        "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://fr.wikipedia.org/w/index.php?title=British_Shorthair&oldid=38446796",
+        "upstreamArtifactSha256": "fbfb06456c5db7f6caa8f15fe3addf29f4af6236a36b2a46458d319648368923",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-en-scottish-fold-1369070582",
+        "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://en.wikipedia.org/w/index.php?title=Scottish_Fold&oldid=1369070582",
+        "upstreamArtifactSha256": "240ff5bf33d60fa6621fdb55329ba88d417477373a1ccec419ca3b1c290721bb",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-de-siamkatze-269975201",
+        "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://de.wikipedia.org/w/index.php?title=Siamkatze&oldid=269975201",
+        "upstreamArtifactSha256": "5807b1cc2b15419b996a6d45cf0823219c3f3384f973b6035ff2059caff91ca6",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-en-maine-coon-1372828795",
+        "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://en.wikipedia.org/w/index.php?title=Maine_Coon&oldid=1372828795",
+        "upstreamArtifactSha256": "a3319bfda480cd41799ae6a46f8e868081218e37255ddced1aab9f346c091236",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
+      },
+      {
+        "id": "wikipedia-de-sibirische-katze-269975535",
+        "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
+        "publicationDoi": "",
+        "dataDoi": "",
+        "dataUrl": "https://de.wikipedia.org/w/index.php?title=Sibirische_Katze&oldid=269975535",
+        "upstreamArtifactSha256": "44d53d26fdac69b0807340af7e97b138f4124a3b663c1168c743a3147229f40b",
+        "license": "CC BY-SA 4.0",
+        "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0/",
+        "accessedDate": "2026-09-08"
       }
     ],
     "scopes": [
@@ -289,15 +345,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100052",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
-          "British birth observations do not distinguish British Shorthair from British Longhair"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-fr-british-shorthair-38446796",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-british-shorthair-male",
@@ -305,15 +360,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100052",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "No compatible lower/median/upper age series: published values are means with SD, adult Q1-Q3 without a median, or broad age aggregates",
-          "British birth observations do not distinguish British Shorthair from British Longhair"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-fr-british-shorthair-38446796",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-scottish-fold-female",
@@ -321,15 +375,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100209",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Adult observations report mean plus SD for only four females; SD is not a reference boundary",
-          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-en-scottish-fold-1369070582",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-scottish-fold-male",
@@ -337,15 +390,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100209",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Adult observations report mean plus SD for only three males; SD is not a reference boundary",
-          "Birth observations combine Scottish and Highland varieties, and no juvenile age series is published"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "unsupported_statistic"
+        "sourceId": "wikipedia-en-scottish-fold-1369070582",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-siamese-female",
@@ -353,15 +405,14 @@
         "sex": "female",
         "basis": "breed",
         "breedId": "VBO:0100221",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
-          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "mixed_breed_group"
+        "sourceId": "wikipedia-de-siamkatze-269975201",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-siamese-male",
@@ -369,15 +420,14 @@
         "sex": "male",
         "basis": "breed",
         "breedId": "VBO:0100221",
-        "minimumAgeDays": 1,
+        "minimumAgeDays": 56,
         "maximumAgeDays": 730,
         "constraints": [
-          "Every published early-age numerical sample combines Siamese with Oriental Shorthair or additional varieties",
-          "TICA typical ranges are not measured percentiles and cannot replace a pure-breed age series"
+          "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
+          "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии"
         ],
-        "numericalAvailability": "not_reproducible_from_published_artifacts",
-        "ageAvailability": "declared_range_only",
-        "unavailabilityReason": "mixed_breed_group"
+        "sourceId": "wikipedia-de-siamkatze-269975201",
+        "numericalAvailability": "available"
       },
       {
         "id": "cat-maine-coon-female",
@@ -386,16 +436,15 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 12–15 фунтов",
+          "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-maine-coon-male",
@@ -404,16 +453,15 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 18–22 фунта",
+          "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-siberian-female",
@@ -422,16 +470,14 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 3–6 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-siberian-male",
@@ -440,19 +486,29 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 0,
+        "maximumAgeDays": 730,
         "constraints": [
-          "Birth weight is a direct pure-breed field observation reported as mean plus or minus one standard deviation, not a median or percentile interval",
-          "The published breed value combines both sexes; it is duplicated into female and male lookup profiles without claiming sex separation",
-          "Weights were reported voluntarily by French breeders using non-standardized scales and timing from birth to several hours after birth",
-          "Only the exact birth observation is available; interpolation and extrapolation are prohibited"
+          "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 4,5–8 кг",
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
         ],
-        "sourceId": "mugnier-cat-birth-weight-2023",
+        "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "exact_observations"
+        "ageAvailability": "carry_forward"
       }
     ]
   },
+  "modelledBreedRanges": [
+    {"id":"cat-british-shorthair-female","sourceId":"wikipedia-fr-british-shorthair-38446796","adultLowerKg":3.0,"adultUpperKg":4.0},
+    {"id":"cat-british-shorthair-male","sourceId":"wikipedia-fr-british-shorthair-38446796","adultLowerKg":5.0,"adultUpperKg":8.0},
+    {"id":"cat-scottish-fold-female","sourceId":"wikipedia-en-scottish-fold-1369070582","adultLowerKg":2.7,"adultUpperKg":4.0},
+    {"id":"cat-scottish-fold-male","sourceId":"wikipedia-en-scottish-fold-1369070582","adultLowerKg":4.0,"adultUpperKg":6.0},
+    {"id":"cat-siamese-female","sourceId":"wikipedia-de-siamkatze-269975201","adultLowerKg":3.0,"adultUpperKg":4.0},
+    {"id":"cat-siamese-male","sourceId":"wikipedia-de-siamkatze-269975201","adultLowerKg":4.0,"adultUpperKg":5.0},
+    {"id":"cat-maine-coon-female","sourceId":"wikipedia-en-maine-coon-1372828795","adultLowerKg":5.44310844,"adultUpperKg":6.80388555,"birthObservation":{"ageDays":0,"lowerKg":0.1004,"medianKg":0.1191,"upperKg":0.1378,"sourceId":"mugnier-cat-birth-weight-2023","empirical":true}},
+    {"id":"cat-maine-coon-male","sourceId":"wikipedia-en-maine-coon-1372828795","adultLowerKg":8.16466266,"adultUpperKg":9.97903214,"birthObservation":{"ageDays":0,"lowerKg":0.1004,"medianKg":0.1191,"upperKg":0.1378,"sourceId":"mugnier-cat-birth-weight-2023","empirical":true}},
+    {"id":"cat-siberian-female","sourceId":"wikipedia-de-sibirische-katze-269975535","adultLowerKg":3.0,"adultUpperKg":6.0,"birthObservation":{"ageDays":0,"lowerKg":0.0826,"medianKg":0.0993,"upperKg":0.116,"sourceId":"mugnier-cat-birth-weight-2023","empirical":true}},
+    {"id":"cat-siberian-male","sourceId":"wikipedia-de-sibirische-katze-269975535","adultLowerKg":4.5,"adultUpperKg":8.0,"birthObservation":{"ageDays":0,"lowerKg":0.0826,"medianKg":0.0993,"upperKg":0.116,"sourceId":"mugnier-cat-birth-weight-2023","empirical":true}}
+  ],
   "profiles": [
     {
       "id": "dog-female-I",

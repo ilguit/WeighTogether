@@ -5,6 +5,7 @@ import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -14,6 +15,111 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `mixed birth observation and breed model render glyph and model band together`() {
+        val birth = LocalDate.of(2026, 7, 1)
+        val exact = PetHistoryReferenceSegment(
+            "cat-maine-coon-male", "mugnier-cat-birth-weight-2023",
+            WeightReferenceProvenance.BREED_EXACT_OBSERVATION, "Mugnier", "CC BY 4.0", null,
+            listOf(PetHistoryReferencePoint(birth, 0.1, 0.12, 0.12, 0.14)),
+        )
+        val model = PetHistoryReferenceSegment(
+            "cat-maine-coon-male", "wikipedia-en-maine-coon-1372828795",
+            WeightReferenceProvenance.BREED_CURVE, "Wikipedia Maine Coon", "CC BY-SA 4.0", null,
+            listOf(
+                PetHistoryReferencePoint(birth.plusDays(56), 1.0, 1.5, 1.5, 2.0),
+                PetHistoryReferencePoint(birth.plusDays(57), 1.1, 1.6, 1.6, 2.1),
+            ),
+        )
+        val reference = PetHistoryWeightReference.Available(
+            basis = ReferenceBasis.BREED, provenance = WeightReferenceProvenance.BREED_CURVE,
+            segments = listOf(exact, model), approximate = false, ageLabel = "Возраст",
+            basisLabel = "Эталон", sourceLabel = "Источник", citation = model.citation,
+            license = model.license, constraints = emptyList(), accessibilityLabel = "Эталон",
+        )
+
+        assertEquals(1, exactObservationGlyphs(reference, ZoneOffset.UTC).size)
+        assertEquals(1, populationWeightReferenceBands(reference, ZoneOffset.UTC).size)
+        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC)
+            .any { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER })
+    }
+
+    @Test fun `breed curve ignores legacy timeline and exposes P9 P91 band with P50`() {
+        val dates = listOf(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1))
+        val reference = availableSegments(
+            segments = listOf(dates.mapIndexed { index, date ->
+                PetHistoryReferencePoint(date, 2.0 + index, 3.0 + index, 3.0 + index, 4.0 + index)
+            }),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+            fittedPercentiles = true,
+        )
+        val legacy = listOf(timelinePoint(dates.first(), PetHistoryBreedChartValue.Single(99.0, "Устаревшее", "legacy")))
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, legacy, ZoneOffset.UTC)
+        val band = populationWeightReferenceBands(reference, ZoneOffset.UTC).single()
+
+        assertEquals(3, displayed.size)
+        assertEquals(
+            listOf(
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+                PetWeightDisplayedSeriesStyle.BREED_CENTER,
+                PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
+            ),
+            displayed.map(PetWeightDisplayedSeries::style),
+        )
+        assertTrue(displayed.none { 99.0 in it.y })
+        assertEquals(dates.size, band.points.size)
+        assertEquals(
+            listOf("▰ Светло-зелёная зона — модельный породный диапазон", "— Центр породной модели"),
+            referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
+    @Test fun `breed model bands preserve gaps and never invent a singleton fill`() {
+        val first = LocalDate.of(2026, 1, 1)
+        val reference = availableSegments(
+            segments = listOf(
+                listOf(
+                    PetHistoryReferencePoint(first, 1.0, 2.0, 2.0, 3.0),
+                    PetHistoryReferencePoint(first.plusDays(1), 1.1, 2.1, 2.1, 3.1),
+                ),
+                listOf(PetHistoryReferencePoint(first.plusDays(56), 1.5, 2.5, 2.5, 3.5)),
+            ),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+        )
+
+        val bands = populationWeightReferenceBands(reference, ZoneOffset.UTC)
+
+        assertEquals(1, bands.size)
+        assertEquals(listOf(first, first.plusDays(1)), bands.single().points.map {
+            java.time.Instant.ofEpochMilli(it.xEpochMillis).atZone(ZoneOffset.UTC).toLocalDate()
+        })
+    }
+
+    @Test fun `exact breed observation becomes single date whisker and mean without chart lines`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val reference = availableSegments(
+            segments = listOf(listOf(PetHistoryReferencePoint(date, 3.0, 4.0, 4.0, 5.0))),
+            provenance = WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
+        )
+
+        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC).isEmpty())
+        assertEquals(
+            listOf(PetWeightExactObservationGlyph(date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), 3.0, 4.0, 5.0)),
+            exactObservationGlyphs(reference, ZoneOffset.UTC),
+        )
+        assertEquals(
+            listOf("↕ Диапазон наблюдения породы в дату рождения", "● Средний вес породы в дату рождения"),
+            referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
+    @Test fun `selected breed population fallback legend explicitly says it is not breed data`() {
+        val labels = referenceWeightChartLegendEntries(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
+            .map(PetWeightChartLegendEntry::label)
+
+        assertTrue(labels.all { "не по породе" in it })
+    }
+
     @Test fun `population legend uses the approved non medical term`() {
         val labels = populationWeightChartLegendEntries().map(PetWeightChartLegendEntry::label)
 
@@ -43,7 +149,7 @@ class PetWeightReferenceChartTest {
         val dates = listOf(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1))
         val reference = PetHistoryWeightReference.Available(
             basis = ReferenceBasis.POPULATION,
-            segments = listOf(
+            segments = referenceSegments(
                 dates.mapIndexed { index, date ->
                     PetHistoryReferencePoint(date, 2.0 + index, 3.0 + index, 3.0 + index, 4.0 + index)
                 },
@@ -644,9 +750,22 @@ class PetWeightReferenceChartTest {
 
     private fun availableSegments(
         segments: List<List<PetHistoryReferencePoint>>,
+        provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
+        fittedPercentiles: Boolean = false,
     ) = PetHistoryWeightReference.Available(
         basis = ReferenceBasis.BREED,
-        segments = segments,
+        provenance = provenance,
+        segments = segments.mapIndexed { index, points ->
+            PetHistoryReferenceSegment(
+                profileId = "test-$index",
+                sourceId = "test",
+                provenance = provenance,
+                citation = "test",
+                license = "CC",
+                publicationUrl = null,
+                points = points,
+            )
+        },
         approximate = false,
         ageLabel = "Возраст: 1 год",
         basisLabel = "Эталон по породе",
@@ -655,7 +774,21 @@ class PetWeightReferenceChartTest {
         license = "CC",
         constraints = listOf("test constraint"),
         accessibilityLabel = "test reference",
+        isFittedPopulationPercentiles = fittedPercentiles,
     )
+
+    private fun referenceSegments(vararg points: List<PetHistoryReferencePoint>) =
+        points.mapIndexed { index, segmentPoints ->
+            PetHistoryReferenceSegment(
+                profileId = "test-$index",
+                sourceId = "test",
+                provenance = WeightReferenceProvenance.POPULATION,
+                citation = "test",
+                license = "CC",
+                publicationUrl = null,
+                points = segmentPoints,
+            )
+        }
 
     private fun breedAvailable(values: List<PetHistoryBreedChartValue>) = PetHistoryBreedReference.Available(
         breedName = "Бигль",

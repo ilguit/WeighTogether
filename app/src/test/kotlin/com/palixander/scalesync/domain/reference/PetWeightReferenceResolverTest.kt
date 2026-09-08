@@ -358,6 +358,8 @@ class PetWeightReferenceResolverTest {
                 ).available()
                 assertEquals(profileId, result.profileId)
                 assertEquals(ReferenceBasis.BREED, result.basis)
+                assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+                assertEquals(breed, result.selectedBreedId)
             }
         }
     }
@@ -378,12 +380,15 @@ class PetWeightReferenceResolverTest {
                     referenceDate,
                 ).available()
                 assertEquals(ReferenceBasis.BREED, atBirth.basis)
+                assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, atBirth.provenance)
+                assertEquals("mugnier-cat-birth-weight-2023", atBirth.sourceId)
+                assertEquals(breedId, atBirth.selectedBreedId)
                 assertEquals(weights[0], atBirth.bounds.lowerKg, 1e-12)
                 assertEquals(weights[1], atBirth.bounds.medianLowerKg, 1e-12)
                 assertEquals(weights[1], atBirth.bounds.medianUpperKg, 1e-12)
                 assertEquals(weights[2], atBirth.bounds.upperKg, 1e-12)
 
-                assertReason<WeightReferenceUnavailableReason.AgeOutOfRange>(
+                assertReason<WeightReferenceUnavailableReason.ReferenceDataGap>(
                     resolver.resolve(
                         PetSpecies.CAT,
                         sex,
@@ -397,7 +402,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `licensed breed falls back to population after its birth observation`() {
+    fun `maine coon and siberian use breed model after neonatal gap`() {
         val cases = listOf(
             BreedId("VBO:0100154"),
             BreedId("VBO:0100223"),
@@ -412,8 +417,11 @@ class PetWeightReferenceResolverTest {
                     referenceDate,
                 ).available()
 
-                assertEquals("cat-population-${sex.name.lowercase()}", result.profileId)
-                assertEquals(ReferenceBasis.POPULATION, result.basis)
+                assertTrue(result.profileId.startsWith(if (breedId.value == "VBO:0100154") "cat-maine-coon-" else "cat-siberian-"))
+                assertEquals(ReferenceBasis.BREED, result.basis)
+                assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+                assertTrue(result.sourceId.startsWith("wikipedia-"))
+                assertEquals(breedId, result.selectedBreedId)
                 assertEquals(56L..56L, result.ageDays)
             }
         }
@@ -460,6 +468,38 @@ class PetWeightReferenceResolverTest {
             assertEquals(0.861525, result.bounds.medianLowerKg, 1e-12)
             assertEquals(0.861525, result.bounds.medianUpperKg, 1e-12)
             assertEquals(1.265159, result.bounds.upperKg, 1e-12)
+        }
+    }
+
+    @Test
+    fun `all five researched breeds resolve breed models for both sexes and kitten adult ages`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val cases = listOf(
+            "VBO:0100052", // British Shorthair: no reproducible numerical breed profile
+            "VBO:0100209", // Scottish Fold: no reproducible numerical breed profile
+            "VBO:0100221", // Siamese: evidence combines breeds
+            "VBO:0100154", // Maine Coon: exact birth observation only
+            "VBO:0100223", // Siberian: exact birth observation only
+        )
+
+        cases.forEach { rawBreedId ->
+            for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+                for (ageDays in listOf(56L, 365L, 730L)) {
+                    val breedId = BreedId(rawBreedId)
+                    val result = resolver.resolve(
+                        PetSpecies.CAT,
+                        sex,
+                        breedId,
+                        PartialBirthDate.Day(referenceDate.minusDays(ageDays)),
+                        referenceDate,
+                    ).available()
+
+                    assertEquals(ReferenceBasis.BREED, result.basis)
+                    assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+                    assertEquals(breedId, result.selectedBreedId)
+                    assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, snapshot.metadataFor(result.profileId)!!.referenceKind)
+                }
+            }
         }
     }
 

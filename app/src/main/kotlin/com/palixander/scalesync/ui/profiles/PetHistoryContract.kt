@@ -17,6 +17,7 @@ import com.palixander.scalesync.domain.reference.IntactStatus
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolution
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
@@ -114,8 +115,12 @@ data class PetHistoryUiState(
 sealed interface PetHistoryWeightReference {
     data class Available(
         val basis: ReferenceBasis,
+        val provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
+        val selectedBreedId: com.palixander.scalesync.domain.BreedId? = null,
+        /** Russian user-facing clarification when the selected breed cannot supply a full curve. */
+        val provenanceExplanation: String? = null,
         /** Separate segments must be drawn separately; gaps must never be connected. */
-        val segments: List<List<PetHistoryReferencePoint>>,
+        val segments: List<PetHistoryReferenceSegment>,
         val approximate: Boolean,
         val ageLabel: String,
         val basisLabel: String,
@@ -135,6 +140,16 @@ sealed interface PetHistoryWeightReference {
         val explanation: String,
     ) : PetHistoryWeightReference
 }
+
+data class PetHistoryReferenceSegment(
+    val profileId: String,
+    val sourceId: String,
+    val provenance: WeightReferenceProvenance,
+    val citation: String,
+    val license: String,
+    val publicationUrl: String?,
+    val points: List<PetHistoryReferencePoint>,
+) : List<PetHistoryReferencePoint> by points
 
 data class PetHistoryReferencePoint(
     val date: LocalDate,
@@ -181,38 +196,64 @@ class PetHistoryReferencePresenter(
                 ?: WeightReferenceUnavailableReason.ReferenceDataGap("unknown", LongRange.EMPTY)
             return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
         }
-        val metadata = snapshot.metadataFor(available.first().second.profileId)
+        val reference = available.last().second
+        val metadata = snapshot.metadataFor(reference.profileId, reference.sourceId)
             ?: return PetHistoryWeightReference.Unavailable(
-                WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId),
-                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId)),
+                WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId),
+                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId)),
             )
-        val segments = mutableListOf<MutableList<PetHistoryReferencePoint>>()
-        var previousProfileId: String? = null
+        data class SegmentIdentity(val profileId: String, val sourceId: String, val provenance: WeightReferenceProvenance)
+        val segments = mutableListOf<Pair<SegmentIdentity, MutableList<PetHistoryReferencePoint>>>()
+        var previousIdentity: SegmentIdentity? = null
         var gapBeforeNextPoint = true
         dated.forEach { (date, resolution) ->
             val reference = (resolution as? PetWeightReferenceResolution.Available)?.reference
             if (reference == null) {
                 gapBeforeNextPoint = true
-                previousProfileId = null
+                previousIdentity = null
                 return@forEach
             }
-            if (gapBeforeNextPoint || previousProfileId != reference.profileId) {
-                segments += mutableListOf<PetHistoryReferencePoint>()
+            val identity = SegmentIdentity(reference.profileId, reference.sourceId, reference.provenance)
+            if (gapBeforeNextPoint || previousIdentity != identity) {
+                segments += identity to mutableListOf()
             }
-            segments.last() += PetHistoryReferencePoint(
+            segments.last().second += PetHistoryReferencePoint(
                 date,
                 reference.bounds.lowerKg,
                 reference.bounds.medianLowerKg,
                 reference.bounds.medianUpperKg,
                 reference.bounds.upperKg,
             )
-            previousProfileId = reference.profileId
+            previousIdentity = identity
             gapBeforeNextPoint = false
         }
         val approximate = available.any { it.second.approximate }
         val minAge = available.minOf { it.second.ageDays.first }
         val maxAge = available.maxOf { it.second.ageDays.last }
-        return availablePresentation(metadata, segments.map(List<PetHistoryReferencePoint>::toList), approximate, minAge, maxAge)
+        return availablePresentation(
+            metadata = metadata,
+            segments = segments.map { (identity, points) ->
+                val segmentMetadata = snapshot.metadataFor(identity.profileId, identity.sourceId)
+                    ?: return PetHistoryWeightReference.Unavailable(
+                        WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId),
+                        weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId)),
+                    )
+                PetHistoryReferenceSegment(
+                    profileId = identity.profileId,
+                    sourceId = identity.sourceId,
+                    provenance = identity.provenance,
+                    citation = segmentMetadata.source.citation,
+                    license = segmentMetadata.source.license,
+                    publicationUrl = "https://doi.org/${segmentMetadata.source.publicationDoi}",
+                    points = points.toList(),
+                )
+            },
+            approximate = approximate,
+            minAge = minAge,
+            maxAge = maxAge,
+            provenance = reference.provenance,
+            selectedBreedId = reference.selectedBreedId,
+        )
     }
 
     private fun WeightReferenceUnavailableReason.isRangeInvariant(): Boolean = when (this) {
@@ -235,16 +276,19 @@ class PetHistoryReferencePresenter(
 
     private fun availablePresentation(
         metadata: ReferenceProfileMetadata,
-        segments: List<List<PetHistoryReferencePoint>>,
+        segments: List<PetHistoryReferenceSegment>,
         approximate: Boolean,
         minAge: Long,
         maxAge: Long,
+        provenance: WeightReferenceProvenance,
+        selectedBreedId: com.palixander.scalesync.domain.BreedId?,
     ): PetHistoryWeightReference.Available {
         val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
         val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
+        val isExactBreedObservation = provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION
         val basisLabel = if (metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES) {
             "Справочные данные о весе"
-        } else if (metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
+        } else if (isExactBreedObservation || metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
             "Наблюдение по породе: среднее ± одно стандартное отклонение"
         } else when (metadata.basis) {
             ReferenceBasis.BREED -> "Эталон по породе"
@@ -253,6 +297,9 @@ class PetHistoryReferencePresenter(
         }
         return PetHistoryWeightReference.Available(
             metadata.basis,
+            provenance,
+            selectedBreedId,
+            weightReferenceProvenanceExplanation(provenance),
             segments,
             approximate,
             ageLabel,
@@ -260,14 +307,41 @@ class PetHistoryReferencePresenter(
             "Источник: ${metadata.source.citation}",
             metadata.source.citation,
             metadata.source.license,
-            metadata.constraints,
+            metadata.constraints.map(::localizedReferenceConstraint),
             "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
             "https://doi.org/${metadata.source.publicationDoi}",
             metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
-            metadata.centerStatistic,
-            metadata.boundsStatistic,
+            if (isExactBreedObservation) ReferenceCenterStatistic.MEAN else metadata.centerStatistic,
+            if (isExactBreedObservation) ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION else metadata.boundsStatistic,
         )
     }
+}
+
+internal fun localizedReferenceConstraint(constraint: String): String = when (constraint) {
+    "Domestic Shorthair only" -> "Только домашние короткошёрстные кошки"
+    "Sexually intact kittens from the USA" -> "Нестерилизованные котята из США"
+    "Age 8 to 78 weeks" -> "Возраст от 8 до 78 недель"
+    "Other-breed fallback; source population was Domestic Shorthair" ->
+        "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
+    "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
+        "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
+    "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+        "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+    "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+        "18–22 фунта преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+    else -> constraint
+}
+
+fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): String? = when (provenance) {
+    WeightReferenceProvenance.BREED_CURVE ->
+        "Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая."
+    WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
+        "Для выбранной породы опубликовано только точечное наблюдение веса при рождении."
+    WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED ->
+        "Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек."
+    WeightReferenceProvenance.POPULATION,
+    WeightReferenceProvenance.WEIGHT_CATEGORY,
+    -> null
 }
 
 internal const val MAX_REFERENCE_CHART_SAMPLES = 512

@@ -15,6 +15,7 @@ import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import java.io.ByteArrayInputStream
@@ -126,6 +127,35 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `maine coon and siberian birth through day 56 retain distinct observation and model provenance`() {
+        val birth = LocalDate.of(2026, 7, 1)
+        listOf(BreedId("VBO:0100154"), BreedId("VBO:0100223")).forEach { breedId ->
+            PetSex.entries.forEach { sex ->
+                val pet = Pet(
+                    id = PetId("${breedId.value}-${sex.name}"), displayName = "Барсик",
+                    species = PetSpecies.CAT, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+                    sex = sex, birthDate = PartialBirthDate.Day(birth), breedId = breedId,
+                )
+
+                val result = presenter.present(pet, ChartDateRange(birth, birth.plusDays(56)))
+                    as PetHistoryWeightReference.Available
+
+                assertEquals(2, result.segments.size)
+                val exact = result.segments.single { it.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION }
+                val model = result.segments.single { it.provenance == WeightReferenceProvenance.BREED_CURVE }
+                assertEquals(birth, exact.single().date)
+                assertEquals("mugnier-cat-birth-weight-2023", exact.sourceId)
+                assertTrue(exact.citation.startsWith("Mugnier"))
+                assertEquals("CC BY 4.0", exact.license)
+                assertEquals(birth.plusDays(56), model.first().date)
+                assertTrue(model.sourceId.startsWith("wikipedia-"))
+                assertTrue(model.citation.contains(if (breedId.value == "VBO:0100154") "Maine Coon" else "Sibirische Katze"))
+                assertEquals("CC BY-SA 4.0", model.license)
+            }
+        }
+    }
+
+    @Test
     fun `future snapshot exceeding semantic date capacity omits overlay without throwing`() {
         val snapshot = snapshotWithDailyDogProfile(pointCount = MAX_REFERENCE_CHART_SAMPLES + 1)
         val customPresenter = PetHistoryReferencePresenter(
@@ -183,24 +213,91 @@ class PetHistoryReferencePresenterTest {
     @Test
     fun `breed observation presentation identifies mean and standard deviation`() {
         val date = LocalDate.of(2026, 9, 6)
+        listOf(BreedId("VBO:0100154"), BreedId("VBO:0100223")).forEach { breedId ->
+            val pet = Pet(
+                id = PetId("kitten-${breedId.value}"),
+                displayName = "Барсик",
+                species = PetSpecies.CAT,
+                createdAt = Instant.EPOCH,
+                updatedAt = Instant.EPOCH,
+                sex = PetSex.MALE,
+                birthDate = PartialBirthDate.Day(date),
+                breedId = breedId,
+            )
+
+            val result = presenter.present(pet, ChartDateRange(date, date))
+                as PetHistoryWeightReference.Available
+
+            assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
+            assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
+            assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
+            assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
+            assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, result.provenance)
+            assertEquals(pet.breedId, result.selectedBreedId)
+            assertTrue(result.provenanceExplanation!!.contains("только точечное наблюдение"))
+        }
+    }
+
+    @Test
+    fun `all five modelled breeds expose breed curves from day 56 through day 730`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val cases = listOf(
+            BreedId("VBO:0100052"),
+            BreedId("VBO:0100209"),
+            BreedId("VBO:0100221"),
+            BreedId("VBO:0100154"),
+            BreedId("VBO:0100223"),
+        )
+
+        cases.forEach { breedId ->
+            val pet = Pet(
+                id = PetId("kitten-${breedId.value}"), displayName = "Барсик", species = PetSpecies.CAT,
+                createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+                birthDate = PartialBirthDate.Day(date.minusDays(56)), breedId = breedId,
+            )
+            val result = presenter.present(pet, ChartDateRange(date, date.plusDays(674)))
+                as PetHistoryWeightReference.Available
+
+            assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+            assertEquals(breedId, result.selectedBreedId)
+            assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+            assertEquals(date, result.segments.last().first().date)
+            assertEquals(date.plusDays(674), result.segments.last().last().date)
+            assertTrue(result.segments.last().all { point ->
+                point.lowerKg <= point.medianLowerKg &&
+                    point.medianLowerKg == point.medianUpperKg &&
+                    point.medianUpperKg <= point.upperKg
+            })
+            assertTrue(result.constraints.all { constraint ->
+                constraint.none { character -> character in 'A'..'Z' || character in 'a'..'z' }
+            })
+        }
+    }
+
+    @Test
+    fun `presenter identifies DSH as a full breed curve`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val breedId = BreedId("VBO:0100119")
         val pet = Pet(
-            id = PetId("kitten"),
-            displayName = "Барсик",
-            species = PetSpecies.CAT,
-            createdAt = Instant.EPOCH,
-            updatedAt = Instant.EPOCH,
-            sex = PetSex.MALE,
-            birthDate = PartialBirthDate.Day(date),
-            breedId = BreedId("VBO:0100223"),
+            id = PetId("dsh"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(date.minusDays(56)), breedId = breedId,
         )
 
         val result = presenter.present(pet, ChartDateRange(date, date))
             as PetHistoryWeightReference.Available
 
-        assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
-        assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
-        assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
-        assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
+        assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+        assertEquals(breedId, result.selectedBreedId)
+        assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+        assertEquals(
+            listOf(
+                "Только домашние короткошёрстные кошки",
+                "Нестерилизованные котята из США",
+                "Возраст от 8 до 78 недель",
+            ),
+            result.constraints,
+        )
     }
 
     private fun dog(birthDate: PartialBirthDate) = Pet(

@@ -45,7 +45,7 @@ class WeightReferenceSnapshotTest {
     fun `bundled DSH scope is sex-specific intact and age-limited`() {
         val scopes = WeightReferenceSnapshot.bundled().manifest.scopes.filter { it.species == ReferenceSpecies.CAT }
 
-        assertEquals(8, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
+        assertEquals(14, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         val dsh = scopes.filter { it.breedId == "VBO:0100119" }
         assertEquals(2, dsh.size)
         assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
@@ -134,47 +134,42 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
-    fun `bundled eligibility matrix exposes licensed exact observations and rejects incompatible evidence`() {
+    fun `five selected cat breeds expose sex specific modelled ranges with audited provenance`() {
         val snapshot = WeightReferenceSnapshot.bundled()
-        val expectedReasons = mapOf(
-            "VBO:0100052" to NumericalUnavailabilityReason.UNSUPPORTED_STATISTIC,
-            "VBO:0100209" to NumericalUnavailabilityReason.UNSUPPORTED_STATISTIC,
-            "VBO:0100221" to NumericalUnavailabilityReason.MIXED_BREED_GROUP,
+        val adultRanges = mapOf(
+            "cat-british-shorthair-female" to (3.0 to 4.0),
+            "cat-british-shorthair-male" to (5.0 to 8.0),
+            "cat-scottish-fold-female" to (2.7 to 4.0),
+            "cat-scottish-fold-male" to (4.0 to 6.0),
+            "cat-siamese-female" to (3.0 to 4.0),
+            "cat-siamese-male" to (4.0 to 5.0),
+            "cat-maine-coon-female" to (5.44310844 to 6.80388555),
+            "cat-maine-coon-male" to (8.16466266 to 9.97903214),
+            "cat-siberian-female" to (3.0 to 6.0),
+            "cat-siberian-male" to (4.5 to 8.0),
         )
-        val targetBreedIds = expectedReasons.keys + setOf("VBO:0100154", "VBO:0100223")
-        val targetScopes = snapshot.manifest.scopes.filter { it.breedId in targetBreedIds }
-
-        assertEquals("2026-09-06.2", snapshot.manifest.snapshotVersion)
-        assertEquals(10, targetScopes.size)
-        expectedReasons.forEach { (breedId, reason) ->
-            val breedScopes = targetScopes.filter { it.breedId == breedId }
-            assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), breedScopes.map { it.sex }.toSet())
-            assertTrue(breedScopes.all { it.numericalAvailability == NumericalAvailability.NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS })
-            assertTrue(breedScopes.all { it.unavailabilityReason == reason })
-            assertTrue(breedScopes.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
-            assertTrue(breedScopes.all { it.sourceId == null })
-            assertTrue(breedScopes.all { scope -> snapshot.profiles.none { it.id == scope.id } })
-        }
-        val observed = targetScopes.filter { it.breedId in setOf("VBO:0100154", "VBO:0100223") }
-        assertTrue(observed.all { it.numericalAvailability == NumericalAvailability.AVAILABLE })
-        assertTrue(observed.all { it.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS })
-        assertTrue(observed.all { it.minimumAgeDays == 0 && it.maximumAgeDays == 0 })
-        observed.forEach { scope ->
-            val profile = snapshot.profiles.single { it.id == scope.id }
-            assertEquals(ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD, profile.referenceKind)
-            assertEquals(ReferenceCenterStatistic.MEAN, profile.centerStatistic)
-            assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, profile.boundsStatistic)
-            assertTrue(profile.constraints.any { "combines both sexes" in it })
-            assertEquals(1, profile.points.size)
-            assertNull(snapshot.interpolate(profile.id, 1))
+        assertEquals("2026-09-08.1", snapshot.manifest.snapshotVersion)
+        adultRanges.forEach { (id, range) ->
+            val profile = snapshot.profiles.single { it.id == id }
+            assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, profile.referenceKind)
+            assertEquals(ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE, profile.boundsStatistic)
+            assertTrue(profile.constraints.any { "Модель" in it })
+            val adult = profile.points.last()
+            assertEquals(730, adult.ageDays)
+            assertEquals(range.first, adult.lowerKg, 1e-12)
+            assertEquals(range.second, adult.upperKg, 1e-12)
+            assertTrue(snapshot.interpolate(id, 56) != null)
+            assertTrue(snapshot.interpolate(id, 365) != null)
+            assertTrue(snapshot.interpolate(id, 730) != null)
         }
         val maine = snapshot.profiles.single { it.id == "cat-maine-coon-female" }
-        assertEquals(892, maine.minimumBinN)
-        assertEquals(ReferencePoint(0, 0.1004, 0.1191, 0.1378), maine.points.single())
+        assertEquals(ReferencePoint(0, 0.1004, 0.1191, 0.1378, "mugnier-cat-birth-weight-2023", true), maine.points.first())
+        assertNull(snapshot.interpolate(maine.id, 1))
+        assertNull(snapshot.interpolate(maine.id, 55))
         val siberian = snapshot.profiles.single { it.id == "cat-siberian-male" }
-        assertEquals(419, siberian.minimumBinN)
-        assertEquals(ReferencePoint(0, 0.0826, 0.0993, 0.116), siberian.points.single())
-        assertTrue(snapshot.manifest.sources.none { source -> "Kienzle" in source.citation || "TICA" in source.citation })
+        assertEquals(ReferencePoint(0, 0.0826, 0.0993, 0.116, "mugnier-cat-birth-weight-2023", true), siberian.points.first())
+        assertTrue(snapshot.manifest.sources.count { "wikipedia" in it.id } == 5)
+        assertTrue(snapshot.manifest.sources.filter { "wikipedia" in it.id }.all { it.accessedDate == "2026-09-08" })
     }
 
     @Test

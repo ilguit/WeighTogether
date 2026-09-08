@@ -12,9 +12,14 @@ import java.util.Collections
 enum class ReferenceSpecies { CAT, DOG }
 enum class ReferenceSex { FEMALE, MALE }
 enum class ReferenceBasis { BREED, WEIGHT_CATEGORY, POPULATION }
-enum class ReferenceKind { EMPIRICAL_OBSERVATION_QUARTILES, EMPIRICAL_OBSERVATION_MEAN_SD, FITTED_BCCG_PERCENTILES }
+enum class ReferenceKind {
+    EMPIRICAL_OBSERVATION_QUARTILES,
+    EMPIRICAL_OBSERVATION_MEAN_SD,
+    FITTED_BCCG_PERCENTILES,
+    MODELLED_BREED_ADULT_RANGE,
+}
 enum class ReferenceCenterStatistic { MEDIAN, MEAN }
-enum class ReferenceBoundsStatistic { QUARTILES, ONE_STANDARD_DEVIATION, P9_P91 }
+enum class ReferenceBoundsStatistic { QUARTILES, ONE_STANDARD_DEVIATION, P9_P91, ADULT_TYPICAL_RANGE }
 enum class NumericalAvailability { AVAILABLE, NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS }
 enum class ReferenceAgeAvailability { CARRY_FORWARD, DECLARED_RANGE_ONLY, EXACT_OBSERVATIONS }
 enum class NumericalUnavailabilityReason {
@@ -24,7 +29,14 @@ enum class NumericalUnavailabilityReason {
     SOURCE_NOT_REDISTRIBUTABLE,
 }
 
-data class ReferencePoint(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double)
+data class ReferencePoint(
+    val ageDays: Int,
+    val lowerKg: Double,
+    val medianKg: Double,
+    val upperKg: Double,
+    val sourceId: String? = null,
+    val empirical: Boolean = false,
+)
 data class ReferenceSource(
     val id: String,
     val citation: String,
@@ -34,6 +46,7 @@ data class ReferenceSource(
     val upstreamArtifactSha256: String,
     val license: String,
     val licenseUrl: String,
+    val accessedDate: String?,
     val correctionDoi: String?,
     val derivedArtifact: String?,
     val derivedArtifactSha256: String?,
@@ -103,9 +116,9 @@ class WeightReferenceSnapshot private constructor(
      * Looks up provenance and constraints after a profile has been resolved. The returned list is
      * detached and unmodifiable so presentation code cannot mutate the validated snapshot.
      */
-    fun metadataFor(profileId: String): ReferenceProfileMetadata? {
+    fun metadataFor(profileId: String, effectiveSourceId: String? = null): ReferenceProfileMetadata? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
-        val source = manifest.sources.singleOrNull { it.id == profile.sourceId } ?: return null
+        val source = manifest.sources.singleOrNull { it.id == (effectiveSourceId ?: profile.sourceId) } ?: return null
         return ReferenceProfileMetadata(
             profileId = profile.id,
             basis = profile.basis,
@@ -129,6 +142,11 @@ class WeightReferenceSnapshot private constructor(
         if (profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS) {
             return points.singleOrNull { it.ageDays == ageDays }
         }
+        // Maine Coon and Siberian retain a direct birth observation, but the breed model starts
+        // at eight weeks. Never manufacture a bridge across the unsupported neonatal interval.
+        if (profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE &&
+            points.firstOrNull()?.let { it.ageDays == 0 && it.empirical } == true && ageDays in 1 until 56
+        ) return null
         if (ageDays < points.first().ageDays) return null
         if (ageDays > points.last().ageDays && profile.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY) return null
         if (ageDays >= points.last().ageDays) return points.last().copy(ageDays = ageDays)
@@ -145,7 +163,7 @@ class WeightReferenceSnapshot private constructor(
 
     companion object {
         const val RESOURCE_PATH = "weight_references.json"
-        const val SUPPORTED_SCHEMA_VERSION = 2
+        const val SUPPORTED_SCHEMA_VERSION = 3
         private val sha256Pattern = Regex("[0-9a-f]{64}")
 
         fun bundled(breedCatalog: BreedCatalog = BreedCatalog.bundled()): WeightReferenceSnapshot = load(
@@ -182,10 +200,15 @@ class WeightReferenceSnapshot private constructor(
         val sources = manifest.sources.associateBy(ReferenceSource::id)
         require(sources.size == manifest.sources.size && sources.isNotEmpty()) { "Source IDs must be unique" }
         manifest.sources.forEach { source ->
-            require(source.id.isNotBlank() && source.citation.isNotBlank() && source.publicationDoi.isNotBlank() && source.dataDoi.isNotBlank()) { "Incomplete source ${source.id}" }
+            require(source.id.isNotBlank() && source.citation.isNotBlank()) { "Incomplete source ${source.id}" }
             require(source.dataUrl.startsWith("https://") && source.license.isNotBlank() && source.licenseUrl.startsWith("https://")) { "Invalid provenance for ${source.id}" }
             require(source.upstreamArtifactSha256.matches(sha256Pattern)) { "Invalid upstream checksum for ${source.id}" }
             require(source.derivedArtifactSha256 == null || source.derivedArtifactSha256.matches(sha256Pattern)) { "Invalid derived-artifact checksum for ${source.id}" }
+            if (source.id.startsWith("wikipedia-")) {
+                require(source.accessedDate?.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) == true) {
+                    "Wikipedia source ${source.id} must declare its access date"
+                }
+            }
             require((source.derivedArtifact == null) == (source.derivedArtifactSha256 == null)) { "Incomplete derived-artifact provenance for ${source.id}" }
         }
         require(manifest.scopes.map(ReferenceScope::id).distinct().size == manifest.scopes.size) { "Scope IDs must be unique" }
@@ -244,6 +267,7 @@ class WeightReferenceSnapshot private constructor(
             ReferenceKind.EMPIRICAL_OBSERVATION_QUARTILES -> require(profile.minimumBinN > 0) { "Profile ${profile.id} must declare its empirical derivation" }
             ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD -> require(profile.minimumBinN > 0) { "Profile ${profile.id} must declare its empirical sample size" }
             ReferenceKind.FITTED_BCCG_PERCENTILES -> require(profile.minimumBinN == 0) { "Profile ${profile.id} fitted reference must not claim a bin minimum" }
+            ReferenceKind.MODELLED_BREED_ADULT_RANGE -> require(profile.minimumBinN == 0) { "Profile ${profile.id} model must not claim a sample size" }
         }
         when (profile.referenceKind) {
             ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD -> require(
@@ -257,6 +281,9 @@ class WeightReferenceSnapshot private constructor(
             ReferenceKind.FITTED_BCCG_PERCENTILES -> require(
                 profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.P9_P91,
             ) { "Fitted profile ${profile.id} must expose P50 and P9/P91" }
+            ReferenceKind.MODELLED_BREED_ADULT_RANGE -> require(
+                profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE,
+            ) { "Modelled breed profile ${profile.id} must expose the scaled adult typical range" }
         }
         val scope = scopes[profile.id] ?: error("Profile ${profile.id} has no declared scope")
         require(scope.numericalAvailability == NumericalAvailability.AVAILABLE) { "Profile ${profile.id} scope is not numerically available" }
@@ -269,6 +296,8 @@ class WeightReferenceSnapshot private constructor(
             require(point.ageDays in scope.minimumAgeDays..scope.maximumAgeDays) { "Profile ${profile.id} point is outside its declared age range" }
             require(listOf(point.lowerKg, point.medianKg, point.upperKg).all { it.isFinite() && it > 0.0 }) { "Profile ${profile.id} weights must be finite and positive" }
             require(point.lowerKg <= point.medianKg && point.medianKg <= point.upperKg) { "Profile ${profile.id} has unordered bounds" }
+            require(point.sourceId == null || point.sourceId in sources) { "Profile ${profile.id} point has unknown source" }
+            if (point.empirical) require(point.sourceId != null) { "Empirical point in ${profile.id} requires provenance" }
             previousAge = point.ageDays
         }
     }
@@ -278,8 +307,8 @@ private data class SnapshotJson(val manifest: ManifestJson, val profiles: List<P
 private data class ManifestJson(val schemaVersion: Int, val snapshotVersion: String, val snapshotDate: String, val numericalDataSha256: String, val sources: List<SourceJson>, val scopes: List<ScopeJson>) {
     fun toModel() = WeightReferenceManifest(schemaVersion, snapshotVersion, snapshotDate, numericalDataSha256, sources.map(SourceJson::toModel), scopes.map(ScopeJson::toModel))
 }
-private data class SourceJson(val id: String, val citation: String, val publicationDoi: String, val dataDoi: String, val dataUrl: String, val upstreamArtifactSha256: String, val license: String, val licenseUrl: String, val correctionDoi: String?, val derivedArtifact: String?, val derivedArtifactSha256: String?, val derivationSoftware: String?) {
-    fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware)
+private data class SourceJson(val id: String, val citation: String, val publicationDoi: String, val dataDoi: String, val dataUrl: String, val upstreamArtifactSha256: String, val license: String, val licenseUrl: String, val accessedDate: String?, val correctionDoi: String?, val derivedArtifact: String?, val derivedArtifactSha256: String?, val derivationSoftware: String?) {
+    fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, accessedDate, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware)
 }
 private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String?, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
     fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, unavailabilityReason?.let(::enumValue))
@@ -290,5 +319,7 @@ private data class ProfileJson(val id: String, val species: String, val sex: Str
         return ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, kind, minimumBinN, points.map(PointJson::toModel), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, centerStatistic?.let(::enumValue) ?: ReferenceCenterStatistic.MEDIAN, boundsStatistic?.let(::enumValue) ?: if (kind == ReferenceKind.FITTED_BCCG_PERCENTILES) ReferenceBoundsStatistic.P9_P91 else ReferenceBoundsStatistic.QUARTILES)
     }
 }
-private data class PointJson(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double) { fun toModel() = ReferencePoint(ageDays, lowerKg, medianKg, upperKg) }
+private data class PointJson(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double, val sourceId: String?, val empirical: Boolean?) {
+    fun toModel() = ReferencePoint(ageDays, lowerKg, medianKg, upperKg, sourceId, empirical ?: false)
+}
 private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value.uppercase(Locale.ROOT))

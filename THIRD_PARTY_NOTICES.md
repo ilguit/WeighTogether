@@ -1,5 +1,14 @@
 # Third-party data notices
 
+## Wikipedia cat breed adult weight ranges
+
+ScaleSync includes adult weight-range facts from fixed revisions of French,
+English, and German Wikipedia for British Shorthair, Scottish Fold, Siamese,
+Maine Coon, and Siberian cats. Authors are the respective Wikipedia
+contributors. Source revision links are embedded in `weight_references.json`.
+Wikipedia text is licensed under Creative Commons Attribution-ShareAlike 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/
+
 ## Liverpool canine growth-standard supporting data
 
 Salt C, Morris PJ, German AJ, Wilson D, Lund EM, Cole TJ, and Butterwick RF
