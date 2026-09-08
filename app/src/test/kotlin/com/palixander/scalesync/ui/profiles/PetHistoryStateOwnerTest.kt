@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.domain.NewPet
@@ -46,6 +47,42 @@ class PetHistoryStateOwnerTest {
     private val zone = ZoneId.of("Europe/Berlin")
     private val clock = Clock.fixed(Instant.parse("2026-03-29T12:00:00Z"), zone)
     private val luna = pet("luna", "Луна")
+
+    @Test
+    fun `reference dependencies are lazy and loaded once across subscriptions`() = runBlocking {
+        val dependencies = PetHistoryReferenceDependencies(
+            breedCatalog = PetBreedCatalog(),
+            referencePresenter = PetHistoryReferencePresenter(),
+            breedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
+        )
+        var loads = 0
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            initialPetId = luna.id,
+            repository = FakeRepository(pets = mapOf(luna.id to luna)),
+            parentScope = scope,
+            clock = clock,
+            zoneId = zone,
+            locale = Locale.US,
+            referenceDependencies = {
+                loads += 1
+                dependencies
+            },
+        )
+
+        assertEquals(0, loads)
+        val first = scope.launch { owner.uiState.collect() }
+        yield()
+        assertEquals(1, loads)
+        first.cancelAndJoin()
+
+        val second = scope.launch { owner.uiState.collect() }
+        yield()
+        assertEquals(1, loads)
+        second.cancelAndJoin()
+        owner.close()
+        scope.cancel()
+    }
 
     @Test
     fun `initial all range shows measurements from two months and bounds reference overlay`() = runBlocking {

@@ -61,6 +61,7 @@ import com.palixander.scalesync.ui.routing.activeCompletionFor
 import com.palixander.scalesync.ui.routing.buildResolverAccountOptions
 import com.palixander.scalesync.ui.routing.isActivePendingResolverTarget
 import com.palixander.scalesync.ui.profiles.PetHistoryStateOwner
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceDependencies
 import com.palixander.scalesync.ui.routing.oldestPendingResolverTarget
 import com.palixander.scalesync.ui.routing.pendingForResolverLifecycle
 import com.palixander.scalesync.worker.ExternalSyncPauseTransition
@@ -72,9 +73,11 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -187,9 +190,19 @@ class MainViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
 
+    private val petHistoryReferenceDependencies by lazy(LazyThreadSafetyMode.NONE) {
+        viewModelScope.async(Dispatchers.IO, start = CoroutineStart.LAZY) {
+            PetHistoryReferenceDependencies.bundled()
+        }
+    }
     private val petHistoryOwners = mutableMapOf<PetId, PetHistoryStateOwner>()
     fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = petHistoryOwners.getOrPut(petId) {
-        PetHistoryStateOwner(initialPetId = petId, repository = container.pets, parentScope = viewModelScope)
+        PetHistoryStateOwner(
+            initialPetId = petId,
+            repository = container.pets,
+            parentScope = viewModelScope,
+            referenceDependencies = { petHistoryReferenceDependencies.await() },
+        )
     }
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
