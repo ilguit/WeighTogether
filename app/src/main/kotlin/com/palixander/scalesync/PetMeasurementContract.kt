@@ -103,6 +103,32 @@ internal class PetMeasurementStartupGuard {
     internal class Token internal constructor(internal val generation: Long)
 }
 
+/** Prevents a delayed pet creation result from reviving an invalidated measurement flow. */
+internal class PetMeasurementCreationGuard {
+    private val lock = Any()
+    private var generation = 0L
+    private var active = false
+
+    fun begin(): Token? = synchronized(lock) {
+        if (active) return@synchronized null
+        active = true
+        Token(++generation)
+    }
+
+    fun invalidate() = synchronized(lock) {
+        generation += 1
+        active = false
+    }
+
+    fun complete(token: Token): Boolean = synchronized(lock) {
+        if (!active || token.generation != generation) return@synchronized false
+        active = false
+        true
+    }
+
+    internal class Token internal constructor(internal val generation: Long)
+}
+
 internal data class PetMeasurementSaveRequest(
     val token: PetMeasurementCoordinator.OperationToken,
     val petId: PetId,
