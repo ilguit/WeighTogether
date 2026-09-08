@@ -375,14 +375,29 @@ internal fun petWeightDisplayedSeries(
             )
         }
     } else if ((reference as? PetHistoryWeightReference.Available)?.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
-        val isBreedModel = (reference as PetHistoryWeightReference.Available).provenance == WeightReferenceProvenance.BREED_CURVE
+        val availableReference = reference as PetHistoryWeightReference.Available
+        val isBreedModel = availableReference.provenance == WeightReferenceProvenance.BREED_CURVE
+        val isFittedPopulation = availableReference.isFittedPopulationPercentiles
+        val useBreedPresentation = isBreedModel || isFittedPopulation
         petWeightReferenceChartSeries(reference).forEachIndexed { index, series ->
-            if (isBreedModel && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
+            if (useBreedPresentation && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
-                PetWeightReferenceSeriesKind.LOWER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to (if (isBreedModel) "Нижняя граница модели" else "Нижняя граница эталона")
-                PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to (if (isBreedModel) "Центр породной модели" else "Нижняя медианная граница")
+                PetWeightReferenceSeriesKind.LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to when {
+                    isBreedModel -> "Нижняя граница модели"
+                    isFittedPopulation -> "Нижняя граница P9"
+                    else -> "Нижняя граница эталона"
+                }
+                PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to when {
+                    isBreedModel -> "Центр породной модели"
+                    isFittedPopulation -> "Медиана P50"
+                    else -> "Нижняя медианная граница"
+                }
                 PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Верхняя медианная граница"
-                PetWeightReferenceSeriesKind.UPPER -> (if (isBreedModel) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to (if (isBreedModel) "Верхняя граница модели" else "Верхняя граница эталона")
+                PetWeightReferenceSeriesKind.UPPER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to when {
+                    isBreedModel -> "Верхняя граница модели"
+                    isFittedPopulation -> "Верхняя граница P91"
+                    else -> "Верхняя граница эталона"
+                }
             }
             add(
                 PetWeightDisplayedSeries(
@@ -391,7 +406,7 @@ internal fun petWeightDisplayedSeries(
                     label = label,
                     x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                     y = series.points.map { it.second },
-                    style = if (!isBreedModel) PetWeightDisplayedSeriesStyle.CATEGORY
+                    style = if (!useBreedPresentation) PetWeightDisplayedSeriesStyle.CATEGORY
                     else if (kind == PetWeightDisplayedSeriesKind.BREED_CENTER) PetWeightDisplayedSeriesStyle.BREED_CENTER
                     else PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 ),
