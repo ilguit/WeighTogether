@@ -22,7 +22,7 @@ import java.util.zip.ZipInputStream;
 
 public final class Main {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final int SUPPORTED_SCHEMA_VERSION = 2;
+    private static final int SUPPORTED_SCHEMA_VERSION = 3;
 
     private Main() {}
 
@@ -52,12 +52,79 @@ public final class Main {
             if (profiles.get(index).getAsJsonObject().get("id").getAsString().startsWith("cat-population-")) profiles.remove(index);
         }
         addFittedCatProfiles(root, profiles, fittedCatCurves);
+        addModelledBreedProfiles(root, profiles);
         Path assembled = Files.createTempFile("weight-reference-snapshot", ".json");
         try {
             Files.writeString(assembled, GSON.toJson(root) + "\n", StandardCharsets.UTF_8);
             normalize(assembled, output);
         } finally {
             Files.deleteIfExists(assembled);
+        }
+    }
+
+    /**
+     * Scales the normalized sex-specific DSH P50 growth shape to audited adult breed ranges.
+     * These are explicitly product models, not observed breed growth percentiles.
+     */
+    private static void addModelledBreedProfiles(JsonObject root, JsonArray profiles) {
+        Map<String, JsonObject> scopes = new TreeMap<>();
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes").forEach(value ->
+            scopes.put(value.getAsJsonObject().get("id").getAsString(), value.getAsJsonObject()));
+        Map<String, JsonObject> population = new TreeMap<>();
+        profiles.forEach(value -> {
+            JsonObject profile = value.getAsJsonObject();
+            if (profile.get("id").getAsString().startsWith("cat-population-")) {
+                population.put(profile.get("sex").getAsString(), profile);
+            }
+        });
+        for (var value : root.getAsJsonArray("modelledBreedRanges")) {
+            JsonObject range = value.getAsJsonObject();
+            String id = range.get("id").getAsString();
+            for (int index = profiles.size() - 1; index >= 0; index--) {
+                if (profiles.get(index).getAsJsonObject().get("id").getAsString().equals(id)) profiles.remove(index);
+            }
+            JsonObject scope = scopes.get(id);
+            JsonObject shape = population.get(scope.get("sex").getAsString());
+            JsonArray shapePoints = shape.getAsJsonArray("points");
+            double finalMedian = shapePoints.get(shapePoints.size() - 1).getAsJsonObject().get("medianKg").getAsDouble();
+            double adultLower = range.get("adultLowerKg").getAsDouble();
+            double adultUpper = range.get("adultUpperKg").getAsDouble();
+            double adultMedian = (adultLower + adultUpper) / 2.0;
+            JsonArray points = new JsonArray();
+            if (range.has("birthObservation")) points.add(range.getAsJsonObject("birthObservation").deepCopy());
+            shapePoints.forEach(shapeValue -> {
+                JsonObject input = shapeValue.getAsJsonObject();
+                double ratio = input.get("medianKg").getAsDouble() / finalMedian;
+                JsonObject point = new JsonObject();
+                point.addProperty("ageDays", input.get("ageDays").getAsInt());
+                point.addProperty("lowerKg", round(adultLower * ratio));
+                point.addProperty("medianKg", round(adultMedian * ratio));
+                point.addProperty("upperKg", round(adultUpper * ratio));
+                point.addProperty("sourceId", range.get("sourceId").getAsString());
+                points.add(point);
+            });
+            JsonObject adult = new JsonObject();
+            adult.addProperty("ageDays", 730);
+            adult.addProperty("lowerKg", adultLower);
+            adult.addProperty("medianKg", adultMedian);
+            adult.addProperty("upperKg", adultUpper);
+            adult.addProperty("sourceId", range.get("sourceId").getAsString());
+            points.add(adult);
+
+            JsonObject source = root.getAsJsonObject("manifest").getAsJsonArray("sources").asList().stream()
+                .map(e -> e.getAsJsonObject()).filter(s -> s.get("id").equals(range.get("sourceId"))).findFirst().orElseThrow();
+            JsonObject profile = new JsonObject();
+            for (String field : List.of("id", "species", "sex", "basis", "weightCategory", "breedId", "sourceId", "constraints", "ageAvailability")) {
+                if (scope.has(field)) profile.add(field, scope.get(field));
+            }
+            profile.addProperty("citation", source.get("citation").getAsString());
+            profile.addProperty("license", source.get("license").getAsString());
+            profile.addProperty("referenceKind", "modelled_breed_adult_range");
+            profile.addProperty("minimumBinN", 0);
+            profile.addProperty("centerStatistic", "median");
+            profile.addProperty("boundsStatistic", "adult_typical_range");
+            profile.add("points", points);
+            profiles.add(profile);
         }
     }
 

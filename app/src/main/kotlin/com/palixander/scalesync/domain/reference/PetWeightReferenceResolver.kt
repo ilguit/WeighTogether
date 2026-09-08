@@ -198,6 +198,9 @@ class PetWeightReferenceResolver(
         }
 
         val provenance = when {
+            profile.basis == ReferenceBasis.BREED && age.minimumDays == age.maximumDays &&
+                profile.points.any { it.ageDays.toLong() == age.minimumDays && it.empirical } ->
+                WeightReferenceProvenance.BREED_EXACT_OBSERVATION
             profile.basis == ReferenceBasis.BREED &&
                 profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS ->
                 WeightReferenceProvenance.BREED_EXACT_OBSERVATION

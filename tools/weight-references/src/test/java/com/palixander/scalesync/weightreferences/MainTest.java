@@ -17,10 +17,10 @@ class MainTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void normalizeAcceptsSchemaV2AndRefreshesProfileChecksum() throws Exception {
+    void normalizeAcceptsSchemaV3AndRefreshesProfileChecksum() throws Exception {
         Path source = temporaryDirectory.resolve("source.json");
         Path output = temporaryDirectory.resolve("output.json");
-        Files.writeString(source, document(2), StandardCharsets.UTF_8);
+        Files.writeString(source, document(3), StandardCharsets.UTF_8);
 
         Main.main(new String[] {source.toString(), output.toString()});
 
