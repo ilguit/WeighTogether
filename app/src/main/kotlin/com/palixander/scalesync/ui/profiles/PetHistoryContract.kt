@@ -17,6 +17,7 @@ import com.palixander.scalesync.domain.reference.IntactStatus
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolution
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
@@ -114,6 +115,10 @@ data class PetHistoryUiState(
 sealed interface PetHistoryWeightReference {
     data class Available(
         val basis: ReferenceBasis,
+        val provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
+        val selectedBreedId: com.palixander.scalesync.domain.BreedId? = null,
+        /** Russian user-facing clarification when the selected breed cannot supply a full curve. */
+        val provenanceExplanation: String? = null,
         /** Separate segments must be drawn separately; gaps must never be connected. */
         val segments: List<List<PetHistoryReferencePoint>>,
         val approximate: Boolean,
@@ -181,10 +186,11 @@ class PetHistoryReferencePresenter(
                 ?: WeightReferenceUnavailableReason.ReferenceDataGap("unknown", LongRange.EMPTY)
             return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
         }
-        val metadata = snapshot.metadataFor(available.first().second.profileId)
+        val reference = available.last().second
+        val metadata = snapshot.metadataFor(reference.profileId)
             ?: return PetHistoryWeightReference.Unavailable(
-                WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId),
-                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(available.first().second.profileId)),
+                WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId),
+                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId)),
             )
         val segments = mutableListOf<MutableList<PetHistoryReferencePoint>>()
         var previousProfileId: String? = null
@@ -212,7 +218,15 @@ class PetHistoryReferencePresenter(
         val approximate = available.any { it.second.approximate }
         val minAge = available.minOf { it.second.ageDays.first }
         val maxAge = available.maxOf { it.second.ageDays.last }
-        return availablePresentation(metadata, segments.map(List<PetHistoryReferencePoint>::toList), approximate, minAge, maxAge)
+        return availablePresentation(
+            metadata = metadata,
+            segments = segments.map(List<PetHistoryReferencePoint>::toList),
+            approximate = approximate,
+            minAge = minAge,
+            maxAge = maxAge,
+            provenance = reference.provenance,
+            selectedBreedId = reference.selectedBreedId,
+        )
     }
 
     private fun WeightReferenceUnavailableReason.isRangeInvariant(): Boolean = when (this) {
@@ -239,6 +253,8 @@ class PetHistoryReferencePresenter(
         approximate: Boolean,
         minAge: Long,
         maxAge: Long,
+        provenance: WeightReferenceProvenance,
+        selectedBreedId: com.palixander.scalesync.domain.BreedId?,
     ): PetHistoryWeightReference.Available {
         val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
         val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
@@ -253,6 +269,9 @@ class PetHistoryReferencePresenter(
         }
         return PetHistoryWeightReference.Available(
             metadata.basis,
+            provenance,
+            selectedBreedId,
+            weightReferenceProvenanceExplanation(provenance),
             segments,
             approximate,
             ageLabel,
@@ -268,6 +287,17 @@ class PetHistoryReferencePresenter(
             metadata.boundsStatistic,
         )
     }
+}
+
+fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): String? = when (provenance) {
+    WeightReferenceProvenance.BREED_CURVE -> "Показан полноценный возрастной диапазон выбранной породы."
+    WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
+        "Для выбранной породы опубликовано только точечное наблюдение веса при рождении."
+    WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED ->
+        "Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек."
+    WeightReferenceProvenance.POPULATION,
+    WeightReferenceProvenance.WEIGHT_CATEGORY,
+    -> null
 }
 
 internal const val MAX_REFERENCE_CHART_SAMPLES = 512

@@ -358,6 +358,8 @@ class PetWeightReferenceResolverTest {
                 ).available()
                 assertEquals(profileId, result.profileId)
                 assertEquals(ReferenceBasis.BREED, result.basis)
+                assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+                assertEquals(breed, result.selectedBreedId)
             }
         }
     }
@@ -378,6 +380,8 @@ class PetWeightReferenceResolverTest {
                     referenceDate,
                 ).available()
                 assertEquals(ReferenceBasis.BREED, atBirth.basis)
+                assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, atBirth.provenance)
+                assertEquals(breedId, atBirth.selectedBreedId)
                 assertEquals(weights[0], atBirth.bounds.lowerKg, 1e-12)
                 assertEquals(weights[1], atBirth.bounds.medianLowerKg, 1e-12)
                 assertEquals(weights[1], atBirth.bounds.medianUpperKg, 1e-12)
@@ -414,6 +418,8 @@ class PetWeightReferenceResolverTest {
 
                 assertEquals("cat-population-${sex.name.lowercase()}", result.profileId)
                 assertEquals(ReferenceBasis.POPULATION, result.basis)
+                assertEquals(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED, result.provenance)
+                assertEquals(breedId, result.selectedBreedId)
                 assertEquals(56L..56L, result.ageDays)
             }
         }
@@ -460,6 +466,34 @@ class PetWeightReferenceResolverTest {
             assertEquals(0.861525, result.bounds.medianLowerKg, 1e-12)
             assertEquals(0.861525, result.bounds.medianUpperKg, 1e-12)
             assertEquals(1.265159, result.bounds.upperKg, 1e-12)
+        }
+    }
+
+    @Test
+    fun `researched breeds retain selection and expose scientifically accurate fallback provenance`() {
+        val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
+        val cases = listOf(
+            "VBO:0100052", // British Shorthair: no reproducible numerical breed profile
+            "VBO:0100209", // Scottish Fold: no reproducible numerical breed profile
+            "VBO:0100221", // Siamese: evidence combines breeds
+            "VBO:0100154", // Maine Coon: exact birth observation only
+            "VBO:0100223", // Siberian: exact birth observation only
+        )
+
+        cases.forEach { rawBreedId ->
+            val breedId = BreedId(rawBreedId)
+            val result = resolver.resolve(
+                PetSpecies.CAT,
+                PetSex.MALE,
+                breedId,
+                birthDate,
+                referenceDate,
+            ).available()
+
+            assertEquals("cat-population-male", result.profileId)
+            assertEquals(ReferenceBasis.POPULATION, result.basis)
+            assertEquals(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED, result.provenance)
+            assertEquals(breedId, result.selectedBreedId)
         }
     }
 

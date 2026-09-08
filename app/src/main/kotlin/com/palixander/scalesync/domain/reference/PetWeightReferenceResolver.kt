@@ -72,9 +72,20 @@ data class ExpectedWeightBounds(
     val upperKg: Double,
 )
 
+enum class WeightReferenceProvenance {
+    BREED_CURVE,
+    BREED_EXACT_OBSERVATION,
+    POPULATION,
+    POPULATION_FALLBACK_FOR_SELECTED_BREED,
+    WEIGHT_CATEGORY,
+}
+
 data class PetWeightReference(
     val profileId: String,
     val basis: ReferenceBasis,
+    val provenance: WeightReferenceProvenance,
+    /** The breed selected in the pet profile, including when population data is used as fallback. */
+    val selectedBreedId: BreedId?,
     val ageDays: LongRange,
     val bounds: ExpectedWeightBounds,
     /** True only when birth-date precision produces an age interval; interpolation alone is exact. */
@@ -186,13 +197,25 @@ class PetWeightReferenceResolver(
             }
         }
 
-        return resolveProfile(profile, birthDate, age)
+        val provenance = when {
+            profile.basis == ReferenceBasis.BREED &&
+                profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS ->
+                WeightReferenceProvenance.BREED_EXACT_OBSERVATION
+            profile.basis == ReferenceBasis.BREED -> WeightReferenceProvenance.BREED_CURVE
+            profile.basis == ReferenceBasis.POPULATION && breedId != null ->
+                WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED
+            profile.basis == ReferenceBasis.POPULATION -> WeightReferenceProvenance.POPULATION
+            else -> WeightReferenceProvenance.WEIGHT_CATEGORY
+        }
+        return resolveProfile(profile, birthDate, age, provenance, breedId)
     }
 
     private fun resolveProfile(
         profile: ReferenceProfile,
         birthDate: PartialBirthDate,
         age: AgeInterval,
+        provenance: WeightReferenceProvenance,
+        selectedBreedId: BreedId?,
     ): PetWeightReferenceResolution {
         val supportedMinimum = profile.points.first().ageDays
         val supportedMaximum = profile.supportedMaximumAgeDays()
@@ -220,6 +243,8 @@ class PetWeightReferenceResolver(
             PetWeightReference(
                 profileId = profile.id,
                 basis = profile.basis,
+                provenance = provenance,
+                selectedBreedId = selectedBreedId,
                 ageDays = age.minimumDays..age.maximumDays,
                 bounds = aggregate(points),
                 approximate = birthDate.precision != BirthDatePrecision.DAY,

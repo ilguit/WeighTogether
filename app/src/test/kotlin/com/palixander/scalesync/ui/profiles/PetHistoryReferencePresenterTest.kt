@@ -15,6 +15,7 @@ import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.PetWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import java.io.ByteArrayInputStream
@@ -201,6 +202,56 @@ class PetHistoryReferencePresenterTest {
         assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
         assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
         assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
+        assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, result.provenance)
+        assertEquals(pet.breedId, result.selectedBreedId)
+        assertTrue(result.provenanceExplanation!!.contains("только точечное наблюдение"))
+    }
+
+    @Test
+    fun `presenter retains selected breed and explains population fallback in Russian`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val cases = listOf(
+            BreedId("VBO:0100052"),
+            BreedId("VBO:0100209"),
+            BreedId("VBO:0100221"),
+            BreedId("VBO:0100154"),
+            BreedId("VBO:0100223"),
+        )
+
+        cases.forEach { breedId ->
+            val pet = Pet(
+                id = PetId("kitten-${breedId.value}"), displayName = "Барсик", species = PetSpecies.CAT,
+                createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+                birthDate = PartialBirthDate.Day(date.minusDays(56)), breedId = breedId,
+            )
+            val result = presenter.present(pet, ChartDateRange(date, date))
+                as PetHistoryWeightReference.Available
+
+            assertEquals(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED, result.provenance)
+            assertEquals(breedId, result.selectedBreedId)
+            assertEquals(
+                "Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек.",
+                result.provenanceExplanation,
+            )
+        }
+    }
+
+    @Test
+    fun `presenter identifies DSH as a full breed curve`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val breedId = BreedId("VBO:0100119")
+        val pet = Pet(
+            id = PetId("dsh"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(date.minusDays(56)), breedId = breedId,
+        )
+
+        val result = presenter.present(pet, ChartDateRange(date, date))
+            as PetHistoryWeightReference.Available
+
+        assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+        assertEquals(breedId, result.selectedBreedId)
+        assertEquals("Показан полноценный возрастной диапазон выбранной породы.", result.provenanceExplanation)
     }
 
     private fun dog(birthDate: PartialBirthDate) = Pet(
