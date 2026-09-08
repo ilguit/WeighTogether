@@ -52,6 +52,7 @@ import com.palixander.scalesync.ui.profiles.PetProfileSummary
 import com.palixander.scalesync.ui.profiles.PetProfileSummaryItem
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
 import com.palixander.scalesync.ui.profiles.PetHistoryReferencePoint
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceSegment
 import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedReference
 import com.palixander.scalesync.ui.profiles.PetHistoryBreedChartValue
@@ -372,7 +373,10 @@ class PetHistoryScreenUiTest {
         val date = LocalDate.of(2026, 8, 1)
         val reference = availableReference("Наблюдение по породе: среднее ± одно стандартное отклонение").copy(
             provenance = WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
-            segments = listOf(listOf(PetHistoryReferencePoint(date, 0.1, 0.12, 0.12, 0.14))),
+            segments = referenceSegments(
+                listOf(PetHistoryReferencePoint(date, 0.1, 0.12, 0.12, 0.14)),
+                provenance = WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
+            ),
         )
 
         setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
@@ -464,7 +468,7 @@ class PetHistoryScreenUiTest {
 
     @Test fun singletonReferenceExposesAllBoundsAsAccessibleSelectedState() {
         val reference = availableReference("Эталон по породе").copy(
-            segments = listOf(
+            segments = referenceSegments(
                 listOf(PetHistoryReferencePoint(LocalDate.of(2026, 8, 29), 2.0, 3.0, 4.0, 5.0)),
             ),
         )
@@ -726,7 +730,7 @@ class PetHistoryScreenUiTest {
 
     private fun availableReference(basisLabel: String) = PetHistoryWeightReference.Available(
         basis = if (basisLabel.contains("породе")) ReferenceBasis.BREED else ReferenceBasis.WEIGHT_CATEGORY,
-        segments = listOf(
+        segments = referenceSegments(
             listOf(
                 PetHistoryReferencePoint(LocalDate.of(2026, 8, 1), 3.0, 3.5, 4.0, 4.5),
                 PetHistoryReferencePoint(LocalDate.of(2026, 8, 27), 3.2, 3.7, 4.2, 4.7),
@@ -741,6 +745,17 @@ class PetHistoryScreenUiTest {
         constraints = listOf("Только здоровые животные"),
         accessibilityLabel = "$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0.",
     )
+
+    private fun referenceSegments(
+        vararg points: List<PetHistoryReferencePoint>,
+        provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
+    ) = points.mapIndexed { index, segmentPoints ->
+        PetHistoryReferenceSegment(
+            profileId = "test-$index", sourceId = "test", provenance = provenance,
+            citation = "Test veterinary source", license = "CC BY 4.0", publicationUrl = null,
+            points = segmentPoints,
+        )
+    }
 
     private fun availableBreedReference() = PetHistoryBreedReference.Available(
         breedName = "Американский стаффордширский терьер",

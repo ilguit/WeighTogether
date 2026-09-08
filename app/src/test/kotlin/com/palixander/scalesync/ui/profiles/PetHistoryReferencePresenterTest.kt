@@ -127,6 +127,35 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `maine coon and siberian birth through day 56 retain distinct observation and model provenance`() {
+        val birth = LocalDate.of(2026, 7, 1)
+        listOf(BreedId("VBO:0100154"), BreedId("VBO:0100223")).forEach { breedId ->
+            PetSex.entries.forEach { sex ->
+                val pet = Pet(
+                    id = PetId("${breedId.value}-${sex.name}"), displayName = "Барсик",
+                    species = PetSpecies.CAT, createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+                    sex = sex, birthDate = PartialBirthDate.Day(birth), breedId = breedId,
+                )
+
+                val result = presenter.present(pet, ChartDateRange(birth, birth.plusDays(56)))
+                    as PetHistoryWeightReference.Available
+
+                assertEquals(2, result.segments.size)
+                val exact = result.segments.single { it.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION }
+                val model = result.segments.single { it.provenance == WeightReferenceProvenance.BREED_CURVE }
+                assertEquals(birth, exact.single().date)
+                assertEquals("mugnier-cat-birth-weight-2023", exact.sourceId)
+                assertTrue(exact.citation.startsWith("Mugnier"))
+                assertEquals("CC BY 4.0", exact.license)
+                assertEquals(birth.plusDays(56), model.first().date)
+                assertTrue(model.sourceId.startsWith("wikipedia-"))
+                assertTrue(model.citation.contains(if (breedId.value == "VBO:0100154") "Maine Coon" else "Sibirische Katze"))
+                assertEquals("CC BY-SA 4.0", model.license)
+            }
+        }
+    }
+
+    @Test
     fun `future snapshot exceeding semantic date capacity omits overlay without throwing`() {
         val snapshot = snapshotWithDailyDogProfile(pointCount = MAX_REFERENCE_CHART_SAMPLES + 1)
         val customPresenter = PetHistoryReferencePresenter(

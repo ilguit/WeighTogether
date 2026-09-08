@@ -82,6 +82,8 @@ enum class WeightReferenceProvenance {
 
 data class PetWeightReference(
     val profileId: String,
+    /** Effective source for this resolved value; empirical points override the profile source. */
+    val sourceId: String,
     val basis: ReferenceBasis,
     val provenance: WeightReferenceProvenance,
     /** The breed selected in the pet profile, including when population data is used as fallback. */
@@ -242,9 +244,16 @@ class PetWeightReferenceResolver(
         if (points.isEmpty()) {
             return unavailable(WeightReferenceUnavailableReason.ReferenceDataGap(profile.id, age.minimumDays..age.maximumDays))
         }
+        val effectiveSourceId = if (provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
+            points.firstOrNull { it.empirical && it.ageDays.toLong() in age.minimumDays..age.maximumDays }?.sourceId
+                ?: profile.sourceId
+        } else {
+            profile.sourceId
+        }
         return PetWeightReferenceResolution.Available(
             PetWeightReference(
                 profileId = profile.id,
+                sourceId = effectiveSourceId,
                 basis = profile.basis,
                 provenance = provenance,
                 selectedBreedId = selectedBreedId,

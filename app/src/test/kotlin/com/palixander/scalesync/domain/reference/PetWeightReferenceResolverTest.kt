@@ -381,6 +381,7 @@ class PetWeightReferenceResolverTest {
                 ).available()
                 assertEquals(ReferenceBasis.BREED, atBirth.basis)
                 assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, atBirth.provenance)
+                assertEquals("mugnier-cat-birth-weight-2023", atBirth.sourceId)
                 assertEquals(breedId, atBirth.selectedBreedId)
                 assertEquals(weights[0], atBirth.bounds.lowerKg, 1e-12)
                 assertEquals(weights[1], atBirth.bounds.medianLowerKg, 1e-12)
@@ -419,6 +420,7 @@ class PetWeightReferenceResolverTest {
                 assertTrue(result.profileId.startsWith(if (breedId.value == "VBO:0100154") "cat-maine-coon-" else "cat-siberian-"))
                 assertEquals(ReferenceBasis.BREED, result.basis)
                 assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
+                assertTrue(result.sourceId.startsWith("wikipedia-"))
                 assertEquals(breedId, result.selectedBreedId)
                 assertEquals(56L..56L, result.ageDays)
             }

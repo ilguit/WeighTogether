@@ -120,7 +120,7 @@ sealed interface PetHistoryWeightReference {
         /** Russian user-facing clarification when the selected breed cannot supply a full curve. */
         val provenanceExplanation: String? = null,
         /** Separate segments must be drawn separately; gaps must never be connected. */
-        val segments: List<List<PetHistoryReferencePoint>>,
+        val segments: List<PetHistoryReferenceSegment>,
         val approximate: Boolean,
         val ageLabel: String,
         val basisLabel: String,
@@ -140,6 +140,16 @@ sealed interface PetHistoryWeightReference {
         val explanation: String,
     ) : PetHistoryWeightReference
 }
+
+data class PetHistoryReferenceSegment(
+    val profileId: String,
+    val sourceId: String,
+    val provenance: WeightReferenceProvenance,
+    val citation: String,
+    val license: String,
+    val publicationUrl: String?,
+    val points: List<PetHistoryReferencePoint>,
+) : List<PetHistoryReferencePoint> by points
 
 data class PetHistoryReferencePoint(
     val date: LocalDate,
@@ -187,32 +197,34 @@ class PetHistoryReferencePresenter(
             return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
         }
         val reference = available.last().second
-        val metadata = snapshot.metadataFor(reference.profileId)
+        val metadata = snapshot.metadataFor(reference.profileId, reference.sourceId)
             ?: return PetHistoryWeightReference.Unavailable(
                 WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId),
                 weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId)),
             )
-        val segments = mutableListOf<MutableList<PetHistoryReferencePoint>>()
-        var previousProfileId: String? = null
+        data class SegmentIdentity(val profileId: String, val sourceId: String, val provenance: WeightReferenceProvenance)
+        val segments = mutableListOf<Pair<SegmentIdentity, MutableList<PetHistoryReferencePoint>>>()
+        var previousIdentity: SegmentIdentity? = null
         var gapBeforeNextPoint = true
         dated.forEach { (date, resolution) ->
             val reference = (resolution as? PetWeightReferenceResolution.Available)?.reference
             if (reference == null) {
                 gapBeforeNextPoint = true
-                previousProfileId = null
+                previousIdentity = null
                 return@forEach
             }
-            if (gapBeforeNextPoint || previousProfileId != reference.profileId) {
-                segments += mutableListOf<PetHistoryReferencePoint>()
+            val identity = SegmentIdentity(reference.profileId, reference.sourceId, reference.provenance)
+            if (gapBeforeNextPoint || previousIdentity != identity) {
+                segments += identity to mutableListOf()
             }
-            segments.last() += PetHistoryReferencePoint(
+            segments.last().second += PetHistoryReferencePoint(
                 date,
                 reference.bounds.lowerKg,
                 reference.bounds.medianLowerKg,
                 reference.bounds.medianUpperKg,
                 reference.bounds.upperKg,
             )
-            previousProfileId = reference.profileId
+            previousIdentity = identity
             gapBeforeNextPoint = false
         }
         val approximate = available.any { it.second.approximate }
@@ -220,7 +232,22 @@ class PetHistoryReferencePresenter(
         val maxAge = available.maxOf { it.second.ageDays.last }
         return availablePresentation(
             metadata = metadata,
-            segments = segments.map(List<PetHistoryReferencePoint>::toList),
+            segments = segments.map { (identity, points) ->
+                val segmentMetadata = snapshot.metadataFor(identity.profileId, identity.sourceId)
+                    ?: return PetHistoryWeightReference.Unavailable(
+                        WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId),
+                        weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId)),
+                    )
+                PetHistoryReferenceSegment(
+                    profileId = identity.profileId,
+                    sourceId = identity.sourceId,
+                    provenance = identity.provenance,
+                    citation = segmentMetadata.source.citation,
+                    license = segmentMetadata.source.license,
+                    publicationUrl = "https://doi.org/${segmentMetadata.source.publicationDoi}",
+                    points = points.toList(),
+                )
+            },
             approximate = approximate,
             minAge = minAge,
             maxAge = maxAge,
@@ -249,7 +276,7 @@ class PetHistoryReferencePresenter(
 
     private fun availablePresentation(
         metadata: ReferenceProfileMetadata,
-        segments: List<List<PetHistoryReferencePoint>>,
+        segments: List<PetHistoryReferenceSegment>,
         approximate: Boolean,
         minAge: Long,
         maxAge: Long,

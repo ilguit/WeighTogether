@@ -116,9 +116,9 @@ class WeightReferenceSnapshot private constructor(
      * Looks up provenance and constraints after a profile has been resolved. The returned list is
      * detached and unmodifiable so presentation code cannot mutate the validated snapshot.
      */
-    fun metadataFor(profileId: String): ReferenceProfileMetadata? {
+    fun metadataFor(profileId: String, effectiveSourceId: String? = null): ReferenceProfileMetadata? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
-        val source = manifest.sources.singleOrNull { it.id == profile.sourceId } ?: return null
+        val source = manifest.sources.singleOrNull { it.id == (effectiveSourceId ?: profile.sourceId) } ?: return null
         return ReferenceProfileMetadata(
             profileId = profile.id,
             basis = profile.basis,

@@ -197,8 +197,9 @@ internal fun exactObservationGlyphs(
     reference: PetHistoryWeightReference.Available?,
     zoneId: ZoneId,
 ): List<PetWeightExactObservationGlyph> = reference
-    ?.takeIf { it.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION }
-    ?.segments.orEmpty().flatten().map { point ->
+    ?.segments.orEmpty()
+    .filter { it.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION }
+    .flatMap { it.points }.map { point ->
         PetWeightExactObservationGlyph(
             point.date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
             point.lowerKg,
@@ -970,8 +971,10 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                     else -> "Внешние линии показывают общий диапазон, две внутренние — медианный диапазон."
                 },
             )
-            Text(reference.sourceLabel, style = MaterialTheme.typography.bodySmall)
-            Text("Лицензия: ${reference.license}", style = MaterialTheme.typography.bodySmall)
+            reference.segments.distinctBy { it.sourceId }.forEach { segment ->
+                Text("Источник: ${segment.citation}", style = MaterialTheme.typography.bodySmall)
+                Text("Лицензия: ${segment.license}", style = MaterialTheme.typography.bodySmall)
+            }
             reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }
             Text(
                 if (reference.isFittedPopulationPercentiles) "Сведения справочные и не оценивают здоровье питомца. Обсудите изменения веса с ветеринаром."
