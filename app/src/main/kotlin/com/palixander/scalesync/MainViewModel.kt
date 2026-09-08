@@ -216,8 +216,8 @@ class MainViewModel @JvmOverloads constructor(
     private val petManagementSessionIds = AtomicLong(0L)
     private val petBreedCatalog = PetBreedCatalog()
     private val petMeasurementStartup = PetMeasurementStartupGuard()
+    private val petMeasurementCreation = PetMeasurementCreationGuard()
     private var petMeasurementStartupJob: Job? = null
-    private var petCreationInProgress = false
     private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
@@ -1189,24 +1189,27 @@ class MainViewModel @JvmOverloads constructor(
         petMeasurementCoordinator.showCreating()
     }
 
-    fun createPetAndStartMeasurement(displayName: String, species: PetSpecies) {
-        if (petCreationInProgress || petMeasurementCoordinator.isActive) return
-        petCreationInProgress = true
+    fun createPetAndStartMeasurement(
+        displayName: String,
+        species: PetSpecies,
+        onCreated: (com.palixander.scalesync.domain.Pet) -> Unit,
+    ) {
+        if (petMeasurementCoordinator.isActive) return
+        val creationToken = petMeasurementCreation.begin() ?: return
         viewModelScope.launch {
             val pet = try {
                 container.pets.createPet(newPetForQuickMeasurement(displayName, species))
             } catch (cancelled: CancellationException) {
-                petCreationInProgress = false
                 throw cancelled
             } catch (error: Exception) {
-                petCreationInProgress = false
+                if (!petMeasurementCreation.complete(creationToken)) return@launch
                 petMeasurement.value = PetMeasurementUiState.Error(
                     error.message ?: "Не удалось создать питомца",
                 )
                 return@launch
             }
-            petCreationInProgress = false
-            startPetMeasurement(pet.id)
+            if (!petMeasurementCreation.complete(creationToken)) return@launch
+            onCreated(pet)
         }
     }
 
@@ -1382,6 +1385,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun invalidatePetMeasurementStartup() {
+        petMeasurementCreation.invalidate()
         petMeasurementStartup.invalidate()
         petMeasurementStartupJob?.cancel()
         petMeasurementStartupJob = null

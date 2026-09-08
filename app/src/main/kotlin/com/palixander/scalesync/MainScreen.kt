@@ -313,8 +313,38 @@ fun ScaleSyncApp(
         petMeasurementCallbacks = PetMeasurementCallbacks(
             onOpen = viewModel::openPetMeasurement,
             onShowCreate = viewModel::showCreatePet,
-            onCreateAndStart = viewModel::createPetAndStartMeasurement,
-            onStart = viewModel::startPetMeasurement,
+            onCreateAndStart = { displayName, species ->
+                viewModel.createPetAndStartMeasurement(displayName, species) { pet ->
+                    startPetProfileMeasurement(
+                        pet = pet,
+                        scaleAddress = state.settings.scaleAddress,
+                        dismissPetMeasurement = viewModel::cancelPetMeasurement,
+                        openManualWeight = { createdPet ->
+                            measurementsViewModel.manualWeight.open(
+                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(createdPet.id),
+                                createdPet.displayName,
+                            )
+                        },
+                        startBleMeasurement = viewModel::startPetMeasurement,
+                    )
+                }
+            },
+            onStart = { petId ->
+                state.pets.firstOrNull { it.pet.id == petId }?.pet?.let { pet ->
+                    startPetProfileMeasurement(
+                        pet = pet,
+                        scaleAddress = state.settings.scaleAddress,
+                        dismissPetMeasurement = viewModel::cancelPetMeasurement,
+                        openManualWeight = { selectedPet ->
+                            measurementsViewModel.manualWeight.open(
+                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(selectedPet.id),
+                                selectedPet.displayName,
+                            )
+                        },
+                        startBleMeasurement = viewModel::startPetMeasurement,
+                    )
+                }
+            },
             onCancel = viewModel::cancelPetMeasurement,
         ),
         snackbarHostState = snackbarHostState,
