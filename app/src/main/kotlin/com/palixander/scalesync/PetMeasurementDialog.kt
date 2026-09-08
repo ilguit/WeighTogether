@@ -29,6 +29,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
@@ -76,6 +77,7 @@ internal fun PetMeasurementDialog(
         onDismissRequest = {
             if (state !is PetMeasurementUiState.Saving) callbacks.onCancel()
         },
+        properties = DialogProperties(dismissOnClickOutside = false),
         modifier = Modifier.testTag(PetMeasurementTestTags.Dialog),
         title = { Text(dialogTitle(state)) },
         text = {

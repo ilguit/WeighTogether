@@ -2,7 +2,10 @@ package com.palixander.scalesync
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -10,6 +13,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
@@ -174,6 +178,26 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
+    @Test
+    fun outsideTapDoesNotDismissWhileSystemBackStillCancels() {
+        val pet = pet("cat", "Луна")
+        var cancelled = 0
+        setDialog(
+            state = PetMeasurementUiState.AwaitingFirstWeight(pet),
+            pets = emptyList(),
+            callbacks = callbacks(onCancel = { cancelled++ }),
+        )
+
+        composeRule.onNode(isDialog()).performTouchInput {
+            click(Offset(-1f, -1f))
+        }
+        composeRule.runOnIdle { assertEquals(0, cancelled) }
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
+
         composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
