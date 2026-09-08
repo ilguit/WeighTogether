@@ -232,6 +232,10 @@ class PetWeightReferenceChartTest {
         assertEquals(expectedX, band.points.map(BreedWeightReferenceBandPoint::xEpochMillis))
         assertEquals(3, boundaryAndP50.size)
         assertEquals(
+            listOf("Нижняя граница P9", "Медиана P50", "Верхняя граница P91"),
+            boundaryAndP50.map(PetWeightDisplayedSeries::label),
+        )
+        assertEquals(
             listOf(
                 PetWeightDisplayedSeriesKind.BREED_LOWER to PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 PetWeightDisplayedSeriesKind.BREED_CENTER to PetWeightDisplayedSeriesStyle.BREED_CENTER,
@@ -242,6 +246,10 @@ class PetWeightReferenceChartTest {
         assertTrue(boundaryAndP50.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
         assertTrue(boundaryAndP50.all { it.x == expectedX })
         assertTrue(boundaryAndP50.all { series -> series.x == band.points.map(BreedWeightReferenceBandPoint::xEpochMillis) })
+        assertEquals(
+            "Нижняя граница P9: 2.00 кг\nМедиана P50: 3.00 кг\nВерхняя граница P91: 4.00 кг",
+            formatPetWeightDisplayedMarker(expectedX.first(), displayed, Locale.US),
+        )
     }
 
     @Test fun `breed interval has one zone legend entry and no center entry`() {
