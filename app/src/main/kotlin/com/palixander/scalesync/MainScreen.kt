@@ -314,7 +314,19 @@ fun ScaleSyncApp(
             onOpen = viewModel::openPetMeasurement,
             onShowCreate = viewModel::showCreatePet,
             onCreateAndStart = viewModel::createPetAndStartMeasurement,
-            onStart = viewModel::startPetMeasurement,
+            onStart = { petId ->
+                when (petProfileMeasurementStartRoute(state.settings.scaleAddress)) {
+                    PetProfileMeasurementStartRoute.MANUAL_WEIGHT -> {
+                        state.pets.firstOrNull { it.pet.id == petId }?.pet?.let { pet ->
+                            measurementsViewModel.manualWeight.open(
+                                com.palixander.scalesync.domain.ManualWeightOwner.Pet(pet.id),
+                                pet.displayName,
+                            )
+                        }
+                    }
+                    PetProfileMeasurementStartRoute.BLE -> viewModel.startPetMeasurement(petId)
+                }
+            },
             onCancel = viewModel::cancelPetMeasurement,
         ),
         snackbarHostState = snackbarHostState,

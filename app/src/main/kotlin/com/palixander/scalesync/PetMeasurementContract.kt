@@ -11,6 +11,18 @@ internal const val PET_SCALE_REQUIRED_MESSAGE = "Сначала выберите
 internal const val PET_BLUETOOTH_PERMISSION_MESSAGE = "Разрешите Bluetooth для взвешивания питомца"
 internal const val PET_MEASUREMENT_TIMEOUT_MESSAGE = "Весы не передали новое стабильное измерение"
 
+internal enum class PetProfileMeasurementStartRoute {
+    MANUAL_WEIGHT,
+    BLE,
+}
+
+internal fun petProfileMeasurementStartRoute(scaleAddress: String?): PetProfileMeasurementStartRoute =
+    if (scaleAddress == null) {
+        PetProfileMeasurementStartRoute.MANUAL_WEIGHT
+    } else {
+        PetProfileMeasurementStartRoute.BLE
+    }
+
 sealed interface PetMeasurementUiState {
     data object Idle : PetMeasurementUiState
     data object SelectingPet : PetMeasurementUiState
