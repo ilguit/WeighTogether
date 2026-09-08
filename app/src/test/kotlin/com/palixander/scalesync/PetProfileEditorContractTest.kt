@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
+import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PartialBirthDate
@@ -75,6 +76,66 @@ class PetProfileEditorContractTest {
         assertEquals(original.breedId, result.petUpdate?.breedId)
         assertEquals(original.birthDate, result.petUpdate?.birthDate)
         assertEquals(original.dogAdultWeightCategory, result.petUpdate?.dogAdultWeightCategory)
+    }
+
+    @Test
+    fun catBreedRoundTripsThroughCreateAndEditContracts() {
+        val maineCoon = breedCatalog.search("Maine Coon Cat", PetSpecies.CAT).single()
+        val selection = PetBreedSelection.Available(maineCoon)
+        val created = validatePetProfileDraft(
+            PetProfileDraft.create().copy(
+                displayName = "Барсик",
+                species = PetSpecies.CAT,
+                breed = selection,
+            ),
+            today,
+        ).newPet
+
+        assertEquals(PetSpecies.CAT, maineCoon.species)
+        assertEquals(maineCoon.id, created?.breedId)
+        val persisted = pet(
+            id = "barsik",
+            name = "Барсик",
+            species = PetSpecies.CAT,
+            breedId = created?.breedId,
+        )
+        val update = validatePetProfileDraft(
+            PetProfileDraft.edit(persisted, breedCatalog),
+            today,
+            listOf(persisted),
+        ).petUpdate
+        assertEquals(PetSpecies.CAT, update?.species)
+        assertEquals(maineCoon.id, update?.breedId)
+    }
+
+    @Test
+    fun catalogExposesOnlyCatBreedsDeclaredByWeightReferenceScopes() {
+        val expectedIds = WeightReferenceSnapshot.bundled().manifest.scopes
+            .filter { it.species.name == "CAT" && it.breedId != null }
+            .mapNotNull { it.breedId }
+            .toSet()
+        val cats = breedCatalog.search("", PetSpecies.CAT)
+
+        assertEquals(expectedIds, cats.map { it.id.value }.toSet())
+        assertTrue(cats.all { it.species == PetSpecies.CAT })
+        assertTrue(cats.size < com.palixander.scalesync.core.breed.BreedCatalog.bundled()
+            .all(com.palixander.scalesync.core.breed.BreedSpecies.CAT).size)
+        assertTrue(breedCatalog.search("Maine Coon Cat", PetSpecies.CAT).isNotEmpty())
+        assertTrue(breedCatalog.search("мейн", PetSpecies.CAT).isNotEmpty())
+        assertTrue(breedCatalog.search("мейн", PetSpecies.DOG).isEmpty())
+    }
+
+    @Test
+    fun unavailableSnapshotsDegradeTheirSpeciesWithoutLeakingFullCatalog() {
+        val noDogs = PetBreedCatalog(
+            snapshotResult = BreedReferenceSnapshotLoadResult.Unavailable("test"),
+        )
+        val noCats = PetBreedCatalog(weightReferenceSnapshot = null)
+
+        assertTrue(noDogs.search("", PetSpecies.DOG).isEmpty())
+        assertTrue(noDogs.search("", PetSpecies.CAT).isNotEmpty())
+        assertTrue(noCats.search("", PetSpecies.CAT).isEmpty())
+        assertTrue(noCats.search("", PetSpecies.DOG).isNotEmpty())
     }
 
     @Test
@@ -168,12 +229,12 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun `catalog exposes only supported dog breeds`() {
+    fun `catalog keeps the supported dog set independent from cat options`() {
         val dogOptions = breedCatalog.search("", PetSpecies.DOG)
 
         assertEquals(10, dogOptions.size)
         assertTrue(dogOptions.all { it.species == PetSpecies.DOG })
-        assertTrue(breedCatalog.search("", PetSpecies.CAT).isEmpty())
+        assertTrue(breedCatalog.search("", PetSpecies.CAT).all { it.species == PetSpecies.CAT })
     }
 
     @Test
