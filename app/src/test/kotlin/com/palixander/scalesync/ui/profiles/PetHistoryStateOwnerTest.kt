@@ -49,13 +49,103 @@ class PetHistoryStateOwnerTest {
     private val luna = pet("luna", "Луна")
 
     @Test
-    fun `reference dependencies are lazy and loaded once across subscriptions`() = runBlocking {
-        val dependencies = PetHistoryReferenceDependencies(
-            breedCatalog = PetBreedCatalog(),
-            referencePresenter = PetHistoryReferencePresenter(),
-            breedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
-        )
+    fun `owner exposes initial loading before blocked reference dependencies complete`() = runBlocking {
+        val loadStarted = CompletableDeferred<Unit>()
+        val releaseLoad = CompletableDeferred<Unit>()
         var loads = 0
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            initialPetId = luna.id,
+            repository = FakeRepository(
+                pets = mapOf(luna.id to luna),
+                histories = mapOf(luna.id to MutableStateFlow(emptyList<PetMeasurement>())),
+            ),
+            parentScope = scope,
+            clock = clock,
+            zoneId = zone,
+            locale = Locale.US,
+            referenceDependencies = {
+                loads += 1
+                loadStarted.complete(Unit)
+                releaseLoad.await()
+                referenceDependencies()
+            },
+        )
+
+        assertEquals(0, loads)
+        assertEquals(PetHistoryUiState.initial(luna.id, clock), owner.uiState.value)
+
+        val collector = scope.launch { owner.uiState.collect() }
+        loadStarted.await()
+
+        assertEquals(1, loads)
+        assertTrue(owner.uiState.value.isLoading)
+        assertNull(owner.uiState.value.pet)
+
+        releaseLoad.complete(Unit)
+        yield()
+
+        assertFalse(owner.uiState.value.isLoading)
+        assertEquals(luna, owner.uiState.value.pet)
+        assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)
+        collector.cancelAndJoin()
+        owner.close()
+        scope.cancel()
+    }
+
+    @Test
+    fun `shared reference loader starts once for multiple pet owners`() = runBlocking {
+        val second = pet("second", "Бим")
+        val loadStarted = CompletableDeferred<Unit>()
+        val releaseLoad = CompletableDeferred<Unit>()
+        var loads = 0
+        val scope = testScope()
+        val loader = PetHistoryReferenceLoader(scope) {
+            loads += 1
+            loadStarted.complete(Unit)
+            releaseLoad.await()
+            referenceDependencies()
+        }
+        val repository = FakeRepository(
+            pets = mapOf(luna.id to luna, second.id to second),
+            histories = mapOf(
+                luna.id to MutableStateFlow(emptyList<PetMeasurement>()),
+                second.id to MutableStateFlow(emptyList<PetMeasurement>()),
+            ),
+        )
+        val firstOwner = PetHistoryStateOwner(
+            luna.id, repository, scope, clock, zone, Locale.US, loader::load,
+        )
+        val secondOwner = PetHistoryStateOwner(
+            second.id, repository, scope, clock, zone, Locale.US, loader::load,
+        )
+
+        assertEquals(0, loads)
+        val firstCollector = scope.launch { firstOwner.uiState.collect() }
+        loadStarted.await()
+        val secondCollector = scope.launch { secondOwner.uiState.collect() }
+        yield()
+
+        assertEquals(1, loads)
+        assertTrue(firstOwner.uiState.value.isLoading)
+        assertTrue(secondOwner.uiState.value.isLoading)
+
+        releaseLoad.complete(Unit)
+        yield()
+
+        assertEquals(luna, firstOwner.uiState.value.pet)
+        assertEquals(second, secondOwner.uiState.value.pet)
+        assertFalse(firstOwner.uiState.value.isLoading)
+        assertFalse(secondOwner.uiState.value.isLoading)
+        firstCollector.cancelAndJoin()
+        secondCollector.cancelAndJoin()
+        firstOwner.close()
+        secondOwner.close()
+        scope.cancel()
+    }
+
+    @Test
+    fun `reference loader failure becomes terminal owner error`() = runBlocking {
         val scope = testScope()
         val owner = PetHistoryStateOwner(
             initialPetId = luna.id,
@@ -64,25 +154,25 @@ class PetHistoryStateOwnerTest {
             clock = clock,
             zoneId = zone,
             locale = Locale.US,
-            referenceDependencies = {
-                loads += 1
-                dependencies
-            },
+            referenceDependencies = { error("reference unavailable") },
         )
 
-        assertEquals(0, loads)
-        val first = scope.launch { owner.uiState.collect() }
+        val collector = scope.launch { owner.uiState.collect() }
         yield()
-        assertEquals(1, loads)
-        first.cancelAndJoin()
 
-        val second = scope.launch { owner.uiState.collect() }
-        yield()
-        assertEquals(1, loads)
-        second.cancelAndJoin()
+        assertFalse(owner.uiState.value.isLoading)
+        assertEquals("reference unavailable", owner.uiState.value.errorMessage)
+        assertNull(owner.uiState.value.pet)
+        collector.cancelAndJoin()
         owner.close()
         scope.cancel()
     }
+
+    private fun referenceDependencies() = PetHistoryReferenceDependencies(
+        breedCatalog = PetBreedCatalog(),
+        referencePresenter = PetHistoryReferencePresenter(),
+        breedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
+    )
 
     @Test
     fun `initial all range shows measurements from two months and bounds reference overlay`() = runBlocking {

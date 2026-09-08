@@ -32,6 +32,8 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
 
 data class PetHistoryReferenceDependencies(
     val breedCatalog: PetBreedCatalog,
@@ -45,6 +47,18 @@ data class PetHistoryReferenceDependencies(
             breedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
         )
     }
+}
+
+internal class PetHistoryReferenceLoader(
+    scope: CoroutineScope,
+    context: CoroutineContext = EmptyCoroutineContext,
+    private val factory: suspend () -> PetHistoryReferenceDependencies,
+) {
+    private val dependencies by lazy(LazyThreadSafetyMode.NONE) {
+        scope.async(context, start = CoroutineStart.LAZY) { factory() }
+    }
+
+    suspend fun load(): PetHistoryReferenceDependencies = dependencies.await()
 }
 
 internal data class PetHistorySelection(
