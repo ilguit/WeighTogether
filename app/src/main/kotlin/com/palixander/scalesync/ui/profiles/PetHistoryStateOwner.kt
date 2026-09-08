@@ -12,10 +12,12 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -30,6 +32,34 @@ import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
+import kotlin.coroutines.EmptyCoroutineContext
+
+data class PetHistoryReferenceDependencies(
+    val breedCatalog: PetBreedCatalog,
+    val referencePresenter: PetHistoryReferencePresenter,
+    val breedReferencePresenter: PetHistoryBreedReferencePresenter,
+) {
+    companion object {
+        fun bundled(clock: Clock = Clock.systemDefaultZone()) = PetHistoryReferenceDependencies(
+            breedCatalog = PetBreedCatalog(),
+            referencePresenter = PetHistoryReferencePresenter(),
+            breedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
+        )
+    }
+}
+
+internal class PetHistoryReferenceLoader(
+    scope: CoroutineScope,
+    context: CoroutineContext = EmptyCoroutineContext,
+    private val factory: suspend () -> PetHistoryReferenceDependencies,
+) {
+    private val dependencies by lazy(LazyThreadSafetyMode.NONE) {
+        scope.async(context, start = CoroutineStart.LAZY) { factory() }
+    }
+
+    suspend fun load(): PetHistoryReferenceDependencies = dependencies.await()
+}
 
 internal data class PetHistorySelection(
     val petId: PetId,
@@ -53,9 +83,9 @@ class PetHistoryStateOwner(
     private val clock: Clock = Clock.systemDefaultZone(),
     private val zoneId: ZoneId = clock.zone,
     private val locale: Locale = Locale.getDefault(),
-    private val breedCatalog: PetBreedCatalog = PetBreedCatalog(),
-    private val referencePresenter: PetHistoryReferencePresenter = PetHistoryReferencePresenter(),
-    private val breedReferencePresenter: PetHistoryBreedReferencePresenter = PetHistoryBreedReferencePresenter(clock = clock),
+    private val referenceDependencies: suspend () -> PetHistoryReferenceDependencies = {
+        PetHistoryReferenceDependencies.bundled(clock)
+    },
 ) : AutoCloseable {
     private val ownerJob = SupervisorJob(parentScope.coroutineContext[Job])
     private val ownerScope = CoroutineScope(parentScope.coroutineContext + ownerJob)
@@ -68,6 +98,9 @@ class PetHistoryStateOwner(
         ),
     )
     private val interaction = MutableStateFlow(PetHistoryInteraction(initialPetId))
+    private val references by lazy(LazyThreadSafetyMode.NONE) {
+        ownerScope.async(start = CoroutineStart.LAZY) { referenceDependencies() }
+    }
 
     val uiState: StateFlow<PetHistoryUiState> = combine(
         selection.flatMapLatest(::observeSelection),
@@ -275,6 +308,7 @@ class PetHistoryStateOwner(
             emit(current.notFoundState())
             return@flow
         }
+        val referenceData = references.await()
         emitAll(
             combine(
                 repository.observePets()
@@ -299,12 +333,12 @@ class PetHistoryStateOwner(
                     )
                     current.baseState(presentationRange).copy(
                         pet = observedPet,
-                        profileSummary = petProfileSummary(observedPet, breedCatalog),
+                        profileSummary = petProfileSummary(observedPet, referenceData.breedCatalog),
                         content = content,
                         series = series,
-                        weightReference = referencePresenter.present(observedPet, presentationRange),
-                        breedReference = breedReferencePresenter.present(observedPet),
-                        breedReferenceTimeline = breedReferencePresenter.presentTimeline(
+                        weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
+                        breedReference = referenceData.breedReferencePresenter.present(observedPet),
+                        breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
                             series.points.mapNotNull { point ->
                                 point.xEpochMillis?.let { epochMillis ->

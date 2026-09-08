@@ -61,6 +61,8 @@ import com.palixander.scalesync.ui.routing.activeCompletionFor
 import com.palixander.scalesync.ui.routing.buildResolverAccountOptions
 import com.palixander.scalesync.ui.routing.isActivePendingResolverTarget
 import com.palixander.scalesync.ui.profiles.PetHistoryStateOwner
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceDependencies
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceLoader
 import com.palixander.scalesync.ui.routing.oldestPendingResolverTarget
 import com.palixander.scalesync.ui.routing.pendingForResolverLifecycle
 import com.palixander.scalesync.worker.ExternalSyncPauseTransition
@@ -187,9 +189,17 @@ class MainViewModel @JvmOverloads constructor(
 ) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
 
+    private val petHistoryReferenceLoader = PetHistoryReferenceLoader(viewModelScope, Dispatchers.IO) {
+        PetHistoryReferenceDependencies.bundled()
+    }
     private val petHistoryOwners = mutableMapOf<PetId, PetHistoryStateOwner>()
     fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = petHistoryOwners.getOrPut(petId) {
-        PetHistoryStateOwner(initialPetId = petId, repository = container.pets, parentScope = viewModelScope)
+        PetHistoryStateOwner(
+            initialPetId = petId,
+            repository = container.pets,
+            parentScope = viewModelScope,
+            referenceDependencies = petHistoryReferenceLoader::load,
+        )
     }
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
