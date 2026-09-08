@@ -39,8 +39,8 @@ import com.palixander.scalesync.charts.chartXRange
 import com.palixander.scalesync.charts.rememberChartBottomAxis
 import com.palixander.scalesync.charts.rememberChartMarker
 import com.palixander.scalesync.charts.rememberChartStartAxis
-import com.palixander.scalesync.charts.rememberSmoothChartLine
-import com.palixander.scalesync.charts.rememberSmoothLineLayer
+import com.palixander.scalesync.charts.rememberChartLine
+import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.ui.components.HuaweiSurface
@@ -717,7 +717,7 @@ private fun PetWeightVicoChart(
     }
     val lines = displayedSeries.map { series ->
         when (series.style) {
-            PetWeightDisplayedSeriesStyle.FACTUAL -> rememberSmoothChartLine(factualColor, series.x.size)
+            PetWeightDisplayedSeriesStyle.FACTUAL -> rememberChartLine(factualColor, series.x.size)
             PetWeightDisplayedSeriesStyle.CATEGORY -> rememberBreedChartLine(
                 referenceColor,
                 if (series.kind == PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) BreedWeightReferenceSeriesKind.CENTER
@@ -787,7 +787,7 @@ private fun PetWeightVicoChart(
     Box(Modifier.fillMaxWidth().height(250.dp)) {
         CartesianChartHost(
             chart = rememberCartesianChart(
-                rememberSmoothLineLayer(lines, rangeProvider),
+                rememberChartLineLayer(lines, rangeProvider),
                 startAxis = rememberChartStartAxis(
                     CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
                 ),

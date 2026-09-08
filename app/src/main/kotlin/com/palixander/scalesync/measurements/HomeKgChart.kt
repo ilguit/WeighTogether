@@ -35,8 +35,8 @@ import com.palixander.scalesync.charts.chartYRange
 import com.palixander.scalesync.charts.rememberChartBottomAxis
 import com.palixander.scalesync.charts.rememberChartMarker
 import com.palixander.scalesync.charts.rememberChartStartAxis
-import com.palixander.scalesync.charts.rememberSmoothChartLine
-import com.palixander.scalesync.charts.rememberSmoothLineLayer
+import com.palixander.scalesync.charts.rememberChartLine
+import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -275,7 +275,7 @@ private fun HomeKgVicoChart(
         }
     }
     val lines = plottedSeries.map { series ->
-        rememberSmoothChartLine(
+        rememberChartLine(
             color = Color(series.color.argb),
             pointCount = series.points.size,
         )
@@ -312,7 +312,7 @@ private fun HomeKgVicoChart(
     }
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberSmoothLineLayer(lines = lines, rangeProvider = rangeProvider),
+            rememberChartLineLayer(lines = lines, rangeProvider = rangeProvider),
             startAxis = rememberChartStartAxis(
                 CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
             ),

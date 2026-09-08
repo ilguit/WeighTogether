@@ -707,7 +707,7 @@ internal fun MetricLineChart(
         }
     }
     val primaryColor = MaterialTheme.colorScheme.primary
-    val line = rememberSmoothChartLine(primaryColor, points.size)
+    val line = rememberChartLine(primaryColor, points.size)
     val bottomFormatter = remember(zoneId) {
         CartesianValueFormatter { _, value, _ ->
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
@@ -749,7 +749,7 @@ internal fun MetricLineChart(
     }
     CartesianChartHost(
         chart = rememberCartesianChart(
-            rememberSmoothLineLayer(
+            rememberChartLineLayer(
                 lines = listOf(line),
                 rangeProvider = rangeProvider,
             ),

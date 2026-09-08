@@ -14,6 +14,7 @@ import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -23,19 +24,19 @@ class ChartVisualComponentsTest {
     val composeRule = createComposeRule()
 
     @Test
-    fun regularSeriesIsCubicWithNoPersistentPointsOrAreaFill() {
-        val line = smoothChartLine(Color.Red, pointCount = 2)
+    fun regularSeriesIsLinearWithNoPersistentPointsOrAreaFill() {
+        val line = chartLine(Color.Red, pointCount = 2)
 
-        assertEquals("CubicInterpolator", line.interpolator.javaClass.simpleName)
+        assertSame(LineCartesianLayer.Interpolator.Sharp, line.interpolator)
         assertNull(line.pointProvider)
         assertNull(line.areaFillForTest())
     }
 
     @Test
-    fun singleValueSeriesIsCubicWithVisiblePointAndNoAreaFill() {
-        val line = smoothChartLine(Color.Red, pointCount = 1)
+    fun singleValueSeriesIsLinearWithVisiblePointAndNoAreaFill() {
+        val line = chartLine(Color.Red, pointCount = 1)
 
-        assertEquals("CubicInterpolator", line.interpolator.javaClass.simpleName)
+        assertSame(LineCartesianLayer.Interpolator.Sharp, line.interpolator)
         assertNotNull(line.pointProvider)
         assertNull(line.areaFillForTest())
     }
