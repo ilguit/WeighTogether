@@ -2,9 +2,14 @@ package com.palixander.scalesync
 
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedKind
+import com.palixander.scalesync.core.breed.BreedRecord
+import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
+import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceSpecies
+import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.NewPet
@@ -101,17 +106,39 @@ sealed interface PetBreedSelection {
 class PetBreedCatalog(
     private val catalog: BreedCatalog = BreedCatalog.bundled(),
     snapshotResult: BreedReferenceSnapshotLoadResult = BreedReferenceSnapshot.bundledOrUnavailable(catalog),
+    weightReferenceSnapshot: WeightReferenceSnapshot? = runCatching {
+        WeightReferenceSnapshot.bundled(catalog)
+    }.getOrNull(),
 ) {
     private val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
-    private val supportedBreeds = snapshot?.breeds.orEmpty()
-    /** Searches only the product-supported dog breeds. The full catalog remains internal. */
+    private val supportedDogBreeds = snapshot?.breeds.orEmpty()
+    private val supportedCatBreedIds = weightReferenceSnapshot?.manifest?.scopes
+        .orEmpty()
+        .asSequence()
+        .filter { scope ->
+            scope.species == ReferenceSpecies.CAT &&
+                scope.basis == ReferenceBasis.BREED &&
+                scope.breedId != null
+        }
+        .mapNotNull { it.breedId }
+        .toSet()
+    private val supportedCatBreeds = supportedCatBreedIds
+        .mapNotNull(catalog::findById)
+        .filter { it.species == BreedSpecies.CAT }
+
+    /** Searches only product-supported breeds. The full VBO catalog remains internal. */
     fun search(
         query: String,
         species: PetSpecies,
-    ): List<PetBreedOption> {
-        if (species != PetSpecies.DOG) return emptyList()
+    ): List<PetBreedOption> = when (species) {
+        PetSpecies.DOG -> searchDogs(query)
+        PetSpecies.CAT -> searchCats(query)
+        PetSpecies.UNSPECIFIED -> emptyList()
+    }
+
+    private fun searchDogs(query: String): List<PetBreedOption> {
         val needle = query.trim().lowercase()
-        return supportedBreeds
+        return supportedDogBreeds
             .asSequence()
             .filter { breed ->
                 needle.isEmpty() || sequenceOf(
@@ -127,15 +154,24 @@ class PetBreedCatalog(
             .toList()
     }
 
+    private fun searchCats(query: String): List<PetBreedOption> {
+        val matchingIds = catalog.search(query, BreedSpecies.CAT)
+            .asSequence()
+            .map(BreedRecord::id)
+            .toSet()
+        return supportedCatBreeds
+            .asSequence()
+            .filter { query.isBlank() || it.id in matchingIds }
+            .sortedBy { it.displayNameRu.lowercase() }
+            .map(::toPetBreedOption)
+            .toList()
+    }
+
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
-        val supported = snapshot?.breed(id.value)
-        return if (supported != null) {
-            PetBreedSelection.Available(toPetBreedOption(supported))
-        } else if (catalog.findById(id.value) == null) {
-            PetBreedSelection.Unavailable(id, savedSpecies)
-        } else {
-            PetBreedSelection.Unavailable(id, savedSpecies)
-        }
+        snapshot?.breed(id.value)?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
+        supportedCatBreeds.singleOrNull { it.id == id.value }
+            ?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
+        return PetBreedSelection.Unavailable(id, savedSpecies)
     }
 
     private fun toPetBreedOption(breed: BreedReferenceBreed): PetBreedOption = PetBreedOption(
@@ -148,6 +184,18 @@ class PetBreedCatalog(
                 .orEmpty()
         },
         kind = BreedKind.VBO,
+    )
+
+    private fun toPetBreedOption(breed: BreedRecord): PetBreedOption = PetBreedOption(
+        id = BreedId(breed.id),
+        species = when (breed.species) {
+            BreedSpecies.CAT -> PetSpecies.CAT
+            BreedSpecies.DOG -> PetSpecies.DOG
+        },
+        displayName = breed.displayNameRu,
+        canonicalName = breed.canonicalName,
+        aliases = breed.aliases,
+        kind = breed.kind,
     )
 }
 
