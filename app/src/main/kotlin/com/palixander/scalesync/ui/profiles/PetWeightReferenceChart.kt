@@ -20,6 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Paint
 import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.PaintingStyle
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -40,6 +42,7 @@ import com.palixander.scalesync.charts.rememberChartStartAxis
 import com.palixander.scalesync.charts.rememberSmoothChartLine
 import com.palixander.scalesync.charts.rememberSmoothLineLayer
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -181,6 +184,29 @@ internal enum class PetWeightDisplayedSeriesKind {
 
 internal enum class PetWeightDisplayedSeriesStyle { FACTUAL, CATEGORY, BREED_BOUNDARY, BREED_CENTER }
 
+internal data class PetWeightExactObservationGlyph(
+    val xEpochMillis: Long,
+    val lowerKg: Double,
+    val meanKg: Double,
+    val upperKg: Double,
+) {
+    init { require(lowerKg <= meanKg && meanKg <= upperKg) }
+}
+
+internal fun exactObservationGlyphs(
+    reference: PetHistoryWeightReference.Available?,
+    zoneId: ZoneId,
+): List<PetWeightExactObservationGlyph> = reference
+    ?.takeIf { it.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION }
+    ?.segments.orEmpty().flatten().map { point ->
+        PetWeightExactObservationGlyph(
+            point.date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+            point.lowerKg,
+            (point.medianLowerKg + point.medianUpperKg) / 2.0,
+            point.upperKg,
+        )
+    }
+
 internal data class PetWeightChartLegendEntry(
     val label: String,
     val style: PetWeightDisplayedSeriesStyle,
@@ -213,6 +239,24 @@ internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntr
     PetWeightChartLegendEntry("▰ Типичный диапазон веса", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
     PetWeightChartLegendEntry("— P50", PetWeightDisplayedSeriesStyle.BREED_CENTER),
 )
+
+internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
+    WeightReferenceProvenance.BREED_CURVE -> listOf(
+        PetWeightChartLegendEntry("▰ Светло-зелёная зона — породный диапазон P9–P91", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("— P50 породы", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+    )
+    WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
+        PetWeightChartLegendEntry("↕ Диапазон наблюдения породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("● Средний вес породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+    )
+    WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> listOf(
+        PetWeightChartLegendEntry("▰ Общий диапазон P9–P91 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("— Общая P50 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+    )
+    WeightReferenceProvenance.POPULATION,
+    WeightReferenceProvenance.WEIGHT_CATEGORY,
+    -> populationWeightChartLegendEntries()
+}
 
 /** Smooth rendering samples; input knots remain the authoritative values. */
 internal fun monotoneSmoothedChartPoints(
@@ -290,7 +334,12 @@ internal fun petWeightDisplayedSeries(
             ),
         )
     }
-    val breedSeries = breedWeightReferenceChartSeries(breedReferenceTimeline)
+    val useLegacyBreedTimeline = (reference as? PetHistoryWeightReference.Available)?.provenance in setOf(
+        null,
+        WeightReferenceProvenance.POPULATION,
+        WeightReferenceProvenance.WEIGHT_CATEGORY,
+    )
+    val breedSeries = if (useLegacyBreedTimeline) breedWeightReferenceChartSeries(breedReferenceTimeline) else emptyList()
     if (breedSeries.isNotEmpty()) {
         val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
         breedSeries.forEach { series ->
@@ -324,7 +373,7 @@ internal fun petWeightDisplayedSeries(
                 ),
             )
         }
-    } else {
+    } else if ((reference as? PetHistoryWeightReference.Available)?.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
         petWeightReferenceChartSeries(reference).forEachIndexed { index, series ->
             val (kind, label) = when (series.kind) {
                 PetWeightReferenceSeriesKind.LOWER -> PetWeightDisplayedSeriesKind.CATEGORY_LOWER to "Нижняя граница эталона"
@@ -541,16 +590,23 @@ internal fun PetWeightReferenceChartCard(
     }
     val available = reference as? PetHistoryWeightReference.Available
     val isPopulationReference = available?.isFittedPopulationPercentiles == true
-    val legendEntries = remember(displayedSeries, isPopulationReference) {
+    val exactObservationGlyphs = remember(available, zoneId) { exactObservationGlyphs(available, zoneId) }
+    val legendEntries = remember(displayedSeries, isPopulationReference, available?.provenance) {
         if (isPopulationReference) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
                 add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
             }
-            addAll(populationWeightChartLegendEntries())
+            addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
+        } else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) buildList {
+            if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
+                add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+            }
+            addAll(referenceWeightChartLegendEntries(available.provenance))
         } else petWeightChartLegendEntries(displayedSeries)
     }
     val yRange = remember(displayedSeries) {
-        displayedSeries.flatMap(PetWeightDisplayedSeries::y).takeIf(List<Double>::isNotEmpty)?.let { values ->
+        (displayedSeries.flatMap(PetWeightDisplayedSeries::y) + exactObservationGlyphs.flatMap { listOf(it.lowerKg, it.upperKg) })
+            .takeIf(List<Double>::isNotEmpty)?.let { values ->
             val min = values.min()
             val max = values.max()
             val padding = ((max - min) * 0.08).coerceAtLeast(0.1)
@@ -559,7 +615,8 @@ internal fun PetWeightReferenceChartCard(
     }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
-    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
+    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() } &&
+        available?.provenance !in setOf(WeightReferenceProvenance.BREED_CURVE, WeightReferenceProvenance.BREED_EXACT_OBSERVATION, WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
     val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
     val description = buildString {
         append("График веса питомца. ")
@@ -567,7 +624,10 @@ internal fun PetWeightReferenceChartCard(
         if (showReferenceExplanation && !hasBreedTimeline) {
             append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
             if (available != null) append(
-                if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
+                if (available?.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; породный диапазон — светло-зелёной зоной P9–P91 и линией P50."
+                else if (available?.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
+                else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
+                else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
                 else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
             )
         }
@@ -594,7 +654,12 @@ internal fun PetWeightReferenceChartCard(
                     displayedSeries = if (isPopulationReference) displayedSeries.filterNot {
                         it.kind == PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER
                     } else displayedSeries,
-                    breedBands = if (isPopulationReference) populationWeightReferenceBands(available, zoneId) else breedWeightReferenceBands(breedReferenceTimeline),
+                    breedBands = when {
+                        isPopulationReference -> populationWeightReferenceBands(available, zoneId)
+                        available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> emptyList()
+                        else -> breedWeightReferenceBands(breedReferenceTimeline)
+                    },
+                    exactObservationGlyphs = exactObservationGlyphs,
                     startDate = startDate,
                     endDateInclusive = endDateInclusive,
                     zoneId = zoneId,
@@ -603,7 +668,7 @@ internal fun PetWeightReferenceChartCard(
                     referenceColor = referenceColor,
                     contentDescription = description,
                 )
-                if (displayedSeries.isNotEmpty()) {
+                if (displayedSeries.isNotEmpty() || exactObservationGlyphs.isNotEmpty()) {
                     DisplayedSeriesLegend(legendEntries, factualColor, referenceColor)
                 } else if (factual.size < 2) {
                     Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
@@ -620,6 +685,7 @@ internal fun PetWeightReferenceChartCard(
 private fun PetWeightVicoChart(
     displayedSeries: List<PetWeightDisplayedSeries>,
     breedBands: List<BreedWeightReferenceBand>,
+    exactObservationGlyphs: List<PetWeightExactObservationGlyph>,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
@@ -663,6 +729,9 @@ private fun PetWeightVicoChart(
     }
     val bandDecoration = remember(breedBands) {
         BreedWeightReferenceBandDecoration(breedBands, Color(0xFF66BB6A).copy(alpha = 0.14f))
+    }
+    val exactObservationDecoration = remember(exactObservationGlyphs) {
+        ExactObservationDecoration(exactObservationGlyphs, Color(0xFF43A047))
     }
     val modelProducer = remember { CartesianChartModelProducer() }
     val bottomFormatter = remember(zoneId) {
@@ -717,7 +786,7 @@ private fun PetWeightVicoChart(
                     markerFormatter,
                     lineCount = displayedSeries.size,
                 ),
-                decorations = listOf(bandDecoration),
+                decorations = listOf(bandDecoration, exactObservationDecoration),
             ),
             modelProducer = modelProducer,
             modifier = Modifier
@@ -787,6 +856,44 @@ private class BreedWeightReferenceBandDecoration(
                 }
                 path.close()
                 canvas.drawPath(path, paint)
+            }
+        } finally {
+            canvas.restore()
+        }
+    }
+}
+
+private class ExactObservationDecoration(
+    private val glyphs: List<PetWeightExactObservationGlyph>,
+    color: Color,
+) : Decoration {
+    private val whiskerPaint = Paint().apply {
+        this.color = color
+        style = PaintingStyle.Stroke
+        strokeWidth = 2f
+    }
+    private val pointPaint = Paint().apply { this.color = color }
+
+    override fun drawOverLayers(context: CartesianDrawingContext) = with(context) {
+        val yRange = ranges.getYRange(Axis.Position.Vertical.Start)
+        if (ranges.xStep == 0.0 || yRange.length == 0.0) return@with
+        val start = if (isLtr) layerBounds.left else layerBounds.right
+        val baseX = start + layoutDirectionMultiplier * layerDimensions.startPadding - scroll
+        fun x(value: Long): Float = baseX + layoutDirectionMultiplier * layerDimensions.xSpacing *
+            ((value - ranges.minX) / ranges.xStep).toFloat()
+        fun y(value: Double): Float = layerBounds.bottom -
+            ((value - yRange.minY) / yRange.length).toFloat() * layerBounds.height
+
+        canvas.save()
+        canvas.clipRect(layerBounds.left, layerBounds.top, layerBounds.right, layerBounds.bottom)
+        try {
+            glyphs.forEach { glyph ->
+                val glyphX = x(glyph.xEpochMillis)
+                val cap = 6f
+                canvas.drawLine(Offset(glyphX, y(glyph.lowerKg)), Offset(glyphX, y(glyph.upperKg)), whiskerPaint)
+                canvas.drawLine(Offset(glyphX - cap, y(glyph.lowerKg)), Offset(glyphX + cap, y(glyph.lowerKg)), whiskerPaint)
+                canvas.drawLine(Offset(glyphX - cap, y(glyph.upperKg)), Offset(glyphX + cap, y(glyph.upperKg)), whiskerPaint)
+                canvas.drawCircle(Offset(glyphX, y(glyph.meanKg)), 4f, pointPaint)
             }
         } finally {
             canvas.restore()

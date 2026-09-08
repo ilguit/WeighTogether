@@ -5,6 +5,7 @@ import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -14,6 +15,54 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `breed curve ignores legacy timeline and exposes P9 P91 band with P50`() {
+        val dates = listOf(LocalDate.of(2026, 8, 1), LocalDate.of(2026, 9, 1))
+        val reference = availableSegments(
+            segments = listOf(dates.mapIndexed { index, date ->
+                PetHistoryReferencePoint(date, 2.0 + index, 3.0 + index, 3.0 + index, 4.0 + index)
+            }),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+            fittedPercentiles = true,
+        )
+        val legacy = listOf(timelinePoint(dates.first(), PetHistoryBreedChartValue.Single(99.0, "Устаревшее", "legacy")))
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, legacy, ZoneOffset.UTC)
+        val band = populationWeightReferenceBands(reference, ZoneOffset.UTC).single()
+
+        assertEquals(4, displayed.size)
+        assertTrue(displayed.none { 99.0 in it.y })
+        assertEquals(dates.size, band.points.size)
+        assertEquals(
+            listOf("▰ Светло-зелёная зона — породный диапазон P9–P91", "— P50 породы"),
+            referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
+    @Test fun `exact breed observation becomes single date whisker and mean without chart lines`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val reference = availableSegments(
+            segments = listOf(listOf(PetHistoryReferencePoint(date, 3.0, 4.0, 4.0, 5.0))),
+            provenance = WeightReferenceProvenance.BREED_EXACT_OBSERVATION,
+        )
+
+        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC).isEmpty())
+        assertEquals(
+            listOf(PetWeightExactObservationGlyph(date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli(), 3.0, 4.0, 5.0)),
+            exactObservationGlyphs(reference, ZoneOffset.UTC),
+        )
+        assertEquals(
+            listOf("↕ Диапазон наблюдения породы в дату рождения", "● Средний вес породы в дату рождения"),
+            referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
+        )
+    }
+
+    @Test fun `selected breed population fallback legend explicitly says it is not breed data`() {
+        val labels = referenceWeightChartLegendEntries(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
+            .map(PetWeightChartLegendEntry::label)
+
+        assertTrue(labels.all { "не по породе" in it })
+    }
+
     @Test fun `population legend uses the approved non medical term`() {
         val labels = populationWeightChartLegendEntries().map(PetWeightChartLegendEntry::label)
 
@@ -644,8 +693,11 @@ class PetWeightReferenceChartTest {
 
     private fun availableSegments(
         segments: List<List<PetHistoryReferencePoint>>,
+        provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
+        fittedPercentiles: Boolean = false,
     ) = PetHistoryWeightReference.Available(
         basis = ReferenceBasis.BREED,
+        provenance = provenance,
         segments = segments,
         approximate = false,
         ageLabel = "Возраст: 1 год",
@@ -655,6 +707,7 @@ class PetWeightReferenceChartTest {
         license = "CC",
         constraints = listOf("test constraint"),
         accessibilityLabel = "test reference",
+        isFittedPopulationPercentiles = fittedPercentiles,
     )
 
     private fun breedAvailable(values: List<PetHistoryBreedChartValue>) = PetHistoryBreedReference.Available(
