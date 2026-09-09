@@ -102,6 +102,11 @@ def main():
     assert set(context_fields) == REQUIRED_CONTEXT_FIELDS, "quantitative contexts schema changed"
     assert contexts
     assert all(all(row[field].strip() for field in REQUIRED_CONTEXT_FIELDS) for row in contexts)
+    context_keys = [
+        (row["source_id"], row["metric_type"], row["year/period"], row["geography"])
+        for row in contexts
+    ]
+    assert len(context_keys) == len(set(context_keys)), "duplicate quantitative context key"
     assert all(row["usable_for_breed_ranking"] == "no" for row in contexts)
     assert {row["sample_type"] for row in contexts} >= {"population", "exhibition entries", "cattery"}
     yandex_contexts = [row for row in contexts if row["source_id"] == "RU-YANDEX-ID-2024"]
@@ -117,6 +122,8 @@ def main():
     assert set(excluded_fields) == REQUIRED_EXCLUDED_FIELDS, "excluded series schema changed"
     assert excluded
     assert all(all(row[field].strip() for field in REQUIRED_EXCLUDED_FIELDS) for row in excluded)
+    excluded_source_ids = [row["source_id"] for row in excluded]
+    assert len(excluded_source_ids) == len(set(excluded_source_ids)), "duplicate excluded source_id"
     assert all(row["numeric_data_available"] in {"yes", "no", "partial"} for row in excluded)
     assert {row["sample_type"] for row in excluded} >= {
         "registration", "litter", "cattery", "user registry", "exhibition entries", "points",
