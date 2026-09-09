@@ -14,8 +14,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
@@ -306,7 +308,11 @@ internal fun PetHistoryBreedReferenceCard(
             when (reference) {
                 PetHistoryBreedReference.Hidden -> Unit
                 is PetHistoryBreedReference.Unavailable -> {
-                    Text(reference.message, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(
+                        reference.message,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                     if (reference.showEditAction) TextButton(
                         onClick = onEdit,
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget).testTag(PetBreedReferenceTestTags.Edit),
@@ -396,7 +402,9 @@ private fun ReferenceSourceGroup(
         if (hasError) Text(
             "Не удалось открыть источник «${source.title}».",
             color = MaterialTheme.colorScheme.error,
-            modifier = Modifier.testTag(PetBreedReferenceTestTags.sourceError(index)),
+            modifier = Modifier
+                .testTag(PetBreedReferenceTestTags.sourceError(index))
+                .semantics { liveRegion = LiveRegionMode.Assertive },
         )
     }
 }

@@ -39,6 +39,20 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `legacy Canadian Sphynx id resolves through canonical Sphynx profile`() {
+        val result = resolver.resolve(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100061"),
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(365)),
+            referenceDate = referenceDate,
+        ).available()
+
+        assertEquals(BreedId("VBO:0100230"), result.selectedBreedId)
+        assertEquals(ReferenceBasis.BREED, result.basis)
+    }
+
+    @Test
     fun `cat without selected breed retains population reference behavior`() {
         val result = resolver.resolve(
             species = PetSpecies.CAT,
