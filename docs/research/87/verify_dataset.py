@@ -3,6 +3,7 @@
 
 import csv
 import json
+import re
 from pathlib import Path
 
 
@@ -12,6 +13,7 @@ CATALOG = ROOT / "core/src/main/resources/breed_catalog.json"
 POPULATION = RESEARCH / "population-ranking.csv"
 CONTEXTS = RESEARCH / "quantitative-contexts.csv"
 EXCLUDED = RESEARCH / "excluded-series.csv"
+FINAL_ANALYSIS = RESEARCH / "final-analysis.md"
 
 REQUIRED_POPULATION_FIELDS = {
     "source_id", "breed_original", "variety_original", "breed_name_ru",
@@ -62,6 +64,24 @@ def main():
     assert {row["sample_type"] for row in excluded} >= {
         "registration", "litter", "cattery", "user registry", "exhibition entries", "points",
     }
+
+    analysis = FINAL_ANALYSIS.read_text(encoding="utf-8")
+    normalized_analysis = re.sub(r"\s+", " ", analysis)
+    for required_statement in (
+        "не определены",
+        "псевдорепликацией",
+        "1–10",
+        "11–30",
+        "31–50",
+        "Все породы",
+        "не перенумеровывает",
+        "Центр изучения питания и благополучия животных / Ipsos",
+        "Felis Russica",
+        "Animal-ID",
+    ):
+        assert required_statement in normalized_analysis, (
+            f"final analysis lost required conclusion: {required_statement}"
+        )
 
     print(
         f"OK: {len(rows)} population ranks, {len(contexts)} quantitative contexts, "

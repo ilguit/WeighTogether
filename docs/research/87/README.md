@@ -1,7 +1,9 @@
 # Russian cat-breed popularity dataset (issue #87)
 
 Snapshot date: 2026-09-09. The detailed source assessment is in
-[`source-audit.md`](source-audit.md).
+[`source-audit.md`](source-audit.md). The independent comparison, aggregation
+sensitivity analysis, final range recommendation, UI fallback, and data-request
+registry are in [`final-analysis.md`](final-analysis.md).
 
 ## Result
 
