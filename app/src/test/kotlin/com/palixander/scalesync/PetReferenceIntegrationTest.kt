@@ -160,14 +160,14 @@ class PetReferenceIntegrationTest {
         assertTrue(chartRange.max >= points.maxOf { it.upperKg })
 
         val unknownPet = restoredUnknown.toDomain()
-        assertNull(unknownPet.breedId)
-        assertFalse(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
+        assertEquals(unknownBreedId, unknownPet.breedId)
+        assertTrue(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
         val unavailable = PetHistoryReferencePresenter().present(
             unknownPet,
             ChartDateRange(referenceDate, referenceDate),
         ) as PetHistoryWeightReference.Unavailable
         assertEquals(
-            WeightReferenceUnavailableReason.MissingDogAdultWeight,
+            WeightReferenceUnavailableReason.UnknownBreed(unknownBreedId.value),
             unavailable.reason,
         )
     }
