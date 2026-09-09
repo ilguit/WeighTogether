@@ -30,7 +30,8 @@ deliberately not materialized in the evidence table.
   counts. `numeric_data_available=yes` means numbers exist but have the wrong
   meaning; it does not make the series suitable for ranking.
 - `verify_dataset.py` checks schema, catalog/VBO IDs, null breed counts, metric
-  separation, and the published rank order.
+  separation, the published rank order, and the SHA-256 checksums recorded in
+  `CHECKSUMS.sha256`.
 
 ## Mapping decisions
 

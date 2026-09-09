@@ -2,6 +2,7 @@
 """Validate issue #87 CSV schemas, VBO mappings, and published rank order."""
 
 import csv
+import hashlib
 import json
 import re
 from pathlib import Path
@@ -14,6 +15,7 @@ POPULATION = RESEARCH / "population-ranking.csv"
 CONTEXTS = RESEARCH / "quantitative-contexts.csv"
 EXCLUDED = RESEARCH / "excluded-series.csv"
 FINAL_ANALYSIS = RESEARCH / "final-analysis.md"
+CHECKSUMS = RESEARCH / "CHECKSUMS.sha256"
 
 REQUIRED_POPULATION_FIELDS = {
     "source_id", "breed_original", "variety_original", "breed_name_ru",
@@ -31,6 +33,18 @@ def read_csv(path: Path):
 
 
 def main():
+    expected_files = {POPULATION.name, CONTEXTS.name, EXCLUDED.name}
+    checksum_rows = {}
+    for line in CHECKSUMS.read_text(encoding="utf-8").splitlines():
+        digest, filename = line.split("  ", maxsplit=1)
+        assert re.fullmatch(r"[0-9a-f]{64}", digest), "invalid SHA-256 digest"
+        assert filename not in checksum_rows, f"duplicate checksum for {filename}"
+        checksum_rows[filename] = digest
+    assert set(checksum_rows) == expected_files, "checksum file set changed"
+    for filename, expected_digest in checksum_rows.items():
+        actual_digest = hashlib.sha256((RESEARCH / filename).read_bytes()).hexdigest()
+        assert actual_digest == expected_digest, f"checksum mismatch for {filename}"
+
     fields, rows = read_csv(POPULATION)
     assert set(fields) == REQUIRED_POPULATION_FIELDS, "population schema changed"
     assert rows, "population ranking must not be empty"
