@@ -16,6 +16,16 @@ tasks.test { useJUnitPlatform() }
 val generatedSnapshot = layout.buildDirectory.file("verification/weight_references.json")
 val sourceDocument = layout.projectDirectory.file("weight_references.source.json")
 val fittedCatCurves = layout.projectDirectory.file("../../docs/research/97/bccg-curves.csv")
+val catBreedEvidence = layout.projectDirectory.file("cat_breed_evidence.csv")
+
+val validateCatBreedEvidence by tasks.registering(JavaExec::class) {
+    group = "verification"
+    description = "Validates the approved production input for cat breed adult ranges."
+    classpath = sourceSets.main.get().runtimeClasspath
+    mainClass = application.mainClass
+    inputs.file(catBreedEvidence)
+    args("--validate-cat-breed-evidence", catBreedEvidence.asFile.absolutePath)
+}
 
 val regenerateSnapshot by tasks.registering(JavaExec::class) {
     group = "verification"
@@ -29,7 +39,7 @@ val regenerateSnapshot by tasks.registering(JavaExec::class) {
 
 tasks.register("verifySnapshot") {
     group = "verification"
-    dependsOn(regenerateSnapshot, tasks.test)
+    dependsOn(regenerateSnapshot, validateCatBreedEvidence, tasks.test)
     val trackedSnapshot = layout.projectDirectory.file("../../core/src/main/resources/weight_references.json")
     inputs.files(generatedSnapshot, trackedSnapshot)
     doLast {

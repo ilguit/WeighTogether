@@ -14,9 +14,12 @@ import java.io.InputStreamReader;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.zip.ZipInputStream;
 
@@ -27,6 +30,10 @@ public final class Main {
     private Main() {}
 
     public static void main(String[] args) throws Exception {
+        if (args.length == 2 && args[0].equals("--validate-cat-breed-evidence")) {
+            validateCatBreedEvidence(Path.of(args[1]));
+            return;
+        }
         if (args.length == 4 && args[0].equals("--snapshot")) {
             snapshot(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
             return;
@@ -35,8 +42,110 @@ public final class Main {
             derive(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]), Path.of(args[4]));
             return;
         }
-        if (args.length != 2) throw new IllegalArgumentException("Usage: <source-json> <output-json> | --snapshot <source-json> <bccg-curves.csv> <output-json> | --derive <source-json> <dog-zip> <kitten-csv> <output-json>");
+        if (args.length != 2) throw new IllegalArgumentException("Usage: <source-json> <output-json> | --snapshot <source-json> <bccg-curves.csv> <output-json> | --derive <source-json> <dog-zip> <kitten-csv> <output-json> | --validate-cat-breed-evidence <csv>");
         normalize(Path.of(args[0]), Path.of(args[1]));
+    }
+
+    private static final List<String> CAT_EVIDENCE_FIELDS = List.of(
+        "schemaVersion", "vboId", "canonicalBreed", "batch", "evidenceTier", "sex",
+        "adultLowerKg", "adultMedianKg", "adultUpperKg", "maturityAgeDays",
+        "maturityDerivation", "medianDerivation", "sourceId", "sourceAuthorityClass",
+        "sourceUrl", "claim", "limitations", "deprecatedAliases"
+    );
+    private static final Set<String> CAT_BATCH_1_IDS = Set.of(
+        "0100000", "0100036", "0100040", "0100053", "0100077", "0100084",
+        "0100169", "0100170", "0100178", "0100183", "0100184", "0100189",
+        "0100196", "0100200", "0100230", "0100235", "0100245", "0100303"
+    );
+
+    static void validateCatBreedEvidence(Path path) throws Exception {
+        List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+        if (lines.isEmpty() || !csvFields(lines.get(0)).equals(CAT_EVIDENCE_FIELDS)) {
+            throw new IllegalArgumentException("Unexpected cat breed evidence header");
+        }
+        Map<String, Set<String>> sexesByBreed = new HashMap<>();
+        Map<String, List<String>> firstRowByBreed = new HashMap<>();
+        Set<String> aliases = new HashSet<>();
+        int batch1 = 0;
+        int batch2 = 0;
+        for (int lineNumber = 2; lineNumber <= lines.size(); lineNumber++) {
+            List<String> values = csvFields(lines.get(lineNumber - 1));
+            if (values.size() != CAT_EVIDENCE_FIELDS.size()) {
+                throw new IllegalArgumentException("Invalid cat breed evidence row " + lineNumber);
+            }
+            Map<String, String> row = new HashMap<>();
+            for (int index = 0; index < values.size(); index++) row.put(CAT_EVIDENCE_FIELDS.get(index), values.get(index));
+            require(row.get("schemaVersion").equals("1"), lineNumber, "schemaVersion");
+            require(row.get("vboId").matches("01[0-9]{5}"), lineNumber, "vboId");
+            require(!row.get("canonicalBreed").isBlank(), lineNumber, "canonicalBreed");
+            require(Set.of("1", "2").contains(row.get("batch")), lineNumber, "batch");
+            require(row.get("batch").equals(CAT_BATCH_1_IDS.contains(row.get("vboId")) ? "1" : "2"), lineNumber, "approved batch");
+            require(Set.of("official", "professional_fallback").contains(row.get("evidenceTier")), lineNumber, "evidenceTier");
+            require(Set.of("female", "male").contains(row.get("sex")), lineNumber, "sex");
+            double lower = positive(row, "adultLowerKg", lineNumber);
+            double median = positive(row, "adultMedianKg", lineNumber);
+            double upper = positive(row, "adultUpperKg", lineNumber);
+            require(lower < upper, lineNumber, "adult bounds");
+            // The approved evidence package preserves source conversions at 3–6 decimals.
+            require(Math.abs(median - (lower + upper) / 2.0) <= 0.0001, lineNumber, "adultMedianKg");
+            require(row.get("medianDerivation").equals("arithmetic_midpoint"), lineNumber, "medianDerivation");
+            int maturity = Integer.parseInt(row.get("maturityAgeDays"));
+            require(maturity > 0, lineNumber, "maturityAgeDays");
+            require(Set.of("published", "model_fallback").contains(row.get("maturityDerivation")), lineNumber, "maturityDerivation");
+            require(!row.get("sourceId").isBlank() && !row.get("sourceAuthorityClass").isBlank(), lineNumber, "source provenance");
+            require(row.get("sourceUrl").startsWith("https://") && !row.get("claim").isBlank() && !row.get("limitations").isBlank(), lineNumber, "claim provenance");
+            require(!row.get("evidenceTier").equals("official") || row.get("sourceAuthorityClass").startsWith("official_"), lineNumber, "official source class");
+            require(!row.get("evidenceTier").equals("professional_fallback") || !row.get("sourceAuthorityClass").startsWith("official_"), lineNumber, "fallback source class");
+            if (row.get("maturityDerivation").equals("model_fallback")) require(maturity == 730, lineNumber, "fallback maturity");
+            String breed = row.get("vboId");
+            require(!breed.equals("0100061"), lineNumber, "deprecated Sphynx ID");
+            require(sexesByBreed.computeIfAbsent(breed, unused -> new HashSet<>()).add(row.get("sex")), lineNumber, "duplicate sex");
+            List<String> first = firstRowByBreed.putIfAbsent(breed, values);
+            if (first != null) {
+                for (String field : List.of("canonicalBreed", "batch", "evidenceTier", "maturityAgeDays", "maturityDerivation", "sourceId", "sourceAuthorityClass", "sourceUrl", "limitations", "deprecatedAliases")) {
+                    require(first.get(CAT_EVIDENCE_FIELDS.indexOf(field)).equals(row.get(field)), lineNumber, "inconsistent " + field);
+                }
+            } else if (row.get("batch").equals("1")) batch1++; else batch2++;
+            if (!row.get("deprecatedAliases").isBlank()) {
+                require(row.get("deprecatedAliases").matches("01[0-9]{5}"), lineNumber, "deprecatedAliases");
+                aliases.add(row.get("deprecatedAliases") + "->" + breed);
+            }
+        }
+        require(sexesByBreed.size() == 26, 0, "breed count");
+        require(batch1 == 18 && batch2 == 8, 0, "batch counts");
+        require(firstRowByBreed.keySet().containsAll(CAT_BATCH_1_IDS), 0, "Batch 1 IDs");
+        require(firstRowByBreed.get("0100200").get(CAT_EVIDENCE_FIELDS.indexOf("evidenceTier")).equals("professional_fallback"), 0, "Russian Blue exception");
+        require(sexesByBreed.values().stream().allMatch(value -> value.equals(Set.of("female", "male"))), 0, "sex coverage");
+        require(aliases.equals(Set.of("0100061->0100230")), 0, "canonical aliases");
+    }
+
+    private static double positive(Map<String, String> row, String field, int lineNumber) {
+        double value;
+        try { value = Double.parseDouble(row.get(field)); }
+        catch (NumberFormatException error) { throw new IllegalArgumentException("Invalid " + field + " at row " + lineNumber); }
+        require(Double.isFinite(value) && value > 0, lineNumber, field);
+        return value;
+    }
+
+    private static void require(boolean condition, int row, String field) {
+        if (!condition) throw new IllegalArgumentException("Invalid " + field + (row > 0 ? " at row " + row : ""));
+    }
+
+    private static List<String> csvFields(String line) {
+        List<String> fields = new ArrayList<>();
+        StringBuilder field = new StringBuilder();
+        boolean quoted = false;
+        for (int index = 0; index < line.length(); index++) {
+            char character = line.charAt(index);
+            if (character == '"') {
+                if (quoted && index + 1 < line.length() && line.charAt(index + 1) == '"') { field.append('"'); index++; }
+                else quoted = !quoted;
+            } else if (character == ',' && !quoted) { fields.add(field.toString()); field.setLength(0); }
+            else field.append(character);
+        }
+        if (quoted) throw new IllegalArgumentException("Unterminated quoted CSV field");
+        fields.add(field.toString());
+        return fields;
     }
 
     private static void snapshot(Path source, Path fittedCatCurves, Path output) throws Exception {

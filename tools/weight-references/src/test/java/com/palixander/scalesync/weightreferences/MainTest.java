@@ -46,6 +46,29 @@ class MainTest {
         assertEquals("Unsupported weight reference schema: 1", error.getMessage());
     }
 
+    @Test
+    void approvedCatBreedEvidenceSatisfiesProductionContract() throws Exception {
+        Main.validateCatBreedEvidence(Path.of("cat_breed_evidence.csv"));
+    }
+
+    @Test
+    void catBreedEvidenceRejectsNonStandardFallbackMaturity() throws Exception {
+        String approved = Files.readString(Path.of("cat_breed_evidence.csv"), StandardCharsets.UTF_8);
+        Path invalid = temporaryDirectory.resolve("invalid.csv");
+        Files.writeString(
+            invalid,
+            approved.replaceFirst(",730,model_fallback,", ",731,model_fallback,"),
+            StandardCharsets.UTF_8
+        );
+
+        IllegalArgumentException error = assertThrows(
+            IllegalArgumentException.class,
+            () -> Main.validateCatBreedEvidence(invalid)
+        );
+
+        assertEquals("Invalid fallback maturity at row 4", error.getMessage());
+    }
+
     private static String document(int schemaVersion) {
         return "{\"manifest\":{\"schemaVersion\":" + schemaVersion
             + ",\"numericalDataSha256\":\"generated\"},\"profiles\":[{\"id\":\"observed\"}]}";
