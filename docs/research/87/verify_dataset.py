@@ -3,6 +3,7 @@
 
 import csv
 import hashlib
+import importlib.util
 import json
 import re
 from pathlib import Path
@@ -17,6 +18,12 @@ CONTEXTS = RESEARCH / "quantitative-contexts.csv"
 EXCLUDED = RESEARCH / "excluded-series.csv"
 FINAL_ANALYSIS = RESEARCH / "final-analysis.md"
 CHECKSUMS = RESEARCH / "CHECKSUMS.sha256"
+EVIDENCE_PRIORITY = RESEARCH / "evidence-priority.csv"
+EXHIBITIONS = RESEARCH / "exhibitions-tyumen-2024.csv"
+REGISTRY_DETAIL = RESEARCH / "registries-cattery-breed.csv"
+REGISTRY_COUNTS = RESEARCH / "registries-breed-counts.csv"
+CONSUMER_RANKING = RESEARCH / "consumer-proxy-ranking.csv"
+CONSUMER_INVENTORY = RESEARCH / "consumer-source-inventory.csv"
 
 REQUIRED_POPULATION_FIELDS = (
     "source_id", "breed_original", "variety_original", "breed_name_ru",
@@ -52,6 +59,12 @@ ALLOWED_SAMPLE_TYPES = {
         "points",
     },
 }
+REQUIRED_EVIDENCE_FIELDS = (
+    "priority", "evidence_tier", "breed_name_en", "scalesync_vbo_id",
+    "source_series_count", "farus_rank", "felis_rank", "wcf_event_rank",
+    "avito_rank", "vetas_rank", "ingos_rank", "median_normalized_rank",
+    "interpretation",
+)
 
 
 def read_csv(path: Path):
@@ -71,8 +84,23 @@ def read_validated_csv(path: Path, required_fields):
     return rows
 
 
+def read_evidence_priority(path: Path = EVIDENCE_PRIORITY):
+    fields, rows = read_csv(path)
+    assert fields == list(REQUIRED_EVIDENCE_FIELDS), (
+        f"{path.name} schema or column order changed"
+    )
+    assert {row["evidence_tier"] for row in rows} <= {"A", "B", "C"}, (
+        f"{path.name} contains unknown evidence tier"
+    )
+    return rows
+
+
 def main():
-    expected_files = {POPULATION.name, YANDEX.name, CONTEXTS.name, EXCLUDED.name}
+    expected_files = {
+        POPULATION.name, YANDEX.name, CONTEXTS.name, EXCLUDED.name,
+        EVIDENCE_PRIORITY.name, EXHIBITIONS.name, REGISTRY_DETAIL.name,
+        REGISTRY_COUNTS.name, CONSUMER_RANKING.name, CONSUMER_INVENTORY.name,
+    }
     checksum_rows = {}
     for line in CHECKSUMS.read_text(encoding="utf-8").splitlines():
         digest, filename = line.split("  ", maxsplit=1)
@@ -155,6 +183,26 @@ def main():
         "registration", "litter", "cattery", "user registry", "exhibition entries", "points",
     }
 
+    evidence_rows = read_evidence_priority()
+    assert len(evidence_rows) == 48, "outside-top-five exact VBO coverage changed"
+    assert [int(row["priority"]) for row in evidence_rows] == list(range(1, 49))
+    assert len({row["scalesync_vbo_id"] for row in evidence_rows}) == 48
+    assert all(row["scalesync_vbo_id"] in cats for row in evidence_rows)
+    assert all(cats[row["scalesync_vbo_id"]]["canonicalName"] == row["breed_name_en"] for row in evidence_rows)
+    tier_counts = {tier: sum(row["evidence_tier"] == tier for row in evidence_rows) for tier in "ABC"}
+    assert tier_counts == {"A": 9, "B": 14, "C": 25}
+    assert all(row["interpretation"] == "application coverage priority; not population rank" for row in evidence_rows)
+
+    build_path = RESEARCH / "build_evidence_priority.py"
+    spec = importlib.util.spec_from_file_location("build_evidence_priority", build_path)
+    builder = importlib.util.module_from_spec(spec)
+    assert spec.loader is not None
+    spec.loader.exec_module(builder)
+    assert evidence_rows == [
+        {field: str(row[field]) for field in REQUIRED_EVIDENCE_FIELDS}
+        for row in builder.build_rows()
+    ], "evidence priority no longer matches source-specific ranks"
+
     analysis = FINAL_ANALYSIS.read_text(encoding="utf-8")
     normalized_analysis = re.sub(r"\s+", " ", analysis)
     for required_statement in (
@@ -172,15 +220,21 @@ def main():
         "Центр изучения питания и благополучия животных / Ipsos",
         "Felis Russica",
         "Animal-ID",
+        "48",
+        "FARUS",
+        "WCF",
+        "Tier A",
+        "не является популяционным рейтингом",
     ):
-        assert required_statement in normalized_analysis, (
+        assert required_statement.casefold() in normalized_analysis.casefold(), (
             f"final analysis lost required conclusion: {required_statement}"
         )
 
     print(
         f"OK: {len(population_rows)} population and {len(yandex_rows)} Yandex ranks, "
         f"4/5 overlap, {len(contexts)} quantitative contexts, "
-        f"{len(excluded)} excluded series; {len(cats)} catalog cat concepts checked"
+        f"{len(excluded)} excluded series, 48 outside-top-five concepts "
+        f"(tiers A/B/C: 9/14/25); {len(cats)} catalog cat concepts checked"
     )
 
 
