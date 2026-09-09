@@ -1,0 +1,10 @@
+source_id,sample_type,organization,year/period,geography,URL,accessed_at,numeric_data_available,exclusion_reason
+RU-FRU-DB,registration,Felis Russica,current snapshot,Россия,https://www.felis-russica.com/,2026-09-09,no,Database existence is stated but yearly animals/litters/breeds are not publicly exported
+RU-FRU-CATTERIES,cattery,Felis Russica,current snapshot,Россия,https://felis-russica.com/pitomniki-felis-russica.html,2026-09-09,no,List warns that entries can be missing and does not publish an activity denominator
+RU-FRU-NEWS,litter,Felis Russica,current snapshot,Россия,https://felis-russica.com/novosti.html,2026-09-09,no,Annual kitten statistics are requested from members but the statistics are not published
+RU-TOPCAT-CATTERIES,cattery,ООО Энимал Сервис,current snapshot,Россия,https://ru.top-cat.org/catteries,2026-09-09,no,Dynamic voluntary registry has no documented complete denominator; one cattery can list multiple breeds
+RU-ANIMAL-ID,user registry,Animal-ID,current snapshot,Россия,https://www.animal-id.ru/where/,2026-09-09,no,Public page lists marking organizations rather than registered cats by breed and period
+RU-TOPCAT-SHOW-2024,exhibition entries,ООО Энимал Сервис,2024-09-21--2024-09-22,Нижний Новгород,https://ru.top-cat.org/cat-shows/5033,2026-09-09,no,Stable complete catalog and breed totals were not publicly retrievable
+RU-WCF-BESTCAT,points,WCF,current annual ranking,Россия / international,https://wcf-bestcat.de/,2026-09-09,yes,Points measure achievement and exhibition intensity and have no denominator of all cats by breed
+RU-TOPCAT-RANKING,points,ООО Энимал Сервис,2024,Россия / international,https://ru.top-cat.org/ranking/cats?breed_id=&breed_name=&country_id=all&year=2024,2026-09-09,yes,Points rank successful exhibited individuals; zero-point and non-exhibited animals are absent
+RU-MFA,exhibition entries,Международная фелинологическая ассоциация,multiple years,Россия,https://www.cats-club.ru/,2026-09-09,partial,No unified complete export across shows/breeds/years; result pages mix entries rings and repeated animals
