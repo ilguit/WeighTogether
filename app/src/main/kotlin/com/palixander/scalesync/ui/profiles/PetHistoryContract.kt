@@ -164,10 +164,12 @@ data class PetHistoryReferencePoint(
 )
 
 class PetHistoryReferencePresenter(
-    private val resolver: PetWeightReferenceResolver = PetWeightReferenceResolver(),
-    private val snapshot: WeightReferenceSnapshot = WeightReferenceSnapshot.bundled(),
+    private val snapshot: WeightReferenceSnapshot? = runCatching { WeightReferenceSnapshot.bundled() }.getOrNull(),
+    private val resolver: PetWeightReferenceResolver? = snapshot?.let(::PetWeightReferenceResolver),
 ) {
     fun present(pet: Pet, range: ChartDateRange): PetHistoryWeightReference {
+        val availableSnapshot = snapshot ?: return snapshotUnavailable(pet)
+        if (resolver == null) return snapshotUnavailable(pet)
         // Missing profile data cannot become available later in the selected range. Resolve the
         // newest date first so an invalid imported historical date does not cause an unbounded
         // walk before discovering that there is no overlay to draw at all.
@@ -177,16 +179,16 @@ class PetHistoryReferencePresenter(
         if (staticUnavailable != null) {
             return PetHistoryWeightReference.Unavailable(
                 staticUnavailable.reason,
-                weightReferenceUnavailableExplanation(staticUnavailable.reason),
+                weightReferenceUnavailableExplanation(staticUnavailable.reason, pet.species),
             )
         }
 
-        val sampleDates = referenceSampleDates(range, pet, snapshot)
+        val sampleDates = referenceSampleDates(range, pet, availableSnapshot)
         if (sampleDates.isEmpty()) {
             val profileId = (endResolution as? PetWeightReferenceResolution.Available)
                 ?.reference?.profileId ?: "unknown"
             val reason = WeightReferenceUnavailableReason.ProfileUnavailable(profileId)
-            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
+            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason, pet.species))
         }
         val dated = sampleDates.map { date ->
             date to if (date == range.endDateInclusive) endResolution else resolve(pet, date)
@@ -198,13 +200,16 @@ class PetHistoryReferencePresenter(
         if (available.isEmpty()) {
             val reason = (dated.firstOrNull()?.second as? PetWeightReferenceResolution.Unavailable)?.reason
                 ?: WeightReferenceUnavailableReason.ReferenceDataGap("unknown", LongRange.EMPTY)
-            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason))
+            return PetHistoryWeightReference.Unavailable(reason, weightReferenceUnavailableExplanation(reason, pet.species))
         }
         val reference = available.last().second
-        val metadata = snapshot.metadataFor(reference.profileId, reference.sourceId)
+        val metadata = availableSnapshot.metadataFor(reference.profileId, reference.sourceId)
             ?: return PetHistoryWeightReference.Unavailable(
                 WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId),
-                weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId)),
+                weightReferenceUnavailableExplanation(
+                    WeightReferenceUnavailableReason.ProfileUnavailable(reference.profileId),
+                    pet.species,
+                ),
             )
         data class SegmentIdentity(val profileId: String, val sourceId: String, val provenance: WeightReferenceProvenance)
         val segments = mutableListOf<Pair<SegmentIdentity, MutableList<PetHistoryReferencePoint>>>()
@@ -237,10 +242,13 @@ class PetHistoryReferencePresenter(
         return availablePresentation(
             metadata = metadata,
             segments = segments.map { (identity, points) ->
-                val segmentMetadata = snapshot.metadataFor(identity.profileId, identity.sourceId)
+                val segmentMetadata = availableSnapshot.metadataFor(identity.profileId, identity.sourceId)
                     ?: return PetHistoryWeightReference.Unavailable(
                         WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId),
-                        weightReferenceUnavailableExplanation(WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId)),
+                        weightReferenceUnavailableExplanation(
+                            WeightReferenceUnavailableReason.ProfileUnavailable(identity.profileId),
+                            pet.species,
+                        ),
                     )
                 PetHistoryReferenceSegment(
                     profileId = identity.profileId,
@@ -268,7 +276,7 @@ class PetHistoryReferencePresenter(
         else -> true
     }
 
-    private fun resolve(pet: Pet, date: LocalDate) = resolver.resolve(
+    private fun resolve(pet: Pet, date: LocalDate) = requireNotNull(resolver).resolve(
         species = pet.species,
         sex = pet.sex,
         breedId = pet.breedId,
@@ -277,6 +285,14 @@ class PetHistoryReferencePresenter(
         dogAdultWeight = pet.dogAdultWeightCategory?.let(DogAdultWeight::Category),
         intactStatus = IntactStatus.UNKNOWN,
     )
+
+    private fun snapshotUnavailable(pet: Pet): PetHistoryWeightReference.Unavailable {
+        val reason = WeightReferenceUnavailableReason.ProfileUnavailable("bundled-snapshot")
+        return PetHistoryWeightReference.Unavailable(
+            reason,
+            weightReferenceUnavailableExplanation(reason, pet.species),
+        )
+    }
 
     private fun availablePresentation(
         metadata: ReferenceProfileMetadata,
@@ -482,6 +498,32 @@ fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReas
     is WeightReferenceUnavailableReason.ReferenceDataGap -> "Эталон недоступен: в опубликованных данных профиля ${reason.profileId} есть пробел для этого возраста."
     is WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum -> "Эталон недоступен: вес ${reason.weightKg} кг выше поддерживаемого источником максимума."
     is WeightReferenceUnavailableReason.AgeOutOfRange -> "Эталон недоступен: возраст вне опубликованного диапазона ${reason.supportedMinimumDays}–${reason.supportedMaximumDays} дней."
+}
+
+private fun weightReferenceUnavailableExplanation(
+    reason: WeightReferenceUnavailableReason,
+    species: com.palixander.scalesync.domain.PetSpecies,
+): String = if (species == com.palixander.scalesync.domain.PetSpecies.CAT) {
+    when (reason) {
+        WeightReferenceUnavailableReason.MissingSex ->
+            "Укажите пол питомца, чтобы показать породный ориентир."
+        WeightReferenceUnavailableReason.MissingBirthDate ->
+            "Укажите дату рождения, чтобы показать ориентир для возраста."
+        WeightReferenceUnavailableReason.InvalidBirthDate ->
+            "Исправьте дату рождения, чтобы показать ориентир для возраста."
+        is WeightReferenceUnavailableReason.UnsupportedBreed,
+        is WeightReferenceUnavailableReason.UnknownBreed,
+        is WeightReferenceUnavailableReason.BreedSpeciesMismatch,
+        -> "Для выбранной породы ориентиры сейчас недоступны."
+        is WeightReferenceUnavailableReason.AgeOutOfRange,
+        is WeightReferenceUnavailableReason.ReferenceDataGap,
+        -> "Для выбранного возраста опубликованные данные отсутствуют."
+        is WeightReferenceUnavailableReason.ProfileUnavailable ->
+            "Ориентиры породы временно недоступны."
+        else -> weightReferenceUnavailableExplanation(reason)
+    }
+} else {
+    weightReferenceUnavailableExplanation(reason)
 }
 
 data class PetHistoryCallbacks(

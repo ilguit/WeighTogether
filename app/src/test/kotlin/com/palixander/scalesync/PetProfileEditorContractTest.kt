@@ -128,6 +128,17 @@ class PetProfileEditorContractTest {
         assertTrue(breedCatalog.search("Maine Coon Cat", PetSpecies.CAT).isNotEmpty())
         assertTrue(breedCatalog.search("мейн", PetSpecies.CAT).isNotEmpty())
         assertTrue(breedCatalog.search("мейн", PetSpecies.DOG).isEmpty())
+        assertEquals(1, cats.count { it.id == BreedId("VBO:0100230") && it.displayName == "Сфинкс" })
+        assertTrue(cats.none { it.id == BreedId("VBO:0100061") })
+        assertEquals(
+            mapOf(
+                BreedId("VBO:0100169") to "Манчкин",
+                BreedId("VBO:0100170") to "Манчкин длинношёрстный",
+                BreedId("VBO:0100303") to "Манчкин короткошёрстный",
+            ),
+            cats.filter { it.id.value in setOf("VBO:0100169", "VBO:0100170", "VBO:0100303") }
+                .associate { it.id to it.displayName },
+        )
     }
 
     @Test
