@@ -91,7 +91,7 @@ class PetReferenceIntegrationTest {
     }
 
     @Test
-    fun `adult Russian Blue with unavailable age reference does not crash chart presentation`() {
+    fun `adult Russian Blue keeps adult reference available in chart presentation`() {
         val pet = NewPet(
             displayName = "Луна",
             species = PetSpecies.CAT,
@@ -104,8 +104,9 @@ class PetReferenceIntegrationTest {
             ChartDateRange(referenceDate.minusDays(2), referenceDate),
         )
 
-        assertTrue(reference is PetHistoryWeightReference.Unavailable)
-        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC).isEmpty())
+        val available = reference as PetHistoryWeightReference.Available
+        assertEquals(3, available.segments.flatten().size)
+        assertTrue(petWeightChartRange(emptyList(), available) != null)
     }
 
     @Test

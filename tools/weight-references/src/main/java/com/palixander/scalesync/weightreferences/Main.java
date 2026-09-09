@@ -280,7 +280,7 @@ public final class Main {
             scope.addProperty("basis", "breed"); scope.addProperty("breedId", "VBO:" + row.get("vboId"));
             scope.addProperty("minimumAgeDays", 56); scope.addProperty("maximumAgeDays", Integer.parseInt(row.get("maturityAgeDays")));
             scope.add("constraints", constraints); scope.addProperty("sourceId", sourceId);
-            scope.addProperty("numericalAvailability", "available"); scope.addProperty("ageAvailability", "declared_range_only");
+            scope.addProperty("numericalAvailability", "available"); scope.addProperty("ageAvailability", "carry_forward");
             scopes.add(scope);
             JsonObject range = new JsonObject();
             range.addProperty("id", id); range.addProperty("adultLowerKg", Double.parseDouble(row.get("adultLowerKg")));
