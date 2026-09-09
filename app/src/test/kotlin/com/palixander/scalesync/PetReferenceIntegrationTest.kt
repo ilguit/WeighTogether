@@ -131,7 +131,7 @@ class PetReferenceIntegrationTest {
         val restoredKnown = imported.pets.single { it.id == knownEntity.id }
         val restoredUnknown = imported.pets.single { it.id == unknownEntity.id }
         assertEquals(knownEntity, restoredKnown)
-        assertEquals(unknownEntity.copy(breedId = null), restoredUnknown)
+        assertEquals(unknownEntity, restoredUnknown)
         assertEquals(birthDate.year, restoredKnown.birthYear)
         assertEquals(birthDate.monthValue, restoredKnown.birthMonth)
         assertEquals(birthDate.dayOfMonth, restoredKnown.birthDay)
