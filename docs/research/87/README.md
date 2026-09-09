@@ -1,73 +1,73 @@
-# Russian cat-breed popularity dataset (issue #87)
+# Russian cat-breed evidence beyond the top five (issue #87)
 
-Snapshot date: 2026-09-09. The detailed source assessment is in
-[`source-audit.md`](source-audit.md). The independent comparison, aggregation
-sensitivity analysis, final range recommendation, UI fallback, and data-request
-registry are in [`final-analysis.md`](final-analysis.md).
+Snapshot date: 2026-09-09. The comprehensive conclusion and application
+coverage recommendation are in [`final-analysis.md`](final-analysis.md); source
+qualification is in [`source-audit.md`](source-audit.md).
 
 ## Result
 
-No open, reproducible Russian dataset covering at least 50 comparable breeds was
-found. Consequently this directory does **not** manufacture a 1–50 statistical
-ranking. `population-ranking.csv` contains the evidence-backed population order:
-the five breed labels published by the 2023 nationwide pet census. The already
-known 490-thousand-profile Яндекс ID source is preserved independently in
-`yandex-id-ranking.csv`; it publishes an ordinal cat top-5 and a 58% cat share,
-but no breed counts. Accordingly, `count` is null in both ranking tables.
+The original nationwide population top five and Yandex ID cross-check remain
+unchanged in `population-ranking.csv` and `yandex-id-ranking.csv`. The expanded
+research adds evidence for breeds outside that baseline without pretending the
+unlike metrics form one population ranking:
 
-The product fallback implied by the issue is therefore: preserve the proven
-top five, then order the remaining applicable catalog breeds alphabetically for
-display. Those alphabetical positions are not popularity ranks and are
-deliberately not materialized in the evidence table.
+- FARUS: 1,920 cattery-breed associations, 53 mapped VBO concepts;
+- Felis Russica: 224 associations, 23 mapped concepts;
+- one WCF Tyumen event: 102 catalogue entries across 26 codes, of which 100
+  entries and 24 codes are recognized-pedigree;
+- 20 ordered rows from three consumer/veterinary proxy series.
 
-## Files and metric boundaries
+The reproducible `evidence-priority.csv` covers 49 exact VBO concepts outside
+the five conservatively excluded baseline families: tier A 9 (at least three
+source series), tier B 14 (two series), and tier C 26 (one series). It is an
+application coverage queue, not a population-popularity ranking. Counts from
+catteries, exhibition entries, demand, veterinary records and owner surveys
+are never added or converted into common shares.
 
-- `population-ranking.csv` contains the population ranking evidence.
-- `yandex-id-ranking.csv` contains an independent self-selected user-profile
-  ranking; it must not be merged with or treated as a population estimate.
-  Both ranking tables contain mandatory provenance and ScaleSync/VBO fields.
-- `quantitative-contexts.csv` preserves numeric denominators and contextual
-  observations that cannot rank breeds. Population, cattery, and exhibition
-  entry units remain explicit and must not be summed.
-- `excluded-series.csv` records registration, litter, cattery, user-registry,
-  exhibition-entry, and points sources that cannot yield comparable breed
-  counts. `numeric_data_available=yes` means numbers exist but have the wrong
-  meaning; it does not make the series suitable for ranking.
-- `verify_dataset.py` checks exact schema and column order, closed per-file
-  `sample_type` vocabularies, catalog/VBO IDs, null breed counts, metric
-  separation, the published rank order, and the SHA-256 checksums recorded in
-  `CHECKSUMS.sha256`. `verify_dataset_test.py` exercises the schema and
-  vocabulary rejection paths against temporary copies.
+## Artifacts
 
-## Mapping decisions
+- `registries-cattery-breed.csv` and `registries-breed-counts.csv`: FARUS and
+  Felis Russica supply-side series; see `registries-report.md`.
+- `exhibitions-tyumen-2024.csv`: one complete WCF event-entry series; see
+  `exhibitions-research.md`.
+- `consumer-proxy-ranking.csv` and `consumer-source-inventory.csv`: ordered
+  demand, veterinary and owner-survey proxies plus investigated dead ends; see
+  `consumer-source-audit.md`.
+- `evidence-priority.csv`: derived cross-source coverage priority. It stores
+  each source rank in a separate column and never stores a synthetic popularity
+  rank. `build_evidence_priority.py` reproduces it.
+- `quantitative-contexts.csv` and `excluded-series.csv`: contextual numbers and
+  sources that cannot provide a comparable breed order.
+- `CHECKSUMS.sha256`: integrity manifest for all ten checked CSV artifacts.
 
-`exact` means that the published label maps directly to the current ScaleSync
-catalog concept. `aggregate`/`split` require explicit source support;
-`unresolved` means no defensible single catalog target. The household labels
-Scottish Fold and Siamese, and the Яндекс label Sphynx, are unresolved and carry
-no VBO ID: a group observation must not be attached to one member concept.
+## Mapping and ordering
 
-## Rank and tie rule
+Only `exact` single-concept mappings enter `evidence-priority.csv`. Household
+labels and registry aggregates do not inherit child VBO IDs. In particular,
+WCF `BUR` remains unresolved because it does not defensibly choose one of the
+catalog's Burmese concepts; broad Scottish, Sphynx and Don Sphynx labels remain
+unresolved; recognized varieties stay separate.
 
-Ranks 1–5 are source-published ordinal positions, not ranks reconstructed from
-unknown counts. Sorting ascending by `rank` reproduces the published order. The
-source has no ties. If a later source reports ties, equal ranks must be retained;
-VBO ID may be used only as a stable serialization key and must not turn a tie
-into distinct popularity positions.
+Priority is ordered by evidence tier, descending number of independent source
+series, median normalized rank among the series where the concept is present,
+then canonical name. Missing from a short source list is treated as unknown,
+not as a last place.
 
-Run the reproducibility check from the repository root:
+The requested 1–10 and 11–30 boundaries may be used only as coverage batches.
+The 31–50 batch is incomplete because exact evidence ends at priority 49. None
+of these ranges may be presented as national-population ranks.
+
+## Verification
+
+Run from the repository root:
 
 ```bash
+python3 docs/research/87/verify_exhibitions.py
+python3 docs/research/87/verify_exhibitions_test.py
+python3 docs/research/87/registries_verify.py
+python3 docs/research/87/registries_extract_test.py
+python3 docs/research/87/consumer-verify.py
 python3 docs/research/87/verify_dataset.py
 python3 docs/research/87/verify_dataset_test.py
+sha256sum -c docs/research/87/CHECKSUMS.sha256
 ```
-
-The two top-5 sets overlap on four labels (4/5, or 80% set overlap): British
-Shorthair, Scottish Fold, Maine Coon, and Siberian. Their common order differs:
-Maine Coon is third in Яндекс but fourth in the census. Siamese occurs only in
-the census top-5; Sphynx only in Яндекс. This is ordinal corroboration, not a
-count comparison.
-
-The >=50-breed grading criterion remains unmet. Promotion beyond the top five
-requires a broad Russian source with comparable units, reproducible totals, and
-a leading group that does not contradict an independent source.

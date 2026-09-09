@@ -105,3 +105,29 @@
 животных между секциями. Динамические TopCat/FARUS намеренно не подсчитывались
 скрейпингом: без документированной полноты такой точный итог создавал бы ложное
 ощущение популяционного знаменателя.
+
+## Дополнение 2026-09-09: широкий срез вне top‑5
+
+Это дополнение заменяет прежний вывод о том, что FARUS и Felis Russica нельзя
+воспроизводимо подсчитать. Отдельная выгрузка сохранила точную provenance каждой
+карточки и явно ограничила семантику результатом `cattery-breed association`:
+
+| ID | Источник | Сохранённый ряд | Единица и покрытие | Допустимое применение |
+|---|---|---|---|---|
+| RU-FARUS-CATTERIES-2026-09-09 | [FARUS](https://xn--80a6adhc.xn--p1ai/catteries/) | `registries-cattery-breed.csv`, `registries-breed-counts.csv` | 1 920 связей; 990 карточек с распознанной породой из 1 006 допустимых; 53 точных VBO-концепта | Supply-side breadth и приоритет покрытия; не число кошек/помётов |
+| RU-FELIS-RUSSICA-CATTERIES-2026-09-09 | [Felis Russica](https://felis-russica.com/pitomniki-felis-russica.html) | те же CSV | 224 связи, 195 питомников, 23 точных концепта | Независимый supply-side ряд; counts не суммировать с FARUS |
+| RU-WCF-TYUMEN-2024 | [каталог WCF 242037](https://www.toolj.ru/1_katalog_5_6_okt_wcf.pdf) | `exhibitions-tyumen-2024.csv` | 102 записи, 26 кодов; 100 признанных породных записей, 24 кода | Только event-entry rank одного события |
+| RU-AVITO-DEMAND-2018 | [воспроизведение анализа Avito](https://fishki.net/2533390-samye-populjarnye-porody-koshek-v-rossii-po-versii-avito.html) | `consumer-proxy-ranking.csv` | top‑10 поискового спроса; знаменатель не опубликован | Старый demand proxy, не владение |
+| RU-VETAS-MOSCOW-2023 | [официальная инфографика ВетАС](https://t.me/moyavetklinika/1175) | `consumer-proxy-ranking.csv` | top‑5 московского ветреестра; породный знаменатель не опубликован | Локальный veterinary proxy |
+| RU-INGOS-FU-2023 | [опрос 37 городов](https://www.vedomosti.ru/press_releases/2023/12/06/koshki-protiv-sobak-ingosstrah-uznal-kakih-zhivotnih-predpochitayut-rossiyane-erid-ldtck3gng) | `consumer-proxy-ranking.csv` | top‑5 с долями; размер породного среза не опубликован | Urban owner-survey proxy |
+
+Все три типа метрик сохраняются раздельно. Cross-source слой учитывает только
+наличие точного VBO-сопоставления и исходный ранг каждого ряда. Он охватывает 49
+концептов вне консервативно исключённых семейств top‑5: Tier A 9, Tier B 14,
+Tier C 26. Это evidence priority для приложения, не популяционный рейтинг.
+
+Ключевые mapping-ограничения: выставочный `BUR` остаётся unresolved; broad
+Scottish, Sphynx и Don Sphynx не прикрепляются к одному дочернему концепту;
+длинношёрстные/короткошёрстные разновидности сохраняются отдельно. Полный аудит
+и ограничения каждого нового ряда находятся в `registries-report.md`,
+`exhibitions-research.md` и `consumer-source-audit.md`.

@@ -51,6 +51,30 @@ class DatasetContractTest(unittest.TestCase):
                     verify_dataset.REQUIRED_CONTEXT_FIELDS,
                 )
 
+    def test_rejects_unknown_evidence_tier(self):
+        source = verify_dataset.EVIDENCE_PRIORITY
+        fields, rows = verify_dataset.read_csv(source)
+        rows[0]["evidence_tier"] = "population"
+
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / source.name
+            self.write_csv(candidate, fields, rows)
+
+            with self.assertRaisesRegex(AssertionError, "unknown evidence tier"):
+                verify_dataset.read_evidence_priority(candidate)
+
+    def test_rejects_reordered_evidence_columns(self):
+        source = verify_dataset.EVIDENCE_PRIORITY
+        fields, rows = verify_dataset.read_csv(source)
+        fields[-1], fields[-2] = fields[-2], fields[-1]
+
+        with tempfile.TemporaryDirectory() as directory:
+            candidate = Path(directory) / source.name
+            self.write_csv(candidate, fields, rows)
+
+            with self.assertRaisesRegex(AssertionError, "column order changed"):
+                verify_dataset.read_evidence_priority(candidate)
+
 
 if __name__ == "__main__":
     unittest.main()
