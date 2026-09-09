@@ -9,9 +9,11 @@ registry are in [`final-analysis.md`](final-analysis.md).
 
 No open, reproducible Russian dataset covering at least 50 comparable breeds was
 found. Consequently this directory does **not** manufacture a 1–50 statistical
-ranking. `population-ranking.csv` contains the only evidence-backed population
-order: the five breed labels published by the 2023 nationwide pet census. The
-source publishes neither breed counts nor breed shares, so `count` is null.
+ranking. `population-ranking.csv` contains the evidence-backed population order:
+the five breed labels published by the 2023 nationwide pet census. The already
+known 490-thousand-profile Яндекс ID source is preserved independently in
+`yandex-id-ranking.csv`; it publishes an ordinal cat top-5 and a 58% cat share,
+but no breed counts. Accordingly, `count` is null in both ranking tables.
 
 The product fallback implied by the issue is therefore: preserve the proven
 top five, then order the remaining applicable catalog breeds alphabetically for
@@ -20,8 +22,10 @@ deliberately not materialized in the evidence table.
 
 ## Files and metric boundaries
 
-- `population-ranking.csv` is the sole breed-ranking evidence table. It contains
-  all mandatory provenance and ScaleSync/VBO mapping fields.
+- `population-ranking.csv` contains the population ranking evidence.
+- `yandex-id-ranking.csv` contains an independent self-selected user-profile
+  ranking; it must not be merged with or treated as a population estimate.
+  Both ranking tables contain mandatory provenance and ScaleSync/VBO fields.
 - `quantitative-contexts.csv` preserves numeric denominators and contextual
   observations that cannot rank breeds. Population, cattery, and exhibition
   entry units remain explicit and must not be summed.
@@ -36,12 +40,10 @@ deliberately not materialized in the evidence table.
 ## Mapping decisions
 
 `exact` means that the published label maps directly to the current ScaleSync
-catalog concept. `aggregate` means that a household survey label is broader than
-registry-level variants. The generic Scottish Fold and Siamese VBO concepts are
-retained as targets, while the limitation explains the unresolved internal
-composition. `split` would be used only when a source provides separable variant
-counts; `unresolved` means no defensible catalog target. Neither occurs in the
-five published rows.
+catalog concept. `aggregate`/`split` require explicit source support;
+`unresolved` means no defensible single catalog target. The household labels
+Scottish Fold and Siamese, and the Яндекс label Sphynx, are unresolved and carry
+no VBO ID: a group observation must not be attached to one member concept.
 
 ## Rank and tie rule
 
@@ -56,6 +58,12 @@ Run the reproducibility check from the repository root:
 ```bash
 python3 docs/research/87/verify_dataset.py
 ```
+
+The two top-5 sets overlap on four labels (4/5, or 80% set overlap): British
+Shorthair, Scottish Fold, Maine Coon, and Siberian. Their common order differs:
+Maine Coon is third in Яндекс but fourth in the census. Siamese occurs only in
+the census top-5; Sphynx only in Яндекс. This is ordinal corroboration, not a
+count comparison.
 
 The >=50-breed grading criterion remains unmet. Promotion beyond the top five
 requires a broad Russian source with comparable units, reproducible totals, and
