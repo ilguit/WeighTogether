@@ -28,6 +28,7 @@ import com.palixander.scalesync.ui.profiles.PetHistoryReferencePresenter
 import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
 import com.palixander.scalesync.ui.profiles.petProfileSummary
 import com.palixander.scalesync.ui.profiles.petWeightChartRange
+import com.palixander.scalesync.ui.profiles.petWeightDisplayedSeries
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Clock
@@ -47,6 +48,65 @@ class PetReferenceIntegrationTest {
     private val catalog = PetBreedCatalog()
     private val referenceDate = LocalDate.of(2025, 1, 15)
     private val timestamp = Instant.parse("2026-08-31T10:00:00Z")
+
+    @Test
+    fun `Russian Blue selection survives persistence reload and reference presentation`() {
+        val breed = catalog.resolve(BreedId("VBO:0100200"), PetSpecies.CAT)
+        assertTrue(breed is PetBreedSelection.Available)
+        assertEquals("Русская голубая", (breed as PetBreedSelection.Available).option.displayName)
+        val birthDate = referenceDate.minusDays(200)
+        val validated = validatePetProfileDraft(
+            PetProfileDraft(
+                mode = PetProfileEditorMode.Create,
+                displayName = "Луна",
+                species = PetSpecies.CAT,
+                sex = PetSex.FEMALE,
+                breed = breed,
+                birthDate = PetBirthDateInput.Day(
+                    birthDate.year.toString(),
+                    birthDate.monthValue.toString(),
+                    birthDate.dayOfMonth.toString(),
+                ),
+            ),
+            today = referenceDate,
+        )
+
+        assertTrue(validated.isValid)
+        val reloaded = requireNotNull(validated.newPet).toPetEntity("russian-blue", timestamp).toDomain()
+        assertEquals(BreedId("VBO:0100200"), reloaded.breedId)
+        assertTrue(petProfileSummary(reloaded, catalog).items.any { it.value == "Русская голубая" })
+        val reference = PetHistoryReferencePresenter().present(
+            reloaded,
+            ChartDateRange(referenceDate.minusDays(2), referenceDate),
+        ) as PetHistoryWeightReference.Available
+        assertEquals(ReferenceBasis.BREED, reference.basis)
+        assertEquals("профессиональный справочник", reference.sourceAuthorityLabel)
+        assertEquals(
+            "Профессиональный справочник; не официальная породная организация",
+            reference.sourceDisclosure,
+        )
+        assertTrue(requireNotNull(reference.publicationUrl).startsWith("https://"))
+        assertEquals(3, reference.segments.flatten().size)
+        assertTrue(petWeightChartRange(emptyList(), reference) != null)
+    }
+
+    @Test
+    fun `adult Russian Blue with unavailable age reference does not crash chart presentation`() {
+        val pet = NewPet(
+            displayName = "Луна",
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100200"),
+            birthDate = PartialBirthDate.Day(referenceDate.minusYears(2)),
+        ).toPetEntity("adult-russian-blue", timestamp).toDomain()
+        val reference = PetHistoryReferencePresenter().present(
+            pet,
+            ChartDateRange(referenceDate.minusDays(2), referenceDate),
+        )
+
+        assertTrue(reference is PetHistoryWeightReference.Unavailable)
+        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC).isEmpty())
+    }
 
     @Test
     fun `catalog profile survives entity and backup round trip into reference chart`() = runBlocking {

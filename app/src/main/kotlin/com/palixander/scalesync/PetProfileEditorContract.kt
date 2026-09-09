@@ -203,21 +203,12 @@ class PetBreedCatalog(
             BreedSpecies.CAT -> PetSpecies.CAT
             BreedSpecies.DOG -> PetSpecies.DOG
         },
-        displayName = CatBreedDisplayNames[breed.id] ?: breed.displayNameRu,
+        displayName = breed.displayNameRu,
         canonicalName = breed.canonicalName,
         aliases = breed.aliases,
         kind = breed.kind,
     )
 }
-
-private val CatBreedDisplayNames = mapOf(
-    "VBO:0100119" to "Домашняя короткошёрстная",
-    "VBO:0100209" to "Шотландская вислоухая",
-    "VBO:0100223" to "Сибирская",
-    "VBO:0100169" to "Манчкин",
-    "VBO:0100170" to "Манчкин длинношёрстный",
-    "VBO:0100303" to "Манчкин короткошёрстный",
-)
 
 data class PetProfileDraft(
     val mode: PetProfileEditorMode,

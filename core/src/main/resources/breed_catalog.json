@@ -8,7 +8,7 @@
     "licenseUrl": "https://creativecommons.org/licenses/by/4.0/",
     "snapshotDate": "2026-08-30",
     "sourceSha256": "4ada4d18dcc2ea421f1ee630dfee29042ae2a45a34b0928419475377ee3304bd",
-    "catalogSha256": "6f530bdcfb4e3d6930a690f616f3c9d4fb39bd94245ce88da17dfd0d3536e929"
+    "catalogSha256": "60cece17282e669630b772f19b9ec57796cc383a0b87accc34755d4aecc06ded"
   },
   "breeds": [
     {
@@ -159,7 +159,7 @@
       "id": "VBO:0100018",
       "species": "cat",
       "canonicalName": "American Shorthair",
-      "displayNameRu": "American Shorthair",
+      "displayNameRu": "Американская короткошёрстная",
       "aliases": ["American Short Hair"],
       "kind": "vbo"
     },
@@ -303,7 +303,7 @@
       "id": "VBO:0100036",
       "species": "cat",
       "canonicalName": "Balinese",
-      "displayNameRu": "Balinese",
+      "displayNameRu": "Балинезийская",
       "aliases": ["Long-haired Siamese|Thai Siamese"],
       "kind": "vbo"
     },
@@ -375,7 +375,7 @@
       "id": "VBO:0100045",
       "species": "cat",
       "canonicalName": "Bombay",
-      "displayNameRu": "Bombay",
+      "displayNameRu": "Бомбейская",
       "aliases": [],
       "kind": "vbo"
     },
@@ -439,7 +439,7 @@
       "id": "VBO:0100053",
       "species": "cat",
       "canonicalName": "Burmese",
-      "displayNameRu": "Burmese",
+      "displayNameRu": "Бурманская",
       "aliases": [],
       "kind": "vbo"
     },
@@ -463,7 +463,7 @@
       "id": "VBO:0100056",
       "species": "cat",
       "canonicalName": "Burmilla",
-      "displayNameRu": "Burmilla",
+      "displayNameRu": "Бурмилла",
       "aliases": [],
       "kind": "vbo"
     },
@@ -623,7 +623,7 @@
       "id": "VBO:0100077",
       "species": "cat",
       "canonicalName": "Cornish Rex",
-      "displayNameRu": "Cornish Rex",
+      "displayNameRu": "Корниш-рекс",
       "aliases": [],
       "kind": "vbo"
     },
@@ -679,7 +679,7 @@
       "id": "VBO:0100084",
       "species": "cat",
       "canonicalName": "Devon Rex",
-      "displayNameRu": "Devon Rex",
+      "displayNameRu": "Девон-рекс",
       "aliases": [],
       "kind": "vbo"
     },
@@ -727,7 +727,7 @@
       "id": "VBO:0100090",
       "species": "cat",
       "canonicalName": "Egyptian Mau",
-      "displayNameRu": "Egyptian Mau",
+      "displayNameRu": "Египетская мау",
       "aliases": [],
       "kind": "vbo"
     },
@@ -959,7 +959,7 @@
       "id": "VBO:0100119",
       "species": "cat",
       "canonicalName": "Domestic Shorthair",
-      "displayNameRu": "Domestic Shorthair",
+      "displayNameRu": "Домашняя короткошёрстная",
       "aliases": ["Domestic Short Hair", "Domestic Short-Haired", "House Cat Shorthair", "Household Pet Shorthair", "Non Recognized Shorthair"],
       "kind": "vbo"
     },
@@ -1319,7 +1319,7 @@
       "id": "VBO:0100169",
       "species": "cat",
       "canonicalName": "Munchkin",
-      "displayNameRu": "Munchkin",
+      "displayNameRu": "Манчкин",
       "aliases": ["Munchkin (Munchk)"],
       "kind": "vbo"
     },
@@ -1327,7 +1327,7 @@
       "id": "VBO:0100170",
       "species": "cat",
       "canonicalName": "Munchkin Longhair",
-      "displayNameRu": "Munchkin Longhair",
+      "displayNameRu": "Манчкин длинношёрстный",
       "aliases": ["Munchkin (Munchk), Long-Haired"],
       "kind": "vbo"
     },
@@ -1351,7 +1351,7 @@
       "id": "VBO:0100173",
       "species": "cat",
       "canonicalName": "Neva Masquerade",
-      "displayNameRu": "Neva Masquerade",
+      "displayNameRu": "Невская маскарадная",
       "aliases": ["Neva Masquerade (Colourpoint Siberian Forest Cat)"],
       "kind": "vbo"
     },
@@ -1367,7 +1367,7 @@
       "id": "VBO:0100178",
       "species": "cat",
       "canonicalName": "Norwegian Forest Cat",
-      "displayNameRu": "Norwegian Forest Cat",
+      "displayNameRu": "Норвежская лесная",
       "aliases": ["Norwegian Forest", "Skogkatt"],
       "kind": "vbo"
     },
@@ -1407,7 +1407,7 @@
       "id": "VBO:0100183",
       "species": "cat",
       "canonicalName": "Oriental Longhair",
-      "displayNameRu": "Oriental Longhair",
+      "displayNameRu": "Ориентальная длинношёрстная",
       "aliases": ["Foreign Longhair", "Mandarin", "Oriental Long Hair"],
       "kind": "vbo"
     },
@@ -1415,7 +1415,7 @@
       "id": "VBO:0100184",
       "species": "cat",
       "canonicalName": "Oriental Shorthair",
-      "displayNameRu": "Oriental Shorthair",
+      "displayNameRu": "Ориентальная короткошёрстная",
       "aliases": ["Oriental Short Hair"],
       "kind": "vbo"
     },
@@ -1455,7 +1455,7 @@
       "id": "VBO:0100189",
       "species": "cat",
       "canonicalName": "Peterbald",
-      "displayNameRu": "Peterbald",
+      "displayNameRu": "Петерболд",
       "aliases": [],
       "kind": "vbo"
     },
@@ -1511,7 +1511,7 @@
       "id": "VBO:0100196",
       "species": "cat",
       "canonicalName": "Ragdoll",
-      "displayNameRu": "Ragdoll",
+      "displayNameRu": "Рэгдолл",
       "aliases": [],
       "kind": "vbo"
     },
@@ -1615,7 +1615,7 @@
       "id": "VBO:0100209",
       "species": "cat",
       "canonicalName": "Scottish Fold",
-      "displayNameRu": "Scottish Fold",
+      "displayNameRu": "Шотландская вислоухая",
       "aliases": [],
       "kind": "vbo"
     },
@@ -1671,7 +1671,7 @@
       "id": "VBO:0100216",
       "species": "cat",
       "canonicalName": "Selkirk Rex Longhair",
-      "displayNameRu": "Selkirk Rex Longhair",
+      "displayNameRu": "Селкирк-рекс длинношёрстный",
       "aliases": [],
       "kind": "vbo"
     },
@@ -1727,7 +1727,7 @@
       "id": "VBO:0100223",
       "species": "cat",
       "canonicalName": "Siberian",
-      "displayNameRu": "Siberian",
+      "displayNameRu": "Сибирская",
       "aliases": ["Siberian Cat", "Siberian Forest Cat", "Simberian Forest Cat"],
       "kind": "vbo"
     },
@@ -1823,7 +1823,7 @@
       "id": "VBO:0100235",
       "species": "cat",
       "canonicalName": "Thai",
-      "displayNameRu": "Thai",
+      "displayNameRu": "Тайская",
       "aliases": ["Wichien Maat"],
       "kind": "vbo"
     },
@@ -1903,7 +1903,7 @@
       "id": "VBO:0100245",
       "species": "cat",
       "canonicalName": "Toyger",
-      "displayNameRu": "Toyger",
+      "displayNameRu": "Тойгер",
       "aliases": [],
       "kind": "vbo"
     },
@@ -1935,7 +1935,7 @@
       "id": "VBO:0100249",
       "species": "cat",
       "canonicalName": "Turkish Angora",
-      "displayNameRu": "Turkish Angora",
+      "displayNameRu": "Турецкая ангора",
       "aliases": [],
       "kind": "vbo"
     },
@@ -2191,7 +2191,7 @@
       "id": "VBO:0100303",
       "species": "cat",
       "canonicalName": "Munchkin (Munchk), Short-Haired",
-      "displayNameRu": "Munchkin (Munchk), Short-Haired",
+      "displayNameRu": "Манчкин короткошёрстный",
       "aliases": [],
       "kind": "vbo"
     },

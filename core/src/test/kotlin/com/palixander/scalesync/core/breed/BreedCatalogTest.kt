@@ -25,6 +25,7 @@ class BreedCatalogTest {
         val catalog = BreedCatalog.bundled()
 
         assertEquals("Абиссинская", catalog.findById("VBO:0100000")?.displayNameRu)
+        assertEquals("Домашняя короткошёрстная", catalog.findById("VBO:0100119")?.displayNameRu)
         assertNull(catalog.findById("not-present"))
     }
 
