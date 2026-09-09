@@ -29,6 +29,16 @@ class BreedCatalogTest {
     }
 
     @Test
+    fun canadianSphynxAliasResolvesToSingleCanonicalCatalogRecord() {
+        val catalog = BreedCatalog.bundled()
+
+        assertEquals("VBO:0100230", canonicalBreedId("VBO:0100061"))
+        assertEquals("VBO:0100230", catalog.findById("VBO:0100061")?.id)
+        assertEquals(listOf("VBO:0100230"), catalog.search("Canadian Sphynx").map { it.id })
+        assertEquals(1, catalog.all(BreedSpecies.CAT).count { "Canadian Sphynx" in it.aliases })
+    }
+
+    @Test
     fun bundledCatalogHasExactApplicationOwnedChoicesAndExcludesRandomBredDuplicates() {
         val catalog = BreedCatalog.bundled()
         val specials = catalog.all().filter { it.kind != BreedKind.VBO }
