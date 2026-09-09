@@ -33,9 +33,11 @@ deliberately not materialized in the evidence table.
   exhibition-entry, and points sources that cannot yield comparable breed
   counts. `numeric_data_available=yes` means numbers exist but have the wrong
   meaning; it does not make the series suitable for ranking.
-- `verify_dataset.py` checks schema, catalog/VBO IDs, null breed counts, metric
+- `verify_dataset.py` checks exact schema and column order, closed per-file
+  `sample_type` vocabularies, catalog/VBO IDs, null breed counts, metric
   separation, the published rank order, and the SHA-256 checksums recorded in
-  `CHECKSUMS.sha256`.
+  `CHECKSUMS.sha256`. `verify_dataset_test.py` exercises the schema and
+  vocabulary rejection paths against temporary copies.
 
 ## Mapping decisions
 
@@ -57,6 +59,7 @@ Run the reproducibility check from the repository root:
 
 ```bash
 python3 docs/research/87/verify_dataset.py
+python3 docs/research/87/verify_dataset_test.py
 ```
 
 The two top-5 sets overlap on four labels (4/5, or 80% set overlap): British

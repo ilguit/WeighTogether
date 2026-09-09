@@ -18,21 +18,39 @@ EXCLUDED = RESEARCH / "excluded-series.csv"
 FINAL_ANALYSIS = RESEARCH / "final-analysis.md"
 CHECKSUMS = RESEARCH / "CHECKSUMS.sha256"
 
-REQUIRED_POPULATION_FIELDS = {
+REQUIRED_POPULATION_FIELDS = (
     "source_id", "breed_original", "variety_original", "breed_name_ru",
     "breed_name_en", "scalesync_vbo_id", "mapping_decision", "count", "rank",
     "year/period", "geography", "sample_type", "organization",
     "denominator/sample_size", "URL", "accessed_at", "limitations/bias",
-}
+)
 ALLOWED_MAPPING_DECISIONS = {"exact", "aggregate", "split", "unresolved"}
-REQUIRED_CONTEXT_FIELDS = {
+REQUIRED_CONTEXT_FIELDS = (
     "source_id", "metric_type", "value", "unit", "year/period", "geography",
     "sample_type", "organization", "denominator/sample_size", "URL",
     "accessed_at", "usable_for_breed_ranking", "limitations/bias",
-}
-REQUIRED_EXCLUDED_FIELDS = {
+)
+REQUIRED_EXCLUDED_FIELDS = (
     "source_id", "sample_type", "organization", "year/period", "geography",
     "URL", "accessed_at", "numeric_data_available", "exclusion_reason",
+)
+ALLOWED_SAMPLE_TYPES = {
+    POPULATION.name: {"population"},
+    YANDEX.name: {"user-entered pet profiles"},
+    CONTEXTS.name: {
+        "population",
+        "user-entered pet profiles",
+        "exhibition entries",
+        "cattery",
+    },
+    EXCLUDED.name: {
+        "registration",
+        "litter",
+        "cattery",
+        "user registry",
+        "exhibition entries",
+        "points",
+    },
 }
 
 
@@ -40,6 +58,17 @@ def read_csv(path: Path):
     with path.open(encoding="utf-8", newline="") as stream:
         reader = csv.DictReader(stream)
         return reader.fieldnames or [], list(reader)
+
+
+def read_validated_csv(path: Path, required_fields):
+    fields, rows = read_csv(path)
+    assert fields == list(required_fields), f"{path.name} schema or column order changed"
+    allowed_sample_types = ALLOWED_SAMPLE_TYPES[path.name]
+    unknown_sample_types = {row["sample_type"] for row in rows} - allowed_sample_types
+    assert not unknown_sample_types, (
+        f"{path.name} contains unknown sample_type values: {sorted(unknown_sample_types)}"
+    )
+    return rows
 
 
 def main():
@@ -63,12 +92,11 @@ def main():
         (POPULATION, "population"),
         (YANDEX, "user-entered pet profiles"),
     ):
-        fields, rows = read_csv(path)
-        assert set(fields) == REQUIRED_POPULATION_FIELDS, f"{path.name} schema changed"
+        rows = read_validated_csv(path, REQUIRED_POPULATION_FIELDS)
         assert rows, f"{path.name} must not be empty"
         observed_ranks = []
         for row in rows:
-            assert all(row[field].strip() for field in REQUIRED_POPULATION_FIELDS - {
+            assert all(row[field].strip() for field in set(REQUIRED_POPULATION_FIELDS) - {
                 "variety_original", "scalesync_vbo_id", "count",
             }), f"missing provenance in {path.name}"
             assert row["sample_type"] == sample_type
@@ -98,8 +126,7 @@ def main():
     assert all(row["denominator/sample_size"].startswith("490000 pet profiles") for row in yandex_rows)
     assert all("breed counts unpublished" in row["denominator/sample_size"] for row in yandex_rows)
 
-    context_fields, contexts = read_csv(CONTEXTS)
-    assert set(context_fields) == REQUIRED_CONTEXT_FIELDS, "quantitative contexts schema changed"
+    contexts = read_validated_csv(CONTEXTS, REQUIRED_CONTEXT_FIELDS)
     assert contexts
     assert all(all(row[field].strip() for field in REQUIRED_CONTEXT_FIELDS) for row in contexts)
     context_keys = [
@@ -118,8 +145,7 @@ def main():
         "rounded total and share must not be multiplied into a false absolute"
     )
 
-    excluded_fields, excluded = read_csv(EXCLUDED)
-    assert set(excluded_fields) == REQUIRED_EXCLUDED_FIELDS, "excluded series schema changed"
+    excluded = read_validated_csv(EXCLUDED, REQUIRED_EXCLUDED_FIELDS)
     assert excluded
     assert all(all(row[field].strip() for field in REQUIRED_EXCLUDED_FIELDS) for row in excluded)
     excluded_source_ids = [row["source_id"] for row in excluded]
