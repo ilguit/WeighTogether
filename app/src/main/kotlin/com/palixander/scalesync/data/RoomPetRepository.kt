@@ -3,6 +3,7 @@ package com.palixander.scalesync.data
 import androidx.room.withTransaction
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
@@ -165,7 +166,7 @@ internal fun NewPet.toPetEntity(id: String, timestamp: Instant): PetEntity = Pet
     createdAtEpochMillis = timestamp.toEpochMilli(),
     updatedAtEpochMillis = timestamp.toEpochMilli(),
     sex = sex,
-    breedId = breedId?.value,
+    breedId = breedId?.value?.let(::canonicalBreedId),
     birthYear = birthDate?.yearValue,
     birthMonth = birthDate?.monthValue,
     birthDay = birthDate?.dayValue,
@@ -177,7 +178,7 @@ internal fun PetEntity.withUpdate(pet: PetUpdate, updatedAt: Instant): PetEntity
     normalizedName = pet.normalizedName,
     species = pet.species,
     sex = pet.sex,
-    breedId = pet.breedId?.value,
+    breedId = pet.breedId?.value?.let(::canonicalBreedId),
     birthYear = pet.birthDate?.yearValue,
     birthMonth = pet.birthDate?.monthValue,
     birthDay = pet.birthDate?.dayValue,

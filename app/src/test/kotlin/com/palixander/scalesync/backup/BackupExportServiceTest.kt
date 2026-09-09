@@ -31,6 +31,24 @@ import org.junit.Test
 
 class BackupExportServiceTest {
     @Test
+    fun `export canonicalizes retired Canadian Sphynx id and preserves unknown id`() = runBlocking {
+        val source = BackupDatabaseSnapshot(
+            accounts = listOf(account()),
+            appState = AppStateEntity(primaryAccountId = "account"),
+            measurements = listOf(measurement()),
+            pets = listOf(
+                PetEntity("alias", "Alias", "alias", PetSpecies.CAT, 1, 2, breedId = "VBO:0100061"),
+                PetEntity("future", "Future", "future", PetSpecies.CAT, 1, 2, breedId = "external:cat:future"),
+            ),
+        )
+
+        val pets = service(source).createDocument().pets.associateBy { it.id }
+
+        assertEquals("VBO:0100230", pets.getValue("alias").breedId)
+        assertEquals("external:cat:future", pets.getValue("future").breedId)
+    }
+
+    @Test
     fun `export maps complete database state and deterministic portable settings`() = runBlocking {
         val source = BackupDatabaseSnapshot(
             accounts = listOf(account()),

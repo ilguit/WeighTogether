@@ -37,11 +37,19 @@ data class BreedCatalogManifest(
     val catalogSha256: String,
 )
 
+/** Returns the stable identifier used by ScaleSync for known VBO duplicate records. */
+fun canonicalBreedId(id: String): String = when (id) {
+    "VBO:0100061" -> "VBO:0100230"
+    else -> id
+}
+
 class BreedCatalog private constructor(
     val manifest: BreedCatalogManifest,
     records: List<BreedRecord>,
 ) {
-    private val records = records.sortedWith(recordComparator)
+    private val records = records
+        .filter { canonicalBreedId(it.id) == it.id }
+        .sortedWith(recordComparator)
     private val recordsById = this.records.associateBy(BreedRecord::id)
     private val searchableRecords = this.records.associateWith { record ->
         sequenceOf(record.displayNameRu, record.canonicalName)
@@ -61,7 +69,7 @@ class BreedCatalog private constructor(
 
     fun all(species: BreedSpecies): List<BreedRecord> = records.filter { it.species == species }
 
-    fun findById(id: String): BreedRecord? = recordsById[id]
+    fun findById(id: String): BreedRecord? = recordsById[canonicalBreedId(id)]
 
     fun search(query: String, species: BreedSpecies? = null): List<BreedRecord> {
         val normalizedQuery = normalizeSearchText(query)
