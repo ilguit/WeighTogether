@@ -12,7 +12,7 @@ information to quantify a **supply-side cattery-breed association** metric:
 | Source | Eligible/listed catteries represented | Cattery-breed rows | mapped VBO concepts | Notes |
 |---|---:|---:|---:|---|
 | FARUS public cattery register | 990 of 1,006 eligible cards | 1,920 | 53 | 33 current club/category pages; explicit foreign addresses, expired registrations and cards marked excluded/annulled/deleted removed; five associations unresolved |
-| Felis Russica (FIFe member) cattery page | 195 | 224 | 25 | Hand-maintained Russian list; 22 aggregate mappings and one unresolved label; per-cattery activity dates absent |
+| Felis Russica (FIFe member) cattery page | 195 | 224 | 22 exact | Hand-maintained Russian list; 22 aggregate associations and one unresolved label; per-cattery activity dates absent |
 
 The denominator in the detailed CSV is the number of eligible source cards for
 FARUS (1,006), including 16 cards from which no recognized breed code could be
@@ -51,8 +51,8 @@ terms, and organization-specific breed recognition all create selection bias.
 
 Felis Russica is narrower but independently supports several outside-top-five
 signals: Burmese 22, Oriental Shorthair 16, Ragdoll 11, Abyssinian 8, Devon Rex
-6, Sacred Birman 5, Norwegian Forest Cat 4, Persian 4, Sphynx 4, Kurilian
-Bobtail 3, Neva Masquerade 3, Bengal 2, Cornish Rex 2, Ocicat 2, Russian Blue 2,
+6, Sacred Birman 5, Norwegian Forest Cat 4, Persian 4, Sphynx 4, Neva
+Masquerade 3, Bengal 2, Cornish Rex 2, Ocicat 2, Russian Blue 2,
 and Thai 2. It is not directly comparable to FARUS: the webpage has no uniform
 activity/expiry date and uses free-text breed labels. Counts remain a separate
 series and are never summed with FARUS.

@@ -41,7 +41,7 @@ for row in detail:
 expected = Counter(
     (row["source_id"], row["breed_name_en"], row["scalesync_vbo_id"])
     for row in detail
-    if row["scalesync_vbo_id"] and "|" not in row["scalesync_vbo_id"]
+    if row["mapping_decision"] == "exact"
 )
 actual = {
     (row["source_id"], row["breed_name_en"], row["scalesync_vbo_id"]): int(row["cattery_breed_records"])

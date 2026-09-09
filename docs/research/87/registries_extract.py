@@ -279,11 +279,11 @@ def felis_rows(page: str) -> list[dict[str, str]]:
 
 
 def summarize(rows: list[dict[str, str]], output: Path) -> None:
-    mapped = [row for row in rows if row["scalesync_vbo_id"] and "|" not in row["scalesync_vbo_id"]]
+    mapped = [row for row in rows if row["mapping_decision"] == "exact"]
     counts = Counter((row["source_id"], row["breed_name_en"], row["scalesync_vbo_id"]) for row in mapped)
     fields = ["source_id", "breed_name_en", "scalesync_vbo_id", "cattery_breed_records", "rank"]
     with output.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=fields)
+        writer = csv.DictWriter(stream, fieldnames=fields, lineterminator="\n")
         writer.writeheader()
         for source_id in sorted({key[0] for key in counts}):
             source_counts = [(key[1], key[2], value) for key, value in counts.items() if key[0] == source_id]
@@ -317,7 +317,7 @@ def main() -> None:
     args.output_dir.mkdir(parents=True, exist_ok=True)
     detail = args.output_dir / "registries-cattery-breed.csv"
     with detail.open("w", newline="", encoding="utf-8") as stream:
-        writer = csv.DictWriter(stream, fieldnames=FIELDS)
+        writer = csv.DictWriter(stream, fieldnames=FIELDS, lineterminator="\n")
         writer.writeheader()
         writer.writerows(sorted(rows, key=lambda row: (row["source_id"], row["cattery_id"], row["breed_original"])))
     summarize(rows, args.output_dir / "registries-breed-counts.csv")

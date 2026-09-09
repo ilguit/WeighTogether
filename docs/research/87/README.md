@@ -12,14 +12,14 @@ research adds evidence for breeds outside that baseline without pretending the
 unlike metrics form one population ranking:
 
 - FARUS: 1,920 cattery-breed associations, 53 mapped VBO concepts;
-- Felis Russica: 224 associations, 23 mapped concepts;
+- Felis Russica: 224 associations, 22 exact mapped concepts;
 - one WCF Tyumen event: 102 catalogue entries across 26 codes, of which 100
   entries and 24 codes are recognized-pedigree;
 - 20 ordered rows from three consumer/veterinary proxy series.
 
-The reproducible `evidence-priority.csv` covers 49 exact VBO concepts outside
+The reproducible `evidence-priority.csv` covers 48 exact VBO concepts outside
 the five conservatively excluded baseline families: tier A 9 (at least three
-source series), tier B 14 (two series), and tier C 26 (one series). It is an
+source series), tier B 14 (two series), and tier C 25 (one series). It is an
 application coverage queue, not a population-popularity ranking. Counts from
 catteries, exhibition entries, demand, veterinary records and owner surveys
 are never added or converted into common shares.
@@ -54,7 +54,7 @@ then canonical name. Missing from a short source list is treated as unknown,
 not as a last place.
 
 The requested 1–10 and 11–30 boundaries may be used only as coverage batches.
-The 31–50 batch is incomplete because exact evidence ends at priority 49. None
+The 31–50 batch is incomplete because exact evidence ends at priority 48. None
 of these ranges may be presented as national-population ranks.
 
 ## Verification
@@ -69,5 +69,5 @@ python3 docs/research/87/registries_extract_test.py
 python3 docs/research/87/consumer-verify.py
 python3 docs/research/87/verify_dataset.py
 python3 docs/research/87/verify_dataset_test.py
-sha256sum -c docs/research/87/CHECKSUMS.sha256
+(cd docs/research/87 && sha256sum -c CHECKSUMS.sha256)
 ```

@@ -1,23 +1,23 @@
 priority,evidence_tier,breed_name_en,scalesync_vbo_id,source_series_count,farus_rank,felis_rank,wcf_event_rank,avito_rank,vetas_rank,ingos_rank,median_normalized_rank,interpretation
-1,A,Bengal,VBO:0100040,6,8,17,2,4,4,5,0.586364,application coverage priority; not population rank
-2,A,Abyssinian,VBO:0100000,5,7,7,14,7,3,,0.600000,application coverage priority; not population rank
+1,A,Bengal,VBO:0100040,6,8,15,2,4,4,5,0.540909,application coverage priority; not population rank
+2,A,Abyssinian,VBO:0100000,5,7,6,14,7,3,,0.600000,application coverage priority; not population rank
 3,A,Oriental Shorthair,VBO:0100184,3,6,3,11,,,,0.142857,application coverage priority; not population rank
-4,A,Devon Rex,VBO:0100084,3,15,8,14,,,,0.363636,application coverage priority; not population rank
-5,A,Exotic Shorthair,VBO:0100096,3,24,14,7,,,,0.571429,application coverage priority; not population rank
+4,A,Devon Rex,VBO:0100084,3,15,7,14,,,,0.357143,application coverage priority; not population rank
+5,A,Exotic Shorthair,VBO:0100096,3,24,20,7,,,,0.571429,application coverage priority; not population rank
 6,A,Persian,VBO:0100188,3,24,11,,10,,,0.571429,application coverage priority; not population rank
-7,A,Russian Blue,VBO:0100200,3,31,17,7,,,,0.738095,application coverage priority; not population rank
-8,A,Cornish Rex,VBO:0100077,3,27,17,11,,,,0.772727,application coverage priority; not population rank
+7,A,Cornish Rex,VBO:0100077,3,27,15,11,,,,0.681818,application coverage priority; not population rank
+8,A,Russian Blue,VBO:0100200,3,31,15,7,,,,0.681818,application coverage priority; not population rank
 9,A,Norwegian Forest Cat,VBO:0100178,3,42,11,14,,,,1.000000,application coverage priority; not population rank
 10,B,Burmese,VBO:0100053,2,4,2,,,,,0.093074,application coverage priority; not population rank
 11,B,Ragdoll,VBO:0100196,2,18,5,,,,,0.327922,application coverage priority; not population rank
 12,B,Kurilian Bobtail Longhair,VBO:0100147,2,22,,2,,,,0.333333,application coverage priority; not population rank
 13,B,Sphynx,VBO:0100230,2,13,11,,,,,0.404762,application coverage priority; not population rank
 14,B,Kurilian Bobtail Shorthair,VBO:0100148,2,20,,7,,,,0.488095,application coverage priority; not population rank
-15,B,Elf,VBO:0100091,2,17,,14,,,,0.702381,application coverage priority; not population rank
-16,B,Sacred Birman,VBO:0100204,2,40,10,,,,,0.703463,application coverage priority; not population rank
-17,B,Thai,VBO:0100235,2,30,17,,,,,0.743506,application coverage priority; not population rank
+15,B,Thai,VBO:0100235,2,30,15,,,,,0.698052,application coverage priority; not population rank
+16,B,Elf,VBO:0100091,2,17,,14,,,,0.702381,application coverage priority; not population rank
+17,B,Sacred Birman,VBO:0100204,2,40,10,,,,,0.703463,application coverage priority; not population rank
 18,B,Neva Masquerade,VBO:0100173,2,,14,,9,,,0.768182,application coverage priority; not population rank
-19,B,Somali,VBO:0100229,2,28,22,,,,,0.833333,application coverage priority; not population rank
+19,B,Somali,VBO:0100229,2,28,20,,,,,0.787879,application coverage priority; not population rank
 20,B,Chausie,VBO:0100068,2,29,,14,,,,0.845238,application coverage priority; not population rank
 21,B,Savannah,VBO:0100208,2,36,,14,,,,0.928571,application coverage priority; not population rank
 22,B,Toybob,VBO:0100244,2,40,,14,,,,0.976190,application coverage priority; not population rank
@@ -28,23 +28,22 @@ priority,evidence_tier,breed_name_en,scalesync_vbo_id,source_series_count,farus_
 27,C,Canadian Sphynx,VBO:0100061,1,,,,5,,,0.500000,application coverage priority; not population rank
 28,C,Donskoy,VBO:0100086,1,23,,,,,,0.547619,application coverage priority; not population rank
 29,C,Dwelf,VBO:0100089,1,26,,,,,,0.619048,application coverage priority; not population rank
-30,C,Kurilian Bobtail,VBO:0100146,1,,14,,,,,0.636364,application coverage priority; not population rank
+30,C,Ocicat,VBO:0100179,1,,15,,,,,0.681818,application coverage priority; not population rank
 31,C,Munchkin Longhair,VBO:0100170,1,32,,,,,,0.761905,application coverage priority; not population rank
-32,C,Ocicat,VBO:0100179,1,,17,,,,,0.772727,application coverage priority; not population rank
-33,C,Ukrainian Levkoy,VBO:0100252,1,33,,,,,,0.785714,application coverage priority; not population rank
-34,C,Peterbald,VBO:0100189,1,34,,,,,,0.809524,application coverage priority; not population rank
-35,C,Selkirk Rex Longhair,VBO:0100216,1,34,,,,,,0.809524,application coverage priority; not population rank
-36,C,Minuet,VBO:0100163,1,37,,,,,,0.880952,application coverage priority; not population rank
-37,C,Minuet Longhair,VBO:0100164,1,37,,,,,,0.880952,application coverage priority; not population rank
-38,C,Turkish Angora,VBO:0100249,1,37,,,,,,0.880952,application coverage priority; not population rank
+32,C,Ukrainian Levkoy,VBO:0100252,1,33,,,,,,0.785714,application coverage priority; not population rank
+33,C,Peterbald,VBO:0100189,1,34,,,,,,0.809524,application coverage priority; not population rank
+34,C,Selkirk Rex Longhair,VBO:0100216,1,34,,,,,,0.809524,application coverage priority; not population rank
+35,C,Minuet,VBO:0100163,1,37,,,,,,0.880952,application coverage priority; not population rank
+36,C,Minuet Longhair,VBO:0100164,1,37,,,,,,0.880952,application coverage priority; not population rank
+37,C,Turkish Angora,VBO:0100249,1,37,,,,,,0.880952,application coverage priority; not population rank
+38,C,Burmilla,VBO:0100056,1,,20,,,,,0.909091,application coverage priority; not population rank
 39,C,American Shorthair,VBO:0100018,1,42,,,,,,1.000000,application coverage priority; not population rank
 40,C,Asian Leopard Cat,VBO:0100029,1,42,,,,,,1.000000,application coverage priority; not population rank
 41,C,Balinese,VBO:0100036,1,42,,,,,,1.000000,application coverage priority; not population rank
 42,C,Bombay,VBO:0100045,1,42,,,,,,1.000000,application coverage priority; not population rank
-43,C,Burmilla,VBO:0100056,1,,22,,,,,1.000000,application coverage priority; not population rank
-44,C,Egyptian Mau,VBO:0100090,1,42,,,,,,1.000000,application coverage priority; not population rank
-45,C,Munchkin,VBO:0100169,1,42,,,,,,1.000000,application coverage priority; not population rank
-46,C,Nebelung,VBO:0100172,1,42,,,,,,1.000000,application coverage priority; not population rank
-47,C,Oriental Longhair,VBO:0100183,1,42,,,,,,1.000000,application coverage priority; not population rank
-48,C,Seychellois Short Hair,VBO:0100314,1,42,,,,,,1.000000,application coverage priority; not population rank
-49,C,Ural Rex,VBO:0100253,1,42,,,,,,1.000000,application coverage priority; not population rank
+43,C,Egyptian Mau,VBO:0100090,1,42,,,,,,1.000000,application coverage priority; not population rank
+44,C,Munchkin,VBO:0100169,1,42,,,,,,1.000000,application coverage priority; not population rank
+45,C,Nebelung,VBO:0100172,1,42,,,,,,1.000000,application coverage priority; not population rank
+46,C,Oriental Longhair,VBO:0100183,1,42,,,,,,1.000000,application coverage priority; not population rank
+47,C,Seychellois Short Hair,VBO:0100314,1,42,,,,,,1.000000,application coverage priority; not population rank
+48,C,Ural Rex,VBO:0100253,1,42,,,,,,1.000000,application coverage priority; not population rank

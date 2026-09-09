@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 
 import unittest
+import csv
+import tempfile
+from pathlib import Path
 
 import registries_extract as subject
 
@@ -29,6 +32,29 @@ class RegistryExtractionTest(unittest.TestCase):
         rows = subject.felis_rows(page)
         self.assertEqual(len(rows), 2)
         self.assertEqual({row["mapping_decision"] for row in rows}, {"exact", "aggregate"})
+
+    def test_summary_excludes_aggregate_mapping_with_single_vbo_id(self):
+        rows = [
+            {
+                "source_id": "source",
+                "breed_name_en": "Exotic Shorthair",
+                "scalesync_vbo_id": "VBO:0100096",
+                "mapping_decision": "exact",
+            },
+            {
+                "source_id": "source",
+                "breed_name_en": "Exotic Shorthair",
+                "scalesync_vbo_id": "VBO:0100096",
+                "mapping_decision": "aggregate",
+            },
+        ]
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "summary.csv"
+            subject.summarize(rows, output)
+            with output.open(encoding="utf-8", newline="") as stream:
+                summary = list(csv.DictReader(stream))
+        self.assertEqual(len(summary), 1)
+        self.assertEqual(summary[0]["cattery_breed_records"], "1")
 
 
 if __name__ == "__main__":

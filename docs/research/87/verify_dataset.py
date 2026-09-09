@@ -184,13 +184,13 @@ def main():
     }
 
     evidence_rows = read_evidence_priority()
-    assert len(evidence_rows) == 49, "outside-top-five exact VBO coverage changed"
-    assert [int(row["priority"]) for row in evidence_rows] == list(range(1, 50))
-    assert len({row["scalesync_vbo_id"] for row in evidence_rows}) == 49
+    assert len(evidence_rows) == 48, "outside-top-five exact VBO coverage changed"
+    assert [int(row["priority"]) for row in evidence_rows] == list(range(1, 49))
+    assert len({row["scalesync_vbo_id"] for row in evidence_rows}) == 48
     assert all(row["scalesync_vbo_id"] in cats for row in evidence_rows)
     assert all(cats[row["scalesync_vbo_id"]]["canonicalName"] == row["breed_name_en"] for row in evidence_rows)
     tier_counts = {tier: sum(row["evidence_tier"] == tier for row in evidence_rows) for tier in "ABC"}
-    assert tier_counts == {"A": 9, "B": 14, "C": 26}
+    assert tier_counts == {"A": 9, "B": 14, "C": 25}
     assert all(row["interpretation"] == "application coverage priority; not population rank" for row in evidence_rows)
 
     build_path = RESEARCH / "build_evidence_priority.py"
@@ -220,7 +220,7 @@ def main():
         "Центр изучения питания и благополучия животных / Ipsos",
         "Felis Russica",
         "Animal-ID",
-        "49",
+        "48",
         "FARUS",
         "WCF",
         "Tier A",
@@ -233,8 +233,8 @@ def main():
     print(
         f"OK: {len(population_rows)} population and {len(yandex_rows)} Yandex ranks, "
         f"4/5 overlap, {len(contexts)} quantitative contexts, "
-        f"{len(excluded)} excluded series, 49 outside-top-five concepts "
-        f"(tiers A/B/C: 9/14/26); {len(cats)} catalog cat concepts checked"
+        f"{len(excluded)} excluded series, 48 outside-top-five concepts "
+        f"(tiers A/B/C: 9/14/25); {len(cats)} catalog cat concepts checked"
     )
 
 
