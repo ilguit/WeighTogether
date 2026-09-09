@@ -110,12 +110,17 @@ class PetProfileEditorContractTest {
 
     @Test
     fun catalogExposesOnlyCatBreedsDeclaredByWeightReferenceScopes() {
-        val expectedIds = WeightReferenceSnapshot.bundled().manifest.scopes
-            .filter { it.species.name == "CAT" && it.breedId != null }
+        val expectedIds = WeightReferenceSnapshot.bundled().profiles
+            .filter {
+                it.species.name == "CAT" &&
+                    it.referenceKind.name == "MODELLED_BREED_ADULT_RANGE" &&
+                    it.breedId != null
+            }
             .mapNotNull { it.breedId }
             .toSet()
         val cats = breedCatalog.search("", PetSpecies.CAT)
 
+        assertEquals(31, cats.size)
         assertEquals(expectedIds, cats.map { it.id.value }.toSet())
         assertTrue(cats.all { it.species == PetSpecies.CAT })
         assertTrue(cats.size < com.palixander.scalesync.core.breed.BreedCatalog.bundled()
@@ -123,6 +128,17 @@ class PetProfileEditorContractTest {
         assertTrue(breedCatalog.search("Maine Coon Cat", PetSpecies.CAT).isNotEmpty())
         assertTrue(breedCatalog.search("мейн", PetSpecies.CAT).isNotEmpty())
         assertTrue(breedCatalog.search("мейн", PetSpecies.DOG).isEmpty())
+        assertEquals(1, cats.count { it.id == BreedId("VBO:0100230") && it.displayName == "Сфинкс" })
+        assertTrue(cats.none { it.id == BreedId("VBO:0100061") })
+        assertEquals(
+            mapOf(
+                BreedId("VBO:0100169") to "Манчкин",
+                BreedId("VBO:0100170") to "Манчкин длинношёрстный",
+                BreedId("VBO:0100303") to "Манчкин короткошёрстный",
+            ),
+            cats.filter { it.id.value in setOf("VBO:0100169", "VBO:0100170", "VBO:0100303") }
+                .associate { it.id to it.displayName },
+        )
     }
 
     @Test
@@ -231,13 +247,12 @@ class PetProfileEditorContractTest {
     @Test
     fun `supported cat names are Russian while canonical names and aliases remain searchable`() {
         val expected = mapOf(
-            "Domestic Shorthair" to "Домашняя короткошёрстная",
             "Scottish Fold" to "Шотландская вислоухая",
             "Siberian Forest Cat" to "Сибирская",
         )
 
         expected.forEach { (query, displayName) ->
-            val option = breedCatalog.search(query, PetSpecies.CAT).single()
+            val option = breedCatalog.search(query, PetSpecies.CAT).single { it.displayName == displayName }
             assertEquals(displayName, option.displayName)
             assertTrue(option.canonicalName.first().isUpperCase())
         }

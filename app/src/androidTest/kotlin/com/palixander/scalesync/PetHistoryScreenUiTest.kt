@@ -15,15 +15,18 @@ import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
@@ -186,6 +189,7 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithText("— P50").assertIsDisplayed()
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assert(hasContentDescription("Сведения справочные и не оценивают здоровье питомца", substring = true))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Disclosure).performScrollTo().performClick()
         composeRule.onNodeWithTag(PetWeightChartTestTags.Publication).performScrollTo().performClick()
         composeRule.runOnIdle {
             assertEquals(listOf("https://doi.org/10.1371/journal.pone.0182064"), opened)
@@ -343,12 +347,47 @@ class PetHistoryScreenUiTest {
             .assertIsDisplayed()
             .assert(hasContentDescription("Измерений нет", substring = true))
         composeRule.onNodeWithText("Эталон по породе · Возраст: 100–102 дн.").assertIsDisplayed()
+        composeRule.onNodeWithText("Источник: Test veterinary source").assertDoesNotExist()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Disclosure)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свернуто"))
+            .performClick()
         composeRule.onNodeWithText("Источник: Test veterinary source").assertIsDisplayed()
         composeRule.onNodeWithText("Ограничение: Только здоровые животные").assertIsDisplayed()
         composeRule.onNodeWithTag(PetWeightChartTestTags.ReferenceDetails)
             .assert(hasContentDescription("Источник: Test veterinary source", substring = true))
             .assert(hasContentDescription("Ограничение: Только здоровые животные", substring = true))
             .assert(hasContentDescription("не ставит диагноз", substring = true))
+    }
+
+    @Test fun failedReferenceSourceKeepsDisclosureOpenNamesSourceAndAnnouncesError() {
+        val reference = availableReference("Эталон по породе").copy(
+            publicationUrl = "https://example.com/reference",
+        )
+        composeRule.setContent {
+            PetProfileScreen(
+                state(PetHistoryContent.Empty).copy(weightReference = reference),
+                callbacks(),
+                PaddingValues(),
+                {},
+                sourceLauncher = ReferenceSourceLauncher { false },
+            )
+        }
+
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Disclosure).performClick()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Publication).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Disclosure)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Развернуто"))
+        composeRule.onNodeWithTag(PetWeightChartTestTags.PublicationError)
+            .assertTextEquals("Не удалось открыть источник «Test veterinary source».")
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Assertive))
+    }
+
+    @Test fun unavailableWeightReferenceIsSinglePoliteLiveRegion() {
+        setScreen(state(PetHistoryContent.Empty))
+
+        composeRule.onAllNodesWithTag(PetWeightChartTestTags.Unavailable).assertCountEquals(1)
+        composeRule.onNodeWithTag(PetWeightChartTestTags.Unavailable)
+            .assert(SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, LiveRegionMode.Polite))
     }
 
     @Test fun modelledCatBreedUsesRussianHonestLegendAndExplanation() {

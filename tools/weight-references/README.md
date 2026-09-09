@@ -23,3 +23,26 @@ profiles are produced; raw `BREED_ID` values are intentionally not presented as
 VBO breed mappings. Eligibility, category boundaries, weekly binning, minimum
 bin sizes, quantile definition, rounding, and limitations are embedded in the
 snapshot under `manifest.derivation`.
+
+## Cat breed evidence staged for production
+
+`cat_breed_evidence.csv` is the validated implementation input derived from the
+approved `docs/design/90` evidence package. It contains exactly 26 canonical
+breeds and one female plus one male adult range for each breed. Batch 1 contains
+17 profiles backed by feline-organization sources plus Russian Blue with a
+professional fallback; Batch 2 contains eight professional fallbacks.
+
+The adult center is always the arithmetic midpoint of the published typical
+range, not an observed population median. `maturityDerivation=published` keeps a
+published breed maturity age; otherwise `model_fallback` must be exactly day 730.
+Each row carries claim-level source class, URL, claim, and limitations. Birth and
+intermediate observations are intentionally absent because they remain
+research-only for issue #90. `VBO:0100230` is the sole Sphynx record and declares
+deprecated alias `VBO:0100061`.
+
+`verifySnapshot` validates this input while continuing to compare the existing
+generated snapshot byte-for-byte. To run only the contract check:
+
+```sh
+./gradlew -p tools/weight-references validateCatBreedEvidence
+```

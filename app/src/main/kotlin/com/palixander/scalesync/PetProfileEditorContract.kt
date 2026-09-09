@@ -4,10 +4,12 @@ import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.core.breed.BreedRecord
 import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.ReferenceSpecies
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
@@ -112,15 +114,16 @@ class PetBreedCatalog(
 ) {
     private val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
     private val supportedDogBreeds = snapshot?.breeds.orEmpty()
-    private val supportedCatBreedIds = weightReferenceSnapshot?.manifest?.scopes
+    private val supportedCatBreedIds = weightReferenceSnapshot?.profiles
         .orEmpty()
         .asSequence()
-        .filter { scope ->
-            scope.species == ReferenceSpecies.CAT &&
-                scope.basis == ReferenceBasis.BREED &&
-                scope.breedId != null
+        .filter { profile ->
+            profile.species == ReferenceSpecies.CAT &&
+                profile.basis == ReferenceBasis.BREED &&
+                profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE &&
+                profile.breedId != null
         }
-        .mapNotNull { it.breedId }
+        .mapNotNull { profile -> profile.breedId }
         .toSet()
     private val supportedCatBreeds = supportedCatBreedIds
         .mapNotNull(catalog::findById)
@@ -159,19 +162,27 @@ class PetBreedCatalog(
             .asSequence()
             .map(BreedRecord::id)
             .toSet()
+        val needle = query.trim().lowercase()
         return supportedCatBreeds
             .asSequence()
-            .filter { query.isBlank() || it.id in matchingIds }
-            .sortedBy { it.displayNameRu.lowercase() }
             .map(::toPetBreedOption)
+            .filter { option ->
+                needle.isEmpty() || option.id.value in matchingIds || sequenceOf(
+                    option.displayName,
+                    option.canonicalName,
+                    *option.aliases.toTypedArray(),
+                ).any { needle in it.lowercase() }
+            }
+            .sortedWith(compareBy({ it.displayName.lowercase() }, { it.canonicalName.lowercase() }, { it.id.value }))
             .toList()
     }
 
     fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
-        snapshot?.breed(id.value)?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
-        supportedCatBreeds.singleOrNull { it.id == id.value }
+        val canonicalId = canonicalBreedId(id.value)
+        snapshot?.breed(canonicalId)?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
+        supportedCatBreeds.singleOrNull { it.id == canonicalId }
             ?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
-        return PetBreedSelection.Unavailable(id, savedSpecies)
+        return PetBreedSelection.Unavailable(BreedId(canonicalId), savedSpecies)
     }
 
     private fun toPetBreedOption(breed: BreedReferenceBreed): PetBreedOption = PetBreedOption(
@@ -203,6 +214,9 @@ private val CatBreedDisplayNames = mapOf(
     "VBO:0100119" to "Домашняя короткошёрстная",
     "VBO:0100209" to "Шотландская вислоухая",
     "VBO:0100223" to "Сибирская",
+    "VBO:0100169" to "Манчкин",
+    "VBO:0100170" to "Манчкин длинношёрстный",
+    "VBO:0100303" to "Манчкин короткошёрстный",
 )
 
 data class PetProfileDraft(
@@ -520,7 +534,7 @@ fun validatePetProfileDraft(
                 displayName = trimmedName,
                 species = requiredSpecies,
                 sex = draft.sex,
-                breedId = draft.breed?.id,
+                breedId = draft.breed?.id?.let { BreedId(canonicalBreedId(it.value)) },
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
             ),
@@ -531,7 +545,7 @@ fun validatePetProfileDraft(
                 displayName = trimmedName,
                 species = requiredSpecies,
                 sex = draft.sex,
-                breedId = draft.breed?.id,
+                breedId = draft.breed?.id?.let { BreedId(canonicalBreedId(it.value)) },
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
             ),

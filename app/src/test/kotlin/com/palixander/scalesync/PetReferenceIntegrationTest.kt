@@ -131,7 +131,7 @@ class PetReferenceIntegrationTest {
         val restoredKnown = imported.pets.single { it.id == knownEntity.id }
         val restoredUnknown = imported.pets.single { it.id == unknownEntity.id }
         assertEquals(knownEntity, restoredKnown)
-        assertEquals(unknownEntity.copy(breedId = null), restoredUnknown)
+        assertEquals(unknownEntity, restoredUnknown)
         assertEquals(birthDate.year, restoredKnown.birthYear)
         assertEquals(birthDate.monthValue, restoredKnown.birthMonth)
         assertEquals(birthDate.dayOfMonth, restoredKnown.birthDay)
@@ -160,14 +160,14 @@ class PetReferenceIntegrationTest {
         assertTrue(chartRange.max >= points.maxOf { it.upperKg })
 
         val unknownPet = restoredUnknown.toDomain()
-        assertNull(unknownPet.breedId)
-        assertFalse(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
+        assertEquals(unknownBreedId, unknownPet.breedId)
+        assertTrue(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
         val unavailable = PetHistoryReferencePresenter().present(
             unknownPet,
             ChartDateRange(referenceDate, referenceDate),
         ) as PetHistoryWeightReference.Unavailable
         assertEquals(
-            WeightReferenceUnavailableReason.MissingDogAdultWeight,
+            WeightReferenceUnavailableReason.UnknownBreed(unknownBreedId.value),
             unavailable.reason,
         )
     }

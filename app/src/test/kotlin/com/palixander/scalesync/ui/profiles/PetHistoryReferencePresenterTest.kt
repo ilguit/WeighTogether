@@ -159,8 +159,8 @@ class PetHistoryReferencePresenterTest {
     fun `future snapshot exceeding semantic date capacity omits overlay without throwing`() {
         val snapshot = snapshotWithDailyDogProfile(pointCount = MAX_REFERENCE_CHART_SAMPLES + 1)
         val customPresenter = PetHistoryReferencePresenter(
-            resolver = PetWeightReferenceResolver(snapshot),
             snapshot = snapshot,
+            resolver = PetWeightReferenceResolver(snapshot),
         )
         val birth = LocalDate.of(2025, 1, 1)
 
@@ -206,8 +206,59 @@ class PetHistoryReferencePresenterTest {
         )
 
         reasons.forEach { reason ->
-            assertTrue(weightReferenceUnavailableExplanation(reason).startsWith("Эталон недоступен:"))
+            assertTrue(weightReferenceUnavailableExplanation(reason).isNotBlank())
         }
+    }
+
+    @Test
+    fun `cat unavailable states use the approved exact wording`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val base = Pet(
+            id = PetId("cat-state"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+            sex = PetSex.MALE, birthDate = PartialBirthDate.Day(date.minusDays(56)),
+            breedId = BreedId("VBO:0100000"),
+        )
+        fun explanation(pet: Pet) = (presenter.present(pet, ChartDateRange(date, date))
+            as PetHistoryWeightReference.Unavailable).explanation
+
+        assertEquals(
+            "Укажите пол питомца, чтобы показать породный ориентир.",
+            explanation(base.copy(sex = null)),
+        )
+        assertEquals(
+            "Укажите дату рождения, чтобы показать ориентир для возраста.",
+            explanation(base.copy(birthDate = null)),
+        )
+        assertEquals(
+            "Для выбранной породы ориентиры сейчас недоступны.",
+            explanation(base.copy(breedId = BreedId("VBO:0100091"))),
+        )
+        assertEquals(
+            "Для выбранного возраста опубликованные данные отсутствуют.",
+            explanation(base.copy(birthDate = PartialBirthDate.Day(date.minusDays(55)))),
+        )
+        assertEquals(
+            "Исправьте дату рождения, чтобы показать ориентир для возраста.",
+            explanation(base.copy(birthDate = PartialBirthDate.Day(date.plusDays(1)))),
+        )
+    }
+
+    @Test
+    fun `unavailable bundled snapshot fails closed without hiding pet history`() {
+        val date = LocalDate.of(2026, 9, 6)
+        val pet = Pet(
+            id = PetId("cat-corrupt"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH,
+            sex = PetSex.MALE, birthDate = PartialBirthDate.Day(date.minusDays(100)),
+            breedId = BreedId("VBO:0100000"),
+        )
+
+        val result = PetHistoryReferencePresenter(snapshot = null, resolver = null)
+            .present(pet, ChartDateRange(date, date)) as PetHistoryWeightReference.Unavailable
+
+        assertEquals(WeightReferenceUnavailableReason.ProfileUnavailable("bundled-snapshot"), result.reason)
+        assertEquals("Ориентиры породы временно недоступны.", result.explanation)
     }
 
     @Test
@@ -328,8 +379,9 @@ class PetHistoryReferencePresenterTest {
                 })
             }
         })
-        val canonicalProfiles = root.getAsJsonArray("profiles").toString().toByteArray()
-        val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalProfiles)
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
+        val canonicalPayload = root.toString().toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalPayload)
             .joinToString("") { "%02x".format(Locale.ROOT, it) }
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
         return WeightReferenceSnapshot.load(streamProvider = {

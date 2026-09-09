@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -574,8 +575,15 @@ private fun BreedPickerDialog(
     val options = remember(query, species, breedCatalog) {
         breedCatalog.search(query, species)
     }
+    val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase()
     val showOther = normalizedQuery.isEmpty() || "другая порода".contains(normalizedQuery)
+    LaunchedEffect(normalizedQuery, selected?.id, options) {
+        if (normalizedQuery.isEmpty()) {
+            val selectedIndex = options.indexOfFirst { it.id == selected?.id }
+            if (selectedIndex >= 0) listState.scrollToItem(selectedIndex + 1)
+        }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         modifier = Modifier.testTag(PetProfileEditorTestTags.BreedPicker),
@@ -597,6 +605,7 @@ private fun BreedPickerDialog(
                         .testTag(PetProfileEditorTestTags.BreedQuery),
                 )
                 LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 360.dp),

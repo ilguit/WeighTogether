@@ -1,8 +1,8 @@
 {
   "manifest": {
-    "schemaVersion": 3,
-    "snapshotVersion": "2026-09-08.1",
-    "snapshotDate": "2026-09-08",
+    "schemaVersion": 4,
+    "snapshotVersion": "2026-09-09.1",
+    "snapshotDate": "2026-09-09",
     "numericalDataSha256": "generated",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",

@@ -135,6 +135,9 @@ class PetWeightReferenceResolver(
         dogAdultWeight: DogAdultWeight? = null,
         intactStatus: IntactStatus = IntactStatus.UNKNOWN,
     ): PetWeightReferenceResolution {
+        val canonicalBreedId = breedId?.let { id ->
+            if (id.value == LEGACY_CANADIAN_SPHYNX_ID) BreedId(CANONICAL_SPHYNX_ID) else id
+        }
         val referenceSpecies = when (species) {
             PetSpecies.CAT -> ReferenceSpecies.CAT
             PetSpecies.DOG -> ReferenceSpecies.DOG
@@ -152,7 +155,7 @@ class PetWeightReferenceResolver(
             return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
         }
 
-        val breedProfile = breedId?.let { id ->
+        val breedProfile = canonicalBreedId?.let { id ->
             val breed = breedCatalog.findById(id.value)
             if (breed == null && referenceSpecies == ReferenceSpecies.DOG) {
                 return unavailable(WeightReferenceUnavailableReason.UnknownBreed(id.value))
@@ -161,16 +164,30 @@ class PetWeightReferenceResolver(
             if (breed != null && breed.species != expectedSpecies) {
                 return unavailable(WeightReferenceUnavailableReason.BreedSpeciesMismatch(id.value))
             }
-            snapshot.profiles.singleOrNull {
+            val matchingProfile = snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.BREED && it.species == referenceSpecies &&
                     it.sex == referenceSex && it.breedId == id.value
-            }?.takeIf { it.supports(age) }
+            } ?: if (referenceSpecies == ReferenceSpecies.CAT) {
+                return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(id.value))
+            } else null
+            matchingProfile?.takeIf { it.supports(age) } ?: if (matchingProfile != null) {
+                return resolveProfile(
+                    matchingProfile,
+                    birthDate,
+                    age,
+                    WeightReferenceProvenance.BREED_CURVE,
+                    canonicalBreedId,
+                )
+            } else null
         }
 
         val profile = if (breedProfile != null) {
             breedProfile
         } else {
             if (referenceSpecies == ReferenceSpecies.CAT) {
+                if (canonicalBreedId != null) {
+                    return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(canonicalBreedId.value))
+                }
                 snapshot.profiles.singleOrNull {
                     it.basis == ReferenceBasis.POPULATION && it.species == ReferenceSpecies.CAT &&
                         it.sex == referenceSex && it.breedId == null
@@ -207,12 +224,17 @@ class PetWeightReferenceResolver(
                 profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS ->
                 WeightReferenceProvenance.BREED_EXACT_OBSERVATION
             profile.basis == ReferenceBasis.BREED -> WeightReferenceProvenance.BREED_CURVE
-            profile.basis == ReferenceBasis.POPULATION && breedId != null ->
+            profile.basis == ReferenceBasis.POPULATION && canonicalBreedId != null ->
                 WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED
             profile.basis == ReferenceBasis.POPULATION -> WeightReferenceProvenance.POPULATION
             else -> WeightReferenceProvenance.WEIGHT_CATEGORY
         }
-        return resolveProfile(profile, birthDate, age, provenance, breedId)
+        return resolveProfile(profile, birthDate, age, provenance, canonicalBreedId)
+    }
+
+    private companion object {
+        const val LEGACY_CANADIAN_SPHYNX_ID = "VBO:0100061"
+        const val CANONICAL_SPHYNX_ID = "VBO:0100230"
     }
 
     private fun resolveProfile(

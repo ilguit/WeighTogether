@@ -10,6 +10,7 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Year
@@ -41,7 +42,7 @@ data class PetEntity(
         createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
         updatedAt = Instant.ofEpochMilli(updatedAtEpochMillis),
         sex = sex,
-        breedId = breedId?.let(::BreedId),
+        breedId = breedId?.let(::canonicalBreedId)?.let(::BreedId),
         birthDate = toPartialBirthDate(),
         dogAdultWeightCategory = dogAdultWeightCategory,
     )

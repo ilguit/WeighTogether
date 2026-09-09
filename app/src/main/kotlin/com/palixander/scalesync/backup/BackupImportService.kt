@@ -14,6 +14,9 @@ import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
@@ -624,10 +627,16 @@ private fun normalizeImportedBreedId(
     breedId: String?,
     snapshotResult: BreedReferenceSnapshotLoadResult,
 ): String? {
-    if (species != PetSpecies.DOG || breedId == null) return null
+    if (breedId == null) return null
+    val canonicalId = canonicalBreedId(breedId)
+    if (species == PetSpecies.CAT) {
+        val known = BreedCatalog.bundled().findById(canonicalId)
+        return if (known == null || known.species == BreedSpecies.CAT) canonicalId else breedId
+    }
+    if (species != PetSpecies.DOG) return canonicalId
     val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
-        ?: return null
-    return snapshot.breed(breedId)?.breedId
+        ?: return canonicalId
+    return snapshot.breed(canonicalId)?.breedId ?: canonicalId
 }
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(

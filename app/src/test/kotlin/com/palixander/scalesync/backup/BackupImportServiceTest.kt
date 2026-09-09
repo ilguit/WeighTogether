@@ -377,7 +377,9 @@ class BackupImportServiceTest {
             BackupPetV2("unsupported", "Unsupported", "unsupported", PetSpecies.DOG, 1, 2,
                 breedId = "external:dog:future"),
             BackupPetV2("cat", "Cat", "cat", PetSpecies.CAT, 1, 2,
-                breedId = "VBO:0100000"),
+                breedId = "VBO:0100061"),
+            BackupPetV2("future-cat", "Future cat", "future cat", PetSpecies.CAT, 1, 2,
+                breedId = "external:cat:future"),
         )
 
         val imported = service.preview(
@@ -389,12 +391,13 @@ class BackupImportServiceTest {
 
         assertEquals("VBO:0200995", imported.getValue("supported").breedId)
         assertEquals("VBO:0200174", imported.getValue("alias").breedId)
-        assertEquals(null, imported.getValue("unsupported").breedId)
-        assertEquals(null, imported.getValue("cat").breedId)
+        assertEquals("external:dog:future", imported.getValue("unsupported").breedId)
+        assertEquals("VBO:0100230", imported.getValue("cat").breedId)
+        assertEquals("external:cat:future", imported.getValue("future-cat").breedId)
     }
 
     @Test
-    fun `import remains available and clears breed ids when breed snapshot is unavailable`() {
+    fun `import remains available and preserves breed ids when breed snapshot is unavailable`() {
         val unavailableService = BackupImportService(
             breedSnapshotResult = BreedReferenceSnapshotLoadResult.Unavailable("checksum mismatch"),
         )
@@ -417,7 +420,7 @@ class BackupImportServiceTest {
             BackupImportMode.REPLACE,
         )
 
-        assertEquals(null, imported.result.pets.single().breedId)
+        assertEquals("VBO:0200995", imported.result.pets.single().breedId)
     }
 
     @Test
