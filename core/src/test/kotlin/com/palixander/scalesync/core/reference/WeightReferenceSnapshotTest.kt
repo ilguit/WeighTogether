@@ -45,7 +45,7 @@ class WeightReferenceSnapshotTest {
     fun `bundled DSH scope is sex-specific intact and age-limited`() {
         val scopes = WeightReferenceSnapshot.bundled().manifest.scopes.filter { it.species == ReferenceSpecies.CAT }
 
-        assertEquals(50, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
+        assertEquals(66, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         val dsh = scopes.filter { it.breedId == "VBO:0100119" }
         assertEquals(2, dsh.size)
         assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
@@ -174,12 +174,12 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
-    fun `batch one exposes exactly eighteen canonical breeds and honest source classes`() {
+    fun `approved evidence exposes exactly twenty six canonical breeds and honest source classes`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val batch = snapshot.profiles.filter { it.id.matches(Regex("cat-breed-\\d{7}-(female|male)")) }
 
-        assertEquals(36, batch.size)
-        assertEquals(18, batch.map { it.breedId }.toSet().size)
+        assertEquals(52, batch.size)
+        assertEquals(26, batch.map { it.breedId }.toSet().size)
         assertTrue(batch.none { it.breedId == "VBO:0100061" })
         assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), batch.groupBy { it.breedId }.values.flatMap { profiles ->
             listOf(profiles.map { it.sex }.toSet()).onEach { assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), it) }
@@ -190,8 +190,11 @@ class WeightReferenceSnapshotTest {
         val russian = snapshot.metadataFor("cat-breed-0100200-female")!!
         assertEquals(ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE, russian.source.authorityClass)
         assertTrue(russian.source.disclosure.contains("not an official", ignoreCase = true))
-        assertTrue(batch.filterNot { it.breedId == "VBO:0100200" }.all {
+        assertEquals(34, batch.count {
             snapshot.metadataFor(it.id)!!.source.authorityClass == ReferenceSourceAuthorityClass.OFFICIAL_BREED_ORGANIZATION
+        })
+        assertEquals(18, batch.count {
+            snapshot.metadataFor(it.id)!!.source.authorityClass == ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE
         })
     }
 

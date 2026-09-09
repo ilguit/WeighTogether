@@ -219,7 +219,7 @@ public final class Main {
             if (profiles.get(index).getAsJsonObject().get("id").getAsString().startsWith("cat-population-")) profiles.remove(index);
         }
         addFittedCatProfiles(root, profiles, fittedCatCurves);
-        addBatchOneEvidence(root, catEvidence);
+        addApprovedCatBreedEvidence(root, catEvidence);
         addModelledBreedProfiles(root, profiles);
         ensureSourceDisclosures(root);
         Path assembled = Files.createTempFile("weight-reference-snapshot", ".json");
@@ -242,7 +242,7 @@ public final class Main {
         });
     }
 
-    private static void addBatchOneEvidence(JsonObject root, Path evidence) throws Exception {
+    private static void addApprovedCatBreedEvidence(JsonObject root, Path evidence) throws Exception {
         validateCatBreedEvidence(evidence);
         JsonArray sources = root.getAsJsonObject("manifest").getAsJsonArray("sources");
         JsonArray scopes = root.getAsJsonObject("manifest").getAsJsonArray("scopes");
@@ -253,7 +253,6 @@ public final class Main {
             List<String> values = csvFields(lines.get(lineNumber - 1));
             Map<String, String> row = new HashMap<>();
             for (int index = 0; index < values.size(); index++) row.put(CAT_EVIDENCE_FIELDS.get(index), values.get(index));
-            if (!row.get("batch").equals("1")) continue;
             String sourceId = "cat-breed-" + row.get("sourceId").toLowerCase().replaceAll("[^a-z0-9]+", "-");
             generatedSources.computeIfAbsent(sourceId, unused -> {
                 JsonObject source = new JsonObject();
