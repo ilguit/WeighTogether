@@ -57,6 +57,61 @@ public final class Main {
         "0100169", "0100170", "0100178", "0100183", "0100184", "0100189",
         "0100196", "0100200", "0100230", "0100235", "0100245", "0100303"
     );
+    private static final Set<String> CAT_BATCH_2_IDS = Set.of(
+        "0100018", "0100045", "0100056", "0100090", "0100173", "0100188",
+        "0100216", "0100249"
+    );
+
+    /**
+     * Returns the reviewed adult evidence rows for one production batch.
+     *
+     * Keeping selection behind an exact allowlist prevents a newly researched or explicitly
+     * excluded breed from entering a generated snapshot merely because a CSV row was added.
+     */
+    static List<CatBreedEvidence> catBreedEvidenceForBatch(Path path, int batch) throws Exception {
+        validateCatBreedEvidence(path);
+        require(batch == 1 || batch == 2, 0, "batch");
+        List<CatBreedEvidence> evidence = new ArrayList<>();
+        List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+        for (int lineNumber = 2; lineNumber <= lines.size(); lineNumber++) {
+            List<String> values = csvFields(lines.get(lineNumber - 1));
+            if (Integer.parseInt(values.get(CAT_EVIDENCE_FIELDS.indexOf("batch"))) != batch) continue;
+            evidence.add(new CatBreedEvidence(
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("vboId")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("canonicalBreed")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("sex")),
+                Double.parseDouble(values.get(CAT_EVIDENCE_FIELDS.indexOf("adultLowerKg"))),
+                Double.parseDouble(values.get(CAT_EVIDENCE_FIELDS.indexOf("adultMedianKg"))),
+                Double.parseDouble(values.get(CAT_EVIDENCE_FIELDS.indexOf("adultUpperKg"))),
+                Integer.parseInt(values.get(CAT_EVIDENCE_FIELDS.indexOf("maturityAgeDays"))),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("maturityDerivation")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("evidenceTier")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("sourceId")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("sourceAuthorityClass")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("sourceUrl")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("claim")),
+                values.get(CAT_EVIDENCE_FIELDS.indexOf("limitations"))
+            ));
+        }
+        return List.copyOf(evidence);
+    }
+
+    record CatBreedEvidence(
+        String vboId,
+        String canonicalBreed,
+        String sex,
+        double adultLowerKg,
+        double adultMedianKg,
+        double adultUpperKg,
+        int maturityAgeDays,
+        String maturityDerivation,
+        String evidenceTier,
+        String sourceId,
+        String sourceAuthorityClass,
+        String sourceUrl,
+        String claim,
+        String limitations
+    ) {}
 
     static void validateCatBreedEvidence(Path path) throws Exception {
         List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
@@ -79,7 +134,9 @@ public final class Main {
             require(row.get("vboId").matches("01[0-9]{5}"), lineNumber, "vboId");
             require(!row.get("canonicalBreed").isBlank(), lineNumber, "canonicalBreed");
             require(Set.of("1", "2").contains(row.get("batch")), lineNumber, "batch");
-            require(row.get("batch").equals(CAT_BATCH_1_IDS.contains(row.get("vboId")) ? "1" : "2"), lineNumber, "approved batch");
+            String vboId = row.get("vboId");
+            require(CAT_BATCH_1_IDS.contains(vboId) || CAT_BATCH_2_IDS.contains(vboId), lineNumber, "approved breed");
+            require(row.get("batch").equals(CAT_BATCH_1_IDS.contains(vboId) ? "1" : "2"), lineNumber, "approved batch");
             require(Set.of("official", "professional_fallback").contains(row.get("evidenceTier")), lineNumber, "evidenceTier");
             require(Set.of("female", "male").contains(row.get("sex")), lineNumber, "sex");
             double lower = positive(row, "adultLowerKg", lineNumber);
@@ -114,6 +171,7 @@ public final class Main {
         require(sexesByBreed.size() == 26, 0, "breed count");
         require(batch1 == 18 && batch2 == 8, 0, "batch counts");
         require(firstRowByBreed.keySet().containsAll(CAT_BATCH_1_IDS), 0, "Batch 1 IDs");
+        require(firstRowByBreed.keySet().containsAll(CAT_BATCH_2_IDS), 0, "Batch 2 IDs");
         require(firstRowByBreed.get("0100200").get(CAT_EVIDENCE_FIELDS.indexOf("evidenceTier")).equals("professional_fallback"), 0, "Russian Blue exception");
         require(sexesByBreed.values().stream().allMatch(value -> value.equals(Set.of("female", "male"))), 0, "sex coverage");
         require(aliases.equals(Set.of("0100061->0100230")), 0, "canonical aliases");
