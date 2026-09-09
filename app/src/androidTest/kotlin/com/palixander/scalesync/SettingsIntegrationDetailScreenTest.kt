@@ -10,8 +10,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.semantics.SemanticsProperties
 import com.palixander.scalesync.data.AppSettings
 import org.junit.Assert.assertEquals
-import org.junit.Assume.assumeFalse
-import org.junit.Assume.assumeTrue
 import org.junit.Rule
 import org.junit.Test
 
@@ -114,48 +112,16 @@ class SettingsIntegrationDetailScreenTest {
     }
 
     @Test
-    fun diagnosticsUsesSeparateMeasurementAndBackgroundGroups() {
+    fun diagnosticsKeepsBackgroundActionsWithoutManualInput() {
         setDetail(SettingsDestination.DIAGNOSTICS, MainUiState())
 
-        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestAction).assertIsEnabled()
+        compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestWeight).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestImpedance).assertDoesNotExist()
+        compose.onNodeWithTag(SettingsScreenTestTags.ManualTestAction).assertDoesNotExist()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider).assertExists()
         compose.onNodeWithTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider).assertExists()
-    }
-
-    @Test
-    fun personalFlavorHasNoHuaweiRootDestination() {
-        assumeFalse(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        assertEquals(
-            false,
-            settingsRootDestinations(huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED)
-                .contains(SettingsDestination.HUAWEI_HEALTH),
-        )
-    }
-
-    @Test
-    fun enterpriseHuaweiDetailsUseRetryAndAuthorizedDisconnectContracts() {
-        assumeTrue(BuildConfig.HUAWEI_EXTENDED_ENABLED)
-        var refreshCalls = 0
-        setDetail(
-            SettingsDestination.HUAWEI_HEALTH,
-            MainUiState(huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED)),
-            callbacks(onHuaweiPermissionRefresh = { refreshCalls++ }),
-        )
-        compose.onNodeWithText("Не удалось проверить разрешение").assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).performClick()
-        compose.runOnIdle { assertEquals(1, refreshCalls) }
-
-        setDetail(
-            SettingsDestination.HUAWEI_HEALTH,
-            MainUiState(huawei = HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED)),
-        )
-        compose.onNodeWithText("Подключено").assertExists()
-        compose.onNodeWithTag(SettingsScreenTestTags.HuaweiHealthAction).assertDoesNotExist()
-        compose.onNodeWithTag(SettingsScreenTestTags.DisableHuawei).assertExists()
     }
 
     private fun setDetail(
@@ -174,16 +140,12 @@ class SettingsIntegrationDetailScreenTest {
     }
 
     private fun callbacks(
-        onHuaweiPermissionRefresh: () -> Unit = {},
         onHealthConnectAuthorization: () -> Unit = {},
         onHealthConnectAccessManagement: () -> Unit = {},
         onDisableHealthConnect: () -> Unit = {},
     ) = SettingsCallbacks(
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = onHuaweiPermissionRefresh,
         onHealthConnectAuthorization = onHealthConnectAuthorization,
         onHealthConnectAccessManagement = onHealthConnectAccessManagement,
-        onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

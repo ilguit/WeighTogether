@@ -1,6 +1,9 @@
 package com.palixander.scalesync.data
 
 import androidx.room.withTransaction
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
@@ -12,6 +15,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.PetWithMeasurementCount
 import com.palixander.scalesync.domain.PetWithLatestWeight
+import com.palixander.scalesync.domain.PartialBirthDate
 import java.time.Instant
 import java.util.UUID
 import kotlinx.coroutines.flow.Flow
@@ -22,6 +26,7 @@ class RoomPetRepository(
     private val dao: PetDao = database.petDao(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val breedCatalog: BreedCatalog = BreedCatalog.bundled(),
 ) : PetRepository {
     override fun observePets(): Flow<List<PetWithLatestWeight>> =
         dao.observePetsWithLatestMeasurement().map { rows -> rows.map { it.toDomain() } }
@@ -41,18 +46,11 @@ class RoomPetRepository(
         require(pet.species != PetSpecies.UNSPECIFIED) {
             "A species is required when creating a pet"
         }
+        validateBreedSpecies(pet.breedId?.value, pet.species)
         dao.getPetByNormalizedName(pet.normalizedName)?.let {
             throw PetNameConflictException(pet.normalizedName)
         }
-        val timestamp = now()
-        val entity = PetEntity(
-            id = newId(),
-            displayName = pet.displayName,
-            normalizedName = pet.normalizedName,
-            species = pet.species,
-            createdAtEpochMillis = timestamp.toEpochMilli(),
-            updatedAtEpochMillis = timestamp.toEpochMilli(),
-        )
+        val entity = pet.toPetEntity(id = newId(), timestamp = now())
         if (dao.insertPet(entity) == -1L) {
             throw PetNameConflictException(pet.normalizedName)
         }
@@ -61,26 +59,28 @@ class RoomPetRepository(
 
     override suspend fun updatePet(pet: PetUpdate): Pet = database.withTransaction {
         val existing = dao.getPet(pet.id.value) ?: throw PetNotFoundException(pet.id)
+        validateBreedSpecies(pet.breedId?.value, pet.species)
         val conflicting = dao.getPetByNormalizedName(pet.normalizedName)
         if (conflicting != null && conflicting.id != existing.id) {
             throw PetNameConflictException(pet.normalizedName)
         }
-        val updatedAt = now().toEpochMilli()
+        val updated = existing.withUpdate(pet, updatedAt = now())
         check(
             dao.updatePet(
-                id = existing.id,
-                displayName = pet.displayName,
-                normalizedName = pet.normalizedName,
-                species = pet.species,
-                updatedAtEpochMillis = updatedAt,
+                id = updated.id,
+                displayName = updated.displayName,
+                normalizedName = updated.normalizedName,
+                species = updated.species,
+                sex = updated.sex,
+                breedId = updated.breedId,
+                birthYear = updated.birthYear,
+                birthMonth = updated.birthMonth,
+                birthDay = updated.birthDay,
+                dogAdultWeightCategory = updated.dogAdultWeightCategory,
+                updatedAtEpochMillis = updated.updatedAtEpochMillis,
             ) == 1,
         ) { "Pet ${existing.id} disappeared while updating" }
-        existing.copy(
-            displayName = pet.displayName,
-            normalizedName = pet.normalizedName,
-            species = pet.species,
-            updatedAtEpochMillis = updatedAt,
-        ).toDomain()
+        updated.toDomain()
     }
 
     override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview =
@@ -104,6 +104,20 @@ class RoomPetRepository(
         }
     }
 
+    override suspend fun updateMeasurementWeight(
+        petId: PetId,
+        measurementId: String,
+        petWeightKg: Double,
+    ): PetMeasurement = database.withTransaction {
+        require(petWeightKg.isFinite() && petWeightKg > 0.0) {
+            "Pet weight must be finite and positive"
+        }
+        if (dao.updateMeasurementWeight(petId.value, measurementId, petWeightKg) != 1) {
+            throw PetMeasurementNotFoundException(petId, measurementId)
+        }
+        checkNotNull(dao.getMeasurement(measurementId)).toDomain()
+    }
+
     override suspend fun recordCompletedMeasurement(
         petId: PetId,
         measuredAt: Instant,
@@ -124,6 +138,18 @@ class RoomPetRepository(
         }
         domain
     }
+
+    private fun validateBreedSpecies(breedId: String?, species: PetSpecies) {
+        val breed = breedId?.let(breedCatalog::findById) ?: return
+        val expectedSpecies = when (species) {
+            PetSpecies.CAT -> BreedSpecies.CAT
+            PetSpecies.DOG -> BreedSpecies.DOG
+            PetSpecies.UNSPECIFIED -> return
+        }
+        require(breed.species == expectedSpecies) {
+            "Breed $breedId does not belong to ${species.name.lowercase()} species"
+        }
+    }
 }
 
 class PetNameConflictException(val normalizedName: String) :
@@ -132,6 +158,34 @@ class PetNameConflictException(val normalizedName: String) :
 class PetNotFoundException(val petId: PetId) :
     NoSuchElementException("Pet ${petId.value} does not exist")
 
+internal fun NewPet.toPetEntity(id: String, timestamp: Instant): PetEntity = PetEntity(
+    id = id,
+    displayName = displayName,
+    normalizedName = normalizedName,
+    species = species,
+    createdAtEpochMillis = timestamp.toEpochMilli(),
+    updatedAtEpochMillis = timestamp.toEpochMilli(),
+    sex = sex,
+    breedId = breedId?.value?.let(::canonicalBreedId),
+    birthYear = birthDate?.yearValue,
+    birthMonth = birthDate?.monthValue,
+    birthDay = birthDate?.dayValue,
+    dogAdultWeightCategory = dogAdultWeightCategory,
+)
+
+internal fun PetEntity.withUpdate(pet: PetUpdate, updatedAt: Instant): PetEntity = copy(
+    displayName = pet.displayName,
+    normalizedName = pet.normalizedName,
+    species = pet.species,
+    sex = pet.sex,
+    breedId = pet.breedId?.value?.let(::canonicalBreedId),
+    birthYear = pet.birthDate?.yearValue,
+    birthMonth = pet.birthDate?.monthValue,
+    birthDay = pet.birthDate?.dayValue,
+    dogAdultWeightCategory = pet.dogAdultWeightCategory,
+    updatedAtEpochMillis = updatedAt.toEpochMilli(),
+)
+
 private fun PetMeasurement.toEntity(): PetMeasurementEntity = PetMeasurementEntity(
     id = id,
     petId = petId.value,
@@ -139,6 +193,8 @@ private fun PetMeasurement.toEntity(): PetMeasurementEntity = PetMeasurementEnti
     firstWeightKg = firstWeightKg,
     secondWeightKg = secondWeightKg,
     petWeightKg = petWeightKg,
+    origin = origin,
+    isManuallyEdited = isManuallyEdited,
 )
 
 private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
@@ -149,16 +205,41 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
         species = species,
         createdAtEpochMillis = createdAtEpochMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
+        sex = sex,
+        breedId = breedId,
+        birthYear = birthYear,
+        birthMonth = birthMonth,
+        birthDay = birthDay,
+        dogAdultWeightCategory = dogAdultWeightCategory,
     ).toDomain()
     val latest = latestMeasurementId?.let { measurementId ->
         PetMeasurementEntity(
             id = measurementId,
             petId = id,
             measuredAtEpochSecond = requireNotNull(latestMeasuredAtEpochSecond),
-            firstWeightKg = requireNotNull(latestFirstWeightKg),
-            secondWeightKg = requireNotNull(latestSecondWeightKg),
+            firstWeightKg = latestFirstWeightKg,
+            secondWeightKg = latestSecondWeightKg,
             petWeightKg = requireNotNull(latestPetWeightKg),
+            origin = requireNotNull(latestOrigin),
+            isManuallyEdited = requireNotNull(latestIsManuallyEdited),
         ).toDomain()
     }
     return PetWithLatestWeight(pet = pet, latestMeasurement = latest)
 }
+
+private val PartialBirthDate.yearValue: Int
+    get() = when (this) {
+        is PartialBirthDate.Year -> value.value
+        is PartialBirthDate.Month -> value.year
+        is PartialBirthDate.Day -> value.year
+    }
+
+private val PartialBirthDate.monthValue: Int?
+    get() = when (this) {
+        is PartialBirthDate.Year -> null
+        is PartialBirthDate.Month -> value.monthValue
+        is PartialBirthDate.Day -> value.monthValue
+    }
+
+private val PartialBirthDate.dayValue: Int?
+    get() = (this as? PartialBirthDate.Day)?.value?.dayOfMonth

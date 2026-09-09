@@ -48,11 +48,8 @@ class DestructiveSettingsScreenTest {
     }
 
     private fun callbacks() = SettingsCallbacks(
-        onHuaweiAuthorization = {},
-        onHuaweiPermissionRefresh = {},
         onHealthConnectAuthorization = {},
         onHealthConnectAccessManagement = {},
-        onManualTest = { _, _ -> },
         onManualScan = {},
         onReliabilityMode = {},
         openBatterySettings = {},

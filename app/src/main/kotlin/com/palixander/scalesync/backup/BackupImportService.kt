@@ -10,7 +10,14 @@ import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.ProfileStore
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
+import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.google.gson.Gson
 import com.google.gson.JsonObject
@@ -33,6 +40,7 @@ sealed interface BackupImportConflict {
     data class AccountName(val normalizedName: String) : BackupImportConflict
     data class MeasurementId(val id: String) : BackupImportConflict
     data class MeasurementFingerprint(val fingerprint: String) : BackupImportConflict
+    data class MeasurementSourcePendingId(val sourcePendingId: String) : BackupImportConflict
     data class MeasurementDeduplicationHash(val hash: String) : BackupImportConflict
     data class PetId(val id: String) : BackupImportConflict
     data class PetName(val normalizedName: String) : BackupImportConflict
@@ -360,6 +368,8 @@ fun ProfileStore.asPortableSettingsWriter(): PortableSettingsWriter =
 class BackupImportService(
     private val codec: BackupJsonCodec = BackupJsonCodec(),
     private val byteLimit: Int = MAX_BACKUP_BYTES,
+    private val breedSnapshotResult: BreedReferenceSnapshotLoadResult =
+        BreedReferenceSnapshot.bundledOrUnavailable(),
 ) {
     init { require(byteLimit > 0) }
 
@@ -416,14 +426,17 @@ class BackupImportService(
         currentSettings: VersionedPortableProfileSettings,
         mode: BackupImportMode,
     ): BackupImportPreview {
+        // Callers may supply a model directly instead of going through read(); apply the same
+        // shape-independent semantic validation before constructing a database snapshot.
+        val validatedDocument = codec.decode(codec.encode(document))
         val baseline = BackupImportBaselineToken(
             current,
             currentSettings.settings,
             currentSettings.revision,
         )
         return when (mode) {
-            BackupImportMode.REPLACE -> replace(document, current, baseline)
-            BackupImportMode.MERGE -> merge(document, current, currentSettings.settings, baseline)
+            BackupImportMode.REPLACE -> replace(validatedDocument, current, baseline)
+            BackupImportMode.MERGE -> merge(validatedDocument, current, currentSettings.settings, baseline)
         }
     }
 
@@ -432,7 +445,7 @@ class BackupImportService(
         current: BackupDatabaseSnapshot,
         baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
-        val result = document.toSnapshot()
+        val result = document.toSnapshot(breedSnapshotResult)
         return BackupImportPreview(
             BackupImportMode.REPLACE,
             BackupImportCounts(
@@ -462,62 +475,82 @@ class BackupImportService(
         currentSettings: PortableProfileSettings,
         baseline: BackupImportBaselineToken,
     ): BackupImportPreview {
-        val incoming = document.toSnapshot()
+        val incoming = document.toSnapshot(breedSnapshotResult)
         val conflicts = mutableListOf<BackupImportConflict>()
         val existingAccountsById = current.accounts.associateBy { it.id }
         val existingAccountsByName = current.accounts.associateBy { it.normalizedName }
+        val accountIdMapping = mutableMapOf<String, String>()
         val accountsToAdd = incoming.accounts.filter { account ->
             val byId = existingAccountsById[account.id]
-            if (byId != null) {
-                if (byId != account) conflicts += BackupImportConflict.AccountId(account.id)
+            val byName = existingAccountsByName[account.normalizedName]
+            if (byId != null && byName != null && byId.id != byName.id) {
+                conflicts += BackupImportConflict.AccountId(account.id)
+                conflicts += BackupImportConflict.AccountName(account.normalizedName)
+                // Keep validation deterministic; the accumulated ambiguity is rejected below.
+                accountIdMapping[account.id] = account.id
                 false
             } else {
-                val byName = existingAccountsByName[account.normalizedName]
-                if (byName != null) conflicts += BackupImportConflict.AccountName(account.normalizedName)
-                byName == null
+                val matched = byId ?: byName
+                accountIdMapping[account.id] = matched?.id ?: account.id
+                matched == null
             }
+        }
+        val remappedMeasurements = incoming.measurements.map { measurement ->
+            measurement.copy(accountId = accountIdMapping.getValue(measurement.accountId))
         }
         val byId = current.measurements.associateBy { it.id }
         val byFingerprint = current.measurements.associateBy { it.fingerprint }
+        val bySourcePendingId = current.measurements.mapNotNull { value ->
+            value.sourcePendingId?.let { it to value }
+        }.toMap()
         val byHash = current.measurements.mapNotNull { value -> value.deduplicationHash?.let { it to value } }.toMap()
-        val measurementsToAdd = incoming.measurements.filter { measurement ->
+        val measurementsToAdd = remappedMeasurements.filter { measurement ->
             val matches = listOfNotNull(
                 byId[measurement.id]?.let { BackupImportConflict.MeasurementId(measurement.id) to it },
                 byFingerprint[measurement.fingerprint]?.let { BackupImportConflict.MeasurementFingerprint(measurement.fingerprint) to it },
+                measurement.sourcePendingId?.let { sourcePendingId ->
+                    bySourcePendingId[sourcePendingId]?.let {
+                        BackupImportConflict.MeasurementSourcePendingId(sourcePendingId) to it
+                    }
+                },
                 measurement.deduplicationHash?.let { hash -> byHash[hash]?.let { BackupImportConflict.MeasurementDeduplicationHash(hash) to it } },
             )
-            if (matches.isEmpty()) true else {
-                val identical = matches.all { it.second == measurement }
-                if (!identical) conflicts += matches.filter { it.second != measurement }.map { it.first }
-                false
-            }
+            val matchedIds = matches.map { it.second.id }.distinct()
+            if (matchedIds.size > 1) conflicts += matches.map { it.first }
+            matches.isEmpty()
         }
         val existingPetsById = current.pets.associateBy { it.id }
         val existingPetsByName = current.pets.associateBy { it.normalizedName }
+        val petIdMapping = mutableMapOf<String, String>()
         val petsToAdd = incoming.pets.filter { pet ->
             val byPetId = existingPetsById[pet.id]
-            if (byPetId != null) {
-                if (byPetId != pet) conflicts += BackupImportConflict.PetId(pet.id)
+            val byName = existingPetsByName[pet.normalizedName]
+            if (byPetId != null && byName != null && byPetId.id != byName.id) {
+                conflicts += BackupImportConflict.PetId(pet.id)
+                conflicts += BackupImportConflict.PetName(pet.normalizedName)
+                // Keep validation deterministic; the accumulated ambiguity is rejected below.
+                petIdMapping[pet.id] = pet.id
                 false
             } else {
-                val byName = existingPetsByName[pet.normalizedName]
-                if (byName != null) conflicts += BackupImportConflict.PetName(pet.normalizedName)
-                byName == null
+                val matched = byPetId ?: byName
+                petIdMapping[pet.id] = matched?.id ?: pet.id
+                matched == null
             }
         }
+        val remappedPetMeasurements = incoming.petMeasurements.map { measurement ->
+            measurement.copy(petId = petIdMapping.getValue(measurement.petId))
+        }
         val existingPetMeasurementsById = current.petMeasurements.associateBy { it.id }
-        val petMeasurementsToAdd = incoming.petMeasurements.filter { measurement ->
+        val petMeasurementsToAdd = remappedPetMeasurements.filter { measurement ->
             val existing = existingPetMeasurementsById[measurement.id]
-            if (existing == null) true else {
-                if (existing != measurement) conflicts += BackupImportConflict.PetMeasurementId(measurement.id)
-                false
-            }
+            existing == null
         }
         if (conflicts.isNotEmpty()) throw BackupImportConflicts(conflicts.distinct())
         val result = BackupDatabaseSnapshot(
             accounts = current.accounts + accountsToAdd,
             appState = current.appState.copy(
-                primaryAccountId = current.appState.primaryAccountId ?: incoming.appState.primaryAccountId,
+                primaryAccountId = current.appState.primaryAccountId
+                    ?: incoming.appState.primaryAccountId?.let(accountIdMapping::getValue),
             ),
             measurements = current.measurements + measurementsToAdd,
             pets = current.pets + petsToAdd,
@@ -548,7 +581,11 @@ class BackupImportService(
     }
 }
 
-private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
+private fun BackupDocumentV1.toSnapshot(
+    breedSnapshotResult: BreedReferenceSnapshotLoadResult,
+): BackupDatabaseSnapshot {
+    val importedAccountsById = accounts.associateBy { it.id }
+    return BackupDatabaseSnapshot(
     accounts = accounts.map { account ->
         AccountEntity(account.id, account.displayName, account.normalizedName, account.profile.heightCm,
             account.profile.birthDateEpochDay, account.profile.sex?.name, account.profile.complete,
@@ -556,23 +593,94 @@ private fun BackupDocumentV1.toSnapshot() = BackupDatabaseSnapshot(
     },
     appState = AppStateEntity(primaryAccountId = appState.primaryAccountId,
         weightDeltaKg = appState.weightDeltaKg, ignoreUnknownMeasurements = appState.ignoreUnknownMeasurements),
-    measurements = measurements.map { it.toEntity() },
-    pets = pets.map { PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis) },
-    petMeasurements = petMeasurements.map {
-        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg, it.petWeightKg)
+    measurements = measurements.map { measurement ->
+        val legacyOwnerHeight = if (schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
+            val owner = importedAccountsById[measurement.accountId]
+                ?: throw BackupException.MissingAccount(measurement.accountId)
+            owner.profile.heightCm
+        } else {
+            null
+        }
+        measurement.toEntity(
+            ratingHeightCm = if (schemaVersion < BACKUP_SCHEMA_VERSION_V3) legacyOwnerHeight else measurement.ratingHeightCm,
+            ratingHeightOrigin = if (schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
+                RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT
+            } else {
+                requireNotNull(measurement.ratingHeightOrigin)
+            },
+        )
     },
-)
+    pets = pets.map {
+        PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis,
+            it.sex, normalizeImportedBreedId(it.species, it.breedId, breedSnapshotResult), it.birthYear, it.birthMonth, it.birthDay,
+            it.dogAdultWeightCategory)
+    },
+    petMeasurements = petMeasurements.map {
+        PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg,
+            it.petWeightKg, it.origin, it.isManuallyEdited)
+    },
+    )
+}
+
+private fun normalizeImportedBreedId(
+    species: PetSpecies,
+    breedId: String?,
+    snapshotResult: BreedReferenceSnapshotLoadResult,
+): String? {
+    if (breedId == null) return null
+    val canonicalId = canonicalBreedId(breedId)
+    if (species == PetSpecies.CAT) {
+        val known = BreedCatalog.bundled().findById(canonicalId)
+        return if (known == null || known.species == BreedSpecies.CAT) canonicalId else breedId
+    }
+    if (species != PetSpecies.DOG) return canonicalId
+    val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
+        ?: return canonicalId
+    return snapshot.breed(canonicalId)?.breedId ?: canonicalId
+}
 
 private fun BackupSettingsV1.toSettings() = PortableProfileSettings(
     scaleAddress, scaleName, reliabilityMode, selectedChartMetricKeys?.toSet(), homeKgChartSeriesKeys?.toSet(),
 )
 
-private fun BackupMeasurementV1.toEntity() = MeasurementEntity(
-    id, fingerprint, measurementType, deviceAddress, measuredAtEpochSecond, rawPayloadHex, weightKg,
-    rawWeight, impedanceOhm, bmi, bodyFatPercent, bodyFatMassKg, waterPercent, waterMassKg,
-    muscleMassKg, skeletalMuscleMassKg, boneMassKg, proteinPercent, proteinMassKg, visceralFatLevel,
-    basalMetabolicRateKcal, metabolicAge, leanBodyMassKg, algorithmVersion, huaweiStatus.name,
-    healthConnectStatus.name, huaweiError, healthConnectError, huaweiWeightSynced,
-    healthConnectWeightSynced, createdAtEpochMillis, accountId, externalSyncPolicy.name,
-    sourcePendingId, deduplicationHash, huaweiSyncedCalculatedValues, healthConnectSyncedCalculatedValues,
+private fun BackupMeasurementV1.toEntity(
+    ratingHeightCm: Double?,
+    ratingHeightOrigin: RatingHeightOrigin,
+) = MeasurementEntity(
+    id = id,
+    fingerprint = fingerprint,
+    measurementType = measurementType,
+    deviceAddress = deviceAddress,
+    measuredAtEpochSecond = measuredAtEpochSecond,
+    rawPayloadHex = rawPayloadHex,
+    weightKg = weightKg,
+    rawWeight = rawWeight,
+    impedanceOhm = impedanceOhm,
+    bmi = bmi,
+    bodyFatPercent = bodyFatPercent,
+    bodyFatMassKg = bodyFatMassKg,
+    waterPercent = waterPercent,
+    waterMassKg = waterMassKg,
+    muscleMassKg = muscleMassKg,
+    skeletalMuscleMassKg = skeletalMuscleMassKg,
+    boneMassKg = boneMassKg,
+    proteinPercent = proteinPercent,
+    proteinMassKg = proteinMassKg,
+    visceralFatLevel = visceralFatLevel,
+    basalMetabolicRateKcal = basalMetabolicRateKcal,
+    metabolicAge = metabolicAge,
+    leanBodyMassKg = leanBodyMassKg,
+    algorithmVersion = algorithmVersion,
+    healthConnectStatus = healthConnectStatus.name,
+    healthConnectError = healthConnectError,
+    healthConnectWeightSynced = healthConnectWeightSynced,
+    createdAtEpochMillis = createdAtEpochMillis,
+    accountId = accountId,
+    externalSyncPolicy = externalSyncPolicy.name,
+    sourcePendingId = sourcePendingId,
+    deduplicationHash = deduplicationHash,
+    healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
+    origin = origin,
 )

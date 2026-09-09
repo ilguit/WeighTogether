@@ -1,10 +1,13 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.domain.MeasurementOrigin
+
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PreliminaryDecisionReadiness
 import com.palixander.scalesync.domain.lifecycleAt
+import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import java.time.Instant
@@ -190,7 +193,6 @@ enum class MeasurementSyncDirection(
     val label: String,
 ) {
     HEALTH_CONNECT("Health Connect"),
-    HUAWEI_HEALTH("Huawei Health"),
 }
 
 enum class MeasurementSyncPresentationState(
@@ -237,6 +239,12 @@ data class MeasurementUiItem(
     val sourcePendingId: PendingMeasurementId? = null,
     val isPreliminary: Boolean = false,
     val preliminaryDecisionReadiness: PreliminaryDecisionReadiness? = null,
+    /** Finalized-only ScaleSync 1 presentation. Preliminary rows intentionally keep this empty. */
+    val referenceMetrics: List<ReferenceMetricPresentation> = emptyList(),
+    val ratingHeightCm: Double? = null,
+    val referenceAge: Int? = null,
+    val hasRestoredRatingHeight: Boolean = false,
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     init {
         require(presentationKey.isNotBlank()) { "Presentation key must not be blank" }
@@ -389,8 +397,6 @@ internal fun PendingMeasurement.toPreliminaryMeasurementUiItem(
         sync = measurementSyncPresentation(
             healthConnectStatus = "LOCAL_ONLY",
             healthConnectError = null,
-            huaweiStatus = "DISABLED",
-            huaweiError = null,
         ),
         type = if (composition == null) MeasurementUiType.WEIGHT_ONLY else MeasurementUiType.FULL,
     )
@@ -466,6 +472,7 @@ val MeasurementDeleteConfirmation.measuredAt: Instant
     get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
 data class MeasurementsUiState(
+    val scrollToMeasurementId: String? = null,
     val destination: MeasurementsDestination = MeasurementsDestination.SUMMARY,
     val editorOrigin: MeasurementEditorOrigin = MeasurementEditorOrigin.SUMMARY,
     val measurements: List<MeasurementUiItem> = emptyList(),
@@ -490,6 +497,10 @@ data class MeasurementsUiState(
 
 /** One-shot effects that an integrating ViewModel can expose through a Channel/SharedFlow. */
 sealed interface MeasurementsUiEvent {
+    data class ManualWeightSaved(
+        val owner: com.palixander.scalesync.domain.ManualWeightOwner,
+        val result: com.palixander.scalesync.domain.ManualWeightResult.Saved,
+    ) : MeasurementsUiEvent
     data class ShowSnackbar(
         val message: String,
     ) : MeasurementsUiEvent
@@ -508,6 +519,8 @@ data class MeasurementsCallbacks(
     val onDeleteConfirmed: (measurementId: String) -> Unit,
     val onDeleteDismissed: () -> Unit,
     val onRetryRequested: (measurementId: String) -> Unit,
+    val onAddWeightRequested: () -> Unit = {},
+    val onScrollToMeasurementHandled: () -> Unit = {},
     val onAccountSelected: (AccountId) -> Unit = {},
     val onPendingAssignRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},
@@ -540,19 +553,12 @@ data class MeasurementsCallbacks(
 internal fun measurementSyncPresentation(
     healthConnectStatus: String,
     healthConnectError: String?,
-    huaweiStatus: String,
-    huaweiError: String?,
 ): MeasurementSyncPresentation {
     val directions = listOfNotNull(
         syncDirectionPresentation(
             direction = MeasurementSyncDirection.HEALTH_CONNECT,
             rawStatus = healthConnectStatus,
             rawError = healthConnectError,
-        ),
-        syncDirectionPresentation(
-            direction = MeasurementSyncDirection.HUAWEI_HEALTH,
-            rawStatus = huaweiStatus,
-            rawError = huaweiError,
         ),
     )
     val availableDirections = directions.filterNot {

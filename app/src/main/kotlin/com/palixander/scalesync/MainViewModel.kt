@@ -29,7 +29,6 @@ import com.palixander.scalesync.domain.DiscardPendingAndUpdateIgnorePolicyResult
 import com.palixander.scalesync.domain.DiscardPendingResult
 import com.palixander.scalesync.domain.FinalizePendingResult
 import com.palixander.scalesync.domain.NewAccount
-import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetUpdate
@@ -57,10 +56,13 @@ import com.palixander.scalesync.ui.routing.ResolverQueueState
 import com.palixander.scalesync.ui.routing.UnsavedPreviewMemoryState
 import com.palixander.scalesync.ui.routing.UnsavedMeasurementPreviewState
 import com.palixander.scalesync.ui.routing.UnsavedPreviewSessionCoordinator
+import com.palixander.scalesync.ui.routing.calculateUnsavedPreview as calculateUnsavedPreviewResult
 import com.palixander.scalesync.ui.routing.activeCompletionFor
 import com.palixander.scalesync.ui.routing.buildResolverAccountOptions
 import com.palixander.scalesync.ui.routing.isActivePendingResolverTarget
 import com.palixander.scalesync.ui.profiles.PetHistoryStateOwner
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceDependencies
+import com.palixander.scalesync.ui.profiles.PetHistoryReferenceLoader
 import com.palixander.scalesync.ui.routing.oldestPendingResolverTarget
 import com.palixander.scalesync.ui.routing.pendingForResolverLifecycle
 import com.palixander.scalesync.worker.ExternalSyncPauseTransition
@@ -68,6 +70,9 @@ import com.palixander.scalesync.worker.MeasurementWorkSweep
 import com.palixander.scalesync.worker.PendingDecisionFallback
 import com.palixander.scalesync.sync.SyncResult
 import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -100,7 +105,6 @@ data class MainUiState(
     val healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
     val healthConnectSystemManagementAvailable: Boolean = false,
     val profileEditor: ProfileEditorUiState = ProfileEditorUiState(),
-    val huawei: HuaweiIntegrationUiState = HuaweiIntegrationUiState(),
     val profilesLoaded: Boolean = false,
     val accounts: List<Account> = emptyList(),
     val accountSettings: AccountSettings = AccountSettings(),
@@ -129,7 +133,7 @@ data class MainUiState(
         )
 }
 
-enum class DestructiveSettingsAction { HEALTH_CONNECT, HUAWEI, SCALE }
+enum class DestructiveSettingsAction { HEALTH_CONNECT, SCALE }
 
 private data class AccountsSnapshot(
     val accounts: List<Account>,
@@ -162,7 +166,6 @@ private data class MainCoreState(
     val scaleScanError: String?,
     val isExternalSyncPaused: Boolean,
     val healthConnect: HealthConnectPermissionsUiState,
-    val huawei: HuaweiIntegrationUiState,
     val destructiveActionInProgress: DestructiveSettingsAction?,
 )
 
@@ -180,24 +183,24 @@ private data class RoutingUiSnapshot(
     val preview: UnsavedMeasurementPreviewState?,
 )
 
-class MainViewModel(application: Application) : AndroidViewModel(application) {
+class MainViewModel @JvmOverloads constructor(
+    application: Application,
+    private val currentDate: () -> LocalDate = { LocalDate.now() },
+) : AndroidViewModel(application) {
     private val container = (application as ScaleSyncApplication).container
 
-    fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = PetHistoryStateOwner(
-        initialPetId = petId,
-        repository = container.pets,
-        parentScope = viewModelScope,
-    )
-    private val huaweiAuthorization = HuaweiAuthorizationController(
-        gateway = container.huaweiHealth,
-        onExplicitAuthorizationConfirmed = {
-            container.profileStore.setExternalSyncEnabled(
-                ExternalSyncDestination.HUAWEI,
-                true,
-            )
-            container.repository.retryPendingHuawei()
-        },
-    )
+    private val petHistoryReferenceLoader = PetHistoryReferenceLoader(viewModelScope, Dispatchers.IO) {
+        PetHistoryReferenceDependencies.bundled()
+    }
+    private val petHistoryOwners = mutableMapOf<PetId, PetHistoryStateOwner>()
+    fun petHistoryStateOwner(petId: PetId): PetHistoryStateOwner = petHistoryOwners.getOrPut(petId) {
+        PetHistoryStateOwner(
+            initialPetId = petId,
+            repository = container.pets,
+            parentScope = viewModelScope,
+            referenceDependencies = petHistoryReferenceLoader::load,
+        )
+    }
     private val scanner = ManualScaleScanner(application)
     private val refreshScanner = ManualScaleScanner(application)
     private val petScanner = ManualScaleScanner(application)
@@ -210,9 +213,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val refreshing = MutableStateFlow(false)
     private val petMeasurement = MutableStateFlow<PetMeasurementUiState>(PetMeasurementUiState.Idle)
     private val petManagement = MutableStateFlow(PetManagementUiState())
+    private val petManagementSessionIds = AtomicLong(0L)
+    private val petBreedCatalog = PetBreedCatalog()
     private val petMeasurementStartup = PetMeasurementStartupGuard()
+    private val petMeasurementCreation = PetMeasurementCreationGuard()
     private var petMeasurementStartupJob: Job? = null
-    private var petCreationInProgress = false
     private val backup = MutableStateFlow(BackupUiState())
     private val scaleRefresh = ScaleRefreshCoordinator(
         setRefreshing = { refreshing.value = it },
@@ -263,8 +268,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         )
     }
     private val healthConnect = MutableStateFlow(initialHealthConnectState)
-    private val initialHuaweiState = huaweiAuthorization.initialState
-    private val huawei = MutableStateFlow(initialHuaweiState)
     private val accountsSnapshot = combine(
         container.accounts.observeAccounts(),
         container.accounts.observeSettings(),
@@ -300,6 +303,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val pendingDecision = MutableStateFlow<PendingDecisionSnapshot?>(null)
     private val pendingForNewAccount = MutableStateFlow<PendingResolverSession?>(null)
     private val unsavedPreviewSession = UnsavedPreviewSessionCoordinator()
+    private val unsavedPreviewCalculationIds = AtomicLong(0L)
     private val externalSyncPaused = container.profileStore.settings
         .map { it.externalSyncPaused }
         .distinctUntilChanged()
@@ -324,9 +328,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         scaleScanningState,
         externalSyncPaused,
         healthConnect,
-        huawei,
         destructiveActionInProgress,
-    ) { scanState, isSyncPaused, healthConnectState, huaweiState, destructiveAction ->
+    ) { scanState, isSyncPaused, healthConnectState, destructiveAction ->
         MainCoreState(
             settings = scanState.settings,
             scanning = scanState.scanning,
@@ -335,7 +338,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             scaleScanError = scanState.error,
             isExternalSyncPaused = isSyncPaused,
             healthConnect = healthConnectState,
-            huawei = huaweiState,
             destructiveActionInProgress = destructiveAction,
         )
     }
@@ -410,7 +412,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             scaleScanError = core.scaleScanError,
             isExternalSyncPaused = core.isExternalSyncPaused,
             healthConnect = core.healthConnect,
-            huawei = core.huawei,
             destructiveActionInProgress = core.destructiveActionInProgress,
             profilesLoaded = accountSnapshot.loaded,
             accounts = accountSnapshot.accounts,
@@ -446,8 +447,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         ),
     )
 
-    val huaweiConfigured: Boolean get() = container.huaweiHealth.isConfigured
-    val huaweiAvailableInBuild: Boolean get() = container.huaweiHealth.isAvailableInBuild
     val healthConnectAvailable: Boolean get() = container.healthConnect.isAvailable()
     val healthConnectPermissions: Set<String> get() = container.healthConnect.permissions
 
@@ -912,6 +911,33 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         unsavedPreviewSession.update(state)
     }
 
+    fun calculateUnsavedPreview(pendingId: PendingMeasurementId) {
+        val zoneId = ZoneId.systemDefault()
+        val request = unsavedPreviewSession.startCalculation(
+            pendingId = pendingId,
+            requestId = unsavedPreviewCalculationIds.incrementAndGet(),
+            zoneId = zoneId,
+        ) ?: return
+        viewModelScope.launch(Dispatchers.Default) {
+            try {
+                val result = calculateUnsavedPreviewResult(
+                    pending = request.pending,
+                    draft = request.profileDraft,
+                    zoneId = zoneId,
+                )
+                if (result == null) {
+                    unsavedPreviewSession.failCalculation(pendingId, request.requestId)
+                } else {
+                    unsavedPreviewSession.completeCalculation(pendingId, request.requestId, result)
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Throwable) {
+                unsavedPreviewSession.failCalculation(pendingId, request.requestId)
+            }
+        }
+    }
+
     fun closeUnsavedPreviewAndDiscard(pendingId: PendingMeasurementId) = viewModelScope.launch {
         val completion = unsavedPreviewSession.takeClose(pendingId) ?: return@launch
         discardPending(pendingId, completion)
@@ -1054,12 +1080,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         "Health Connect отключён в приложении. Разрешения можно отозвать в системных настройках.",
     )
 
-    fun disableHuawei() = disableExternalIntegration(
-        DestructiveSettingsAction.HUAWEI,
-        ExternalSyncDestination.HUAWEI,
-        "Huawei Health отключён в приложении. Доступ можно отозвать в Huawei Health или настройках приложения.",
-    )
-
     private fun disableExternalIntegration(
         action: DestructiveSettingsAction,
         destination: ExternalSyncDestination,
@@ -1084,59 +1104,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             } finally {
                 destructiveActionInProgress.compareAndSet(action, null)
             }
-        }
-    }
-
-    fun authorizeHuawei() = viewModelScope.launch {
-        val attempt = huaweiAuthorization.authorize { huawei.value = it }
-        showMessage(huaweiAuthorizationMessage(attempt))
-    }
-
-    fun sendManualTest(weight: String, impedance: String) = viewModelScope.launch {
-        val weightKg = weight.replace(',', '.').toDoubleOrNull()
-        val impedanceOhm = impedance.toIntOrNull()
-        if (weightKg == null || impedanceOhm == null ||
-            weightKg !in 10.0..300.0 || impedanceOhm !in 80..3_000
-        ) {
-            showMessage("Проверьте вес и импеданс")
-            return@launch
-        }
-        when (val result = container.repository.ingestTestMeasurement(weightKg, impedanceOhm)) {
-            is MeasurementIngestionResult.CreatedAggregate ->
-                showMessage("Тестовое измерение ожидает завершения")
-            is MeasurementIngestionResult.UpdatedAggregate ->
-                showMessage("Окно тестового измерения продлено")
-            is MeasurementIngestionResult.UpgradedFinalized ->
-                showMessage("Состав тела добавлен к тестовому измерению")
-            MeasurementIngestionResult.SuppressedFinal,
-            MeasurementIngestionResult.SuppressedTombstone,
-            MeasurementIngestionResult.ExactReplay,
-            -> showMessage("Такое тестовое измерение уже существует")
-            is MeasurementIngestionResult.Assigned -> {
-                val accountName = container.accounts.getAccount(result.measurement.accountId)
-                    ?.displayName
-                    .orEmpty()
-                showMessage(
-                    if (result.wasAlreadyFinalized) {
-                        "Такое тестовое измерение уже обработано"
-                    } else {
-                        "Тестовое измерение назначено профилю «$accountName»"
-                    },
-                )
-            }
-            is MeasurementIngestionResult.AwaitingDecision -> {
-                selectPendingForResolver(result.pending.id, PendingResolverSource.EXTERNAL)
-                pendingDecision.value = PendingDecisionSnapshot(result.pending.id, result.decision)
-                showMessage("Тестовое измерение ожидает выбора профиля")
-            }
-            MeasurementIngestionResult.Tombstoned,
-            MeasurementIngestionResult.LegacyDuplicate,
-            -> showMessage("Такое тестовое измерение уже существует")
-            MeasurementIngestionResult.AutomaticallyIgnoredUnknown -> Unit
-            MeasurementIngestionResult.PendingMissing -> showMessage("Измерение уже обработано")
-            MeasurementIngestionResult.IgnoredNotFinal -> showMessage("Измерение ещё не завершено")
-            MeasurementIngestionResult.LegacyProfileMissing ->
-                showMessage("Не удалось обработать тестовое измерение")
         }
     }
 
@@ -1184,10 +1151,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         if (allGranted) container.repository.retryPendingHealthConnect()
     }
 
-    /** Re-checks Health Connect and Huawei permissions after returning to the foreground. */
+    /** Re-checks Health Connect permissions after returning to the foreground. */
     fun refreshIntegrations() = viewModelScope.launch {
         updateHealthConnectPermissions(notifyResult = false)
-        huaweiAuthorization.refresh { huawei.value = it }
     }
 
     /** Foreground repair closes Room→WorkManager gaps and restores pending presentation. */
@@ -1199,14 +1165,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
         runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
-        huaweiAuthorization.refresh { huawei.value = it }
-    }
-
-    fun refreshHuaweiAuthorization() = viewModelScope.launch {
-        huaweiAuthorization.refresh { huawei.value = it }
     }
 
     override fun onCleared() {
+        petHistoryOwners.values.forEach { it.close() }
         invalidatePetMeasurementStartup()
         petMeasurementCoordinator.clear()
         scaleRefresh.clear()
@@ -1227,57 +1189,80 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         petMeasurementCoordinator.showCreating()
     }
 
-    fun createPetAndStartMeasurement(displayName: String, species: PetSpecies) {
-        if (petCreationInProgress || petMeasurementCoordinator.isActive) return
-        petCreationInProgress = true
+    fun createPetAndStartMeasurement(
+        displayName: String,
+        species: PetSpecies,
+        onCreated: (com.palixander.scalesync.domain.Pet) -> Unit,
+    ) {
+        if (petMeasurementCoordinator.isActive) return
+        val creationToken = petMeasurementCreation.begin() ?: return
         viewModelScope.launch {
-            val name = displayName.trim()
             val pet = try {
-                container.pets.createPet(NewPet(name, species))
+                container.pets.createPet(newPetForQuickMeasurement(displayName, species))
             } catch (cancelled: CancellationException) {
-                petCreationInProgress = false
                 throw cancelled
             } catch (error: Exception) {
-                petCreationInProgress = false
+                if (!petMeasurementCreation.complete(creationToken)) return@launch
                 petMeasurement.value = PetMeasurementUiState.Error(
                     error.message ?: "Не удалось создать питомца",
                 )
                 return@launch
             }
-            petCreationInProgress = false
-            startPetMeasurement(pet.id)
+            if (!petMeasurementCreation.complete(creationToken)) return@launch
+            onCreated(pet)
         }
     }
 
     fun showCreatePetManagement() {
         if (petManagement.value.busy) return
-        petManagement.value = PetManagementUiState(editor = PetEditorMode.Create)
+        petManagement.value = PetManagementController.showCreate(
+            state = petManagement.value,
+            editorSessionId = petManagementSessionIds.incrementAndGet(),
+        )
     }
 
     fun showEditPetManagement(pet: com.palixander.scalesync.domain.Pet) {
         if (petManagement.value.busy) return
-        petManagement.value = PetManagementUiState(editor = PetEditorMode.Edit(pet))
+        petManagement.value = PetManagementController.showEdit(
+            state = petManagement.value,
+            pet = pet,
+            editorSessionId = petManagementSessionIds.incrementAndGet(),
+            breedCatalog = petBreedCatalog,
+        )
     }
 
-    fun savePetManagement(displayName: String, species: PetSpecies) {
-        val snapshot = petManagement.value
-        if (snapshot.busy || snapshot.editor == null) return
-        petManagement.value = snapshot.copy(busy = true, error = null)
+    fun onPetProfileAction(action: PetProfileAction) {
+        petManagement.value = PetManagementController.onAction(petManagement.value, action)
+    }
+
+    fun savePetManagement() {
+        val preparation = PetManagementController.prepareSave(
+            state = petManagement.value,
+            today = currentDate(),
+            existingPets = pets.value.pets.map { it.pet },
+        )
+        petManagement.value = preparation.state
+        val request = (preparation as? PetProfileSavePreparation.Ready)?.request ?: return
         viewModelScope.launch {
-            runCatching {
-                when (val editor = requireNotNull(snapshot.editor)) {
-                    PetEditorMode.Create -> container.pets.createPet(NewPet(displayName.trim(), species))
-                    is PetEditorMode.Edit -> container.pets.updatePet(
-                        PetUpdate(editor.pet.id, displayName.trim(), species),
-                    )
+            try {
+                when (val profile = request.profile) {
+                    is ValidatedPetProfile.Create -> container.pets.createPet(profile.pet)
+                    is ValidatedPetProfile.Edit -> container.pets.updatePet(profile.pet)
                 }
-            }.onSuccess {
-                petManagement.value = PetManagementUiState()
-            }.onFailure { error ->
-                if (error is CancellationException) throw error
-                petManagement.value = snapshot.copy(
-                    busy = false,
-                    error = error.message ?: "Не удалось сохранить питомца",
+                petManagement.value = PetManagementController.finishSave(
+                    state = petManagement.value,
+                    request = request,
+                    result = PetProfilePersistenceResult.Success,
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                petManagement.value = PetManagementController.finishSave(
+                    state = petManagement.value,
+                    request = request,
+                    result = PetProfilePersistenceResult.Failure(
+                        error.message ?: "Не удалось сохранить питомца",
+                    ),
                 )
             }
         }
@@ -1316,7 +1301,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun dismissPetManagement() {
-        if (!petManagement.value.busy) petManagement.value = PetManagementUiState()
+        petManagement.value = PetManagementController.dismiss(petManagement.value)
     }
 
     fun startPetMeasurement(petId: PetId) {
@@ -1400,6 +1385,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun invalidatePetMeasurementStartup() {
+        petMeasurementCreation.invalidate()
         petMeasurementStartup.invalidate()
         petMeasurementStartupJob?.cancel()
         petMeasurementStartupJob = null
@@ -1779,21 +1765,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    private fun huaweiAuthorizationMessage(attempt: HuaweiAuthorizationAttempt): String {
-        if (attempt.confirmedState.status == HuaweiIntegrationStatus.AUTHORIZED) {
-            return "Huawei Health: разрешение подтверждено, очередь перезапущена"
-        }
-        return when (val request = attempt.requestResult) {
-            SyncResult.Success -> when (attempt.confirmedState.status) {
-                HuaweiIntegrationStatus.CHECK_FAILED ->
-                    "Huawei Health: не удалось подтвердить разрешение"
-                else -> "Huawei Health: разрешение не выдано"
-            }
-            is SyncResult.Disabled -> request.message
-            is SyncResult.Blocked -> request.message
-            is SyncResult.Retryable -> request.message
-        }
-    }
 }
 
 internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =

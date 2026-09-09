@@ -2,13 +2,20 @@ package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 2
+const val BACKUP_SCHEMA_VERSION: Int = 6
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
+const val BACKUP_SCHEMA_VERSION_V2: Int = 2
+const val BACKUP_SCHEMA_VERSION_V3: Int = 3
+const val BACKUP_SCHEMA_VERSION_V4: Int = 4
+const val BACKUP_SCHEMA_VERSION_V5: Int = 5
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -34,15 +41,23 @@ data class BackupPetV2(
     val species: PetSpecies,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val sex: PetSex? = null,
+    val breedId: String? = null,
+    val birthYear: Int? = null,
+    val birthMonth: Int? = null,
+    val birthDay: Int? = null,
+    val dogAdultWeightCategory: DogAdultWeightCategory? = null,
 )
 
 data class BackupPetMeasurementV2(
     val id: String,
     val petId: String,
     val measuredAtEpochSecond: Long,
-    val firstWeightKg: Double,
-    val secondWeightKg: Double,
+    val firstWeightKg: Double?,
+    val secondWeightKg: Double?,
     val petWeightKg: Double,
+    val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
+    val isManuallyEdited: Boolean = false,
 )
 
 data class BackupAccountV1(
@@ -100,19 +115,18 @@ data class BackupMeasurementV1(
     val metabolicAge: Int?,
     val leanBodyMassKg: Double?,
     val algorithmVersion: String?,
-    val huaweiStatus: SyncStatus,
     val healthConnectStatus: SyncStatus,
-    val huaweiError: String?,
     val healthConnectError: String?,
-    val huaweiWeightSynced: Boolean,
     val healthConnectWeightSynced: Boolean,
     val createdAtEpochMillis: Long,
     val accountId: String,
     val externalSyncPolicy: ExternalSyncPolicy,
     val sourcePendingId: String?,
     val deduplicationHash: String?,
-    val huaweiSyncedCalculatedValues: String?,
     val healthConnectSyncedCalculatedValues: String?,
+    val origin: com.palixander.scalesync.domain.MeasurementOrigin = com.palixander.scalesync.domain.MeasurementOrigin.LEGACY,
+    val ratingHeightCm: Double? = null,
+    val ratingHeightOrigin: RatingHeightOrigin? = RatingHeightOrigin.CAPTURED,
 )
 
 sealed class BackupException(message: String, cause: Throwable? = null) : Exception(message, cause) {

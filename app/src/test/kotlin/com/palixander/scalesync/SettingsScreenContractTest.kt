@@ -3,8 +3,8 @@ package com.palixander.scalesync
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.data.AppSettings
-import java.time.LocalDate
 import com.palixander.scalesync.domain.PetSpecies
+import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -57,15 +57,6 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `pet editor requires a nonblank name and explicit supported species`() {
-        assertFalse(isPetEditorValid("Барсик", null))
-        assertFalse(isPetEditorValid("Барсик", PetSpecies.UNSPECIFIED))
-        assertFalse(isPetEditorValid("   ", PetSpecies.CAT))
-        assertTrue(isPetEditorValid(" Барсик ", PetSpecies.CAT))
-        assertTrue(isPetEditorValid("Шарик", PetSpecies.DOG))
-    }
-
-    @Test
     fun `legacy unspecified species has a readable label`() {
         assertEquals("Кошка", petSpeciesLabel(PetSpecies.CAT))
         assertEquals("Собака", petSpeciesLabel(PetSpecies.DOG))
@@ -104,13 +95,11 @@ class SettingsScreenContractTest {
                 SettingsDestination.PROFILES,
                 SettingsDestination.SCALE,
                 SettingsDestination.HEALTH_CONNECT,
-                SettingsDestination.HUAWEI_HEALTH,
                 SettingsDestination.BACKUP,
                 SettingsDestination.DIAGNOSTICS,
             ),
-            settingsRootDestinations(huaweiEnabled = true),
+            settingsRootDestinations(),
         )
-        assertFalse(settingsRootDestinations(huaweiEnabled = false).contains(SettingsDestination.HUAWEI_HEALTH))
     }
 
     @Test
@@ -118,7 +107,6 @@ class SettingsScreenContractTest {
         assertEquals(0, settingsRootGroupItemIndex(SettingsDestination.PROFILES))
         assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.SCALE))
         assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HEALTH_CONNECT))
-        assertEquals(2, settingsRootGroupItemIndex(SettingsDestination.HUAWEI_HEALTH))
         assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.BACKUP))
         assertEquals(4, settingsRootGroupItemIndex(SettingsDestination.DIAGNOSTICS))
         assertNull(settingsRootGroupItemIndex(SettingsDestination.ROOT))
@@ -145,7 +133,6 @@ class SettingsScreenContractTest {
         assertEquals("Huawei.Users", settingsRootIcon(SettingsDestination.PROFILES).name)
         assertEquals("Huawei.Bluetooth", settingsRootIcon(SettingsDestination.SCALE).name)
         assertEquals("Huawei.HealthConnect", settingsRootIcon(SettingsDestination.HEALTH_CONNECT).name)
-        assertEquals("Huawei.HuaweiHealth", settingsRootIcon(SettingsDestination.HUAWEI_HEALTH).name)
         assertEquals("Huawei.Archive", settingsRootIcon(SettingsDestination.BACKUP).name)
         assertEquals("Huawei.Stethoscope", settingsRootIcon(SettingsDestination.DIAGNOSTICS).name)
     }
@@ -164,18 +151,6 @@ class SettingsScreenContractTest {
             healthRootStatusSuccessful(
                 HealthConnectPermissionsUiState(HealthConnectAvailability.CHECKING),
                 locallyEnabled = true,
-            ),
-        )
-        assertTrue(
-            huaweiRootStatusSuccessful(
-                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
-                locallyEnabled = true,
-            ),
-        )
-        assertFalse(
-            huaweiRootStatusSuccessful(
-                HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
-                locallyEnabled = false,
             ),
         )
     }
@@ -299,50 +274,4 @@ class SettingsScreenContractTest {
         assertFalse(failed.actionOpensManagement)
     }
 
-    @Test
-    fun `huawei status is flavor aware and only configured enterprise can authorize`() {
-        val personal = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD),
-        )
-        val needsSetup = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.CONFIGURATION_REQUIRED),
-        )
-        val authorize = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED),
-        )
-
-        assertEquals("Недоступно в personal-сборке", personal.supportingText)
-        assertNull(personal.actionLabel)
-        assertEquals("Нужны enterprise appId и write-scope", needsSetup.supportingText)
-        assertNull(needsSetup.actionLabel)
-        assertEquals("Разрешить", authorize.actionLabel)
-    }
-
-    @Test
-    fun `huawei check blocks authorization and failed check offers retry`() {
-        val checking = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECKING),
-        )
-        val failed = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.CHECK_FAILED),
-        )
-
-        assertEquals("Проверка разрешения…", checking.supportingText)
-        assertFalse(checking.actionEnabled)
-        assertEquals("Не удалось проверить разрешение", failed.supportingText)
-        assertEquals("Повторить", failed.actionLabel)
-        assertTrue(failed.actionRetriesCheck)
-    }
-
-    @Test
-    fun `locally disabled authorized huawei offers explicit reconnect`() {
-        val presentation = huaweiIntegrationPresentation(
-            HuaweiIntegrationUiState(HuaweiIntegrationStatus.AUTHORIZED),
-            locallyEnabled = false,
-        )
-
-        assertEquals("Отключено в приложении", presentation.supportingText)
-        assertEquals("Подключить снова", presentation.actionLabel)
-        assertFalse(presentation.actionRetriesCheck)
-    }
 }

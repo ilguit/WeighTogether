@@ -3,13 +3,20 @@ package com.palixander.scalesync.ui.routing
 import androidx.compose.runtime.Immutable
 import com.palixander.scalesync.core.BodyComposition
 import com.palixander.scalesync.core.BodyCompositionCalculator
+import com.palixander.scalesync.core.BodyMetric
+import com.palixander.scalesync.core.MetricInterpretation
+import com.palixander.scalesync.core.MetricReading
+import com.palixander.scalesync.core.ReferenceClassifier
+import com.palixander.scalesync.core.ReferenceContext
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.toRawScaleMeasurement
+import com.palixander.scalesync.measurements.MeasurementUiValues
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
 import com.palixander.scalesync.ui.accounts.parseLocalizedDecimal
+import com.palixander.scalesync.ui.reference.toReferenceReadings
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -81,9 +88,16 @@ fun validateUnsavedPreviewProfile(
 @Immutable
 data class UnsavedPreviewResult(
     val composition: BodyComposition,
+    val profile: UserProfile,
+    val readings: List<MetricReading>,
+    val interpretations: Map<BodyMetric, MetricInterpretation>,
 ) {
     val isPersisted: Boolean = false
     val canSyncExternally: Boolean = false
+}
+
+enum class UnsavedPreviewCalculationError {
+    CALCULATION_FAILED,
 }
 
 @Immutable
@@ -93,6 +107,8 @@ data class UnsavedMeasurementPreviewState(
     val profileDraft: UnsavedPreviewProfileDraft = UnsavedPreviewProfileDraft(),
     val result: UnsavedPreviewResult? = null,
     val isCalculating: Boolean = false,
+    val calculationRequestId: Long? = null,
+    val calculationError: UnsavedPreviewCalculationError? = null,
 ) {
     init {
         require((step == UnsavedPreviewStep.RESULT) == (result != null)) {
@@ -101,8 +117,20 @@ data class UnsavedMeasurementPreviewState(
         require(!isCalculating || step == UnsavedPreviewStep.PROFILE_EDITOR) {
             "Calculation may run only from the one-time profile editor"
         }
+        require(isCalculating == (calculationRequestId != null)) {
+            "Only an active calculation may retain its request id"
+        }
+        require(!isCalculating || calculationError == null) {
+            "An active calculation cannot also expose a terminal error"
+        }
     }
 }
+
+internal data class UnsavedPreviewCalculationRequest(
+    val pending: PendingMeasurement,
+    val profileDraft: UnsavedPreviewProfileDraft,
+    val requestId: Long,
+)
 
 @Immutable
 internal data class ActiveUnsavedPreview(
@@ -142,7 +170,66 @@ internal class UnsavedPreviewSessionCoordinator {
         while (true) {
             val current = mutableActive.value ?: return
             if (current.state.pending.id != state.pending.id) return
+            if (current.state.isCalculating || state.isCalculating) return
             if (mutableActive.compareAndSet(current, current.copy(state = state))) return
+        }
+    }
+
+    fun startCalculation(
+        pendingId: PendingMeasurementId,
+        requestId: Long,
+        zoneId: ZoneId,
+    ): UnsavedPreviewCalculationRequest? {
+        while (true) {
+            val current = mutableActive.value ?: return null
+            if (current.state.pending.id != pendingId) return null
+            val measurementDate = current.state.pending.measuredAt.atZone(zoneId).toLocalDate()
+            if (!validateUnsavedPreviewProfile(current.state.profileDraft, measurementDate).isValid) return null
+            val nextState = reduceUnsavedPreview(
+                current.state,
+                UnsavedPreviewAction.CalculationStarted(requestId),
+            )
+            if (nextState === current.state) return null
+            if (mutableActive.compareAndSet(current, current.copy(state = nextState))) {
+                return UnsavedPreviewCalculationRequest(
+                    pending = current.state.pending,
+                    profileDraft = current.state.profileDraft,
+                    requestId = requestId,
+                )
+            }
+        }
+    }
+
+    fun completeCalculation(
+        pendingId: PendingMeasurementId,
+        requestId: Long,
+        result: UnsavedPreviewResult,
+    ): Boolean = applyCalculationTerminal(
+        pendingId,
+        UnsavedPreviewAction.CalculationCompleted(requestId, result),
+    )
+
+    fun failCalculation(
+        pendingId: PendingMeasurementId,
+        requestId: Long,
+    ): Boolean = applyCalculationTerminal(
+        pendingId,
+        UnsavedPreviewAction.CalculationFailed(
+            requestId,
+            UnsavedPreviewCalculationError.CALCULATION_FAILED,
+        ),
+    )
+
+    private fun applyCalculationTerminal(
+        pendingId: PendingMeasurementId,
+        action: UnsavedPreviewAction,
+    ): Boolean {
+        while (true) {
+            val current = mutableActive.value ?: return false
+            if (current.state.pending.id != pendingId) return false
+            val nextState = reduceUnsavedPreview(current.state, action)
+            if (nextState === current.state) return false
+            if (mutableActive.compareAndSet(current, current.copy(state = nextState))) return true
         }
     }
 
@@ -166,8 +253,15 @@ internal class UnsavedPreviewSessionCoordinator {
 sealed interface UnsavedPreviewAction {
     data object EnterProfileRequested : UnsavedPreviewAction
     data class ProfileChanged(val draft: UnsavedPreviewProfileDraft) : UnsavedPreviewAction
-    data object CalculationStarted : UnsavedPreviewAction
-    data class CalculationCompleted(val result: UnsavedPreviewResult) : UnsavedPreviewAction
+    data class CalculationStarted(val requestId: Long) : UnsavedPreviewAction
+    data class CalculationCompleted(
+        val requestId: Long,
+        val result: UnsavedPreviewResult,
+    ) : UnsavedPreviewAction
+    data class CalculationFailed(
+        val requestId: Long,
+        val error: UnsavedPreviewCalculationError,
+    ) : UnsavedPreviewAction
     data object BackRequested : UnsavedPreviewAction
 }
 
@@ -183,24 +277,45 @@ fun reduceUnsavedPreview(
     is UnsavedPreviewAction.ProfileChanged -> if (
         state.step == UnsavedPreviewStep.PROFILE_EDITOR && !state.isCalculating
     ) {
-        state.copy(profileDraft = action.draft)
+        state.copy(profileDraft = action.draft, calculationError = null)
     } else {
         state
     }
-    UnsavedPreviewAction.CalculationStarted -> if (
+    is UnsavedPreviewAction.CalculationStarted -> if (
         state.step == UnsavedPreviewStep.PROFILE_EDITOR && !state.isCalculating
     ) {
-        state.copy(isCalculating = true)
+        state.copy(
+            isCalculating = true,
+            calculationRequestId = action.requestId,
+            calculationError = null,
+        )
     } else {
         state
     }
     is UnsavedPreviewAction.CalculationCompleted -> if (
-        state.step == UnsavedPreviewStep.PROFILE_EDITOR && state.isCalculating
+        state.step == UnsavedPreviewStep.PROFILE_EDITOR &&
+        state.isCalculating &&
+        state.calculationRequestId == action.requestId
     ) {
         state.copy(
             step = UnsavedPreviewStep.RESULT,
             result = action.result,
             isCalculating = false,
+            calculationRequestId = null,
+            calculationError = null,
+        )
+    } else {
+        state
+    }
+    is UnsavedPreviewAction.CalculationFailed -> if (
+        state.step == UnsavedPreviewStep.PROFILE_EDITOR &&
+        state.isCalculating &&
+        state.calculationRequestId == action.requestId
+    ) {
+        state.copy(
+            isCalculating = false,
+            calculationRequestId = null,
+            calculationError = action.error,
         )
     } else {
         state
@@ -210,10 +325,13 @@ fun reduceUnsavedPreview(
         UnsavedPreviewStep.PROFILE_EDITOR -> state.copy(
             step = UnsavedPreviewStep.RAW_SUMMARY,
             isCalculating = false,
+            calculationRequestId = null,
+            calculationError = null,
         )
         UnsavedPreviewStep.RESULT -> state.copy(
             step = UnsavedPreviewStep.PROFILE_EDITOR,
             result = null,
+            calculationError = null,
         )
     }
 }
@@ -228,18 +346,52 @@ fun calculateUnsavedPreview(
     val profile = validateUnsavedPreviewProfile(draft, measurementDate).profile ?: return null
     val raw = pending.toRawScaleMeasurement()
     if (!raw.hasFullBodyComposition) return null
+    val composition = calculator.calculate(raw, profile)
+    val readings = composition.toUiValues().toReferenceReadings()
+    val context = ReferenceContext(
+        measurementDate = measurementDate,
+        birthDate = profile.birthDate,
+        sex = profile.sex,
+        heightCm = profile.heightCm,
+        weightKg = composition.weightKg,
+        impedanceOhm = composition.impedanceOhm,
+    )
     return UnsavedPreviewResult(
-        composition = calculator.calculate(raw, profile),
+        composition = composition,
+        profile = profile,
+        readings = readings,
+        interpretations = ReferenceClassifier().classifyAll(readings, context),
     )
 }
 
 data class UnsavedPreviewCallbacks(
     /** Keep this state in memory only; do not place its profile or result in saved state. */
     val onStateChange: (UnsavedMeasurementPreviewState) -> Unit,
+    /** Starts an asynchronous in-memory calculation owned by MainViewModel. */
+    val onCalculate: (PendingMeasurementId) -> Unit,
     /** Must discard pending data and leave only its deduplication tombstone. */
     val onCloseAndDiscard: (PendingMeasurementId) -> Unit,
 ) {
     companion object {
-        val None = UnsavedPreviewCallbacks(onStateChange = {}, onCloseAndDiscard = {})
+        val None = UnsavedPreviewCallbacks(onStateChange = {}, onCalculate = {}, onCloseAndDiscard = {})
     }
 }
+
+private fun BodyComposition.toUiValues(): MeasurementUiValues = MeasurementUiValues(
+    weightKg = weightKg,
+    impedanceOhm = impedanceOhm,
+    bmi = bmi,
+    bodyFatPercent = bodyFatPercent,
+    bodyFatMassKg = bodyFatMassKg,
+    waterPercent = waterPercent,
+    waterMassKg = waterMassKg,
+    muscleMassKg = muscleMassKg,
+    skeletalMuscleMassKg = skeletalMuscleMassKg,
+    boneMassKg = boneMassKg,
+    proteinPercent = proteinPercent,
+    proteinMassKg = proteinMassKg,
+    visceralFatLevel = visceralFatLevel,
+    basalMetabolicRateKcal = basalMetabolicRateKcal,
+    metabolicAge = metabolicAge,
+    leanBodyMassKg = leanBodyMassKg,
+)

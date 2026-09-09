@@ -2,6 +2,7 @@ package com.palixander.scalesync.backup
 
 import androidx.room.withTransaction
 import com.palixander.scalesync.core.Sex
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.data.AccountEntity
 import com.palixander.scalesync.data.AppDatabase
 import com.palixander.scalesync.data.AppStateEntity
@@ -77,10 +78,11 @@ class BackupExportService(
 
 private fun PetEntity.toBackup() = BackupPetV2(
     id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis,
+    sex, breedId?.let(::canonicalBreedId), birthYear, birthMonth, birthDay, dogAdultWeightCategory,
 )
 
 private fun PetMeasurementEntity.toBackup() = BackupPetMeasurementV2(
-    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg,
+    id, petId, measuredAtEpochSecond, firstWeightKg, secondWeightKg, petWeightKg, origin, isManuallyEdited,
 )
 
 private fun AccountEntity.toBackup() = BackupAccountV1(
@@ -136,17 +138,16 @@ private fun MeasurementEntity.toBackup() = BackupMeasurementV1(
     metabolicAge = metabolicAge,
     leanBodyMassKg = leanBodyMassKg,
     algorithmVersion = algorithmVersion,
-    huaweiStatus = SyncStatus.valueOf(huaweiStatus),
     healthConnectStatus = SyncStatus.valueOf(healthConnectStatus),
-    huaweiError = huaweiError,
     healthConnectError = healthConnectError,
-    huaweiWeightSynced = huaweiWeightSynced,
     healthConnectWeightSynced = healthConnectWeightSynced,
     createdAtEpochMillis = createdAtEpochMillis,
     accountId = accountId,
     externalSyncPolicy = ExternalSyncPolicy.valueOf(externalSyncPolicy),
     sourcePendingId = sourcePendingId,
     deduplicationHash = deduplicationHash,
-    huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues,
     healthConnectSyncedCalculatedValues = healthConnectSyncedCalculatedValues,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
+    origin = origin,
 )

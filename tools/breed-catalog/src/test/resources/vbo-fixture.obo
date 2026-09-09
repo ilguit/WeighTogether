@@ -1,0 +1,62 @@
+format-version: 1.2
+data-version: releases/2099-01-02
+ontology: vbo
+
+[Term]
+id: VBO:0400018
+name: Cat breed
+
+[Term]
+id: VBO:0400024
+name: Dog breed
+
+[Term]
+id: VBO:0100001
+name: Parent Cat (Cat)
+is_a: VBO:0400018 ! Cat breed
+
+[Term]
+id: VBO:0100002
+name: Leaf Cat (Cat)
+synonym: "Leaf Cat" EXACT []
+synonym: "leaf   cat" RELATED []
+synonym: "Cat \"Quoted\"" RELATED []
+synonym: "Alternate Cat (Cat)" EXACT []
+synonym: "Broad Cat" BROAD []
+is_a: VBO:0100001 ! Parent Cat (Cat)
+
+[Term]
+id: VBO:0100003
+name: obsolete Old Cat (Cat)
+is_obsolete: true
+is_a: VBO:0400018 ! Cat breed
+
+[Term]
+id: VBO:123
+name: Noncanonical Cat (Cat)
+is_a: VBO:0400018 ! Cat breed
+
+[Term]
+id: VBO:0200001
+name: Leaf Dog (Dog)
+synonym: "Dog Alias" RELATED []
+is_a: VBO:0400024 ! Dog breed
+
+[Term]
+id: VBO:0100004
+name: Mixed Breed (Cat)
+is_a: VBO:0400018 ! Cat breed
+
+[Term]
+id: VBO:0200002
+name: Chihuahua (Dog)
+is_a: VBO:0400024 ! Dog breed
+
+[Term]
+id: VBO:0200003
+name: Chihuahua, Long-Haired (Dog)
+is_a: VBO:0200002 ! Chihuahua (Dog)
+
+[Term]
+id: VBO:0999999
+name: Other Animal

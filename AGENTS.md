@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-ScaleSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose UI, BLE scanning, Room persistence, WorkManager jobs, and Health Connect integration. Production code is under `app/src/main/kotlin/`; JVM tests are in `app/src/test/`, device tests in `app/src/androidTest/`, and resources in `app/src/main/res/`. Huawei code is isolated in `app/src/huaweiEnterprise/`; personal builds must not depend on it. Version Room schemas in `app/schemas/`.
+ScaleSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose UI, BLE scanning, Room persistence, WorkManager jobs, and Health Connect integration. Production code is under `app/src/main/kotlin/`; JVM tests are in `app/src/test/`, device tests in `app/src/androidTest/`, and resources in `app/src/main/res/`. Version Room schemas in `app/schemas/`.
 
 `core/` is the platform-independent parsing and body-composition library. User setup is in `README.md`. Do not create separate plan files unless the user explicitly requests one; record task planning in the relevant GitHub issue.
 
@@ -10,15 +10,15 @@ ScaleSync is a two-module Kotlin/Gradle Android project. `app/` contains Compose
 
 Use JDK 17 and Android SDK Platform 36; set `sdk.dir` in untracked `local.properties`.
 
-- `./gradlew testPersonalDebugUnitTest` runs personal-flavor JVM tests.
+- `./gradlew testDebugUnitTest` runs app JVM tests.
 - `./gradlew :core:test` tests packet parsing and calculations.
-- `./gradlew lintPersonalDebug` runs Android lint.
-- `./gradlew assemblePersonalDebug` creates the normal debug APK.
-- `./gradlew connectedPersonalDebugAndroidTest` runs instrumentation and Compose UI tests on a connected emulator or device.
+- `./gradlew lintDebug` runs Android lint.
+- `./gradlew assembleDebug` creates the normal debug APK.
+- `./gradlew connectedDebugAndroidTest` runs instrumentation and Compose UI tests on a connected emulator or device.
 
-Before opening a PR, run the combined check documented in the README: `./gradlew testPersonalDebugUnitTest lintPersonalDebug assemblePersonalDebug`.
+Before opening a PR, run the combined check documented in the README: `./gradlew testDebugUnitTest lintDebug assembleDebug`.
 
-Before building an APK, delete the previous APK artifact for the target variant from `app/build/outputs/apk/<flavor>/<buildType>/`; do not delete unrelated build outputs. Every ordinary final APK build must increment Android `versionCode` and keep `versionName` unchanged. Change `versionName` only after an explicit owner decision to create a release, using the `0.1.<release>` format. Commit the applicable version changes with the final build; the target-artifact cleanup and commit requirements apply to both ordinary builds and releases.
+Before building an APK, delete the previous APK artifact for the target build type from `app/build/outputs/apk/<buildType>/`; do not delete unrelated build outputs. Every ordinary final APK build must increment Android `versionCode` and keep `versionName` unchanged. Change `versionName` only after an explicit owner decision to create a release, using the `0.1.<release>` format. Commit the applicable version changes with the final build; the target-artifact cleanup and commit requirements apply to both ordinary builds and releases.
 
 ## Coding Style & Naming Conventions
 
@@ -34,7 +34,7 @@ Use short, imperative commit subjects and append the related GitHub issue number
 
 ## Security & Configuration
 
-Never commit `local.properties`, credentials, Huawei app IDs, health data, or device identifiers. Pass the experimental ID with `-PHUAWEI_APP_ID=...`; do not enable enterprise functionality in the personal flavor.
+Never commit `local.properties`, credentials, health data, or device identifiers.
 
 ## Регламент работы с задачами GitHub
 
@@ -49,6 +49,7 @@ Never commit `local.properties`, credentials, Huawei app IDs, health data, or de
 - Метки приоритета: `Priority: Blocker`, `Priority: High`, `Priority: Medium`, `Priority: Low`.
 - Классификационная метка `Design Needed` означает, что пользовательский дизайн ещё не утверждён. Она не является ни процессной меткой, ни меткой приоритета.
 - Классификационная метка `Technical` с описанием «Техническая задача: не включать в release notes» не является ни процессной меткой, ни меткой приоритета. Её используют только для задачи, которая целиком не имеет пользовательски заметного результата.
+- Если задача уже помечена меткой `Technical`, считать классификацию подтверждённой: не пересматривать её и не снимать эту метку в рамках дальнейшей работы над задачей.
 - Пользовательскую видимость определяют при оформлении задачи или не позднее стадии `Planning`, до перехода в `Coding`. Для полностью технической задачи ставят `Technical`; смешанной задаче с пользовательски заметной частью эту метку не ставят, а для пользовательской части создают пользовательский release-note fragment.
 - GitHub label используется только для классификации и не является входом сборки. Исключение технической задачи из release notes подтверждается отслеживаемым Git-фрагментом по контракту `.release-notes/README.md`, без обращения к GitHub API.
 - При оформлении задачи необходимо выбрать ровно одну метку приоритета. Альтернативные обозначения, включая `P0`, `P1`, `P2` и `P3`, не используются.

@@ -1,5 +1,8 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.measurements.formatWeight
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
+
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -26,13 +29,13 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
-import java.text.NumberFormat
 import java.util.Locale
 
 internal object PetMeasurementTestTags {
@@ -74,6 +77,7 @@ internal fun PetMeasurementDialog(
         onDismissRequest = {
             if (state !is PetMeasurementUiState.Saving) callbacks.onCancel()
         },
+        properties = DialogProperties(dismissOnClickOutside = false),
         modifier = Modifier.testTag(PetMeasurementTestTags.Dialog),
         title = { Text(dialogTitle(state)) },
         text = {
@@ -173,7 +177,12 @@ private fun PetSelection(
                     .testTag(PetMeasurementTestTags.pet(item.pet.id)),
             ) {
                 Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
-                Text(detail, style = MaterialTheme.typography.bodySmall)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(detail, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
+                    item.latestMeasurement?.let {
+                        ManualOriginIndicator(it.origin, Modifier.testTag("pet-latest-manual-origin-${item.pet.id}"))
+                    }
+                }
             }
         }
     }
@@ -251,8 +260,4 @@ private fun dialogTitle(state: PetMeasurementUiState): String = when (state) {
 }
 
 private fun formatPetWeight(value: Double, locale: Locale = Locale.getDefault()): String =
-    NumberFormat.getNumberInstance(locale).run {
-        minimumFractionDigits = 0
-        maximumFractionDigits = 2
-        format(value)
-    }
+    formatWeight(value, locale)

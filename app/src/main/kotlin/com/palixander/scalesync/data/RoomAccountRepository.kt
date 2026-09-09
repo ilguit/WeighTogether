@@ -266,8 +266,11 @@ internal fun MeasurementEntity.recalculate(
     calculator: BodyCompositionCalculator,
     profile: UserProfile,
 ): MeasurementEntity {
-    require(measurementType == MeasurementType.FULL) {
-        "Only full measurements can be recalculated"
+    if (measurementType == MeasurementType.WEIGHT_ONLY) {
+        return copy(
+            ratingHeightCm = profile.heightCm,
+            ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
+        )
     }
     val composition = calculator.calculate(
         raw = RawScaleMeasurement(
@@ -301,5 +304,7 @@ internal fun MeasurementEntity.recalculate(
         metabolicAge = composition.metabolicAge,
         leanBodyMassKg = composition.leanBodyMassKg,
         algorithmVersion = composition.algorithmVersion,
+        ratingHeightCm = profile.heightCm,
+        ratingHeightOrigin = RatingHeightOrigin.CAPTURED,
     )
 }

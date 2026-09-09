@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Scale Sync</string>
+    <string name="unsaved_preview_calculation_error">Не удалось рассчитать показатели. Проверьте данные и повторите.</string>
 </resources>

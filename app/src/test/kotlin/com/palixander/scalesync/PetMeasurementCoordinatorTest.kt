@@ -641,6 +641,37 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `cancel before pet creation completes suppresses late success`() {
+        val guard = PetMeasurementCreationGuard()
+        val token = requireNotNull(guard.begin())
+
+        guard.invalidate()
+
+        assertFalse(guard.complete(token))
+    }
+
+    @Test
+    fun `cancel before pet creation completes suppresses late error`() {
+        val guard = PetMeasurementCreationGuard()
+        val token = requireNotNull(guard.begin())
+
+        guard.invalidate()
+
+        assertFalse(guard.complete(token))
+    }
+
+    @Test
+    fun `new pet creation session supersedes cancelled session`() {
+        val guard = PetMeasurementCreationGuard()
+        val cancelled = requireNotNull(guard.begin())
+        guard.invalidate()
+        val current = requireNotNull(guard.begin())
+
+        assertFalse(guard.complete(cancelled))
+        assertTrue(guard.complete(current))
+    }
+
+    @Test
     fun `concurrent start is rejected while ingestion gate activation is suspended`() = runBlocking {
         val gateEntered = CompletableDeferred<Unit>()
         val allowGate = CompletableDeferred<Unit>()

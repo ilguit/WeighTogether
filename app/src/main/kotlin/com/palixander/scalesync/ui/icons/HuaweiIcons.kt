@@ -13,6 +13,13 @@ import androidx.compose.ui.unit.dp
  * Use a null content description only when an adjacent label already names the action.
  */
 object HuaweiIcons {
+    val Keyboard: ImageVector by lazy {
+        outlineIcon("Keyboard", listOf(
+            "M4 5H20A2 2 0 0 1 22 7V17A2 2 0 0 1 20 19H4A2 2 0 0 1 2 17V7A2 2 0 0 1 4 5Z",
+            "M6 9H7M11 9H12M16 9H17M6 12H7M11 12H12M16 12H17M7 16H17",
+        ))
+    }
+
     val Back: ImageVector by lazy {
         outlineIcon("Back", paths = listOf("M15 18L9 12L15 6"), autoMirror = true)
     }
@@ -212,15 +219,6 @@ object HuaweiIcons {
             listOf(
                 "M20.8 4.6A5.5 5.5 0 0 0 13 4.6L12 5.7L10.9 4.6A5.5 5.5 0 0 0 3.1 12.4L4.2 13.5L12 21L19.8 13.5L20.9 12.4A5.5 5.5 0 0 0 20.8 4.6Z",
                 "M5 12H8L10 9L13 15L15 12H19",
-            ),
-        )
-    }
-
-    val HuaweiHealth: ImageVector by lazy {
-        outlineIcon(
-            "HuaweiHealth",
-            listOf(
-                "M12 21S4 16.2 4 10.1A4.1 4.1 0 0 1 11 7.2L12 8.3L13 7.2A4.1 4.1 0 0 1 20 10.1C20 16.2 12 21 12 21Z",
             ),
         )
     }

@@ -9,6 +9,11 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface MultiAccountMeasurementDao {
+    @Query("SELECT * FROM measurements " +
+        "WHERE accountId = :ownerId " +
+        "AND measuredAtEpochSecond >= :minuteStart AND measuredAtEpochSecond < :minuteStart + 60")
+    suspend fun findManualDuplicateCandidates(ownerId: String, minuteStart: Long): List<MeasurementEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(measurement: MeasurementEntity): Long
 
@@ -28,7 +33,6 @@ interface MultiAccountMeasurementDao {
         """
         SELECT * FROM measurements
         WHERE accountId = :accountId
-            AND measurementType = 'FULL'
             AND externalSyncPolicy != 'USER_LOCAL'
         ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
@@ -40,7 +44,6 @@ interface MultiAccountMeasurementDao {
         SELECT EXISTS(
             SELECT 1 FROM measurements
             WHERE accountId = :accountId
-                AND measurementType = 'FULL'
                 AND externalSyncPolicy != 'USER_LOCAL'
         )
         """,
@@ -166,17 +169,9 @@ interface MultiAccountMeasurementDao {
         """
         UPDATE measurements
         SET externalSyncPolicy = 'AUTO',
-            huaweiStatus = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiStatus
-                ELSE 'PENDING'
-            END,
             healthConnectStatus = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectStatus
                 ELSE 'PENDING'
-            END,
-            huaweiError = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiError
-                ELSE NULL
             END,
             healthConnectError = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectError
@@ -192,17 +187,9 @@ interface MultiAccountMeasurementDao {
         """
         UPDATE measurements
         SET externalSyncPolicy = 'ACCOUNT_LOCAL',
-            huaweiStatus = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiStatus
-                ELSE 'LOCAL_ONLY'
-            END,
             healthConnectStatus = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectStatus
                 ELSE 'LOCAL_ONLY'
-            END,
-            huaweiError = CASE
-                WHEN huaweiStatus IN ('SYNCED', 'DISABLED') THEN huaweiError
-                ELSE NULL
             END,
             healthConnectError = CASE
                 WHEN healthConnectStatus = 'SYNCED' THEN healthConnectError
@@ -210,10 +197,7 @@ interface MultiAccountMeasurementDao {
             END
         WHERE accountId = :accountId
             AND externalSyncPolicy = 'AUTO'
-            AND (
-                huaweiStatus NOT IN ('SYNCED', 'DISABLED')
-                OR healthConnectStatus != 'SYNCED'
-            )
+            AND healthConnectStatus != 'SYNCED'
         """,
     )
     suspend fun demoteUnfinishedHistory(accountId: String): Int
@@ -223,10 +207,7 @@ interface MultiAccountMeasurementDao {
         SELECT id FROM measurements
         WHERE accountId = :primaryAccountId
             AND externalSyncPolicy = 'AUTO'
-            AND (
-                huaweiStatus NOT IN ('SYNCED', 'DISABLED')
-                OR healthConnectStatus != 'SYNCED'
-            )
+            AND healthConnectStatus != 'SYNCED'
         ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
     )
@@ -237,10 +218,7 @@ interface MultiAccountMeasurementDao {
         SELECT id FROM measurements
         WHERE accountId = :accountId
             AND externalSyncPolicy = 'AUTO'
-            AND (
-                huaweiStatus NOT IN ('SYNCED', 'DISABLED', 'LOCAL_ONLY')
-                OR healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
-            )
+            AND healthConnectStatus NOT IN ('SYNCED', 'LOCAL_ONLY')
         ORDER BY measuredAtEpochSecond ASC, id ASC
         """,
     )

@@ -1,10 +1,8 @@
 package com.palixander.scalesync.charts
 
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
-import java.time.ZoneOffset
 import java.util.Locale
 import java.util.TimeZone
 import org.junit.Assert.assertEquals
@@ -18,16 +16,17 @@ class ChartsContractTest {
     fun `initial range contains seven days and uses supplied metric defaults`() {
         val weight = ChartMetricOption("weightKg", "Вес", "кг", 2)
         val fat = ChartMetricOption("fatPercent", "Жир", "%", 1, PercentagePointUnit)
-        val clock = Clock.fixed(Instant.parse("2026-08-14T12:00:00Z"), ZoneOffset.UTC)
+        val today = LocalDate.of(2026, 8, 14)
 
         val state = ChartsUiState.initial(
             metricOptions = listOf(weight, fat),
             defaultMetricKeys = setOf(weight.key, fat.key),
-            clock = clock,
+            today = today,
         )
 
         assertEquals(LocalDate.of(2026, 8, 8), state.startDate)
         assertEquals(LocalDate.of(2026, 8, 14), state.endDateInclusive)
+        assertEquals(today, state.currentDate)
         assertEquals(setOf("weightKg", "fatPercent"), state.selectedMetricKeys)
         assertEquals(ChartRangePreset.LAST_7_DAYS, state.rangePreset)
     }
@@ -35,11 +34,11 @@ class ChartsContractTest {
     @Test
     fun `new state owner after process recreation starts at seven days`() {
         val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
-        val clock = Clock.fixed(Instant.parse("2026-08-14T12:00:00Z"), ZoneOffset.UTC)
+        val today = LocalDate.of(2026, 8, 14)
         val stateBeforeProcessDeath = ChartsUiState.initial(
             metricOptions = listOf(metric),
             defaultMetricKeys = setOf(metric.key),
-            clock = clock,
+            today = today,
         ).copy(
             startDate = LocalDate.of(2020, 1, 1),
             rangePreset = ChartRangePreset.CUSTOM,
@@ -50,7 +49,7 @@ class ChartsContractTest {
         val newOwnerState = ChartsUiState.initial(
             metricOptions = stateBeforeProcessDeath.metricOptions,
             defaultMetricKeys = stateBeforeProcessDeath.selectedMetricKeys,
-            clock = clock,
+            today = today,
         )
 
         assertEquals(ChartRangePreset.LAST_7_DAYS, newOwnerState.rangePreset)
@@ -81,6 +80,7 @@ class ChartsContractTest {
             ChartRangePreset.YEAR_TO_DATE.rangeEndingOn(today),
         )
         assertNull(ChartRangePreset.CUSTOM.rangeEndingOn(today))
+        assertNull(ChartRangePreset.ALL.rangeEndingOn(today))
     }
 
     @Test
@@ -145,6 +145,13 @@ class ChartsContractTest {
             range.maxX,
             0.0,
         )
+    }
+
+    @Test
+    fun `maximum local date has an overflow safe exclusive endpoint`() {
+        val range = inclusiveDateRangeToEpochRange(LocalDate.MAX, LocalDate.MAX, ZoneId.of("UTC"))
+
+        assertTrue(range.endExclusiveEpochSecond > range.startInclusiveEpochSecond)
     }
 
     @Test

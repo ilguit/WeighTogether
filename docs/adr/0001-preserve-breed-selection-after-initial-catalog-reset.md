@@ -1,0 +1,3 @@
+# Preserve breed selection after the initial catalog reset
+
+The first transition to breed-backed references resets every legacy pet Breed ID once because the former user-visible catalog cannot establish that an existing choice belongs to the verified supported set. The complete breed catalog remains an internal identity resource, while the user-visible supported set is defined independently by available, validated breed-reference data. After this transition, a user's selection is preserved across later dataset changes—even if its breed stops being supported—and normalization is limited to explicit compatibility boundaries such as importing legacy backups; silently resetting later choices would trade data ownership for catalog convenience.

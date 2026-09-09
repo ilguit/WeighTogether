@@ -1,4 +1,4 @@
-name: Build personal APK
+name: Build APK
 
 on:
   workflow_dispatch:
@@ -7,7 +7,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: manual-personal-apk-build-${{ github.ref }}
+  group: manual-apk-build-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -65,8 +65,8 @@ jobs:
           previous_release_tag="$(.github/scripts/release-apk-tag.sh previous "${VERSION_NAME}" "${COMMIT_SHA}")"
           echo "previous_release_tag=${previous_release_tag}" >> "${GITHUB_OUTPUT}"
 
-      - name: Build personal debug APK
-        run: ./gradlew assemblePersonalDebug -PreleaseHistoryMode=build --no-daemon
+      - name: Build debug APK
+        run: ./gradlew assembleDebug -PreleaseHistoryMode=build --no-daemon
 
       - name: Prepare APK artifact
         id: artifact
@@ -80,15 +80,11 @@ jobs:
         run: |
           set -euo pipefail
 
-          output_dir="app/build/outputs/apk/personal/debug"
+          output_dir="app/build/outputs/apk/debug"
           metadata_file="${output_dir}/output-metadata.json"
           variant_version_name="$(jq -er '.elements[0].versionName' "${metadata_file}")"
           version_code="$(jq -er '.elements[0].versionCode' "${metadata_file}")"
-          if [[ "${variant_version_name}" != *-personal ]]; then
-            echo "Expected personal variant version ending in -personal, got ${variant_version_name}" >&2
-            exit 1
-          fi
-          version_name="${variant_version_name%-personal}"
+          version_name="${variant_version_name}"
           if [[ "${version_name}" != "${BASE_VERSION_NAME}" ]]; then
             echo "APK base version ${version_name} does not match preflight version ${BASE_VERSION_NAME}" >&2
             exit 1
@@ -128,7 +124,7 @@ jobs:
           echo "artifact_name=${artifact_name}" >> "${GITHUB_OUTPUT}"
           echo "artifact_path=${artifact_dir}" >> "${GITHUB_OUTPUT}"
 
-      - name: Upload personal APK
+      - name: Upload APK
         uses: actions/upload-artifact@v7
         with:
           name: ${{ steps.artifact.outputs.artifact_name }}

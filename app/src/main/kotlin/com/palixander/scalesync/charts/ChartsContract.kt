@@ -1,14 +1,16 @@
 package com.palixander.scalesync.charts
 
+import com.palixander.scalesync.measurements.formatWeight
+
 import androidx.compose.runtime.Immutable
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import java.text.DecimalFormat
 import java.text.DecimalFormatSymbols
-import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
@@ -23,7 +25,11 @@ data class ChartMetricOption(
     val deltaUnit: String = unit,
 )
 
+private val ChartMetricOption.isWeight: Boolean
+    get() = key == "WEIGHT_KG" || key == "petWeightKg" || key == "weight_kg"
+
 enum class ChartRangePreset {
+    ALL,
     LAST_7_DAYS,
     LAST_30_DAYS,
     LAST_3_MONTHS,
@@ -32,6 +38,7 @@ enum class ChartRangePreset {
     ;
 
     fun rangeEndingOn(today: LocalDate): ChartDateRange? = when (this) {
+        ALL -> null
         LAST_7_DAYS -> ChartDateRange(today.minusDays(6), today)
         LAST_30_DAYS -> ChartDateRange(today.minusDays(29), today)
         LAST_3_MONTHS -> ChartDateRange(today.minusMonths(3).plusDays(1), today)
@@ -111,6 +118,7 @@ data class ChartStatistics(
 data class ChartsUiState(
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
+    val currentDate: LocalDate,
     val metricOptions: List<ChartMetricOption>,
     val selectedMetricKeys: Set<String>,
     val series: List<ChartSeries>,
@@ -136,13 +144,13 @@ data class ChartsUiState(
         fun initial(
             metricOptions: List<ChartMetricOption>,
             defaultMetricKeys: Set<String>,
-            clock: Clock = Clock.systemDefaultZone(),
+            today: LocalDate = LocalDate.now(),
         ): ChartsUiState {
-            val today = LocalDate.now(clock)
             val range = requireNotNull(ChartRangePreset.LAST_7_DAYS.rangeEndingOn(today))
             return ChartsUiState(
                 startDate = range.startDate,
                 endDateInclusive = range.endDateInclusive,
+                currentDate = today,
                 metricOptions = metricOptions,
                 selectedMetricKeys = defaultMetricKeys,
                 series = emptyList(),
@@ -163,6 +171,7 @@ data class ChartsCallbacks(
     val selectAll: () -> Unit,
     val clearSelection: () -> Unit,
     val doneSelectingMetrics: () -> Unit,
+    val shiftDateWindowByDays: (Long) -> Unit = {},
     val onAccountSelected: (AccountId) -> Unit = {},
 )
 
@@ -192,7 +201,11 @@ fun inclusiveDateRangeToEpochRange(
     require(!endDateInclusive.isBefore(startDate)) { "The end date must not precede the start date." }
     return MeasurementEpochRange(
         startInclusiveEpochSecond = startDate.atStartOfDay(zoneId).toEpochSecond(),
-        endExclusiveEpochSecond = endDateInclusive.plusDays(1).atStartOfDay(zoneId).toEpochSecond(),
+        endExclusiveEpochSecond = if (endDateInclusive == LocalDate.MAX) {
+            endDateInclusive.atTime(LocalTime.MAX).atZone(zoneId).toEpochSecond() + 1
+        } else {
+            endDateInclusive.plusDays(1).atStartOfDay(zoneId).toEpochSecond()
+        },
     )
 }
 
@@ -251,7 +264,7 @@ private fun formatChartMarkerText(
     locale: Locale,
 ): String {
     val dateTime = formatMeasurementDateTime(measuredAt, zoneId, locale)
-    val formattedValue = decimalFormat(metric.decimalPlaces, locale).format(value)
+    val formattedValue = if (metric.isWeight) formatWeight(value, locale) else decimalFormat(metric.decimalPlaces, locale).format(value)
     return buildString {
         append(dateTime)
         append('\n')
@@ -290,13 +303,15 @@ fun formatChartCurrentValue(
     value: Double?,
     metric: ChartMetricOption,
     locale: Locale = Locale.getDefault(),
-): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+): String = if (metric.isWeight && value != null) "${formatWeight(value, locale)} ${metric.unit}" else
+    formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
 
 fun formatChartStatistic(
     value: Double?,
     metric: ChartMetricOption,
     locale: Locale = Locale.getDefault(),
-): String = formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
+): String = if (metric.isWeight && value != null) "${formatWeight(value, locale)} ${metric.unit}" else
+    formatChartValue(value, metric.unit, metric.decimalPlaces, locale)
 
 fun formatChartDelta(
     delta: Double?,

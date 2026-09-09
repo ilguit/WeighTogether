@@ -1,9 +1,13 @@
 package com.palixander.scalesync.backup
 
 import com.palixander.scalesync.data.MeasurementType
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -11,6 +15,103 @@ import org.junit.Test
 
 class BackupJsonCodecTest {
     private val codec = BackupJsonCodec()
+    private val legacyHuaweiKeys = setOf(
+        "huaweiStatus",
+        "huaweiError",
+        "huaweiWeightSynced",
+        "huaweiSyncedCalculatedValues",
+    )
+
+
+    @Test
+    fun v6PreservesManualOriginStandalonePetWeightAndEditedFlag() {
+        val source = document().copy(
+            measurements = listOf(document().measurements.single().copy(
+                weightKg = 4.125, origin = com.palixander.scalesync.domain.MeasurementOrigin.MANUAL,
+            )),
+            pets = listOf(BackupPetV2("p", "Кот", "кот", PetSpecies.CAT, 10, 11)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", -60, null, null, 4.125,
+                com.palixander.scalesync.domain.MeasurementOrigin.MANUAL, true)),
+        )
+        assertEquals(source, codec.decode(codec.encode(source)))
+        val encoded = codec.encode(source)
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "UNKNOWN")) }
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(encoded.replace("MANUAL", "SCALE")) }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(source.copy(schemaVersion = 5))
+        }
+    }
+
+    @Test
+    fun everyLegacyVersionImportsKnownHuaweiFieldsWithoutKeepingThem() {
+        for (version in 1..5) {
+            val decoded = codec.decode(legacyJson(version))
+
+            assertEquals(version, decoded.schemaVersion)
+            assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+            assertEquals("health error", decoded.measurements.single().healthConnectError)
+            assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+            assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            assertEquals(listOf("weight", "bmi"), decoded.settings.selectedChartMetricKeys)
+            assertEquals("Legacy account", decoded.accounts.single().displayName)
+            if (version >= 2) assertEquals("Legacy pet", decoded.pets.single().displayName)
+            assertTrue(!codec.encode(decoded.copy(schemaVersion = BACKUP_SCHEMA_VERSION)).contains("huawei", ignoreCase = true))
+        }
+    }
+
+    @Test
+    fun everyLegacyVersionImportsWhenHuaweiFieldsAreAbsentOrPartiallyPresent() {
+        val subsets = listOf(
+            emptySet(),
+            setOf("huaweiStatus"),
+            setOf("huaweiError", "huaweiWeightSynced"),
+            setOf("huaweiStatus", "huaweiSyncedCalculatedValues"),
+            legacyHuaweiKeys,
+        )
+        for (version in 1..5) {
+            for (presentKeys in subsets) {
+                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
+                root.getAsJsonArray("measurements").single().asJsonObject.apply {
+                    legacyHuaweiKeys.filterNot(presentKeys::contains).forEach(::remove)
+                    presentKeys.forEach { add(it, JsonParser.parseString("{\"ignored\":true}")) }
+                }
+
+                val decoded = codec.decode(root.toString())
+
+                assertEquals(version, decoded.schemaVersion)
+                assertEquals("Legacy account", decoded.accounts.single().displayName)
+                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+                assertEquals("health error", decoded.measurements.single().healthConnectError)
+                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            }
+        }
+    }
+
+    @Test
+    fun legacyHuaweiFieldValuesAreIgnoredButUnknownFieldsAreRejected() {
+        val arbitraryValues = listOf("null", "false", "42", "\"arbitrary\"", "{}", "[]")
+        for (version in 1..5) {
+            for (value in arbitraryValues) {
+                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
+                root.getAsJsonArray("measurements").single().asJsonObject.apply {
+                    legacyHuaweiKeys.forEach { add(it, JsonParser.parseString(value)) }
+                }
+
+                val decoded = codec.decode(root.toString())
+
+                assertEquals("Legacy account", decoded.accounts.single().displayName)
+                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
+                assertEquals("health error", decoded.measurements.single().healthConnectError)
+                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
+                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
+            }
+        }
+        val legacy = legacyJson(5)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(legacy.replace("\"huaweiStatus\":\"FAILED\"", "\"huaweiStatus\":\"FAILED\",\"huaweiFuture\":false"))
+        }
+    }
 
     @Test
     fun roundTripPreservesUnicodeAndEmptyOptionalCollections() {
@@ -34,8 +135,18 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun v6JsonContainsNoHuaweiFields() {
+        val encoded = codec.encode(document())
+
+        assertTrue(!encoded.contains("huawei", ignoreCase = true))
+        assertEquals(document(), codec.decode(encoded))
+    }
+
+    @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
-        val json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":3").replaceFirst("{", "{\"future\":true,")
+        val json = codec.encode(document())
+            .replace("\"schemaVersion\":6", "\"schemaVersion\":7")
+            .replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
     }
@@ -77,6 +188,23 @@ class BackupJsonCodecTest {
     }
 
     @Test
+    fun duplicateNonNullMeasurementSourcePendingIdsAreRejected() {
+        val measurement = document().measurements.single().copy(sourcePendingId = "pending-stable")
+        val duplicate = measurement.copy(
+            id = "other-id",
+            fingerprint = "other-fingerprint",
+            deduplicationHash = "other-hash",
+        )
+
+        val error = assertThrows(BackupException.Duplicate::class.java) {
+            codec.encode(document().copy(measurements = listOf(measurement, duplicate)))
+        }
+
+        assertEquals("measurement source pending id", error.path)
+        assertEquals("pending-stable", error.value)
+    }
+
+    @Test
     fun collectionLimitsAreRejected() {
         val account = document().accounts.single()
         assertThrows(BackupException.Limits::class.java) {
@@ -88,20 +216,72 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v2RoundTripPreservesPetsAndV1DecodesWithEmptyPetCollections() {
+    fun v6RoundTripPreservesMeasurementContextAndPets() {
         val source = document().copy(
+            measurements = listOf(
+                document().measurements.single().copy(
+                    ratingHeightCm = 181.5,
+                    ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+                ),
+            ),
             pets = listOf(BackupPetV2("p", "Мурка", "мурка", PetSpecies.CAT, 10, 11)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "p", 12, 70.0, 74.5, 4.5)),
         )
 
         assertEquals(source, codec.decode(codec.encode(source)))
+        assertEquals(181.5, codec.decode(codec.encode(source)).measurements.single().ratingHeightCm)
+    }
 
-        val v1Json = codec.encode(document()).replace("\"schemaVersion\":2", "\"schemaVersion\":1")
-            .replace(",\"pets\":[],\"petMeasurements\":[]", "")
-        val legacy = codec.decode(v1Json)
-        assertEquals(1, legacy.schemaVersion)
-        assertTrue(legacy.pets.isEmpty())
-        assertTrue(legacy.petMeasurements.isEmpty())
+    @Test
+    fun schemaShapesAndMeasurementContextValuesAreStrict() {
+        val encoded = codec.encode(document())
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace(",\"ratingHeightCm\":null", ""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace(",\"ratingHeightOrigin\":\"CAPTURED\"", ""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace("\"ratingHeightOrigin\":\"CAPTURED\"", "\"ratingHeightOrigin\":\"FUTURE\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(measurements = listOf(document().measurements.single().copy(ratingHeightCm = Double.NaN))))
+        }
+    }
+
+    @Test
+    fun v6RoundTripPreservesCompletePetProfile() {
+        val pet = BackupPetV2("p", "Бим", "бим", PetSpecies.DOG, 10, 11, PetSex.MALE,
+            "scalesync:dog:mixed-breed", 2020, 2, 29, DogAdultWeightCategory.III)
+        val source = document().copy(pets = listOf(pet))
+        assertEquals(source, codec.decode(codec.encode(source)))
+    }
+
+    @Test
+    fun v6RejectsInvalidPetProfileValues() {
+        fun json(pet: BackupPetV2) = codec.encode(document().copy(pets = listOf(pet)))
+        val base = BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthYear\":null", "\"birthYear\":2021")
+                .replace("\"birthMonth\":null", "\"birthMonth\":2").replace("\"birthDay\":null", "\"birthDay\":29"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"sex\":null", "\"sex\":\"FUTURE\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(breedId = "scalesync:dog:mixed-breed"))))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.encode(document().copy(pets = listOf(base.copy(dogAdultWeightCategory = DogAdultWeightCategory.I))))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthMonth\":null", "\"birthMonth\":2"))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(json(base).replace("\"birthDay\":null", "\"birthDay\":1"))
+        }
+        val unknown = base.copy(breedId = "external:cat:future")
+        assertEquals(unknown, codec.decode(json(unknown)).pets.single())
     }
 
     @Test
@@ -166,15 +346,59 @@ class BackupJsonCodecTest {
                 waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
                 boneMassKg = null, proteinPercent = null, proteinMassKg = null,
                 visceralFatLevel = null, basalMetabolicRateKcal = null, metabolicAge = null,
-                leanBodyMassKg = null, algorithmVersion = null, huaweiStatus = SyncStatus.LOCAL_ONLY,
-                healthConnectStatus = SyncStatus.LOCAL_ONLY, huaweiError = null,
-                healthConnectError = null, huaweiWeightSynced = false,
+                leanBodyMassKg = null, algorithmVersion = null,
+                healthConnectStatus = SyncStatus.LOCAL_ONLY,
+                healthConnectError = null,
                 healthConnectWeightSynced = false, createdAtEpochMillis = 4, accountId = "a",
                 externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL, sourcePendingId = null,
-                deduplicationHash = "d", huaweiSyncedCalculatedValues = null,
+                deduplicationHash = "d",
                 healthConnectSyncedCalculatedValues = null,
             ),
         ),
         settings = BackupSettingsV1("AA:BB", "Весы", true, emptyList(), emptyList()),
     )
+
+    private fun legacyJson(version: Int): String {
+        val root = JsonParser.parseString(codec.encode(document("Legacy account").copy(
+            settings = BackupSettingsV1("AA:BB", "Legacy scale", true, listOf("weight", "bmi"), listOf("weight")),
+            pets = listOf(BackupPetV2("pet", "Legacy pet", "legacy pet", PetSpecies.CAT, 5, 6)),
+            petMeasurements = listOf(BackupPetMeasurementV2("pm", "pet", 7, 75.0, 70.0, 5.0)),
+            measurements = listOf(document().measurements.single().copy(
+                healthConnectStatus = SyncStatus.SYNCED,
+                healthConnectError = "health error",
+                healthConnectWeightSynced = true,
+                healthConnectSyncedCalculatedValues = "health-values",
+            )),
+        ))).asJsonObject
+        root.addProperty("schemaVersion", version)
+        root.getAsJsonArray("measurements").forEach { element ->
+            element.asJsonObject.apply {
+                addProperty("huaweiStatus", "FAILED")
+                addProperty("huaweiError", "retired service error")
+                addProperty("huaweiWeightSynced", true)
+                addProperty("huaweiSyncedCalculatedValues", "retired-values")
+                if (version < 5) remove("origin")
+                if (version < 3) {
+                    remove("ratingHeightCm")
+                    remove("ratingHeightOrigin")
+                }
+            }
+        }
+        if (version == 1) {
+            root.remove("pets")
+            root.remove("petMeasurements")
+        } else {
+            root.getAsJsonArray("petMeasurements").forEach { element ->
+                element.asJsonObject.remove("isManuallyEdited")
+                if (version < 5) element.asJsonObject.remove("origin")
+            }
+            if (version < 4) {
+                root.getAsJsonArray("pets").forEach { element ->
+                    listOf("sex", "breedId", "birthYear", "birthMonth", "birthDay", "dogAdultWeightCategory")
+                        .forEach(element.asJsonObject::remove)
+                }
+            }
+        }
+        return root.toString()
+    }
 }

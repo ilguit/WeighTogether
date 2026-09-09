@@ -3,7 +3,6 @@ package com.palixander.scalesync
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -68,8 +67,6 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
-import com.palixander.scalesync.domain.PetSpecies
-import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
@@ -91,11 +88,8 @@ import java.util.Locale
 internal data class SettingsCallbacks(
     val onOpenProfile: () -> Unit = {},
     val onOpenChangelog: () -> Unit = {},
-    val onHuaweiAuthorization: () -> Unit,
-    val onHuaweiPermissionRefresh: () -> Unit,
     val onHealthConnectAuthorization: () -> Unit,
     val onHealthConnectAccessManagement: () -> Unit,
-    val onManualTest: (String, String) -> Unit,
     val onManualScan: () -> Unit,
     val onReliabilityMode: (Boolean) -> Unit,
     val openBatterySettings: () -> Unit,
@@ -106,7 +100,8 @@ internal data class SettingsCallbacks(
     val onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit = {},
     val onCreatePet: () -> Unit = {},
     val onEditPet: (Pet) -> Unit = {},
-    val onSavePet: (String, PetSpecies) -> Unit = { _, _ -> },
+    val onPetProfileAction: (PetProfileAction) -> Unit = {},
+    val onSavePet: () -> Unit = {},
     val onRequestDeletePet: (PetId) -> Unit = {},
     val onConfirmDeletePet: () -> Unit = {},
     val onDismissPetManagement: () -> Unit = {},
@@ -115,7 +110,6 @@ internal data class SettingsCallbacks(
     val onConfirmBackupImport: () -> Unit = {},
     val onDismissBackupImport: () -> Unit = {},
     val onDisableHealthConnect: () -> Unit = {},
-    val onDisableHuawei: () -> Unit = {},
     val onForgetScale: () -> Unit = {},
 )
 
@@ -144,16 +138,14 @@ internal enum class SettingsDestination(val title: String) {
     PROFILES("Профили"),
     SCALE("Весы"),
     HEALTH_CONNECT("Health Connect"),
-    HUAWEI_HEALTH("Huawei Health"),
     BACKUP("Резервная копия"),
     DIAGNOSTICS("Диагностика"),
 }
 
-internal fun settingsRootDestinations(huaweiEnabled: Boolean): List<SettingsDestination> = buildList {
+internal fun settingsRootDestinations(): List<SettingsDestination> = buildList {
     add(SettingsDestination.PROFILES)
     add(SettingsDestination.SCALE)
     add(SettingsDestination.HEALTH_CONNECT)
-    if (huaweiEnabled) add(SettingsDestination.HUAWEI_HEALTH)
     add(SettingsDestination.BACKUP)
     add(SettingsDestination.DIAGNOSTICS)
 }
@@ -162,7 +154,6 @@ internal fun settingsRootIcon(destination: SettingsDestination) = when (destinat
     SettingsDestination.PROFILES -> HuaweiIcons.Users
     SettingsDestination.SCALE -> HuaweiIcons.Bluetooth
     SettingsDestination.HEALTH_CONNECT -> HuaweiIcons.HealthConnect
-    SettingsDestination.HUAWEI_HEALTH -> HuaweiIcons.HuaweiHealth
     SettingsDestination.BACKUP -> HuaweiIcons.Archive
     SettingsDestination.DIAGNOSTICS -> HuaweiIcons.Stethoscope
     SettingsDestination.ROOT -> HuaweiIcons.Settings
@@ -177,11 +168,6 @@ internal fun healthRootStatusSuccessful(
 ): Boolean = state.availability == HealthConnectAvailability.AVAILABLE &&
     state.isConnected && locallyEnabled
 
-internal fun huaweiRootStatusSuccessful(
-    state: HuaweiIntegrationUiState,
-    locallyEnabled: Boolean,
-): Boolean = state.status == HuaweiIntegrationStatus.AUTHORIZED && locallyEnabled
-
 internal fun settingsDetailDestructiveAction(
     destination: SettingsDestination,
     state: MainUiState,
@@ -191,10 +177,6 @@ internal fun settingsDetailDestructiveAction(
     }
     SettingsDestination.HEALTH_CONNECT -> DestructiveSettingsAction.HEALTH_CONNECT.takeIf {
         state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-    }
-    SettingsDestination.HUAWEI_HEALTH -> DestructiveSettingsAction.HUAWEI.takeIf {
-        BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
-            state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
     }
     else -> null
 }
@@ -218,10 +200,6 @@ internal object SettingsScreenTestTags {
     const val HealthConnectRow = "settings-health-connect-row"
     const val HealthConnectAction = "settings-health-connect-action"
     const val HealthConnectDetail = "settings-health-connect-detail"
-    const val HuaweiHealthDivider = "settings-huawei-health-divider"
-    const val HuaweiHealthRow = "settings-huawei-health-row"
-    const val HuaweiHealthAction = "settings-huawei-health-action"
-    const val HuaweiHealthDetail = "settings-huawei-health-detail"
     const val ScaleDetail = "settings-scale-detail"
     const val ScaleStatus = "settings-scale-status"
     const val ScaleAction = "settings-scale-action"
@@ -252,7 +230,6 @@ internal object SettingsScreenTestTags {
     const val BackupDetail = "settings-backup-detail"
     const val DiagnosticsDetail = "settings-diagnostics-detail"
     const val PetsSection = "settings-pets-section"
-    const val PetEditor = "settings-pet-editor"
     const val PetDeleteDialog = "settings-pet-delete-dialog"
     const val DestructiveSection = "settings-destructive-section"
     const val DisableHealthConnect = "settings-disable-health-connect"
@@ -289,7 +266,6 @@ internal object SettingsScreenTestTags {
     const val TrailingChevronSuffix = "-trailing-chevron"
     const val ScaleStatusMark = "settings-scale-status-mark"
     const val HealthConnectStatusMark = "settings-health-connect-status-mark"
-    const val HuaweiHealthStatusMark = "settings-huawei-health-status-mark"
 }
 
 internal object SettingsScreenContentDescriptions {
@@ -323,7 +299,6 @@ internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? 
     SettingsDestination.PROFILES -> 0
     SettingsDestination.SCALE,
     SettingsDestination.HEALTH_CONNECT,
-    SettingsDestination.HUAWEI_HEALTH,
     -> 2
     SettingsDestination.BACKUP,
     SettingsDestination.DIAGNOSTICS,
@@ -413,40 +388,6 @@ internal fun IntegrationPresentation.withHealthConnectManagementFallback(
     this
 }
 
-internal fun huaweiIntegrationPresentation(
-    state: HuaweiIntegrationUiState,
-    locallyEnabled: Boolean = true,
-): IntegrationPresentation = when (state.status) {
-    HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD -> IntegrationPresentation(
-        supportingText = "Недоступно в personal-сборке",
-    )
-    HuaweiIntegrationStatus.CONFIGURATION_REQUIRED -> IntegrationPresentation(
-        supportingText = "Нужны enterprise appId и write-scope",
-    )
-    HuaweiIntegrationStatus.CHECKING -> IntegrationPresentation(
-        supportingText = "Проверка разрешения…",
-        actionLabel = "Разрешить",
-        actionEnabled = false,
-    )
-    HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED -> IntegrationPresentation(
-        supportingText = "Настроено · требуется авторизация",
-        actionLabel = "Разрешить",
-    )
-    HuaweiIntegrationStatus.AUTHORIZED -> if (locallyEnabled) {
-        IntegrationPresentation(supportingText = "Подключено")
-    } else {
-        IntegrationPresentation(
-            supportingText = "Отключено в приложении",
-            actionLabel = "Подключить снова",
-        )
-    }
-    HuaweiIntegrationStatus.CHECK_FAILED -> IntegrationPresentation(
-        supportingText = "Не удалось проверить разрешение",
-        actionLabel = "Повторить",
-        actionRetriesCheck = true,
-    )
-}
-
 @Composable
 internal fun SettingsScreen(
     state: MainUiState,
@@ -456,12 +397,10 @@ internal fun SettingsScreen(
     onDestinationChanged: (SettingsDestination) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
-    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
-    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     var returnFocusDestination by rememberSaveable { mutableStateOf<SettingsDestination?>(null) }
     val rootListState = rememberLazyListState()
     val rootFocusRequesters = remember {
-        settingsRootDestinations(BuildConfig.HUAWEI_EXTENDED_ENABLED)
+        settingsRootDestinations()
             .associateWith { FocusRequester() }
     }
     LaunchedEffect(destination) {
@@ -488,22 +427,10 @@ internal fun SettingsScreen(
         SettingsDestination.PROFILES -> SettingsProfilesContent(state, callbacks, contentPadding, modifier)
         SettingsDestination.SCALE -> SettingsScaleDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.HEALTH_CONNECT -> SettingsHealthConnectDetail(state, callbacks, contentPadding, modifier)
-        SettingsDestination.HUAWEI_HEALTH -> if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-            SettingsHuaweiHealthDetail(state, callbacks, contentPadding, modifier)
-        } else {
-            SettingsRootScreen(
-                state, callbacks, contentPadding, openDestination, rootFocusRequesters,
-                rootListState, modifier,
-            )
-        }
         SettingsDestination.BACKUP -> SettingsBackupDetail(state, callbacks, contentPadding, modifier)
         SettingsDestination.DIAGNOSTICS -> SettingsDiagnosticsDetail(
             state = state,
             callbacks = callbacks,
-            weight = manualTestWeight,
-            onWeightChanged = { manualTestWeight = it },
-            impedance = manualTestImpedance,
-            onImpedanceChanged = { manualTestImpedance = it },
             contentPadding = contentPadding,
             modifier = modifier,
         )
@@ -527,10 +454,6 @@ private fun SettingsBackupDetail(
 private fun SettingsDiagnosticsDetail(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
@@ -538,10 +461,6 @@ private fun SettingsDiagnosticsDetail(
         SettingsDiagnosticsContent(
             state = state,
             callbacks = callbacks,
-            weight = weight,
-            onWeightChanged = onWeightChanged,
-            impedance = impedance,
-            onImpedanceChanged = onImpedanceChanged,
         )
     }
 }
@@ -648,43 +567,6 @@ private fun SettingsHealthConnectDetail(
 }
 
 @Composable
-private fun SettingsHuaweiHealthDetail(
-    state: MainUiState,
-    callbacks: SettingsCallbacks,
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-) {
-    val presentation = huaweiIntegrationPresentation(
-        state.huawei,
-        state.settings.huaweiSyncEnabled,
-    )
-    SettingsActionDetail(
-        state = state,
-        contentPadding = contentPadding,
-        testTag = SettingsScreenTestTags.HuaweiHealthDetail,
-        destructiveAction = settingsDetailDestructiveAction(SettingsDestination.HUAWEI_HEALTH, state),
-        callbacks = callbacks,
-        modifier = modifier,
-    ) {
-        ConnectionDetailContent(
-            title = "Huawei Health",
-            icon = HuaweiIcons.HuaweiHealth,
-            status = presentation.supportingText,
-            identityLabel = "Интеграция",
-            identity = "Huawei Health Kit",
-            actionLabel = presentation.actionLabel,
-            actionEnabled = presentation.actionEnabled,
-            actionTag = SettingsScreenTestTags.HuaweiHealthAction,
-            onAction = if (presentation.actionRetriesCheck) {
-                callbacks.onHuaweiPermissionRefresh
-            } else {
-                callbacks.onHuaweiAuthorization
-            },
-        )
-    }
-}
-
-@Composable
 private fun SettingsActionDetail(
     state: MainUiState,
     contentPadding: PaddingValues,
@@ -742,7 +624,6 @@ private fun SettingsActionDetail(
                 submitted = true
                 when (action) {
                     DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
-                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
                     DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
                 }
             },
@@ -912,26 +793,8 @@ private fun DetailActionRow(
 private fun SettingsDiagnosticsContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-        DetailSectionTitle("Проверка весов")
-        SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsMeasurementGroup)) {
-            Column(
-                modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-            ) {
-                ResponsiveTestFields(weight, onWeightChanged, impedance, onImpedanceChanged)
-                Button(
-                    onClick = { callbacks.onManualTest(weight, impedance) },
-                    modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
-                        .testTag(SettingsScreenTestTags.ManualTestAction),
-                ) { Text("Отправить тестовое измерение") }
-            }
-        }
         DetailSectionTitle("Работа в фоне")
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup)) {
             DiagnosticsSwitchRow(state, callbacks)
@@ -989,7 +852,6 @@ private fun DetailDestructiveAction(
 ) {
     val (label, tag) = when (action) {
         DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect" to SettingsScreenTestTags.DisableHealthConnect
-        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health" to SettingsScreenTestTags.DisableHuawei
         DestructiveSettingsAction.SCALE -> "Забыть выбранные весы" to SettingsScreenTestTags.ForgetScale
     }
     Column(Modifier.testTag(SettingsScreenTestTags.DetailDangerZone)) {
@@ -1047,7 +909,7 @@ private fun SettingsProfilesContent(
             }
         }
     }
-    PetManagementDialogs(state, callbacks)
+    PetDeletionDialog(state, callbacks)
 }
 
 @Composable
@@ -1065,10 +927,6 @@ private fun SettingsRootScreen(
         state.healthConnect,
         state.settings.healthConnectSyncEnabled,
     ).withHealthConnectManagementFallback(state.healthConnectSystemManagementAvailable)
-    val huaweiPresentation = huaweiIntegrationPresentation(
-        state.huawei,
-        state.settings.huaweiSyncEnabled,
-    )
     Box(
         modifier = modifier.fillMaxSize().padding(contentPadding),
         contentAlignment = Alignment.TopCenter,
@@ -1136,24 +994,6 @@ private fun SettingsRootScreen(
                             )
                         },
                     )
-                    if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-                        SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
-                        SettingsNavigationRow(
-                            SettingsDestination.HUAWEI_HEALTH,
-                            settingsRootIcon(SettingsDestination.HUAWEI_HEALTH),
-                            huaweiPresentation.supportingText, SettingsScreenTestTags.HuaweiHealthRow,
-                            onDestinationChanged, focusRequesters[SettingsDestination.HUAWEI_HEALTH],
-                            status = {
-                                SettingsRootStatusMark(
-                                    huaweiRootStatusSuccessful(
-                                        state.huawei,
-                                        state.settings.huaweiSyncEnabled,
-                                    ),
-                                    SettingsScreenTestTags.HuaweiHealthStatusMark,
-                                )
-                            },
-                        )
-                    }
                 }
             }
             item {
@@ -1275,8 +1115,6 @@ private fun LegacySettingsScreen(
     var backupExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var additionalExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var aboutExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var manualTestWeight by rememberSaveable { mutableStateOf("70.0") }
-    var manualTestImpedance by rememberSaveable { mutableStateOf("500") }
     var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
     var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(state.destructiveActionInProgress) {
@@ -1377,10 +1215,6 @@ private fun LegacySettingsScreen(
                     AdditionalContent(
                         state = state,
                         callbacks = callbacks,
-                        weight = manualTestWeight,
-                        onWeightChanged = { manualTestWeight = it },
-                        impedance = manualTestImpedance,
-                        onImpedanceChanged = { manualTestImpedance = it },
                     )
                 }
             }
@@ -1442,7 +1276,7 @@ private fun LegacySettingsScreen(
             },
         )
     }
-    PetManagementDialogs(state, callbacks)
+    PetDeletionDialog(state, callbacks)
     destructiveConfirmation?.let { action ->
         DestructiveConfirmationDialog(
             action = action,
@@ -1457,7 +1291,6 @@ private fun LegacySettingsScreen(
                 destructiveSubmitted = true
                 when (action) {
                     DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
-                    DestructiveSettingsAction.HUAWEI -> callbacks.onDisableHuawei()
                     DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
                 }
             },
@@ -1472,9 +1305,7 @@ private fun IntegrationDestructiveActions(
 ) {
     val busy = state.destructiveActionInProgress != null
     val healthEnabled = state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-    val huaweiEnabled = BuildConfig.HUAWEI_EXTENDED_ENABLED && state.settings.huaweiSyncEnabled &&
-        state.huawei.status == HuaweiIntegrationStatus.AUTHORIZED
-    if (!healthEnabled && !huaweiEnabled) return
+    if (!healthEnabled) return
     Column {
         SettingsDivider()
         HuaweiSurface(
@@ -1492,11 +1323,6 @@ private fun IntegrationDestructiveActions(
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHealthConnect),
                 ) { Text("Отключить Health Connect") }
-                if (huaweiEnabled) OutlinedButton(
-                    onClick = { onRequest(DestructiveSettingsAction.HUAWEI) },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHuawei),
-                ) { Text("Отключить Huawei Health") }
             }
         }
     }
@@ -1529,8 +1355,6 @@ private fun DestructiveConfirmationDialog(
     val (title, warning) = when (action) {
         DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect?" to
             "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Системные разрешения отзываются отдельно."
-        DestructiveSettingsAction.HUAWEI -> "Отключить Huawei Health?" to
-            "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Доступ отзывается отдельно в Huawei Health."
         DestructiveSettingsAction.SCALE -> "Забыть выбранные весы?" to
             "Фоновое сканирование будет остановлено, а привязку весов потребуется настроить заново. Измерения не удалятся."
     }
@@ -1562,61 +1386,7 @@ private fun DestructiveConfirmationDialog(
 }
 
 @Composable
-private fun PetManagementDialogs(state: MainUiState, callbacks: SettingsCallbacks) {
-    state.petManagement.editor?.let { mode ->
-        val existing = (mode as? PetEditorMode.Edit)?.pet
-        var name by rememberSaveable(existing?.id?.value) { mutableStateOf(existing?.displayName.orEmpty()) }
-        var species by rememberSaveable(existing?.id?.value) {
-            mutableStateOf(existing?.species?.takeUnless { it == PetSpecies.UNSPECIFIED })
-        }
-        var submitted by rememberSaveable(existing?.id?.value) { mutableStateOf(false) }
-        val duplicate = state.pets.any {
-            it.pet.id != existing?.id && normalizePetName(it.pet.displayName) == normalizePetName(name)
-        }
-        val valid = isPetEditorValid(name, species) && !duplicate
-        AlertDialog(
-            modifier = Modifier.testTag(SettingsScreenTestTags.PetEditor),
-            onDismissRequest = { if (!state.petManagement.busy) callbacks.onDismissPetManagement() },
-            title = { Text(if (existing == null) "Новый питомец" else "Изменить питомца") },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(
-                        value = name,
-                        onValueChange = { name = it; submitted = false },
-                        label = { Text("Имя питомца") },
-                        singleLine = true,
-                        isError = submitted && !valid,
-                    )
-                    PetSpeciesSelector(species) { species = it; submitted = false }
-                    if (submitted && !valid) Text(
-                        when {
-                            name.trim().isEmpty() -> "Введите имя питомца"
-                            duplicate -> "Питомец с таким именем уже есть"
-                            species == null -> "Выберите вид питомца"
-                            else -> "Имя должно содержать не больше 50 символов"
-                        },
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                    state.petManagement.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    enabled = !state.petManagement.busy,
-                    onClick = {
-                        submitted = true
-                        if (valid) callbacks.onSavePet(name.trim(), requireNotNull(species))
-                    },
-                ) { Text("Сохранить") }
-            },
-            dismissButton = {
-                TextButton(
-                    enabled = !state.petManagement.busy,
-                    onClick = callbacks.onDismissPetManagement,
-                ) { Text("Отмена") }
-            },
-        )
-    }
+private fun PetDeletionDialog(state: MainUiState, callbacks: SettingsCallbacks) {
     state.petManagement.deletion?.let { preview ->
         AlertDialog(
             modifier = Modifier.testTag(SettingsScreenTestTags.PetDeleteDialog),
@@ -1730,18 +1500,7 @@ private fun SettingsIntegrationsContent(
             primaryStatus,
             healthConnectCapabilities.selectedAccountSyncEligible,
         )
-    val huawei = if (BuildConfig.HUAWEI_EXTENDED_ENABLED) {
-        huaweiIntegrationPresentation(
-            state.huawei,
-            locallyEnabled = state.settings.huaweiSyncEnabled,
-        ).forPrimaryAccount(
-            primaryStatus,
-            state.canUseExternalIntegrations,
-        )
-    } else {
-        null
-    }
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
+    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             Column {
                 HuaweiSettingRow(
                     icon = HuaweiIcons.Health,
@@ -1777,31 +1536,6 @@ private fun SettingsIntegrationsContent(
                                     }
                                 },
                         ) { Text(label) }
-                    }
-                }
-                huawei?.let { presentation ->
-                    SettingsDivider(
-                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthDivider),
-                    )
-                    HuaweiSettingRow(
-                        icon = HuaweiIcons.Link,
-                        title = "Huawei Health",
-                        supportingText = presentation.supportingText,
-                        modifier = Modifier.testTag(SettingsScreenTestTags.HuaweiHealthRow),
-                    ) {
-                        presentation.actionLabel?.let { label ->
-                            TextButton(
-                                onClick = if (presentation.actionRetriesCheck) {
-                                    callbacks.onHuaweiPermissionRefresh
-                                } else {
-                                    callbacks.onHuaweiAuthorization
-                                },
-                                enabled = presentation.actionEnabled,
-                                modifier = Modifier.testTag(
-                                    SettingsScreenTestTags.HuaweiHealthAction,
-                                ),
-                            ) { Text(label) }
-                        }
                     }
                 }
             }
@@ -1900,35 +1634,12 @@ private fun CollapsibleSettingsSection(
 private fun AdditionalContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
         modifier = modifier.fillMaxWidth().padding(HuaweiDimensions.ContentPadding),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
-        Text("Ручное тестовое измерение", style = MaterialTheme.typography.titleSmall)
-        Text(
-            "Проходит тот же путь распознавания профиля, что и измерение с весов.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        ResponsiveTestFields(
-            weight = weight,
-            onWeightChanged = onWeightChanged,
-            impedance = impedance,
-            onImpedanceChanged = onImpedanceChanged,
-        )
-        OutlinedButton(
-            onClick = { callbacks.onManualTest(weight, impedance) },
-            modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget),
-        ) {
-            Text("Отправить тест")
-        }
-        HorizontalDivider()
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1973,71 +1684,6 @@ private fun AdditionalContent(
             ) { Text("Настройки приложения") }
         }
     }
-}
-
-@Composable
-private fun ResponsiveTestFields(
-    weight: String,
-    onWeightChanged: (String) -> Unit,
-    impedance: String,
-    onImpedanceChanged: (String) -> Unit,
-) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val compact = maxWidth < 360.dp
-        if (compact) {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                TestField(
-                    weight,
-                    onWeightChanged,
-                    "Вес, кг",
-                    KeyboardType.Decimal,
-                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestWeight),
-                )
-                TestField(
-                    impedance,
-                    onImpedanceChanged,
-                    "Импеданс, Ом",
-                    KeyboardType.Number,
-                    Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.ManualTestImpedance),
-                )
-            }
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                TestField(
-                    weight,
-                    onWeightChanged,
-                    "Вес, кг",
-                    KeyboardType.Decimal,
-                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestWeight),
-                )
-                TestField(
-                    impedance,
-                    onImpedanceChanged,
-                    "Импеданс, Ом",
-                    KeyboardType.Number,
-                    Modifier.weight(1f).testTag(SettingsScreenTestTags.ManualTestImpedance),
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun TestField(
-    value: String,
-    onValueChanged: (String) -> Unit,
-    label: String,
-    keyboardType: KeyboardType,
-    modifier: Modifier,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = onValueChanged,
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
-        singleLine = true,
-        modifier = modifier,
-    )
 }
 
 @Composable

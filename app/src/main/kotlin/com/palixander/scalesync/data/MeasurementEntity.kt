@@ -1,9 +1,11 @@
 package com.palixander.scalesync.data
 
+import com.palixander.scalesync.domain.MeasurementOrigin
 import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 import com.palixander.scalesync.core.BodyComposition
 import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.core.measurementFingerprint
@@ -26,6 +28,11 @@ enum class SyncStatus {
 enum class MeasurementType {
     FULL,
     WEIGHT_ONLY,
+}
+
+enum class RatingHeightOrigin {
+    CAPTURED,
+    RESTORED_CURRENT_ACCOUNT,
 }
 
 data class MeasurementValues(
@@ -158,7 +165,6 @@ private fun Double?.matches(current: Double): Boolean = this == null || this == 
 private fun Int?.matches(current: Int): Boolean = this == null || this == current
 
 enum class ExternalSyncDestination {
-    HUAWEI,
     HEALTH_CONNECT,
 }
 
@@ -166,21 +172,6 @@ enum class ExternalSyncDestination {
 fun MeasurementValues.toCalculatedValuesSnapshot(
     destination: ExternalSyncDestination,
 ): CalculatedValuesSnapshot = when (destination) {
-    ExternalSyncDestination.HUAWEI -> CalculatedValuesSnapshot(
-        bmi = bmi,
-        bodyFatPercent = bodyFatPercent,
-        waterPercent = waterPercent,
-        waterMassKg = waterMassKg,
-        muscleMassKg = muscleMassKg,
-        skeletalMuscleMassKg = skeletalMuscleMassKg,
-        boneMassKg = boneMassKg,
-        proteinPercent = proteinPercent,
-        proteinMassKg = proteinMassKg,
-        visceralFatLevel = visceralFatLevel,
-        basalMetabolicRateKcal = basalMetabolicRateKcal,
-        metabolicAge = metabolicAge,
-    )
-
     ExternalSyncDestination.HEALTH_CONNECT -> CalculatedValuesSnapshot(
         bodyFatPercent = bodyFatPercent,
         waterMassKg = waterMassKg,
@@ -280,11 +271,8 @@ data class MeasurementEntity(
     val metabolicAge: Int?,
     val leanBodyMassKg: Double?,
     val algorithmVersion: String?,
-    val huaweiStatus: String = SyncStatus.PENDING.name,
     val healthConnectStatus: String = SyncStatus.PENDING.name,
-    val huaweiError: String? = null,
     val healthConnectError: String? = null,
-    val huaweiWeightSynced: Boolean = false,
     val healthConnectWeightSynced: Boolean = false,
     val createdAtEpochMillis: Long = System.currentTimeMillis(),
     /** Compatibility default for legacy callers; persisted v2 writes must always supply an account. */
@@ -292,10 +280,15 @@ data class MeasurementEntity(
     val externalSyncPolicy: String = ExternalSyncPolicy.AUTO.name,
     val sourcePendingId: String? = null,
     val deduplicationHash: String? = null,
-    /** Exact profile-dependent values last successfully sent to Huawei by this app version. */
-    val huaweiSyncedCalculatedValues: String? = null,
     /** Exact profile-dependent values last successfully sent to Health Connect. */
     val healthConnectSyncedCalculatedValues: String? = null,
+    /** Height snapshot used to interpret this measurement against reference ranges. */
+    val ratingHeightCm: Double? = null,
+    /** Whether [ratingHeightCm] was captured at measurement time or restored for legacy data. */
+    @ColumnInfo(defaultValue = "'RESTORED_CURRENT_ACCOUNT'")
+    val ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
+    @ColumnInfo(defaultValue = "'LEGACY'")
+    val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
 ) {
     val values: MeasurementValues
         get() = checkNotNull(fullValues) { "Weight-only measurement $id has no composition values" }
@@ -334,11 +327,6 @@ data class MeasurementEntity(
     internal fun backfillMissingSyncedCalculatedValues(): MeasurementEntity {
         val current = fullValues ?: return this
         return copy(
-            huaweiSyncedCalculatedValues = huaweiSyncedCalculatedValues.ifMissingAndSynced(
-                huaweiStatus,
-            ) {
-                current.toCalculatedValuesSnapshot(ExternalSyncDestination.HUAWEI).encode()
-            },
             healthConnectSyncedCalculatedValues =
                 healthConnectSyncedCalculatedValues.ifMissingAndSynced(healthConnectStatus) {
                     current.toCalculatedValuesSnapshot(ExternalSyncDestination.HEALTH_CONNECT)
@@ -349,8 +337,7 @@ data class MeasurementEntity(
 
     /** True for a known snapshot mismatch; legacy synced rows with no snapshot remain unknown. */
     val hasProfileSyncMismatch: Boolean
-        get() = hasProfileSyncMismatch(huaweiSyncedCalculatedValues) ||
-            hasProfileSyncMismatch(healthConnectSyncedCalculatedValues)
+        get() = hasProfileSyncMismatch(healthConnectSyncedCalculatedValues)
 
     /** Only an explicit user edit is presented as manual; account-local routing is not an edit. */
     val isManuallyEdited: Boolean
@@ -417,11 +404,12 @@ private inline fun String?.ifMissingAndSynced(
 fun BodyComposition.toEntity(
     rawPayload: ByteArray,
     fingerprint: String = measurementId,
-    huaweiSyncEnabled: Boolean = true,
     accountId: AccountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID),
     externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
     sourcePendingId: String? = null,
     deduplicationHash: String? = null,
+    ratingHeightCm: Double? = null,
+    ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId,
     fingerprint = fingerprint,
@@ -446,20 +434,22 @@ fun BodyComposition.toEntity(
     metabolicAge = metabolicAge,
     leanBodyMassKg = leanBodyMassKg,
     algorithmVersion = algorithmVersion,
-    huaweiStatus = if (huaweiSyncEnabled) SyncStatus.PENDING.name else SyncStatus.DISABLED.name,
-    huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
     accountId = accountId.value,
     externalSyncPolicy = externalSyncPolicy.name,
     sourcePendingId = sourcePendingId,
     deduplicationHash = deduplicationHash,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
+    origin = MeasurementOrigin.SCALE,
 )
 
 fun RawScaleMeasurement.toWeightOnlyEntity(
-    huaweiSyncEnabled: Boolean = true,
     accountId: AccountId = AccountId(LEGACY_UNASSIGNED_ACCOUNT_ID),
     externalSyncPolicy: ExternalSyncPolicy = ExternalSyncPolicy.AUTO,
     sourcePendingId: String? = null,
     deduplicationHash: String? = null,
+    ratingHeightCm: Double? = null,
+    ratingHeightOrigin: RatingHeightOrigin = RatingHeightOrigin.CAPTURED,
 ): MeasurementEntity = MeasurementEntity(
     id = measurementId(this),
     fingerprint = measurementFingerprint(this),
@@ -484,12 +474,13 @@ fun RawScaleMeasurement.toWeightOnlyEntity(
     metabolicAge = null,
     leanBodyMassKg = null,
     algorithmVersion = null,
-    huaweiStatus = if (huaweiSyncEnabled) SyncStatus.PENDING.name else SyncStatus.DISABLED.name,
-    huaweiError = if (huaweiSyncEnabled) null else "Huawei adapter disabled in personal build",
     accountId = accountId.value,
     externalSyncPolicy = externalSyncPolicy.name,
     sourcePendingId = sourcePendingId,
     deduplicationHash = deduplicationHash,
+    ratingHeightCm = ratingHeightCm,
+    ratingHeightOrigin = ratingHeightOrigin,
+    origin = MeasurementOrigin.SCALE,
 )
 
 const val LEGACY_UNASSIGNED_ACCOUNT_ID: String = "00000000-0000-0000-0000-000000000000"

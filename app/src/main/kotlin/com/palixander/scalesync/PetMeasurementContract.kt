@@ -11,6 +11,34 @@ internal const val PET_SCALE_REQUIRED_MESSAGE = "Сначала выберите
 internal const val PET_BLUETOOTH_PERMISSION_MESSAGE = "Разрешите Bluetooth для взвешивания питомца"
 internal const val PET_MEASUREMENT_TIMEOUT_MESSAGE = "Весы не передали новое стабильное измерение"
 
+internal enum class PetProfileMeasurementStartRoute {
+    MANUAL_WEIGHT,
+    BLE,
+}
+
+internal fun petProfileMeasurementStartRoute(scaleAddress: String?): PetProfileMeasurementStartRoute =
+    if (scaleAddress == null) {
+        PetProfileMeasurementStartRoute.MANUAL_WEIGHT
+    } else {
+        PetProfileMeasurementStartRoute.BLE
+    }
+
+internal fun startPetProfileMeasurement(
+    pet: Pet,
+    scaleAddress: String?,
+    dismissPetMeasurement: () -> Unit,
+    openManualWeight: (Pet) -> Unit,
+    startBleMeasurement: (PetId) -> Unit,
+) {
+    when (petProfileMeasurementStartRoute(scaleAddress)) {
+        PetProfileMeasurementStartRoute.MANUAL_WEIGHT -> {
+            dismissPetMeasurement()
+            openManualWeight(pet)
+        }
+        PetProfileMeasurementStartRoute.BLE -> startBleMeasurement(pet.id)
+    }
+}
+
 sealed interface PetMeasurementUiState {
     data object Idle : PetMeasurementUiState
     data object SelectingPet : PetMeasurementUiState
@@ -70,6 +98,32 @@ internal class PetMeasurementStartupGuard {
     suspend fun <T> resolve(token: Token, lookup: suspend () -> T): T? {
         val result = lookup()
         return result.takeIf { isCurrent(token) }
+    }
+
+    internal class Token internal constructor(internal val generation: Long)
+}
+
+/** Prevents a delayed pet creation result from reviving an invalidated measurement flow. */
+internal class PetMeasurementCreationGuard {
+    private val lock = Any()
+    private var generation = 0L
+    private var active = false
+
+    fun begin(): Token? = synchronized(lock) {
+        if (active) return@synchronized null
+        active = true
+        Token(++generation)
+    }
+
+    fun invalidate() = synchronized(lock) {
+        generation += 1
+        active = false
+    }
+
+    fun complete(token: Token): Boolean = synchronized(lock) {
+        if (!active || token.generation != generation) return@synchronized false
+        active = false
+        true
     }
 
     internal class Token internal constructor(internal val generation: Long)

@@ -1,14 +1,20 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
+
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.focusable
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -16,28 +22,43 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
-import com.palixander.scalesync.charts.MetricChartCard
+import com.palixander.scalesync.PetBreedCatalog
+import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
+import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
+import androidx.compose.ui.platform.LocalContext
 
 object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
     fun shell(petId: String) = "$Shell-$petId"
     const val StartMeasurement = "pet-history-start-measurement"
+    const val AddWeight = "pet-history-add-weight"
+    const val Summary = "pet-profile-summary"
+    const val Edit = "pet-profile-edit"
     const val PeriodFilter = "pet-history-period-filter"
     const val Chart = "pet-history-chart"
     const val Empty = "pet-history-empty"
@@ -50,6 +71,13 @@ object PetProfileScreenTestTags {
     const val DeleteCancel = "pet-history-delete-cancel"
     fun measurement(id: String) = "pet-history-measurement-$id"
     fun deleteMeasurement(id: String) = "pet-history-delete-$id"
+    fun editMeasurement(id: String) = "pet-history-edit-$id"
+    const val WeightEditor = "pet-weight-editor"
+    const val WeightInput = "pet-weight-editor-input"
+    const val WeightSave = "pet-weight-editor-save"
+    const val WeightBack = "pet-weight-editor-back"
+    const val WeightUnavailable = "pet-weight-editor-unavailable"
+    const val WeightError = "pet-weight-editor-error"
     fun preset(preset: ChartRangePreset) = "pet-history-period-${preset.name.lowercase()}"
 }
 
@@ -59,7 +87,14 @@ internal fun PetProfileScreen(
     callbacks: PetHistoryCallbacks,
     contentPadding: PaddingValues,
     onStartMeasurement: () -> Unit,
+    onEditPet: (Pet) -> Unit = {},
+    sourceLauncher: ReferenceSourceLauncher = AndroidReferenceSourceLauncher(LocalContext.current),
 ) {
+    state.weightEditor?.let { editor ->
+        androidx.activity.compose.BackHandler(enabled = !editor.isSaving, onBack = callbacks.dismissWeightEditor)
+        PetWeightEditorScreen(editor, callbacks, contentPadding)
+        return
+    }
     state.deleteConfirmation?.let { confirmation ->
         PetHistoryDeleteDialog(
             confirmation = confirmation,
@@ -68,7 +103,21 @@ internal fun PetProfileScreen(
             onDismiss = callbacks.dismissDelete,
         )
     }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val restoredMeasurementFocusRequester = remember(state.scrollToMeasurementId) { FocusRequester() }
+    androidx.compose.runtime.LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
+        val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
+        if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
+            val precedingItems = 5 + (if (state.pet != null && !state.isNotFound) 1 else 0) +
+                (if (state.actionErrorMessage != null && state.deleteConfirmation == null) 1 else 0)
+            listState.scrollToItem(precedingItems + index)
+            withFrameNanos { }
+            restoredMeasurementFocusRequester.requestFocus()
+            callbacks.onScrollToMeasurementHandled()
+        }
+    }
     LazyColumn(
+        state = listState,
         modifier = Modifier.fillMaxSize().padding(contentPadding)
             .padding(horizontal = HuaweiDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.shell(state.petId.value))
@@ -83,12 +132,26 @@ internal fun PetProfileScreen(
                     .semantics { contentDescription = "Взвесить питомца ${state.pet?.displayName.orEmpty()}" },
             ) { Text("Взвесить питомца") }
         }
+        state.pet?.takeUnless { state.isNotFound }?.let { pet ->
+            item {
+                PetProfileSummaryCard(
+                    pet = pet,
+                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog),
+                    onEdit = { onEditPet(pet) },
+                )
+            }
+        }
         item {
             Row(
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.PeriodFilter),
                 horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
-                listOf(ChartRangePreset.LAST_7_DAYS, ChartRangePreset.LAST_30_DAYS, ChartRangePreset.LAST_3_MONTHS)
+                listOf(
+                    ChartRangePreset.ALL,
+                    ChartRangePreset.LAST_7_DAYS,
+                    ChartRangePreset.LAST_30_DAYS,
+                    ChartRangePreset.LAST_3_MONTHS,
+                )
                     .forEach { preset ->
                         FilterChip(
                             selected = state.rangePreset == preset,
@@ -136,17 +199,50 @@ internal fun PetProfileScreen(
                     }
                 }
                 item {
+                    PetHistoryBreedReferenceCard(
+                        reference = state.breedReference,
+                        onEdit = { state.pet?.let(onEditPet) },
+                        sourceLauncher = sourceLauncher,
+                    )
+                }
+                item {
                     Column(Modifier.testTag(PetProfileScreenTestTags.Chart)) {
-                        MetricChartCard(state.series, state.startDate, state.endDateInclusive, java.time.ZoneId.systemDefault())
+                        PetWeightReferenceChartCard(
+                            series = state.series,
+                            reference = state.weightReference,
+                            breedReference = state.breedReference,
+                            breedReferenceTimeline = state.breedReferenceTimeline,
+                            startDate = state.startDate,
+                            endDateInclusive = state.endDateInclusive,
+                            zoneId = java.time.ZoneId.systemDefault(),
+                            sourceLauncher = sourceLauncher,
+                        )
+                    }
+                }
+                item {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Измерения", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
+                        TextButton(onClick = callbacks.onAddWeightRequested,
+                            enabled = state.pet != null && !state.isNotFound,
+                            modifier = Modifier.heightIn(min = 48.dp).testTag(PetProfileScreenTestTags.AddWeight)
+                                .semantics { contentDescription = "Добавить вес питомца" },
+                        ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
                     }
                 }
                 if (state.measurements.isEmpty()) item {
                     Text("Нет измерений за выбранный период", modifier = Modifier.testTag(PetProfileScreenTestTags.Empty))
                 } else {
-                    item { Text("Измерения", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() }) }
                     items(state.measurements, key = { it.id }) { measurement ->
                         HuaweiSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.measurement(measurement.id))
+                                .then(
+                                    if (measurement.id == state.scrollToMeasurementId) {
+                                        Modifier.focusRequester(restoredMeasurementFocusRequester)
+                                    } else {
+                                        Modifier
+                                    },
+                                )
+                                .focusable()
                                 .semantics { contentDescription = "${measurement.measuredAtText}, ${measurement.weightText}" },
                         ) {
                             Row(
@@ -156,17 +252,171 @@ internal fun PetProfileScreen(
                             ) {
                                 Column(Modifier.weight(1f)) {
                                     Text(measurement.measuredAtText)
-                                    Text(measurement.weightText, style = MaterialTheme.typography.titleMedium)
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
+                                        ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
+                                    }
                                 }
-                                HuaweiIconButton(
-                                    icon = HuaweiIcons.Delete,
-                                    contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
-                                    onClick = { callbacks.requestDelete(measurement.id) },
-                                    enabled = state.deleteConfirmation?.isDeleting != true,
-                                    modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
-                                )
+                                Row {
+                                    HuaweiIconButton(
+                                        icon = HuaweiIcons.Edit,
+                                        contentDescription = "Изменить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                                        onClick = { callbacks.editMeasurement(measurement.id) },
+                                        enabled = state.deleteConfirmation?.isDeleting != true,
+                                        modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
+                                    )
+                                    HuaweiIconButton(
+                                        icon = HuaweiIcons.Delete,
+                                        contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                                        onClick = { callbacks.requestDelete(measurement.id) },
+                                        enabled = state.deleteConfirmation?.isDeleting != true,
+                                        modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
+                                    )
+                                }
                             }
                         }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PetWeightEditorScreen(
+    editor: PetWeightEditorState,
+    callbacks: PetHistoryCallbacks,
+    contentPadding: PaddingValues,
+) {
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(contentPadding).imePadding()
+            .padding(horizontal = HuaweiDimensions.ContentPadding)
+            .testTag(PetProfileScreenTestTags.WeightEditor)
+            .semantics { contentDescription = "Изменить вес питомца ${editor.petName}" },
+        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        contentPadding = PaddingValues(vertical = HuaweiDimensions.ContentPadding),
+    ) {
+        item {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                HuaweiIconButton(
+                    icon = HuaweiIcons.Back,
+                    contentDescription = "Вернуться к измерениям",
+                    onClick = callbacks.dismissWeightEditor,
+                    enabled = !editor.isSaving,
+                    modifier = Modifier.testTag(PetProfileScreenTestTags.WeightBack),
+                )
+                Text("Изменить вес", style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.semantics { heading() })
+            }
+        }
+        item { Text(editor.petName, style = MaterialTheme.typography.titleMedium) }
+        item {
+            OutlinedTextField(
+                value = editor.weightInput,
+                onValueChange = callbacks.changeEditedWeight,
+                enabled = !editor.isSaving && !editor.isUnavailable,
+                singleLine = true,
+                label = { Text("Вес, кг") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                isError = editor.parsedWeightKg == null,
+                supportingText = if (editor.parsedWeightKg == null) {
+                    {
+                        Text(
+                            "Введите положительный вес от 0,001 кг, максимум 3 знака после запятой",
+                            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                        )
+                    }
+                } else null,
+                modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.WeightInput),
+            )
+        }
+        item {
+            Column(Modifier.semantics {
+                contentDescription = "Дата и время измерения: ${editor.measuredAtText}. Не изменяется"
+            }) {
+                Text("Дата и время", style = MaterialTheme.typography.labelLarge)
+                Text(editor.measuredAtText)
+                Text("Дата и время измерения не изменяются", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        }
+        if (editor.isUnavailable) item {
+            Text(
+                "Измерение недоступно. Вернитесь к измерениям",
+                color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.WeightUnavailable)
+                    .semantics { liveRegion = LiveRegionMode.Polite },
+            )
+        }
+        editor.saveError?.let { error -> item {
+            Text(error, color = MaterialTheme.colorScheme.error,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.WeightError)
+                    .semantics { liveRegion = LiveRegionMode.Polite })
+        } }
+        item {
+            Button(
+                onClick = callbacks.saveEditedWeight,
+                enabled = editor.canSave,
+                modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag(PetProfileScreenTestTags.WeightSave)
+                    .semantics { if (editor.isSaving) stateDescription = "Сохранение" },
+            ) { Text(if (editor.isSaving) "Сохранение…" else "Сохранить") }
+        }
+    }
+}
+
+@Composable
+private fun PetProfileSummaryCard(
+    pet: Pet,
+    summary: PetProfileSummary,
+    onEdit: () -> Unit,
+) {
+    HuaweiSurface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .testTag(PetProfileScreenTestTags.Summary)
+            .semantics(mergeDescendants = true) {
+                contentDescription = "Данные питомца. ${summary.contentDescription}"
+            },
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = "Данные питомца",
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                TextButton(
+                    onClick = onEdit,
+                    modifier = Modifier
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(PetProfileScreenTestTags.Edit)
+                        .semantics {
+                            contentDescription = "Изменить данные питомца ${pet.displayName}"
+                        },
+                ) { Text("Изменить") }
+            }
+            if (summary.isEmpty) {
+                Text(
+                    text = EmptyPetProfileSummary,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                summary.items.forEach { item ->
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(
+                            text = item.label,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        Text(
+                            text = item.value,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
                     }
                 }
             }
@@ -224,9 +474,12 @@ private fun PetHistoryDeleteDialog(
 }
 
 private fun ChartRangePreset.petTitle() = when (this) {
+    ChartRangePreset.ALL -> "Всё"
     ChartRangePreset.LAST_7_DAYS -> "7 дней"
     ChartRangePreset.LAST_30_DAYS -> "30 дней"
     ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
     ChartRangePreset.YEAR_TO_DATE -> "Год"
     ChartRangePreset.CUSTOM -> "Даты"
 }
+
+private val FallbackBreedCatalog by lazy(::PetBreedCatalog)

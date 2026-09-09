@@ -1,0 +1,224 @@
+breed,breedRu,vboId,sex,stage,ageDaysMin,ageDaysMax,lowerKg,medianKg,upperKg,valueKg,meanKg,sdKg,statistic,derivation,evidenceClass,sourceId,pooledGroup,notes
+Abyssinian,Абиссинская,0100000,female,adult,365,365,2.721554,3.401942,4.082331,,,,published_range,derived_midpoint,ready_official,A-S02,no,TICA range; midpoint is not an observed median
+Abyssinian,Абиссинская,0100000,male,adult,365,365,3.175147,4.309127,5.443108,,,,published_range,derived_midpoint,ready_official,A-S02,no,TICA range; midpoint is not an observed median
+Abyssinian,Абиссинская,0100000,combined,birth,0,0,,,,,0.0972,0.0118,published_mean,not_median,observational_only,A-S15,yes,Abyssinian/Somali pooled; n=264; mean 97.2 g SD 11.8
+Abyssinian,Абиссинская,0100000,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+American Shorthair,,0100018,female,adult,,,3.629,4.536,5.443,,,,published_range,midpoint,ready_open_fallback,C-S06,no,Purina 8-12 lb
+American Shorthair,,0100018,male,adult,,,4.99,5.897,6.804,,,,published_range,midpoint,ready_open_fallback,C-S06,no,Purina 11-15 lb
+American Shorthair,,0100018,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+American Shorthair,,0100018,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Asian Leopard Cat,,0100029,female,adult,,,,,,,2.34,,mean_only,published_mean,observational_only,C-S07,no,Wild species Prionailurus bengalensis; Taiwan capture sample; mean±SE 2.34±0.42 kg; no min/max
+Asian Leopard Cat,,0100029,male,adult,,,,,,,3.7,,mean_only,published_mean,observational_only,C-S07,no,Wild species Prionailurus bengalensis; Taiwan capture sample; mean±SE 3.70±0.25 kg; no min/max
+Asian Leopard Cat,,0100029,combined,birth,0,0,,,,,0.096,,secondary_mean_only,published_mean,provisional_low_authority,C-S15,no,"Secondary species database; verify VBO concept because this is a wild species, not a domestic breed"
+Asian Leopard Cat,,0100029,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric age-specific weights found
+Balinese,,0100036,female,adult,,,2.268,2.9485,3.629,,,,published_range,midpoint,ready_official,C-S08,no,TICA 5-8 lb
+Balinese,,0100036,male,adult,,,3.629,4.536,5.443,,,,published_range,midpoint,ready_official,C-S08,no,TICA 8-12 lb
+Balinese,,0100036,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Balinese,,0100036,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Bambino,,0100037,female,adult,,,2.3,2.75,3.2,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-dogell-bambino-dwelf,no,Low-authority open source; no official/veterinary numeric range found
+Bambino,,0100037,male,adult,,,2.3,3.2,4.1,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-dogell-bambino-dwelf,no,Low-authority open source; no official/veterinary numeric range found
+Bambino,,0100037,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Bambino,,0100037,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Bengal,Бенгальская,0100040,female,adult,730,730,2.721554,4.082331,5.443108,,,,published_range,derived_midpoint,ready_official,A-S01,no,TICA approximate range; body-condition assessment still required
+Bengal,Бенгальская,0100040,male,adult,730,730,4.082331,5.443109,6.803886,,,,published_range,derived_midpoint,ready_official,A-S01,no,TICA approximate range; body-condition assessment still required
+Bengal,Бенгальская,0100040,combined,birth,0,0,,,,,0.0882,0.0157,published_mean,not_median,observational_only,A-S15,no,mean 88.2 g SD 15.7; French pedigree catteries; sex-combined
+Bengal,Бенгальская,0100040,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Bombay,,0100045,female,adult,,,2.722,3.402,4.082,,,,published_range,midpoint,ready_open_fallback,C-S09,no,Purina 6-9 lb
+Bombay,,0100045,male,adult,,,3.629,4.3095,4.99,,,,published_range,midpoint,ready_open_fallback,C-S09,no,Purina 8-11 lb
+Bombay,,0100045,combined,birth,0,0,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Royal Canin breed chart includes day 0 but no numeric table
+Bombay,,0100045,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Centiles 9/25/50/75/91; both sexes combined
+Burmese,Бурманская,0100053,female,adult,548,548,2.721554,3.401942,4.082331,,,,published_range,derived_midpoint,ready_official,A-S10,no,GCCF care page; British breed context
+Burmese,Бурманская,0100053,male,adult,548,548,4.989516,5.669904,6.350293,,,,published_range,derived_midpoint,ready_official,A-S10,no,GCCF care page; British breed context
+Burmese,Бурманская,0100053,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Burmese,Бурманская,0100053,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying extractable exact-age breed-specific point located
+Burmilla,,0100056,female,adult,,,4,4.5,5,,,,published_range,midpoint,ready_open_fallback,C-S05,no,Hill's professional breed guide 4-5 kg
+Burmilla,,0100056,male,adult,,,4,4.5,5,,,,published_range,midpoint,ready_open_fallback,C-S05,no,Hill's professional breed guide 4-5 kg
+Burmilla,,0100056,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Burmilla,,0100056,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Canadian Sphynx,,0100061,female,adult,,,3.1751,3.8555,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-sphynx,no,TICA 7-10 lb; midpoint derived
+Canadian Sphynx,,0100061,male,adult,,,3.6287,4.5359,5.4431,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-sphynx,no,TICA 8-12 lb; midpoint derived
+Canadian Sphynx,,0100061,pooled,birth,0,0,0.07,0.09,0.11,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,yes,9th/50th/91st centiles; pooled sex
+Canadian Sphynx,,0100061,pooled,intermediate,14,14,0.205,0.25,0.3,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Canadian Sphynx,,0100061,pooled,intermediate,20,20,0.26,0.325,0.39,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Canadian Sphynx,,0100061,pooled,intermediate,21,21,0.27,0.34,0.41,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,second panel begins at day 21
+Canadian Sphynx,,0100061,pooled,intermediate,35,35,0.39,0.48,0.59,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Canadian Sphynx,,0100061,pooled,intermediate,49,49,0.56,0.68,0.9,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Canadian Sphynx,,0100061,pooled,intermediate,61,61,0.77,0.98,1.18,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Canadian Sphynx,,0100061,pooled,intermediate,7,7,0.135,0.175,0.22,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Chausie,,0100068,female,adult,,,,,,5.7833,,,derived_point,lb_to_kg_and_percentage,ready_official,B-tica-chausie,no,TICA: male 15 lb; females 15% smaller; no range
+Chausie,,0100068,male,adult,,,,,,6.8039,,,published_point,lb_to_kg,ready_official,B-tica-chausie,no,"TICA point estimate, no range"
+Chausie,,0100068,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Chausie,,0100068,pooled,intermediate,84,84,,,,1.3608,,,published_point,lb_to_kg,ready_official,B-tica-chausie,no,TICA explicitly states kitten 3 lb at 12 weeks; sex not stated
+Cornish Rex,Корниш-рекс,0100077,female,adult,365,365,2.267962,2.721554,3.175147,,,,published_range,derived_midpoint,ready_official,A-S07,no,TICA narrative range; midpoint not observed median
+Cornish Rex,Корниш-рекс,0100077,male,adult,365,365,3.628739,4.082331,4.535924,,,,published_range,derived_midpoint,ready_official,A-S07,no,TICA narrative range; midpoint not observed median
+Cornish Rex,Корниш-рекс,0100077,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Cornish Rex,Корниш-рекс,0100077,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying extractable exact-age breed-specific point located
+Devon Rex,Девон-рекс,0100084,female,adult,365,365,2.267962,2.721554,3.175147,,,,published_range,derived_midpoint,ready_official,A-S04,no,TICA range; midpoint is not an observed median
+Devon Rex,Девон-рекс,0100084,male,adult,365,365,3.175147,3.628739,4.082331,,,,published_range,derived_midpoint,ready_official,A-S04,no,TICA range; midpoint is not an observed median
+Devon Rex,Девон-рекс,0100084,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Devon Rex,Девон-рекс,0100084,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying extractable exact-age breed-specific point located
+Donskoy,,0100086,female,adult,,,,,,,,,gap,none,gap/conflict,B-tica-donskoy,no,Official TICA profile only states medium size and male larger
+Donskoy,,0100086,male,adult,,,,,,,,,gap,none,gap/conflict,B-tica-donskoy,no,Official TICA profile only states medium size and male larger
+Donskoy,,0100086,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Donskoy,,0100086,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Dwelf,,0100089,female,adult,,,1.4,2.5,3.6,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-dogell-bambino-dwelf,no,Low-authority open source; no official/veterinary numeric range found
+Dwelf,,0100089,male,adult,,,1.8,2.95,4.1,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-dogell-bambino-dwelf,no,Low-authority open source; no official/veterinary numeric range found
+Dwelf,,0100089,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Dwelf,,0100089,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Egyptian Mau,,0100090,female,adult,,,2.722,3.629,4.536,,,,published_range,midpoint,ready_open_fallback,C-S10,no,Purina 6-10 lb
+Egyptian Mau,,0100090,male,adult,,,4.536,5.443,6.35,,,,published_range,midpoint,ready_open_fallback,C-S10,no,Purina 10-14 lb
+Egyptian Mau,,0100090,combined,birth,0,0,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Royal Canin breed chart includes day 0 but no numeric table
+Egyptian Mau,,0100090,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Centiles 9/25/50/75/91; both sexes combined
+Elf,Эльф,0100091,combined,adult,365,365,4.5,5.75,7,,,,published_range,derived_midpoint,ready_open_fallback,A-S18,no,open professional pet reference; no sex split; rare experimental breed
+Elf,Эльф,0100091,female,adult,,,,,,,,,gap,not_available,gap/conflict,,no,No sex-specific adult datum in research packages
+Elf,Эльф,0100091,male,adult,,,,,,,,,gap,not_available,gap/conflict,,no,No sex-specific adult datum in research packages
+Elf,Эльф,0100091,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Elf,Эльф,0100091,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Exotic Shorthair,Экзотическая короткошёрстная,0100096,combined,adult,365,365,4.082331,4.762719,5.443108,,,,published_range,derived_midpoint,ready_open_fallback,A-S05,no,VCA sex-combined 9-12 lb; sex-specific ranges unavailable from stronger source
+Exotic Shorthair,Экзотическая короткошёрстная,0100096,female,adult,,,,,,,,,gap,not_available,gap/conflict,,no,No sex-specific adult datum in research packages
+Exotic Shorthair,Экзотическая короткошёрстная,0100096,male,adult,,,,,,,,,gap,not_available,gap/conflict,,no,No sex-specific adult datum in research packages
+Exotic Shorthair,Экзотическая короткошёрстная,0100096,combined,birth,0,0,,,,,0.0855,0.015,published_mean,not_median,observational_only,A-S15,yes,Persian/Exotic pooled; n=365; mean 85.5 g SD 15.0
+Exotic Shorthair,Экзотическая короткошёрстная,0100096,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying extractable exact-age breed-specific point located
+Kurilian Bobtail Longhair,Курильский бобтейл длинношёрстный,0100147,female,adult,730,730,3.628739,4.309127,4.989516,,,,published_range,derived_midpoint,ready_official,A-S12,yes,TICA breed-group page applies to both coat lengths
+Kurilian Bobtail Longhair,Курильский бобтейл длинношёрстный,0100147,male,adult,730,730,,,6.803886,,,,published_upper_bound,not_available,ready_official,A-S12,no,"TICA says males can weigh as much as 15 lb (6.803886 kg); no lower bound, so no range/midpoint"
+Kurilian Bobtail Longhair,Курильский бобтейл длинношёрстный,0100147,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Kurilian Bobtail Longhair,Курильский бобтейл длинношёрстный,0100147,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Kurilian Bobtail Shorthair,Курильский бобтейл короткошёрстный,0100148,female,adult,730,730,3.628739,4.309127,4.989516,,,,published_range,derived_midpoint,ready_official,A-S12,yes,TICA breed-group page applies to both coat lengths
+Kurilian Bobtail Shorthair,Курильский бобтейл короткошёрстный,0100148,male,adult,730,730,,,6.803886,,,,published_upper_bound,not_available,ready_official,A-S12,no,"TICA says males can weigh as much as 15 lb (6.803886 kg); no lower bound, so no range/midpoint"
+Kurilian Bobtail Shorthair,Курильский бобтейл короткошёрстный,0100148,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,no qualifying breed-specific birth figure located
+Kurilian Bobtail Shorthair,Курильский бобтейл короткошёрстный,0100148,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Minuet,,0100163,female,adult,,,3.175,3.402,3.629,,,,unisex_proxy,midpoint,provisional_low_authority,C-S03,no,"TICA says adults average 7-8 lb, no sex split; same unisex range provisionally repeated"
+Minuet,,0100163,male,adult,,,3.175,3.402,3.629,,,,unisex_proxy,midpoint,provisional_low_authority,C-S03,no,"TICA says adults average 7-8 lb, no sex split; same unisex range provisionally repeated"
+Minuet,,0100163,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Minuet,,0100163,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Minuet Longhair,,0100164,female,adult,,,3.175,3.402,3.629,,,,unisex_proxy,midpoint,provisional_low_authority,C-S03,no,"TICA Minuet Longhair page says adults average 7-8 lb, no sex split"
+Minuet Longhair,,0100164,male,adult,,,3.175,3.402,3.629,,,,unisex_proxy,midpoint,provisional_low_authority,C-S03,no,"TICA Minuet Longhair page says adults average 7-8 lb, no sex split"
+Minuet Longhair,,0100164,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Minuet Longhair,,0100164,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Munchkin,Манчкин,0100169,female,adult,,,2.268,2.7215,3.175,,,,published_range,midpoint,ready_official,C-S11,no,TICA 5-7 lb
+Munchkin,Манчкин,0100169,male,adult,,,3.175,3.8555,4.536,,,,published_range,midpoint,ready_official,C-S11,no,TICA 7-10 lb
+Munchkin,Манчкин,0100169,combined,birth,0,0,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Royal Canin breed chart includes day 0 but no numeric table
+Munchkin,Манчкин,0100169,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Centiles 9/25/50/75/91; applies to both hair lengths and sexes
+Munchkin Longhair,Манчкин длинношёрстный,0100170,female,adult,,,2.268,2.7216,3.1751,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-munchkin-longhair,no,TICA 5-7 lb; same breed differentiated only by coat
+Munchkin Longhair,Манчкин длинношёрстный,0100170,male,adult,,,3.1751,3.8555,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-munchkin-longhair,no,TICA 7-10 lb; same breed differentiated only by coat
+Munchkin Longhair,Манчкин длинношёрстный,0100170,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Munchkin Longhair,Манчкин длинношёрстный,0100170,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Nebelung,,0100172,female,adult,,,3.175,4.9895,6.804,,,,unisex_proxy,midpoint,provisional_low_authority,C-S12,no,PetMD 7-15 lb unisex; no sex split
+Nebelung,,0100172,male,adult,,,3.175,4.9895,6.804,,,,unisex_proxy,midpoint,provisional_low_authority,C-S12,no,PetMD 7-15 lb unisex; no sex split
+Nebelung,,0100172,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Nebelung,,0100172,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Neva Masquerade,,0100173,female,adult,,,4,5,6,,,,midpoint_derived,range_midpoint,ready_open_fallback,B-anicura-neva,no,"Veterinary network breed page; median is arithmetic midpoint, not published median"
+Neva Masquerade,,0100173,male,adult,,,4.5,6.75,9,,,,midpoint_derived,range_midpoint,ready_open_fallback,B-anicura-neva,no,Veterinary network breed page; late maturity around 3 years; median is midpoint
+Neva Masquerade,,0100173,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Neva Masquerade,,0100173,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Norwegian Forest Cat,Норвежская лесная,0100178,female,adult,1825,1825,3.628739,4.535923,5.443108,,,,published_range,derived_midpoint,ready_official,A-S09,no,TICA states slow maturity up to 5 years
+Norwegian Forest Cat,Норвежская лесная,0100178,male,adult,1825,1825,5.443108,6.803885,8.164662,,,,published_range,derived_midpoint,ready_official,A-S09,no,TICA states slow maturity up to 5 years
+Norwegian Forest Cat,Норвежская лесная,0100178,combined,birth,0,0,,,,,0.1099,0.0177,published_mean,not_median,observational_only,A-S15,no,n=806; mean 109.9 g SD 17.7; French pedigree catteries
+Norwegian Forest Cat,Норвежская лесная,0100178,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,2011 paper follows kittens to 12 weeks but exact table points were not recoverable in this pass
+Ocicat,,0100179,female,adult,,,3.6287,4.0823,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-ocicat,no,Uses TICA at-a-glance 8-10 lb; narrative body conflicts (6-9 lb)
+Ocicat,,0100179,male,adult,,,4.5359,4.9895,5.4431,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-ocicat,no,Uses TICA at-a-glance 10-12 lb; narrative body conflicts (9-14 lb)
+Ocicat,,0100179,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Ocicat,,0100179,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Oriental Longhair,,0100183,female,adult,,,2.268,2.9485,3.629,,,,published_range,midpoint,ready_official,C-S16,no,TICA 5-8 lb
+Oriental Longhair,,0100183,male,adult,,,3.629,4.536,5.443,,,,published_range,midpoint,ready_official,C-S16,no,TICA 8-12 lb
+Oriental Longhair,,0100183,combined,birth,0,0,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,yes,Royal Canin Oriental chart includes day 0; applies to both hair lengths only by breed-group inference
+Oriental Longhair,,0100183,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Centiles 9/25/50/75/91; both sexes combined
+Oriental Shorthair,Ориентальная короткошёрстная,0100184,female,adult,548,730,2.267962,2.948351,3.628739,,,,published_range,derived_midpoint,ready_official,A-S03,no,TICA approximate range; full maturity stated 18-24 months
+Oriental Shorthair,Ориентальная короткошёрстная,0100184,male,adult,548,730,3.628739,4.535923,5.443108,,,,published_range,derived_midpoint,ready_official,A-S03,no,TICA approximate range; full maturity stated 18-24 months
+Oriental Shorthair,Ориентальная короткошёрстная,0100184,combined,birth,0,0,,,,,0.0955,0.0132,published_mean,not_median,observational_only,A-S16,yes,Balinese/Mandarin/Oriental/Siamese pooled; n=96; mean 95.5 g SD 13.2
+Oriental Shorthair,Ориентальная короткошёрстная,0100184,combined,intermediate,60,60,,,,0.853,,,published_group_extreme,not_median,observational_only,A-S17,yes,abstract reports Oriental group D60 weight as lowest among breeds; statistic wording does not expose dispersion
+Persian,Персидская,0100188,female,adult,365,365,3.175147,4.082332,4.989516,,,,published_range,derived_midpoint,ready_open_fallback,A-S06,no,professional veterinary reference; midpoint not observed median
+Persian,Персидская,0100188,male,adult,365,365,4.082331,5.216312,6.350293,,,,published_range,derived_midpoint,ready_open_fallback,A-S06,no,professional veterinary reference; midpoint not observed median
+Persian,Персидская,0100188,combined,birth,0,0,,,,,0.0855,0.015,published_mean,not_median,observational_only,A-S15,yes,Persian/Exotic pooled; n=365; mean 85.5 g SD 15.0
+Persian,Персидская,0100188,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,published VetCompass growth curves exist but no exact points extracted from the graph
+Peterbald,,0100189,female,adult,,,2.268,2.7215,3.175,,,,published_range,midpoint,ready_official,C-S01,no,TICA 5-7 lb; conversion uses 1 lb=0.45359237 kg
+Peterbald,,0100189,male,adult,,,3.175,3.8555,4.536,,,,published_range,midpoint,ready_official,C-S01,no,TICA 7-10 lb; conversion uses 1 lb=0.45359237 kg
+Peterbald,,0100189,combined,birth,0,0,0.06,0.07,0.08,,,,open_source_range,midpoint,provisional_low_authority,C-S14,no,Breeder-authored husbandry PDF; not peer reviewed; low-birth-weight population claim
+Peterbald,,0100189,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,"Royal Canin centiles 9/25/50/75/91; no numeric table, exact values not transcribed"
+Ragdoll,Рэгдолл,0100196,female,adult,1460,1460,4.535924,5.669905,6.803886,,,,published_range,derived_midpoint,ready_official,A-S11,no,TICA says full maturity up to 4 years
+Ragdoll,Рэгдолл,0100196,male,adult,1460,1460,6.803886,7.937867,9.071847,,,,published_range,derived_midpoint,ready_official,A-S11,no,TICA says full maturity up to 4 years
+Ragdoll,Рэгдолл,0100196,combined,birth,0,0,,,,,0.1003,0.0135,published_mean,not_median,observational_only,A-S15,no,n=331; mean 100.3 g SD 13.5; French pedigree catteries
+Ragdoll,Рэгдолл,0100196,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,VetCompass curves exist through age but exact plotted values not extracted
+Russian Blue,Русская голубая,0100200,female,adult,365,365,3.175147,3.855535,4.535924,,,,published_range,derived_midpoint,ready_open_fallback,A-S08,no,APOP says starting point only; source does not expose underlying sample
+Russian Blue,Русская голубая,0100200,male,adult,365,365,4.535924,4.989516,5.443108,,,,published_range,derived_midpoint,ready_open_fallback,A-S08,no,APOP says starting point only; source does not expose underlying sample
+Russian Blue,Русская голубая,0100200,combined,birth,0,0,,,,,0.0927,0.0152,published_mean,not_median,observational_only,A-S15,yes,Russian Blue/Nebelung pooled; n=108; mean 92.7 g SD 15.2
+Russian Blue,Русская голубая,0100200,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Sacred Birman,,0100204,female,adult,,,,,,5.4431,,,published_point,lb_to_kg,ready_official,B-tica-birman,no,"TICA displays 12 lb for both sexes although its text says females are appreciably smaller; treat as low-confidence point, not a range"
+Sacred Birman,,0100204,male,adult,,,,,,5.4431,,,published_point,lb_to_kg,ready_official,B-tica-birman,no,TICA displays 12 lb for both sexes; point estimate only
+Sacred Birman,,0100204,female,birth,0,0,0.07,0.09,0.11,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles; approximate reading from published graph
+Sacred Birman,,0100204,male,birth,0,0,0.08,0.1,0.12,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles; approximate reading
+Sacred Birman,,0100204,female,intermediate,14,14,0.18,0.235,0.295,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,female,intermediate,20,20,0.24,0.31,0.37,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,female,intermediate,21,21,0.25,0.315,0.39,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,second panel begins at day 21
+Sacred Birman,,0100204,female,intermediate,35,35,0.37,0.45,0.57,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,female,intermediate,49,49,0.5,0.65,0.82,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,female,intermediate,61,61,0.67,0.85,1.05,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,female,intermediate,7,7,0.13,0.165,0.205,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,14,14,0.195,0.245,0.3,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,20,20,0.26,0.325,0.39,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,21,21,0.27,0.34,0.42,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,second panel begins at day 21
+Sacred Birman,,0100204,male,intermediate,35,35,0.4,0.5,0.62,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,49,49,0.55,0.7,0.86,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,61,61,0.72,0.93,1.14,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sacred Birman,,0100204,male,intermediate,7,7,0.14,0.175,0.215,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Savannah,,0100208,female,adult,,,,,,,,,gap,none,gap/conflict,B-petmd-savannah,no,No defensible sex-specific numeric range; generation is major confounder
+Savannah,,0100208,male,adult,,,,,,,,,gap,none,gap/conflict,B-petmd-savannah,no,No defensible sex-specific numeric range; generation is major confounder
+Savannah,,0100208,pooled,adult,,,4.9895,7.0307,9.0718,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_open_fallback,B-petmd-savannah,no,Veterinarian-reviewed 11-20 lb; depends strongly on filial generation
+Savannah,,0100208,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Savannah,,0100208,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Selkirk Rex Longhair,,0100216,female,adult,,,2.722,4.0825,5.443,,,,published_range,midpoint,ready_open_fallback,C-S02,yes,Purina 6-12 lb; source covers both coat lengths
+Selkirk Rex Longhair,,0100216,male,adult,,,4.99,6.1235,7.257,,,,published_range,midpoint,ready_open_fallback,C-S02,yes,Purina 11-16 lb; source covers both coat lengths
+Selkirk Rex Longhair,,0100216,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Selkirk Rex Longhair,,0100216,combined,intermediate,0,62,,,,,,,graph_only_not_digitized,not_available,graphical_only,C-S13,no,Royal Canin chart explicitly applies when hair length unspecified
+Selkirk Rex Shorthair,,0100217,female,adult,,,,,,,,,gap,none,gap/conflict,B-wikipedia-selkirk,no,Fallback says females smaller but gives no numeric female range
+Selkirk Rex Shorthair,,0100217,male,adult,,,5.4431,6.1235,6.8039,,,,midpoint_derived,lb_to_kg_and_midpoint,provisional_low_authority,B-wikipedia-selkirk,no,Wikipedia fallback 12-15 lb male; applies to Selkirk Rex without coat distinction
+Selkirk Rex Shorthair,,0100217,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Selkirk Rex Shorthair,,0100217,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Somali,,0100229,female,adult,,,,,,,,,gap,none,gap/conflict,B-petmd-somali,no,Sex-specific adult range unavailable
+Somali,,0100229,male,adult,,,,,,,,,gap,none,gap/conflict,B-petmd-somali,no,Sex-specific adult range unavailable
+Somali,,0100229,pooled,adult,,,2.7216,3.6287,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_open_fallback,B-petmd-somali,yes,Veterinarian-reviewed page gives pooled 6-10 lb only; no numeric sex split
+Somali,,0100229,pooled,birth,0,0,0.07,0.09,0.115,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,yes,9th/50th/91st centiles; pooled sex
+Somali,,0100229,pooled,intermediate,14,14,0.215,0.275,0.33,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Somali,,0100229,pooled,intermediate,20,20,0.285,0.355,0.43,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Somali,,0100229,pooled,intermediate,21,21,0.29,0.365,0.45,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,second panel begins at day 21
+Somali,,0100229,pooled,intermediate,35,35,0.41,0.52,0.66,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Somali,,0100229,pooled,intermediate,49,49,0.57,0.75,0.91,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Somali,,0100229,pooled,intermediate,61,61,0.66,0.88,1.08,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Somali,,0100229,pooled,intermediate,7,7,0.14,0.19,0.23,,,,chart_digitized,visual_digitization,graphical_only,B-royalcanin-neonatal-2024,no,9th/50th/91st centiles
+Sphynx,Сфинкс,0100230,female,adult,365,365,3.175147,3.855535,4.535924,,,,published_range,derived_midpoint,ready_official,A-S13,no,TICA range; midpoint not observed median
+Sphynx,Сфинкс,0100230,male,adult,365,365,3.628739,4.535923,5.443108,,,,published_range,derived_midpoint,ready_official,A-S13,no,TICA range; midpoint not observed median
+Sphynx,Сфинкс,0100230,combined,birth,0,0,,,,,0.0903,0.0146,published_mean,not_median,observational_only,A-S15,no,n=121; mean 90.3 g SD 14.6; French pedigree catteries
+Sphynx,Сфинкс,0100230,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Thai,Тайская,0100235,female,adult,365,365,3.175147,3.628739,4.082331,,,,published_range,derived_midpoint,ready_official,A-S14,no,TICA ideal weight range
+Thai,Тайская,0100235,male,adult,365,365,4.082331,4.762719,5.443108,,,,published_range,derived_midpoint,ready_official,A-S14,no,TICA ideal weight range
+Thai,Тайская,0100235,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,yes,Thai is not treated as interchangeable with pooled Siamese/Oriental research
+Thai,Тайская,0100235,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,no qualifying exact-age breed-specific point located
+Toybob,,0100244,female,adult,,,,,,,,,gap,none,gap/conflict,B-toybobcat,no,Sex-specific numeric range unavailable
+Toybob,,0100244,male,adult,,,,,,,,,gap,none,gap/conflict,B-toybobcat,no,Sex-specific numeric range unavailable
+Toybob,,0100244,pooled,adult,,,1.8144,2.4948,3.1751,,,,midpoint_derived,lb_to_kg_and_midpoint,provisional_low_authority,B-toybobcat,yes,Breed-club member cattery reports 4-7 lb pooled; no sex split
+Toybob,,0100244,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Toybob,,0100244,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Toyger,,0100245,female,adult,,,3.1751,3.8555,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-toyger,no,TICA 7-10 lb; midpoint derived
+Toyger,,0100245,male,adult,,,4.5359,5.6699,6.8039,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-toyger,no,TICA 10-15 lb; midpoint derived
+Toyger,,0100245,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Toyger,,0100245,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Turkish Angora,,0100249,female,adult,,,2.268,2.9485,3.629,,,,published_range,midpoint,ready_open_fallback,C-S04,no,Purina 5-8 lb
+Turkish Angora,,0100249,male,adult,,,3.175,3.8555,4.536,,,,published_range,midpoint,ready_open_fallback,C-S04,no,Purina 7-10 lb
+Turkish Angora,,0100249,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Turkish Angora,,0100249,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,Peer-reviewed/open records found describe samples but did not expose exact age-weight table
+Ukrainian Levkoy,,0100252,female,adult,,,3.5,4,4.5,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-zoobonus-levkoy,no,Open pet portal; midpoint derived; no official/veterinary numeric range found
+Ukrainian Levkoy,,0100252,male,adult,,,4.5,5,5.5,,,,midpoint_derived,range_midpoint,provisional_low_authority,B-zoobonus-levkoy,no,Open pet portal; midpoint derived; no official/veterinary numeric range found
+Ukrainian Levkoy,,0100252,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Ukrainian Levkoy,,0100252,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Ural Rex,,0100253,female,adult,,,3,3.25,3.5,,,,open_source_range,midpoint,provisional_low_authority,C-S18,no,Russian Wikipedia current page 3-3.5 kg; official WCF standard has no numeric weight
+Ural Rex,,0100253,male,adult,,,4,5,6,,,,open_source_range,midpoint,provisional_low_authority,C-S18,no,Russian Wikipedia current page 4-6 kg; official WCF standard has no numeric weight
+Ural Rex,,0100253,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Ural Rex,,0100253,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found
+Munchkin Short-Haired,Манчкин короткошёрстный,0100303,female,adult,,,2.268,2.7216,3.1751,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-munchkin,no,TICA 5-7 lb; midpoint derived
+Munchkin Short-Haired,Манчкин короткошёрстный,0100303,male,adult,,,3.1751,3.8555,4.5359,,,,midpoint_derived,lb_to_kg_and_midpoint,ready_official,B-tica-munchkin,no,TICA 7-10 lb; midpoint derived
+Munchkin Short-Haired,Манчкин короткошёрстный,0100303,combined,birth,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric birth datum found
+Munchkin Short-Haired,Манчкин короткошёрстный,0100303,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No breed-specific numeric intermediate datum found
+Seychellois Short Hair,,0100314,female,adult,,,2.268,2.9485,3.629,,,,breed_standard_proxy,midpoint,provisional_low_authority,C-S17,no,Seychellois standard is identical to Siamese/Oriental; TICA Siamese female range used as explicit proxy
+Seychellois Short Hair,,0100314,male,adult,,,3.629,4.536,5.443,,,,breed_standard_proxy,midpoint,provisional_low_authority,C-S17,no,Seychellois standard is identical to Siamese/Oriental; TICA Siamese male range used as explicit proxy
+Seychellois Short Hair,,0100314,combined,birth,0,0,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific birth weight found
+Seychellois Short Hair,,0100314,combined,intermediate,,,,,,,,,gap,not_available,gap/conflict,,no,No exact numeric breed-specific intermediate weights found

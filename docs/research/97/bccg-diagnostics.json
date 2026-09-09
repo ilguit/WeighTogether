@@ -1,0 +1,153 @@
+{
+  "source_sha256": "76be97fd71d5139fb648e58c69db58945c221df33f1b7f15fc12e244db90e094",
+  "sex": {
+    "F": {
+      "published_modelling_rows": 7961,
+      "published_modelling_cats": 3987,
+      "chosen": "flexible",
+      "selection_rule": "lowest complexity within 0.002 mean holdout NLL of best",
+      "candidates": [
+        {
+          "name": "simple",
+          "holdout_mean_nll": 0.355893,
+          "parameters": 14
+        },
+        {
+          "name": "balanced",
+          "holdout_mean_nll": 0.355297,
+          "parameters": 17
+        },
+        {
+          "name": "flexible",
+          "holdout_mean_nll": 0.352946,
+          "parameters": 21
+        }
+      ],
+      "iterations": 116,
+      "penalized_objective": 3016.0113764956404,
+      "age_range_weeks": [
+        5.2178571428571425,
+        91.3125
+      ],
+      "calibration": [
+        {
+          "weeks": "8-18",
+          "rows": 4058,
+          "below_p02": 0.019,
+          "below_p09": 0.0919,
+          "below_p50": 0.4892,
+          "below_p91": 0.9115,
+          "below_p98": 0.9744
+        },
+        {
+          "weeks": "18-30",
+          "rows": 2030,
+          "below_p02": 0.0291,
+          "below_p09": 0.0892,
+          "below_p50": 0.4852,
+          "below_p91": 0.9212,
+          "below_p98": 0.9926
+        },
+        {
+          "weeks": "30-52",
+          "rows": 477,
+          "below_p02": 0.0273,
+          "below_p09": 0.109,
+          "below_p50": 0.5262,
+          "below_p91": 0.8889,
+          "below_p98": 0.979
+        },
+        {
+          "weeks": "52-79",
+          "rows": 726,
+          "below_p02": 0.0124,
+          "below_p09": 0.0716,
+          "below_p50": 0.5179,
+          "below_p91": 0.9105,
+          "below_p98": 0.9669
+        }
+      ]
+    },
+    "M": {
+      "published_modelling_rows": 6254,
+      "published_modelling_cats": 3103,
+      "chosen": "simple",
+      "selection_rule": "lowest complexity within 0.002 mean holdout NLL of best",
+      "candidates": [
+        {
+          "name": "simple",
+          "holdout_mean_nll": 0.623271,
+          "parameters": 14
+        },
+        {
+          "name": "balanced",
+          "holdout_mean_nll": 0.623995,
+          "parameters": 17
+        },
+        {
+          "name": "flexible",
+          "holdout_mean_nll": 0.622877,
+          "parameters": 21
+        }
+      ],
+      "iterations": 64,
+      "penalized_objective": 3912.3671191169574,
+      "age_range_weeks": [
+        5.270035714285714,
+        91.3125
+      ],
+      "calibration": [
+        {
+          "weeks": "8-18",
+          "rows": 3385,
+          "below_p02": 0.0225,
+          "below_p09": 0.0913,
+          "below_p50": 0.5105,
+          "below_p91": 0.8999,
+          "below_p98": 0.9749
+        },
+        {
+          "weeks": "18-30",
+          "rows": 1542,
+          "below_p02": 0.0266,
+          "below_p09": 0.0895,
+          "below_p50": 0.4818,
+          "below_p91": 0.906,
+          "below_p98": 0.9877
+        },
+        {
+          "weeks": "30-52",
+          "rows": 335,
+          "below_p02": 0.0209,
+          "below_p09": 0.0806,
+          "below_p50": 0.4925,
+          "below_p91": 0.9224,
+          "below_p98": 0.9731
+        },
+        {
+          "weeks": "52-79",
+          "rows": 528,
+          "below_p02": 0.0265,
+          "below_p09": 0.1042,
+          "below_p50": 0.5303,
+          "below_p91": 0.9148,
+          "below_p98": 0.9678
+        }
+      ]
+    }
+  },
+  "fig1": {
+    "sha256": "3bcb996c612387e5903e7de4fd7bdec202f99afbfeff0a574167de5d3b4932fd",
+    "method": "blue-pixel digitisation; approximate, not source data",
+    "F": {
+      "digitized_points": 340,
+      "mae_kg": 0.0972,
+      "max_abs_kg": 0.2151
+    },
+    "M": {
+      "digitized_points": 350,
+      "mae_kg": 0.0505,
+      "max_abs_kg": 0.1526
+    }
+  }
+}

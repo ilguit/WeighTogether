@@ -59,7 +59,6 @@ class MeasurementDeduplicationEndToEndTest {
         val persistence = RoomMeasurementPersistence(
             database = database,
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
-            huaweiSyncEnabled = true,
             now = { now },
         )
         val repository = MeasurementRepository(
@@ -67,7 +66,6 @@ class MeasurementDeduplicationEndToEndTest {
             profileProvider = { null },
             calculator = BodyCompositionCalculator(ZoneId.of("UTC")),
             syncScheduler = sync,
-            huaweiSyncEnabled = true,
             multiAccountPersistence = persistence,
             accountRepository = accounts,
             pendingDecisionNotifier = notifications,
@@ -171,11 +169,9 @@ class MeasurementDeduplicationEndToEndTest {
             profileProvider = { null },
             calculator = calculator,
             syncScheduler = RecordingSyncScheduler(),
-            huaweiSyncEnabled = true,
             multiAccountPersistence = RoomMeasurementPersistence(
                 database = database,
                 calculator = calculator,
-                huaweiSyncEnabled = true,
                 now = { now },
             ),
             accountRepository = accounts,
@@ -219,11 +215,9 @@ class MeasurementDeduplicationEndToEndTest {
             profileProvider = { null },
             calculator = calculator,
             syncScheduler = RecordingSyncScheduler(),
-            huaweiSyncEnabled = true,
             multiAccountPersistence = RoomMeasurementPersistence(
                 database = database,
                 calculator = calculator,
-                huaweiSyncEnabled = true,
                 now = { now },
             ),
             accountRepository = accounts,
@@ -281,11 +275,9 @@ class MeasurementDeduplicationEndToEndTest {
             profileProvider = { null },
             calculator = calculator,
             syncScheduler = sync,
-            huaweiSyncEnabled = true,
             multiAccountPersistence = RoomMeasurementPersistence(
                 database = database,
                 calculator = calculator,
-                huaweiSyncEnabled = true,
                 now = { now },
             ),
             accountRepository = accounts,

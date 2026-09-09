@@ -14,6 +14,7 @@ import com.palixander.scalesync.data.PendingMeasurementEntity
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
 import com.palixander.scalesync.domain.ExternalSyncPolicy
@@ -65,8 +66,43 @@ class RoomBackupImportGatewayTest {
         assertEquals(listOf("a", "b"), database.accountDao().getAll().map { it.id })
         val rows = database.measurementDao().getAllForBackup()
         assertEquals(2, rows.size)
-        assertEquals(SyncStatus.SYNCED.name, rows.single { it.id == "m" }.huaweiStatus)
-        assertEquals(SyncStatus.FAILED.name, rows.single { it.id == "n" }.huaweiStatus)
+        assertEquals(SyncStatus.SYNCED.name, rows.single { it.id == "m" }.healthConnectStatus)
+        assertEquals(SyncStatus.FAILED.name, rows.single { it.id == "n" }.healthConnectStatus)
+    }
+
+    @Test
+    fun mergeSkipsMeasurementCollidingOnlyBySourcePendingId() = runBlocking {
+        val account = account("a")
+        val local = measurement("local", account.id, SyncStatus.SYNCED).copy(
+            sourcePendingId = "pending-stable",
+        )
+        database.accountDao().insert(account)
+        database.measurementDao().insert(local)
+        val incoming = measurement("incoming", account.id, SyncStatus.FAILED).copy(
+            sourcePendingId = local.sourcePendingId,
+        )
+
+        val preview = preview(BackupImportMode.MERGE, listOf(account), listOf(incoming))
+        apply(preview)
+
+        assertEquals(0, preview.counts.measurementsAdded)
+        assertEquals(1, preview.counts.measurementsSkipped)
+        assertEquals(listOf(local), database.measurementDao().getAllForBackup())
+    }
+
+    @Test
+    fun v3MeasurementContextPersistsExactlyThroughRoomGateway() = runBlocking {
+        val owner = account("owner").copy(heightCm = 190.0)
+        val imported = measurement("context", owner.id, SyncStatus.LOCAL_ONLY).copy(
+            ratingHeightCm = 172.75,
+            ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
+        )
+
+        apply(preview(BackupImportMode.MERGE, listOf(owner), listOf(imported)))
+
+        val stored = database.measurementDao().getAllForBackup().single()
+        assertEquals(172.75, stored.ratingHeightCm)
+        assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, stored.ratingHeightOrigin)
     }
 
     @Test
@@ -133,6 +169,58 @@ class RoomBackupImportGatewayTest {
         assertThrows(Exception::class.java) { runBlocking { gateway.stage(broken) } }
         assertEquals(listOf("cat"), database.petDao().getAllPetsForBackup().map { it.id })
         assertEquals(listOf("pet-m"), database.petDao().getAllMeasurementsForBackup().map { it.id })
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
+    fun mergePreservesLocalOwnersAndPersistsNewMeasurementsWithRemappedReferences() = runBlocking {
+        val localAccount = account("local-account").copy(
+            displayName = "Owner",
+            normalizedName = "owner",
+            heightCm = 180.0,
+            updatedAtEpochMillis = 20,
+        )
+        val localPet = pet("pet").copy(
+            displayName = "Local cat",
+            normalizedName = "local cat",
+            updatedAtEpochMillis = 20,
+        )
+        database.accountDao().insert(localAccount)
+        database.petDao().insertPet(localPet)
+
+        val importedAccount = account("imported-account").copy(
+            displayName = "Imported owner",
+            normalizedName = localAccount.normalizedName,
+            heightCm = 160.0,
+            updatedAtEpochMillis = 200,
+        )
+        val importedPet = pet(localPet.id).copy(
+            displayName = "Imported dog",
+            normalizedName = "imported dog",
+            species = PetSpecies.DOG,
+            updatedAtEpochMillis = 200,
+        )
+
+        apply(
+            preview(
+                BackupImportMode.MERGE,
+                listOf(importedAccount),
+                listOf(measurement("account-m", importedAccount.id, SyncStatus.SYNCED)),
+                listOf(importedPet),
+                listOf(petMeasurement("pet-m", importedPet.id)),
+            ),
+        )
+
+        assertEquals(localAccount, database.accountDao().get(localAccount.id))
+        assertEquals(localPet, database.petDao().getPet(localPet.id))
+        assertEquals(
+            localAccount.id,
+            database.measurementDao().getAllForBackup().single { it.id == "account-m" }.accountId,
+        )
+        val storedPetMeasurement = database.petDao().getMeasurement("pet-m")
+        assertNotNull(storedPetMeasurement)
+        assertEquals(localPet.id, storedPetMeasurement?.petId)
+        assertEquals(localPet, database.petDao().getPet(storedPetMeasurement?.petId.orEmpty()))
         assertEquals(null, gateway.pendingRecovery())
     }
 
@@ -426,7 +514,7 @@ class RoomBackupImportGatewayTest {
         waterPercent = null, waterMassKg = null, muscleMassKg = null, skeletalMuscleMassKg = null,
         boneMassKg = null, proteinPercent = null, proteinMassKg = null, visceralFatLevel = null,
         basalMetabolicRateKcal = null, metabolicAge = null, leanBodyMassKg = null,
-        algorithmVersion = null, huaweiStatus = status.name, healthConnectStatus = status.name,
+        algorithmVersion = null, healthConnectStatus = status.name,
         accountId = accountId, externalSyncPolicy = ExternalSyncPolicy.USER_LOCAL.name,
         deduplicationHash = "hash-$id",
     )

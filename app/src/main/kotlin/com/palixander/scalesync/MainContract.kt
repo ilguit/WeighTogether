@@ -6,7 +6,6 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingDiscardUndoToken
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.RestorePendingResult
-import com.palixander.scalesync.sync.HuaweiPermissionCheckResult
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
@@ -441,47 +440,6 @@ internal fun shouldActivateHealthConnectAfterPermissionRefresh(
     isConnected: Boolean,
     explicitAuthorization: Boolean,
 ): Boolean = isConnected && explicitAuthorization
-
-enum class HuaweiIntegrationStatus {
-    UNAVAILABLE_IN_BUILD,
-    CONFIGURATION_REQUIRED,
-    CHECKING,
-    AUTHORIZATION_REQUIRED,
-    AUTHORIZED,
-    CHECK_FAILED,
-}
-
-data class HuaweiIntegrationUiState(
-    val status: HuaweiIntegrationStatus = HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD,
-) {
-    val isAvailableInBuild: Boolean
-        get() = status != HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
-
-    val isConfigured: Boolean
-        get() = status != HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD &&
-            status != HuaweiIntegrationStatus.CONFIGURATION_REQUIRED
-
-    companion object {
-        fun fromGateway(
-            isAvailableInBuild: Boolean,
-            isConfigured: Boolean,
-            permission: HuaweiPermissionCheckResult? = null,
-        ): HuaweiIntegrationUiState = HuaweiIntegrationUiState(
-            when {
-                !isAvailableInBuild -> HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
-                !isConfigured -> HuaweiIntegrationStatus.CONFIGURATION_REQUIRED
-                permission == null -> HuaweiIntegrationStatus.CHECKING
-                permission == HuaweiPermissionCheckResult.AUTHORIZED ->
-                    HuaweiIntegrationStatus.AUTHORIZED
-                permission == HuaweiPermissionCheckResult.NOT_AUTHORIZED ->
-                    HuaweiIntegrationStatus.AUTHORIZATION_REQUIRED
-                permission == HuaweiPermissionCheckResult.UNAVAILABLE ->
-                    HuaweiIntegrationStatus.UNAVAILABLE_IN_BUILD
-                else -> HuaweiIntegrationStatus.CHECK_FAILED
-            },
-        )
-    }
-}
 
 internal const val PROFILE_FORMAT_ERROR_MESSAGE =
     "Проверьте рост и дату рождения (ГГГГ-ММ-ДД)"

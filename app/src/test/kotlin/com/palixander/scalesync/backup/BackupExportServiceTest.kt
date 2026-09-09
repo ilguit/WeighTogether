@@ -9,10 +9,13 @@ import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
+import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.toPortableSnapshot
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
@@ -28,12 +31,31 @@ import org.junit.Test
 
 class BackupExportServiceTest {
     @Test
+    fun `export canonicalizes retired Canadian Sphynx id and preserves unknown id`() = runBlocking {
+        val source = BackupDatabaseSnapshot(
+            accounts = listOf(account()),
+            appState = AppStateEntity(primaryAccountId = "account"),
+            measurements = listOf(measurement()),
+            pets = listOf(
+                PetEntity("alias", "Alias", "alias", PetSpecies.CAT, 1, 2, breedId = "VBO:0100061"),
+                PetEntity("future", "Future", "future", PetSpecies.CAT, 1, 2, breedId = "external:cat:future"),
+            ),
+        )
+
+        val pets = service(source).createDocument().pets.associateBy { it.id }
+
+        assertEquals("VBO:0100230", pets.getValue("alias").breedId)
+        assertEquals("external:cat:future", pets.getValue("future").breedId)
+    }
+
+    @Test
     fun `export maps complete database state and deterministic portable settings`() = runBlocking {
         val source = BackupDatabaseSnapshot(
             accounts = listOf(account()),
             appState = AppStateEntity(primaryAccountId = "account", weightDeltaKg = 2.5, ignoreUnknownMeasurements = true),
             measurements = listOf(measurement()),
-            pets = listOf(PetEntity("pet", "Cat", "cat", PetSpecies.CAT, 5, 6)),
+            pets = listOf(PetEntity("pet", "Dog", "dog", PetSpecies.DOG, 5, 6,
+                PetSex.FEMALE, "external:dog:breed", 2020, 2, null, DogAdultWeightCategory.II)),
             petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 70.0, 74.0, 4.0)),
         )
         val service = service(source)
@@ -43,11 +65,19 @@ class BackupExportServiceTest {
         val decoded = BackupJsonCodec().decode(output.toString(Charsets.UTF_8.name()))
 
         assertEquals(document, decoded)
+        assertEquals(BACKUP_SCHEMA_VERSION, document.schemaVersion)
         assertEquals("2026-08-25T12:00:00Z", document.exportedAt)
         assertEquals(Sex.MALE, document.accounts.single().profile.sex)
-        assertEquals(SyncStatus.SYNCED, document.measurements.single().huaweiStatus)
+        assertEquals(SyncStatus.LOCAL_ONLY, document.measurements.single().healthConnectStatus)
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
-        assertEquals(PetSpecies.CAT, document.pets.single().species)
+        assertEquals(179.5, document.measurements.single().ratingHeightCm)
+        assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, document.measurements.single().ratingHeightOrigin)
+        assertEquals(PetSpecies.DOG, document.pets.single().species)
+        assertEquals(PetSex.FEMALE, document.pets.single().sex)
+        assertEquals("external:dog:breed", document.pets.single().breedId)
+        assertEquals(2020, document.pets.single().birthYear)
+        assertEquals(2, document.pets.single().birthMonth)
+        assertEquals(DogAdultWeightCategory.II, document.pets.single().dogAdultWeightCategory)
         assertEquals(4.0, document.petMeasurements.single().petWeightKg, 0.0)
         assertEquals(listOf("bmi", "weight"), document.settings.selectedChartMetricKeys)
         assertEquals(listOf("fat", "weight"), document.settings.homeKgChartSeriesKeys)
@@ -63,7 +93,6 @@ class BackupExportServiceTest {
             selectedChartMetricKeys = keys,
             externalSyncPaused = true,
             healthConnectSyncEnabled = false,
-            huaweiSyncEnabled = false,
         )
 
         val snapshot = settings.toPortableSnapshot()
@@ -132,8 +161,10 @@ class BackupExportServiceTest {
         skeletalMuscleMassKg = null, boneMassKg = null, proteinPercent = null,
         proteinMassKg = null, visceralFatLevel = null, basalMetabolicRateKcal = null,
         metabolicAge = null, leanBodyMassKg = null, algorithmVersion = null,
-        huaweiStatus = SyncStatus.SYNCED.name, healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
+        healthConnectStatus = SyncStatus.LOCAL_ONLY.name,
         accountId = "account", externalSyncPolicy = ExternalSyncPolicy.AUTO.name,
         deduplicationHash = "dedupe",
+        ratingHeightCm = 179.5,
+        ratingHeightOrigin = RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT,
     )
 }

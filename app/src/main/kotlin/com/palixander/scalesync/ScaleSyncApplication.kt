@@ -19,8 +19,6 @@ import com.palixander.scalesync.data.RoomMeasurementPersistence
 import com.palixander.scalesync.data.RoomPetRepository
 import com.palixander.scalesync.data.SyncAwareAccountRepository
 import com.palixander.scalesync.sync.HealthConnectGateway
-import com.palixander.scalesync.sync.HuaweiHealthGateway
-import com.palixander.scalesync.sync.createHuaweiHealthGateway
 import com.palixander.scalesync.worker.ExternalSyncPauseCoordinator
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.palixander.scalesync.worker.MeasurementWorkSweepScheduler
@@ -57,7 +55,6 @@ class AppContainer(application: Application) {
     val profileStore = ProfileStore(application, externalSyncOperations)
     val packetParser = MiScalePacketParser()
     val pets = RoomPetRepository(database)
-    val huaweiHealth: HuaweiHealthGateway = createHuaweiHealthGateway(application)
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(
         context = application,
@@ -72,7 +69,6 @@ class AppContainer(application: Application) {
     val measurementPersistence = RoomMeasurementPersistence(
         database = database,
         calculator = calculator,
-        huaweiSyncEnabled = huaweiHealth.isAvailableInBuild,
     )
     /** Read-side dependency for ingestion. It must not depend on measurement orchestration. */
     val baseAccounts = RoomAccountRepository(database, calculator = calculator)
@@ -83,7 +79,6 @@ class AppContainer(application: Application) {
         { null },
         calculator,
         syncScheduler,
-        huaweiHealth.isAvailableInBuild,
         multiAccountPersistence = measurementPersistence,
         accountRepository = baseAccounts,
         pendingDecisionNotifier = pendingMeasurementNotifications,

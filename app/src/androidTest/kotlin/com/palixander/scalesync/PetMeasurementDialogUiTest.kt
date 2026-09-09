@@ -2,7 +2,10 @@ package com.palixander.scalesync
 
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.click
+import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -10,9 +13,11 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.performTouchInput
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.Instant
@@ -48,10 +53,10 @@ class PetMeasurementDialogUiTest {
     @Test
     fun creationValidatesEmptyAndDuplicateNameBeforeSubmitting() {
         val state = mutableStateOf<PetMeasurementUiState>(PetMeasurementUiState.SelectingPet)
-        val submitted = mutableListOf<String>()
+        val submitted = mutableListOf<Pair<String, PetSpecies>>()
         val callbacks = callbacks(
             onShowCreate = { state.value = PetMeasurementUiState.CreatingPet },
-            onCreate = submitted::add,
+            onCreate = { name, species -> submitted += name to species },
         )
         val pets = listOf(PetWithLatestWeight(pet("cat", "Барсик"), null))
         composeRule.setContent {
@@ -59,6 +64,9 @@ class PetMeasurementDialogUiTest {
         }
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateAction).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.onNodeWithText("Введите имя питомца").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput(" барсик ")
@@ -68,7 +76,9 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput("Рыжик")
         composeRule.onNodeWithTag(PetMeasurementTestTags.SpeciesCat).performClick()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
-        composeRule.runOnIdle { assertEquals(listOf("Рыжик"), submitted) }
+        composeRule.runOnIdle {
+            assertEquals(listOf("Рыжик" to PetSpecies.CAT), submitted)
+        }
     }
 
     @Test
@@ -172,6 +182,26 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
+    @Test
+    fun outsideTapDoesNotDismissWhileSystemBackStillCancels() {
+        val pet = pet("cat", "Луна")
+        var cancelled = 0
+        setDialog(
+            state = PetMeasurementUiState.AwaitingFirstWeight(pet),
+            pets = emptyList(),
+            callbacks = callbacks(onCancel = { cancelled++ }),
+        )
+
+        composeRule.onNode(isDialog()).performTouchInput {
+            click(Offset(-1f, -1f))
+        }
+        composeRule.runOnIdle { assertEquals(0, cancelled) }
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
+
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
     private fun setDialog(
         state: PetMeasurementUiState,
         pets: List<PetWithLatestWeight>,
@@ -185,13 +215,13 @@ class PetMeasurementDialogUiTest {
     private fun callbacks(
         onOpen: () -> Unit = {},
         onShowCreate: () -> Unit = {},
-        onCreate: (String) -> Unit = {},
+        onCreate: (String, PetSpecies) -> Unit = { _, _ -> },
         onStart: (PetId) -> Unit = {},
         onCancel: () -> Unit = {},
     ) = PetMeasurementCallbacks(
         onOpen,
         onShowCreate,
-        { name, _ -> onCreate(name) },
+        onCreate,
         onStart,
         onCancel,
     )
