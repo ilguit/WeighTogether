@@ -161,16 +161,28 @@ class PetWeightReferenceResolver(
             if (breed != null && breed.species != expectedSpecies) {
                 return unavailable(WeightReferenceUnavailableReason.BreedSpeciesMismatch(id.value))
             }
-            snapshot.profiles.singleOrNull {
+            val matchingProfile = snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.BREED && it.species == referenceSpecies &&
                     it.sex == referenceSex && it.breedId == id.value
-            }?.takeIf { it.supports(age) }
+            } ?: if (referenceSpecies == ReferenceSpecies.CAT) {
+                return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(id.value))
+            } else null
+            matchingProfile?.takeIf { it.supports(age) } ?: if (matchingProfile != null) {
+                return resolveProfile(
+                    matchingProfile,
+                    birthDate,
+                    age,
+                    WeightReferenceProvenance.BREED_CURVE,
+                    breedId,
+                )
+            } else null
         }
 
         val profile = if (breedProfile != null) {
             breedProfile
         } else {
             if (referenceSpecies == ReferenceSpecies.CAT) {
+                if (breedId != null) return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(breedId.value))
                 snapshot.profiles.singleOrNull {
                     it.basis == ReferenceBasis.POPULATION && it.species == ReferenceSpecies.CAT &&
                         it.sex == referenceSex && it.breedId == null

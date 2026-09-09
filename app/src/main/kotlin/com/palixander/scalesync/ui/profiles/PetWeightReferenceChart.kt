@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
@@ -244,7 +245,7 @@ internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntr
 internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE -> listOf(
         PetWeightChartLegendEntry("▰ Светло-зелёная зона — модельный породный диапазон", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Центр породной модели", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry("— Центр модельного диапазона", PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
         PetWeightChartLegendEntry("↕ Диапазон наблюдения породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
@@ -978,7 +979,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
             Text(
                 when {
                     reference.provenance == WeightReferenceProvenance.BREED_CURVE ->
-                        "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модели. Это расчётная модель, а не наблюдаемая кривая роста породы."
+                        "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модельного диапазона. Модель построена по общему возрастному профилю кошек того же пола и взрослому диапазону породы. Она не является наблюдаемой кривой роста этой породы или медицинской нормой."
                     reference.isFittedPopulationPercentiles ->
                         "Светло-зелёная зона показывает P9–P91, тонкая линия — P50."
                     reference.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
@@ -990,6 +991,15 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                 Text("Источник: ${segment.citation}", style = MaterialTheme.typography.bodySmall)
                 Text("Лицензия: ${segment.license}", style = MaterialTheme.typography.bodySmall)
             }
+            reference.sourceAuthorityLabel?.let { Text("Тип источника: $it", style = MaterialTheme.typography.bodySmall) }
+            reference.sourceAccessedDate?.let { Text("Дата доступа: $it", style = MaterialTheme.typography.bodySmall) }
+            reference.sourceDisclosure?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            if (reference.provenance == WeightReferenceProvenance.BREED_CURVE) {
+                Text(
+                    "Расчёт центра: арифметическая середина опубликованного диапазона; это не наблюдаемая медиана.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
             reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }
             Text(
                 if (reference.isFittedPopulationPercentiles) "Сведения справочные и не оценивают здоровье питомца. Обсудите изменения веса с ветеринаром."
@@ -997,15 +1007,17 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            if (reference.isFittedPopulationPercentiles && reference.publicationUrl != null) {
+            if (reference.publicationUrl != null) {
                 var sourceError by remember(reference.publicationUrl) { androidx.compose.runtime.mutableStateOf(false) }
                 TextButton(
                     onClick = { sourceError = !sourceLauncher.open(reference.publicationUrl) },
                     modifier = Modifier.testTag(PetWeightChartTestTags.Publication),
-                ) { Text("Открыть основную публикацию") }
+                ) { Text(if (reference.isFittedPopulationPercentiles) "Открыть основную публикацию" else "Открыть источник") }
                 if (sourceError) Text(
-                    "Не удалось открыть основную публикацию.",
-                    modifier = Modifier.testTag(PetWeightChartTestTags.PublicationError),
+                    if (reference.isFittedPopulationPercentiles) "Не удалось открыть основную публикацию." else "Не удалось открыть источник.",
+                    modifier = Modifier
+                        .testTag(PetWeightChartTestTags.PublicationError)
+                        .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Assertive },
                 )
             }
         }

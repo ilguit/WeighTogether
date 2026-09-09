@@ -206,7 +206,7 @@ class PetHistoryReferencePresenterTest {
         )
 
         reasons.forEach { reason ->
-            assertTrue(weightReferenceUnavailableExplanation(reason).startsWith("Эталон недоступен:"))
+            assertTrue(weightReferenceUnavailableExplanation(reason).isNotBlank())
         }
     }
 

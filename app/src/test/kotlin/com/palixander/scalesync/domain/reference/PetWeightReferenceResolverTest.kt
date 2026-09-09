@@ -23,6 +23,36 @@ class PetWeightReferenceResolverTest {
     private val referenceDate = LocalDate.of(2025, 1, 15)
 
     @Test
+    fun `selected unsupported cat breed never falls back to population reference`() {
+        val result = resolver.resolve(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100278"),
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(200)),
+            referenceDate = referenceDate,
+        )
+
+        assertEquals(
+            WeightReferenceUnavailableReason.UnsupportedBreed("VBO:0100278"),
+            (result as PetWeightReferenceResolution.Unavailable).reason,
+        )
+    }
+
+    @Test
+    fun `cat without selected breed retains population reference behavior`() {
+        val result = resolver.resolve(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = null,
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(200)),
+            referenceDate = referenceDate,
+        ) as PetWeightReferenceResolution.Available
+
+        assertEquals(ReferenceBasis.POPULATION, result.reference.basis)
+        assertEquals(WeightReferenceProvenance.POPULATION, result.reference.provenance)
+    }
+
+    @Test
     fun `breed category mappings contain only Salt Table 1 evidence`() {
         assertEquals(
             listOf(
@@ -450,8 +480,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `unsupported and unknown cat breeds use fitted population profile`() {
-        val snapshot = WeightReferenceSnapshot.bundled()
+    fun `unsupported and unknown cat breeds are unavailable without population fallback`() {
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
         listOf(BreedId("VBO:0100208"), BreedId("external:cat:future")).forEach { breedId ->
             val result = resolver.resolve(
@@ -460,15 +489,9 @@ class PetWeightReferenceResolverTest {
                 breedId,
                 birthDate,
                 referenceDate,
-            ).available()
+            ).unavailable()
 
-            assertEquals("cat-population-male", result.profileId)
-            assertEquals(ReferenceBasis.POPULATION, result.basis)
-            assertEquals(ReferenceKind.FITTED_BCCG_PERCENTILES, snapshot.metadataFor(result.profileId)!!.referenceKind)
-            assertEquals(0.567307, result.bounds.lowerKg, 1e-12)
-            assertEquals(0.861525, result.bounds.medianLowerKg, 1e-12)
-            assertEquals(0.861525, result.bounds.medianUpperKg, 1e-12)
-            assertEquals(1.265159, result.bounds.upperKg, 1e-12)
+            assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(breedId.value), result.reason)
         }
     }
 

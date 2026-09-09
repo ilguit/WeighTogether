@@ -16,6 +16,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSourceKind
@@ -323,7 +324,12 @@ internal fun PetHistoryBreedReferenceCard(
                         }
                         reference.partialDateDisclosure?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
-                    TextButton(onClick = { expanded = !expanded }) {
+                    TextButton(
+                        onClick = { expanded = !expanded },
+                        modifier = Modifier.semantics {
+                            stateDescription = if (expanded) "Развернуто" else "Свернуто"
+                        },
+                    ) {
                         Text("Источник и ограничения ${if (expanded) "▴" else "▾"}")
                     }
                     if (expanded) Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Details)) {

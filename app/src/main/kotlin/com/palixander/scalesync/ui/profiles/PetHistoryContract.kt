@@ -23,6 +23,7 @@ import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
 import com.palixander.scalesync.core.reference.ReferenceProfileMetadata
 import com.palixander.scalesync.core.reference.ReferenceKind
+import com.palixander.scalesync.core.reference.ReferenceSourceAuthorityClass
 import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
 import com.palixander.scalesync.core.reference.ReferenceSex
 import com.palixander.scalesync.core.reference.ReferenceSpecies
@@ -128,6 +129,9 @@ sealed interface PetHistoryWeightReference {
         val citation: String,
         val license: String,
         val constraints: List<String>,
+        val sourceAuthorityLabel: String? = null,
+        val sourceDisclosure: String? = null,
+        val sourceAccessedDate: String? = null,
         val accessibilityLabel: String,
         val publicationUrl: String? = null,
         val isFittedPopulationPercentiles: Boolean = false,
@@ -308,13 +312,32 @@ class PetHistoryReferencePresenter(
             metadata.source.citation,
             metadata.source.license,
             metadata.constraints.map(::localizedReferenceConstraint),
+            metadata.source.authorityClass.localizedLabel(),
+            metadata.source.disclosure.localizedDisclosure(),
+            metadata.source.accessedDate,
             "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
-            "https://doi.org/${metadata.source.publicationDoi}",
+            metadata.source.publicationDoi.takeIf(String::isNotBlank)?.let { "https://doi.org/$it" }
+                ?: metadata.source.dataUrl,
             metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
             if (isExactBreedObservation) ReferenceCenterStatistic.MEAN else metadata.centerStatistic,
             if (isExactBreedObservation) ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION else metadata.boundsStatistic,
         )
     }
+}
+
+private fun ReferenceSourceAuthorityClass.localizedLabel(): String = when (this) {
+    ReferenceSourceAuthorityClass.OFFICIAL_BREED_ORGANIZATION -> "официальная породная организация"
+    ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE -> "профессиональный справочник"
+    ReferenceSourceAuthorityClass.RESEARCH_PUBLICATION -> "научная публикация"
+    ReferenceSourceAuthorityClass.OPEN_REFERENCE -> "открытый справочник"
+}
+
+private fun String.localizedDisclosure(): String = when (this) {
+    "Official feline or breed organization" -> "Официальная фелинологическая или породная организация"
+    "Professional reference; not an official breed organization" ->
+        "Профессиональный справочник; не официальная породная организация"
+    "Open reference source" -> "Открытый справочный источник"
+    else -> this
 }
 
 internal fun localizedReferenceConstraint(constraint: String): String = when (constraint) {
@@ -451,7 +474,7 @@ fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReas
     WeightReferenceUnavailableReason.UnsupportedSpecies -> "Эталон недоступен: вид питомца не указан."
     is WeightReferenceUnavailableReason.UnknownBreed -> "Эталон недоступен: порода ${reason.breedId} не найдена."
     is WeightReferenceUnavailableReason.BreedSpeciesMismatch -> "Эталон недоступен: порода ${reason.breedId} не соответствует виду питомца."
-    is WeightReferenceUnavailableReason.UnsupportedBreed -> "Эталон недоступен: для породы ${reason.breedId} нет опубликованных данных."
+    is WeightReferenceUnavailableReason.UnsupportedBreed -> "Для выбранной породы ориентиры сейчас недоступны."
     WeightReferenceUnavailableReason.DshIntactStatusUnknown -> "Эталон недоступен: для домашней короткошёрстной кошки нужны подтверждённые данные о стерилизации."
     WeightReferenceUnavailableReason.DshNotIntact -> "Эталон недоступен: опубликованные данные относятся только к нестерилизованным животным."
     WeightReferenceUnavailableReason.InvalidBirthDate -> "Эталон недоступен: дата рождения позже выбранного периода."

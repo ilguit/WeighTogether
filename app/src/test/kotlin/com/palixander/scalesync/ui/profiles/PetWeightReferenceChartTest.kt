@@ -69,7 +69,7 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { 99.0 in it.y })
         assertEquals(dates.size, band.points.size)
         assertEquals(
-            listOf("▰ Светло-зелёная зона — модельный породный диапазон", "— Центр породной модели"),
+            listOf("▰ Светло-зелёная зона — модельный породный диапазон", "— Центр модельного диапазона"),
             referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
         )
     }
