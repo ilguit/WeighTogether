@@ -45,7 +45,7 @@ class WeightReferenceSnapshotTest {
     fun `bundled DSH scope is sex-specific intact and age-limited`() {
         val scopes = WeightReferenceSnapshot.bundled().manifest.scopes.filter { it.species == ReferenceSpecies.CAT }
 
-        assertEquals(14, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
+        assertEquals(50, scopes.count { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         val dsh = scopes.filter { it.breedId == "VBO:0100119" }
         assertEquals(2, dsh.size)
         assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
@@ -148,11 +148,12 @@ class WeightReferenceSnapshotTest {
             "cat-siberian-female" to (3.0 to 6.0),
             "cat-siberian-male" to (4.5 to 8.0),
         )
-        assertEquals("2026-09-08.1", snapshot.manifest.snapshotVersion)
+        assertEquals("2026-09-09.1", snapshot.manifest.snapshotVersion)
         adultRanges.forEach { (id, range) ->
             val profile = snapshot.profiles.single { it.id == id }
             assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, profile.referenceKind)
             assertEquals(ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE, profile.boundsStatistic)
+            assertEquals(ReferenceCenterStatistic.ARITHMETIC_MIDPOINT, profile.centerStatistic)
             assertTrue(profile.constraints.any { "Модель" in it })
             val adult = profile.points.last()
             assertEquals(730, adult.ageDays)
@@ -170,6 +171,78 @@ class WeightReferenceSnapshotTest {
         assertEquals(ReferencePoint(0, 0.0826, 0.0993, 0.116, "mugnier-cat-birth-weight-2023", true), siberian.points.first())
         assertTrue(snapshot.manifest.sources.count { "wikipedia" in it.id } == 5)
         assertTrue(snapshot.manifest.sources.filter { "wikipedia" in it.id }.all { it.accessedDate == "2026-09-08" })
+    }
+
+    @Test
+    fun `batch one exposes exactly eighteen canonical breeds and honest source classes`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val batch = snapshot.profiles.filter { it.id.matches(Regex("cat-breed-\\d{7}-(female|male)")) }
+
+        assertEquals(36, batch.size)
+        assertEquals(18, batch.map { it.breedId }.toSet().size)
+        assertTrue(batch.none { it.breedId == "VBO:0100061" })
+        assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), batch.groupBy { it.breedId }.values.flatMap { profiles ->
+            listOf(profiles.map { it.sex }.toSet()).onEach { assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), it) }
+        }.flatten().toSet())
+        assertTrue(batch.all { it.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT })
+        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
+        assertTrue(batch.all { it.points.first().ageDays == 56 && it.points.none(ReferencePoint::empirical) })
+        val russian = snapshot.metadataFor("cat-breed-0100200-female")!!
+        assertEquals(ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE, russian.source.authorityClass)
+        assertTrue(russian.source.disclosure.contains("not an official", ignoreCase = true))
+        assertTrue(batch.filterNot { it.breedId == "VBO:0100200" }.all {
+            snapshot.metadataFor(it.id)!!.source.authorityClass == ReferenceSourceAuthorityClass.OFFICIAL_BREED_ORGANIZATION
+        })
+    }
+
+    @Test
+    fun `batch one preserves published maturity and fallback maturity`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        assertEquals(1825, snapshot.profiles.single { it.id == "cat-breed-0100178-female" }.points.last().ageDays)
+        assertEquals(1460, snapshot.profiles.single { it.id == "cat-breed-0100196-male" }.points.last().ageDays)
+        assertEquals(730, snapshot.profiles.single { it.id == "cat-breed-0100036-female" }.points.last().ageDays)
+    }
+
+    @Test
+    fun `validated payload rejects tampered source provenance`() {
+        val root = bundledJson()
+        root.getAsJsonObject("manifest").getAsJsonArray("sources")[0].asJsonObject.addProperty("disclosure", "")
+        refreshChecksum(root)
+        assertFailsWith<IllegalArgumentException> { load(root) }
+    }
+
+    @Test
+    fun `validated payload rejects tampered midpoint and maturity`() {
+        val midpoint = bundledJson()
+        midpoint.getAsJsonArray("profiles").first { it.asJsonObject.get("id").asString == "cat-breed-0100000-female" }
+            .asJsonObject.getAsJsonArray("points")[0].asJsonObject.addProperty("medianKg", 999.0)
+        refreshChecksum(midpoint)
+        assertFailsWith<IllegalArgumentException> { load(midpoint) }
+
+        val maturity = bundledJson()
+        maturity.getAsJsonArray("profiles").first { it.asJsonObject.get("id").asString == "cat-breed-0100000-female" }
+            .asJsonObject.getAsJsonArray("points").remove(maturity.getAsJsonArray("profiles").first { it.asJsonObject.get("id").asString == "cat-breed-0100000-female" }.asJsonObject.getAsJsonArray("points").size() - 1)
+        refreshChecksum(maturity)
+        assertFailsWith<IllegalArgumentException> { load(maturity) }
+    }
+
+    @Test
+    fun `validated payload rejects tampered scope source and bounds after checksum refresh`() {
+        val scope = bundledJson()
+        scope.getAsJsonObject("manifest").getAsJsonArray("scopes")[0].asJsonObject.addProperty("sex", "male")
+        refreshChecksum(scope)
+        assertFailsWith<IllegalArgumentException> { load(scope) }
+
+        val source = bundledJson()
+        source.getAsJsonArray("profiles")[0].asJsonObject.addProperty("sourceId", "missing")
+        refreshChecksum(source)
+        assertFailsWith<IllegalArgumentException> { load(source) }
+
+        val bounds = bundledJson()
+        bounds.getAsJsonArray("profiles")[0].asJsonObject.getAsJsonArray("points")[0].asJsonObject
+            .addProperty("lowerKg", 999.0)
+        refreshChecksum(bounds)
+        assertFailsWith<IllegalArgumentException> { load(bounds) }
     }
 
     @Test
@@ -204,9 +277,7 @@ class WeightReferenceSnapshotTest {
             .bufferedReader().use { it.readText() }
         val root = JsonParser.parseString(original).asJsonObject
         root.getAsJsonArray("profiles")[0].asJsonObject.addProperty("sex", "male")
-        val canonical = root.getAsJsonArray("profiles").toString().toByteArray()
-        val checksum = MessageDigest.getInstance("SHA-256").digest(canonical).joinToString("") { "%02x".format(it) }
-        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
+        refreshChecksum(root)
 
         assertFailsWith<IllegalArgumentException> {
             WeightReferenceSnapshot.load({ ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
@@ -243,9 +314,14 @@ class WeightReferenceSnapshotTest {
         .bufferedReader().use { JsonParser.parseString(it.readText()).asJsonObject }
 
     private fun refreshChecksum(root: com.google.gson.JsonObject) {
-        val canonical = root.getAsJsonArray("profiles").toString().toByteArray()
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
+        val canonical = root.toString().toByteArray()
         val checksum = MessageDigest.getInstance("SHA-256").digest(canonical)
             .joinToString("") { "%02x".format(it) }
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
     }
+
+    private fun load(root: com.google.gson.JsonObject) = WeightReferenceSnapshot.load(
+        streamProvider = { ByteArrayInputStream(Gson().toJson(root).toByteArray()) },
+    )
 }

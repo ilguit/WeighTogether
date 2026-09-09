@@ -18,8 +18,9 @@ enum class ReferenceKind {
     FITTED_BCCG_PERCENTILES,
     MODELLED_BREED_ADULT_RANGE,
 }
-enum class ReferenceCenterStatistic { MEDIAN, MEAN }
+enum class ReferenceCenterStatistic { MEDIAN, MEAN, ARITHMETIC_MIDPOINT }
 enum class ReferenceBoundsStatistic { QUARTILES, ONE_STANDARD_DEVIATION, P9_P91, ADULT_TYPICAL_RANGE }
+enum class ReferenceSourceAuthorityClass { RESEARCH_PUBLICATION, OPEN_REFERENCE, OFFICIAL_BREED_ORGANIZATION, PROFESSIONAL_REFERENCE }
 enum class NumericalAvailability { AVAILABLE, NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS }
 enum class ReferenceAgeAvailability { CARRY_FORWARD, DECLARED_RANGE_ONLY, EXACT_OBSERVATIONS }
 enum class NumericalUnavailabilityReason {
@@ -51,6 +52,8 @@ data class ReferenceSource(
     val derivedArtifact: String?,
     val derivedArtifactSha256: String?,
     val derivationSoftware: String?,
+    val authorityClass: ReferenceSourceAuthorityClass,
+    val disclosure: String,
 )
 data class ReferenceScope(
     val id: String,
@@ -163,7 +166,7 @@ class WeightReferenceSnapshot private constructor(
 
     companion object {
         const val RESOURCE_PATH = "weight_references.json"
-        const val SUPPORTED_SCHEMA_VERSION = 3
+        const val SUPPORTED_SCHEMA_VERSION = 4
         private val sha256Pattern = Regex("[0-9a-f]{64}")
 
         fun bundled(breedCatalog: BreedCatalog = BreedCatalog.bundled()): WeightReferenceSnapshot = load(
@@ -179,12 +182,14 @@ class WeightReferenceSnapshot private constructor(
             val root = JsonParser.parseString(bytes.toString(Charsets.UTF_8)).asJsonObject
             val document = Gson().fromJson(root, SnapshotJson::class.java)
                 ?: throw IllegalArgumentException("Weight reference snapshot is empty")
-            val canonicalProfiles = root.getAsJsonArray("profiles").toString().toByteArray(Charsets.UTF_8)
-            require(sha256(canonicalProfiles) == document.manifest.numericalDataSha256) {
-                "Numerical data checksum mismatch"
+            val checksumRoot = root.deepCopy()
+            checksumRoot.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
+            val canonicalPayload = checksumRoot.toString().toByteArray(Charsets.UTF_8)
+            require(sha256(canonicalPayload) == document.manifest.numericalDataSha256) {
+                "Snapshot payload checksum mismatch"
             }
             val snapshot = WeightReferenceSnapshot(document.manifest.toModel(), document.profiles.map(ProfileJson::toModel))
-            snapshot.validate(breedCatalog, canonicalProfiles)
+            snapshot.validate(breedCatalog, canonicalPayload)
             return snapshot
         }
 
@@ -192,15 +197,16 @@ class WeightReferenceSnapshot private constructor(
             .digest(bytes).joinToString("") { "%02x".format(Locale.ROOT, it) }
     }
 
-    private fun validate(breedCatalog: BreedCatalog, canonicalProfiles: ByteArray) {
+    private fun validate(breedCatalog: BreedCatalog, canonicalPayload: ByteArray) {
         require(manifest.schemaVersion == SUPPORTED_SCHEMA_VERSION) { "Unsupported weight reference schema: ${manifest.schemaVersion}" }
         require(manifest.snapshotVersion.isNotBlank() && manifest.snapshotDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) { "Invalid snapshot identity" }
         require(manifest.numericalDataSha256.matches(sha256Pattern)) { "Invalid numerical data checksum" }
-        require(sha256(canonicalProfiles) == manifest.numericalDataSha256) { "Numerical data checksum mismatch" }
+        require(sha256(canonicalPayload) == manifest.numericalDataSha256) { "Snapshot payload checksum mismatch" }
         val sources = manifest.sources.associateBy(ReferenceSource::id)
         require(sources.size == manifest.sources.size && sources.isNotEmpty()) { "Source IDs must be unique" }
         manifest.sources.forEach { source ->
             require(source.id.isNotBlank() && source.citation.isNotBlank()) { "Incomplete source ${source.id}" }
+            require(source.disclosure.isNotBlank()) { "Source ${source.id} requires disclosure" }
             require(source.dataUrl.startsWith("https://") && source.license.isNotBlank() && source.licenseUrl.startsWith("https://")) { "Invalid provenance for ${source.id}" }
             require(source.upstreamArtifactSha256.matches(sha256Pattern)) { "Invalid upstream checksum for ${source.id}" }
             require(source.derivedArtifactSha256 == null || source.derivedArtifactSha256.matches(sha256Pattern)) { "Invalid derived-artifact checksum for ${source.id}" }
@@ -282,8 +288,8 @@ class WeightReferenceSnapshot private constructor(
                 profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.P9_P91,
             ) { "Fitted profile ${profile.id} must expose P50 and P9/P91" }
             ReferenceKind.MODELLED_BREED_ADULT_RANGE -> require(
-                profile.centerStatistic == ReferenceCenterStatistic.MEDIAN && profile.boundsStatistic == ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE,
-            ) { "Modelled breed profile ${profile.id} must expose the scaled adult typical range" }
+                profile.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT && profile.boundsStatistic == ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE,
+            ) { "Modelled breed profile ${profile.id} must expose the arithmetic midpoint of the scaled adult typical range" }
         }
         val scope = scopes[profile.id] ?: error("Profile ${profile.id} has no declared scope")
         require(scope.numericalAvailability == NumericalAvailability.AVAILABLE) { "Profile ${profile.id} scope is not numerically available" }
@@ -296,9 +302,17 @@ class WeightReferenceSnapshot private constructor(
             require(point.ageDays in scope.minimumAgeDays..scope.maximumAgeDays) { "Profile ${profile.id} point is outside its declared age range" }
             require(listOf(point.lowerKg, point.medianKg, point.upperKg).all { it.isFinite() && it > 0.0 }) { "Profile ${profile.id} weights must be finite and positive" }
             require(point.lowerKg <= point.medianKg && point.medianKg <= point.upperKg) { "Profile ${profile.id} has unordered bounds" }
+            if (profile.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT) {
+                require(kotlin.math.abs(point.medianKg - (point.lowerKg + point.upperKg) / 2.0) <= 0.001) {
+                    "Profile ${profile.id} center is not the arithmetic midpoint"
+                }
+            }
             require(point.sourceId == null || point.sourceId in sources) { "Profile ${profile.id} point has unknown source" }
             if (point.empirical) require(point.sourceId != null) { "Empirical point in ${profile.id} requires provenance" }
             previousAge = point.ageDays
+        }
+        if (profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE) {
+            require(profile.points.last().ageDays == scope.maximumAgeDays) { "Profile ${profile.id} must end at declared maturity" }
         }
     }
 }
@@ -307,8 +321,8 @@ private data class SnapshotJson(val manifest: ManifestJson, val profiles: List<P
 private data class ManifestJson(val schemaVersion: Int, val snapshotVersion: String, val snapshotDate: String, val numericalDataSha256: String, val sources: List<SourceJson>, val scopes: List<ScopeJson>) {
     fun toModel() = WeightReferenceManifest(schemaVersion, snapshotVersion, snapshotDate, numericalDataSha256, sources.map(SourceJson::toModel), scopes.map(ScopeJson::toModel))
 }
-private data class SourceJson(val id: String, val citation: String, val publicationDoi: String, val dataDoi: String, val dataUrl: String, val upstreamArtifactSha256: String, val license: String, val licenseUrl: String, val accessedDate: String?, val correctionDoi: String?, val derivedArtifact: String?, val derivedArtifactSha256: String?, val derivationSoftware: String?) {
-    fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, accessedDate, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware)
+private data class SourceJson(val id: String, val citation: String, val publicationDoi: String, val dataDoi: String, val dataUrl: String, val upstreamArtifactSha256: String, val license: String, val licenseUrl: String, val accessedDate: String?, val correctionDoi: String?, val derivedArtifact: String?, val derivedArtifactSha256: String?, val derivationSoftware: String?, val authorityClass: String, val disclosure: String) {
+    fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, accessedDate, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware, enumValue(authorityClass), disclosure)
 }
 private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String?, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
     fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, unavailabilityReason?.let(::enumValue))

@@ -32,9 +32,9 @@ val regenerateSnapshot by tasks.registering(JavaExec::class) {
     description = "Normalizes the audited weight-reference source document."
     classpath = sourceSets.main.get().runtimeClasspath
     mainClass = application.mainClass
-    inputs.files(sourceDocument, fittedCatCurves)
+    inputs.files(sourceDocument, fittedCatCurves, catBreedEvidence)
     outputs.file(generatedSnapshot)
-    args("--snapshot", sourceDocument.asFile.absolutePath, fittedCatCurves.asFile.absolutePath, generatedSnapshot.get().asFile.absolutePath)
+    args("--snapshot", sourceDocument.asFile.absolutePath, fittedCatCurves.asFile.absolutePath, catBreedEvidence.asFile.absolutePath, generatedSnapshot.get().asFile.absolutePath)
 }
 
 tasks.register("verifySnapshot") {
