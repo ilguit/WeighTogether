@@ -10,6 +10,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.security.MessageDigest;
 import java.util.HexFormat;
+import java.util.Set;
+import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -85,6 +87,45 @@ class MainTest {
             Files.writeString(path, invalid, StandardCharsets.UTF_8);
             assertThrows(IllegalArgumentException.class, () -> Main.validateCatBreedEvidence(path));
         }
+    }
+
+    @Test
+    void batchTwoContainsOnlyEightApprovedProfessionalFallbackBreeds() throws Exception {
+        var evidence = Main.catBreedEvidenceForBatch(Path.of("cat_breed_evidence.csv"), 2);
+
+        assertEquals(16, evidence.size());
+        assertEquals(
+            Set.of("0100018", "0100045", "0100056", "0100090", "0100173", "0100188", "0100216", "0100249"),
+            evidence.stream().map(Main.CatBreedEvidence::vboId).collect(Collectors.toSet())
+        );
+        evidence.stream().collect(Collectors.groupingBy(Main.CatBreedEvidence::vboId)).values().forEach(rows -> {
+            assertEquals(Set.of("female", "male"), rows.stream().map(Main.CatBreedEvidence::sex).collect(Collectors.toSet()));
+            assertEquals(2, rows.size());
+        });
+        evidence.forEach(row -> {
+            assertEquals("professional_fallback", row.evidenceTier());
+            org.junit.jupiter.api.Assertions.assertFalse(row.sourceAuthorityClass().startsWith("official_"));
+            org.junit.jupiter.api.Assertions.assertFalse(row.sourceId().isBlank());
+            org.junit.jupiter.api.Assertions.assertFalse(row.sourceUrl().isBlank());
+            org.junit.jupiter.api.Assertions.assertFalse(row.claim().isBlank());
+            org.junit.jupiter.api.Assertions.assertFalse(row.limitations().isBlank());
+            assertEquals((row.adultLowerKg() + row.adultUpperKg()) / 2.0, row.adultMedianKg(), 0.0001);
+            if (row.maturityDerivation().equals("model_fallback")) assertEquals(730, row.maturityAgeDays());
+        });
+    }
+
+    @Test
+    void excludedBreedCannotEnterEitherProductionBatch() throws Exception {
+        String approved = Files.readString(Path.of("cat_breed_evidence.csv"), StandardCharsets.UTF_8);
+        Path invalid = temporaryDirectory.resolve("excluded.csv");
+        Files.writeString(invalid, approved.replaceFirst("0100018,American Shorthair", "0100208,Savannah"), StandardCharsets.UTF_8);
+
+        IllegalArgumentException error = assertThrows(
+            IllegalArgumentException.class,
+            () -> Main.validateCatBreedEvidence(invalid)
+        );
+
+        assertEquals("Invalid approved breed at row 4", error.getMessage());
     }
 
     private static String document(int schemaVersion) {
