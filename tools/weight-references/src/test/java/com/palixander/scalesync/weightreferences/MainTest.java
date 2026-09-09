@@ -17,19 +17,21 @@ class MainTest {
     @TempDir Path temporaryDirectory;
 
     @Test
-    void normalizeAcceptsSchemaV3AndRefreshesProfileChecksum() throws Exception {
+    void normalizeAcceptsSchemaV4AndRefreshesFullPayloadChecksum() throws Exception {
         Path source = temporaryDirectory.resolve("source.json");
         Path output = temporaryDirectory.resolve("output.json");
-        Files.writeString(source, document(3), StandardCharsets.UTF_8);
+        Files.writeString(source, document(4), StandardCharsets.UTF_8);
 
         Main.main(new String[] {source.toString(), output.toString()});
 
         JsonObject root = JsonParser.parseString(Files.readString(output)).getAsJsonObject();
-        String profiles = root.getAsJsonArray("profiles").toString();
+        String actual = root.getAsJsonObject("manifest").get("numericalDataSha256").getAsString();
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "");
+        String profiles = root.toString();
         String expected = HexFormat.of().formatHex(
             MessageDigest.getInstance("SHA-256").digest(profiles.getBytes(StandardCharsets.UTF_8))
         );
-        assertEquals(expected, root.getAsJsonObject("manifest").get("numericalDataSha256").getAsString());
+        assertEquals(expected, actual);
     }
 
     @Test
@@ -67,6 +69,22 @@ class MainTest {
         );
 
         assertEquals("Invalid fallback maturity at row 4", error.getMessage());
+    }
+
+    @Test
+    void catBreedEvidenceRejectsTamperedSexBoundsMidpointAndProvenance() throws Exception {
+        String approved = Files.readString(Path.of("cat_breed_evidence.csv"), StandardCharsets.UTF_8);
+        for (String invalid : new String[] {
+            approved.replaceFirst(",female,", ",combined,"),
+            approved.replaceFirst(",2.721554,3.401942,4.082331,", ",-1,3.401942,4.082331,"),
+            approved.replaceFirst(",2.721554,3.401942,4.082331,", ",2.721554,3.5,4.082331,"),
+            approved.replaceFirst(",https://tica.org/breed/abyssinian/,", ",http://invalid.example/,"),
+            approved.replaceFirst(",official_breed_organization,", ",professional_pet_reference,")
+        }) {
+            Path path = temporaryDirectory.resolve("invalid-" + invalid.hashCode() + ".csv");
+            Files.writeString(path, invalid, StandardCharsets.UTF_8);
+            assertThrows(IllegalArgumentException.class, () -> Main.validateCatBreedEvidence(path));
+        }
     }
 
     private static String document(int schemaVersion) {

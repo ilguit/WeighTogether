@@ -129,7 +129,8 @@ class PetWeightReferenceResolverTest {
                 addProperty("ageAvailability", "declared_range_only")
                 addProperty("maximumAgeDays", lastAge)
             }
-        val canonical = root.getAsJsonArray("profiles").toString().toByteArray()
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
+        val canonical = root.toString().toByteArray()
         root.getAsJsonObject("manifest").addProperty(
             "numericalDataSha256",
             MessageDigest.getInstance("SHA-256").digest(canonical).joinToString("") { "%02x".format(it) },
@@ -452,7 +453,7 @@ class PetWeightReferenceResolverTest {
     fun `unsupported and unknown cat breeds use fitted population profile`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(56))
-        listOf(BreedId("VBO:0100000"), BreedId("external:cat:future")).forEach { breedId ->
+        listOf(BreedId("VBO:0100208"), BreedId("external:cat:future")).forEach { breedId ->
             val result = resolver.resolve(
                 PetSpecies.CAT,
                 PetSex.MALE,

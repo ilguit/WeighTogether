@@ -328,8 +328,9 @@ class PetHistoryReferencePresenterTest {
                 })
             }
         })
-        val canonicalProfiles = root.getAsJsonArray("profiles").toString().toByteArray()
-        val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalProfiles)
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
+        val canonicalPayload = root.toString().toByteArray()
+        val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalPayload)
             .joinToString("") { "%02x".format(Locale.ROOT, it) }
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum)
         return WeightReferenceSnapshot.load(streamProvider = {

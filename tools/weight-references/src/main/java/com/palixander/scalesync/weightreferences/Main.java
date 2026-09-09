@@ -25,7 +25,7 @@ import java.util.zip.ZipInputStream;
 
 public final class Main {
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().disableHtmlEscaping().create();
-    private static final int SUPPORTED_SCHEMA_VERSION = 3;
+    private static final int SUPPORTED_SCHEMA_VERSION = 4;
 
     private Main() {}
 
@@ -34,8 +34,8 @@ public final class Main {
             validateCatBreedEvidence(Path.of(args[1]));
             return;
         }
-        if (args.length == 4 && args[0].equals("--snapshot")) {
-            snapshot(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]));
+        if (args.length == 5 && args[0].equals("--snapshot")) {
+            snapshot(Path.of(args[1]), Path.of(args[2]), Path.of(args[3]), Path.of(args[4]));
             return;
         }
         if (args.length == 5 && args[0].equals("--derive")) {
@@ -148,7 +148,7 @@ public final class Main {
         return fields;
     }
 
-    private static void snapshot(Path source, Path fittedCatCurves, Path output) throws Exception {
+    private static void snapshot(Path source, Path fittedCatCurves, Path catEvidence, Path output) throws Exception {
         JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
         validateSchema(root);
         JsonObject catSource = root.getAsJsonObject("manifest").getAsJsonArray("sources").asList().stream()
@@ -161,7 +161,9 @@ public final class Main {
             if (profiles.get(index).getAsJsonObject().get("id").getAsString().startsWith("cat-population-")) profiles.remove(index);
         }
         addFittedCatProfiles(root, profiles, fittedCatCurves);
+        addBatchOneEvidence(root, catEvidence);
         addModelledBreedProfiles(root, profiles);
+        ensureSourceDisclosures(root);
         Path assembled = Files.createTempFile("weight-reference-snapshot", ".json");
         try {
             Files.writeString(assembled, GSON.toJson(root) + "\n", StandardCharsets.UTF_8);
@@ -169,6 +171,74 @@ public final class Main {
         } finally {
             Files.deleteIfExists(assembled);
         }
+    }
+
+    private static void ensureSourceDisclosures(JsonObject root) {
+        root.getAsJsonObject("manifest").getAsJsonArray("sources").forEach(value -> {
+            JsonObject source = value.getAsJsonObject();
+            if (!source.has("authorityClass")) {
+                boolean wikipedia = source.get("id").getAsString().startsWith("wikipedia-");
+                source.addProperty("authorityClass", wikipedia ? "open_reference" : "research_publication");
+                source.addProperty("disclosure", wikipedia ? "Open reference source" : "Peer-reviewed research publication or accompanying dataset");
+            }
+        });
+    }
+
+    private static void addBatchOneEvidence(JsonObject root, Path evidence) throws Exception {
+        validateCatBreedEvidence(evidence);
+        JsonArray sources = root.getAsJsonObject("manifest").getAsJsonArray("sources");
+        JsonArray scopes = root.getAsJsonObject("manifest").getAsJsonArray("scopes");
+        JsonArray ranges = root.getAsJsonArray("modelledBreedRanges");
+        Map<String, JsonObject> generatedSources = new TreeMap<>();
+        List<String> lines = Files.readAllLines(evidence, StandardCharsets.UTF_8);
+        for (int lineNumber = 2; lineNumber <= lines.size(); lineNumber++) {
+            List<String> values = csvFields(lines.get(lineNumber - 1));
+            Map<String, String> row = new HashMap<>();
+            for (int index = 0; index < values.size(); index++) row.put(CAT_EVIDENCE_FIELDS.get(index), values.get(index));
+            if (!row.get("batch").equals("1")) continue;
+            String sourceId = "cat-breed-" + row.get("sourceId").toLowerCase().replaceAll("[^a-z0-9]+", "-");
+            generatedSources.computeIfAbsent(sourceId, unused -> {
+                JsonObject source = new JsonObject();
+                source.addProperty("id", sourceId);
+                source.addProperty("citation", row.get("canonicalBreed") + ": " + row.get("claim"));
+                source.addProperty("publicationDoi", "");
+                source.addProperty("dataDoi", "");
+                source.addProperty("dataUrl", row.get("sourceUrl"));
+                source.addProperty("upstreamArtifactSha256", sha256((row.get("sourceId") + "\n" + row.get("sourceUrl") + "\n" + row.get("claim")).getBytes(StandardCharsets.UTF_8)));
+                source.addProperty("license", "Source page terms");
+                source.addProperty("licenseUrl", row.get("sourceUrl"));
+                source.addProperty("accessedDate", "2026-09-09");
+                source.addProperty("authorityClass", authorityClass(row.get("sourceAuthorityClass")));
+                source.addProperty("disclosure", row.get("evidenceTier").equals("official") ? "Official feline or breed organization" : "Professional reference; not an official breed organization");
+                return source;
+            });
+            String sex = row.get("sex");
+            String id = "cat-breed-" + row.get("vboId") + "-" + sex;
+            JsonArray constraints = new JsonArray();
+            constraints.add("Arithmetic midpoint of the published adult range; not an observed median");
+            constraints.add("Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve");
+            constraints.add(row.get("limitations"));
+            JsonObject scope = new JsonObject();
+            scope.addProperty("id", id); scope.addProperty("species", "cat"); scope.addProperty("sex", sex);
+            scope.addProperty("basis", "breed"); scope.addProperty("breedId", "VBO:" + row.get("vboId"));
+            scope.addProperty("minimumAgeDays", 56); scope.addProperty("maximumAgeDays", Integer.parseInt(row.get("maturityAgeDays")));
+            scope.add("constraints", constraints); scope.addProperty("sourceId", sourceId);
+            scope.addProperty("numericalAvailability", "available"); scope.addProperty("ageAvailability", "declared_range_only");
+            scopes.add(scope);
+            JsonObject range = new JsonObject();
+            range.addProperty("id", id); range.addProperty("adultLowerKg", Double.parseDouble(row.get("adultLowerKg")));
+            range.addProperty("adultUpperKg", Double.parseDouble(row.get("adultUpperKg")));
+            range.addProperty("adultMidpointKg", Double.parseDouble(row.get("adultMedianKg")));
+            range.addProperty("maturityAgeDays", Integer.parseInt(row.get("maturityAgeDays")));
+            range.addProperty("maturityDerivation", row.get("maturityDerivation"));
+            range.addProperty("sourceId", sourceId);
+            ranges.add(range);
+        }
+        generatedSources.values().forEach(sources::add);
+    }
+
+    private static String authorityClass(String raw) {
+        return raw.startsWith("official_") ? "official_breed_organization" : "professional_reference";
     }
 
     /**
@@ -198,7 +268,7 @@ public final class Main {
             double finalMedian = shapePoints.get(shapePoints.size() - 1).getAsJsonObject().get("medianKg").getAsDouble();
             double adultLower = range.get("adultLowerKg").getAsDouble();
             double adultUpper = range.get("adultUpperKg").getAsDouble();
-            double adultMedian = (adultLower + adultUpper) / 2.0;
+            double adultMedian = range.has("adultMidpointKg") ? range.get("adultMidpointKg").getAsDouble() : (adultLower + adultUpper) / 2.0;
             JsonArray points = new JsonArray();
             if (range.has("birthObservation")) points.add(range.getAsJsonObject("birthObservation").deepCopy());
             shapePoints.forEach(shapeValue -> {
@@ -212,8 +282,10 @@ public final class Main {
                 point.addProperty("sourceId", range.get("sourceId").getAsString());
                 points.add(point);
             });
+            int maturityAgeDays = range.has("maturityAgeDays") ? range.get("maturityAgeDays").getAsInt() : 730;
+            while (points.size() > 0 && points.get(points.size() - 1).getAsJsonObject().get("ageDays").getAsInt() >= maturityAgeDays) points.remove(points.size() - 1);
             JsonObject adult = new JsonObject();
-            adult.addProperty("ageDays", 730);
+            adult.addProperty("ageDays", maturityAgeDays);
             adult.addProperty("lowerKg", adultLower);
             adult.addProperty("medianKg", adultMedian);
             adult.addProperty("upperKg", adultUpper);
@@ -230,7 +302,7 @@ public final class Main {
             profile.addProperty("license", source.get("license").getAsString());
             profile.addProperty("referenceKind", "modelled_breed_adult_range");
             profile.addProperty("minimumBinN", 0);
-            profile.addProperty("centerStatistic", "median");
+            profile.addProperty("centerStatistic", "arithmetic_midpoint");
             profile.addProperty("boundsStatistic", "adult_typical_range");
             profile.add("points", points);
             profiles.add(profile);
@@ -276,8 +348,8 @@ public final class Main {
         JsonObject root = JsonParser.parseString(Files.readString(source, StandardCharsets.UTF_8)).getAsJsonObject();
         validateSchema(root);
         JsonArray profiles = root.getAsJsonArray("profiles");
-        String checksum = HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")
-            .digest(profiles.toString().getBytes(StandardCharsets.UTF_8)));
+        root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "");
+        String checksum = sha256(root.toString().getBytes(StandardCharsets.UTF_8));
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", checksum);
         String normalized = GSON.toJson(root) + "\n";
         Files.createDirectories(output.getParent());
@@ -391,6 +463,10 @@ public final class Main {
         return values.get(low) + (values.get(high) - values.get(low)) * (index - low);
     }
     private static double round(double value) { return Math.round(value * 1000.0) / 1000.0; }
+    private static String sha256(byte[] value) {
+        try { return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256").digest(value)); }
+        catch (Exception error) { throw new IllegalStateException(error); }
+    }
     private static void validateSchema(JsonObject root) {
         int schemaVersion = root.getAsJsonObject("manifest").get("schemaVersion").getAsInt();
         if (schemaVersion != SUPPORTED_SCHEMA_VERSION) {
