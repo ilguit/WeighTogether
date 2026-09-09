@@ -53,6 +53,37 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
+    fun `all new cat breed ranges carry forward for both sexes after maturity`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val profiles = snapshot.profiles.filter { it.id.matches(Regex("cat-breed-\\d{7}-(female|male)")) }
+        val adultAgeDays = 10_000L
+
+        assertEquals(52, profiles.size)
+        profiles.forEach { profile ->
+            val sex = when (profile.sex.name) {
+                "FEMALE" -> PetSex.FEMALE
+                "MALE" -> PetSex.MALE
+                else -> error("Unexpected breed profile sex: ${profile.sex}")
+            }
+            val result = resolver.resolve(
+                species = PetSpecies.CAT,
+                sex = sex,
+                breedId = BreedId(profile.breedId!!),
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(adultAgeDays)),
+                referenceDate = referenceDate,
+            ).available()
+            val adult = profile.points.last()
+
+            assertEquals(profile.id, result.profileId)
+            assertEquals(adultAgeDays..adultAgeDays, result.ageDays)
+            assertEquals(adult.lowerKg, result.bounds.lowerKg, 1e-12)
+            assertEquals(adult.medianKg, result.bounds.medianLowerKg, 1e-12)
+            assertEquals(adult.medianKg, result.bounds.medianUpperKg, 1e-12)
+            assertEquals(adult.upperKg, result.bounds.upperKg, 1e-12)
+        }
+    }
+
+    @Test
     fun `cat without selected breed retains population reference behavior`() {
         val result = resolver.resolve(
             species = PetSpecies.CAT,

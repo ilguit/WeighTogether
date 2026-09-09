@@ -35,6 +35,8 @@ professional fallback; Batch 2 contains eight professional fallbacks.
 The adult center is always the arithmetic midpoint of the published typical
 range, not an observed population median. `maturityDerivation=published` keeps a
 published breed maturity age; otherwise `model_fallback` must be exactly day 730.
+The maturity day is the final growth point; its adult range carries forward for
+all later ages instead of ending reference availability at maturity.
 Each row carries claim-level source class, URL, claim, and limitations. Birth and
 intermediate observations are intentionally absent because they remain
 research-only for issue #90. `VBO:0100230` is the sole Sphynx record and declares

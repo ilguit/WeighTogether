@@ -185,8 +185,12 @@ class WeightReferenceSnapshotTest {
             listOf(profiles.map { it.sex }.toSet()).onEach { assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), it) }
         }.flatten().toSet())
         assertTrue(batch.all { it.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT })
-        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
+        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.CARRY_FORWARD })
         assertTrue(batch.all { it.points.first().ageDays == 56 && it.points.none(ReferencePoint::empirical) })
+        batch.forEach { profile ->
+            val adult = profile.points.last()
+            assertEquals(adult.copy(ageDays = 10_000), snapshot.interpolate(profile.id, 10_000))
+        }
         val russian = snapshot.metadataFor("cat-breed-0100200-female")!!
         assertEquals(ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE, russian.source.authorityClass)
         assertTrue(russian.source.disclosure.contains("not an official", ignoreCase = true))

@@ -3,7 +3,7 @@
     "schemaVersion": 4,
     "snapshotVersion": "2026-09-09.1",
     "snapshotDate": "2026-09-09",
-    "numericalDataSha256": "4289800db4942cef8aef3a1107ade7df17a88d0b6bf103ec70fcda657a52efe6",
+    "numericalDataSha256": "20be860bd5831b662ea55abd98dfad35e214d622f96bd532d8616c0131d51625",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
@@ -864,7 +864,7 @@
         ],
         "sourceId": "cat-breed-a-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100000-male",
@@ -881,7 +881,7 @@
         ],
         "sourceId": "cat-breed-a-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100018-female",
@@ -898,7 +898,7 @@
         ],
         "sourceId": "cat-breed-c-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100018-male",
@@ -915,7 +915,7 @@
         ],
         "sourceId": "cat-breed-c-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100036-female",
@@ -932,7 +932,7 @@
         ],
         "sourceId": "cat-breed-c-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100036-male",
@@ -949,7 +949,7 @@
         ],
         "sourceId": "cat-breed-c-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100040-female",
@@ -966,7 +966,7 @@
         ],
         "sourceId": "cat-breed-a-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100040-male",
@@ -983,7 +983,7 @@
         ],
         "sourceId": "cat-breed-a-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100045-female",
@@ -1000,7 +1000,7 @@
         ],
         "sourceId": "cat-breed-c-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100045-male",
@@ -1017,7 +1017,7 @@
         ],
         "sourceId": "cat-breed-c-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100053-female",
@@ -1034,7 +1034,7 @@
         ],
         "sourceId": "cat-breed-a-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100053-male",
@@ -1051,7 +1051,7 @@
         ],
         "sourceId": "cat-breed-a-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100056-female",
@@ -1068,7 +1068,7 @@
         ],
         "sourceId": "cat-breed-c-s05",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100056-male",
@@ -1085,7 +1085,7 @@
         ],
         "sourceId": "cat-breed-c-s05",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100077-female",
@@ -1102,7 +1102,7 @@
         ],
         "sourceId": "cat-breed-a-s07",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100077-male",
@@ -1119,7 +1119,7 @@
         ],
         "sourceId": "cat-breed-a-s07",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100084-female",
@@ -1136,7 +1136,7 @@
         ],
         "sourceId": "cat-breed-a-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100084-male",
@@ -1153,7 +1153,7 @@
         ],
         "sourceId": "cat-breed-a-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100090-female",
@@ -1170,7 +1170,7 @@
         ],
         "sourceId": "cat-breed-c-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100090-male",
@@ -1187,7 +1187,7 @@
         ],
         "sourceId": "cat-breed-c-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100169-female",
@@ -1204,7 +1204,7 @@
         ],
         "sourceId": "cat-breed-c-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100169-male",
@@ -1221,7 +1221,7 @@
         ],
         "sourceId": "cat-breed-c-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100170-female",
@@ -1238,7 +1238,7 @@
         ],
         "sourceId": "cat-breed-b-tica-munchkin-longhair",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100170-male",
@@ -1255,7 +1255,7 @@
         ],
         "sourceId": "cat-breed-b-tica-munchkin-longhair",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100173-female",
@@ -1272,7 +1272,7 @@
         ],
         "sourceId": "cat-breed-b-anicura-neva",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100173-male",
@@ -1289,7 +1289,7 @@
         ],
         "sourceId": "cat-breed-b-anicura-neva",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100178-female",
@@ -1306,7 +1306,7 @@
         ],
         "sourceId": "cat-breed-a-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100178-male",
@@ -1323,7 +1323,7 @@
         ],
         "sourceId": "cat-breed-a-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100183-female",
@@ -1340,7 +1340,7 @@
         ],
         "sourceId": "cat-breed-c-s16",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100183-male",
@@ -1357,7 +1357,7 @@
         ],
         "sourceId": "cat-breed-c-s16",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100184-female",
@@ -1374,7 +1374,7 @@
         ],
         "sourceId": "cat-breed-a-s03",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100184-male",
@@ -1391,7 +1391,7 @@
         ],
         "sourceId": "cat-breed-a-s03",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100188-female",
@@ -1408,7 +1408,7 @@
         ],
         "sourceId": "cat-breed-a-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100188-male",
@@ -1425,7 +1425,7 @@
         ],
         "sourceId": "cat-breed-a-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100189-female",
@@ -1442,7 +1442,7 @@
         ],
         "sourceId": "cat-breed-c-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100189-male",
@@ -1459,7 +1459,7 @@
         ],
         "sourceId": "cat-breed-c-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100196-female",
@@ -1476,7 +1476,7 @@
         ],
         "sourceId": "cat-breed-a-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100196-male",
@@ -1493,7 +1493,7 @@
         ],
         "sourceId": "cat-breed-a-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100200-female",
@@ -1510,7 +1510,7 @@
         ],
         "sourceId": "cat-breed-a-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100200-male",
@@ -1527,7 +1527,7 @@
         ],
         "sourceId": "cat-breed-a-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100216-female",
@@ -1544,7 +1544,7 @@
         ],
         "sourceId": "cat-breed-c-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100216-male",
@@ -1561,7 +1561,7 @@
         ],
         "sourceId": "cat-breed-c-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100230-female",
@@ -1578,7 +1578,7 @@
         ],
         "sourceId": "cat-breed-a-s13",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100230-male",
@@ -1595,7 +1595,7 @@
         ],
         "sourceId": "cat-breed-a-s13",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100235-female",
@@ -1612,7 +1612,7 @@
         ],
         "sourceId": "cat-breed-a-s14",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100235-male",
@@ -1629,7 +1629,7 @@
         ],
         "sourceId": "cat-breed-a-s14",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100245-female",
@@ -1646,7 +1646,7 @@
         ],
         "sourceId": "cat-breed-b-tica-toyger",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100245-male",
@@ -1663,7 +1663,7 @@
         ],
         "sourceId": "cat-breed-b-tica-toyger",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100249-female",
@@ -1680,7 +1680,7 @@
         ],
         "sourceId": "cat-breed-c-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100249-male",
@@ -1697,7 +1697,7 @@
         ],
         "sourceId": "cat-breed-c-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100303-female",
@@ -1714,7 +1714,7 @@
         ],
         "sourceId": "cat-breed-b-tica-munchkin",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       },
       {
         "id": "cat-breed-0100303-male",
@@ -1731,7 +1731,7 @@
         ],
         "sourceId": "cat-breed-b-tica-munchkin",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "carry_forward"
       }
     ]
   },
@@ -14622,7 +14622,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "page also gives narrower narrative averages; used displayed range fields"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Abyssinian: female 6-9 lb; male 7-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -14966,7 +14966,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "page also gives narrower narrative averages; used displayed range fields"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Abyssinian: female 6-9 lb; male 7-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -15310,7 +15310,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "American Shorthair: Purina 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -15836,7 +15836,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "American Shorthair: Purina 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -16362,7 +16362,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Balinese: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -16888,7 +16888,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Balinese: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -17414,7 +17414,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "approximate ranges; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Bengal: female 6-12 lb; male 9-15 lb; full size 2 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -17940,7 +17940,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "approximate ranges; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Bengal: female 6-12 lb; male 9-15 lb; full size 2 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -18466,7 +18466,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Bombay: Purina 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -18992,7 +18992,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Bombay: Purina 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -19518,7 +19518,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "care guidance; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Burmese: male 11-14 lb; female 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -20044,7 +20044,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "care guidance; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Burmese: male 11-14 lb; female 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -20570,7 +20570,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Both sexes given same 4-5 kg range; not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Burmilla: Hill's professional breed guide 4-5 kg",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -21096,7 +21096,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Both sexes given same 4-5 kg range; not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Burmilla: Hill's professional breed guide 4-5 kg",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -21622,7 +21622,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Cornish Rex: female 5-7 lb; male 8-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -21966,7 +21966,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Cornish Rex: female 5-7 lb; male 8-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22310,7 +22310,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Devon Rex: female 5-7 lb; male 7-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22654,7 +22654,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Devon Rex: female 5-7 lb; male 7-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22998,7 +22998,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Egyptian Mau: Purina 6-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -23524,7 +23524,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Egyptian Mau: Purina 6-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -24050,7 +24050,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -24576,7 +24576,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -25102,7 +25102,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Coat variant; no sample/distribution"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin Longhair: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -25628,7 +25628,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Coat variant; no sample/distribution"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin Longhair: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -26154,7 +26154,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "No sample or distribution; says maturity at 3 years"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Neva Masquerade: Veterinary network breed page",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -26680,7 +26680,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "No sample or distribution; says maturity at 3 years"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Neva Masquerade: Veterinary network breed page",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -27206,7 +27206,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Norwegian Forest Cat: female 8-12 lb; male 12-18 lb; maturity up to 5 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -27732,7 +27732,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Norwegian Forest Cat: female 8-12 lb; male 12-18 lb; maturity up to 5 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -28258,7 +28258,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Oriental Longhair: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -28784,7 +28784,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Oriental Longhair: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -29310,7 +29310,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "approximate ranges; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Oriental Shorthair: female 5-8 lb; male 8-12 lb; maturity 18-24 months",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -29836,7 +29836,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "approximate ranges; no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Oriental Shorthair: female 5-8 lb; male 8-12 lb; maturity 18-24 months",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -30362,7 +30362,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample/method exposed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Persian: Persian males 9-14 lb; females 7-11 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -30706,7 +30706,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample/method exposed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Persian: Persian males 9-14 lb; females 7-11 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -31050,7 +31050,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Peterbald: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -31576,7 +31576,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Descriptive range; not a population study"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Peterbald: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -32102,7 +32102,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Ragdoll: female 10-15 lb; male 15-20 lb; maturity up to 4 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -32628,7 +32628,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Ragdoll: female 10-15 lb; male 15-20 lb; maturity up to 4 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33154,7 +33154,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "explicitly a starting point; underlying sample not published"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Russian Blue: female 7-10 lb; male 10-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33498,7 +33498,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "explicitly a starting point; underlying sample not published"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Russian Blue: female 7-10 lb; male 10-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33842,7 +33842,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed; range provenance not stated"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Selkirk Rex Longhair: Purina 6-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -34368,7 +34368,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed; range provenance not stated"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Selkirk Rex Longhair: Purina 6-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -34894,7 +34894,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Sphynx: female 7-10 lb; male 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35238,7 +35238,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Sphynx: female 7-10 lb; male 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35582,7 +35582,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Thai: female 7-9 lb; male 9-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35926,7 +35926,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "no sample"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Thai: female 7-9 lb; male 9-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -36270,7 +36270,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "No sample/distribution"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Toyger: TICA 7-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -36796,7 +36796,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "No sample/distribution"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Toyger: TICA 7-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -37322,7 +37322,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Turkish Angora: Purina 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -37848,7 +37848,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "Not peer reviewed"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Turkish Angora: Purina 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -38374,7 +38374,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin Short-Haired: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -38900,7 +38900,7 @@
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
         "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "carry_forward",
       "citation": "Munchkin Short-Haired: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
