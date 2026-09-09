@@ -110,12 +110,17 @@ class PetProfileEditorContractTest {
 
     @Test
     fun catalogExposesOnlyCatBreedsDeclaredByWeightReferenceScopes() {
-        val expectedIds = WeightReferenceSnapshot.bundled().manifest.scopes
-            .filter { it.species.name == "CAT" && it.breedId != null }
+        val expectedIds = WeightReferenceSnapshot.bundled().profiles
+            .filter {
+                it.species.name == "CAT" &&
+                    it.referenceKind.name == "MODELLED_BREED_ADULT_RANGE" &&
+                    it.breedId != null
+            }
             .mapNotNull { it.breedId }
             .toSet()
         val cats = breedCatalog.search("", PetSpecies.CAT)
 
+        assertEquals(31, cats.size)
         assertEquals(expectedIds, cats.map { it.id.value }.toSet())
         assertTrue(cats.all { it.species == PetSpecies.CAT })
         assertTrue(cats.size < com.palixander.scalesync.core.breed.BreedCatalog.bundled()
@@ -231,7 +236,6 @@ class PetProfileEditorContractTest {
     @Test
     fun `supported cat names are Russian while canonical names and aliases remain searchable`() {
         val expected = mapOf(
-            "Domestic Shorthair" to "Домашняя короткошёрстная",
             "Scottish Fold" to "Шотландская вислоухая",
             "Siberian Forest Cat" to "Сибирская",
         )

@@ -9,6 +9,7 @@ import com.palixander.scalesync.core.breedreference.BreedReferenceBreed
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceKind
 import com.palixander.scalesync.core.reference.ReferenceSpecies
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.BirthDatePrecision
@@ -113,15 +114,16 @@ class PetBreedCatalog(
 ) {
     private val snapshot = (snapshotResult as? BreedReferenceSnapshotLoadResult.Available)?.snapshot
     private val supportedDogBreeds = snapshot?.breeds.orEmpty()
-    private val supportedCatBreedIds = weightReferenceSnapshot?.manifest?.scopes
+    private val supportedCatBreedIds = weightReferenceSnapshot?.profiles
         .orEmpty()
         .asSequence()
-        .filter { scope ->
-            scope.species == ReferenceSpecies.CAT &&
-                scope.basis == ReferenceBasis.BREED &&
-                scope.breedId != null
+        .filter { profile ->
+            profile.species == ReferenceSpecies.CAT &&
+                profile.basis == ReferenceBasis.BREED &&
+                profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE &&
+                profile.breedId != null
         }
-        .mapNotNull { it.breedId }
+        .mapNotNull { profile -> profile.breedId }
         .toSet()
     private val supportedCatBreeds = supportedCatBreedIds
         .mapNotNull(catalog::findById)
