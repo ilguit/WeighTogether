@@ -377,8 +377,11 @@ internal fun petWeightDisplayedSeries(
                 ),
             )
         }
-    } else if ((reference as? PetHistoryWeightReference.Available)?.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
-        val availableReference = reference as PetHistoryWeightReference.Available
+    } else if (
+        reference is PetHistoryWeightReference.Available &&
+        reference.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION
+    ) {
+        val availableReference = reference
         val isBreedModel = availableReference.provenance == WeightReferenceProvenance.BREED_CURVE
         val isFittedPopulation = availableReference.isFittedPopulationPercentiles
         val useBreedPresentation = isBreedModel || isFittedPopulation

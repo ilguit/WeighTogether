@@ -28,6 +28,7 @@ import com.palixander.scalesync.ui.profiles.PetHistoryReferencePresenter
 import com.palixander.scalesync.ui.profiles.PetHistoryWeightReference
 import com.palixander.scalesync.ui.profiles.petProfileSummary
 import com.palixander.scalesync.ui.profiles.petWeightChartRange
+import com.palixander.scalesync.ui.profiles.petWeightDisplayedSeries
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.time.Clock
@@ -87,6 +88,24 @@ class PetReferenceIntegrationTest {
         assertTrue(requireNotNull(reference.publicationUrl).startsWith("https://"))
         assertEquals(3, reference.segments.flatten().size)
         assertTrue(petWeightChartRange(emptyList(), reference) != null)
+    }
+
+    @Test
+    fun `adult Russian Blue with unavailable age reference does not crash chart presentation`() {
+        val pet = NewPet(
+            displayName = "Луна",
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100200"),
+            birthDate = PartialBirthDate.Day(referenceDate.minusYears(2)),
+        ).toPetEntity("adult-russian-blue", timestamp).toDomain()
+        val reference = PetHistoryReferencePresenter().present(
+            pet,
+            ChartDateRange(referenceDate.minusDays(2), referenceDate),
+        )
+
+        assertTrue(reference is PetHistoryWeightReference.Unavailable)
+        assertTrue(petWeightDisplayedSeries(emptyList(), reference, emptyList(), ZoneOffset.UTC).isEmpty())
     }
 
     @Test
