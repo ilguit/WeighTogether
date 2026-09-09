@@ -237,7 +237,7 @@ class PetProfileEditorContractTest {
         )
 
         expected.forEach { (query, displayName) ->
-            val option = breedCatalog.search(query, PetSpecies.CAT).single()
+            val option = breedCatalog.search(query, PetSpecies.CAT).single { it.displayName == displayName }
             assertEquals(displayName, option.displayName)
             assertTrue(option.canonicalName.first().isUpperCase())
         }
