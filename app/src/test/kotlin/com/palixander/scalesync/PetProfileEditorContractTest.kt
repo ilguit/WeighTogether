@@ -247,15 +247,35 @@ class PetProfileEditorContractTest {
     @Test
     fun `supported cat names are Russian while canonical names and aliases remain searchable`() {
         val expected = mapOf(
-            "Scottish Fold" to "Шотландская вислоухая",
-            "Siberian Forest Cat" to "Сибирская",
+            "VBO:0100000" to "Абиссинская", "VBO:0100018" to "Американская короткошёрстная",
+            "VBO:0100036" to "Балинезийская", "VBO:0100040" to "Бенгальская",
+            "VBO:0100045" to "Бомбейская", "VBO:0100052" to "Британская короткошёрстная",
+            "VBO:0100053" to "Бурманская", "VBO:0100056" to "Бурмилла",
+            "VBO:0100077" to "Корниш-рекс", "VBO:0100084" to "Девон-рекс",
+            "VBO:0100090" to "Египетская мау", "VBO:0100154" to "Мейн-кун",
+            "VBO:0100169" to "Манчкин", "VBO:0100170" to "Манчкин длинношёрстный",
+            "VBO:0100173" to "Невская маскарадная", "VBO:0100178" to "Норвежская лесная",
+            "VBO:0100183" to "Ориентальная длинношёрстная", "VBO:0100184" to "Ориентальная короткошёрстная",
+            "VBO:0100188" to "Персидская", "VBO:0100189" to "Петерболд",
+            "VBO:0100196" to "Рэгдолл", "VBO:0100200" to "Русская голубая",
+            "VBO:0100209" to "Шотландская вислоухая", "VBO:0100216" to "Селкирк-рекс длинношёрстный",
+            "VBO:0100221" to "Сиамская", "VBO:0100223" to "Сибирская",
+            "VBO:0100230" to "Сфинкс", "VBO:0100235" to "Тайская",
+            "VBO:0100245" to "Тойгер", "VBO:0100249" to "Турецкая ангора",
+            "VBO:0100303" to "Манчкин короткошёрстный",
         )
 
-        expected.forEach { (query, displayName) ->
-            val option = breedCatalog.search(query, PetSpecies.CAT).single { it.displayName == displayName }
-            assertEquals(displayName, option.displayName)
-            assertTrue(option.canonicalName.first().isUpperCase())
-        }
+        val options = breedCatalog.search("", PetSpecies.CAT)
+        assertEquals(expected, options.associate { it.id.value to it.displayName })
+        assertEquals(expected.values.sortedBy(String::lowercase), options.map(PetBreedOption::displayName))
+        assertTrue(options.none { option -> option.displayName.any { it in 'A'..'Z' || it in 'a'..'z' } })
+        assertEquals("Русская голубая", breedCatalog.search("Russian Blue", PetSpecies.CAT).single().displayName)
+        assertEquals("Сибирская", breedCatalog.search("Siberian Forest Cat", PetSpecies.CAT)
+            .single { it.id == BreedId("VBO:0100223") }.displayName)
+        assertEquals("Балинезийская", breedCatalog.search("Thai Siamese", PetSpecies.CAT)
+            .single { it.id == BreedId("VBO:0100036") }.displayName)
+        assertEquals("Ориентальная короткошёрстная", breedCatalog.search("Ориентальная", PetSpecies.CAT)
+            .single { it.id == BreedId("VBO:0100184") }.displayName)
     }
 
     @Test
