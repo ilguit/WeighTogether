@@ -70,6 +70,7 @@ import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
+import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiSettingRow
@@ -872,6 +873,24 @@ private fun SettingsProfilesContent(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    state.accountManagement.editor?.let { draft ->
+        AccountEditorScreen(
+            draft = draft,
+            accounts = state.accountManagement.accounts,
+            operationInProgress = state.accountManagement.operationInProgress,
+            error = state.accountManagement.operationError,
+            onDraftChanged = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.EditorChanged(it),
+            ) },
+            onCreate = callbacks.accountManagement.onCreate,
+            onUpdate = callbacks.accountManagement.onUpdate,
+            onDismiss = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
+            ) },
+            modifier = modifier.padding(contentPadding),
+        )
+        return
+    }
     Box(
         modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
         contentAlignment = Alignment.TopCenter,
@@ -1109,6 +1128,24 @@ private fun LegacySettingsScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    state.accountManagement.editor?.let { draft ->
+        AccountEditorScreen(
+            draft = draft,
+            accounts = state.accountManagement.accounts,
+            operationInProgress = state.accountManagement.operationInProgress,
+            error = state.accountManagement.operationError,
+            onDraftChanged = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.EditorChanged(it),
+            ) },
+            onCreate = callbacks.accountManagement.onCreate,
+            onUpdate = callbacks.accountManagement.onUpdate,
+            onDismiss = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
+            ) },
+            modifier = modifier.padding(contentPadding),
+        )
+        return
+    }
     var accountsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var integrationsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
     var scaleExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }

@@ -32,7 +32,7 @@ import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.ProfileUpdateConfirmation
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
-import com.palixander.scalesync.ui.accounts.AccountEditorDialog
+import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountEditorDraft
 import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.accounts.AccountSelectorTestTags
@@ -397,7 +397,7 @@ class MultiAccountComponentsTest {
         var changedDraft: AccountEditorDraft? = null
         composeRule.setContent {
             ScaleSyncTheme {
-                AccountEditorDialog(
+                AccountEditorScreen(
                     draft = draft,
                     accounts = emptyList(),
                     operationInProgress = false,
