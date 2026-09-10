@@ -266,8 +266,9 @@ internal fun PetProfileEditorDialog(
                 )
 
                 EditorSection("Вид питомца") {
-                    FlowRow(
+                    Row(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .focusRequester(speciesFocus)
                             .focusable()
                             .testTag(PetProfileEditorTestTags.SpeciesGroup)
@@ -276,22 +277,23 @@ internal fun PetProfileEditorDialog(
                                 selectableGroup()
                             },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        ChoiceButton(
-                            label = "Кошка",
+                        PrimarySelectionButton(
+                            label = "🐱 Кошка",
                             selected = draft.species == PetSpecies.CAT,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesCat,
+                            modifier = Modifier.weight(1f),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.CAT))
                             },
                         )
-                        ChoiceButton(
-                            label = "Собака",
+                        PrimarySelectionButton(
+                            label = "🐶 Собака",
                             selected = draft.species == PetSpecies.DOG,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesDog,
+                            modifier = Modifier.weight(1f),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.DOG))
                             },
@@ -303,40 +305,42 @@ internal fun PetProfileEditorDialog(
                 }
 
                 EditorSection("Пол (необязательно)") {
-                    FlowRow(
+                    Row(
                         modifier = Modifier
+                            .fillMaxWidth()
                             .testTag(PetProfileEditorTestTags.SexGroup)
                             .semantics {
                                 contentDescription = "Пол питомца"
                                 selectableGroup()
                             },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        ChoiceButton(
+                        PrimarySelectionButton(
                             label = "Самец",
                             selected = draft.sex == PetSex.MALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexMale,
+                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.MALE)) },
                         )
-                        ChoiceButton(
+                        PrimarySelectionButton(
                             label = "Самка",
                             selected = draft.sex == PetSex.FEMALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexFemale,
+                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.FEMALE)) },
                         )
-                        if (draft.sex != null) {
-                            TextButton(
-                                onClick = { dispatch(PetProfileAction.SexChanged(null)) },
-                                enabled = !locked,
-                                modifier = Modifier
-                                    .heightIn(min = 48.dp)
-                                    .testTag(PetProfileEditorTestTags.SexClear)
-                                    .semantics { contentDescription = "Очистить пол питомца" },
-                            ) { Text("Очистить") }
-                        }
+                    }
+                    if (draft.sex != null) {
+                        TextButton(
+                            onClick = { dispatch(PetProfileAction.SexChanged(null)) },
+                            enabled = !locked,
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag(PetProfileEditorTestTags.SexClear)
+                                .semantics { contentDescription = "Очистить пол питомца" },
+                        ) { Text("Очистить") }
                     }
                 }
 
@@ -495,6 +499,33 @@ private fun EditorSection(
             modifier = Modifier.semantics { heading() },
         )
         content()
+    }
+}
+
+@Composable
+private fun PrimarySelectionButton(
+    label: String,
+    selected: Boolean,
+    enabled: Boolean,
+    tag: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    val choiceModifier = modifier
+        .heightIn(min = 48.dp)
+        .testTag(tag)
+        .semantics {
+            role = Role.RadioButton
+            this.selected = selected
+        }
+    if (selected) {
+        Button(onClick = onClick, enabled = enabled, modifier = choiceModifier) {
+            Text(label)
+        }
+    } else {
+        OutlinedButton(onClick = onClick, enabled = enabled, modifier = choiceModifier) {
+            Text(label)
+        }
     }
 }
 

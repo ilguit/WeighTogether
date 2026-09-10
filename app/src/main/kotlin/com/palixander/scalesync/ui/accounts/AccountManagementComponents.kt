@@ -616,8 +616,9 @@ fun AccountEditorScreen(
                         .testTag(AccountManagementTestTags.EditorName),
                 )
                 Text("Пол", style = MaterialTheme.typography.labelLarge)
-                FlowRow(
+                Row(
                     modifier = Modifier
+                        .fillMaxWidth()
                         .testTag(AccountManagementTestTags.EditorSexGroup)
                         .semantics {
                             contentDescription = "Пол"
@@ -625,12 +626,13 @@ fun AccountEditorScreen(
                         },
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress,
-                        Modifier.focusRequester(sexFocus).testTag(AccountManagementTestTags.EditorSexMale)) {
+                    SexChoice("♂ Мужчина", Sex.MALE, draft.sex, !operationInProgress,
+                        Modifier.weight(1f).focusRequester(sexFocus)
+                            .testTag(AccountManagementTestTags.EditorSexMale)) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
-                    SexChoice("Женский", Sex.FEMALE, draft.sex, !operationInProgress,
-                        Modifier.testTag(AccountManagementTestTags.EditorSexFemale)) {
+                    SexChoice("♀ Женщина", Sex.FEMALE, draft.sex, !operationInProgress,
+                        Modifier.weight(1f).testTag(AccountManagementTestTags.EditorSexFemale)) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
                 }
@@ -707,20 +709,22 @@ private fun SexChoice(
     onSelect: (Sex) -> Unit,
 ) {
     val selected = selectedSex == value
-    OutlinedButton(
-        onClick = { onSelect(value) },
-        enabled = enabled,
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-        ),
-        modifier = modifier.semantics {
-            role = Role.RadioButton
-            this.selected = selected
-        },
-    ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Text(label)
+    val choiceModifier = modifier.semantics {
+        role = Role.RadioButton
+        this.selected = selected
+    }
+    if (selected) {
+        Button(
+            onClick = { onSelect(value) },
+            enabled = enabled,
+            modifier = choiceModifier,
+        ) { Text(label) }
+    } else {
+        OutlinedButton(
+            onClick = { onSelect(value) },
+            enabled = enabled,
+            modifier = choiceModifier,
+        ) { Text(label) }
     }
 }
 
