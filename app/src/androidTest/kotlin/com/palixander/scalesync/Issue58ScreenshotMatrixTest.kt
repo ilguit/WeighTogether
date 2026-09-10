@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.palixander.scalesync.core.Sex
@@ -29,6 +30,8 @@ import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
+import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
+import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
 import com.palixander.scalesync.ui.routing.MeasurementResolverCallbacks
 import com.palixander.scalesync.ui.routing.MeasurementResolverDialog
 import com.palixander.scalesync.ui.routing.MeasurementResolverUiState
@@ -78,6 +81,7 @@ class Issue58ScreenshotMatrixTest {
         "font200" -> listOf("human-editor-font200", "pet-editor-font200")
         else -> listOf(
             "profiles",
+            "profiles-recognition",
             "human-editor",
             "pet-editor",
             "resolver",
@@ -109,6 +113,7 @@ class Issue58ScreenshotMatrixTest {
     private fun Scenario(name: String) {
         when (name) {
             "profiles", "profiles-empty" -> Profiles(empty = name.endsWith("empty"))
+            "profiles-recognition" -> Recognition()
             "human-editor", "human-editor-font200" -> HumanEditor(HUMAN_NAME)
             "human-editor-long" -> HumanEditor(LONG_HUMAN_NAME)
             "human-editor-saving" -> HumanEditor(HUMAN_NAME, busy = true)
@@ -133,6 +138,18 @@ class Issue58ScreenshotMatrixTest {
                 PetMeasurementUiState.ConnectionError(PET, 71.8, "Весы недоступны"),
             )
         }
+    }
+
+    @Composable
+    private fun Recognition() {
+        WeightRecognitionSetting(
+            state = WeightDeltaEditorState(input = "3,0"),
+            onStateChanged = {},
+            onSave = {},
+            ignoreUnknownMeasurements = false,
+            onIgnoreUnknownMeasurementsChanged = {},
+            modifier = Modifier.padding(16.dp),
+        )
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -184,8 +201,8 @@ class Issue58ScreenshotMatrixTest {
             state = MeasurementResolverUiState(
                 pending = PENDING,
                 accountOptions = listOf(
-                    ResolverAccountOption(HUMAN.id, HUMAN.displayName, true, 0.3, 72.0),
                     ResolverAccountOption(SECOND_HUMAN.id, SECOND_HUMAN.displayName, false),
+                    ResolverAccountOption(HUMAN.id, HUMAN.displayName, true, 0.3, 72.0),
                 ),
                 ignoreUnknownMeasurements = false,
                 operationInProgress = busy,
