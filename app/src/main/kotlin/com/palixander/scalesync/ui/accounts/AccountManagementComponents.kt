@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -619,6 +622,7 @@ fun AccountEditorScreen(
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(IntrinsicSize.Min)
                         .testTag(AccountManagementTestTags.EditorSexGroup)
                         .semantics {
                             contentDescription = "Пол"
@@ -627,12 +631,13 @@ fun AccountEditorScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     SexChoice("♂ Мужчина", Sex.MALE, draft.sex, !operationInProgress,
-                        Modifier.weight(1f).focusRequester(sexFocus)
+                        Modifier.weight(1f).fillMaxHeight().focusRequester(sexFocus)
                             .testTag(AccountManagementTestTags.EditorSexMale)) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
                     SexChoice("♀ Женщина", Sex.FEMALE, draft.sex, !operationInProgress,
-                        Modifier.weight(1f).testTag(AccountManagementTestTags.EditorSexFemale)) {
+                        Modifier.weight(1f).fillMaxHeight()
+                            .testTag(AccountManagementTestTags.EditorSexFemale)) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
                 }

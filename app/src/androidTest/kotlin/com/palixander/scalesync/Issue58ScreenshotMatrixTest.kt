@@ -22,6 +22,7 @@ import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetMeasurement as DomainPetMeasurement
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
@@ -46,6 +47,8 @@ import com.palixander.scalesync.ui.routing.calculateUnsavedPreview
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import org.junit.Rule
 import org.junit.Test
@@ -157,6 +160,7 @@ class Issue58ScreenshotMatrixTest {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun Profiles(empty: Boolean) {
+        check(formatLatestPetWeight(PET_WITH_LATEST_WEIGHT) == "5,4 кг · вчера, 19:32")
         Scaffold(topBar = { TopAppBar(title = { Text("Профили и питомцы") }) }) { padding ->
             AccountManagementSection(
                 state = if (empty) AccountManagementUiState() else AccountManagementUiState(
@@ -165,13 +169,11 @@ class Issue58ScreenshotMatrixTest {
                 ),
                 callbacks = AccountManagementCallbacks.None,
                 pets = if (empty) emptyList() else listOf(
-                    PetWithLatestWeight(PET, null),
+                    PET_WITH_LATEST_WEIGHT,
                     PetWithLatestWeight(SECOND_PET, null),
                 ),
                 petSpeciesLabel = { if (it.pet.species == PetSpecies.CAT) "Кошка" else "Собака" },
-                petWeightLabel = {
-                    if (it.pet.id == PET.id) "5,4 кг · вчера, 19:32" else "—"
-                },
+                petWeightLabel = { formatLatestPetWeight(it) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -303,6 +305,19 @@ class Issue58ScreenshotMatrixTest {
             createdAt = NOW,
             updatedAt = NOW,
             sex = PetSex.MALE,
+        )
+        val PET_WITH_LATEST_WEIGHT = PetWithLatestWeight(
+            pet = PET,
+            latestMeasurement = DomainPetMeasurement(
+                id = "barsik-latest",
+                petId = PET.id,
+                measuredAt = LocalDate.now(ZoneId.systemDefault()).minusDays(1)
+                    .atTime(LocalTime.of(19, 32))
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant(),
+                firstWeightKg = 71.8,
+                secondWeightKg = 77.2,
+            ),
         )
         val PENDING = PendingMeasurement(
             PendingMeasurementId("issue58"), "AA:BB:CC:DD:EE:FF", NOW,

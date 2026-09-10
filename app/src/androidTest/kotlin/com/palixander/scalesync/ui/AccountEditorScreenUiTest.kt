@@ -127,6 +127,8 @@ class AccountEditorScreenUiTest {
             .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
             .getUnclippedBoundsInRoot()
         assertEquals(male.right - male.left, female.right - female.left)
+        assertEquals(male.bottom - male.top, female.bottom - female.top)
+        assertTrue(male.bottom > male.top)
         assertTrue(male.right <= female.left)
     }
 
