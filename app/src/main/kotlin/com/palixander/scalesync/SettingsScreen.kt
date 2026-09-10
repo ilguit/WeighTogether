@@ -82,8 +82,6 @@ import com.palixander.scalesync.ui.settings.SettingsStatusMark
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.text.NumberFormat
-import java.time.Instant
-import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -325,7 +323,6 @@ private fun russianCount(count: Int, one: String, few: String, many: String): St
 
 internal fun formatLatestPetWeight(
     weightKg: Double?,
-    measuredAt: Instant? = null,
     locale: Locale = Locale.getDefault(),
 ): String = weightKg?.let {
     val formatted = NumberFormat.getNumberInstance(locale).run {
@@ -333,9 +330,8 @@ internal fun formatLatestPetWeight(
         maximumFractionDigits = 2
         format(it)
     }
-    val date = measuredAt?.atZone(ZoneId.systemDefault())?.format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
-    listOfNotNull("$formatted кг", date).joinToString(" · ")
-} ?: ""
+    "Последний вес: $formatted кг"
+} ?: "Измерений пока нет"
 
 internal const val BACKUP_REPLACE_WARNING =
     "Все локальные профили, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
@@ -899,7 +895,7 @@ private fun SettingsProfilesContent(
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
                     petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg, it.latestMeasuredAt) },
+                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
                 )
             }
             item {
@@ -1163,7 +1159,7 @@ private fun LegacySettingsScreen(
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
                             petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                            petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg, it.latestMeasuredAt) },
+                            petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
                         )
                         WeightRecognitionSetting(
                             state = state.weightDeltaEditor,

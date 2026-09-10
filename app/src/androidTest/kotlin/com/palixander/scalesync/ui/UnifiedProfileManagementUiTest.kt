@@ -3,7 +3,6 @@ package com.palixander.scalesync.ui
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.performClick
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
@@ -45,15 +44,14 @@ class UnifiedProfileManagementUiTest {
             }
         }
 
-        composeRule.onNodeWithText("Профили").assertExists()
+        composeRule.onNodeWithText("Люди").assertExists()
         composeRule.onNodeWithText("Питомцы").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PeopleGroup).assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PetsGroup).assertExists()
-        composeRule.onNodeWithText("Человек").assertDoesNotExist()
-        composeRule.onNodeWithText("Питомец · Кошка").assertDoesNotExist()
+        composeRule.onNodeWithText("Человек").assertExists()
+        composeRule.onNodeWithText("Питомец · Кошка").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(AccountManagementTestTags.petRow(pet.pet.id)).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.petMenu(pet.pet.id)).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.petEdit(pet.pet.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.petDelete(pet.pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(listOf("pet-edit", "pet-delete"), actions) }
     }
@@ -70,7 +68,6 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.row(human.id)).assertExists()
-        composeRule.onNodeWithTag(AccountManagementTestTags.humanMenu(human.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertExists()
     }
 
@@ -98,13 +95,6 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.Empty).assertExists()
-        val peopleBounds = composeRule.onNodeWithTag(AccountManagementTestTags.PeopleGroup)
-            .getUnclippedBoundsInRoot()
-        val addBounds = composeRule.onNodeWithTag(AccountManagementTestTags.Add)
-            .getUnclippedBoundsInRoot()
-        val peopleWidth = peopleBounds.right - peopleBounds.left
-        val addWidth = addBounds.right - addBounds.left
-        assertEquals(peopleWidth, addWidth)
     }
 
     private fun account() = Account(

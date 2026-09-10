@@ -1,19 +1,10 @@
 package com.palixander.scalesync.ui
 
 import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.test.DeviceConfigurationOverride
-import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
-import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -23,12 +14,10 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.DpSize
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
@@ -37,13 +26,11 @@ import com.palixander.scalesync.domain.AccountUpdate
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
-import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.ProfileUpdateConfirmation
-import com.palixander.scalesync.ui.accounts.PrimaryAccountChangeRequest
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
 import com.palixander.scalesync.ui.accounts.AccountEditorDialog
 import com.palixander.scalesync.ui.accounts.AccountEditorDraft
@@ -214,97 +201,6 @@ class MultiAccountComponentsTest {
     }
 
     @Test
-    fun primaryChangeUsesFullScreenChoicesAndPinnedContinueAt320Dp() {
-        val account = account("secondary", "Очень длинное имя нового основного профиля")
-        var selectedMode: PrimaryHistorySyncMode? = null
-        var confirmed: Pair<AccountId, PrimaryHistorySyncMode>? = null
-        composeRule.setContent {
-            var state by remember {
-                mutableStateOf(
-                    AccountManagementUiState(
-                        accounts = listOf(account),
-                        primaryChange = PrimaryAccountChangeRequest(account.id),
-                    ),
-                )
-            }
-            DeviceConfigurationOverride(
-                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 640.dp)),
-            ) {
-                ScaleSyncTheme {
-                    AccountManagementSection(
-                        state = state,
-                        callbacks = AccountManagementCallbacks.None.copy(
-                            onAction = { action ->
-                                if (action is com.palixander.scalesync.ui.accounts.AccountManagementAction.SyncModeSelected) {
-                                    selectedMode = action.mode
-                                    state = state.copy(
-                                        primaryChange = state.primaryChange?.copy(
-                                            historySyncMode = action.mode,
-                                        ),
-                                    )
-                                }
-                            },
-                            onSetPrimary = { accountId, mode -> confirmed = accountId to mode },
-                        ),
-                    )
-                }
-            }
-        }
-
-        val screen = composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChange)
-            .assertIsDisplayed().getUnclippedBoundsInRoot()
-        assertEquals(320.dp, screen.right - screen.left)
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeBack).assertIsDisplayed()
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeFutureOnly)
-            .assertIsSelected().assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeIncludeHistory)
-            .assertHeightIsAtLeast(48.dp).performClick().assertIsSelected()
-        composeRule.onNodeWithText("Очень длинное имя нового основного профиля", substring = true)
-            .assertExists()
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeContinue)
-            .assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick()
-
-        composeRule.runOnIdle {
-            assertEquals(PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY, selectedMode)
-            assertEquals(
-                account.id to PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
-                confirmed,
-            )
-        }
-    }
-
-    @Test
-    fun primaryChangeDisablesDismissAndShowsErrorWhileApplying() {
-        val account = account("secondary", "Анна")
-        var dismissals = 0
-        composeRule.setContent {
-            ScaleSyncTheme {
-                AccountManagementSection(
-                    state = AccountManagementUiState(
-                        accounts = listOf(account),
-                        primaryChange = PrimaryAccountChangeRequest(account.id),
-                        operationInProgress = true,
-                        operationError = "Не удалось изменить основной профиль",
-                    ),
-                    callbacks = AccountManagementCallbacks.None.copy(
-                        onAction = { dismissals += 1 },
-                    ),
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeBack).assertIsNotEnabled()
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeContinue)
-            .assertIsNotEnabled().assertTextEquals("Применение…")
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeFutureOnly)
-            .assertIsNotEnabled()
-        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeIncludeHistory)
-            .assertIsNotEnabled()
-        composeRule.onNodeWithTag(AccountManagementTestTags.OperationError).assertIsDisplayed()
-        composeRule.runOnIdle { assertEquals(0, dismissals) }
-    }
-
-    @Test
     fun sharedSelectorExposesFallbackAndSelectsAccount() {
         val primary = account("primary", "Анна")
         val state = reconcileAccountSelection(
@@ -358,46 +254,6 @@ class MultiAccountComponentsTest {
 
         composeRule.onNodeWithTag(MeasurementResolverTestTags.account(any.id)).performClick()
         composeRule.runOnIdle { assertEquals(any.id, selected) }
-    }
-
-    @Test
-    fun resolverUsesApprovedTerminologyWithoutExposingMatchingAlgorithm() {
-        val recommended = account("recommended", "Анна")
-        val suitable = account("suitable", "Борис")
-        composeRule.setContent {
-            ScaleSyncTheme {
-                MeasurementResolverDialog(
-                    state = MeasurementResolverUiState(
-                        pending = pending(),
-                        accountOptions = listOf(
-                            ResolverAccountOption(
-                                recommended.id,
-                                recommended.displayName,
-                                isPrimary = true,
-                                differenceKg = 0.2,
-                                medianWeightKg = 69.8,
-                            ),
-                            ResolverAccountOption(
-                                suitable.id,
-                                suitable.displayName,
-                                isPrimary = false,
-                                differenceKg = 0.8,
-                                medianWeightKg = 69.2,
-                            ),
-                        ),
-                    ),
-                    callbacks = MeasurementResolverCallbacks.None,
-                )
-            }
-        }
-
-        composeRule.onNodeWithText("Неназначенное измерение").assertIsDisplayed()
-        composeRule.onNodeWithText("Кому назначить это измерение?").assertIsDisplayed()
-        composeRule.onNodeWithText("Рекомендуется").assertIsDisplayed()
-        composeRule.onNodeWithText("Подходит").assertIsDisplayed()
-        composeRule.onNodeWithText("Решить позже").assertIsDisplayed()
-        composeRule.onAllNodesWithText("разница", substring = true).assertCountEquals(0)
-        composeRule.onNodeWithText("Кому сохранить измерение?").assertDoesNotExist()
     }
 
     @Test
@@ -561,154 +417,6 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithText("Выбрать").assertIsDisplayed().performClick()
 
         composeRule.runOnIdle { assertEquals(birthDate, changedDraft?.birthDate) }
-    }
-
-    @Test
-    fun accountEditorUsesFullScreenOrderedLayoutAt320Dp() {
-        val draft = AccountEditorDraft(
-            name = "Анна",
-            heightCm = "170",
-            birthDate = LocalDate.of(2000, 2, 29),
-            sex = Sex.FEMALE,
-        )
-        composeRule.setContent {
-            DeviceConfigurationOverride(
-                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 640.dp)),
-            ) {
-                ScaleSyncTheme {
-                    AccountEditorDialog(
-                        draft = draft,
-                        accounts = emptyList(),
-                        operationInProgress = false,
-                        onDraftChanged = {},
-                        onCreate = {},
-                        onUpdate = {},
-                        onDismiss = {},
-                    )
-                }
-            }
-        }
-
-        val editor = composeRule.onNodeWithTag(AccountManagementTestTags.Editor)
-            .assertIsDisplayed().getUnclippedBoundsInRoot()
-        val name = composeRule.onNodeWithTag(AccountManagementTestTags.EditorName)
-            .getUnclippedBoundsInRoot()
-        val male = composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale)
-            .assertHeightIsAtLeast(48.dp).getUnclippedBoundsInRoot()
-        val female = composeRule.onNodeWithTag(AccountManagementTestTags.EditorFemale)
-            .assertIsSelected().assertHeightIsAtLeast(48.dp).getUnclippedBoundsInRoot()
-        val birthDate = composeRule.onNodeWithTag(AccountManagementTestTags.EditorBirthDate)
-            .getUnclippedBoundsInRoot()
-        val height = composeRule.onNodeWithTag(AccountManagementTestTags.EditorHeight)
-            .getUnclippedBoundsInRoot()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave)
-            .assertIsDisplayed().assertHeightIsAtLeast(48.dp)
-
-        assertEquals(320.dp, editor.right - editor.left)
-        assertTrue(male.right <= female.left)
-        assertTrue(name.bottom <= male.top)
-        assertTrue(female.bottom <= birthDate.top)
-        assertTrue(birthDate.bottom <= height.top)
-    }
-
-    @Test
-    fun accountEditorBackConfirmsDirtyDraftAndKeepsEnteredData() {
-        var dismissals = 0
-        composeRule.setContent {
-            var draft by remember {
-                mutableStateOf(
-                    AccountEditorDraft(
-                        name = "Анна",
-                        heightCm = "170",
-                        birthDate = LocalDate.of(2000, 2, 29),
-                        sex = Sex.FEMALE,
-                    ),
-                )
-            }
-            ScaleSyncTheme {
-                AccountEditorDialog(
-                    draft = draft,
-                    accounts = emptyList(),
-                    operationInProgress = false,
-                    onDraftChanged = { draft = it },
-                    onCreate = {},
-                    onUpdate = {},
-                    onDismiss = { dismissals++ },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
-        composeRule.onNodeWithText("Отказаться от изменений?").assertIsDisplayed()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorKeepEditing).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale).assertIsSelected()
-        composeRule.runOnIdle { assertEquals(0, dismissals) }
-
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorDiscard).performClick()
-        composeRule.runOnIdle { assertEquals(1, dismissals) }
-    }
-
-    @Test
-    fun accountEditorBackDismissesUnchangedDraftImmediately() {
-        var dismissals = 0
-        composeRule.setContent {
-            ScaleSyncTheme {
-                AccountEditorDialog(
-                    draft = AccountEditorDraft.add(),
-                    accounts = emptyList(),
-                    operationInProgress = false,
-                    onDraftChanged = {},
-                    onCreate = {},
-                    onUpdate = {},
-                    onDismiss = { dismissals++ },
-                )
-            }
-        }
-
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
-        composeRule.runOnIdle { assertEquals(1, dismissals) }
-        composeRule.onNodeWithText("Отказаться от изменений?").assertDoesNotExist()
-    }
-
-    @Test
-    fun accountEditorInvalidSaveFocusesFirstErrorAndScrollsHeightIntoView() {
-        var draft by mutableStateOf(AccountEditorDraft.add())
-        var creates = 0
-        composeRule.setContent {
-            DeviceConfigurationOverride(
-                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 480.dp)),
-            ) {
-                ScaleSyncTheme {
-                    AccountEditorDialog(
-                        draft = draft,
-                        accounts = emptyList(),
-                        operationInProgress = false,
-                        onDraftChanged = { draft = it },
-                        onCreate = { creates++ },
-                        onUpdate = {},
-                        onDismiss = {},
-                    )
-                }
-            }
-        }
-
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorName).assertIsFocused()
-        composeRule.runOnIdle {
-            assertEquals(0, creates)
-            draft = draft.copy(
-                name = "Анна",
-                sex = Sex.FEMALE,
-                birthDate = LocalDate.of(2000, 2, 29),
-            )
-        }
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.EditorHeight)
-            .assertIsFocused()
-            .assertIsDisplayed()
-        composeRule.runOnIdle { assertEquals(0, creates) }
     }
 
     @Test

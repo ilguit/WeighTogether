@@ -71,11 +71,13 @@ class MeasurementsScreenTest {
             isLoading = false, measurements = listOf(item), summary = buildMeasurementSummary(listOf(item)),
         ))
         composeRule.setContent { ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) } }
-        composeRule.onNodeWithTag("summary-measurement-origin").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-manual-origin").assertIsDisplayed()
         captureManualWeightEvidence("manual-weight-summary")
         composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
-        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsDisplayed()
-        composeRule.onNodeWithContentDescription("Источник: ручной ввод").assertIsDisplayed()
+        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Введено вручную").assertIsDisplayed()
+        composeRule.onNodeWithTag("manual-origin-dismiss").performClick()
+        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsFocused()
         captureManualWeightEvidence("manual-weight-history")
     }
 
@@ -673,6 +675,7 @@ class MeasurementsScreenTest {
 
         composeRule.runOnIdle { state = sampleState() }
 
+        composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
         composeRule.onNodeWithTag("summary-delete-measurement").performClick()
         composeRule.onNodeWithTag("delete-measurement-dialog").assertIsDisplayed()
         composeRule.onNodeWithText("Удалить измерение?").assertIsDisplayed()

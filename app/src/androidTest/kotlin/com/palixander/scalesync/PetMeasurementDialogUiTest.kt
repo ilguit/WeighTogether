@@ -14,7 +14,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
-import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
@@ -33,18 +32,13 @@ class PetMeasurementDialogUiTest {
     @Test
     fun selectionShowsLatestValueAndCanStartExistingPet() {
         val pet = pet("cat", "Барсик")
-        val scalePet = pet("dog", "Бим")
         var selected: PetId? = null
         setDialog(
             state = PetMeasurementUiState.SelectingPet,
             pets = listOf(
                 PetWithLatestWeight(
                     pet,
-                    measurement(pet.id, first = 70.0, second = 74.25, origin = MeasurementOrigin.MANUAL),
-                ),
-                PetWithLatestWeight(
-                    scalePet,
-                    measurement(scalePet.id, first = 70.0, second = 80.0),
+                    measurement(pet.id, first = 70.0, second = 74.25),
                 ),
             ),
             callbacks = callbacks(onStart = { selected = it }),
@@ -52,10 +46,6 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithContentDescription("Барсик. Последний вес:", substring = true)
             .assertIsDisplayed()
-        composeRule.onNodeWithTag("pet-latest-measurement-origin-${pet.id}")
-            .assertIsDisplayed()
-        composeRule.onNodeWithTag("pet-latest-measurement-origin-${scalePet.id}")
-            .assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.pet(pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(pet.id, selected) }
     }
@@ -245,13 +235,11 @@ class PetMeasurementDialogUiTest {
         petId: PetId,
         first: Double,
         second: Double,
-        origin: MeasurementOrigin = MeasurementOrigin.SCALE,
     ) = PetMeasurement(
         id = "measurement-${petId.value}",
         petId = petId,
         measuredAt = Instant.parse("2026-08-26T01:02:03Z"),
         firstWeightKg = first,
         secondWeightKg = second,
-        origin = origin,
     )
 }

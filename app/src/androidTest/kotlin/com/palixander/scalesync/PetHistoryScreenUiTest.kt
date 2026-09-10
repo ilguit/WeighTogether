@@ -38,7 +38,6 @@ import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.core.reference.ReferenceBasis
-import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
@@ -296,16 +295,10 @@ class PetHistoryScreenUiTest {
     }
 
     @Test fun oneAndMultipleMeasurementsRenderStableRows() {
-        val first = row("one").copy(origin = MeasurementOrigin.SCALE)
+        val first = row("one")
         val second = row("two")
         setScreen(state(PetHistoryContent.Single(first)))
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()
-        composeRule.onNodeWithTag("pet-history-measurement-origin-one")
-            .assertIsDisplayed()
-            .performClick()
-        composeRule.onNodeWithText("Измерение получено с весов").assertIsDisplayed()
-        composeRule.onNodeWithTag("measurement-origin-dismiss").performClick()
-        composeRule.onNodeWithTag("pet-history-measurement-origin-one").assertIsFocused()
         composeRule.runOnIdle { }
         setScreen(state(PetHistoryContent.Multiple(listOf(first, second))))
         composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("one")).assertIsDisplayed()

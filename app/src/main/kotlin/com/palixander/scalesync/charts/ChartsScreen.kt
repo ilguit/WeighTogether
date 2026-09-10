@@ -146,7 +146,7 @@ fun ChartsScreen(
             }
         }
         when {
-            state.isLoading && state.series.none { it.points.isNotEmpty() } -> item {
+            state.isLoading -> item {
                 Box(
                     Modifier.fillMaxWidth().padding(32.dp),
                     contentAlignment = Alignment.Center,
@@ -161,22 +161,7 @@ fun ChartsScreen(
                 ChartsEmptyState(onChooseMetrics = callbacks.openMetricFilter)
             }
 
-            state.series.none { it.points.isNotEmpty() } -> item {
-                ChartsNoDataState(
-                    onChangePeriod = callbacks.openRangeFilter,
-                    onChangeMetrics = callbacks.openMetricFilter,
-                )
-            }
-
             else -> {
-                if (state.isLoading) item {
-                    Text(
-                        text = "Обновление графиков…",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.semantics { contentDescription = "Графики обновляются" },
-                    )
-                }
                 val seriesByKey = state.series.associateBy { it.metric.key }
                 items(state.selectedMetrics, key = ChartMetricOption::key) { metric ->
                     MetricChartCard(
@@ -518,30 +503,6 @@ private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
 }
 
 @Composable
-private fun ChartsNoDataState(
-    onChangePeriod: () -> Unit,
-    onChangeMetrics: () -> Unit,
-) {
-    HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-        ) {
-            Text("Нет данных за выбранный период", style = MaterialTheme.typography.titleMedium)
-            Text(
-                "Измените период или набор показателей.",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                textAlign = TextAlign.Center,
-            )
-            Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                TextButton(onClick = onChangePeriod) { Text("Изменить период") }
-                TextButton(onClick = onChangeMetrics) { Text("Показатели") }
-            }
-        }
-    }
-}
-
-@Composable
 internal fun MetricChartCard(
     series: ChartSeries,
     startDate: LocalDate,
@@ -656,16 +617,11 @@ internal fun MetricChartCard(
                             startDate = startDate,
                             endDateInclusive = endDateInclusive,
                             zoneId = zoneId,
-                            contentDescription = chartContentDescription(
-                                metric = series.metric,
-                                points = points,
-                                startDate = startDate,
-                                endDateInclusive = endDateInclusive,
-                                zoneId = zoneId,
-                                minimum = minimum,
-                                maximum = maximum,
-                                delta = summary.delta,
-                            ),
+                            contentDescription = buildString {
+                                append("График: ${series.metric.displayName}. ")
+                                append("Последнее значение: $currentValue. ")
+                                append("Изменение к предыдущему: $delta")
+                            },
                             modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                         )
                     }
@@ -684,31 +640,6 @@ internal fun MetricChartCard(
             }
         }
     }
-}
-
-private fun chartContentDescription(
-    metric: ChartMetricOption,
-    points: List<ChartPoint>,
-    startDate: LocalDate,
-    endDateInclusive: LocalDate,
-    zoneId: ZoneId,
-    minimum: String,
-    maximum: String,
-    delta: Double?,
-): String {
-    val first = points.first()
-    val last = points.last()
-    val direction = when {
-        delta == null -> "направление не определено"
-        delta > 0 -> "рост"
-        delta < 0 -> "снижение"
-        else -> "без изменения"
-    }
-    return "${metric.displayName}. Период ${DateFormatter.format(startDate)} — " +
-        "${DateFormatter.format(endDateInclusive)}. Точек: ${points.size}. " +
-        "Первое: ${formatChartMarkerText(first, metric, zoneId)}. " +
-        "Последнее: ${formatChartMarkerText(last, metric, zoneId)}. " +
-        "Минимум: $minimum. Максимум: $maximum. $direction."
 }
 
 object MetricChartTestTags {

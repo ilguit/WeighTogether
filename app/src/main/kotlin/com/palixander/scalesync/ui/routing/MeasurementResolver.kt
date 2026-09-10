@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui.routing
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +12,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -21,8 +21,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
@@ -80,14 +83,14 @@ fun MeasurementResolverDialog(
         onDismissRequest = {
             if (!state.operationInProgress) callbacks.onLater()
         },
-        title = { Text("Неназначенное измерение") },
+        title = { Text("Кому сохранить измерение?") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
                 Text(
-                    "${formatLocalizedDecimal(state.pending.weightKg)} кг",
+                    "${formatLocalizedDecimal(state.pending.weightKg)} кг · импеданс ${state.pending.impedanceOhm} Ом",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
@@ -95,26 +98,16 @@ fun MeasurementResolverDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Text(
-                    "Кому назначить это измерение?",
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                if (state.operationInProgress) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().semantics {
-                            contentDescription = "Назначение измерения выполняется"
-                        },
-                        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        CircularProgressIndicator()
-                        Text("Выполняется…")
-                    }
+                if (state.candidateCount > 0) {
+                    Text(
+                        "Сначала показаны подходящие профили",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
                 }
-                state.accountOptions.forEachIndexed { index, option ->
+                state.accountOptions.forEach { option ->
                     ResolverAccountButton(
                         option = option,
-                        recommended = index == 0 && option.isCandidate,
                         enabled = !state.operationInProgress,
                         onClick = {
                             callbacks.onAccountSelected(state.pending.id, option.accountId)
@@ -173,7 +166,7 @@ fun MeasurementResolverDialog(
                 onClick = callbacks.onLater,
                 enabled = !state.operationInProgress,
                 modifier = Modifier.testTag(MeasurementResolverTestTags.Later),
-            ) { Text("Решить позже") }
+            ) { Text("Позже") }
         },
     )
 }
@@ -181,31 +174,54 @@ fun MeasurementResolverDialog(
 @Composable
 private fun ResolverAccountButton(
     option: ResolverAccountOption,
-    recommended: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val supportingText = if (recommended) "Рекомендуется" else null
+    val supportingText = if (option.isCandidate) {
+        "Подходит · разница ${formatLocalizedDecimal(requireNotNull(option.differenceKg))} кг"
+    } else {
+        "Другой профиль"
+    }
     val primaryDescription = if (option.isPrimary) ". Основной профиль" else ""
-    OutlinedButton(
+    Surface(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(MeasurementResolverTestTags.account(option.accountId))
             .semantics {
-                contentDescription = buildString {
-                    append(option.displayName)
-                    supportingText?.let { append(". ").append(it) }
-                    append(primaryDescription)
-                }
+                role = Role.Button
+                contentDescription = "${option.displayName}. $supportingText$primaryDescription"
             },
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(
+            1.dp,
+            if (option.isCandidate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
+        ),
+        color = if (option.isCandidate) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surface
+        },
     ) {
-        Column(Modifier.fillMaxWidth()) {
-            Text(option.displayName, style = MaterialTheme.typography.titleSmall)
-            supportingText?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall)
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    text = option.displayName,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = supportingText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
+            if (option.isPrimary) Text("Основной", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

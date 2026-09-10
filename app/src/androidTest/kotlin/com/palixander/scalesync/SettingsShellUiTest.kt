@@ -15,7 +15,6 @@ import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
-import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
@@ -54,10 +53,7 @@ import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorTestTags
-import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
-import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
-import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
@@ -66,44 +62,6 @@ import org.junit.Test
 class SettingsShellUiTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
-
-    @Test
-    fun recognitionUsesApprovedCopyAndStacksControlsAt320Dp() {
-        composeRule.setContent {
-            ScaleSyncTheme {
-                Box(Modifier.width(320.dp)) {
-                    WeightRecognitionSetting(
-                        state = WeightDeltaEditorState.from(3.0),
-                        onStateChanged = {},
-                        onSave = {},
-                        ignoreUnknownMeasurements = false,
-                        onIgnoreUnknownMeasurementsChanged = {},
-                    )
-                }
-            }
-        }
-
-        composeRule.onNodeWithText("Распознавание измерений").assertIsDisplayed()
-        composeRule.onNodeWithText("Допуск по весу, кг").assertExists()
-        composeRule.onNodeWithTag(WeightDeltaEditorTestTags.Explanation)
-            .assertTextEquals(
-                "Больший допуск повышает вероятность автоматического назначения " +
-                    "и неверного совпадения.",
-            )
-        composeRule.onNodeWithText("Распознавание профиля").assertDoesNotExist()
-        composeRule.onNodeWithText("Дельта веса, кг").assertDoesNotExist()
-
-        val section = composeRule.onNodeWithTag(WeightDeltaEditorTestTags.Section)
-            .getUnclippedBoundsInRoot()
-        val input = composeRule.onNodeWithTag(WeightDeltaEditorTestTags.Input)
-            .getUnclippedBoundsInRoot()
-        val save = composeRule.onNodeWithTag(WeightDeltaEditorTestTags.Save)
-            .assertHeightIsAtLeast(48.dp)
-            .getUnclippedBoundsInRoot()
-        assertTrue(input.left >= section.left && input.right <= section.right)
-        assertTrue(save.left >= section.left && save.right <= section.right)
-        assertTrue(input.bottom <= save.top)
-    }
 
     @Test
     fun profilesDetailReplacesLegacyProfileAndOpensProfileEditor() {

@@ -5,20 +5,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.horizontalScroll
-import androidx.compose.foundation.relocation.BringIntoViewRequester
-import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.isTraversalGroup
-import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
@@ -38,30 +32,21 @@ fun ProfileSelector(
     onProfileSelected: (ProfileKey) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val scrollState = rememberScrollState()
-    val orderedProfiles = remember(state.profiles) {
-        state.profiles.filterIsInstance<ProfilePresentation.Human>() +
-            state.profiles.filterIsInstance<ProfilePresentation.Pet>()
-    }
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag(ProfileSelectorTestTags.Selector)
-            .semantics {
-                contentDescription = "Профили и питомцы"
-                isTraversalGroup = true
-            },
+            .semantics { contentDescription = "Выбор профиля" },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        Text("Профили и питомцы", style = MaterialTheme.typography.labelLarge)
+        Text("Профиль", style = MaterialTheme.typography.labelLarge)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(scrollState)
-                .semantics { selectableGroup() },
+                .horizontalScroll(rememberScrollState()),
             horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
-            orderedProfiles.forEach { profile ->
+            state.profiles.forEach { profile ->
                 val kind = if (profile is ProfilePresentation.Human) "человек" else "питомец"
                 val tag = when (val key = profile.key) {
                     is ProfileKey.Human -> ProfileSelectorTestTags.human(key.accountId.value)
@@ -72,13 +57,7 @@ fun ProfileSelector(
                     icon = profile.selectorIcon(),
                     selected = profile.key == state.selectedKey,
                     onClick = { onProfileSelected(profile.key) },
-                    modifier = Modifier
-                        .then(bringSelectedIntoHorizontalView(
-                            selected = profile.key == state.selectedKey,
-                            scrollState = scrollState,
-                        ))
-                        .testTag(tag)
-                        .semantics {
+                    modifier = Modifier.testTag(tag).semantics {
                         contentDescription = "${profile.displayName}, $kind"
                     },
                 )
@@ -93,18 +72,6 @@ fun ProfileSelector(
             )
         }
     }
-}
-
-@Composable
-private fun bringSelectedIntoHorizontalView(
-    selected: Boolean,
-    scrollState: androidx.compose.foundation.ScrollState,
-): Modifier {
-    val requester = remember { BringIntoViewRequester() }
-    LaunchedEffect(selected, scrollState.maxValue) {
-        if (selected && scrollState.maxValue > 0) requester.bringIntoView()
-    }
-    return Modifier.bringIntoViewRequester(requester)
 }
 
 internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {

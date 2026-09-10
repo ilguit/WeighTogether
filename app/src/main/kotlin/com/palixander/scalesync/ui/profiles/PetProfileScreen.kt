@@ -1,6 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
-import com.palixander.scalesync.ui.components.MeasurementOriginIndicator
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -56,8 +56,6 @@ object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
     fun shell(petId: String) = "$Shell-$petId"
     const val StartMeasurement = "pet-history-start-measurement"
-    const val PetName = "pet-history-pet-name"
-    const val LatestMeasurement = "pet-history-latest-measurement"
     const val AddWeight = "pet-history-add-weight"
     const val Summary = "pet-profile-summary"
     const val Edit = "pet-profile-edit"
@@ -126,48 +124,6 @@ internal fun PetProfileScreen(
             .semantics { contentDescription = "История измерений питомца ${state.pet?.displayName.orEmpty()}" },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
     ) {
-        state.pet?.takeUnless { state.isNotFound }?.let { pet ->
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        text = pet.displayName,
-                        style = MaterialTheme.typography.headlineMedium,
-                        maxLines = 2,
-                        modifier = Modifier.weight(1f).testTag(PetProfileScreenTestTags.PetName)
-                            .semantics { heading() },
-                    )
-                    TextButton(onClick = { onEditPet(pet) }) { Text("Изменить") }
-                }
-            }
-            state.measurements.maxByOrNull { it.measuredAtEpochSecond }?.let { latest ->
-                item {
-                    HuaweiSurface(
-                        modifier = Modifier.fillMaxWidth()
-                            .testTag(PetProfileScreenTestTags.LatestMeasurement)
-                            .semantics(mergeDescendants = true) {
-                                contentDescription = "Последнее измерение. ${latest.weightText}, ${latest.measuredAtText}"
-                            },
-                    ) {
-                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                            Text("Последнее измерение", style = MaterialTheme.typography.labelLarge)
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(latest.weightText, style = MaterialTheme.typography.headlineSmall)
-                                MeasurementOriginIndicator(latest.origin)
-                            }
-                            Text(
-                                latest.measuredAtText,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.bodySmall,
-                            )
-                        }
-                    }
-                }
-            }
-        }
         item {
             Button(
                 onClick = onStartMeasurement,
@@ -175,6 +131,15 @@ internal fun PetProfileScreen(
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.StartMeasurement)
                     .semantics { contentDescription = "Взвесить питомца ${state.pet?.displayName.orEmpty()}" },
             ) { Text("Взвесить питомца") }
+        }
+        state.pet?.takeUnless { state.isNotFound }?.let { pet ->
+            item {
+                PetProfileSummaryCard(
+                    pet = pet,
+                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog),
+                    onEdit = { onEditPet(pet) },
+                )
+            }
         }
         item {
             Row(
@@ -233,27 +198,25 @@ internal fun PetProfileScreen(
                         }
                     }
                 }
-                if (state.measurements.isNotEmpty()) {
-                    item {
-                        PetHistoryBreedReferenceCard(
-                            reference = state.breedReference,
-                            onEdit = { state.pet?.let(onEditPet) },
+                item {
+                    PetHistoryBreedReferenceCard(
+                        reference = state.breedReference,
+                        onEdit = { state.pet?.let(onEditPet) },
+                        sourceLauncher = sourceLauncher,
+                    )
+                }
+                item {
+                    Column(Modifier.testTag(PetProfileScreenTestTags.Chart)) {
+                        PetWeightReferenceChartCard(
+                            series = state.series,
+                            reference = state.weightReference,
+                            breedReference = state.breedReference,
+                            breedReferenceTimeline = state.breedReferenceTimeline,
+                            startDate = state.startDate,
+                            endDateInclusive = state.endDateInclusive,
+                            zoneId = java.time.ZoneId.systemDefault(),
                             sourceLauncher = sourceLauncher,
                         )
-                    }
-                    item {
-                        Column(Modifier.testTag(PetProfileScreenTestTags.Chart)) {
-                            PetWeightReferenceChartCard(
-                                series = state.series,
-                                reference = state.weightReference,
-                                breedReference = state.breedReference,
-                                breedReferenceTimeline = state.breedReferenceTimeline,
-                                startDate = state.startDate,
-                                endDateInclusive = state.endDateInclusive,
-                                zoneId = java.time.ZoneId.systemDefault(),
-                                sourceLauncher = sourceLauncher,
-                            )
-                        }
                     }
                 }
                 item {
@@ -291,7 +254,7 @@ internal fun PetProfileScreen(
                                     Text(measurement.measuredAtText)
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
-                                        MeasurementOriginIndicator(measurement.origin, Modifier.testTag("pet-history-measurement-origin-${measurement.id}"))
+                                        ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
                                     }
                                 }
                                 Row {
@@ -312,15 +275,6 @@ internal fun PetProfileScreen(
                                 }
                             }
                         }
-                    }
-                }
-                state.pet?.let { pet ->
-                    item {
-                        PetProfileSummaryCard(
-                            pet = pet,
-                            summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog),
-                            onEdit = { onEditPet(pet) },
-                        )
                     }
                 }
             }

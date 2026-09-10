@@ -15,10 +15,8 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
-import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
@@ -387,7 +385,7 @@ class PetProfileEditorDialogUiTest {
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsNotEnabled()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Cancel).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SaveError)
             .performScrollTo()
             .assertIsDisplayed()
@@ -441,36 +439,6 @@ class PetProfileEditorDialogUiTest {
             errors.value = PetProfileFieldErrors(birthDate = PetBirthDateValidationError.FUTURE)
         }
         composeRule.onNodeWithText("Дата рождения не может быть в будущем").assertIsDisplayed()
-    }
-
-    @Test
-    fun invalidSaveFocusesFirstExternalFieldErrorAndScrollsLaterErrorIntoView() {
-        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
-        val errors = mutableStateOf(PetProfileFieldErrors())
-        var saves = 0
-        setEditor(
-            state = state,
-            errors = errors,
-            onSave = {
-                saves++
-                errors.value = PetProfileFieldErrors(
-                    displayName = PetNameValidationError.REQUIRED,
-                    species = PetSpeciesValidationError.REQUIRED,
-                )
-            },
-        )
-
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsFocused()
-        composeRule.runOnIdle {
-            errors.value = PetProfileFieldErrors(
-                dogAdultWeightCategory = DogAdultWeightCategoryValidationError.NOT_APPLICABLE,
-            )
-        }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryGroup)
-            .assertIsFocused()
-            .assertIsDisplayed()
-        composeRule.runOnIdle { assertEquals(1, saves) }
     }
 
     @Test
@@ -550,25 +518,8 @@ class PetProfileEditorDialogUiTest {
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Content)
             .assert(hasScrollAction())
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog)
-            .assertIsSelected()
-            .assertHeightIsAtLeast(48.dp)
-            .assert(
-                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton),
-            )
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale)
-            .assertIsSelected()
-            .assertHeightIsAtLeast(48.dp)
-            .assert(
-                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton),
-            )
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField)
-            .performScrollTo()
-            .assertHeightIsAtLeast(48.dp)
-            .assertIsDisplayed()
-            .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedPicker).assertIsDisplayed()
-        composeRule.onNodeWithText("Закрыть").performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog).assertIsSelected()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertIsSelected()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
             .performScrollTo()
             .assertContentDescriptionEquals("Очистить дату рождения питомца")
@@ -584,81 +535,6 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
             .assertIsDisplayed()
-    }
-
-    @Test
-    fun editorUsesFullScreenChromeAndCleanBackDismissesImmediately() {
-        val state = mutableStateOf(
-            PetProfileEditorState(
-                PetProfileDraft.create().copy(displayName = "Луна", species = PetSpecies.CAT),
-            ),
-        )
-        var dismisses = 0
-        setEditor(state, onDismiss = { dismisses++ })
-
-        composeRule.onNodeWithText("Новый питомец").assertIsDisplayed()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back)
-            .assertIsDisplayed()
-            .assertContentDescriptionEquals("Назад")
-            .performClick()
-        composeRule.runOnIdle { assertEquals(1, dismisses) }
-    }
-
-    @Test
-    fun dirtyBackRequiresConfirmationAndCanKeepEditing() {
-        val state = mutableStateOf(
-            PetProfileEditorState(
-                PetProfileDraft.create().copy(displayName = "Луна", species = PetSpecies.CAT),
-            ),
-        )
-        var dismisses = 0
-        setEditor(state, onDismiss = { dismisses++ })
-
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).performTextInput(" II")
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.DiscardConfirmation).assertIsDisplayed()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.KeepEditing).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Dialog).assertIsDisplayed()
-        composeRule.runOnIdle { assertEquals(0, dismisses) }
-
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Discard).performClick()
-        composeRule.runOnIdle { assertEquals(1, dismisses) }
-    }
-
-    @Test
-    fun narrowLargeFontKeepsStickySaveAndChoiceButtonsUsable() {
-        val state = mutableStateOf(
-            PetProfileEditorState(
-                PetProfileDraft.create().copy(
-                    displayName = "Бим",
-                    species = PetSpecies.DOG,
-                    sex = PetSex.MALE,
-                ),
-            ),
-        )
-        setEditor(state, modifier = Modifier.width(320.dp), fontScale = 2f)
-
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Save)
-            .assertIsDisplayed()
-            .assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesCat)
-            .assertHeightIsAtLeast(48.dp)
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog)
-            .assertHeightIsAtLeast(48.dp)
-            .assertIsSelected()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale)
-            .performScrollTo()
-            .assertHeightIsAtLeast(48.dp)
-            .assertIsSelected()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale)
-            .assertHeightIsAtLeast(48.dp)
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField)
-            .performScrollTo()
-            .assertIsDisplayed()
-            .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedPicker).assertIsDisplayed()
     }
 
     private fun setEditor(

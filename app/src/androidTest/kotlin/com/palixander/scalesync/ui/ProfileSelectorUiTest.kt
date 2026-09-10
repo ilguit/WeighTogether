@@ -52,31 +52,10 @@ class ProfileSelectorUiTest {
         }
 
         composeRule.onNodeWithContentDescription("same, человек").assertExists()
-        composeRule.onNodeWithContentDescription("Профили и питомцы").assertExists()
         composeRule.onNodeWithTag(ProfileSelectorTestTags.pet("same"))
             .assertIsSelected()
             .performClick()
         composeRule.runOnIdle { assertEquals(ProfileKey.Pet(PetId("same")), selected) }
-    }
-
-    @Test
-    fun humansAreRenderedBeforePetsEvenWhenInputIsMixed() {
-        val account = account("human")
-        val pet = pet("pet")
-        val state = reconcileProfileSelection(
-            profiles = listOf(ProfilePresentation.Pet(pet), ProfilePresentation.Human(account)),
-            requestedKey = ProfileKey.Human(account.id),
-            primaryAccountId = account.id,
-        )
-        composeRule.setContent {
-            ScaleSyncTheme { ProfileSelector(state, onProfileSelected = {}) }
-        }
-
-        val humanLeft = composeRule.onNodeWithTag(ProfileSelectorTestTags.human("human"))
-            .getUnclippedBoundsInRoot().left
-        val petLeft = composeRule.onNodeWithTag(ProfileSelectorTestTags.pet("pet"))
-            .getUnclippedBoundsInRoot().left
-        assert(humanLeft < petLeft)
     }
 
     @Test

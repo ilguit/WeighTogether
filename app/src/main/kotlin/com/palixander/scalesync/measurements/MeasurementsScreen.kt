@@ -1,9 +1,8 @@
 package com.palixander.scalesync.measurements
 
-import com.palixander.scalesync.ui.components.MeasurementOriginIndicator
+import com.palixander.scalesync.ui.components.ManualOriginIndicator
 
 import androidx.compose.animation.animateContentSize
-import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +36,6 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -293,7 +291,7 @@ private fun PendingQueueDestination(
     ) {
         item {
             NestedScreenHeader(
-                title = "Ожидающие измерения",
+                title = "Не назначено",
                 backContentDescription = "Назад к последнему измерению",
                 onBack = onBack,
             )
@@ -449,7 +447,7 @@ private fun EmptyPendingQueueCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle("Нет ожидающих измерений")
+            HuaweiSectionTitle("Нет неназначенных измерений")
             Text(
                 "Все измерения обработаны.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -581,31 +579,20 @@ private fun MeasurementSummaryCard(
                         )
                     }
                 }
-                if (summary.latest.hasFinalActions) Row {
+                if (summary.latest.hasFinalActions) Box {
                     HuaweiIconButton(
-                        icon = HuaweiIcons.Delete,
-                        contentDescription = "Удалить измерение",
-                        onClick = onDeleteRequested,
-                        enabled = summary.latest.canDelete,
-                        modifier = Modifier.testTag("summary-delete-measurement"),
-                        colors = IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        ),
+                        icon = HuaweiIcons.More,
+                        contentDescription = "Действия с последним измерением",
+                        onClick = { menuExpanded = true },
+                        enabled = summary.latest.canEdit || summary.latest.canDelete,
+                        modifier = Modifier.testTag("summary-more-actions"),
                     )
-                    Box {
-                        HuaweiIconButton(
-                            icon = HuaweiIcons.More,
-                            contentDescription = "Действия с последним измерением",
-                            onClick = { menuExpanded = true },
-                            enabled = summary.latest.canEdit,
-                            modifier = Modifier.testTag("summary-more-actions"),
-                        )
-                        DropdownMenu(
-                            expanded = menuExpanded,
-                            onDismissRequest = { menuExpanded = false },
-                            containerColor = MaterialTheme.colorScheme.surface,
-                            shape = MaterialTheme.shapes.medium,
-                        ) {
+                    DropdownMenu(
+                        expanded = menuExpanded,
+                        onDismissRequest = { menuExpanded = false },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        shape = MaterialTheme.shapes.medium,
+                    ) {
                         DropdownMenuItem(
                             text = { Text("Изменить") },
                             leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
@@ -615,7 +602,22 @@ private fun MeasurementSummaryCard(
                             },
                             enabled = summary.latest.canEdit,
                         )
-                        }
+                        DropdownMenuItem(
+                            text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                            modifier = Modifier.testTag("summary-delete-measurement"),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = HuaweiIcons.Delete,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                            onClick = {
+                                menuExpanded = false
+                                onDeleteRequested()
+                            },
+                            enabled = summary.latest.canDelete,
+                        )
                     }
                 }
             }
@@ -658,7 +660,7 @@ private fun MeasurementSummaryCard(
                         }
                     }
                 }
-                MeasurementOriginIndicator(summary.latest.origin, Modifier.testTag("summary-measurement-origin"))
+                ManualOriginIndicator(summary.latest.origin, Modifier.testTag("summary-manual-origin"))
             }
             if (summary.latest.isWeightOnly) {
                 Text(
@@ -1064,7 +1066,6 @@ private fun MeasurementHistoryCard(
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
-    var menuExpanded by rememberSaveable(item.presentationKey) { mutableStateOf(false) }
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1109,7 +1110,7 @@ private fun MeasurementHistoryCard(
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
                                 )
-                                MeasurementOriginIndicator(item.origin, Modifier.testTag("history-measurement-origin-${item.id}"))
+                                ManualOriginIndicator(item.origin, Modifier.testTag("history-manual-origin-${item.id}"))
                             }
                         }
                         if (item.isWeightOnly) {
@@ -1209,43 +1210,27 @@ private fun MeasurementHistoryCard(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Box {
-                            HuaweiIconButton(
-                                icon = HuaweiIcons.More,
-                                contentDescription = "Действия с измерением",
-                                onClick = { menuExpanded = true },
-                                enabled = item.canEdit,
-                                modifier = Modifier.testTag("history-more-${item.id}"),
-                            )
-                            DropdownMenu(
-                                expanded = menuExpanded,
-                                onDismissRequest = { menuExpanded = false },
-                            ) {
-                                DropdownMenuItem(
-                                    text = { Text("Изменить") },
-                                    leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
-                                    onClick = {
-                                        menuExpanded = false
-                                        callbacks.onEditRequested(
-                                            item.id,
-                                            MeasurementEditorOrigin.HISTORY,
-                                        )
-                                    },
-                                    enabled = item.canEdit,
-                                )
-                            }
+                        TextButton(
+                            onClick = {
+                                callbacks.onEditRequested(item.id, MeasurementEditorOrigin.HISTORY)
+                            },
+                            enabled = item.canEdit,
+                            modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                        ) {
+                            Icon(HuaweiIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("Изменить", modifier = Modifier.padding(start = 5.dp))
                         }
-                        HuaweiIconButton(
-                            icon = HuaweiIcons.Delete,
-                            contentDescription = "Удалить измерение",
+                        TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
                             enabled = item.canDelete,
                             modifier = Modifier
+                                .heightIn(min = HuaweiDimensions.TouchTarget)
                                 .testTag("history-delete-${item.id}"),
-                            colors = IconButtonDefaults.iconButtonColors(
-                                contentColor = MaterialTheme.colorScheme.error,
-                            ),
-                        )
+                            colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
+                        ) {
+                            Icon(HuaweiIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                        }
                     }
                     if (item.canRetry) {
                         OutlinedButton(
@@ -1400,23 +1385,6 @@ private fun MeasurementEditorScreen(
     callbacks: MeasurementsCallbacks,
 ) {
     val parsedValues = editor.draft.parsedValuesOrNull()
-    var validationRequested by rememberSaveable(editor.measurementId) { mutableStateOf(false) }
-    var discardConfirmationVisible by rememberSaveable(editor.measurementId) { mutableStateOf(false) }
-    val fieldFocusRequesters = remember(editor.measurementId) {
-        MeasurementField.entries.associateWith { FocusRequester() }
-    }
-    val firstInvalidField = editor.sections.asSequence()
-        .flatMap { it.fields.asSequence() }
-        .firstOrNull { editor.draft.validation(it).error != null }
-    val requestDismiss = {
-        if (editor.isDirty) discardConfirmationVisible = true else callbacks.onEditorDismissed()
-    }
-    BackHandler(enabled = !editor.isSaving, onBack = requestDismiss)
-    LaunchedEffect(validationRequested) {
-        if (validationRequested && firstInvalidField != null) {
-            fieldFocusRequesters.getValue(firstInvalidField).requestFocus()
-        }
-    }
     Scaffold(
         modifier = Modifier.fillMaxSize().testTag("measurement-editor"),
         containerColor = MaterialTheme.colorScheme.background,
@@ -1429,12 +1397,11 @@ private fun MeasurementEditorScreen(
             ) {
                 Button(
                     onClick = {
-                        validationRequested = true
                         parsedValues?.let { values ->
                             callbacks.onEditorSaveRequested(editor.measurementId, values)
                         }
                     },
-                    enabled = !editor.isSaving,
+                    enabled = editor.canSave && parsedValues != null,
                     modifier = Modifier
                         .fillMaxWidth()
                         .imePadding()
@@ -1473,7 +1440,7 @@ private fun MeasurementEditorScreen(
                 NestedScreenHeader(
                     title = "Изменить измерение",
                     backContentDescription = "Отменить редактирование",
-                    onBack = requestDismiss,
+                    onBack = callbacks.onEditorDismissed,
                     enabled = !editor.isSaving,
                 )
             }
@@ -1516,34 +1483,11 @@ private fun MeasurementEditorScreen(
                 EditorSection(
                     section = section,
                     editor = editor,
-                    showErrors = validationRequested,
-                    focusRequesters = fieldFocusRequesters,
                     onFieldChanged = callbacks.onEditorFieldChanged,
                 )
             }
             item { Spacer(Modifier.height(12.dp)) }
         }
-    }
-    if (discardConfirmationVisible) {
-        AlertDialog(
-            onDismissRequest = { discardConfirmationVisible = false },
-            title = { Text("Отменить изменения?") },
-            text = { Text("Введённые данные не будут сохранены.") },
-            confirmButton = {
-                TextButton(
-                    onClick = callbacks.onEditorDismissed,
-                    modifier = Modifier.testTag("editor-discard-confirm"),
-                    colors = ButtonDefaults.textButtonColors(
-                        contentColor = MaterialTheme.colorScheme.error,
-                    ),
-                ) { Text("Не сохранять") }
-            },
-            dismissButton = {
-                TextButton(onClick = { discardConfirmationVisible = false }) {
-                    Text("Продолжить редактирование")
-                }
-            },
-        )
     }
 }
 
@@ -1551,8 +1495,6 @@ private fun MeasurementEditorScreen(
 private fun EditorSection(
     section: MeasurementEditorSection,
     editor: MeasurementEditorState,
-    showErrors: Boolean,
-    focusRequesters: Map<MeasurementField, FocusRequester>,
     onFieldChanged: (MeasurementField, String) -> Unit,
 ) {
     HuaweiSurface(
@@ -1566,9 +1508,8 @@ private fun EditorSection(
                 EditorFieldRow(
                     field = field,
                     value = editor.draft[field],
-                    error = editor.draft.validation(field).error.takeIf { showErrors },
+                    error = editor.draft.validation(field).error,
                     enabled = !editor.isSaving,
-                    focusRequester = focusRequesters.getValue(field),
                     onValueChange = { onFieldChanged(field, it) },
                 )
             }
@@ -1582,7 +1523,6 @@ private fun EditorFieldRow(
     value: String,
     error: String?,
     enabled: Boolean,
-    focusRequester: FocusRequester,
     onValueChange: (String) -> Unit,
 ) {
     BoxWithConstraints(
@@ -1596,7 +1536,6 @@ private fun EditorFieldRow(
                     value = value,
                     error = error,
                     enabled = enabled,
-                    focusRequester = focusRequester,
                     onValueChange = onValueChange,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1617,7 +1556,6 @@ private fun EditorFieldRow(
                     value = value,
                     error = error,
                     enabled = enabled,
-                    focusRequester = focusRequester,
                     onValueChange = onValueChange,
                     modifier = Modifier.width(154.dp),
                 )
@@ -1632,7 +1570,6 @@ private fun EditorFieldInput(
     value: String,
     error: String?,
     enabled: Boolean,
-    focusRequester: FocusRequester,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -1640,7 +1577,6 @@ private fun EditorFieldInput(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .focusRequester(focusRequester)
             .semantics { contentDescription = field.inputLabel }
             .testTag("editor-field-${field.name}"),
         enabled = enabled,

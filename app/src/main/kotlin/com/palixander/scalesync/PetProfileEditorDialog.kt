@@ -1,20 +1,14 @@
 package com.palixander.scalesync
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,17 +21,13 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
-import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -47,10 +37,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -58,19 +45,14 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.Dialog
-import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.icons.HuaweiIcons
 
 internal object PetProfileEditorTestTags {
     const val Dialog = "pet-profile-editor-dialog"
@@ -94,17 +76,11 @@ internal object PetProfileEditorTestTags {
     const val BirthMonth = "pet-profile-editor-birth-month"
     const val BirthDay = "pet-profile-editor-birth-day"
     const val BirthClear = "pet-profile-editor-birth-clear"
-    const val BirthGroup = "pet-profile-editor-birth-group"
-    const val CategoryGroup = "pet-profile-editor-category-group"
     const val CategoryClear = "pet-profile-editor-category-clear"
     const val SaveError = "pet-profile-editor-save-error"
     const val Progress = "pet-profile-editor-progress"
     const val Save = "pet-profile-editor-save"
     const val Cancel = "pet-profile-editor-cancel"
-    const val Back = "pet-profile-editor-back"
-    const val DiscardConfirmation = "pet-profile-editor-discard-confirmation"
-    const val Discard = "pet-profile-editor-discard"
-    const val KeepEditing = "pet-profile-editor-keep-editing"
     const val SpeciesConfirmation = "pet-profile-editor-species-confirmation"
     const val SpeciesConfirm = "pet-profile-editor-species-confirm"
     const val SpeciesCancel = "pet-profile-editor-species-cancel"
@@ -119,7 +95,6 @@ internal object PetProfileEditorTestTags {
  * A stateless pet profile editor. The caller owns [PetProfileEditorState] and applies every
  * [PetProfileAction], so validation and persistence remain outside Compose.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PetProfileEditorDialog(
     state: PetProfileEditorState,
@@ -136,36 +111,12 @@ internal fun PetProfileEditorDialog(
     var submitted by rememberSaveable { mutableStateOf(false) }
     val locked = busy || submitted
     val draft = state.draft
-    val editorKey = when (val mode = draft.mode) {
-        PetProfileEditorMode.Create -> "create"
-        is PetProfileEditorMode.Edit -> "edit:${mode.petId.value}"
-    }
-    val initialDraft = remember(editorKey) { draft }
-    var discardConfirmationVisible by remember(editorKey) { mutableStateOf(false) }
-    val nameFocusRequester = remember(editorKey) { FocusRequester() }
-    val titleFocusRequester = remember(editorKey) { FocusRequester() }
-    val speciesFocusRequester = remember(editorKey) { FocusRequester() }
-    val breedFocusRequester = remember(editorKey) { FocusRequester() }
-    val birthDateFocusRequester = remember(editorKey) { FocusRequester() }
-    val categoryFocusRequester = remember(editorKey) { FocusRequester() }
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
     }
-    LaunchedEffect(editorKey) { titleFocusRequester.requestFocus() }
     LaunchedEffect(busy) {
         if (busy) breedPickerOpen = false
-    }
-    LaunchedEffect(fieldErrors, busy, submitted) {
-        if (!fieldErrors.hasErrors || busy || submitted) return@LaunchedEffect
-        val target = when {
-            fieldErrors.displayName != null -> nameFocusRequester
-            fieldErrors.species != null -> speciesFocusRequester
-            fieldErrors.breed != null -> breedFocusRequester
-            fieldErrors.birthDate != null -> birthDateFocusRequester
-            else -> categoryFocusRequester
-        }
-        target.requestFocus()
     }
 
     fun dispatch(action: PetProfileAction) {
@@ -174,89 +125,26 @@ internal fun PetProfileEditorDialog(
         }
     }
 
-    fun requestDismiss() {
-        if (!locked) {
-            if (draft == initialDraft) onDismiss() else discardConfirmationVisible = true
-        }
-    }
-
-    Dialog(
-        onDismissRequest = ::requestDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false),
-    ) {
-        Surface(
-            modifier = Modifier
-                .fillMaxSize()
-                .then(modifier)
-                .testTag(PetProfileEditorTestTags.Dialog),
-            color = MaterialTheme.colorScheme.background,
-        ) {
-            Scaffold(
-                topBar = {
-                    TopAppBar(
-                        title = {
-                            Text(
-                                text = when (draft.mode) {
-                                    PetProfileEditorMode.Create -> "Новый питомец"
-                                    is PetProfileEditorMode.Edit -> "Изменить питомца"
-                                },
-                                modifier = Modifier
-                                    .focusRequester(titleFocusRequester)
-                                    .focusable()
-                                    .semantics { heading() },
-                            )
-                        },
-                        navigationIcon = {
-                            HuaweiIconButton(
-                                icon = HuaweiIcons.Back,
-                                contentDescription = "Назад",
-                                onClick = ::requestDismiss,
-                                enabled = !locked,
-                                modifier = Modifier.testTag(PetProfileEditorTestTags.Back),
-                            )
-                        },
-                    )
+    AlertDialog(
+        onDismissRequest = { if (!locked) onDismiss() },
+        modifier = modifier.testTag(PetProfileEditorTestTags.Dialog),
+        title = {
+            Text(
+                text = when (draft.mode) {
+                    PetProfileEditorMode.Create -> "Новый питомец"
+                    is PetProfileEditorMode.Edit -> "Изменить профиль питомца"
                 },
-                bottomBar = {
-                    Surface(shadowElevation = 3.dp) {
-                        Button(
-                            onClick = {
-                                if (!locked) {
-                                    submitted = true
-                                    onSave()
-                                }
-                            },
-                            enabled = !locked,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .navigationBarsPadding()
-                                .imePadding()
-                                .padding(horizontal = 16.dp, vertical = 12.dp)
-                                .heightIn(min = 48.dp)
-                                .testTag(PetProfileEditorTestTags.Save),
-                        ) {
-                            if (busy) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(24.dp).padding(end = 8.dp),
-                                    strokeWidth = 2.dp,
-                                )
-                                Text("Сохранение…")
-                            } else {
-                                Text("Сохранить")
-                            }
-                        }
-                    }
-                },
-            ) { contentPadding ->
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(contentPadding)
-                        .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 16.dp, vertical = 24.dp)
-                        .testTag(PetProfileEditorTestTags.Content),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
+                modifier = Modifier.semantics { heading() },
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .testTag(PetProfileEditorTestTags.Content),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
                 OutlinedTextField(
                     value = draft.displayName,
                     onValueChange = { dispatch(PetProfileAction.DisplayNameChanged(it)) },
@@ -269,30 +157,28 @@ internal fun PetProfileEditorDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .focusRequester(nameFocusRequester)
                         .testTag(PetProfileEditorTestTags.NameField),
                 )
 
                 EditorSection("Вид питомца") {
-                    AdaptiveChoicePair { showIcons ->
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         ChoiceButton(
                             label = "Кошка",
-                            icon = HuaweiIcons.Cat.takeIf { showIcons },
                             selected = draft.species == PetSpecies.CAT,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesCat,
-                            modifier = Modifier.weight(1f).focusRequester(speciesFocusRequester),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.CAT))
                             },
                         )
                         ChoiceButton(
                             label = "Собака",
-                            icon = HuaweiIcons.Dog.takeIf { showIcons },
                             selected = draft.species == PetSpecies.DOG,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesDog,
-                            modifier = Modifier.weight(1f),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.DOG))
                             },
@@ -304,13 +190,15 @@ internal fun PetProfileEditorDialog(
                 }
 
                 EditorSection("Пол (необязательно)") {
-                    AdaptiveChoicePair(showIcons = false) { _ ->
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         ChoiceButton(
                             label = "Самец",
                             selected = draft.sex == PetSex.MALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexMale,
-                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.MALE)) },
                         )
                         ChoiceButton(
@@ -318,19 +206,18 @@ internal fun PetProfileEditorDialog(
                             selected = draft.sex == PetSex.FEMALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexFemale,
-                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.FEMALE)) },
                         )
-                    }
-                    if (draft.sex != null) {
-                        TextButton(
-                            onClick = { dispatch(PetProfileAction.SexChanged(null)) },
-                            enabled = !locked,
-                            modifier = Modifier
-                                .heightIn(min = 48.dp)
-                                .testTag(PetProfileEditorTestTags.SexClear)
-                                .semantics { contentDescription = "Очистить пол питомца" },
-                        ) { Text("Очистить") }
+                        if (draft.sex != null) {
+                            TextButton(
+                                onClick = { dispatch(PetProfileAction.SexChanged(null)) },
+                                enabled = !locked,
+                                modifier = Modifier
+                                    .heightIn(min = 48.dp)
+                                    .testTag(PetProfileEditorTestTags.SexClear)
+                                    .semantics { contentDescription = "Очистить пол питомца" },
+                            ) { Text("Очистить") }
+                        }
                     }
                 }
 
@@ -342,7 +229,6 @@ internal fun PetProfileEditorDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
-                                .focusRequester(breedFocusRequester)
                                 .testTag(PetProfileEditorTestTags.BreedField)
                                 .semantics {
                                     contentDescription = "Выбрать породу. ${petBreedLabel(draft.breed)}"
@@ -363,10 +249,6 @@ internal fun PetProfileEditorDialog(
                     value = draft.birthDate,
                     error = fieldErrors.birthDate,
                     enabled = !locked,
-                    modifier = Modifier
-                        .focusRequester(birthDateFocusRequester)
-                        .testTag(PetProfileEditorTestTags.BirthGroup)
-                        .focusable(),
                     onChange = { dispatch(PetProfileAction.BirthDateChanged(it)) },
                 )
 
@@ -382,10 +264,6 @@ internal fun PetProfileEditorDialog(
                         error = fieldErrors.dogAdultWeightCategory,
                         showChoices = dogCategoryApplicable,
                         enabled = !locked,
-                        modifier = Modifier
-                            .focusRequester(categoryFocusRequester)
-                            .testTag(PetProfileEditorTestTags.CategoryGroup)
-                            .focusable(),
                         onChange = {
                             dispatch(PetProfileAction.DogAdultWeightCategoryChanged(it))
                         },
@@ -430,31 +308,28 @@ internal fun PetProfileEditorDialog(
                         Text("Сохраняем…")
                     }
                 }
-                }
             }
-        }
-    }
-
-    if (discardConfirmationVisible) {
-        AlertDialog(
-            onDismissRequest = { discardConfirmationVisible = false },
-            modifier = Modifier.testTag(PetProfileEditorTestTags.DiscardConfirmation),
-            title = { Text("Отказаться от изменений?") },
-            text = { Text("Введённые данные не сохранятся.") },
-            confirmButton = {
-                Button(
-                    onClick = onDismiss,
-                    modifier = Modifier.testTag(PetProfileEditorTestTags.Discard),
-                ) { Text("Отказаться") }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = { discardConfirmationVisible = false },
-                    modifier = Modifier.testTag(PetProfileEditorTestTags.KeepEditing),
-                ) { Text("Продолжить редактирование") }
-            },
-        )
-    }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    if (!locked) {
+                        submitted = true
+                        onSave()
+                    }
+                },
+                enabled = !locked,
+                modifier = Modifier.testTag(PetProfileEditorTestTags.Save),
+            ) { Text("Сохранить") }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = { if (!locked) onDismiss() },
+                enabled = !locked,
+                modifier = Modifier.testTag(PetProfileEditorTestTags.Cancel),
+            ) { Text("Отмена") }
+        },
+    )
 
     if (
         breedPickerOpen &&
@@ -486,13 +361,9 @@ internal fun PetProfileEditorDialog(
 @Composable
 private fun EditorSection(
     title: String,
-    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(
-        modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
@@ -505,11 +376,9 @@ private fun EditorSection(
 @Composable
 private fun ChoiceButton(
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     selected: Boolean,
     enabled: Boolean,
     tag: String,
-    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     OutlinedButton(
@@ -519,7 +388,7 @@ private fun ChoiceButton(
             1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
         ),
-        modifier = modifier
+        modifier = Modifier
             .heightIn(min = 48.dp)
             .testTag(tag)
             .semantics {
@@ -528,24 +397,7 @@ private fun ChoiceButton(
             },
     ) {
         RadioButton(selected = selected, onClick = null, enabled = enabled)
-        icon?.let { Icon(it, contentDescription = null, modifier = Modifier.padding(end = 8.dp)) }
         Text(label)
-    }
-}
-
-@Composable
-private fun AdaptiveChoicePair(
-    showIcons: Boolean = true,
-    content: @Composable RowScope.(Boolean) -> Unit,
-) {
-    BoxWithConstraints(Modifier.fillMaxWidth()) {
-        val iconsFit = showIcons && maxWidth >= 360.dp && LocalDensity.current.fontScale <= 1.3f
-        Row(
-            modifier = Modifier.fillMaxWidth().semantics { selectableGroup() },
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            content(iconsFit)
-        }
     }
 }
 
@@ -554,10 +406,9 @@ private fun BirthDateEditor(
     value: PetBirthDateInput,
     error: PetBirthDateValidationError?,
     enabled: Boolean,
-    modifier: Modifier = Modifier,
     onChange: (PetBirthDateInput) -> Unit,
 ) {
-    EditorSection("Дата рождения (необязательно)", modifier) {
+    EditorSection("Дата рождения (необязательно)") {
         Text(
             "Точность даты",
             style = MaterialTheme.typography.labelLarge,
@@ -675,10 +526,9 @@ private fun DogCategoryEditor(
     error: DogAdultWeightCategoryValidationError?,
     showChoices: Boolean,
     enabled: Boolean,
-    modifier: Modifier = Modifier,
     onChange: (DogAdultWeightCategory?) -> Unit,
 ) {
-    EditorSection("Весовая категория взрослой собаки (необязательно)", modifier) {
+    EditorSection("Весовая категория взрослой собаки (необязательно)") {
         Text(
             "Определяет категорийную центильную кривую Salt для возраста от 12 недель до 2 лет.",
             style = MaterialTheme.typography.bodySmall,

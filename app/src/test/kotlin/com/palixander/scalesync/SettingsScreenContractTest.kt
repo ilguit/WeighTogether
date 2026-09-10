@@ -5,8 +5,6 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.domain.PetSpecies
 import java.time.LocalDate
-import java.time.Instant
-import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -67,16 +65,8 @@ class SettingsScreenContractTest {
 
     @Test
     fun `latest pet weight uses locale and no-history state is explicit`() {
-        assertEquals("4,25 кг", formatLatestPetWeight(4.25, locale = Locale.forLanguageTag("ru-RU")))
-        assertEquals("", formatLatestPetWeight(null, locale = Locale.forLanguageTag("ru-RU")))
-        val instant = Instant.parse("2026-01-02T12:00:00Z")
-        val expectedDate = instant.atZone(ZoneId.systemDefault()).toLocalDate().format(
-            java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy"),
-        )
-        assertEquals(
-            "4,25 кг · $expectedDate",
-            formatLatestPetWeight(4.25, instant, Locale.forLanguageTag("ru-RU")),
-        )
+        assertEquals("Последний вес: 4,25 кг", formatLatestPetWeight(4.25, Locale.forLanguageTag("ru-RU")))
+        assertEquals("Измерений пока нет", formatLatestPetWeight(null, Locale.forLanguageTag("ru-RU")))
     }
 
     @Test
