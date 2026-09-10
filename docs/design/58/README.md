@@ -78,6 +78,10 @@ from personal and visible only where the enterprise capability exists.
   resolver dialog, unsaved preview (its three steps are one surface), pet
   weighing first step, pet weighing second step, and pet weighing result.
 - `preview.png` — primary prototype preview.
+- `screenshot-evidence.md` — capture manifest and implementation/prototype comparison result.
+- `implementation-screenshots/` — 50 real production Compose frames captured on a Pixel 7 Pro.
+- `prototype-frames/` — 16 browser-rendered frames from the approved prototype.
+- `comparisons/` — side-by-side prototype/production evidence for every Compose frame.
 
 ## Prototype use
 
