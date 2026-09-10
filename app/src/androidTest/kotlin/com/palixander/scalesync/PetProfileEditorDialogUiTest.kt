@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
@@ -99,6 +100,69 @@ class PetProfileEditorDialogUiTest {
             assertEquals(PetBirthDateInput.Empty, state.value.draft.birthDate)
             assertNull(state.value.draft.dogAdultWeightCategory)
         }
+    }
+
+    @Test
+    fun fullScreenEditorUsesNestedNavigationAndFixedSaveAction() {
+        val state = mutableStateOf(
+            PetProfileEditorState(PetProfileDraft.create().copy(species = PetSpecies.CAT)),
+        )
+        var dismisses = 0
+        setEditor(state, onDismiss = { dismisses++ })
+
+        composeRule.onNodeWithText("Новый питомец").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Dialog).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back)
+            .assertContentDescriptionEquals("Вернуться к профилям")
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).performClick()
+        composeRule.runOnIdle { assertEquals(1, dismisses) }
+    }
+
+    @Test
+    fun dirtyBackRequiresConfirmationAndCanKeepOrDiscardDraft() {
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+        var dismisses = 0
+        setEditor(state, onDismiss = { dismisses++ })
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).performTextInput("Луна")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.DiscardConfirmation).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.KeepEditing).performClick()
+        composeRule.runOnIdle { assertEquals(0, dismisses) }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertTextContains("Луна")
+
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Discard).performClick()
+        composeRule.runOnIdle { assertEquals(1, dismisses) }
+    }
+
+    @Test
+    fun validationMovesFocusToFirstInvalidFieldAndKeepsDraft() {
+        val state = mutableStateOf(
+            PetProfileEditorState(
+                PetProfileDraft.create().copy(
+                    displayName = "Луна",
+                    species = PetSpecies.CAT,
+                    birthDate = PetBirthDateInput.Month("2020", ""),
+                ),
+            ),
+        )
+        val errors = mutableStateOf(PetProfileFieldErrors())
+        setEditor(state, errors = errors)
+
+        composeRule.runOnIdle {
+            errors.value = PetProfileFieldErrors(
+                displayName = PetNameValidationError.DUPLICATE,
+                birthDate = PetBirthDateValidationError.INCOMPLETE,
+            )
+        }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsFocused()
+        composeRule.onNodeWithText("Луна", substring = true).assertExists()
+        composeRule.onNodeWithText("Заполните все выбранные части даты")
+            .performScrollTo()
+            .assertIsDisplayed()
     }
 
     @Test
@@ -385,7 +449,7 @@ class PetProfileEditorDialogUiTest {
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsNotEnabled()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.Cancel).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SaveError)
             .performScrollTo()
             .assertIsDisplayed()
