@@ -14,7 +14,7 @@ class MeasurementOriginIndicatorTest {
     @get:Rule val compose = createComposeRule()
 
     @Test
-    fun knownOriginsHaveAccessibleExplanationsAndRestoreFocus() {
+    fun knownOriginsAreCompactAccessibleIndicators() {
         compose.setContent {
             ScaleSyncTheme {
                 Column {
@@ -25,16 +25,9 @@ class MeasurementOriginIndicatorTest {
             }
         }
         compose.onNodeWithTag("legacy").assertDoesNotExist()
-        compose.onNodeWithContentDescription("Источник: ручной ввод").assertHasClickAction().performClick()
-        compose.onNodeWithText("Измерение введено вручную").assertIsDisplayed()
-        compose.onNodeWithTag("measurement-origin-dismiss").performClick()
-        compose.waitForIdle()
-        compose.onNodeWithTag("manual").assertIsFocused()
-
-        compose.onNodeWithContentDescription("Источник: весы").assertHasClickAction().performClick()
-        compose.onNodeWithText("Измерение получено с весов").assertIsDisplayed()
-        compose.onNodeWithTag("measurement-origin-dismiss").performClick()
-        compose.waitForIdle()
-        compose.onNodeWithTag("scale").assertIsFocused()
+        compose.onNodeWithContentDescription("Источник: ручной ввод").assertIsDisplayed()
+            .assertHasNoClickAction()
+        compose.onNodeWithContentDescription("Источник: весы").assertIsDisplayed()
+            .assertHasNoClickAction()
     }
 }

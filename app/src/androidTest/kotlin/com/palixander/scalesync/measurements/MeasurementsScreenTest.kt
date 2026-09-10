@@ -74,10 +74,8 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("summary-measurement-origin").assertIsDisplayed()
         captureManualWeightEvidence("manual-weight-summary")
         composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
-        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsDisplayed().performClick()
-        composeRule.onNodeWithText("Измерение введено вручную").assertIsDisplayed()
-        composeRule.onNodeWithTag("measurement-origin-dismiss").performClick()
-        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsFocused()
+        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Источник: ручной ввод").assertIsDisplayed()
         captureManualWeightEvidence("manual-weight-history")
     }
 
@@ -675,7 +673,6 @@ class MeasurementsScreenTest {
 
         composeRule.runOnIdle { state = sampleState() }
 
-        composeRule.onNodeWithContentDescription("Действия с последним измерением").performClick()
         composeRule.onNodeWithTag("summary-delete-measurement").performClick()
         composeRule.onNodeWithTag("delete-measurement-dialog").assertIsDisplayed()
         composeRule.onNodeWithText("Удалить измерение?").assertIsDisplayed()

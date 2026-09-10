@@ -444,6 +444,7 @@ data class MeasurementEditorState(
     val measurementId: String,
     val measuredAtEpochSecond: Long,
     val draft: MeasurementEditorDraft,
+    val originalDraft: MeasurementEditorDraft = draft,
     val type: MeasurementUiType = MeasurementUiType.FULL,
     val sections: List<MeasurementEditorSection> = when (type) {
         MeasurementUiType.FULL -> measurementEditorSections
@@ -456,6 +457,9 @@ data class MeasurementEditorState(
 
     val canSave: Boolean
         get() = !isSaving && draft.isValid
+
+    val isDirty: Boolean
+        get() = draft != originalDraft
 
     val measuredAt: Instant
         get() = Instant.ofEpochSecond(measuredAtEpochSecond)
