@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -32,7 +34,7 @@ import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.ProfileUpdateConfirmation
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
-import com.palixander.scalesync.ui.accounts.AccountEditorDialog
+import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountEditorDraft
 import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.accounts.AccountSelectorTestTags
@@ -257,6 +259,121 @@ class MultiAccountComponentsTest {
     }
 
     @Test
+    fun resolverRevision17PreservesEveryActionCallbackAndMarksOnlyBestCandidateRecommended() {
+        val pending = pending()
+        val recommended = account("recommended", "Анна")
+        val otherCandidate = account("candidate", "Борис")
+        val events = mutableListOf<String>()
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending,
+                        accountOptions = listOf(
+                            ResolverAccountOption(
+                                accountId = recommended.id,
+                                displayName = recommended.displayName,
+                                isPrimary = true,
+                                differenceKg = 0.1,
+                                medianWeightKg = 70.0,
+                            ),
+                            ResolverAccountOption(
+                                accountId = otherCandidate.id,
+                                displayName = otherCandidate.displayName,
+                                isPrimary = false,
+                                differenceKg = 0.2,
+                                medianWeightKg = 70.0,
+                            ),
+                        ),
+                        ignoreUnknownMeasurements = false,
+                    ),
+                    callbacks = MeasurementResolverCallbacks(
+                        onAccountSelected = { pendingId, accountId ->
+                            events += "assign:${pendingId.value}:${accountId.value}"
+                        },
+                        onCreateAccount = { events += "create:${it.value}" },
+                        onShowWithoutSaving = { events += "preview:${it.value}" },
+                        onIgnoreUnknownMeasurementsChanged = { pendingId, enabled ->
+                            events += "ignore:${pendingId.value}:$enabled"
+                        },
+                        onDelete = { events += "delete:${it.value}" },
+                        onLater = { events += "later" },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Неназначенное измерение").assertExists()
+        composeRule.onNodeWithText("Кому назначить это измерение?").assertExists()
+        composeRule.onAllNodesWithText("Рекомендуется").assertCountEquals(1)
+        composeRule.onNodeWithText("${pending.impedanceOhm} Ом", substring = true)
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(recommended.id)).performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.WithoutSaving).performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.CreateAccount).performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.IgnoreUnknown)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Later).performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(
+                listOf(
+                    "assign:${pending.id.value}:${recommended.id.value}",
+                    "preview:${pending.id.value}",
+                    "create:${pending.id.value}",
+                    "ignore:${pending.id.value}:true",
+                    "delete:${pending.id.value}",
+                    "later",
+                ),
+                events,
+            )
+        }
+    }
+
+    @Test
+    fun resolverInProgressBlocksEveryActionAndShowsProgress() {
+        val pending = pending()
+        val account = account("one", "Анна")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending,
+                        accountOptions = listOf(
+                            ResolverAccountOption(
+                                accountId = account.id,
+                                displayName = account.displayName,
+                                isPrimary = true,
+                            ),
+                        ),
+                        ignoreUnknownMeasurements = false,
+                        operationInProgress = true,
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(account.id)).assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.WithoutSaving).assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.CreateAccount).assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.IgnoreUnknown)
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Delete)
+            .performScrollTo()
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Later).assertIsNotEnabled()
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.Progress)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test
     fun resolverScrollsToEveryAccountAndKeepsLastOptionSelectable() {
         val accounts = (0..12).map { account("account-$it", "Аккаунт $it") }
         val last = accounts.last()
@@ -397,7 +514,7 @@ class MultiAccountComponentsTest {
         var changedDraft: AccountEditorDraft? = null
         composeRule.setContent {
             ScaleSyncTheme {
-                AccountEditorDialog(
+                AccountEditorScreen(
                     draft = draft,
                     accounts = emptyList(),
                     operationInProgress = false,

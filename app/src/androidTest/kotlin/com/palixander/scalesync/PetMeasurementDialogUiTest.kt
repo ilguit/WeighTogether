@@ -4,6 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -92,19 +96,17 @@ class PetMeasurementDialogUiTest {
         }
 
         composeRule.onNodeWithText("Первое взвешивание").assertIsDisplayed()
-        composeRule.onNodeWithText("Порядок не важен", substring = true)
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("Начните с любого варианта", substring = true)
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Title)
+            .assertIsFocused()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+        composeRule.onNodeWithText("с питомцем или без него", substring = true)
             .assertIsDisplayed()
         composeRule.runOnIdle {
             state.value = PetMeasurementUiState.AwaitingSecondWeight(pet, 72.5)
         }
         composeRule.onNodeWithTag(PetMeasurementTestTags.FirstWeight).assertIsDisplayed()
-        composeRule.onNodeWithText("Первое значение принято:", substring = true).assertIsDisplayed()
-        composeRule.onNodeWithText("оставшееся взвешивание", substring = true)
-            .assertIsDisplayed()
-        composeRule.onNodeWithText("с Бим на руках или без питомца", substring = true)
-            .assertIsDisplayed()
+        composeRule.onNodeWithText("Первое показание:", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("другом варианте", substring = true).assertIsDisplayed()
         composeRule.runOnIdle {
             state.value = PetMeasurementUiState.Saving(pet, 72.5, 77.2)
         }
@@ -115,9 +117,12 @@ class PetMeasurementDialogUiTest {
     fun completedErrorCancelAndSystemBackExposeSafeExits() {
         val pet = pet("cat", "Луна")
         val state = mutableStateOf<PetMeasurementUiState>(
-            PetMeasurementUiState.Completed(
+            PetMeasurementUiState.Result(
                 pet,
-                measurement(pet.id, first = 60.0, second = 63.75),
+                measuredAt = Instant.parse("2026-08-26T01:02:03Z"),
+                firstWeightKg = 60.0,
+                secondWeightKg = 63.75,
+                previousPetWeightKg = 3.5,
             ),
         )
         var cancelled = 0
@@ -128,12 +133,14 @@ class PetMeasurementDialogUiTest {
                 state.value = PetMeasurementUiState.SelectingPet
             },
             onCancel = { cancelled++ },
+            onDone = { cancelled++ },
         )
         composeRule.setContent {
             ScaleSyncTheme { PetMeasurementDialog(state.value, emptyList(), callbacks) }
         }
 
-        composeRule.onNodeWithText("Вес Луна:", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("Вес питомца —", substring = true).assertIsDisplayed()
+        composeRule.onNodeWithText("+0,25 кг с прошлого измерения").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.Done).performClick()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
         composeRule.runOnIdle {
@@ -153,6 +160,25 @@ class PetMeasurementDialogUiTest {
             composeRule.activity.onBackPressedDispatcher.onBackPressed()
         }
         composeRule.runOnIdle { assertEquals(3, cancelled) }
+    }
+
+    @Test
+    fun firstResultHasNoPreviousDelta() {
+        val pet = pet("cat", "Луна")
+        setDialog(
+            state = PetMeasurementUiState.Result(
+                pet = pet,
+                measuredAt = Instant.parse("2026-08-26T01:02:03Z"),
+                firstWeightKg = 60.0,
+                secondWeightKg = 63.75,
+                previousPetWeightKg = null,
+            ),
+            pets = emptyList(),
+            callbacks = callbacks(),
+        )
+
+        composeRule.onNodeWithText("Вес питомца — 3,75 кг").assertIsDisplayed()
+        composeRule.onNodeWithText("с прошлого измерения", substring = true).assertDoesNotExist()
     }
 
     @Test
@@ -218,12 +244,15 @@ class PetMeasurementDialogUiTest {
         onCreate: (String, PetSpecies) -> Unit = { _, _ -> },
         onStart: (PetId) -> Unit = {},
         onCancel: () -> Unit = {},
+        onDone: () -> Unit = {},
     ) = PetMeasurementCallbacks(
         onOpen,
         onShowCreate,
         onCreate,
         onStart,
         onCancel,
+        onDone,
+        {},
     )
 
     private fun pet(id: String, name: String): Pet {

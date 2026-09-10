@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui
 
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -44,13 +45,14 @@ class UnifiedProfileManagementUiTest {
             }
         }
 
-        composeRule.onNodeWithText("Люди").assertExists()
+        composeRule.onNodeWithText("Профили").assertExists()
         composeRule.onNodeWithText("Питомцы").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PeopleGroup).assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PetsGroup).assertExists()
-        composeRule.onNodeWithText("Человек").assertExists()
-        composeRule.onNodeWithText("Питомец · Кошка").assertExists()
+        composeRule.onNodeWithText("Кошка").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountManagementTestTags.petEdit(pet.pet.id)).performClick()
+        composeRule.onNodeWithText("Изменить").performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.petEdit(pet.pet.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.petDelete(pet.pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(listOf("pet-edit", "pet-delete"), actions) }
@@ -68,6 +70,7 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.row(human.id)).assertExists()
+        composeRule.onNodeWithTag(AccountManagementTestTags.humanEdit(human.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertExists()
     }
 
@@ -95,18 +98,47 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.Empty).assertExists()
+        composeRule.onNodeWithText("Добавить профиль").assertExists()
+        composeRule.onNodeWithText("Добавить питомца").assertExists()
     }
 
-    private fun account() = Account(
-        id = AccountId("human"),
-        displayName = "Анна",
+    @Test
+    fun primaryIsFirstAndOtherProfilesAndPetsAreSortedCaseInsensitively() {
+        val primary = account("primary", "Яна")
+        val anna = account("anna", "анна")
+        val boris = account("boris", "Борис")
+        val zebra = pet("zebra", "яша")
+        val alpha = pet("alpha", "Альфа")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(listOf(boris, primary, anna), primary.id),
+                    callbacks = AccountManagementCallbacks.None,
+                    pets = listOf(zebra, alpha),
+                )
+            }
+        }
+
+        val people = listOf(primary, anna, boris).map {
+            composeRule.onNodeWithTag(AccountManagementTestTags.row(it.id)).getUnclippedBoundsInRoot().top
+        }
+        val pets = listOf(alpha, zebra).map {
+            composeRule.onNodeWithTag(AccountManagementTestTags.petRow(it.pet.id)).getUnclippedBoundsInRoot().top
+        }
+        assertEquals(people.sorted(), people)
+        assertEquals(pets.sorted(), pets)
+    }
+
+    private fun account(id: String = "human", name: String = "Анна") = Account(
+        id = AccountId(id),
+        displayName = name,
         profile = AccountProfile.Complete(170.0, LocalDate.of(1990, 1, 1), Sex.FEMALE),
         createdAt = NOW,
         updatedAt = NOW,
     )
 
-    private fun pet() = PetWithLatestWeight(
-        Pet(PetId("pet"), "Барсик", PetSpecies.CAT, createdAt = NOW, updatedAt = NOW),
+    private fun pet(id: String = "pet", name: String = "Барсик") = PetWithLatestWeight(
+        Pet(PetId(id), name, PetSpecies.CAT, createdAt = NOW, updatedAt = NOW),
         null,
     )
 

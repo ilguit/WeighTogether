@@ -5,6 +5,7 @@ import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -62,6 +63,8 @@ object UnsavedPreviewTestTags {
     const val Dialog = "unsaved-preview"
     const val Title = "unsaved-preview-title"
     const val UnsavedBadge = "unsaved-preview-badge"
+    const val Step = "unsaved-preview-step"
+    const val Warning = "unsaved-preview-warning"
     const val ProfileEditor = "unsaved-preview-profile"
     const val BirthDate = "unsaved-preview-birth-date"
     const val Calculate = "unsaved-preview-calculate"
@@ -69,6 +72,8 @@ object UnsavedPreviewTestTags {
     const val CalculationError = "unsaved-preview-calculation-error"
     const val Calculating = "unsaved-preview-calculating"
     const val Close = "unsaved-preview-close"
+    const val Back = "unsaved-preview-back"
+    const val Next = "unsaved-preview-next"
 }
 
 @Composable
@@ -140,27 +145,41 @@ fun UnsavedMeasurementPreviewDialog(
             callbacks.onCloseAndDiscard(state.pending.id)
         }
     }
+    val requestBack = {
+        if (!state.isCalculating) {
+            if (state.step == UnsavedPreviewStep.RAW_SUMMARY) {
+                requestClose()
+            } else {
+                callbacks.onStateChange(
+                    reduceUnsavedPreview(state, UnsavedPreviewAction.BackRequested),
+                )
+            }
+        }
+    }
     AlertDialog(
         modifier = modifier.testTag(UnsavedPreviewTestTags.Dialog),
-        onDismissRequest = requestClose,
+        onDismissRequest = requestBack,
         title = { UnsavedPreviewTitle() },
         text = {
-            when (state.step) {
-                UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state, zoneId)
-                UnsavedPreviewStep.PROFILE_EDITOR -> PreviewProfileEditor(
-                    state,
-                    callbacks,
-                    zoneId,
-                    errorFocusRequester,
-                )
-                UnsavedPreviewStep.RESULT -> UnsavedResult(
-                    presentations = resultPresentations,
-                    scrollState = resultScrollState,
-                    onInfoClick = { helpMetricName = it.definition.metric.name },
-                    infoButtonModifier = { presentation ->
-                        Modifier.focusRequester(infoFocusRequesters.getValue(presentation.definition.metric))
-                    },
-                )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                UnsavedPreviewContext(state.step)
+                when (state.step) {
+                    UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state, zoneId)
+                    UnsavedPreviewStep.PROFILE_EDITOR -> PreviewProfileEditor(
+                        state,
+                        callbacks,
+                        zoneId,
+                        errorFocusRequester,
+                    )
+                    UnsavedPreviewStep.RESULT -> UnsavedResult(
+                        presentations = resultPresentations,
+                        scrollState = resultScrollState,
+                        onInfoClick = { helpMetricName = it.definition.metric.name },
+                        infoButtonModifier = { presentation ->
+                            Modifier.focusRequester(infoFocusRequesters.getValue(presentation.definition.metric))
+                        },
+                    )
+                }
             }
         },
         confirmButton = {
@@ -171,6 +190,10 @@ fun UnsavedMeasurementPreviewDialog(
                             reduceUnsavedPreview(state, UnsavedPreviewAction.EnterProfileRequested),
                         )
                     },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(UnsavedPreviewTestTags.Next),
                 ) { Text("Рассчитать показатели") }
                 UnsavedPreviewStep.PROFILE_EDITOR -> {
                     val measurementDate = state.pending.measuredAt.atZone(zoneId).toLocalDate()
@@ -180,7 +203,10 @@ fun UnsavedMeasurementPreviewDialog(
                             callbacks.onCalculate(state.pending.id)
                         },
                         enabled = validation.isValid && !state.isCalculating,
-                        modifier = Modifier.testTag(UnsavedPreviewTestTags.Calculate),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(UnsavedPreviewTestTags.Calculate),
                     ) {
                         if (state.isCalculating) {
                             CircularProgressIndicator(
@@ -193,11 +219,7 @@ fun UnsavedMeasurementPreviewDialog(
                         Text("Рассчитать")
                     }
                 }
-                UnsavedPreviewStep.RESULT -> Button(
-                    onClick = requestClose,
-                    enabled = !closeRequested.value,
-                    modifier = Modifier.testTag(UnsavedPreviewTestTags.Close),
-                ) { Text("Закрыть") }
+                UnsavedPreviewStep.RESULT -> Unit
             }
         },
         dismissButton = {
@@ -205,20 +227,47 @@ fun UnsavedMeasurementPreviewDialog(
                 TextButton(
                     onClick = requestClose,
                     enabled = !closeRequested.value,
-                    modifier = Modifier.testTag(UnsavedPreviewTestTags.Close),
+                    modifier = Modifier
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(UnsavedPreviewTestTags.Close),
                 ) { Text("Закрыть") }
             } else {
                 TextButton(
-                    onClick = {
-                        callbacks.onStateChange(
-                            reduceUnsavedPreview(state, UnsavedPreviewAction.BackRequested),
-                        )
-                    },
+                    onClick = requestBack,
                     enabled = !state.isCalculating,
+                    modifier = Modifier
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag(UnsavedPreviewTestTags.Back),
                 ) { Text("Назад") }
             }
         },
     )
+}
+
+@Composable
+private fun UnsavedPreviewContext(step: UnsavedPreviewStep) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.unsaved_preview_step, step.ordinal + 1),
+            modifier = Modifier.testTag(UnsavedPreviewTestTags.Step),
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.labelLarge,
+        )
+        Surface(
+            color = HuaweiColors.WarningContainer,
+            contentColor = HuaweiColors.OnWarningContainer,
+            shape = MaterialTheme.shapes.medium,
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag(UnsavedPreviewTestTags.Warning),
+        ) {
+            Text(
+                text = stringResource(R.string.unsaved_preview_warning),
+                modifier = Modifier.padding(12.dp),
+                style = MaterialTheme.typography.bodySmall,
+            )
+        }
+    }
 }
 
 @Composable
@@ -269,11 +318,6 @@ private fun RawUnsavedSummary(
         Text("Импеданс: ${state.pending.impedanceOhm} Ом")
         Text(
             "Время: ${formatMeasurementDateTime(state.pending.measuredAt, zoneId)}",
-        )
-        Text(
-            "Профиль и рассчитанные показатели останутся только в памяти и не будут синхронизированы.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
         )
     }
 }
@@ -416,11 +460,6 @@ private fun UnsavedResult(
             groups = ReferencePresentationFactory(LocalContext.current.resources).group(presentations),
             onInfoClick = onInfoClick,
             infoButtonModifier = infoButtonModifier,
-        )
-        Text(
-            "Эти данные не сохранены и не будут отправлены во внешние сервисы.",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
         )
     }
 }

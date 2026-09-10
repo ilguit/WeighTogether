@@ -1,34 +1,56 @@
 package com.palixander.scalesync.ui.accounts
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -41,6 +63,7 @@ import com.palixander.scalesync.domain.NewAccount
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
@@ -52,6 +75,7 @@ import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import kotlinx.coroutines.launch
 
 object AccountManagementTestTags {
     const val List = "account-management-list"
@@ -61,8 +85,17 @@ object AccountManagementTestTags {
     const val PeopleGroup = "profile-management-people-group"
     const val PetsGroup = "profile-management-pets-group"
     const val Editor = "account-editor"
+    const val EditorTitle = "account-editor-title"
+    const val EditorBack = "account-editor-back"
+    const val EditorName = "account-editor-name"
+    const val EditorSexMale = "account-editor-sex-male"
+    const val EditorSexFemale = "account-editor-sex-female"
+    const val EditorSexGroup = "account-editor-sex-group"
+    const val EditorHeight = "account-editor-height"
     const val EditorBirthDate = "account-editor-birth-date"
     const val EditorSave = "account-editor-save"
+    const val EditorDiscardPrompt = "account-editor-discard-prompt"
+    const val EditorDiscardConfirm = "account-editor-discard-confirm"
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
@@ -121,14 +154,7 @@ fun AccountManagementSection(
         modifier = modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Люди", Modifier.weight(1f))
-            TextButton(
-                onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.Add),
-            ) { Text("Добавить") }
-        }
+        HuaweiSectionTitle("Профили")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PeopleGroup),
             contentPadding = PaddingValues(0.dp),
@@ -146,11 +172,11 @@ fun AccountManagementSection(
                 )
             } else {
                 Column {
-                    state.accounts.forEach { account ->
+                    sortedAccounts(state.accounts, state.primaryAccountId)
+                        .forEachIndexed { index, account ->
                         AccountRow(
                             account = account,
                             isPrimary = account.id == state.primaryAccountId,
-                            enabled = !state.operationInProgress,
                             onEdit = {
                                 callbacks.onAction(AccountManagementAction.EditRequested(account.id))
                             },
@@ -163,19 +189,16 @@ fun AccountManagementSection(
                                 callbacks.onAction(AccountManagementAction.DeleteRequested(account.id))
                             },
                         )
-                        if (account != state.accounts.last()) HorizontalDivider()
+                        if (index != state.accounts.lastIndex) HorizontalDivider()
                     }
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Питомцы", Modifier.weight(1f))
-            TextButton(
-                onClick = onAddPet,
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
-            ) { Text("Добавить") }
-        }
+        OutlinedButton(
+            onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.Add),
+        ) { Text("Добавить профиль") }
+        HuaweiSectionTitle("Питомцы")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PetsGroup),
             contentPadding = PaddingValues(0.dp),
@@ -187,10 +210,10 @@ fun AccountManagementSection(
                     modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
                 )
             } else Column {
-                pets.forEachIndexed { index, pet ->
+                pets.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.pet.displayName })
+                    .forEachIndexed { index, pet ->
                     PetProfileRow(
                         pet = pet,
-                        enabled = !state.operationInProgress,
                         speciesLabel = petSpeciesLabel(pet),
                         weightLabel = petWeightLabel(pet),
                         onEdit = { onEditPet(pet) },
@@ -200,20 +223,12 @@ fun AccountManagementSection(
                 }
             }
         }
+        OutlinedButton(
+            onClick = onAddPet,
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.AddPet),
+        ) { Text("Добавить питомца") }
     }
 
-    state.editor?.let { draft ->
-        AccountEditorDialog(
-            draft = draft,
-            accounts = state.accounts,
-            operationInProgress = state.operationInProgress,
-            error = state.operationError,
-            onDraftChanged = { callbacks.onAction(AccountManagementAction.EditorChanged(it)) },
-            onCreate = callbacks.onCreate,
-            onUpdate = callbacks.onUpdate,
-            onDismiss = { callbacks.onAction(AccountManagementAction.DialogDismissed) },
-        )
-    }
     state.primaryChange?.let { request ->
         PrimaryAccountChangeDialog(
             request = request,
@@ -327,18 +342,29 @@ private fun ProfileUpdateConfirmationDialog(
 private fun AccountRow(
     account: Account,
     isPrimary: Boolean,
-    enabled: Boolean,
     onEdit: () -> Unit,
     onMakePrimary: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.row(account.id))
+            .clickable(onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = HuaweiIcons.Profile,
+            contentDescription = when ((account.profile as? AccountProfile.Complete)?.sex) {
+                Sex.MALE -> "Мужчина"
+                Sex.FEMALE -> "Женщина"
+                null -> "Профиль"
+            },
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 12.dp),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -352,79 +378,93 @@ private fun AccountRow(
                 if (isPrimary) PrimaryBadge(account.id)
             }
             Text(
-                text = "Человек",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
                 text = formatAccountProfile(account.profile),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (!isPrimary) {
-                TextButton(
-                    onClick = onMakePrimary,
-                    enabled = enabled,
-                    modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
-                ) {
-                    Text("Сделать основным")
-                }
-            }
         }
         HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить профиль ${account.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
+            icon = HuaweiIcons.More,
+            contentDescription = "Дополнительные действия для ${account.displayName}",
+            onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
         )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить профиль ${account.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
-        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Изменить") },
+                onClick = { menuExpanded = false; onEdit() },
+            )
+            if (!isPrimary) DropdownMenuItem(
+                text = { Text("Сделать основным") },
+                onClick = { menuExpanded = false; onMakePrimary() },
+                modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
+            )
+            DropdownMenuItem(
+                text = { Text("Удалить") },
+                onClick = { menuExpanded = false; onDelete() },
+                modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
+            )
+        }
     }
 }
 
 @Composable
 private fun PetProfileRow(
     pet: PetWithLatestWeight,
-    enabled: Boolean,
     speciesLabel: String,
     weightLabel: String,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.petRow(pet.pet.id))
+            .clickable(onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = when (pet.pet.species) {
+                PetSpecies.CAT -> HuaweiIcons.Cat
+                PetSpecies.DOG -> HuaweiIcons.Dog
+                PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+            },
+            contentDescription = speciesLabel,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 12.dp),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
-            Text("Питомец · $speciesLabel", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+            Text(speciesLabel, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить питомца ${pet.pet.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
+            icon = HuaweiIcons.More,
+            contentDescription = "Дополнительные действия для ${pet.pet.displayName}",
+            onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
         )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить питомца ${pet.pet.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
-        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Изменить") },
+                onClick = { menuExpanded = false; onEdit() },
+            )
+            DropdownMenuItem(
+                text = { Text("Удалить") },
+                onClick = { menuExpanded = false; onDelete() },
+                modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
+            )
+        }
     }
 }
+
+private fun sortedAccounts(accounts: List<Account>, primaryAccountId: AccountId?): List<Account> =
+    accounts.sortedWith(
+        compareBy<Account> { it.id != primaryAccountId }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayName },
+    )
 
 @Composable
 private fun PrimaryBadge(accountId: AccountId) {
@@ -444,8 +484,9 @@ private fun PrimaryBadge(accountId: AccountId) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AccountEditorDialog(
+fun AccountEditorScreen(
     draft: AccountEditorDraft,
     accounts: List<Account>,
     operationInProgress: Boolean,
@@ -454,17 +495,93 @@ fun AccountEditorDialog(
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
     onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
 ) {
     val validation = validateAccountEditor(draft, accounts, today)
-    AlertDialog(
-        modifier = Modifier.testTag(AccountManagementTestTags.Editor),
-        onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text(if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль") },
-        text = {
+    val initialDraft = remember(draft.editingAccountId) {
+        draft.editingAccountId?.let { id -> accounts.firstOrNull { it.id == id } }
+            ?.let(AccountEditorDraft::edit) ?: AccountEditorDraft.add()
+    }
+    var validationRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var discardRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var saveSubmitted by remember(draft.editingAccountId) { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val titleFocus = remember { FocusRequester() }
+    val sexFocus = remember { FocusRequester() }
+    val birthDateFocus = remember { FocusRequester() }
+    val heightFocus = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        titleFocus.requestFocus()
+    }
+    LaunchedEffect(operationInProgress, error) {
+        if (!operationInProgress && error != null) saveSubmitted = false
+    }
+    val requestClose = {
+        if (!operationInProgress) {
+            if (draft == initialDraft) onDismiss() else discardRequested = true
+        }
+    }
+    BackHandler(enabled = !operationInProgress, onBack = requestClose)
+    Scaffold(
+        modifier = modifier.fillMaxSize().testTag(AccountManagementTestTags.Editor),
+        topBar = {
+            TopAppBar(
+                title = {
+                    Text(
+                        text = if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль",
+                        modifier = Modifier
+                            .focusRequester(titleFocus)
+                            .focusable()
+                            .testTag(AccountManagementTestTags.EditorTitle)
+                            .semantics { heading() },
+                    )
+                },
+                navigationIcon = {
+                    HuaweiIconButton(
+                        icon = HuaweiIcons.Back,
+                        contentDescription = "Вернуться к профилям",
+                        onClick = requestClose,
+                        modifier = Modifier.testTag(AccountManagementTestTags.EditorBack),
+                    )
+                },
+            )
+        },
+        bottomBar = {
+            Surface(shadowElevation = 8.dp) {
+                Button(
+                    onClick = {
+                        validationRequested = true
+                        if (validation.isValid) {
+                            if (saveSubmitted) return@Button
+                            saveSubmitted = true
+                            draft.toNewAccountOrNull(validation)?.let(onCreate)
+                                ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
+                        } else scope.launch {
+                            when {
+                                validation.error(AccountEditorField.NAME) != null -> nameFocus
+                                validation.error(AccountEditorField.SEX) != null -> sexFocus
+                                validation.error(AccountEditorField.BIRTH_DATE) != null -> birthDateFocus
+                                validation.error(AccountEditorField.HEIGHT) != null -> heightFocus
+                                else -> null
+                            }?.requestFocus()
+                        }
+                    },
+                    enabled = !operationInProgress && !saveSubmitted,
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(HuaweiDimensions.ContentPadding)
+                        .testTag(AccountManagementTestTags.EditorSave),
+                ) { Text(if (operationInProgress) "Сохранение…" else "Сохранить") }
+            }
+        },
+    ) { contentPadding ->
+        Box(Modifier.fillMaxSize().padding(contentPadding), contentAlignment = Alignment.TopCenter) {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
+                modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
+                    .verticalScroll(rememberScrollState())
+                    .padding(HuaweiDimensions.ContentPadding),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 OutlinedTextField(
                     value = draft.name,
@@ -472,25 +589,35 @@ fun AccountEditorDialog(
                     label = { Text("Имя") },
                     singleLine = true,
                     enabled = !operationInProgress,
-                    isError = validation.error(AccountEditorField.NAME) != null,
-                    supportingText = validation.error(AccountEditorField.NAME)?.let { message ->
+                    isError = validationRequested && validation.error(AccountEditorField.NAME) != null,
+                    supportingText = validation.error(AccountEditorField.NAME).takeIf { validationRequested }?.let { message ->
                         { Text(message) }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().focusRequester(nameFocus)
+                        .testTag(AccountManagementTestTags.EditorName),
                 )
-                OutlinedTextField(
-                    value = draft.heightCm,
-                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.HeightChanged(it))) },
-                    label = { Text("Рост, см") },
-                    singleLine = true,
-                    enabled = !operationInProgress,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    isError = validation.error(AccountEditorField.HEIGHT) != null,
-                    supportingText = validation.error(AccountEditorField.HEIGHT)?.let { message ->
-                        { Text(message) }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Text("Пол", style = MaterialTheme.typography.labelLarge)
+                FlowRow(
+                    modifier = Modifier
+                        .testTag(AccountManagementTestTags.EditorSexGroup)
+                        .semantics {
+                            contentDescription = "Пол"
+                            selectableGroup()
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress,
+                        Modifier.focusRequester(sexFocus).testTag(AccountManagementTestTags.EditorSexMale)) {
+                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
+                    }
+                    SexChoice("Женский", Sex.FEMALE, draft.sex, !operationInProgress,
+                        Modifier.testTag(AccountManagementTestTags.EditorSexFemale)) {
+                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
+                    }
+                }
+                validation.error(AccountEditorField.SEX).takeIf { validationRequested }?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
                 BirthDateField(
                     value = draft.birthDate,
                     onValueChange = { birthDate ->
@@ -503,22 +630,25 @@ fun AccountEditorDialog(
                     },
                     selectionPolicy = BirthDateSelectionPolicy.forAccount(today),
                     enabled = !operationInProgress,
-                    isError = validation.error(AccountEditorField.BIRTH_DATE) != null,
-                    supportingText = validation.error(AccountEditorField.BIRTH_DATE),
-                    modifier = Modifier.testTag(AccountManagementTestTags.EditorBirthDate),
+                    isError = validationRequested && validation.error(AccountEditorField.BIRTH_DATE) != null,
+                    supportingText = validation.error(AccountEditorField.BIRTH_DATE).takeIf { validationRequested },
+                    modifier = Modifier.focusRequester(birthDateFocus)
+                        .testTag(AccountManagementTestTags.EditorBirthDate),
                 )
-                Text("Пол", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress) {
-                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
-                    }
-                    SexChoice("Женский", Sex.FEMALE, draft.sex, !operationInProgress) {
-                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
-                    }
-                }
-                validation.error(AccountEditorField.SEX)?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
+                OutlinedTextField(
+                    value = draft.heightCm,
+                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.HeightChanged(it))) },
+                    label = { Text("Рост, см") },
+                    singleLine = true,
+                    enabled = !operationInProgress,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = validationRequested && validation.error(AccountEditorField.HEIGHT) != null,
+                    supportingText = validation.error(AccountEditorField.HEIGHT).takeIf { validationRequested }?.let { message ->
+                        { Text(message) }
+                    },
+                    modifier = Modifier.fillMaxWidth().focusRequester(heightFocus)
+                        .testTag(AccountManagementTestTags.EditorHeight),
+                )
                 error?.let {
                     Text(
                         text = it,
@@ -529,19 +659,21 @@ fun AccountEditorDialog(
                     )
                 }
             }
-        },
+        }
+    }
+    if (discardRequested) AlertDialog(
+        modifier = Modifier.testTag(AccountManagementTestTags.EditorDiscardPrompt),
+        onDismissRequest = { discardRequested = false },
+        title = { Text("Отменить изменения?") },
+        text = { Text("Несохранённые изменения профиля будут потеряны.") },
         confirmButton = {
-            Button(
-                onClick = {
-                    draft.toNewAccountOrNull(validation)?.let(onCreate)
-                        ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
-                },
-                enabled = validation.isValid && !operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.EditorSave),
-            ) { Text("Сохранить") }
+            TextButton(onClick = onDismiss,
+                modifier = Modifier.testTag(AccountManagementTestTags.EditorDiscardConfirm)) {
+                Text("Отменить изменения")
+            }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+            TextButton(onClick = { discardRequested = false }) { Text("Продолжить редактирование") }
         },
     )
 }
@@ -552,6 +684,7 @@ private fun SexChoice(
     value: Sex,
     selectedSex: Sex?,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onSelect: (Sex) -> Unit,
 ) {
     val selected = selectedSex == value
@@ -562,7 +695,7 @@ private fun SexChoice(
             1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
         ),
-        modifier = Modifier.semantics {
+        modifier = modifier.semantics {
             role = Role.RadioButton
             this.selected = selected
         },

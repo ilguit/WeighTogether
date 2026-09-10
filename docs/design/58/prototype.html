@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ScaleSync — UI/UX audit #58</title>
+<style>
+  html { color-scheme: light dark; background: light-dark(#ffffff, #181818); }
+  body { margin: 0; padding: 16px; color: light-dark(#1a1c1f, #ffffff); background: inherit; font-family: system-ui, sans-serif; }
+  *, *::before, *::after { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="scalesync-profile-flows">
+  <div class="viz-controls" aria-label="Параметры макета">
+    <label class="form-label">Сценарий
+      <select class="form-select" id="spf-screen">
+        <option value="profiles">Управление профилями и питомцами</option>
+        <option value="profile-editor">Редактор профиля человека</option>
+        <option value="pet-editor">Редактор питомца</option>
+        <option value="resolver">Неназначенное измерение</option>
+        <option value="preview">Предпросмотр без сохранения</option>
+        <option value="pet-first">Питомец · первое взвешивание</option>
+        <option value="pet-second">Питомец · второе взвешивание</option>
+        <option value="pet-complete">Питомец · результат</option>
+      </select>
+    </label>
+    <label class="form-label">Ширина
+      <select class="form-select" id="spf-width">
+        <option value="normal">Обычная · 412 dp</option>
+        <option value="narrow">Узкая · 320 dp</option>
+      </select>
+    </label>
+  </div>
+  <div class="spf-stage" aria-live="polite">
+    <div class="spf-phone"><div class="spf-app"></div></div>
+  </div>
+</div>
+
+<style>
+  #scalesync-profile-flows { color-scheme: light; }
+  #scalesync-profile-flows .viz-controls { display: flex; flex-wrap: wrap; gap: 12px; }
+  #scalesync-profile-flows .form-label { display: grid; gap: 4px; flex: 1 1 220px; }
+  #scalesync-profile-flows .form-select { min-height: 40px; padding: 8px 10px; font: inherit; }
+  #scalesync-profile-flows .spf-stage { display: grid; justify-items: center; margin-top: 18px; }
+  #scalesync-profile-flows .spf-phone {
+    width: min(100%, 412px); overflow: hidden; color: light-dark(#18302a, #18302a);
+    background: light-dark(#f7faf7, #f7faf7); border: 1px solid light-dark(#c8d6cf, #c8d6cf);
+    border-radius: 24px; box-shadow: 0 8px 28px light-dark(#18302a1c, #18302a1c);
+    font-family: Roboto, system-ui, sans-serif; font-size: 14px; line-height: 1.35;
+  }
+  #scalesync-profile-flows .spf-phone[data-width="narrow"] { width: min(100%, 320px); }
+  #scalesync-profile-flows .spf-app { min-height: 640px; display: flex; flex-direction: column; }
+  #scalesync-profile-flows .spf-topbar {
+    min-height: 64px; padding: 10px 12px; display: flex; align-items: center; gap: 8px;
+    background: light-dark(#edf5f0, #edf5f0); border-bottom: 1px solid light-dark(#d7e1db, #d7e1db);
+  }
+  #scalesync-profile-flows .spf-icon-button {
+    width: 48px; height: 48px; flex: 0 0 48px; display: inline-grid; place-items: center;
+    border: 0; border-radius: 24px; color: light-dark(#245c4c, #245c4c); background: transparent;
+  }
+  #scalesync-profile-flows .spf-icon-danger { color: light-dark(#b22c2c, #b22c2c); }
+  #scalesync-profile-flows .spf-title { flex: 1; min-width: 0; font-size: 1.18em; font-weight: 500; overflow-wrap: anywhere; }
+  #scalesync-profile-flows .spf-content { padding: 16px; display: grid; gap: 14px; flex: 1; align-content: start; }
+  #scalesync-profile-flows .spf-content > * { min-width: 0; }
+  #scalesync-profile-flows .spf-section { display: grid; gap: 7px; min-width: 0; }
+  #scalesync-profile-flows .spf-section-title { font-weight: 500; }
+  #scalesync-profile-flows .spf-card {
+    padding: 16px; display: grid; gap: 10px; background: light-dark(#ffffff, #ffffff);
+    border: 1px solid light-dark(#d7e1db, #d7e1db); border-radius: 18px;
+  }
+  #scalesync-profile-flows .spf-card > * { min-width: 0; }
+  #scalesync-profile-flows .spf-list { min-width: 0; padding: 2px 14px; background: light-dark(#ffffff, #ffffff); border: 1px solid light-dark(#d7e1db, #d7e1db); border-radius: 18px; }
+  #scalesync-profile-flows .spf-row { min-width: 0; min-height: 68px; display: flex; align-items: center; gap: 10px; padding: 9px 0; border-bottom: 1px solid light-dark(#e2e9e5, #e2e9e5); }
+  #scalesync-profile-flows .spf-row:last-child { border-bottom: 0; }
+  #scalesync-profile-flows .spf-leading { width: 40px; height: 40px; flex: 0 0 40px; display: grid; place-items: center; border-radius: 20px; color: light-dark(#245c4c, #245c4c); background: light-dark(#edf5f0, #edf5f0); }
+  #scalesync-profile-flows .spf-grow { flex: 1; min-width: 0; }
+  #scalesync-profile-flows .spf-name { font-weight: 500; overflow-wrap: anywhere; }
+  #scalesync-profile-flows .spf-muted { color: light-dark(#52665f, #52665f); overflow-wrap: anywhere; }
+  #scalesync-profile-flows .spf-badge { display: inline; font-size: .88em; color: light-dark(#2f6b56, #2f6b56); }
+  #scalesync-profile-flows .spf-button {
+    min-height: 48px; padding: 10px 16px; border-radius: 14px; border: 1px solid light-dark(#9ab5a9, #9ab5a9);
+    background: light-dark(#ffffff, #ffffff); color: light-dark(#245c4c, #245c4c); font: inherit; font-weight: 500;
+    white-space: normal; overflow-wrap: anywhere;
+  }
+  #scalesync-profile-flows .spf-primary { background: light-dark(#245c4c, #245c4c); color: light-dark(#ffffff, #ffffff); border-color: transparent; }
+  #scalesync-profile-flows .spf-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+  #scalesync-profile-flows .spf-phone[data-width="narrow"] .spf-actions { display: grid; grid-template-columns: 1fr; }
+  #scalesync-profile-flows .spf-field { min-width: 0; display: grid; gap: 6px; }
+  #scalesync-profile-flows .spf-field label { font-weight: 500; }
+  #scalesync-profile-flows .spf-input { box-sizing: border-box; width: 100%; min-width: 0; min-height: 48px; padding: 10px 12px; border: 1px solid light-dark(#9ab5a9, #9ab5a9); border-radius: 12px; background: light-dark(#ffffff, #ffffff); color: light-dark(#18302a, #18302a); font: inherit; }
+  #scalesync-profile-flows .spf-footer { position: sticky; bottom: 0; margin-top: auto; padding: 12px 16px; background: light-dark(#f7faf7, #f7faf7); border-top: 1px solid light-dark(#d7e1db, #d7e1db); }
+  #scalesync-profile-flows .spf-footer .spf-button { width: 100%; }
+  #scalesync-profile-flows .spf-reading { font-size: 2.4em; font-weight: 500; }
+  #scalesync-profile-flows .spf-step { font-size: 1.22em; font-weight: 500; }
+  #scalesync-profile-flows .spf-measure { display: grid; gap: 14px; text-align: center; align-content: center; min-height: 330px; }
+  #scalesync-profile-flows .spf-spinner { width: 42px; height: 42px; margin: 0 auto; border: 4px solid light-dark(#d7e1db, #d7e1db); border-top-color: light-dark(#2f7a62, #2f7a62); border-radius: 50%; }
+  #scalesync-profile-flows .spf-profile-choice { width: 100%; text-align: left; display: flex; align-items: center; gap: 10px; }
+  #scalesync-profile-flows .spf-highlight { padding: 12px 14px; border-radius: 12px; background: light-dark(#edf5f0, #edf5f0); }
+  #scalesync-profile-flows .spf-unsaved { color: light-dark(#8a5b00, #8a5b00); font-weight: 500; }
+  #scalesync-profile-flows .spf-choice-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+  #scalesync-profile-flows .spf-choice-grid .spf-button { display: flex; align-items: center; justify-content: center; gap: 8px; }
+  #scalesync-profile-flows .spf-choice-selected { background: light-dark(#245c4c, #245c4c); color: light-dark(#ffffff, #ffffff); border-color: transparent; }
+  #scalesync-profile-flows .spf-dialog-wrap { min-height: 640px; padding: 26px 16px; display: grid; align-items: start; background: light-dark(#18302a24, #18302a24); }
+  #scalesync-profile-flows .spf-dialog { padding: 20px; display: grid; gap: 14px; background: light-dark(#ffffff, #ffffff); border-radius: 24px; box-shadow: 0 14px 40px light-dark(#18302a33, #18302a33); }
+  #scalesync-profile-flows .spf-dialog-title { font-size: 1.18em; font-weight: 500; }
+  #scalesync-profile-flows .spf-resolver-options { display: grid; gap: 8px; }
+  #scalesync-profile-flows .spf-resolver-option { width: 100%; min-height: 56px; padding: 10px 14px; display: grid; gap: 2px; text-align: left; }
+  #scalesync-profile-flows .spf-dialog .spf-actions { display: grid; grid-template-columns: 1fr; }
+  #scalesync-profile-flows .spf-dialog .spf-actions .spf-button { width: 100%; }
+  #scalesync-profile-flows .spf-pet-name { font-size: 1.75em; font-weight: 500; overflow-wrap: anywhere; }
+  #scalesync-profile-flows .spf-result-delta { font-size: .88em; color: light-dark(#52665f, #52665f); }
+</style>
+
+<script>
+(() => {
+  const root = document.getElementById('scalesync-profile-flows');
+  const screen = root.querySelector('#spf-screen');
+  const width = root.querySelector('#spf-width');
+  const phone = root.querySelector('.spf-phone');
+  const app = root.querySelector('.spf-app');
+  let previewStep = 1;
+  const top = title => `<header class="spf-topbar"><button class="spf-icon-button" aria-label="Назад"><span aria-hidden="true">←</span></button><div class="spf-title">${title}</div></header>`;
+  const footer = label => `<footer class="spf-footer"><button class="spf-button spf-primary">${label}</button></footer>`;
+  const iconGlyphs = { mars: '♂', venus: '♀', cat: '🐱', dog: '🐶' };
+  const profileRow = (icon, iconLabel, name, secondary, primary = false) => `<div class="spf-row"><span class="spf-leading" aria-label="${iconLabel}"><span aria-hidden="true">${iconGlyphs[icon]}</span></span><div class="spf-grow"><div class="spf-name">${name} ${primary ? '<span class="spf-badge">· Основной</span>' : ''}</div>${secondary ? `<div class="spf-muted">${secondary}</div>` : ''}</div><button class="spf-icon-button" aria-label="Дополнительные действия для ${name}"><span aria-hidden="true">⋮</span></button></div>`;
+  const screens = {
+    profiles: () => `${top('Профили и питомцы')}<main class="spf-content"><section class="spf-section"><div class="spf-section-title">Профили</div><div class="spf-list">${profileRow('mars','Мужчина','Александр','',true)}${profileRow('venus','Женщина','Мария с очень длинным именем','')}</div><button class="spf-button">Добавить профиль</button></section><section class="spf-section"><div class="spf-section-title">Питомцы</div><div class="spf-list">${profileRow('cat','Кошка','Барсик','5,4 кг · вчера, 19:32')}${profileRow('dog','Собака','Ричи','—')}</div><button class="spf-button">Добавить питомца</button></section><section class="spf-section"><div class="spf-section-title">Распознавание измерений</div><div class="spf-card"><div class="spf-field"><label>Допуск по весу</label><input class="spf-input" value="3,0 кг" readonly><div class="spf-muted">Больший допуск увеличивает вероятность автоматического назначения и неверного совпадения.</div></div><label class="spf-row"><input type="checkbox"><span class="spf-grow"><span class="spf-name">Игнорировать неизвестные показания</span><br><span class="spf-muted">Только для новых измерений после включения</span></span></label></div></section></main>`,
+    'profile-editor': () => `${top('Изменить профиль')}<main class="spf-content"><div class="spf-field"><label>Имя</label><input class="spf-input" value="Александр" readonly></div><fieldset class="spf-field" style="border:0;padding:0;margin:0"><legend style="font-weight:500;margin-bottom:6px">Пол</legend><div class="spf-choice-grid"><button class="spf-button spf-choice-selected" aria-pressed="true"><span aria-hidden="true">♂</span><span>Мужчина</span></button><button class="spf-button" aria-pressed="false"><span aria-hidden="true">♀</span><span>Женщина</span></button></div></fieldset><div class="spf-field"><label>Дата рождения</label><input class="spf-input" value="14 мая 1990" readonly></div><div class="spf-field"><label>Рост</label><input class="spf-input" value="178 см" readonly></div></main>${footer('Сохранить')}`,
+    'pet-editor': () => `${top('Изменить питомца')}<main class="spf-content"><div class="spf-field"><label>Имя</label><input class="spf-input" value="Барсик" readonly></div><fieldset class="spf-field" style="border:0;padding:0;margin:0"><legend style="font-weight:500;margin-bottom:6px">Вид питомца</legend><div class="spf-choice-grid" role="group" aria-label="Вид питомца"><button class="spf-button spf-choice-selected" aria-pressed="true"><span aria-hidden="true">🐱</span><span>Кошка</span></button><button class="spf-button" aria-pressed="false"><span aria-hidden="true">🐶</span><span>Собака</span></button></div></fieldset><fieldset class="spf-field" style="border:0;padding:0;margin:0"><legend style="font-weight:500;margin-bottom:6px">Пол (необязательно)</legend><div class="spf-choice-grid" role="group" aria-label="Пол питомца"><button class="spf-button spf-choice-selected" aria-pressed="true">Самец</button><button class="spf-button" aria-pressed="false">Самка</button></div></fieldset><div class="spf-field"><label>Порода</label><button class="spf-button spf-profile-choice" aria-label="Выбрать породу. Британская короткошёрстная"><span class="spf-grow">Британская короткошёрстная</span><span aria-hidden="true">›</span></button></div></main>${footer('Сохранить')}`,
+    resolver: () => `<div class="spf-dialog-wrap"><section class="spf-dialog" role="dialog" aria-modal="true" aria-labelledby="spf-resolver-title"><div class="spf-dialog-title" id="spf-resolver-title">Неназначенное измерение</div><section class="spf-card"><div class="spf-reading">72,3 кг</div><div class="spf-muted">Сегодня, 09:14</div></section><div class="spf-step">Кому назначить это измерение?</div><div class="spf-resolver-options"><button class="spf-button spf-resolver-option"><span class="spf-name">Александр</span><span class="spf-badge">Рекомендуется</span></button><button class="spf-button spf-resolver-option"><span class="spf-name">Мария</span></button></div><div class="spf-actions"><button class="spf-button">Показать без сохранения</button><button class="spf-button">Создать новый профиль</button></div><label class="spf-row"><input type="checkbox"> <span class="spf-grow">Всегда игнорировать неизвестные показания</span></label><div class="spf-actions"><button class="spf-button spf-icon-danger">Удалить</button><button class="spf-button">Решить позже</button></div></section></div>`,
+    preview: () => {
+      if (previewStep === 1) return `${top('Предпросмотр')}<main class="spf-content"><div class="spf-unsaved">Не сохранено · Шаг 1 из 3</div><div class="spf-highlight">Эти данные не появятся в истории и не будут отправлены во внешние сервисы.</div><div class="spf-field"><label>Пол</label><div class="spf-choice-grid"><button class="spf-button spf-choice-selected" aria-pressed="true">Мужчина</button><button class="spf-button" aria-pressed="false">Женщина</button></div></div></main><footer class="spf-footer"><button class="spf-button spf-primary" data-preview-next>Продолжить</button></footer>`;
+      if (previewStep === 2) return `${top('Предпросмотр')}<main class="spf-content"><div class="spf-unsaved">Не сохранено · Шаг 2 из 3</div><div class="spf-highlight">Укажите временные параметры для расчёта. Они не будут сохранены.</div><div class="spf-field"><label>Дата рождения</label><input class="spf-input" value="14 мая 1990" readonly></div><div class="spf-field"><label>Рост</label><input class="spf-input" value="178 см" readonly></div></main><footer class="spf-footer"><div class="spf-actions"><button class="spf-button" data-preview-back>Назад</button><button class="spf-button spf-primary" data-preview-next>Показать результат</button></div></footer>`;
+      return `${top('Предпросмотр')}<main class="spf-content"><div class="spf-unsaved">Не сохранено · Шаг 3 из 3</div><div class="spf-highlight">Эти данные не появятся в истории и не будут отправлены во внешние сервисы.</div><section class="spf-card"><div class="spf-reading">72,3 кг</div><div class="spf-muted">Расчёт по временно указанным параметрам</div><div class="spf-row"><span class="spf-grow">Жировая масса</span><strong>13,7 кг</strong></div><div class="spf-row"><span class="spf-grow">Мышечная масса</span><strong>56,1 кг</strong></div><div class="spf-row"><span class="spf-grow">Вода</span><strong>59,3%</strong></div></section></main><footer class="spf-footer"><div class="spf-actions"><button class="spf-button" data-preview-back>Назад</button><button class="spf-button spf-primary">Вернуться к назначению</button></div></footer>`;
+    },
+    'pet-first': () => `${top('Взвешивание питомца')}<main class="spf-content"><div class="spf-measure"><div class="spf-pet-name">Барсик</div><div class="spf-step">Первое взвешивание</div><div class="spf-muted">Взвесьтесь с питомцем или без него и дождитесь стабильного показания.</div><div class="spf-spinner" aria-label="Ожидание стабильного показания"></div><div class="spf-reading">71,8 кг</div><div class="spf-muted">Ожидаем стабильное значение</div></div></main><footer class="spf-footer"><button class="spf-button">Отменить</button></footer>`,
+    'pet-second': () => `${top('Взвешивание питомца')}<main class="spf-content"><div class="spf-measure"><div class="spf-pet-name">Барсик</div><div class="spf-step">Второе взвешивание</div><div class="spf-highlight">Первое показание: 71,8 кг</div><div class="spf-muted">Повторите взвешивание в другом варианте: с питомцем, если первое было без него, или без питомца, если первое было с ним.</div><div class="spf-spinner" aria-label="Ожидание второго стабильного показания"></div><div class="spf-reading">77,2 кг</div></div></main><footer class="spf-footer"><button class="spf-button">Отменить</button></footer>`,
+    'pet-complete': () => `${top('Взвешивание питомца')}<main class="spf-content"><div class="spf-measure"><div class="spf-pet-name">Барсик</div><span class="spf-leading" style="margin:0 auto" aria-hidden="true">✓</span><div class="spf-step">Готово</div><div class="spf-reading">Вес питомца — 5,4 кг</div><div class="spf-result-delta" aria-label="На 0,3 килограмма больше, чем при прошлом измерении">+0,3 кг с прошлого измерения</div></div></main><footer class="spf-footer"><div class="spf-actions"><button class="spf-button">Отмена</button><button class="spf-button spf-primary">Готово</button></div></footer>`
+  };
+  function render() {
+    phone.dataset.width = width.value;
+    app.innerHTML = screens[screen.value]();
+    app.querySelector('[data-preview-next]')?.addEventListener('click', () => { previewStep += 1; render(); });
+    app.querySelector('[data-preview-back]')?.addEventListener('click', () => { previewStep -= 1; render(); });
+  }
+  const params = new URLSearchParams(window.location.search);
+  if (screens[params.get('screen')]) screen.value = params.get('screen');
+  if (['normal', 'narrow'].includes(params.get('width'))) width.value = params.get('width');
+  screen.addEventListener('change', () => { previewStep = 1; render(); });
+  width.addEventListener('change', render);
+  render();
+})();
+</script>
+
+</body>
+</html>
