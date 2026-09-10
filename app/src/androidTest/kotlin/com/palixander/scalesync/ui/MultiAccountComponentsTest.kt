@@ -34,11 +34,13 @@ import com.palixander.scalesync.domain.AccountUpdate
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
+import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.ProfileUpdateConfirmation
+import com.palixander.scalesync.ui.accounts.PrimaryAccountChangeRequest
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
 import com.palixander.scalesync.ui.accounts.AccountEditorDialog
 import com.palixander.scalesync.ui.accounts.AccountEditorDraft
@@ -206,6 +208,97 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.primaryBadge(primary.id)).assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
         composeRule.runOnIdle { assertEquals(true, addRequested) }
+    }
+
+    @Test
+    fun primaryChangeUsesFullScreenChoicesAndPinnedContinueAt320Dp() {
+        val account = account("secondary", "Очень длинное имя нового основного профиля")
+        var selectedMode: PrimaryHistorySyncMode? = null
+        var confirmed: Pair<AccountId, PrimaryHistorySyncMode>? = null
+        composeRule.setContent {
+            var state by remember {
+                mutableStateOf(
+                    AccountManagementUiState(
+                        accounts = listOf(account),
+                        primaryChange = PrimaryAccountChangeRequest(account.id),
+                    ),
+                )
+            }
+            DeviceConfigurationOverride(
+                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 640.dp)),
+            ) {
+                ScaleSyncTheme {
+                    AccountManagementSection(
+                        state = state,
+                        callbacks = AccountManagementCallbacks.None.copy(
+                            onAction = { action ->
+                                if (action is com.palixander.scalesync.ui.accounts.AccountManagementAction.SyncModeSelected) {
+                                    selectedMode = action.mode
+                                    state = state.copy(
+                                        primaryChange = state.primaryChange?.copy(
+                                            historySyncMode = action.mode,
+                                        ),
+                                    )
+                                }
+                            },
+                            onSetPrimary = { accountId, mode -> confirmed = accountId to mode },
+                        ),
+                    )
+                }
+            }
+        }
+
+        val screen = composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChange)
+            .assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertEquals(320.dp, screen.right - screen.left)
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeBack).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeFutureOnly)
+            .assertIsSelected().assertHeightIsAtLeast(48.dp)
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeIncludeHistory)
+            .assertHeightIsAtLeast(48.dp).performClick().assertIsSelected()
+        composeRule.onNodeWithText("Очень длинное имя нового основного профиля", substring = true)
+            .assertExists()
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeContinue)
+            .assertIsDisplayed().assertHeightIsAtLeast(48.dp).performClick()
+
+        composeRule.runOnIdle {
+            assertEquals(PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY, selectedMode)
+            assertEquals(
+                account.id to PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
+                confirmed,
+            )
+        }
+    }
+
+    @Test
+    fun primaryChangeDisablesDismissAndShowsErrorWhileApplying() {
+        val account = account("secondary", "Анна")
+        var dismissals = 0
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountManagementSection(
+                    state = AccountManagementUiState(
+                        accounts = listOf(account),
+                        primaryChange = PrimaryAccountChangeRequest(account.id),
+                        operationInProgress = true,
+                        operationError = "Не удалось изменить основной профиль",
+                    ),
+                    callbacks = AccountManagementCallbacks.None.copy(
+                        onAction = { dismissals += 1 },
+                    ),
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeBack).assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeContinue)
+            .assertIsNotEnabled().assertTextEquals("Применение…")
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeFutureOnly)
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.PrimaryChangeIncludeHistory)
+            .assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.OperationError).assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(0, dismissals) }
     }
 
     @Test

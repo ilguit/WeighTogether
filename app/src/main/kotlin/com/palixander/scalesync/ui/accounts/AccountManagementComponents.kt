@@ -98,6 +98,11 @@ object AccountManagementTestTags {
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
+    const val PrimaryChangeBack = "account-primary-change-back"
+    const val PrimaryChangeContent = "account-primary-change-content"
+    const val PrimaryChangeContinue = "account-primary-change-continue"
+    const val PrimaryChangeFutureOnly = "account-primary-change-future-only"
+    const val PrimaryChangeIncludeHistory = "account-primary-change-include-history"
     const val ProfileUpdatePrompt = "account-profile-update-prompt"
     const val ProfileUpdateRecalculate = "account-profile-update-recalculate"
     const val ProfileUpdateKeepExisting = "account-profile-update-keep-existing"
@@ -254,6 +259,7 @@ fun AccountManagementSection(
             request = request,
             account = state.accounts.firstOrNull { it.id == request.accountId },
             operationInProgress = state.operationInProgress,
+            error = state.operationError,
             onModeChanged = {
                 callbacks.onAction(AccountManagementAction.SyncModeSelected(it))
             },
@@ -733,39 +739,97 @@ private fun SexChoice(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun PrimaryAccountChangeDialog(
     request: PrimaryAccountChangeRequest,
     account: Account?,
     operationInProgress: Boolean,
+    error: String?,
     onModeChanged: (PrimaryHistorySyncMode) -> Unit,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    AlertDialog(
-        modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChange),
+    Dialog(
         onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text("Сделать основным") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Внешняя синхронизация будет доступна только для «${account?.displayName.orEmpty()}».")
-                SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
-                Text(
-                    "Уже отправленные данные прежнего основного профиля не удаляются.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize().testTag(AccountManagementTestTags.PrimaryChange),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Сделать основным") },
+                        navigationIcon = {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.Back,
+                                contentDescription = "Назад",
+                                onClick = onDismiss,
+                                enabled = !operationInProgress,
+                                modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChangeBack),
+                            )
+                        },
+                    )
+                },
+                bottomBar = {
+                    Surface(shadowElevation = 3.dp) {
+                        Button(
+                            onClick = onConfirm,
+                            enabled = account != null && !operationInProgress,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .heightIn(min = 48.dp)
+                                .testTag(AccountManagementTestTags.PrimaryChangeContinue),
+                        ) {
+                            if (operationInProgress) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text("Применение…")
+                            } else {
+                                Text("Продолжить")
+                            }
+                        }
+                    }
+                },
+            ) { contentPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
+                        .testTag(AccountManagementTestTags.PrimaryChangeContent),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        "Профиль «${account?.displayName.orEmpty()}» станет основным. " +
+                            "Внешняя синхронизация будет доступна только для него.",
+                    )
+                    SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
+                    Text(
+                        "Уже отправленные данные прежнего основного профиля не удаляются.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                    error?.let {
+                        Text(
+                            text = it,
+                            color = MaterialTheme.colorScheme.error,
+                            modifier = Modifier
+                                .testTag(AccountManagementTestTags.OperationError)
+                                .semantics { contentDescription = "Ошибка изменения профиля: $it" },
+                        )
+                    }
+                }
             }
-        },
-        confirmButton = {
-            Button(onClick = onConfirm, enabled = account != null && !operationInProgress) {
-                Text("Продолжить")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
-        },
-    )
+        }
+    }
 }
 
 @Composable
@@ -845,12 +909,14 @@ private fun SyncModeChoices(
         label = "Только новые измерения",
         selected = selectedMode == PrimaryHistorySyncMode.FUTURE_ONLY,
         enabled = enabled,
+        modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChangeFutureOnly),
         onClick = { onModeChanged(PrimaryHistorySyncMode.FUTURE_ONLY) },
     )
     SelectionRow(
-        label = "Синхронизировать подходящую историю",
+        label = "Добавить локальную историю",
         selected = selectedMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
         enabled = enabled,
+        modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChangeIncludeHistory),
         onClick = { onModeChanged(PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY) },
     )
 }
@@ -866,7 +932,7 @@ private fun SelectionRow(
     Surface(
         onClick = onClick,
         enabled = enabled,
-        modifier = modifier.fillMaxWidth().semantics {
+        modifier = modifier.fillMaxWidth().heightIn(min = 48.dp).semantics {
             role = Role.RadioButton
             this.selected = selected
         },
