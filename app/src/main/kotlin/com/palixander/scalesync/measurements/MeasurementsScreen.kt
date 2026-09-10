@@ -1,6 +1,6 @@
 package com.palixander.scalesync.measurements
 
-import com.palixander.scalesync.ui.components.ManualOriginIndicator
+import com.palixander.scalesync.ui.components.MeasurementOriginIndicator
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -660,7 +660,7 @@ private fun MeasurementSummaryCard(
                         }
                     }
                 }
-                ManualOriginIndicator(summary.latest.origin, Modifier.testTag("summary-manual-origin"))
+                MeasurementOriginIndicator(summary.latest.origin, Modifier.testTag("summary-measurement-origin"))
             }
             if (summary.latest.isWeightOnly) {
                 Text(
@@ -1110,7 +1110,7 @@ private fun MeasurementHistoryCard(
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
                                 )
-                                ManualOriginIndicator(item.origin, Modifier.testTag("history-manual-origin-${item.id}"))
+                                MeasurementOriginIndicator(item.origin, Modifier.testTag("history-measurement-origin-${item.id}"))
                             }
                         }
                         if (item.isWeightOnly) {

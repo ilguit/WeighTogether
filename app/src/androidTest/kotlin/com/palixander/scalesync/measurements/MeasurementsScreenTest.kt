@@ -71,13 +71,13 @@ class MeasurementsScreenTest {
             isLoading = false, measurements = listOf(item), summary = buildMeasurementSummary(listOf(item)),
         ))
         composeRule.setContent { ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) } }
-        composeRule.onNodeWithTag("summary-manual-origin").assertIsDisplayed()
+        composeRule.onNodeWithTag("summary-measurement-origin").assertIsDisplayed()
         captureManualWeightEvidence("manual-weight-summary")
         composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
-        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsDisplayed().performClick()
-        composeRule.onNodeWithText("Введено вручную").assertIsDisplayed()
-        composeRule.onNodeWithTag("manual-origin-dismiss").performClick()
-        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsFocused()
+        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Измерение введено вручную").assertIsDisplayed()
+        composeRule.onNodeWithTag("measurement-origin-dismiss").performClick()
+        composeRule.onNodeWithTag("history-measurement-origin-manual").assertIsFocused()
         captureManualWeightEvidence("manual-weight-history")
     }
 
