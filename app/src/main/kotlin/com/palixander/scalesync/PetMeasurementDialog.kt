@@ -31,6 +31,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
+import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
@@ -179,7 +180,7 @@ private fun PetSelection(
                 Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(detail, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    item.latestMeasurement?.let {
+                    item.latestMeasurement?.takeIf { it.origin == MeasurementOrigin.MANUAL }?.let {
                         MeasurementOriginIndicator(it.origin, Modifier.testTag("pet-latest-measurement-origin-${item.pet.id}"))
                     }
                 }
