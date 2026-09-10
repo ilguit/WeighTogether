@@ -4,17 +4,26 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiSurface
@@ -23,7 +32,6 @@ import com.palixander.scalesync.ui.theme.HuaweiDimensions
 object WeightDeltaEditorTestTags {
     const val Input = "weight-delta-input"
     const val Error = "weight-delta-error"
-    const val Save = "weight-delta-save"
     const val IgnoreUnknown = "ignore-unknown-measurements-switch"
 }
 
@@ -36,6 +44,20 @@ fun WeightRecognitionSetting(
     onIgnoreUnknownMeasurementsChanged: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val focusManager = LocalFocusManager.current
+    var wasFocused by remember { mutableStateOf(false) }
+    var completionSubmitted by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isSaving) {
+        if (!state.isSaving) completionSubmitted = false
+    }
+    val completeInput = {
+        if (!completionSubmitted) {
+            state.parsedValue?.takeIf { state.canSave }?.let {
+                completionSubmitted = true
+                onSave(it)
+            }
+        }
+    }
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
@@ -48,13 +70,10 @@ fun WeightRecognitionSetting(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    OutlinedTextField(
+                OutlinedTextField(
                         value = state.input,
                         onValueChange = {
+                            completionSubmitted = false
                             onStateChanged(
                                 reduceWeightDeltaEditor(
                                     state,
@@ -69,17 +88,27 @@ fun WeightRecognitionSetting(
                         isError = state.error != null,
                         enabled = !state.isSaving,
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f).testTag(WeightDeltaEditorTestTags.Input),
-                    )
-                    OutlinedButton(
-                        onClick = { state.parsedValue?.let(onSave) },
-                        enabled = state.canSave,
+                        keyboardOptions = KeyboardOptions(
+                            keyboardType = KeyboardType.Decimal,
+                            imeAction = ImeAction.Done,
+                        ),
+                        keyboardActions = KeyboardActions(onDone = {
+                            completeInput()
+                            focusManager.clearFocus()
+                        }),
                         modifier = Modifier
-                            .padding(top = HuaweiDimensions.CompactContentPadding)
-                            .testTag(WeightDeltaEditorTestTags.Save),
-                    ) { Text("Сохранить") }
-                }
+                            .fillMaxWidth()
+                            .onFocusChanged { focusState ->
+                                if (wasFocused && !focusState.isFocused) completeInput()
+                                wasFocused = focusState.isFocused
+                            }
+                            .testTag(WeightDeltaEditorTestTags.Input)
+                            .semantics {
+                                if (state.isSaving) {
+                                    contentDescription = "Сохранение допуска по весу"
+                                }
+                            },
+                    )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(

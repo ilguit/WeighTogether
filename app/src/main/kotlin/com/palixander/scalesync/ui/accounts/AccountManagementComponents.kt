@@ -14,6 +14,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -355,15 +357,19 @@ private fun AccountRow(
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = HuaweiIcons.Profile,
-            contentDescription = when ((account.profile as? AccountProfile.Complete)?.sex) {
+        val completeProfile = account.profile as? AccountProfile.Complete
+        ProfileGlyph(
+            glyph = when (completeProfile?.sex) {
+                Sex.MALE -> "♂"
+                Sex.FEMALE -> "♀"
+                null -> "?"
+            },
+            description = when (completeProfile?.sex) {
                 Sex.MALE -> "Мужчина"
                 Sex.FEMALE -> "Женщина"
                 null -> "Профиль"
             },
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 12.dp),
+            modifier = Modifier.padding(end = 10.dp),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
@@ -377,11 +383,6 @@ private fun AccountRow(
                 )
                 if (isPrimary) PrimaryBadge(account.id)
             }
-            Text(
-                text = formatAccountProfile(account.profile),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
         HuaweiIconButton(
             icon = HuaweiIcons.More,
@@ -425,19 +426,17 @@ private fun PetProfileRow(
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            imageVector = when (pet.pet.species) {
-                PetSpecies.CAT -> HuaweiIcons.Cat
-                PetSpecies.DOG -> HuaweiIcons.Dog
-                PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+        ProfileGlyph(
+            glyph = when (pet.pet.species) {
+                PetSpecies.CAT -> "🐱"
+                PetSpecies.DOG -> "🐶"
+                PetSpecies.UNSPECIFIED -> "🐾"
             },
-            contentDescription = speciesLabel,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier = Modifier.padding(end = 12.dp),
+            description = speciesLabel,
+            modifier = Modifier.padding(end = 10.dp),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
-            Text(speciesLabel, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         HuaweiIconButton(
@@ -456,6 +455,26 @@ private fun PetProfileRow(
                 onClick = { menuExpanded = false; onDelete() },
                 modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
             )
+        }
+    }
+}
+
+@Composable
+private fun ProfileGlyph(
+    glyph: String,
+    description: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier
+            .size(40.dp)
+            .semantics { contentDescription = description },
+        shape = CircleShape,
+        color = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Box(contentAlignment = Alignment.Center) {
+            Text(glyph, style = MaterialTheme.typography.titleLarge)
         }
     }
 }
