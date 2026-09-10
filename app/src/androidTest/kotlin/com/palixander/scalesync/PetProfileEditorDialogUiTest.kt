@@ -17,7 +17,9 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
@@ -594,6 +596,32 @@ class PetProfileEditorDialogUiTest {
             .assert(hasScrollAction())
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog).assertIsSelected()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertIsSelected()
+        val catBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesCat)
+            .assertTextEquals("🐱 Кошка")
+            .assertIsNotSelected()
+            .assert(
+                SemanticsMatcher.expectValue(
+                    SemanticsProperties.Role,
+                    Role.RadioButton,
+                ),
+            )
+            .getUnclippedBoundsInRoot()
+        val dogBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog)
+            .assertTextEquals("🐶 Собака")
+            .getUnclippedBoundsInRoot()
+        val maleBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale)
+            .assertTextEquals("Самец")
+            .getUnclippedBoundsInRoot()
+        val femaleBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale)
+            .assertTextEquals("Самка")
+            .assertIsNotSelected()
+            .getUnclippedBoundsInRoot()
+        composeRule.runOnIdle {
+            assertEquals(catBounds.right - catBounds.left, dogBounds.right - dogBounds.left)
+            assertEquals(maleBounds.right - maleBounds.left, femaleBounds.right - femaleBounds.left)
+            assertTrue(catBounds.right <= dogBounds.left)
+            assertTrue(maleBounds.right <= femaleBounds.left)
+        }
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
             .performScrollTo()
             .assertContentDescriptionEquals("Очистить дату рождения питомца")

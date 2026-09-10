@@ -4,7 +4,13 @@ import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.Pet
+import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetMeasurement
+import com.palixander.scalesync.domain.PetWithLatestWeight
+import java.time.Instant
 import java.time.LocalDate
+import java.time.ZoneId
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -64,9 +70,39 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `latest pet weight uses locale and no-history state is explicit`() {
-        assertEquals("Последний вес: 4,25 кг", formatLatestPetWeight(4.25, Locale.forLanguageTag("ru-RU")))
-        assertEquals("Измерений пока нет", formatLatestPetWeight(null, Locale.forLanguageTag("ru-RU")))
+    fun `pet subtitle combines localized weight with relative date and time`() {
+        val measuredAt = Instant.parse("2026-08-26T10:32:00Z")
+        val pet = Pet(
+            id = PetId("pet"),
+            displayName = "Барсик",
+            species = PetSpecies.CAT,
+            createdAt = measuredAt,
+            updatedAt = measuredAt,
+        )
+        val measured = PetWithLatestWeight(
+            pet,
+            PetMeasurement("measurement", pet.id, measuredAt, 70.0, 75.4),
+        )
+        val zone = ZoneId.of("Europe/Moscow")
+
+        assertEquals(
+            "5,4 кг · вчера, 13:32",
+            formatLatestPetWeight(
+                measured,
+                Locale.forLanguageTag("ru-RU"),
+                Instant.parse("2026-08-27T12:00:00Z"),
+                zone,
+            ),
+        )
+        assertEquals(
+            "—",
+            formatLatestPetWeight(
+                PetWithLatestWeight(pet, null),
+                Locale.forLanguageTag("ru-RU"),
+                measuredAt,
+                zone,
+            ),
+        )
     }
 
     @Test

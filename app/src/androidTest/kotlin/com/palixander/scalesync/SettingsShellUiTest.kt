@@ -146,8 +146,8 @@ class SettingsShellUiTest {
         )
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
-        composeRule.onNodeWithText("Последний вес: 4,25 кг").performScrollTo().assertIsDisplayed()
-        composeRule.onNodeWithText("Измерений пока нет").performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("4,25 кг", substring = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("—").performScrollTo().assertIsDisplayed()
     }
 
     @Test

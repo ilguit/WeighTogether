@@ -113,10 +113,10 @@ fun MeasurementResolverDialog(
                     stringResource(R.string.measurement_resolver_assignment_question),
                     style = MaterialTheme.typography.titleSmall,
                 )
-                state.accountOptions.forEachIndexed { index, option ->
+                state.accountOptions.forEach { option ->
                     ResolverAccountButton(
                         option = option,
-                        recommended = index == 0 && option.isCandidate,
+                        recommended = option.accountId == state.recommendedAccountId,
                         enabled = !state.operationInProgress,
                         onClick = {
                             callbacks.onAccountSelected(state.pending.id, option.accountId)

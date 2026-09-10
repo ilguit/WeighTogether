@@ -11,6 +11,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.platform.app.InstrumentationRegistry
 import com.palixander.scalesync.core.Sex
@@ -21,6 +22,7 @@ import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetMeasurement as DomainPetMeasurement
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
@@ -29,6 +31,8 @@ import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
+import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
+import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
 import com.palixander.scalesync.ui.routing.MeasurementResolverCallbacks
 import com.palixander.scalesync.ui.routing.MeasurementResolverDialog
 import com.palixander.scalesync.ui.routing.MeasurementResolverUiState
@@ -43,6 +47,8 @@ import com.palixander.scalesync.ui.routing.calculateUnsavedPreview
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.Instant
 import java.time.LocalDate
+import java.time.LocalTime
+import java.time.ZoneId
 import java.time.ZoneOffset
 import org.junit.Rule
 import org.junit.Test
@@ -58,6 +64,8 @@ class Issue58ScreenshotMatrixTest {
         val mode = InstrumentationRegistry.getArguments().getString("issue58Mode") ?: "normal"
         val currentScenario = mutableStateOf(scenarios(mode).first())
         activity.scenario.onActivity { host ->
+            host.setShowWhenLocked(true)
+            host.setTurnScreenOn(true)
             host.setContent { ScaleSyncTheme { Scenario(currentScenario.value) } }
         }
         scenarios(mode).forEach { name ->
@@ -78,6 +86,7 @@ class Issue58ScreenshotMatrixTest {
         "font200" -> listOf("human-editor-font200", "pet-editor-font200")
         else -> listOf(
             "profiles",
+            "profiles-recognition",
             "human-editor",
             "pet-editor",
             "resolver",
@@ -109,6 +118,7 @@ class Issue58ScreenshotMatrixTest {
     private fun Scenario(name: String) {
         when (name) {
             "profiles", "profiles-empty" -> Profiles(empty = name.endsWith("empty"))
+            "profiles-recognition" -> Recognition()
             "human-editor", "human-editor-font200" -> HumanEditor(HUMAN_NAME)
             "human-editor-long" -> HumanEditor(LONG_HUMAN_NAME)
             "human-editor-saving" -> HumanEditor(HUMAN_NAME, busy = true)
@@ -135,9 +145,22 @@ class Issue58ScreenshotMatrixTest {
         }
     }
 
+    @Composable
+    private fun Recognition() {
+        WeightRecognitionSetting(
+            state = WeightDeltaEditorState(input = "3,0"),
+            onStateChanged = {},
+            onSave = {},
+            ignoreUnknownMeasurements = false,
+            onIgnoreUnknownMeasurementsChanged = {},
+            modifier = Modifier.padding(16.dp),
+        )
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun Profiles(empty: Boolean) {
+        check(formatLatestPetWeight(PET_WITH_LATEST_WEIGHT) == "5,4 кг · вчера, 19:32")
         Scaffold(topBar = { TopAppBar(title = { Text("Профили и питомцы") }) }) { padding ->
             AccountManagementSection(
                 state = if (empty) AccountManagementUiState() else AccountManagementUiState(
@@ -145,9 +168,12 @@ class Issue58ScreenshotMatrixTest {
                     primaryAccountId = HUMAN.id,
                 ),
                 callbacks = AccountManagementCallbacks.None,
-                pets = if (empty) emptyList() else listOf(PetWithLatestWeight(PET, null)),
-                petSpeciesLabel = { "Кошка" },
-                petWeightLabel = { "Измерений пока нет" },
+                pets = if (empty) emptyList() else listOf(
+                    PET_WITH_LATEST_WEIGHT,
+                    PetWithLatestWeight(SECOND_PET, null),
+                ),
+                petSpeciesLabel = { if (it.pet.species == PetSpecies.CAT) "Кошка" else "Собака" },
+                petWeightLabel = { formatLatestPetWeight(it) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -184,8 +210,8 @@ class Issue58ScreenshotMatrixTest {
             state = MeasurementResolverUiState(
                 pending = PENDING,
                 accountOptions = listOf(
-                    ResolverAccountOption(HUMAN.id, HUMAN.displayName, true, 0.3, 72.0),
                     ResolverAccountOption(SECOND_HUMAN.id, SECOND_HUMAN.displayName, false),
+                    ResolverAccountOption(HUMAN.id, HUMAN.displayName, true, 0.3, 72.0),
                 ),
                 ignoreUnknownMeasurements = false,
                 operationInProgress = busy,
@@ -270,6 +296,28 @@ class Issue58ScreenshotMatrixTest {
             createdAt = NOW,
             updatedAt = NOW,
             sex = PetSex.MALE,
+        )
+        val SECOND_PET = Pet(
+            id = PetId("richie"),
+            displayName = "Ричи",
+            normalizedName = "ричи",
+            species = PetSpecies.DOG,
+            createdAt = NOW,
+            updatedAt = NOW,
+            sex = PetSex.MALE,
+        )
+        val PET_WITH_LATEST_WEIGHT = PetWithLatestWeight(
+            pet = PET,
+            latestMeasurement = DomainPetMeasurement(
+                id = "barsik-latest",
+                petId = PET.id,
+                measuredAt = LocalDate.now(ZoneId.systemDefault()).minusDays(1)
+                    .atTime(LocalTime.of(19, 32))
+                    .atZone(ZoneId.systemDefault())
+                    .toInstant(),
+                firstWeightKg = 71.8,
+                secondWeightKg = 77.2,
+            ),
         )
         val PENDING = PendingMeasurement(
             PendingMeasurementId("issue58"), "AA:BB:CC:DD:EE:FF", NOW,

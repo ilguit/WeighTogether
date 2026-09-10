@@ -24,6 +24,24 @@ import org.junit.Test
 
 class ResolverUiContractsTest {
     @Test
+    fun `recommendation selects first candidate even after a non-candidate`() {
+        val any = option("any")
+        val firstCandidate = option("first", differenceKg = 0.1)
+        val secondCandidate = option("second", differenceKg = 0.2)
+
+        val state = resolverState(listOf(any, firstCandidate, secondCandidate))
+
+        assertEquals(firstCandidate.accountId, state.recommendedAccountId)
+    }
+
+    @Test
+    fun `recommendation is absent when there are no candidates`() {
+        val state = resolverState(listOf(option("first"), option("second")))
+
+        assertNull(state.recommendedAccountId)
+    }
+
+    @Test
     fun `candidate accounts lead by difference and every other account remains selectable`() {
         val first = account("first", "Первый")
         val second = account("second", "Второй")
@@ -795,6 +813,19 @@ class ResolverUiContractsTest {
         ),
         createdAt = Instant.parse("2026-01-01T00:00:00Z"),
         updatedAt = Instant.parse("2026-01-01T00:00:00Z"),
+    )
+
+    private fun option(id: String, differenceKg: Double? = null) = ResolverAccountOption(
+        accountId = AccountId(id),
+        displayName = id,
+        isPrimary = false,
+        differenceKg = differenceKg,
+        medianWeightKg = differenceKg?.let { 70.0 },
+    )
+
+    private fun resolverState(options: List<ResolverAccountOption>) = MeasurementResolverUiState(
+        pending = pending("resolver", "2026-08-15T10:00:00Z"),
+        accountOptions = options,
     )
 
     private fun pending(id: String, enqueuedAt: String): PendingMeasurement = PendingMeasurement(

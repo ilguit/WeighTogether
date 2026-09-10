@@ -8,6 +8,7 @@ import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasClickAction
@@ -62,6 +63,58 @@ import org.junit.Rule
 import org.junit.Test
 
 class MultiAccountComponentsTest {
+    @Test
+    fun resolverRecommendsFirstCandidateAfterNonCandidateWithAccessibleDescription() {
+        val any = account("any", "Любой")
+        val recommended = account("recommended", "Анна")
+        val otherCandidate = account("other", "Борис")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending(),
+                        accountOptions = listOf(
+                            ResolverAccountOption(any.id, any.displayName, false),
+                            ResolverAccountOption(recommended.id, recommended.displayName, true, 0.1, 70.0),
+                            ResolverAccountOption(otherCandidate.id, otherCandidate.displayName, false, 0.2, 70.0),
+                        ),
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("Рекомендуется").assertCountEquals(1)
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(recommended.id))
+            .assertContentDescriptionEquals("Анна. Рекомендуется. Основной профиль")
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(otherCandidate.id))
+            .assertContentDescriptionEquals("Борис")
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(any.id))
+            .assertContentDescriptionEquals("Любой")
+    }
+
+    @Test
+    fun resolverShowsNoRecommendationWithoutCandidates() {
+        val account = account("any", "Любой")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending(),
+                        accountOptions = listOf(
+                            ResolverAccountOption(account.id, account.displayName, false),
+                        ),
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onAllNodesWithText("Рекомендуется").assertCountEquals(0)
+        composeRule.onNodeWithTag(MeasurementResolverTestTags.account(account.id))
+            .assertContentDescriptionEquals("Любой")
+    }
+
     @Test
     fun profileUpdatePromptShowsThreeActionsAndDisablesThemWhileSaving() {
         val account = account("one", "Анна")

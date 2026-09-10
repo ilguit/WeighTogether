@@ -67,6 +67,7 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
@@ -83,6 +84,8 @@ import com.palixander.scalesync.ui.settings.SettingsStatusMark
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.text.NumberFormat
+import java.time.Instant
+import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -323,16 +326,26 @@ private fun russianCount(count: Int, one: String, few: String, many: String): St
 }
 
 internal fun formatLatestPetWeight(
-    weightKg: Double?,
+    pet: PetWithLatestWeight,
     locale: Locale = Locale.getDefault(),
-): String = weightKg?.let {
+    now: Instant = Instant.now(),
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): String = pet.latestPetWeightKg?.let {
     val formatted = NumberFormat.getNumberInstance(locale).run {
         minimumFractionDigits = 0
         maximumFractionDigits = 2
         format(it)
     }
-    "Последний вес: $formatted кг"
-} ?: "Измерений пока нет"
+    val measuredAt = requireNotNull(pet.latestMeasuredAt).atZone(zoneId)
+    val today = now.atZone(zoneId).toLocalDate()
+    val dateLabel = when (measuredAt.toLocalDate()) {
+        today -> "сегодня"
+        today.minusDays(1) -> "вчера"
+        else -> measuredAt.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", locale))
+    }
+    val timeLabel = measuredAt.format(DateTimeFormatter.ofPattern("HH:mm", locale))
+    "$formatted кг · $dateLabel, $timeLabel"
+} ?: "—"
 
 internal const val BACKUP_REPLACE_WARNING =
     "Все локальные профили, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
@@ -914,7 +927,7 @@ private fun SettingsProfilesContent(
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
                     petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                    petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
+                    petWeightLabel = { formatLatestPetWeight(it) },
                 )
             }
             item {
@@ -1196,7 +1209,7 @@ private fun LegacySettingsScreen(
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
                             petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                            petWeightLabel = { formatLatestPetWeight(it.latestPetWeightKg) },
+                            petWeightLabel = { formatLatestPetWeight(it) },
                         )
                         WeightRecognitionSetting(
                             state = state.weightDeltaEditor,
