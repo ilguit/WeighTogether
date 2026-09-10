@@ -1,5 +1,10 @@
 # Issue #58 implementation screenshot evidence
 
+> QA cycle 2026-09-10: the focused post-QA captures and direct prototype comparisons for
+> profiles, recognition, both editors, and resolver are in
+> `qa-cycle-2026-09-10/README.md`. Those frames supersede the corresponding earlier
+> implementation evidence; earlier implementation screenshots are not the QA baseline.
+
 ## Capture provenance
 
 - Captured 2026-09-10 from the production Compose functions in the issue #58 branch.
