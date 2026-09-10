@@ -164,9 +164,14 @@ class Issue58ScreenshotMatrixTest {
                     primaryAccountId = HUMAN.id,
                 ),
                 callbacks = AccountManagementCallbacks.None,
-                pets = if (empty) emptyList() else listOf(PetWithLatestWeight(PET, null)),
-                petSpeciesLabel = { "Кошка" },
-                petWeightLabel = { "Измерений пока нет" },
+                pets = if (empty) emptyList() else listOf(
+                    PetWithLatestWeight(PET, null),
+                    PetWithLatestWeight(SECOND_PET, null),
+                ),
+                petSpeciesLabel = { if (it.pet.species == PetSpecies.CAT) "Кошка" else "Собака" },
+                petWeightLabel = {
+                    if (it.pet.id == PET.id) "5,4 кг · вчера, 19:32" else "—"
+                },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }
@@ -286,6 +291,15 @@ class Issue58ScreenshotMatrixTest {
             displayName = PET_NAME,
             normalizedName = "барсик",
             species = PetSpecies.CAT,
+            createdAt = NOW,
+            updatedAt = NOW,
+            sex = PetSex.MALE,
+        )
+        val SECOND_PET = Pet(
+            id = PetId("richie"),
+            displayName = "Ричи",
+            normalizedName = "ричи",
+            species = PetSpecies.DOG,
             createdAt = NOW,
             updatedAt = NOW,
             sex = PetSex.MALE,
