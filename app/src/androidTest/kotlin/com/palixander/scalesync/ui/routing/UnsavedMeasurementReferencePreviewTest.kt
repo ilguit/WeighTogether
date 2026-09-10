@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
@@ -49,6 +50,54 @@ class UnsavedMeasurementReferencePreviewTest {
             .assertCountEquals(16)
         composeRule.onAllNodesWithText("Предварительно:", substring = true, useUnmergedTree = true)
             .assertCountEquals(16)
+    }
+
+    @Test
+    fun threeStepPreviewKeepsUnsavedContextAndBackReturnsOneStepAtATime() {
+        val pending = pending()
+        val draft = validDraft()
+        val holder = mutableStateOf(UnsavedMeasurementPreviewState(pending))
+        var discarded = 0
+        composeRule.setContent {
+            ScaleSyncTheme {
+                UnsavedMeasurementPreviewDialog(
+                    state = holder.value,
+                    callbacks = UnsavedPreviewCallbacks(
+                        onStateChange = { holder.value = it },
+                        onCalculate = {
+                            val calculating = reduceUnsavedPreview(
+                                holder.value,
+                                UnsavedPreviewAction.CalculationStarted(1L),
+                            )
+                            holder.value = reduceUnsavedPreview(
+                                calculating,
+                                UnsavedPreviewAction.CalculationCompleted(
+                                    1L,
+                                    requireNotNull(calculateUnsavedPreview(pending, draft, ZoneOffset.UTC)),
+                                ),
+                            )
+                        },
+                        onCloseAndDiscard = { discarded += 1 },
+                    ),
+                    zoneId = ZoneOffset.UTC,
+                )
+            }
+        }
+
+        assertUnsavedStep(1)
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Next).performClick()
+        composeRule.runOnIdle { holder.value = holder.value.copy(profileDraft = draft) }
+        assertUnsavedStep(2)
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Calculate).performClick()
+        assertUnsavedStep(3)
+
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Back).performClick()
+        assertUnsavedStep(2)
+        composeRule.runOnIdle { assertEquals(draft, holder.value.profileDraft) }
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Back).performClick()
+        assertUnsavedStep(1)
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Close).performClick()
+        composeRule.runOnIdle { assertEquals(1, discarded) }
     }
 
     @Test
@@ -186,6 +235,18 @@ class UnsavedMeasurementReferencePreviewTest {
                 )
             }
         }
+    }
+
+    private fun assertUnsavedStep(step: Int) {
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Step)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Шаг $step из 3").assertIsDisplayed()
+        composeRule.onNodeWithText("Не сохранено", useUnmergedTree = true).assertIsDisplayed()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Warning).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            "Результат не попадёт в историю и не будет отправлен во внешние сервисы. " +
+                "Временные параметры используются только для этого расчёта и не изменяют профиль.",
+        ).assertIsDisplayed()
     }
 
     private fun resultState(): UnsavedMeasurementPreviewState {

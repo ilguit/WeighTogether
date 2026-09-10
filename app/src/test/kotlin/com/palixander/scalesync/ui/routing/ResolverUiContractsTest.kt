@@ -752,6 +752,39 @@ class ResolverUiContractsTest {
         assertNull(afterDuplicateResult.result)
     }
 
+    @Test
+    fun `unsaved preview follows three steps backwards while retaining its temporary draft`() {
+        val pending = pending("preview", "2026-08-15T10:00:00Z")
+        val draft = UnsavedPreviewProfileDraft(
+            heightCm = "170",
+            birthDate = LocalDate.of(1990, 1, 1),
+            sex = Sex.FEMALE,
+        )
+        val raw = UnsavedMeasurementPreviewState(pending)
+        val editing = reduceUnsavedPreview(raw, UnsavedPreviewAction.EnterProfileRequested)
+            .copy(profileDraft = draft)
+        val calculating = reduceUnsavedPreview(editing, UnsavedPreviewAction.CalculationStarted(9L))
+        val previewResult = requireNotNull(calculateUnsavedPreview(pending, draft, ZoneOffset.UTC))
+        val result = reduceUnsavedPreview(
+            calculating,
+            UnsavedPreviewAction.CalculationCompleted(9L, previewResult),
+        )
+
+        assertEquals(UnsavedPreviewStep.RESULT, result.step)
+        assertFalse(requireNotNull(result.result).isPersisted)
+        assertFalse(requireNotNull(result.result).canSyncExternally)
+
+        val backToEditing = reduceUnsavedPreview(result, UnsavedPreviewAction.BackRequested)
+        val backToRaw = reduceUnsavedPreview(backToEditing, UnsavedPreviewAction.BackRequested)
+
+        assertEquals(UnsavedPreviewStep.PROFILE_EDITOR, backToEditing.step)
+        assertEquals(draft, backToEditing.profileDraft)
+        assertNull(backToEditing.result)
+        assertEquals(UnsavedPreviewStep.RAW_SUMMARY, backToRaw.step)
+        assertEquals(draft, backToRaw.profileDraft)
+        assertSame(backToRaw, reduceUnsavedPreview(backToRaw, UnsavedPreviewAction.BackRequested))
+    }
+
     private fun account(id: String, name: String): Account = Account(
         id = AccountId(id),
         displayName = name,
