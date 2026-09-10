@@ -1,6 +1,5 @@
 package com.palixander.scalesync.ui.routing
 
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -12,6 +11,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -21,11 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
@@ -90,7 +87,7 @@ fun MeasurementResolverDialog(
                 verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
                 Text(
-                    "${formatLocalizedDecimal(state.pending.weightKg)} кг · импеданс ${state.pending.impedanceOhm} Ом",
+                    "${formatLocalizedDecimal(state.pending.weightKg)} кг",
                     style = MaterialTheme.typography.titleMedium,
                 )
                 Text(
@@ -102,6 +99,18 @@ fun MeasurementResolverDialog(
                     "Кому назначить это измерение?",
                     style = MaterialTheme.typography.titleSmall,
                 )
+                if (state.operationInProgress) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().semantics {
+                            contentDescription = "Назначение измерения выполняется"
+                        },
+                        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        CircularProgressIndicator()
+                        Text("Выполняется…")
+                    }
+                }
                 state.accountOptions.forEachIndexed { index, option ->
                     ResolverAccountButton(
                         option = option,
@@ -176,55 +185,26 @@ private fun ResolverAccountButton(
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val supportingText = when {
-        recommended -> "Рекомендуется"
-        option.isCandidate -> "Подходит"
-        else -> null
-    }
+    val supportingText = if (recommended) "Рекомендуется" else null
     val primaryDescription = if (option.isPrimary) ". Основной профиль" else ""
-    Surface(
+    OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(MeasurementResolverTestTags.account(option.accountId))
             .semantics {
-                role = Role.Button
                 contentDescription = buildString {
                     append(option.displayName)
                     supportingText?.let { append(". ").append(it) }
                     append(primaryDescription)
                 }
             },
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(
-            1.dp,
-            if (option.isCandidate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
-        color = if (option.isCandidate) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(
-                    text = option.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                supportingText?.let {
-                    Text(
-                        text = it,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+        Column(Modifier.fillMaxWidth()) {
+            Text(option.displayName, style = MaterialTheme.typography.titleSmall)
+            supportingText?.let {
+                Text(it, style = MaterialTheme.typography.bodySmall)
             }
         }
     }
