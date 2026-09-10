@@ -1,9 +1,16 @@
 package com.palixander.scalesync.ui
 
 import androidx.compose.foundation.layout.width
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.test.DeviceConfigurationOverride
+import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
@@ -18,6 +25,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.DpSize
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
@@ -417,6 +425,115 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithText("Выбрать").assertIsDisplayed().performClick()
 
         composeRule.runOnIdle { assertEquals(birthDate, changedDraft?.birthDate) }
+    }
+
+    @Test
+    fun accountEditorUsesFullScreenOrderedLayoutAt320Dp() {
+        val draft = AccountEditorDraft(
+            name = "Анна",
+            heightCm = "170",
+            birthDate = LocalDate.of(2000, 2, 29),
+            sex = Sex.FEMALE,
+        )
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 640.dp)),
+            ) {
+                ScaleSyncTheme {
+                    AccountEditorDialog(
+                        draft = draft,
+                        accounts = emptyList(),
+                        operationInProgress = false,
+                        onDraftChanged = {},
+                        onCreate = {},
+                        onUpdate = {},
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+
+        val editor = composeRule.onNodeWithTag(AccountManagementTestTags.Editor)
+            .assertIsDisplayed().getUnclippedBoundsInRoot()
+        val name = composeRule.onNodeWithTag(AccountManagementTestTags.EditorName)
+            .getUnclippedBoundsInRoot()
+        val male = composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale)
+            .assertHeightIsAtLeast(48.dp).getUnclippedBoundsInRoot()
+        val female = composeRule.onNodeWithTag(AccountManagementTestTags.EditorFemale)
+            .assertIsSelected().assertHeightIsAtLeast(48.dp).getUnclippedBoundsInRoot()
+        val birthDate = composeRule.onNodeWithTag(AccountManagementTestTags.EditorBirthDate)
+            .getUnclippedBoundsInRoot()
+        val height = composeRule.onNodeWithTag(AccountManagementTestTags.EditorHeight)
+            .getUnclippedBoundsInRoot()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave)
+            .assertIsDisplayed().assertHeightIsAtLeast(48.dp)
+
+        assertEquals(320.dp, editor.right - editor.left)
+        assertTrue(male.right <= female.left)
+        assertTrue(name.bottom <= male.top)
+        assertTrue(female.bottom <= birthDate.top)
+        assertTrue(birthDate.bottom <= height.top)
+    }
+
+    @Test
+    fun accountEditorBackConfirmsDirtyDraftAndKeepsEnteredData() {
+        var dismissals = 0
+        composeRule.setContent {
+            var draft by remember {
+                mutableStateOf(
+                    AccountEditorDraft(
+                        name = "Анна",
+                        heightCm = "170",
+                        birthDate = LocalDate.of(2000, 2, 29),
+                        sex = Sex.FEMALE,
+                    ),
+                )
+            }
+            ScaleSyncTheme {
+                AccountEditorDialog(
+                    draft = draft,
+                    accounts = emptyList(),
+                    operationInProgress = false,
+                    onDraftChanged = { draft = it },
+                    onCreate = {},
+                    onUpdate = {},
+                    onDismiss = { dismissals++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
+        composeRule.onNodeWithText("Отказаться от изменений?").assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorKeepEditing).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorMale).assertIsSelected()
+        composeRule.runOnIdle { assertEquals(0, dismissals) }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorDiscard).performClick()
+        composeRule.runOnIdle { assertEquals(1, dismissals) }
+    }
+
+    @Test
+    fun accountEditorBackDismissesUnchangedDraftImmediately() {
+        var dismissals = 0
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountEditorDialog(
+                    draft = AccountEditorDraft.add(),
+                    accounts = emptyList(),
+                    operationInProgress = false,
+                    onDraftChanged = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDismiss = { dismissals++ },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
+        composeRule.runOnIdle { assertEquals(1, dismissals) }
+        composeRule.onNodeWithText("Отказаться от изменений?").assertDoesNotExist()
     }
 
     @Test

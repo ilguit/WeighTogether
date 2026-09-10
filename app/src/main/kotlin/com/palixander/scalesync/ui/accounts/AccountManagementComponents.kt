@@ -3,29 +3,38 @@ package com.palixander.scalesync.ui.accounts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,6 +43,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.role
@@ -42,6 +52,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
@@ -74,7 +86,15 @@ object AccountManagementTestTags {
     const val PetsGroup = "profile-management-pets-group"
     const val Editor = "account-editor"
     const val EditorBirthDate = "account-editor-birth-date"
+    const val EditorName = "account-editor-name"
+    const val EditorHeight = "account-editor-height"
     const val EditorSave = "account-editor-save"
+    const val EditorBack = "account-editor-back"
+    const val EditorContent = "account-editor-content"
+    const val EditorDiscard = "account-editor-discard"
+    const val EditorKeepEditing = "account-editor-keep-editing"
+    const val EditorMale = "account-editor-male"
+    const val EditorFemale = "account-editor-female"
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
@@ -486,6 +506,7 @@ private fun PrimaryBadge(accountId: AccountId) {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AccountEditorDialog(
     draft: AccountEditorDraft,
@@ -499,40 +520,124 @@ fun AccountEditorDialog(
     today: LocalDate = LocalDate.now(),
 ) {
     val validation = validateAccountEditor(draft, accounts, today)
-    AlertDialog(
-        modifier = Modifier.testTag(AccountManagementTestTags.Editor),
-        onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text(if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль") },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
+    val initialDraft = remember(draft.editingAccountId) { draft }
+    var discardConfirmationVisible by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var validationRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
+    val requestDismiss = {
+        if (!operationInProgress) {
+            if (draft == initialDraft) onDismiss() else discardConfirmationVisible = true
+        }
+    }
+
+    Dialog(
+        onDismissRequest = requestDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier.fillMaxSize().testTag(AccountManagementTestTags.Editor),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                if (draft.editingAccountId == null) "Новый профиль"
+                                else "Изменить профиль",
+                            )
+                        },
+                        navigationIcon = {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.Back,
+                                contentDescription = "Назад",
+                                onClick = requestDismiss,
+                                enabled = !operationInProgress,
+                                modifier = Modifier.testTag(AccountManagementTestTags.EditorBack),
+                            )
+                        },
+                    )
+                },
+                bottomBar = {
+                    Surface(shadowElevation = 3.dp) {
+                        Button(
+                            onClick = {
+                                validationRequested = true
+                                draft.toNewAccountOrNull(validation)?.let(onCreate)
+                                    ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
+                            },
+                            enabled = !operationInProgress,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .imePadding()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .heightIn(min = 48.dp)
+                                .testTag(AccountManagementTestTags.EditorSave),
+                        ) {
+                            if (operationInProgress) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text("Сохранение…")
+                            } else {
+                                Text("Сохранить")
+                            }
+                        }
+                    }
+                },
+            ) { contentPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
+                        .testTag(AccountManagementTestTags.EditorContent),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.NameChanged(it))) },
                     label = { Text("Имя") },
                     singleLine = true,
                     enabled = !operationInProgress,
-                    isError = validation.error(AccountEditorField.NAME) != null,
-                    supportingText = validation.error(AccountEditorField.NAME)?.let { message ->
+                    isError = validationRequested && validation.error(AccountEditorField.NAME) != null,
+                    supportingText = validation.error(AccountEditorField.NAME)
+                        ?.takeIf { validationRequested }?.let { message ->
                         { Text(message) }
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.EditorName),
                 )
-                OutlinedTextField(
-                    value = draft.heightCm,
-                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.HeightChanged(it))) },
-                    label = { Text("Рост, см") },
-                    singleLine = true,
-                    enabled = !operationInProgress,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                    isError = validation.error(AccountEditorField.HEIGHT) != null,
-                    supportingText = validation.error(AccountEditorField.HEIGHT)?.let { message ->
-                        { Text(message) }
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                Text("Пол", style = MaterialTheme.typography.labelLarge)
+                BoxWithConstraints {
+                    val showSexIcons = maxWidth >= 360.dp && LocalDensity.current.fontScale <= 1.3f
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    SexChoice(
+                        label = "Мужчина",
+                        icon = HuaweiIcons.Male.takeIf { showSexIcons },
+                        value = Sex.MALE,
+                        selectedSex = draft.sex,
+                        enabled = !operationInProgress,
+                        modifier = Modifier.weight(1f).testTag(AccountManagementTestTags.EditorMale),
+                    ) {
+                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
+                    }
+                    SexChoice(
+                        label = "Женщина",
+                        icon = HuaweiIcons.Female.takeIf { showSexIcons },
+                        value = Sex.FEMALE,
+                        selectedSex = draft.sex,
+                        enabled = !operationInProgress,
+                        modifier = Modifier.weight(1f).testTag(AccountManagementTestTags.EditorFemale),
+                    ) {
+                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
+                    }
+                    }
+                }
+                validation.error(AccountEditorField.SEX)?.takeIf { validationRequested }?.let {
+                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                }
                 BirthDateField(
                     value = draft.birthDate,
                     onValueChange = { birthDate ->
@@ -545,22 +650,25 @@ fun AccountEditorDialog(
                     },
                     selectionPolicy = BirthDateSelectionPolicy.forAccount(today),
                     enabled = !operationInProgress,
-                    isError = validation.error(AccountEditorField.BIRTH_DATE) != null,
-                    supportingText = validation.error(AccountEditorField.BIRTH_DATE),
+                    isError = validationRequested && validation.error(AccountEditorField.BIRTH_DATE) != null,
+                    supportingText = validation.error(AccountEditorField.BIRTH_DATE)
+                        ?.takeIf { validationRequested },
                     modifier = Modifier.testTag(AccountManagementTestTags.EditorBirthDate),
                 )
-                Text("Пол", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress) {
-                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
-                    }
-                    SexChoice("Женский", Sex.FEMALE, draft.sex, !operationInProgress) {
-                        onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
-                    }
-                }
-                validation.error(AccountEditorField.SEX)?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                }
+                OutlinedTextField(
+                    value = draft.heightCm,
+                    onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.HeightChanged(it))) },
+                    label = { Text("Рост, см") },
+                    singleLine = true,
+                    enabled = !operationInProgress,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = validationRequested && validation.error(AccountEditorField.HEIGHT) != null,
+                    supportingText = validation.error(AccountEditorField.HEIGHT)
+                        ?.takeIf { validationRequested }?.let { message ->
+                        { Text(message) }
+                    },
+                    modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.EditorHeight),
+                )
                 error?.let {
                     Text(
                         text = it,
@@ -570,30 +678,39 @@ fun AccountEditorDialog(
                             .semantics { contentDescription = "Ошибка сохранения: $it" },
                     )
                 }
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    draft.toNewAccountOrNull(validation)?.let(onCreate)
-                        ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
-                },
-                enabled = validation.isValid && !operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.EditorSave),
-            ) { Text("Сохранить") }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
-        },
-    )
+        }
+    }
+    if (discardConfirmationVisible) {
+        AlertDialog(
+            onDismissRequest = { discardConfirmationVisible = false },
+            title = { Text("Отказаться от изменений?") },
+            text = { Text("Введённые данные не сохранятся.") },
+            confirmButton = {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag(AccountManagementTestTags.EditorDiscard),
+                ) { Text("Отказаться") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { discardConfirmationVisible = false },
+                    modifier = Modifier.testTag(AccountManagementTestTags.EditorKeepEditing),
+                ) { Text("Продолжить редактирование") }
+            },
+        )
+    }
 }
 
 @Composable
 private fun SexChoice(
     label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector?,
     value: Sex,
     selectedSex: Sex?,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onSelect: (Sex) -> Unit,
 ) {
     val selected = selectedSex == value
@@ -604,12 +721,14 @@ private fun SexChoice(
             1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
         ),
-        modifier = Modifier.semantics {
+        modifier = modifier.heightIn(min = 48.dp).semantics {
             role = Role.RadioButton
             this.selected = selected
         },
     ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
+        icon?.let {
+            Icon(it, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
+        }
         Text(label)
     }
 }
