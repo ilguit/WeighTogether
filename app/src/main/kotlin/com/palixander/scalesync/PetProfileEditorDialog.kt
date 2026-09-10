@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -43,6 +44,8 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -86,6 +89,8 @@ internal object PetProfileEditorTestTags {
     const val BirthMonth = "pet-profile-editor-birth-month"
     const val BirthDay = "pet-profile-editor-birth-day"
     const val BirthClear = "pet-profile-editor-birth-clear"
+    const val BirthGroup = "pet-profile-editor-birth-group"
+    const val CategoryGroup = "pet-profile-editor-category-group"
     const val CategoryClear = "pet-profile-editor-category-clear"
     const val SaveError = "pet-profile-editor-save-error"
     const val Progress = "pet-profile-editor-progress"
@@ -132,12 +137,28 @@ internal fun PetProfileEditorDialog(
     }
     val initialDraft = remember(editorKey) { draft }
     var discardConfirmationVisible by remember(editorKey) { mutableStateOf(false) }
+    val nameFocusRequester = remember(editorKey) { FocusRequester() }
+    val speciesFocusRequester = remember(editorKey) { FocusRequester() }
+    val breedFocusRequester = remember(editorKey) { FocusRequester() }
+    val birthDateFocusRequester = remember(editorKey) { FocusRequester() }
+    val categoryFocusRequester = remember(editorKey) { FocusRequester() }
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
     }
     LaunchedEffect(busy) {
         if (busy) breedPickerOpen = false
+    }
+    LaunchedEffect(fieldErrors, busy, submitted) {
+        if (!fieldErrors.hasErrors || busy || submitted) return@LaunchedEffect
+        val target = when {
+            fieldErrors.displayName != null -> nameFocusRequester
+            fieldErrors.species != null -> speciesFocusRequester
+            fieldErrors.breed != null -> breedFocusRequester
+            fieldErrors.birthDate != null -> birthDateFocusRequester
+            else -> categoryFocusRequester
+        }
+        target.requestFocus()
     }
 
     fun dispatch(action: PetProfileAction) {
@@ -237,6 +258,7 @@ internal fun PetProfileEditorDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
+                        .focusRequester(nameFocusRequester)
                         .testTag(PetProfileEditorTestTags.NameField),
                 )
 
@@ -250,6 +272,7 @@ internal fun PetProfileEditorDialog(
                             selected = draft.species == PetSpecies.CAT,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesCat,
+                            modifier = Modifier.focusRequester(speciesFocusRequester),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.CAT))
                             },
@@ -309,6 +332,7 @@ internal fun PetProfileEditorDialog(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .heightIn(min = 48.dp)
+                                .focusRequester(breedFocusRequester)
                                 .testTag(PetProfileEditorTestTags.BreedField)
                                 .semantics {
                                     contentDescription = "Выбрать породу. ${petBreedLabel(draft.breed)}"
@@ -329,6 +353,10 @@ internal fun PetProfileEditorDialog(
                     value = draft.birthDate,
                     error = fieldErrors.birthDate,
                     enabled = !locked,
+                    modifier = Modifier
+                        .focusRequester(birthDateFocusRequester)
+                        .testTag(PetProfileEditorTestTags.BirthGroup)
+                        .focusable(),
                     onChange = { dispatch(PetProfileAction.BirthDateChanged(it)) },
                 )
 
@@ -344,6 +372,10 @@ internal fun PetProfileEditorDialog(
                         error = fieldErrors.dogAdultWeightCategory,
                         showChoices = dogCategoryApplicable,
                         enabled = !locked,
+                        modifier = Modifier
+                            .focusRequester(categoryFocusRequester)
+                            .testTag(PetProfileEditorTestTags.CategoryGroup)
+                            .focusable(),
                         onChange = {
                             dispatch(PetProfileAction.DogAdultWeightCategoryChanged(it))
                         },
@@ -444,9 +476,13 @@ internal fun PetProfileEditorDialog(
 @Composable
 private fun EditorSection(
     title: String,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(
+        modifier = modifier,
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
         Text(
             text = title,
             style = MaterialTheme.typography.titleSmall,
@@ -462,6 +498,7 @@ private fun ChoiceButton(
     selected: Boolean,
     enabled: Boolean,
     tag: String,
+    modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
     OutlinedButton(
@@ -471,7 +508,7 @@ private fun ChoiceButton(
             1.dp,
             if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
         ),
-        modifier = Modifier
+        modifier = modifier
             .heightIn(min = 48.dp)
             .testTag(tag)
             .semantics {
@@ -489,9 +526,10 @@ private fun BirthDateEditor(
     value: PetBirthDateInput,
     error: PetBirthDateValidationError?,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onChange: (PetBirthDateInput) -> Unit,
 ) {
-    EditorSection("Дата рождения (необязательно)") {
+    EditorSection("Дата рождения (необязательно)", modifier) {
         Text(
             "Точность даты",
             style = MaterialTheme.typography.labelLarge,
@@ -609,9 +647,10 @@ private fun DogCategoryEditor(
     error: DogAdultWeightCategoryValidationError?,
     showChoices: Boolean,
     enabled: Boolean,
+    modifier: Modifier = Modifier,
     onChange: (DogAdultWeightCategory?) -> Unit,
 ) {
-    EditorSection("Весовая категория взрослой собаки (необязательно)") {
+    EditorSection("Весовая категория взрослой собаки (необязательно)", modifier) {
         Text(
             "Определяет категорийную центильную кривую Salt для возраста от 12 недель до 2 лет.",
             style = MaterialTheme.typography.bodySmall,

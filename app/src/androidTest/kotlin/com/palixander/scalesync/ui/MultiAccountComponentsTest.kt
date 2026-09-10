@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertTextEquals
@@ -669,6 +670,45 @@ class MultiAccountComponentsTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
         composeRule.runOnIdle { assertEquals(1, dismissals) }
         composeRule.onNodeWithText("Отказаться от изменений?").assertDoesNotExist()
+    }
+
+    @Test
+    fun accountEditorInvalidSaveFocusesFirstErrorAndScrollsHeightIntoView() {
+        var draft by mutableStateOf(AccountEditorDraft.add())
+        var creates = 0
+        composeRule.setContent {
+            DeviceConfigurationOverride(
+                override = DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 480.dp)),
+            ) {
+                ScaleSyncTheme {
+                    AccountEditorDialog(
+                        draft = draft,
+                        accounts = emptyList(),
+                        operationInProgress = false,
+                        onDraftChanged = { draft = it },
+                        onCreate = { creates++ },
+                        onUpdate = {},
+                        onDismiss = {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorName).assertIsFocused()
+        composeRule.runOnIdle {
+            assertEquals(0, creates)
+            draft = draft.copy(
+                name = "Анна",
+                sex = Sex.FEMALE,
+                birthDate = LocalDate.of(2000, 2, 29),
+            )
+        }
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorHeight)
+            .assertIsFocused()
+            .assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(0, creates) }
     }
 
     @Test

@@ -36,12 +36,15 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -529,6 +532,21 @@ fun AccountEditorDialog(
     val initialDraft = remember(draft.editingAccountId) { draft }
     var discardConfirmationVisible by remember(draft.editingAccountId) { mutableStateOf(false) }
     var validationRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var submitAttempt by remember(draft.editingAccountId) { mutableStateOf(0) }
+    val nameFocusRequester = remember { FocusRequester() }
+    val sexFocusRequester = remember { FocusRequester() }
+    val birthDateFocusRequester = remember { FocusRequester() }
+    val heightFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(submitAttempt) {
+        if (submitAttempt == 0 || validation.isValid) return@LaunchedEffect
+        val target = when {
+            validation.error(AccountEditorField.NAME) != null -> nameFocusRequester
+            validation.error(AccountEditorField.SEX) != null -> sexFocusRequester
+            validation.error(AccountEditorField.BIRTH_DATE) != null -> birthDateFocusRequester
+            else -> heightFocusRequester
+        }
+        target.requestFocus()
+    }
     val requestDismiss = {
         if (!operationInProgress) {
             if (draft == initialDraft) onDismiss() else discardConfirmationVisible = true
@@ -568,8 +586,11 @@ fun AccountEditorDialog(
                         Button(
                             onClick = {
                                 validationRequested = true
-                                draft.toNewAccountOrNull(validation)?.let(onCreate)
-                                    ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
+                                submitAttempt++
+                                if (validation.isValid) {
+                                    draft.toNewAccountOrNull(validation)?.let(onCreate)
+                                        ?: draft.toAccountUpdateOrNull(validation)?.let(onUpdate)
+                                }
                             },
                             enabled = !operationInProgress,
                             modifier = Modifier
@@ -613,7 +634,10 @@ fun AccountEditorDialog(
                         ?.takeIf { validationRequested }?.let { message ->
                         { Text(message) }
                     },
-                    modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.EditorName),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(nameFocusRequester)
+                        .testTag(AccountManagementTestTags.EditorName),
                 )
                 Text("Пол", style = MaterialTheme.typography.labelLarge)
                 BoxWithConstraints {
@@ -625,7 +649,10 @@ fun AccountEditorDialog(
                         value = Sex.MALE,
                         selectedSex = draft.sex,
                         enabled = !operationInProgress,
-                        modifier = Modifier.weight(1f).testTag(AccountManagementTestTags.EditorMale),
+                        modifier = Modifier
+                            .weight(1f)
+                            .focusRequester(sexFocusRequester)
+                            .testTag(AccountManagementTestTags.EditorMale),
                     ) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
                     }
@@ -659,7 +686,9 @@ fun AccountEditorDialog(
                     isError = validationRequested && validation.error(AccountEditorField.BIRTH_DATE) != null,
                     supportingText = validation.error(AccountEditorField.BIRTH_DATE)
                         ?.takeIf { validationRequested },
-                    modifier = Modifier.testTag(AccountManagementTestTags.EditorBirthDate),
+                    modifier = Modifier
+                        .focusRequester(birthDateFocusRequester)
+                        .testTag(AccountManagementTestTags.EditorBirthDate),
                 )
                 OutlinedTextField(
                     value = draft.heightCm,
@@ -673,7 +702,10 @@ fun AccountEditorDialog(
                         ?.takeIf { validationRequested }?.let { message ->
                         { Text(message) }
                     },
-                    modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.EditorHeight),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(heightFocusRequester)
+                        .testTag(AccountManagementTestTags.EditorHeight),
                 )
                 error?.let {
                     Text(

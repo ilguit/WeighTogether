@@ -15,6 +15,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -440,6 +441,36 @@ class PetProfileEditorDialogUiTest {
             errors.value = PetProfileFieldErrors(birthDate = PetBirthDateValidationError.FUTURE)
         }
         composeRule.onNodeWithText("Дата рождения не может быть в будущем").assertIsDisplayed()
+    }
+
+    @Test
+    fun invalidSaveFocusesFirstExternalFieldErrorAndScrollsLaterErrorIntoView() {
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+        val errors = mutableStateOf(PetProfileFieldErrors())
+        var saves = 0
+        setEditor(
+            state = state,
+            errors = errors,
+            onSave = {
+                saves++
+                errors.value = PetProfileFieldErrors(
+                    displayName = PetNameValidationError.REQUIRED,
+                    species = PetSpeciesValidationError.REQUIRED,
+                )
+            },
+        )
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsFocused()
+        composeRule.runOnIdle {
+            errors.value = PetProfileFieldErrors(
+                dogAdultWeightCategory = DogAdultWeightCategoryValidationError.NOT_APPLICABLE,
+            )
+        }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryGroup)
+            .assertIsFocused()
+            .assertIsDisplayed()
+        composeRule.runOnIdle { assertEquals(1, saves) }
     }
 
     @Test
