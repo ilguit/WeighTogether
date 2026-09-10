@@ -61,6 +61,8 @@ class Issue58ScreenshotMatrixTest {
         val mode = InstrumentationRegistry.getArguments().getString("issue58Mode") ?: "normal"
         val currentScenario = mutableStateOf(scenarios(mode).first())
         activity.scenario.onActivity { host ->
+            host.setShowWhenLocked(true)
+            host.setTurnScreenOn(true)
             host.setContent { ScaleSyncTheme { Scenario(currentScenario.value) } }
         }
         scenarios(mode).forEach { name ->
