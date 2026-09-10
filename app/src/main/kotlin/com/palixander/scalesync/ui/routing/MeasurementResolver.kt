@@ -83,7 +83,7 @@ fun MeasurementResolverDialog(
         onDismissRequest = {
             if (!state.operationInProgress) callbacks.onLater()
         },
-        title = { Text("Кому сохранить измерение?") },
+        title = { Text("Неназначенное измерение") },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -98,16 +98,14 @@ fun MeasurementResolverDialog(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
-                if (state.candidateCount > 0) {
-                    Text(
-                        "Сначала показаны подходящие профили",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                state.accountOptions.forEach { option ->
+                Text(
+                    "Кому назначить это измерение?",
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                state.accountOptions.forEachIndexed { index, option ->
                     ResolverAccountButton(
                         option = option,
+                        recommended = index == 0 && option.isCandidate,
                         enabled = !state.operationInProgress,
                         onClick = {
                             callbacks.onAccountSelected(state.pending.id, option.accountId)
@@ -166,7 +164,7 @@ fun MeasurementResolverDialog(
                 onClick = callbacks.onLater,
                 enabled = !state.operationInProgress,
                 modifier = Modifier.testTag(MeasurementResolverTestTags.Later),
-            ) { Text("Позже") }
+            ) { Text("Решить позже") }
         },
     )
 }
@@ -174,13 +172,14 @@ fun MeasurementResolverDialog(
 @Composable
 private fun ResolverAccountButton(
     option: ResolverAccountOption,
+    recommended: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val supportingText = if (option.isCandidate) {
-        "Подходит · разница ${formatLocalizedDecimal(requireNotNull(option.differenceKg))} кг"
-    } else {
-        "Другой профиль"
+    val supportingText = when {
+        recommended -> "Рекомендуется"
+        option.isCandidate -> "Подходит"
+        else -> null
     }
     val primaryDescription = if (option.isPrimary) ". Основной профиль" else ""
     Surface(
@@ -191,7 +190,11 @@ private fun ResolverAccountButton(
             .testTag(MeasurementResolverTestTags.account(option.accountId))
             .semantics {
                 role = Role.Button
-                contentDescription = "${option.displayName}. $supportingText$primaryDescription"
+                contentDescription = buildString {
+                    append(option.displayName)
+                    supportingText?.let { append(". ").append(it) }
+                    append(primaryDescription)
+                }
             },
         shape = MaterialTheme.shapes.medium,
         border = BorderStroke(
@@ -215,13 +218,14 @@ private fun ResolverAccountButton(
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
-                Text(
-                    text = supportingText,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
+                supportingText?.let {
+                    Text(
+                        text = it,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
-            if (option.isPrimary) Text("Основной", style = MaterialTheme.typography.labelSmall)
         }
     }
 }

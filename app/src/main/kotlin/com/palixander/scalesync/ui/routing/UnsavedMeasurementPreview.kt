@@ -62,6 +62,8 @@ object UnsavedPreviewTestTags {
     const val Dialog = "unsaved-preview"
     const val Title = "unsaved-preview-title"
     const val UnsavedBadge = "unsaved-preview-badge"
+    const val Step = "unsaved-preview-step"
+    const val PrivacyNotice = "unsaved-preview-privacy-notice"
     const val ProfileEditor = "unsaved-preview-profile"
     const val BirthDate = "unsaved-preview-birth-date"
     const val Calculate = "unsaved-preview-calculate"
@@ -143,7 +145,7 @@ fun UnsavedMeasurementPreviewDialog(
     AlertDialog(
         modifier = modifier.testTag(UnsavedPreviewTestTags.Dialog),
         onDismissRequest = requestClose,
-        title = { UnsavedPreviewTitle() },
+        title = { UnsavedPreviewTitle(state.step) },
         text = {
             when (state.step) {
                 UnsavedPreviewStep.RAW_SUMMARY -> RawUnsavedSummary(state, zoneId)
@@ -222,7 +224,10 @@ fun UnsavedMeasurementPreviewDialog(
 }
 
 @Composable
-internal fun UnsavedPreviewTitle(modifier: Modifier = Modifier) {
+internal fun UnsavedPreviewTitle(
+    step: UnsavedPreviewStep = UnsavedPreviewStep.RAW_SUMMARY,
+    modifier: Modifier = Modifier,
+) {
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
@@ -232,6 +237,18 @@ internal fun UnsavedPreviewTitle(modifier: Modifier = Modifier) {
             modifier = Modifier.testTag(UnsavedPreviewTestTags.Title),
         )
         UnsavedBadge()
+        Text(
+            text = "Шаг ${step.ordinal + 1} из ${UnsavedPreviewStep.entries.size}",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag(UnsavedPreviewTestTags.Step),
+        )
+        Text(
+            text = "Результат не попадёт в историю и не будет отправлен во внешние сервисы.",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.testTag(UnsavedPreviewTestTags.PrivacyNotice),
+        )
     }
 }
 

@@ -10,6 +10,7 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsSelected
@@ -21,6 +22,7 @@ import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.text.TextLayoutResult
@@ -355,6 +357,46 @@ class MultiAccountComponentsTest {
 
         composeRule.onNodeWithTag(MeasurementResolverTestTags.account(any.id)).performClick()
         composeRule.runOnIdle { assertEquals(any.id, selected) }
+    }
+
+    @Test
+    fun resolverUsesApprovedTerminologyWithoutExposingMatchingAlgorithm() {
+        val recommended = account("recommended", "Анна")
+        val suitable = account("suitable", "Борис")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                MeasurementResolverDialog(
+                    state = MeasurementResolverUiState(
+                        pending = pending(),
+                        accountOptions = listOf(
+                            ResolverAccountOption(
+                                recommended.id,
+                                recommended.displayName,
+                                isPrimary = true,
+                                differenceKg = 0.2,
+                                medianWeightKg = 69.8,
+                            ),
+                            ResolverAccountOption(
+                                suitable.id,
+                                suitable.displayName,
+                                isPrimary = false,
+                                differenceKg = 0.8,
+                                medianWeightKg = 69.2,
+                            ),
+                        ),
+                    ),
+                    callbacks = MeasurementResolverCallbacks.None,
+                )
+            }
+        }
+
+        composeRule.onNodeWithText("Неназначенное измерение").assertIsDisplayed()
+        composeRule.onNodeWithText("Кому назначить это измерение?").assertIsDisplayed()
+        composeRule.onNodeWithText("Рекомендуется").assertIsDisplayed()
+        composeRule.onNodeWithText("Подходит").assertIsDisplayed()
+        composeRule.onNodeWithText("Решить позже").assertIsDisplayed()
+        composeRule.onAllNodesWithText("разница", substring = true).assertCountEquals(0)
+        composeRule.onNodeWithText("Кому сохранить измерение?").assertDoesNotExist()
     }
 
     @Test

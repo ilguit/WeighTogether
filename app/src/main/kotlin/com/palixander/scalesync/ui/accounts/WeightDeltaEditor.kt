@@ -1,10 +1,11 @@
 package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -16,11 +17,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 
 object WeightDeltaEditorTestTags {
+    const val Section = "weight-recognition-section"
+    const val Explanation = "weight-recognition-explanation"
+    const val Controls = "weight-recognition-controls"
     const val Input = "weight-delta-input"
     const val Error = "weight-delta-error"
     const val Save = "weight-delta-save"
@@ -40,45 +45,38 @@ fun WeightRecognitionSetting(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle("Распознавание профиля")
-        HuaweiSurface(Modifier.fillMaxWidth()) {
+        HuaweiSectionTitle("Распознавание измерений")
+        HuaweiSurface(Modifier.fillMaxWidth().testTag(WeightDeltaEditorTestTags.Section)) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text(
-                    "Измерение считается подходящим, если вес отличается от недавней медианы не больше этой дельты.",
+                    "Больший допуск повышает вероятность автоматического назначения " +
+                        "и неверного совпадения.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.testTag(WeightDeltaEditorTestTags.Explanation),
                 )
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-                    verticalAlignment = Alignment.Top,
-                ) {
-                    OutlinedTextField(
-                        value = state.input,
-                        onValueChange = {
-                            onStateChanged(
-                                reduceWeightDeltaEditor(
-                                    state,
-                                    WeightDeltaEditorAction.InputChanged(it),
-                                ),
-                            )
-                        },
-                        label = { Text("Дельта веса, кг") },
-                        supportingText = state.error?.let { message ->
-                            { Text(message, Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
-                        },
-                        isError = state.error != null,
-                        enabled = !state.isSaving,
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                        modifier = Modifier.weight(1f).testTag(WeightDeltaEditorTestTags.Input),
-                    )
-                    Button(
-                        onClick = { state.parsedValue?.let(onSave) },
-                        enabled = state.canSave,
-                        modifier = Modifier
-                            .padding(top = HuaweiDimensions.CompactContentPadding)
-                            .testTag(WeightDeltaEditorTestTags.Save),
-                    ) { Text("Сохранить") }
+                BoxWithConstraints(Modifier.fillMaxWidth().testTag(WeightDeltaEditorTestTags.Controls)) {
+                    val narrow = maxWidth < 400.dp
+                    if (narrow) {
+                        Column(
+                            verticalArrangement = Arrangement.spacedBy(
+                                HuaweiDimensions.CompactItemSpacing,
+                            ),
+                        ) {
+                            WeightToleranceInput(state, onStateChanged, Modifier.fillMaxWidth())
+                            WeightToleranceSave(state, onSave, Modifier.fillMaxWidth())
+                        }
+                    } else {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(
+                                HuaweiDimensions.CompactItemSpacing,
+                            ),
+                            verticalAlignment = Alignment.Top,
+                        ) {
+                            WeightToleranceInput(state, onStateChanged, Modifier.weight(1f))
+                            WeightToleranceSave(state, onSave)
+                        }
+                    }
                 }
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -107,4 +105,44 @@ fun WeightRecognitionSetting(
             }
         }
     }
+}
+
+@Composable
+private fun WeightToleranceInput(
+    state: WeightDeltaEditorState,
+    onStateChanged: (WeightDeltaEditorState) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    OutlinedTextField(
+        value = state.input,
+        onValueChange = {
+            onStateChanged(
+                reduceWeightDeltaEditor(state, WeightDeltaEditorAction.InputChanged(it)),
+            )
+        },
+        label = { Text("Допуск по весу, кг") },
+        supportingText = state.error?.let { message ->
+            { Text(message, Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
+        },
+        isError = state.error != null,
+        enabled = !state.isSaving,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = modifier.testTag(WeightDeltaEditorTestTags.Input),
+    )
+}
+
+@Composable
+private fun WeightToleranceSave(
+    state: WeightDeltaEditorState,
+    onSave: (Double) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = { state.parsedValue?.let(onSave) },
+        enabled = state.canSave,
+        modifier = modifier
+            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .testTag(WeightDeltaEditorTestTags.Save),
+    ) { Text("Сохранить") }
 }

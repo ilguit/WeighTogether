@@ -45,6 +45,13 @@ class UnsavedMeasurementReferencePreviewTest {
     fun resultShowsExactlySixteenPreliminaryMetrics() {
         setPreview(resultState())
 
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.UnsavedBadge)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.Step)
+            .assertIsDisplayed()
+        composeRule.onNodeWithText("Шаг 3 из 3").assertIsDisplayed()
+        composeRule.onNodeWithTag(UnsavedPreviewTestTags.PrivacyNotice)
+            .assertIsDisplayed()
         composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton)
             .assertCountEquals(16)
         composeRule.onAllNodesWithText("Предварительно:", substring = true, useUnmergedTree = true)
