@@ -1345,7 +1345,11 @@ class MainViewModel @JvmOverloads constructor(
                 return@launch
             }
             if (refreshing.value) scaleRefresh.clear()
-            val token = petMeasurementCoordinator.start(pet, address) ?: return@launch
+            val previousPetWeightKg = pets.value.pets
+                .firstOrNull { it.pet.id == pet.id }
+                ?.latestMeasurement
+                ?.petWeightKg
+            val token = petMeasurementCoordinator.start(pet, address, previousPetWeightKg) ?: return@launch
             if (!petMeasurementStartup.isCurrent(startupToken)) {
                 petMeasurementCoordinator.cancel()
                 return@launch
@@ -1363,7 +1367,7 @@ class MainViewModel @JvmOverloads constructor(
                     petScanner.start(
                         address = address,
                         onResult = { onPetScanResult(token, address, it) },
-                        onError = { petMeasurementCoordinator.fail(token, it) },
+                        onError = { petMeasurementCoordinator.pause(token, it) },
                     )
                 },
                 onFailure = { Result.failure(it) },
@@ -1382,6 +1386,46 @@ class MainViewModel @JvmOverloads constructor(
     fun cancelPetMeasurement() {
         invalidatePetMeasurementStartup()
         petMeasurementCoordinator.cancel()
+    }
+
+    fun completePetMeasurement() {
+        val request = petMeasurementCoordinator.beginSave() ?: return
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                val measurement = container.pets.recordCompletedMeasurement(
+                    petId = request.petId,
+                    measuredAt = request.measuredAt,
+                    firstWeightKg = request.firstWeightKg,
+                    secondWeightKg = request.secondWeightKg,
+                )
+                petMeasurementCoordinator.saved(request.token, measurement)
+            } catch (cancelled: CancellationException) {
+                petMeasurementCoordinator.cancel(request.token)
+                throw cancelled
+            } catch (error: Exception) {
+                petMeasurementCoordinator.fail(
+                    request.token,
+                    error.message ?: "Не удалось сохранить вес питомца",
+                )
+            }
+        }
+    }
+
+    fun retryPetMeasurement() {
+        val request = petMeasurementCoordinator.retry() ?: return
+        val started = petScanner.start(
+            address = request.selectedAddress,
+            onResult = { onPetScanResult(request.token, request.selectedAddress, it) },
+            onError = { petMeasurementCoordinator.pause(request.token, it) },
+        )
+        started.onFailure {
+            petMeasurementCoordinator.pause(
+                request.token,
+                it.message ?: "Не удалось продолжить сканирование",
+            )
+        }.onSuccess {
+            attachPetMeasurementTimeout(request.token)
+        }
     }
 
     private fun invalidatePetMeasurementStartup() {
@@ -1436,25 +1480,6 @@ class MainViewModel @JvmOverloads constructor(
                 attachPetMeasurementTimeout(token)
             }
             return
-        }
-        viewModelScope.launch(Dispatchers.IO) {
-            try {
-                val measurement = container.pets.recordCompletedMeasurement(
-                    petId = request.petId,
-                    measuredAt = request.measuredAt,
-                    firstWeightKg = request.firstWeightKg,
-                    secondWeightKg = request.secondWeightKg,
-                )
-                petMeasurementCoordinator.saved(request.token, measurement)
-            } catch (cancelled: CancellationException) {
-                petMeasurementCoordinator.cancel(request.token)
-                throw cancelled
-            } catch (error: Exception) {
-                petMeasurementCoordinator.fail(
-                    request.token,
-                    error.message ?: "Не удалось сохранить вес питомца",
-                )
-            }
         }
     }
 

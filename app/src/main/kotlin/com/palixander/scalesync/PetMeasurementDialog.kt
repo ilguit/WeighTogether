@@ -8,7 +8,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -17,6 +21,11 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,6 +39,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Dialog
+import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
@@ -50,6 +62,7 @@ internal object PetMeasurementTestTags {
     const val Result = "pet-measurement-result"
     const val Done = "pet-measurement-done"
     const val BackToSelection = "pet-back-to-selection"
+    const val Retry = "pet-measurement-retry"
     fun pet(id: PetId) = "pet-select-${id.value}"
 }
 
@@ -59,9 +72,11 @@ internal data class PetMeasurementCallbacks(
     val onCreateAndStart: (String, PetSpecies) -> Unit,
     val onStart: (PetId) -> Unit,
     val onCancel: () -> Unit,
+    val onDone: () -> Unit,
+    val onRetry: () -> Unit,
 ) {
     companion object {
-        val None = PetMeasurementCallbacks({}, {}, { _, _ -> }, {}, {})
+        val None = PetMeasurementCallbacks({}, {}, { _, _ -> }, {}, {}, {}, {})
     }
 }
 
@@ -72,6 +87,16 @@ internal fun PetMeasurementDialog(
     callbacks: PetMeasurementCallbacks,
 ) {
     if (state == PetMeasurementUiState.Idle || state == PetMeasurementUiState.Cancelled) return
+
+    if (state is PetMeasurementUiState.AwaitingFirstWeight ||
+        state is PetMeasurementUiState.AwaitingSecondWeight ||
+        state is PetMeasurementUiState.Result ||
+        state is PetMeasurementUiState.Saving ||
+        state is PetMeasurementUiState.ConnectionError
+    ) {
+        PetMeasurementFullScreen(state, callbacks)
+        return
+    }
 
     AlertDialog(
         onDismissRequest = {
@@ -110,14 +135,15 @@ internal fun PetMeasurementDialog(
                     CircularProgressIndicator()
                     Text("Сохраняем результат…")
                 }
-                is PetMeasurementUiState.Completed -> Text(
-                    "Вес ${state.pet.displayName}: ${formatPetWeight(state.measurement.petWeightKg)} кг",
+                is PetMeasurementUiState.Result -> Text(
+                    "Вес питомца — ${formatPetWeight(state.petWeightKg)} кг",
                     modifier = Modifier.testTag(PetMeasurementTestTags.Result),
                 )
                 is PetMeasurementUiState.Error -> Text(
                     state.message,
                     color = MaterialTheme.colorScheme.error,
                 )
+                is PetMeasurementUiState.ConnectionError -> Unit
                 PetMeasurementUiState.Idle,
                 PetMeasurementUiState.Cancelled,
                 -> Unit
@@ -135,8 +161,8 @@ internal fun PetMeasurementDialog(
                 ) {
                     Text("Вернуться к выбору")
                 }
-                is PetMeasurementUiState.Completed -> TextButton(
-                    onClick = callbacks.onCancel,
+                is PetMeasurementUiState.Result -> TextButton(
+                    onClick = callbacks.onDone,
                     modifier = Modifier.testTag(PetMeasurementTestTags.Done),
                 ) {
                     Text("Готово")
@@ -153,6 +179,145 @@ internal fun PetMeasurementDialog(
             }
         },
     )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PetMeasurementFullScreen(
+    state: PetMeasurementUiState,
+    callbacks: PetMeasurementCallbacks,
+) {
+    val saving = state is PetMeasurementUiState.Saving
+    Dialog(
+        onDismissRequest = { if (!saving) callbacks.onCancel() },
+        properties = DialogProperties(
+            dismissOnBackPress = false,
+            dismissOnClickOutside = false,
+            usePlatformDefaultWidth = false,
+        ),
+    ) {
+        BackHandler(enabled = !saving, onBack = callbacks.onCancel)
+        Surface(Modifier.fillMaxSize().testTag(PetMeasurementTestTags.Dialog)) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = { Text("Взвешивание питомца") },
+                        navigationIcon = {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.Back,
+                                contentDescription = "Закрыть взвешивание питомца",
+                                onClick = callbacks.onCancel,
+                                enabled = !saving,
+                            )
+                        },
+                    )
+                },
+                bottomBar = {
+                    Surface(shadowElevation = 8.dp) {
+                        Row(
+                            Modifier.fillMaxWidth().navigationBarsPadding().padding(16.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        ) {
+                            if (state is PetMeasurementUiState.Result) {
+                                OutlinedButton(
+                                    onClick = callbacks.onCancel,
+                                    modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Cancel),
+                                ) { Text("Отмена") }
+                                Button(
+                                    onClick = callbacks.onDone,
+                                    modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Done),
+                                ) { Text("Готово") }
+                            } else if (!saving) {
+                                if (state is PetMeasurementUiState.ConnectionError) {
+                                    Button(
+                                        onClick = callbacks.onRetry,
+                                        modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Retry),
+                                    ) { Text("Повторить") }
+                                }
+                                OutlinedButton(
+                                    onClick = callbacks.onCancel,
+                                    modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Cancel),
+                                ) { Text("Отменить") }
+                            }
+                        }
+                    }
+                },
+            ) { padding ->
+                val pet = when (state) {
+                    is PetMeasurementUiState.AwaitingFirstWeight -> state.pet
+                    is PetMeasurementUiState.AwaitingSecondWeight -> state.pet
+                    is PetMeasurementUiState.Result -> state.pet
+                    is PetMeasurementUiState.Saving -> state.pet
+                    is PetMeasurementUiState.ConnectionError -> state.pet
+                    else -> return@Scaffold
+                }
+                Column(
+                    Modifier.fillMaxSize().padding(padding).padding(horizontal = 24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.Center,
+                ) {
+                    Text(pet.displayName, style = MaterialTheme.typography.headlineLarge)
+                    Spacer(Modifier.height(16.dp))
+                    when (state) {
+                        is PetMeasurementUiState.AwaitingFirstWeight -> {
+                            Text("Первое взвешивание", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "Взвесьтесь с питомцем или без него и дождитесь стабильного показания.",
+                                modifier = Modifier.padding(vertical = 16.dp),
+                            )
+                            CircularProgressIndicator()
+                            state.currentWeightKg?.let {
+                                Text("${formatPetWeight(it)} кг", style = MaterialTheme.typography.headlineMedium)
+                            }
+                            Text("Ожидаем стабильное значение")
+                        }
+                        is PetMeasurementUiState.AwaitingSecondWeight -> {
+                            Text("Второе взвешивание", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "Первое показание: ${formatPetWeight(state.firstWeightKg)} кг",
+                                modifier = Modifier.padding(vertical = 16.dp)
+                                    .testTag(PetMeasurementTestTags.FirstWeight),
+                            )
+                            Text(
+                                "Повторите взвешивание в другом варианте: с питомцем, если первое было без него, " +
+                                    "или без питомца, если первое было с ним.",
+                            )
+                            CircularProgressIndicator(Modifier.padding(16.dp))
+                            state.currentWeightKg?.let {
+                                Text("${formatPetWeight(it)} кг", style = MaterialTheme.typography.headlineMedium)
+                            }
+                        }
+                        is PetMeasurementUiState.Result -> {
+                            Text("✓", style = MaterialTheme.typography.headlineLarge)
+                            Text("Готово", style = MaterialTheme.typography.titleLarge)
+                            Text(
+                                "Вес питомца — ${formatPetWeight(state.petWeightKg)} кг",
+                                style = MaterialTheme.typography.headlineMedium,
+                                modifier = Modifier.padding(top = 16.dp).testTag(PetMeasurementTestTags.Result),
+                            )
+                            state.previousPetWeightKg?.let { previous ->
+                                val delta = state.petWeightKg - previous
+                                val prefix = if (delta > 0) "+" else ""
+                                Text("$prefix${formatPetWeight(delta)} кг с прошлого измерения")
+                            }
+                        }
+                        is PetMeasurementUiState.Saving -> {
+                            CircularProgressIndicator()
+                            Text("Сохраняем результат…", modifier = Modifier.padding(top = 16.dp))
+                        }
+                        is PetMeasurementUiState.ConnectionError -> {
+                            Text("Соединение прервано", style = MaterialTheme.typography.titleLarge)
+                            state.firstWeightKg?.let {
+                                Text("Первое показание сохранено: ${formatPetWeight(it)} кг")
+                            }
+                            Text(state.message, color = MaterialTheme.colorScheme.error)
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -254,7 +419,8 @@ private fun dialogTitle(state: PetMeasurementUiState): String = when (state) {
     is PetMeasurementUiState.AwaitingFirstWeight -> "Первое взвешивание"
     is PetMeasurementUiState.AwaitingSecondWeight -> "Второе взвешивание"
     is PetMeasurementUiState.Saving -> "Сохранение"
-    is PetMeasurementUiState.Completed -> "Готово"
+    is PetMeasurementUiState.Result -> "Готово"
+    is PetMeasurementUiState.ConnectionError -> "Соединение прервано"
     is PetMeasurementUiState.Error -> "Не удалось взвесить"
     PetMeasurementUiState.Idle, PetMeasurementUiState.Cancelled -> ""
 }

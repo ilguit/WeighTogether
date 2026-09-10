@@ -72,7 +72,7 @@ class PetMeasurementCoordinatorTest {
         assertEquals(4.2, abs(request.secondWeightKg - request.firstWeightKg), 0.000_001)
         assertEquals(1, scannerStops)
         assertEquals(2, timeoutCancellations)
-        assertTrue(states.last() is PetMeasurementUiState.Saving)
+        assertTrue(states.last() is PetMeasurementUiState.Result)
         assertEquals(0, automaticRestores)
     }
 
@@ -228,7 +228,7 @@ class PetMeasurementCoordinatorTest {
         assertNull(coordinator.accept(token, reading(70.0, stable = false)))
         assertNull(coordinator.accept(token, reading(70.0, address = "11:22:33:44:55:66")))
 
-        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet, 70.0), states.last())
     }
 
     @Test
@@ -244,7 +244,7 @@ class PetMeasurementCoordinatorTest {
             ),
         )
 
-        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet, 69.0), states.last())
         assertEquals(0, scannerStops)
     }
 
@@ -308,7 +308,7 @@ class PetMeasurementCoordinatorTest {
             ),
         )
 
-        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet, 69.0), states.last())
         assertEquals(0, scannerStops)
         assertEquals(0, timeoutCancellations)
 
@@ -319,7 +319,7 @@ class PetMeasurementCoordinatorTest {
             ),
         )
 
-        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet, 69.0), states.last())
         baselineCoordinator.accept(token, reading(73.0, second = 22, stable = false))
         assertNull(
             baselineCoordinator.accept(
@@ -382,7 +382,7 @@ class PetMeasurementCoordinatorTest {
                 assertNull(coordinator.accept(token, reading(weight, second = index.toLong())))
             }
 
-        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet, 69.0), states.last())
         assertEquals(0, scannerStops)
     }
 
@@ -397,7 +397,7 @@ class PetMeasurementCoordinatorTest {
 
         assertNull(coordinator.accept(token, reading(70.0, second = 2, raw = "second")))
 
-        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0, 69.0), states.last())
         assertEquals(0, scannerStops)
         assertEquals(1, timeoutCancellations)
 
@@ -464,13 +464,45 @@ class PetMeasurementCoordinatorTest {
             secondWeightKg = request.secondWeightKg,
         )
 
+        assertEquals(request, coordinator.beginSave())
+        assertNull(coordinator.beginSave())
         coordinator.saved(token, measurement)
 
-        assertEquals(PetMeasurementUiState.Completed(pet, measurement), states.last())
+        assertEquals(PetMeasurementUiState.Idle, states.last())
         assertFalse(coordinator.isActive)
         assertEquals(1, scannerStops)
         assertEquals(1, automaticRestores)
         assertEquals(listOf(true, false), sessionActivity)
+    }
+
+    @Test
+    fun `cancel from result discards pending result and done cannot save it`() {
+        val token = start()
+        acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
+        requireNotNull(acceptAfterTransient(token, reading(74.0, second = 2, raw = "second")))
+
+        coordinator.cancel()
+
+        assertNull(coordinator.beginSave())
+        assertEquals(PetMeasurementUiState.Cancelled, states.last())
+        assertFalse(coordinator.isActive)
+    }
+
+    @Test
+    fun `retry after connection error preserves first stable reading`() {
+        val token = start()
+        acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
+
+        coordinator.pause(token, "Связь потеряна")
+        assertEquals(PetMeasurementUiState.ConnectionError(pet, 70.0, "Связь потеряна"), states.last())
+        val retry = requireNotNull(coordinator.retry())
+        assertEquals(token, retry.token)
+        assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
+
+        val request = requireNotNull(
+            acceptAfterTransient(token, reading(74.0, second = 2, raw = "second")),
+        )
+        assertEquals(4.0, request.petWeightKg, 0.0)
     }
 
     @Test

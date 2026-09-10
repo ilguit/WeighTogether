@@ -5,6 +5,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import java.time.Instant
+import kotlin.math.abs
 
 internal const val PET_MEASUREMENT_TIMEOUT_MILLIS = 30_000L
 internal const val PET_SCALE_REQUIRED_MESSAGE = "Сначала выберите весы в настройках"
@@ -44,12 +45,26 @@ sealed interface PetMeasurementUiState {
     data object SelectingPet : PetMeasurementUiState
     data object CreatingPet : PetMeasurementUiState
 
-    data class AwaitingFirstWeight(val pet: Pet) : PetMeasurementUiState
+    data class AwaitingFirstWeight(
+        val pet: Pet,
+        val currentWeightKg: Double? = null,
+    ) : PetMeasurementUiState
 
     data class AwaitingSecondWeight(
         val pet: Pet,
         val firstWeightKg: Double,
+        val currentWeightKg: Double? = null,
     ) : PetMeasurementUiState
+
+    data class Result(
+        val pet: Pet,
+        val measuredAt: Instant,
+        val firstWeightKg: Double,
+        val secondWeightKg: Double,
+        val previousPetWeightKg: Double?,
+    ) : PetMeasurementUiState {
+        val petWeightKg: Double get() = abs(secondWeightKg - firstWeightKg)
+    }
 
     data class Saving(
         val pet: Pet,
@@ -57,9 +72,10 @@ sealed interface PetMeasurementUiState {
         val secondWeightKg: Double,
     ) : PetMeasurementUiState
 
-    data class Completed(
+    data class ConnectionError(
         val pet: Pet,
-        val measurement: PetMeasurement,
+        val firstWeightKg: Double?,
+        val message: String,
     ) : PetMeasurementUiState
 
     data class Error(val message: String) : PetMeasurementUiState
@@ -135,6 +151,13 @@ internal data class PetMeasurementSaveRequest(
     val measuredAt: Instant,
     val firstWeightKg: Double,
     val secondWeightKg: Double,
+) {
+    val petWeightKg: Double get() = abs(secondWeightKg - firstWeightKg)
+}
+
+internal data class PetMeasurementRetryRequest(
+    val token: PetMeasurementCoordinator.OperationToken,
+    val selectedAddress: String,
 )
 
 internal class PetIngestionSession(
@@ -200,7 +223,11 @@ internal class PetMeasurementCoordinator(
         true
     }
 
-    suspend fun start(pet: Pet, selectedAddress: String): OperationToken? {
+    suspend fun start(
+        pet: Pet,
+        selectedAddress: String,
+        previousPetWeightKg: Double? = null,
+    ): OperationToken? {
         synchronized(lock) {
             if (operation != null || starting) return null
             starting = true
@@ -225,6 +252,7 @@ internal class PetMeasurementCoordinator(
                     startedAtNanos = monotonicNowNanos(),
                     ingestionSession = ingestionSession,
                     preSessionBaseline = ingestionSession.preSessionBaseline,
+                    previousPetWeightKg = previousPetWeightKg,
                 )
                 setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
             }
@@ -254,6 +282,11 @@ internal class PetMeasurementCoordinator(
             ) return null
             if (!reading.isStable) {
                 active.transientSeenSinceLastStable = true
+                setState(
+                    active.first?.let {
+                        PetMeasurementUiState.AwaitingSecondWeight(active.pet, it.weightKg, reading.weightKg)
+                    } ?: PetMeasurementUiState.AwaitingFirstWeight(active.pet, reading.weightKg),
+                )
                 return null
             }
             if (!reading.isStableWeight || !active.transientSeenSinceLastStable) return null
@@ -285,15 +318,16 @@ internal class PetMeasurementCoordinator(
                 )
                 active.cancelTimeout?.invoke()
                 active.cancelTimeout = null
-                active.saving = true
-                SecondAccepted(
-                    PetMeasurementSaveRequest(
+                val request = PetMeasurementSaveRequest(
                         token = token,
                         petId = active.pet.id,
                         measuredAt = reading.measuredAt,
                         firstWeightKg = first.weightKg,
                         secondWeightKg = reading.weightKg,
-                    ),
+                    )
+                active.secondRequest = request
+                SecondAccepted(
+                    request,
                     active.pet,
                     requireNotNull(active.takeStopScanner()),
                 )
@@ -311,11 +345,16 @@ internal class PetMeasurementCoordinator(
             }
             is SecondAccepted -> {
                 transition.stopScanner()
+                val previous = synchronized(lock) {
+                    operation?.takeIf { it.token == transition.request.token }?.previousPetWeightKg
+                }
                 setState(
-                    PetMeasurementUiState.Saving(
+                    PetMeasurementUiState.Result(
                         transition.pet,
+                        transition.request.measuredAt,
                         transition.request.firstWeightKg,
                         transition.request.secondWeightKg,
+                        previous,
                     ),
                 )
                 transition.request
@@ -323,13 +362,45 @@ internal class PetMeasurementCoordinator(
         }
     }
 
+    fun beginSave(): PetMeasurementSaveRequest? = synchronized(lock) {
+        val active = operation ?: return null
+        val first = active.first ?: return null
+        val second = active.secondRequest ?: return null
+        if (active.saving) return null
+        active.saving = true
+        setState(PetMeasurementUiState.Saving(active.pet, first.weightKg, second.secondWeightKg))
+        second
+    }
+
     fun registerPetPacket(token: OperationToken, address: String, payload: ByteArray) {
         token.ingestionSession.registerPetPacket(address, payload)
     }
 
+    fun pause(token: OperationToken, message: String) {
+        val errorState = synchronized(lock) {
+            val active = operation?.takeIf { it.token == token && !it.saving } ?: return
+            active.cancelTimeout?.invoke()
+            active.cancelTimeout = null
+            PetMeasurementUiState.ConnectionError(active.pet, active.first?.weightKg, message)
+        }
+        setState(errorState)
+        showMessage(message)
+    }
+
+    fun retry(): PetMeasurementRetryRequest? = synchronized(lock) {
+        val active = operation?.takeIf { !it.saving } ?: return null
+        active.startedAtNanos = monotonicNowNanos()
+        active.transientSeenSinceLastStable = false
+        setState(
+            active.first?.let { PetMeasurementUiState.AwaitingSecondWeight(active.pet, it.weightKg) }
+                ?: PetMeasurementUiState.AwaitingFirstWeight(active.pet),
+        )
+        PetMeasurementRetryRequest(active.token, active.selectedAddress)
+    }
+
     fun saved(token: OperationToken, measurement: PetMeasurement) {
-        val pet = synchronized(lock) { operation?.takeIf { it.token == token }?.pet } ?: return
-        finish(token, PetMeasurementUiState.Completed(pet, measurement))
+        synchronized(lock) { operation?.takeIf { it.token == token } } ?: return
+        finish(token, PetMeasurementUiState.Idle)
     }
 
     fun fail(token: OperationToken, message: String) =
@@ -386,10 +457,12 @@ internal class PetMeasurementCoordinator(
         val token: OperationToken,
         val pet: Pet,
         val selectedAddress: String,
-        val startedAtNanos: Long,
+        var startedAtNanos: Long,
         val ingestionSession: PetIngestionSession,
         val preSessionBaseline: PetStableReadingBaseline?,
+        val previousPetWeightKg: Double?,
         var first: CapturedReading? = null,
+        var secondRequest: PetMeasurementSaveRequest? = null,
         var transientSeenSinceLastStable: Boolean = false,
         var cancelTimeout: (() -> Unit)? = null,
         var saving: Boolean = false,

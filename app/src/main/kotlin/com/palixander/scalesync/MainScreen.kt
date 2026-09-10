@@ -346,6 +346,8 @@ fun ScaleSyncApp(
                 }
             },
             onCancel = viewModel::cancelPetMeasurement,
+            onDone = viewModel::completePetMeasurement,
+            onRetry = viewModel::retryPetMeasurement,
         ),
         snackbarHostState = snackbarHostState,
         onSectionSelected = {
