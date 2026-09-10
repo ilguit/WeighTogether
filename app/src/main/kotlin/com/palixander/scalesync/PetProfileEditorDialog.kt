@@ -8,7 +8,10 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -21,13 +24,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -49,10 +55,14 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.icons.HuaweiIcons
 
 internal object PetProfileEditorTestTags {
     const val Dialog = "pet-profile-editor-dialog"
@@ -81,6 +91,10 @@ internal object PetProfileEditorTestTags {
     const val Progress = "pet-profile-editor-progress"
     const val Save = "pet-profile-editor-save"
     const val Cancel = "pet-profile-editor-cancel"
+    const val Back = "pet-profile-editor-back"
+    const val DiscardConfirmation = "pet-profile-editor-discard-confirmation"
+    const val Discard = "pet-profile-editor-discard"
+    const val KeepEditing = "pet-profile-editor-keep-editing"
     const val SpeciesConfirmation = "pet-profile-editor-species-confirmation"
     const val SpeciesConfirm = "pet-profile-editor-species-confirm"
     const val SpeciesCancel = "pet-profile-editor-species-cancel"
@@ -95,6 +109,7 @@ internal object PetProfileEditorTestTags {
  * A stateless pet profile editor. The caller owns [PetProfileEditorState] and applies every
  * [PetProfileAction], so validation and persistence remain outside Compose.
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun PetProfileEditorDialog(
     state: PetProfileEditorState,
@@ -111,6 +126,12 @@ internal fun PetProfileEditorDialog(
     var submitted by rememberSaveable { mutableStateOf(false) }
     val locked = busy || submitted
     val draft = state.draft
+    val editorKey = when (val mode = draft.mode) {
+        PetProfileEditorMode.Create -> "create"
+        is PetProfileEditorMode.Edit -> "edit:${mode.petId.value}"
+    }
+    val initialDraft = remember(editorKey) { draft }
+    var discardConfirmationVisible by remember(editorKey) { mutableStateOf(false) }
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
@@ -125,26 +146,85 @@ internal fun PetProfileEditorDialog(
         }
     }
 
-    AlertDialog(
-        onDismissRequest = { if (!locked) onDismiss() },
-        modifier = modifier.testTag(PetProfileEditorTestTags.Dialog),
-        title = {
-            Text(
-                text = when (draft.mode) {
-                    PetProfileEditorMode.Create -> "Новый питомец"
-                    is PetProfileEditorMode.Edit -> "Изменить профиль питомца"
+    fun requestDismiss() {
+        if (!locked) {
+            if (draft == initialDraft) onDismiss() else discardConfirmationVisible = true
+        }
+    }
+
+    Dialog(
+        onDismissRequest = ::requestDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false),
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxSize()
+                .then(modifier)
+                .testTag(PetProfileEditorTestTags.Dialog),
+            color = MaterialTheme.colorScheme.background,
+        ) {
+            Scaffold(
+                topBar = {
+                    TopAppBar(
+                        title = {
+                            Text(
+                                text = when (draft.mode) {
+                                    PetProfileEditorMode.Create -> "Новый питомец"
+                                    is PetProfileEditorMode.Edit -> "Изменить питомца"
+                                },
+                            )
+                        },
+                        navigationIcon = {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.Back,
+                                contentDescription = "Назад",
+                                onClick = ::requestDismiss,
+                                enabled = !locked,
+                                modifier = Modifier.testTag(PetProfileEditorTestTags.Back),
+                            )
+                        },
+                    )
                 },
-                modifier = Modifier.semantics { heading() },
-            )
-        },
-        text = {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .testTag(PetProfileEditorTestTags.Content),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
+                bottomBar = {
+                    Surface(shadowElevation = 3.dp) {
+                        Button(
+                            onClick = {
+                                if (!locked) {
+                                    submitted = true
+                                    onSave()
+                                }
+                            },
+                            enabled = !locked,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .navigationBarsPadding()
+                                .imePadding()
+                                .padding(horizontal = 16.dp, vertical = 12.dp)
+                                .heightIn(min = 48.dp)
+                                .testTag(PetProfileEditorTestTags.Save),
+                        ) {
+                            if (busy) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(24.dp).padding(end = 8.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                                Text("Сохранение…")
+                            } else {
+                                Text("Сохранить")
+                            }
+                        }
+                    }
+                },
+            ) { contentPadding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(contentPadding)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 24.dp)
+                        .testTag(PetProfileEditorTestTags.Content),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
                 OutlinedTextField(
                     value = draft.displayName,
                     onValueChange = { dispatch(PetProfileAction.DisplayNameChanged(it)) },
@@ -308,28 +388,31 @@ internal fun PetProfileEditorDialog(
                         Text("Сохраняем…")
                     }
                 }
+                }
             }
-        },
-        confirmButton = {
-            Button(
-                onClick = {
-                    if (!locked) {
-                        submitted = true
-                        onSave()
-                    }
-                },
-                enabled = !locked,
-                modifier = Modifier.testTag(PetProfileEditorTestTags.Save),
-            ) { Text("Сохранить") }
-        },
-        dismissButton = {
-            TextButton(
-                onClick = { if (!locked) onDismiss() },
-                enabled = !locked,
-                modifier = Modifier.testTag(PetProfileEditorTestTags.Cancel),
-            ) { Text("Отмена") }
-        },
-    )
+        }
+    }
+
+    if (discardConfirmationVisible) {
+        AlertDialog(
+            onDismissRequest = { discardConfirmationVisible = false },
+            modifier = Modifier.testTag(PetProfileEditorTestTags.DiscardConfirmation),
+            title = { Text("Отказаться от изменений?") },
+            text = { Text("Введённые данные не сохранятся.") },
+            confirmButton = {
+                Button(
+                    onClick = onDismiss,
+                    modifier = Modifier.testTag(PetProfileEditorTestTags.Discard),
+                ) { Text("Отказаться") }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = { discardConfirmationVisible = false },
+                    modifier = Modifier.testTag(PetProfileEditorTestTags.KeepEditing),
+                ) { Text("Продолжить редактирование") }
+            },
+        )
+    }
 
     if (
         breedPickerOpen &&
