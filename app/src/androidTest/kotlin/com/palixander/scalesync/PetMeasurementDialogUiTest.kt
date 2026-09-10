@@ -4,6 +4,10 @@ import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.isDialog
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -92,6 +96,9 @@ class PetMeasurementDialogUiTest {
         }
 
         composeRule.onNodeWithText("Первое взвешивание").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetMeasurementTestTags.Title)
+            .assertIsFocused()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
         composeRule.onNodeWithText("с питомцем или без него", substring = true)
             .assertIsDisplayed()
         composeRule.runOnIdle {

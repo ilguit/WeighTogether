@@ -5,6 +5,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -48,6 +52,12 @@ class AccountEditorScreenUiTest {
         assertTrue(sex.bottom <= birthDate.top)
         assertTrue(birthDate.bottom <= height.top)
         assertTrue(save.top >= height.bottom)
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorTitle)
+            .assertIsFocused()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSexGroup)
+            .assertContentDescriptionEquals("Пол")
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.palixander.scalesync.measurements.formatWeight
 import com.palixander.scalesync.ui.components.ManualOriginIndicator
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -27,15 +28,20 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
@@ -52,6 +58,7 @@ import java.util.Locale
 
 internal object PetMeasurementTestTags {
     const val Dialog = "pet-measurement-dialog"
+    const val Title = "pet-measurement-title"
     const val CreateAction = "pet-create-action"
     const val NameField = "pet-name-field"
     const val CreateConfirm = "pet-create-confirm"
@@ -188,6 +195,10 @@ private fun PetMeasurementFullScreen(
     callbacks: PetMeasurementCallbacks,
 ) {
     val saving = state is PetMeasurementUiState.Saving
+    val titleFocus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        titleFocus.requestFocus()
+    }
     Dialog(
         onDismissRequest = { if (!saving) callbacks.onCancel() },
         properties = DialogProperties(
@@ -201,7 +212,16 @@ private fun PetMeasurementFullScreen(
             Scaffold(
                 topBar = {
                     TopAppBar(
-                        title = { Text("Взвешивание питомца") },
+                        title = {
+                            Text(
+                                text = "Взвешивание питомца",
+                                modifier = Modifier
+                                    .focusRequester(titleFocus)
+                                    .focusable()
+                                    .testTag(PetMeasurementTestTags.Title)
+                                    .semantics { heading() },
+                            )
+                        },
                         navigationIcon = {
                             HuaweiIconButton(
                                 icon = HuaweiIcons.Back,

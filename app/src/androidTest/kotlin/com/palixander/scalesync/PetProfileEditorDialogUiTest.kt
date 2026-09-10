@@ -111,11 +111,21 @@ class PetProfileEditorDialogUiTest {
         setEditor(state, onDismiss = { dismisses++ })
 
         composeRule.onNodeWithText("Новый питомец").assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Title)
+            .assertIsFocused()
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.Heading))
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Dialog).assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Back)
             .assertContentDescriptionEquals("Вернуться к профилям")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesGroup)
+            .assertContentDescriptionEquals("Вид питомца")
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexGroup)
+            .assertContentDescriptionEquals("Пол питомца")
+            .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesCat).assertIsSelected()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).performClick()
         composeRule.runOnIdle { assertEquals(1, dismisses) }
     }

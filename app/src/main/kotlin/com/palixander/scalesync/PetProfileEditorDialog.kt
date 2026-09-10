@@ -56,6 +56,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
@@ -72,12 +73,15 @@ import kotlinx.coroutines.launch
 internal object PetProfileEditorTestTags {
     const val Dialog = "pet-profile-editor-dialog"
     const val Content = "pet-profile-editor-content"
+    const val Title = "pet-profile-editor-title"
     const val NameField = "pet-profile-editor-name"
     const val SpeciesCat = "pet-profile-editor-species-cat"
     const val SpeciesDog = "pet-profile-editor-species-dog"
+    const val SpeciesGroup = "pet-profile-editor-species-group"
     const val SexMale = "pet-profile-editor-sex-male"
     const val SexFemale = "pet-profile-editor-sex-female"
     const val SexClear = "pet-profile-editor-sex-clear"
+    const val SexGroup = "pet-profile-editor-sex-group"
     const val BreedField = "pet-profile-editor-breed"
     const val BreedClear = "pet-profile-editor-breed-clear"
     const val BreedPicker = "pet-profile-editor-breed-picker"
@@ -136,11 +140,16 @@ internal fun PetProfileEditorDialog(
     val dirty = draft != initialDraft
     val contentScrollState = rememberScrollState()
     val nameFocus = remember { FocusRequester() }
+    val titleFocus = remember { FocusRequester() }
     val speciesFocus = remember { FocusRequester() }
     val breedFocus = remember { FocusRequester() }
     val birthDateFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(Unit) {
+        if (!fieldErrors.hasErrors) titleFocus.requestFocus()
+    }
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
@@ -191,7 +200,11 @@ internal fun PetProfileEditorDialog(
                             PetProfileEditorMode.Create -> "Новый питомец"
                             is PetProfileEditorMode.Edit -> "Изменить питомца"
                         },
-                        modifier = Modifier.semantics { heading() },
+                        modifier = Modifier
+                            .focusRequester(titleFocus)
+                            .focusable()
+                            .testTag(PetProfileEditorTestTags.Title)
+                            .semantics { heading() },
                     )
                 },
                 navigationIcon = {
@@ -254,7 +267,14 @@ internal fun PetProfileEditorDialog(
 
                 EditorSection("Вид питомца") {
                     FlowRow(
-                        modifier = Modifier.focusRequester(speciesFocus).focusable(),
+                        modifier = Modifier
+                            .focusRequester(speciesFocus)
+                            .focusable()
+                            .testTag(PetProfileEditorTestTags.SpeciesGroup)
+                            .semantics {
+                                contentDescription = "Вид питомца"
+                                selectableGroup()
+                            },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
@@ -284,6 +304,12 @@ internal fun PetProfileEditorDialog(
 
                 EditorSection("Пол (необязательно)") {
                     FlowRow(
+                        modifier = Modifier
+                            .testTag(PetProfileEditorTestTags.SexGroup)
+                            .semantics {
+                                contentDescription = "Пол питомца"
+                                selectableGroup()
+                            },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {

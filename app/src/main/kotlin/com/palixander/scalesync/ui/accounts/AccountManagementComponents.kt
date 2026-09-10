@@ -3,6 +3,7 @@ package com.palixander.scalesync.ui.accounts
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -46,8 +47,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -82,10 +85,12 @@ object AccountManagementTestTags {
     const val PeopleGroup = "profile-management-people-group"
     const val PetsGroup = "profile-management-pets-group"
     const val Editor = "account-editor"
+    const val EditorTitle = "account-editor-title"
     const val EditorBack = "account-editor-back"
     const val EditorName = "account-editor-name"
     const val EditorSexMale = "account-editor-sex-male"
     const val EditorSexFemale = "account-editor-sex-female"
+    const val EditorSexGroup = "account-editor-sex-group"
     const val EditorHeight = "account-editor-height"
     const val EditorBirthDate = "account-editor-birth-date"
     const val EditorSave = "account-editor-save"
@@ -502,10 +507,14 @@ fun AccountEditorScreen(
     var discardRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
     var saveSubmitted by remember(draft.editingAccountId) { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
+    val titleFocus = remember { FocusRequester() }
     val sexFocus = remember { FocusRequester() }
     val birthDateFocus = remember { FocusRequester() }
     val heightFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+    LaunchedEffect(Unit) {
+        titleFocus.requestFocus()
+    }
     LaunchedEffect(operationInProgress, error) {
         if (!operationInProgress && error != null) saveSubmitted = false
     }
@@ -519,7 +528,16 @@ fun AccountEditorScreen(
         modifier = modifier.fillMaxSize().testTag(AccountManagementTestTags.Editor),
         topBar = {
             TopAppBar(
-                title = { Text(if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль") },
+                title = {
+                    Text(
+                        text = if (draft.editingAccountId == null) "Новый профиль" else "Изменить профиль",
+                        modifier = Modifier
+                            .focusRequester(titleFocus)
+                            .focusable()
+                            .testTag(AccountManagementTestTags.EditorTitle)
+                            .semantics { heading() },
+                    )
+                },
                 navigationIcon = {
                     HuaweiIconButton(
                         icon = HuaweiIcons.Back,
@@ -579,7 +597,15 @@ fun AccountEditorScreen(
                         .testTag(AccountManagementTestTags.EditorName),
                 )
                 Text("Пол", style = MaterialTheme.typography.labelLarge)
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    modifier = Modifier
+                        .testTag(AccountManagementTestTags.EditorSexGroup)
+                        .semantics {
+                            contentDescription = "Пол"
+                            selectableGroup()
+                        },
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     SexChoice("Мужской", Sex.MALE, draft.sex, !operationInProgress,
                         Modifier.focusRequester(sexFocus).testTag(AccountManagementTestTags.EditorSexMale)) {
                         onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.SexChanged(it)))
