@@ -2,6 +2,7 @@ package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Arrangement
@@ -49,6 +50,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
@@ -211,7 +213,10 @@ fun AccountManagementSection(
         TextButton(
             onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
             enabled = !state.operationInProgress,
-            modifier = Modifier.align(Alignment.End).testTag(AccountManagementTestTags.Add),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .testTag(AccountManagementTestTags.Add),
         ) { Text("Добавить профиль") }
         HuaweiSectionTitle("Питомцы")
         HuaweiSurface(
@@ -241,7 +246,10 @@ fun AccountManagementSection(
         TextButton(
             onClick = onAddPet,
             enabled = !state.operationInProgress,
-            modifier = Modifier.align(Alignment.End).testTag(AccountManagementTestTags.AddPet),
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .testTag(AccountManagementTestTags.AddPet),
         ) { Text("Добавить питомца") }
     }
 
@@ -534,9 +542,11 @@ fun AccountEditorDialog(
     var validationRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
     var submitAttempt by remember(draft.editingAccountId) { mutableStateOf(0) }
     val nameFocusRequester = remember { FocusRequester() }
+    val titleFocusRequester = remember { FocusRequester() }
     val sexFocusRequester = remember { FocusRequester() }
     val birthDateFocusRequester = remember { FocusRequester() }
     val heightFocusRequester = remember { FocusRequester() }
+    LaunchedEffect(draft.editingAccountId) { titleFocusRequester.requestFocus() }
     LaunchedEffect(submitAttempt) {
         if (submitAttempt == 0 || validation.isValid) return@LaunchedEffect
         val target = when {
@@ -568,6 +578,10 @@ fun AccountEditorDialog(
                             Text(
                                 if (draft.editingAccountId == null) "Новый профиль"
                                 else "Изменить профиль",
+                                modifier = Modifier
+                                    .focusRequester(titleFocusRequester)
+                                    .focusable()
+                                    .semantics { heading() },
                             )
                         },
                         navigationIcon = {

@@ -3,6 +3,7 @@ package com.palixander.scalesync.ui
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.performClick
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
@@ -97,6 +98,13 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.Empty).assertExists()
+        val peopleBounds = composeRule.onNodeWithTag(AccountManagementTestTags.PeopleGroup)
+            .getUnclippedBoundsInRoot()
+        val addBounds = composeRule.onNodeWithTag(AccountManagementTestTags.Add)
+            .getUnclippedBoundsInRoot()
+        val peopleWidth = peopleBounds.right - peopleBounds.left
+        val addWidth = addBounds.right - addBounds.left
+        assertEquals(peopleWidth, addWidth)
     }
 
     private fun account() = Account(

@@ -3,10 +3,12 @@ package com.palixander.scalesync
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
@@ -26,6 +28,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -47,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -54,6 +58,7 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.input.KeyboardType
@@ -138,6 +143,7 @@ internal fun PetProfileEditorDialog(
     val initialDraft = remember(editorKey) { draft }
     var discardConfirmationVisible by remember(editorKey) { mutableStateOf(false) }
     val nameFocusRequester = remember(editorKey) { FocusRequester() }
+    val titleFocusRequester = remember(editorKey) { FocusRequester() }
     val speciesFocusRequester = remember(editorKey) { FocusRequester() }
     val breedFocusRequester = remember(editorKey) { FocusRequester() }
     val birthDateFocusRequester = remember(editorKey) { FocusRequester() }
@@ -146,6 +152,7 @@ internal fun PetProfileEditorDialog(
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
     }
+    LaunchedEffect(editorKey) { titleFocusRequester.requestFocus() }
     LaunchedEffect(busy) {
         if (busy) breedPickerOpen = false
     }
@@ -193,6 +200,10 @@ internal fun PetProfileEditorDialog(
                                     PetProfileEditorMode.Create -> "Новый питомец"
                                     is PetProfileEditorMode.Edit -> "Изменить питомца"
                                 },
+                                modifier = Modifier
+                                    .focusRequester(titleFocusRequester)
+                                    .focusable()
+                                    .semantics { heading() },
                             )
                         },
                         navigationIcon = {
@@ -263,25 +274,25 @@ internal fun PetProfileEditorDialog(
                 )
 
                 EditorSection("Вид питомца") {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    AdaptiveChoicePair { showIcons ->
                         ChoiceButton(
                             label = "Кошка",
+                            icon = HuaweiIcons.Cat.takeIf { showIcons },
                             selected = draft.species == PetSpecies.CAT,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesCat,
-                            modifier = Modifier.focusRequester(speciesFocusRequester),
+                            modifier = Modifier.weight(1f).focusRequester(speciesFocusRequester),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.CAT))
                             },
                         )
                         ChoiceButton(
                             label = "Собака",
+                            icon = HuaweiIcons.Dog.takeIf { showIcons },
                             selected = draft.species == PetSpecies.DOG,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesDog,
+                            modifier = Modifier.weight(1f),
                             onClick = {
                                 dispatch(PetProfileAction.SpeciesChangeRequested(PetSpecies.DOG))
                             },
@@ -293,15 +304,13 @@ internal fun PetProfileEditorDialog(
                 }
 
                 EditorSection("Пол (необязательно)") {
-                    FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    AdaptiveChoicePair(showIcons = false) { _ ->
                         ChoiceButton(
                             label = "Самец",
                             selected = draft.sex == PetSex.MALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexMale,
+                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.MALE)) },
                         )
                         ChoiceButton(
@@ -309,18 +318,19 @@ internal fun PetProfileEditorDialog(
                             selected = draft.sex == PetSex.FEMALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexFemale,
+                            modifier = Modifier.weight(1f),
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.FEMALE)) },
                         )
-                        if (draft.sex != null) {
-                            TextButton(
-                                onClick = { dispatch(PetProfileAction.SexChanged(null)) },
-                                enabled = !locked,
-                                modifier = Modifier
-                                    .heightIn(min = 48.dp)
-                                    .testTag(PetProfileEditorTestTags.SexClear)
-                                    .semantics { contentDescription = "Очистить пол питомца" },
-                            ) { Text("Очистить") }
-                        }
+                    }
+                    if (draft.sex != null) {
+                        TextButton(
+                            onClick = { dispatch(PetProfileAction.SexChanged(null)) },
+                            enabled = !locked,
+                            modifier = Modifier
+                                .heightIn(min = 48.dp)
+                                .testTag(PetProfileEditorTestTags.SexClear)
+                                .semantics { contentDescription = "Очистить пол питомца" },
+                        ) { Text("Очистить") }
                     }
                 }
 
@@ -495,6 +505,7 @@ private fun EditorSection(
 @Composable
 private fun ChoiceButton(
     label: String,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
     selected: Boolean,
     enabled: Boolean,
     tag: String,
@@ -517,7 +528,24 @@ private fun ChoiceButton(
             },
     ) {
         RadioButton(selected = selected, onClick = null, enabled = enabled)
+        icon?.let { Icon(it, contentDescription = null, modifier = Modifier.padding(end = 8.dp)) }
         Text(label)
+    }
+}
+
+@Composable
+private fun AdaptiveChoicePair(
+    showIcons: Boolean = true,
+    content: @Composable RowScope.(Boolean) -> Unit,
+) {
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val iconsFit = showIcons && maxWidth >= 360.dp && LocalDensity.current.fontScale <= 1.3f
+        Row(
+            modifier = Modifier.fillMaxWidth().semantics { selectableGroup() },
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            content(iconsFit)
+        }
     }
 }
 
