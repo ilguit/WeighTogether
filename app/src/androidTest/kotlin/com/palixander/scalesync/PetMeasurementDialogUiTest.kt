@@ -46,6 +46,8 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithContentDescription("Барсик. Последний вес:", substring = true)
             .assertIsDisplayed()
+        composeRule.onNodeWithTag("pet-latest-measurement-origin-${pet.id}")
+            .assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.pet(pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(pet.id, selected) }
     }

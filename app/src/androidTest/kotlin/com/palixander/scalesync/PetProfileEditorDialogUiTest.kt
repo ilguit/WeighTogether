@@ -17,6 +17,7 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertHeightIsAtLeast
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasScrollAction
@@ -518,8 +519,25 @@ class PetProfileEditorDialogUiTest {
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Content)
             .assert(hasScrollAction())
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog).assertIsSelected()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertIsSelected()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog)
+            .assertIsSelected()
+            .assertHeightIsAtLeast(48.dp)
+            .assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton),
+            )
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale)
+            .assertIsSelected()
+            .assertHeightIsAtLeast(48.dp)
+            .assert(
+                SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton),
+            )
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField)
+            .performScrollTo()
+            .assertHeightIsAtLeast(48.dp)
+            .assertIsDisplayed()
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedPicker).assertIsDisplayed()
+        composeRule.onNodeWithText("Закрыть").performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
             .performScrollTo()
             .assertContentDescriptionEquals("Очистить дату рождения питомца")
