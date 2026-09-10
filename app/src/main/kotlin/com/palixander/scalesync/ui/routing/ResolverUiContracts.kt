@@ -279,10 +279,6 @@ data class MeasurementResolverUiState(
         require(accountOptions.distinctBy(ResolverAccountOption::accountId).size == accountOptions.size) {
             "Resolver account options must have unique ids"
         }
-        val firstNonCandidate = accountOptions.indexOfFirst { !it.isCandidate }
-        require(firstNonCandidate < 0 || accountOptions.drop(firstNonCandidate).none { it.isCandidate }) {
-            "Candidate accounts must precede every other account"
-        }
         require(
             accountOptions.filter(ResolverAccountOption::isCandidate)
                 .zipWithNext()
@@ -294,6 +290,9 @@ data class MeasurementResolverUiState(
 
     val candidateCount: Int
         get() = accountOptions.count(ResolverAccountOption::isCandidate)
+
+    val recommendedAccountId: AccountId?
+        get() = accountOptions.firstOrNull(ResolverAccountOption::isCandidate)?.accountId
 }
 
 data class MeasurementResolverCallbacks(
