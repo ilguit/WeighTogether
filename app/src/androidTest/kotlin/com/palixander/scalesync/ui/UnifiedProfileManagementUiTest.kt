@@ -44,14 +44,15 @@ class UnifiedProfileManagementUiTest {
             }
         }
 
-        composeRule.onNodeWithText("Люди").assertExists()
+        composeRule.onNodeWithText("Профили").assertExists()
         composeRule.onNodeWithText("Питомцы").assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PeopleGroup).assertExists()
         composeRule.onNodeWithTag(AccountManagementTestTags.PetsGroup).assertExists()
-        composeRule.onNodeWithText("Человек").assertExists()
-        composeRule.onNodeWithText("Питомец · Кошка").assertExists()
+        composeRule.onNodeWithText("Человек").assertDoesNotExist()
+        composeRule.onNodeWithText("Питомец · Кошка").assertDoesNotExist()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertDoesNotExist()
-        composeRule.onNodeWithTag(AccountManagementTestTags.petEdit(pet.pet.id)).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.petRow(pet.pet.id)).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.petMenu(pet.pet.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.petDelete(pet.pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(listOf("pet-edit", "pet-delete"), actions) }
     }
@@ -68,6 +69,7 @@ class UnifiedProfileManagementUiTest {
             }
         }
         composeRule.onNodeWithTag(AccountManagementTestTags.row(human.id)).assertExists()
+        composeRule.onNodeWithTag(AccountManagementTestTags.humanMenu(human.id)).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanMakePrimary(human.id)).assertExists()
     }
 

@@ -130,6 +130,14 @@ object HuaweiIcons {
         )
     }
 
+    val Male: ImageVector by lazy {
+        outlineIcon("Male", listOf("M14 10L21 3", "M15 3H21V9", "M17 14A7 7 0 1 1 3 14A7 7 0 1 1 17 14Z"))
+    }
+
+    val Female: ImageVector by lazy {
+        outlineIcon("Female", listOf("M12 15V22", "M8 19H16", "M18 9A6 6 0 1 1 6 9A6 6 0 1 1 18 9Z"))
+    }
+
     val Users: ImageVector by lazy {
         outlineIcon(
             "Users",

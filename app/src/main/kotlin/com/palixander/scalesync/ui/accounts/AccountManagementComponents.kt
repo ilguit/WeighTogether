@@ -1,6 +1,8 @@
 package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -13,7 +15,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -22,6 +27,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -31,6 +40,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
@@ -41,10 +51,12 @@ import com.palixander.scalesync.domain.NewAccount
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.HuaweiRowIcon
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -81,6 +93,8 @@ object AccountManagementTestTags {
     fun humanDelete(accountId: AccountId): String = "profile-management-human-delete-${accountId.value}"
     fun humanMakePrimary(accountId: AccountId): String =
         "profile-management-human-primary-${accountId.value}"
+    fun humanMenu(accountId: AccountId): String = "profile-management-human-menu-${accountId.value}"
+    fun petMenu(petId: PetId): String = "profile-management-pet-menu-${petId.value}"
 }
 
 data class AccountManagementCallbacks(
@@ -117,18 +131,16 @@ fun AccountManagementSection(
     petWeightLabel: (PetWithLatestWeight) -> String = { "" },
     modifier: Modifier = Modifier,
 ) {
+    val sortedAccounts = state.accounts.sortedWith(
+        compareByDescending<Account> { it.id == state.primaryAccountId }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayName },
+    )
+    val sortedPets = pets.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.pet.displayName })
     Column(
         modifier = modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Люди", Modifier.weight(1f))
-            TextButton(
-                onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.Add),
-            ) { Text("Добавить") }
-        }
+        HuaweiSectionTitle("Профили")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PeopleGroup),
             contentPadding = PaddingValues(0.dp),
@@ -146,7 +158,7 @@ fun AccountManagementSection(
                 )
             } else {
                 Column {
-                    state.accounts.forEach { account ->
+                    sortedAccounts.forEach { account ->
                         AccountRow(
                             account = account,
                             isPrimary = account.id == state.primaryAccountId,
@@ -163,19 +175,17 @@ fun AccountManagementSection(
                                 callbacks.onAction(AccountManagementAction.DeleteRequested(account.id))
                             },
                         )
-                        if (account != state.accounts.last()) HorizontalDivider()
+                        if (account != sortedAccounts.last()) HorizontalDivider()
                     }
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Питомцы", Modifier.weight(1f))
-            TextButton(
-                onClick = onAddPet,
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
-            ) { Text("Добавить") }
-        }
+        TextButton(
+            onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
+            enabled = !state.operationInProgress,
+            modifier = Modifier.align(Alignment.End).testTag(AccountManagementTestTags.Add),
+        ) { Text("Добавить профиль") }
+        HuaweiSectionTitle("Питомцы")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PetsGroup),
             contentPadding = PaddingValues(0.dp),
@@ -187,7 +197,7 @@ fun AccountManagementSection(
                     modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
                 )
             } else Column {
-                pets.forEachIndexed { index, pet ->
+                sortedPets.forEachIndexed { index, pet ->
                     PetProfileRow(
                         pet = pet,
                         enabled = !state.operationInProgress,
@@ -196,10 +206,15 @@ fun AccountManagementSection(
                         onEdit = { onEditPet(pet) },
                         onDelete = { onDeletePet(pet.pet.id) },
                     )
-                    if (index != pets.lastIndex) HorizontalDivider()
+                    if (index != sortedPets.lastIndex) HorizontalDivider()
                 }
             }
         }
+        TextButton(
+            onClick = onAddPet,
+            enabled = !state.operationInProgress,
+            modifier = Modifier.align(Alignment.End).testTag(AccountManagementTestTags.AddPet),
+        ) { Text("Добавить питомца") }
     }
 
     state.editor?.let { draft ->
@@ -332,13 +347,27 @@ private fun AccountRow(
     onMakePrimary: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.row(account.id))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        HuaweiRowIcon(
+            icon = when (account.profile.sex) {
+                Sex.MALE -> HuaweiIcons.Male
+                Sex.FEMALE -> HuaweiIcons.Female
+                else -> HuaweiIcons.Profile
+            },
+            contentDescription = when (account.profile.sex) {
+                Sex.MALE -> "Мужской пол"
+                Sex.FEMALE -> "Женский пол"
+                else -> "Пол не указан"
+            },
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -348,43 +377,33 @@ private fun AccountRow(
                     text = account.displayName,
                     style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (isPrimary) PrimaryBadge(account.id)
             }
-            Text(
-                text = "Человек",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelMedium,
+        }
+        Box {
+            HuaweiIconButton(
+                icon = HuaweiIcons.More,
+                contentDescription = "Действия с профилем ${account.displayName}",
+                onClick = { menuExpanded = true },
+                enabled = enabled,
+                modifier = Modifier.testTag(AccountManagementTestTags.humanMenu(account.id)),
             )
-            Text(
-                text = formatAccountProfile(account.profile),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-            )
-            if (!isPrimary) {
-                TextButton(
-                    onClick = onMakePrimary,
-                    enabled = enabled,
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                if (!isPrimary) DropdownMenuItem(
+                    text = { Text("Сделать основным") },
+                    onClick = { menuExpanded = false; onMakePrimary() },
                     modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
-                ) {
-                    Text("Сделать основным")
-                }
+                )
+                DropdownMenuItem(
+                    text = { Text("Удалить") },
+                    onClick = { menuExpanded = false; onDelete() },
+                    modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
+                )
             }
         }
-        HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить профиль ${account.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
-        )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить профиль ${account.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
-        )
     }
 }
 
@@ -397,32 +416,55 @@ private fun PetProfileRow(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.petRow(pet.pet.id))
+            .clickable(enabled = enabled, role = Role.Button, onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        HuaweiRowIcon(
+            icon = when (pet.pet.species) {
+                PetSpecies.CAT -> HuaweiIcons.Cat
+                PetSpecies.DOG -> HuaweiIcons.Dog
+                else -> HuaweiIcons.Profile
+            },
+            contentDescription = speciesLabel,
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
-            Text("Питомец · $speciesLabel", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-            if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
+            Text(
+                text = pet.pet.displayName,
+                style = MaterialTheme.typography.titleSmall,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(
+                text = weightLabel.ifEmpty { "—" },
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = if (weightLabel.isEmpty()) Modifier.semantics {
+                    contentDescription = "Вес пока не измерен"
+                } else Modifier,
+            )
         }
-        HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить питомца ${pet.pet.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
-        )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить питомца ${pet.pet.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
-        )
+        Box {
+            HuaweiIconButton(
+                icon = HuaweiIcons.More,
+                contentDescription = "Действия с питомцем ${pet.pet.displayName}",
+                onClick = { menuExpanded = true },
+                enabled = enabled,
+                modifier = Modifier.testTag(AccountManagementTestTags.petMenu(pet.pet.id)),
+            )
+            DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+                DropdownMenuItem(
+                    text = { Text("Удалить") },
+                    onClick = { menuExpanded = false; onDelete() },
+                    modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
+                )
+            }
+        }
     }
 }
 
