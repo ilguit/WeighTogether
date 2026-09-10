@@ -1,6 +1,7 @@
 package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
@@ -13,7 +14,10 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -22,6 +26,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
@@ -41,6 +49,7 @@ import com.palixander.scalesync.domain.NewAccount
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
 import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
@@ -121,14 +130,7 @@ fun AccountManagementSection(
         modifier = modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Люди", Modifier.weight(1f))
-            TextButton(
-                onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.Add),
-            ) { Text("Добавить") }
-        }
+        HuaweiSectionTitle("Профили")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PeopleGroup),
             contentPadding = PaddingValues(0.dp),
@@ -146,11 +148,11 @@ fun AccountManagementSection(
                 )
             } else {
                 Column {
-                    state.accounts.forEach { account ->
+                    sortedAccounts(state.accounts, state.primaryAccountId)
+                        .forEachIndexed { index, account ->
                         AccountRow(
                             account = account,
                             isPrimary = account.id == state.primaryAccountId,
-                            enabled = !state.operationInProgress,
                             onEdit = {
                                 callbacks.onAction(AccountManagementAction.EditRequested(account.id))
                             },
@@ -163,19 +165,16 @@ fun AccountManagementSection(
                                 callbacks.onAction(AccountManagementAction.DeleteRequested(account.id))
                             },
                         )
-                        if (account != state.accounts.last()) HorizontalDivider()
+                        if (index != state.accounts.lastIndex) HorizontalDivider()
                     }
                 }
             }
         }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            HuaweiSectionTitle("Питомцы", Modifier.weight(1f))
-            TextButton(
-                onClick = onAddPet,
-                enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(AccountManagementTestTags.AddPet),
-            ) { Text("Добавить") }
-        }
+        OutlinedButton(
+            onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.Add),
+        ) { Text("Добавить профиль") }
+        HuaweiSectionTitle("Питомцы")
         HuaweiSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PetsGroup),
             contentPadding = PaddingValues(0.dp),
@@ -187,10 +186,10 @@ fun AccountManagementSection(
                     modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
                 )
             } else Column {
-                pets.forEachIndexed { index, pet ->
+                pets.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.pet.displayName })
+                    .forEachIndexed { index, pet ->
                     PetProfileRow(
                         pet = pet,
-                        enabled = !state.operationInProgress,
                         speciesLabel = petSpeciesLabel(pet),
                         weightLabel = petWeightLabel(pet),
                         onEdit = { onEditPet(pet) },
@@ -200,6 +199,10 @@ fun AccountManagementSection(
                 }
             }
         }
+        OutlinedButton(
+            onClick = onAddPet,
+            modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.AddPet),
+        ) { Text("Добавить питомца") }
     }
 
     state.editor?.let { draft ->
@@ -327,18 +330,29 @@ private fun ProfileUpdateConfirmationDialog(
 private fun AccountRow(
     account: Account,
     isPrimary: Boolean,
-    enabled: Boolean,
     onEdit: () -> Unit,
     onMakePrimary: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.row(account.id))
+            .clickable(onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = HuaweiIcons.Profile,
+            contentDescription = when ((account.profile as? AccountProfile.Complete)?.sex) {
+                Sex.MALE -> "Мужчина"
+                Sex.FEMALE -> "Женщина"
+                null -> "Профиль"
+            },
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 12.dp),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -352,79 +366,93 @@ private fun AccountRow(
                 if (isPrimary) PrimaryBadge(account.id)
             }
             Text(
-                text = "Человек",
-                color = MaterialTheme.colorScheme.primary,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            Text(
                 text = formatAccountProfile(account.profile),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
-            if (!isPrimary) {
-                TextButton(
-                    onClick = onMakePrimary,
-                    enabled = enabled,
-                    modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
-                ) {
-                    Text("Сделать основным")
-                }
-            }
         }
         HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить профиль ${account.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
+            icon = HuaweiIcons.More,
+            contentDescription = "Дополнительные действия для ${account.displayName}",
+            onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
         )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить профиль ${account.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
-        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Изменить") },
+                onClick = { menuExpanded = false; onEdit() },
+            )
+            if (!isPrimary) DropdownMenuItem(
+                text = { Text("Сделать основным") },
+                onClick = { menuExpanded = false; onMakePrimary() },
+                modifier = Modifier.testTag(AccountManagementTestTags.humanMakePrimary(account.id)),
+            )
+            DropdownMenuItem(
+                text = { Text("Удалить") },
+                onClick = { menuExpanded = false; onDelete() },
+                modifier = Modifier.testTag(AccountManagementTestTags.humanDelete(account.id)),
+            )
+        }
     }
 }
 
 @Composable
 private fun PetProfileRow(
     pet: PetWithLatestWeight,
-    enabled: Boolean,
     speciesLabel: String,
     weightLabel: String,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    var menuExpanded by remember { mutableStateOf(false) }
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(AccountManagementTestTags.petRow(pet.pet.id))
+            .clickable(onClick = onEdit)
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Icon(
+            imageVector = when (pet.pet.species) {
+                PetSpecies.CAT -> HuaweiIcons.Cat
+                PetSpecies.DOG -> HuaweiIcons.Dog
+                PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+            },
+            contentDescription = speciesLabel,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.padding(end = 12.dp),
+        )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
-            Text("Питомец · $speciesLabel", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+            Text(speciesLabel, color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
         HuaweiIconButton(
-            icon = HuaweiIcons.Edit,
-            contentDescription = "Изменить питомца ${pet.pet.displayName}",
-            onClick = onEdit,
-            enabled = enabled,
+            icon = HuaweiIcons.More,
+            contentDescription = "Дополнительные действия для ${pet.pet.displayName}",
+            onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
         )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Delete,
-            contentDescription = "Удалить питомца ${pet.pet.displayName}",
-            onClick = onDelete,
-            enabled = enabled,
-            modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
-        )
+        DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
+            DropdownMenuItem(
+                text = { Text("Изменить") },
+                onClick = { menuExpanded = false; onEdit() },
+            )
+            DropdownMenuItem(
+                text = { Text("Удалить") },
+                onClick = { menuExpanded = false; onDelete() },
+                modifier = Modifier.testTag(AccountManagementTestTags.petDelete(pet.pet.id)),
+            )
+        }
     }
 }
+
+private fun sortedAccounts(accounts: List<Account>, primaryAccountId: AccountId?): List<Account> =
+    accounts.sortedWith(
+        compareBy<Account> { it.id != primaryAccountId }
+            .thenBy(String.CASE_INSENSITIVE_ORDER) { it.displayName },
+    )
 
 @Composable
 private fun PrimaryBadge(accountId: AccountId) {

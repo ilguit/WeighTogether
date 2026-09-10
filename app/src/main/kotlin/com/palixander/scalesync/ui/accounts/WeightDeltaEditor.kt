@@ -6,10 +6,10 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -40,11 +40,11 @@ fun WeightRecognitionSetting(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle("Распознавание профиля")
+        HuaweiSectionTitle("Распознавание измерений")
         HuaweiSurface(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text(
-                    "Измерение считается подходящим, если вес отличается от недавней медианы не больше этой дельты.",
+                    "Больший допуск увеличивает вероятность автоматического назначения и неверного совпадения.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -62,7 +62,7 @@ fun WeightRecognitionSetting(
                                 ),
                             )
                         },
-                        label = { Text("Дельта веса, кг") },
+                        label = { Text("Допуск по весу, кг") },
                         supportingText = state.error?.let { message ->
                             { Text(message, Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
                         },
@@ -72,7 +72,7 @@ fun WeightRecognitionSetting(
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f).testTag(WeightDeltaEditorTestTags.Input),
                     )
-                    Button(
+                    OutlinedButton(
                         onClick = { state.parsedValue?.let(onSave) },
                         enabled = state.canSave,
                         modifier = Modifier
@@ -89,16 +89,16 @@ fun WeightRecognitionSetting(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Всегда игнорировать неизвестные показания",
+                            "Игнорировать неизвестные показания",
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Text(
-                            "Применяется только к новым замерам без подходящего профиля.",
+                            "Только для новых измерений после включения",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )
                     }
-                    Switch(
+                    Checkbox(
                         checked = ignoreUnknownMeasurements,
                         onCheckedChange = onIgnoreUnknownMeasurementsChanged,
                         modifier = Modifier.testTag(WeightDeltaEditorTestTags.IgnoreUnknown),
