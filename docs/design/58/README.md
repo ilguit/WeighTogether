@@ -8,9 +8,12 @@
 - Final design review: https://github.com/ilguit/XiaomiScaleSync/issues/58#issuecomment-5606626133
 - Owner approval: https://github.com/ilguit/XiaomiScaleSync/issues/58#issuecomment-5606733875
 
-The linked specification is the canonical source. This package preserves its
-approved text and the final interactive prototype. Rejected settings and
-full-screen resolver variants are intentionally omitted.
+Source priority for this consolidated prototype is strict: the latest approved
+issue comment and final plan override revision 17; revision 17 (commit
+`a8588614d6600630e875d7d993636c6b9adbfca6`) supplies the five profile/resolver/
+preview surfaces; revision 3 (commit `8ebee9ba1c7c0e5de3b766ceb027b324d3c8bf61`)
+supplies the unchanged three-step pet-weighing flow. The linked revision 17
+specification remains canonical for all other design requirements.
 
 ## Scope
 
@@ -18,7 +21,8 @@ full-screen resolver variants are intentionally omitted.
 - Charts, filters, and their data states.
 - Unified Profiles and Pets selector.
 - Profiles and Pets settings sub-screen and both full-screen editors.
-- Pet screen and profile editor; the existing pet-weighing flow is unchanged.
+- Pet screen and profile editor; the prototype preserves the existing
+  pet-weighing flow without changing its business logic.
 - Unsaved preview, changelog, shared feedback, spacing, and accessibility rules.
 
 ## Non-scope
@@ -33,6 +37,9 @@ full-screen resolver variants are intentionally omitted.
   Species and sex button groups are still checked at 200% system font.
 - Full string-resource migration, tracked separately by issue #63.
 - Legacy/dead UI refactoring, tracked separately by issue #56.
+- **Hard prototype non-scope:** every surface outside the eight-item whitelist
+  below. In particular, the history screen is not part of this prototype and
+  must not be inferred from older prototype revisions.
 
 ## Navigation and structure
 
@@ -66,8 +73,10 @@ from personal and visible only where the enterprise capability exists.
 ## Files
 
 - `design-specification.md` — approved specification including revision 17.
-- `prototype.html` — standalone interactive prototype for profile management,
-  editors, resolver, and unsaved preview flows.
+- `prototype.html` — standalone interactive prototype containing exactly these
+  eight whitelisted surfaces: profile/pet management, human editor, pet editor,
+  resolver dialog, unsaved preview (its three steps are one surface), pet
+  weighing first step, pet weighing second step, and pet weighing result.
 - `preview.png` — primary prototype preview.
 
 ## Prototype use
@@ -76,7 +85,8 @@ Open `prototype.html` in a browser. Use the Scenario and Width selectors to
 inspect the represented screens.
 
 The prototype demonstrates visual hierarchy, copy, selection controls,
-the current breed-picker entry, full-width resolver actions, and narrow width.
-It intentionally omits pet weighing because that flow remains unchanged. It does not implement persistence, real navigation,
+the current breed-picker entry, full-width resolver actions, narrow width, and
+the preserved pet-weighing flow. The pet result includes the required secondary
+«Отмена» action. The history screen is deliberately excluded. It does not implement persistence, real navigation,
 calculations, Android integrations, production Compose semantics, or every
 screen in the specification. Existing business logic remains authoritative.
