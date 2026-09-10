@@ -6,12 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Checkbox
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
@@ -21,12 +23,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
@@ -40,6 +41,7 @@ object MeasurementResolverTestTags {
     const val Delete = "measurement-resolver-delete"
     const val IgnoreUnknown = "measurement-resolver-ignore-unknown"
     const val Later = "measurement-resolver-later"
+    const val Progress = "measurement-resolver-progress"
     const val ForegroundFallback = "measurement-resolver-foreground-fallback"
     fun account(accountId: AccountId): String = "measurement-resolver-account-${accountId.value}"
 }
@@ -78,36 +80,43 @@ fun MeasurementResolverDialog(
     callbacks: MeasurementResolverCallbacks,
     modifier: Modifier = Modifier,
 ) {
+    val progressDescription = stringResource(R.string.measurement_resolver_progress)
     AlertDialog(
         modifier = modifier.testTag(MeasurementResolverTestTags.Dialog),
         onDismissRequest = {
             if (!state.operationInProgress) callbacks.onLater()
         },
-        title = { Text("Кому сохранить измерение?") },
+        title = { Text(stringResource(R.string.measurement_resolver_title)) },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
-                Text(
-                    "${formatLocalizedDecimal(state.pending.weightKg)} кг · импеданс ${state.pending.impedanceOhm} Ом",
-                    style = MaterialTheme.typography.titleMedium,
-                )
-                Text(
-                    formatMeasurementDateTime(state.pending.measuredAt),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (state.candidateCount > 0) {
-                    Text(
-                        "Сначала показаны подходящие профили",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.bodySmall,
-                    )
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = MaterialTheme.shapes.medium,
+                    color = MaterialTheme.colorScheme.surfaceContainer,
+                ) {
+                    Column(Modifier.padding(HuaweiDimensions.CompactContentPadding)) {
+                        Text(
+                            "${formatLocalizedDecimal(state.pending.weightKg)} кг",
+                            style = MaterialTheme.typography.titleLarge,
+                        )
+                        Text(
+                            formatMeasurementDateTime(state.pending.measuredAt),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                 }
-                state.accountOptions.forEach { option ->
+                Text(
+                    stringResource(R.string.measurement_resolver_assignment_question),
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                state.accountOptions.forEachIndexed { index, option ->
                     ResolverAccountButton(
                         option = option,
+                        recommended = index == 0 && option.isCandidate,
                         enabled = !state.operationInProgress,
                         onClick = {
                             callbacks.onAccountSelected(state.pending.id, option.accountId)
@@ -115,15 +124,15 @@ fun MeasurementResolverDialog(
                     )
                 }
                 OutlinedButton(
-                    onClick = { callbacks.onCreateAccount(state.pending.id) },
-                    enabled = !state.operationInProgress,
-                    modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.CreateAccount),
-                ) { Text("Создать новый профиль") }
-                OutlinedButton(
                     onClick = { callbacks.onShowWithoutSaving(state.pending.id) },
                     enabled = !state.operationInProgress,
                     modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.WithoutSaving),
-                ) { Text("Показать без сохранения") }
+                ) { Text(stringResource(R.string.measurement_resolver_preview)) }
+                OutlinedButton(
+                    onClick = { callbacks.onCreateAccount(state.pending.id) },
+                    enabled = !state.operationInProgress,
+                    modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.CreateAccount),
+                ) { Text(stringResource(R.string.measurement_resolver_create_profile)) }
                 state.ignoreUnknownMeasurements?.let { checked ->
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -143,7 +152,7 @@ fun MeasurementResolverDialog(
                             ),
                         )
                         Text(
-                            "Всегда игнорировать неизвестные показания",
+                            stringResource(R.string.measurement_resolver_ignore_unknown),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     }
@@ -154,9 +163,26 @@ fun MeasurementResolverDialog(
                     colors = ButtonDefaults.outlinedButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
                     modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.Delete),
                 ) {
-                    Text("Удалить")
+                    Text(stringResource(R.string.measurement_resolver_delete))
+                }
+                if (state.operationInProgress) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .testTag(MeasurementResolverTestTags.Progress)
+                                .semantics {
+                                    contentDescription = progressDescription
+                                },
+                        )
+                    }
                 }
             }
         },
@@ -165,8 +191,8 @@ fun MeasurementResolverDialog(
             TextButton(
                 onClick = callbacks.onLater,
                 enabled = !state.operationInProgress,
-                modifier = Modifier.testTag(MeasurementResolverTestTags.Later),
-            ) { Text("Позже") }
+                modifier = Modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.Later),
+            ) { Text(stringResource(R.string.measurement_resolver_later)) }
         },
     )
 }
@@ -174,54 +200,36 @@ fun MeasurementResolverDialog(
 @Composable
 private fun ResolverAccountButton(
     option: ResolverAccountOption,
+    recommended: Boolean,
     enabled: Boolean,
     onClick: () -> Unit,
 ) {
-    val supportingText = if (option.isCandidate) {
-        "Подходит · разница ${formatLocalizedDecimal(requireNotNull(option.differenceKg))} кг"
-    } else {
-        "Другой профиль"
-    }
-    val primaryDescription = if (option.isPrimary) ". Основной профиль" else ""
-    Surface(
+    val recommendation = stringResource(R.string.measurement_resolver_recommended)
+    OutlinedButton(
         onClick = onClick,
         enabled = enabled,
         modifier = Modifier
             .fillMaxWidth()
             .testTag(MeasurementResolverTestTags.account(option.accountId))
             .semantics {
-                role = Role.Button
-                contentDescription = "${option.displayName}. $supportingText$primaryDescription"
+                contentDescription = buildString {
+                    append(option.displayName)
+                    if (recommended) append(". $recommendation")
+                    if (option.isPrimary) append(". Основной профиль")
+                }
             },
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(
-            1.dp,
-            if (option.isCandidate) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outlineVariant,
-        ),
-        color = if (option.isCandidate) {
-            MaterialTheme.colorScheme.primaryContainer
-        } else {
-            MaterialTheme.colorScheme.surface
-        },
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Column(Modifier.weight(1f)) {
+            Text(text = option.displayName, modifier = Modifier.weight(1f))
+            if (recommended) {
                 Text(
-                    text = option.displayName,
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    text = supportingText,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
+                    text = recommendation,
+                    style = MaterialTheme.typography.labelSmall,
                 )
             }
-            if (option.isPrimary) Text("Основной", style = MaterialTheme.typography.labelSmall)
         }
     }
 }
