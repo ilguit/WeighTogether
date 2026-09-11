@@ -7,6 +7,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.test.assertIsDisplayed
@@ -64,7 +65,7 @@ class HomePetShellUiTest {
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         // The gesture begins on the empty measurement content, outside the pet control.
         composeRule.onNodeWithText("Пока нет измерений").performTouchInput {
-            swipe(center, center + Offset(0f, 500f), 800)
+            swipe(center, center + Offset(0f, with(composeRule.density) { 300.dp.toPx() }), 800)
         }
         composeRule.runOnIdle { assertEquals(1, refreshes) }
     }

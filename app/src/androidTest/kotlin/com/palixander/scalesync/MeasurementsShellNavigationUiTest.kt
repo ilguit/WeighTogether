@@ -321,7 +321,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.PullToRefresh).performTouchInput {
             swipe(
-                start = Offset(center.x, top + 1),
+                start = Offset(center.x, top + height * 0.25f),
                 end = Offset(center.x, bottom - 1),
                 durationMillis = 1_000,
             )
@@ -353,16 +353,19 @@ class MeasurementsShellNavigationUiTest {
             )
         }
 
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsNotDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertDoesNotExist()
 
         composeRule.runOnIdle { refreshing.value = true }
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertIsDisplayed()
 
         composeRule.runOnIdle { refreshing.value = false }
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsNotDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertDoesNotExist()
     }
 
     @Test

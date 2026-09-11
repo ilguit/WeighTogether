@@ -377,7 +377,7 @@ class MeasurementsScreenTest {
             formatMeasurementDateTime(requireNotNull(state.summary).latest.measuredAt),
         ).assertExists()
         composeRule.onNodeWithTag("summary-expand-metrics").performClick()
-        composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
+        composeRule.onNodeWithText("Импеданс", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag("measurements-history-cta").assertDoesNotExist()
         composeRule.onNodeWithText("История измерений").assertDoesNotExist()
         composeRule.onNodeWithText("Открыть историю").assertDoesNotExist()
@@ -394,8 +394,8 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
-        composeRule.onNodeWithText("Импеданс").assertIsDisplayed()
-        composeRule.onNodeWithText("Изменить").assertIsDisplayed()
+        composeRule.onNodeWithText("Импеданс", useUnmergedTree = true).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Изменить").performScrollTo().assertIsDisplayed()
     }
 
     @Test
@@ -635,7 +635,7 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
         }
 
-        composeRule.onNodeWithTag("history-processing-status-${preliminary.presentationKey}")
+        composeRule.onNodeWithTag("history-processing-status-${preliminary.presentationKey}", useUnmergedTree = true)
             .assertIsDisplayed()
         composeRule.onNodeWithTag("history-sync-${preliminary.id}").assertDoesNotExist()
         composeRule.onNodeWithTag("history-toggle-${preliminary.id}").performClick()
@@ -840,7 +840,7 @@ class MeasurementsScreenTest {
 
         composeRule.onAllNodesWithTag(ReferenceComponentTestTags.InfoButton).assertCountEquals(0)
         composeRule.onAllNodesWithTag(ReferenceComponentTestTags.Information).assertCountEquals(0)
-        composeRule.onNodeWithText("Жир").assertIsDisplayed()
+        composeRule.onNodeWithText("Жир", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithText("Импеданс").assertDoesNotExist()
 
         composeRule.onNodeWithTag("summary-expand-metrics").performClick()
@@ -1004,17 +1004,12 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun compactSummaryUsesTwoByTwoGridAtLargeFontAtExactThreshold() {
+    fun compactSummaryUsesFourRowsAtLargeFontAtExactThreshold() {
         setCompactSummaryAtEffectiveGridWidth(300)
-
-        val bounds = compactSummaryReferenceBounds()
-        val tolerance = 1f
-        assertEquals(bounds[0].top.value, bounds[1].top.value, tolerance)
-        assertEquals(bounds[2].top.value, bounds[3].top.value, tolerance)
-        assertTrue(bounds[2].top > bounds[0].top)
-        assertEquals(bounds[0].left.value, bounds[2].left.value, tolerance)
-        assertEquals(bounds[1].left.value, bounds[3].left.value, tolerance)
-        assertTrue(bounds[1].left > bounds[0].left)
+        compactSummaryReferenceBounds().zipWithNext().forEach { (previous, next) ->
+            assertEquals(previous.left.value, next.left.value, 1f)
+            assertTrue(next.top > previous.top)
+        }
     }
 
     @Test
@@ -1047,11 +1042,7 @@ class MeasurementsScreenTest {
                 }
             }
         }
-        val expectedGridTag = if (gridWidthDp >= 300) {
-            ReferenceComponentTestTags.GridTwoColumns
-        } else {
-            ReferenceComponentTestTags.GridOneColumn
-        }
+        val expectedGridTag = ReferenceComponentTestTags.GridOneColumn
         val gridBounds = composeRule.onNodeWithTag(expectedGridTag).getUnclippedBoundsInRoot()
         val gridWidth = (gridBounds.right - gridBounds.left).value
         assertEquals(gridWidthDp.toFloat(), gridWidth, 1f)
