@@ -91,7 +91,7 @@ class ChangelogShellNavigationUiTest {
                 settingsCallbacks = settingsCallbacks(
                     onOpenChangelog = { destination.value = AppDestination.CHANGELOG },
                 ),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }

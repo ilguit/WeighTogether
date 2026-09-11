@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import androidx.activity.ComponentActivity
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -13,6 +14,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import com.palixander.scalesync.measurements.MeasurementsCallbacks
 import com.palixander.scalesync.measurements.MeasurementsDestination
+import com.palixander.scalesync.ui.profiles.HomePetShortcutsTestTags
 import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
 import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -27,10 +29,11 @@ class ProfileSelectorShellPaddingUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun measurementsContentStartsImmediatelyAfterProfileSelector() {
+    fun summaryPassesPetHeaderIntoMeasurementsContent() {
         setShell(AppSection.MEASUREMENTS)
 
-        assertContentStartsAfterSelector("measurements-content")
+        composeRule.onNodeWithTag(ProfileSelectorTestTags.Selector).assertDoesNotExist()
+        composeRule.onNodeWithTag(HomePetShortcutsTestTags.Toggle).assertExists()
     }
 
     @Test
@@ -84,7 +87,7 @@ class ProfileSelectorShellPaddingUiTest {
     ) {
         composeRule.setContent {
             ScaleSyncScaffold(
-                state = MainUiState(),
+                state = MainUiState(profilesLoaded = true),
                 currentSection = section,
                 profileSelection = ProfileSelectionUiState(
                     profiles = emptyList(),
@@ -101,13 +104,13 @@ class ProfileSelectorShellPaddingUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = { padding ->
-                    Box(
+                measurementsContent = { padding, summaryHeader ->
+                    Column(
                         Modifier
                             .fillMaxSize()
                             .padding(padding)
                             .testTag("measurements-content"),
-                    )
+                    ) { summaryHeader() }
                 },
                 chartsContent = { padding ->
                     Box(

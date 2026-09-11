@@ -91,7 +91,7 @@ class MeasurementsShellNavigationUiTest {
                     pauseClicks += 1
                     paused.value = !paused.value
                 },
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -152,7 +152,7 @@ class MeasurementsShellNavigationUiTest {
                     onProfileSexChanged = {},
                     settingsCallbacks = settingsCallbacks(),
                     onToggleExternalSyncPause = {},
-                    measurementsContent = {},
+                    measurementsContent = { _, _ -> },
                     chartsContent = {},
                 )
             }
@@ -217,7 +217,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -250,7 +250,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
                 onToggleExternalSyncPause = {},
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -307,7 +307,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
                 onRefreshFromScale = { refreshCalls += 1 },
-                measurementsContent = { padding ->
+                measurementsContent = { padding, summaryHeader ->
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
                     ) {
@@ -347,7 +347,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -522,8 +522,9 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = { padding ->
+                measurementsContent = { padding, summaryHeader ->
                     MeasurementsScreen(
+                        summaryHeader = summaryHeader,
                         state = measurementState,
                         callbacks = callbacks,
                         modifier = Modifier.fillMaxSize().padding(padding),

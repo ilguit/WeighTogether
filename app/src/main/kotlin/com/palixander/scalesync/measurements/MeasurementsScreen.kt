@@ -126,6 +126,7 @@ fun MeasurementsScreen(
     callbacks: MeasurementsCallbacks,
     modifier: Modifier = Modifier,
     showAccountSelector: Boolean = true,
+    summaryHeader: @Composable () -> Unit = {},
 ) {
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -188,7 +189,7 @@ fun MeasurementsScreen(
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (state.destination) {
                 MeasurementsDestination.SUMMARY -> MeasurementSummaryScreen(
-                    state = state,
+                    summaryHeader = summaryHeader,                    state = state,
                     metricsExpanded = summaryMetricsExpanded,
                     onMetricsExpandedChange = { summaryMetricsExpanded = it },
                     onSyncRequested = { syncMeasurementId = it.finalMeasurementId },
@@ -466,26 +467,25 @@ private fun MeasurementSummaryScreen(
     callbacks: MeasurementsCallbacks,
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
+    summaryHeader: @Composable () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().weight(1f)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(
+            modifier = Modifier.widthIn(max = 680.dp).fillMaxSize()
+                .testTag("measurement-summary-list"),
+            contentPadding = PaddingValues(
+                horizontal = HuaweiDimensions.ContentPadding,
+                vertical = HuaweiDimensions.CompactContentPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        ) {
+            item(key = "summary-header") { summaryHeader() }
             when {
-            state.isLoading && state.summary == null -> LoadingState("Загрузка последнего измерения")
-            state.hasNoLatestMeasurement -> NoLatestMeasurementState()
-
-            state.summary != null -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .widthIn(max = 680.dp)
-                        .fillMaxHeight()
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter),
-                    contentPadding = PaddingValues(
-                        horizontal = HuaweiDimensions.ContentPadding,
-                        vertical = HuaweiDimensions.CompactContentPadding,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-                ) {
+                state.isLoading && state.summary == null -> item {
+                    LoadingState("Загрузка последнего измерения")
+                }
+                state.hasNoLatestMeasurement -> item { NoLatestMeasurementState() }
+                state.summary != null -> {
                     if (state.isLoading) {
                         item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     }
@@ -516,10 +516,9 @@ private fun MeasurementSummaryScreen(
                             )
                         }
                     }
-                    item { Spacer(Modifier.height(12.dp)) }
                 }
             }
-            }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }
