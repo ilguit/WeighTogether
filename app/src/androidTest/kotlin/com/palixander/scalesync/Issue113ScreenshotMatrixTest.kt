@@ -113,15 +113,16 @@ class Issue113ScreenshotMatrixTest {
             HomeKgChartSeriesCatalog.forEach { metric ->
                 val node = composeRule.onNodeWithTag("home-kg-legend-${metric.key}").performScrollTo()
                 val bounds = node.getUnclippedBoundsInRoot()
-                assertTrue("Series target ${metric.key}", bounds.right - bounds.left >= 48.dp && bounds.bottom - bounds.top >= 48.dp)
+                assertTrue("Series target ${metric.key}", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
             }
             capture("${scenario.name}-series-expanded")
         }
     }
 
+    // ForcedSize rounds 48 dp to integral pixels; allow at most half a dp for that conversion.
     private fun assertTargets(tags: List<String>) {
         val bounds = tags.map { tag -> composeRule.onNodeWithTag(tag).getUnclippedBoundsInRoot().also {
-            assertTrue("48 dp target $tag: $it", it.right - it.left >= 48.dp && it.bottom - it.top >= 48.dp)
+            assertTrue("48 dp target $tag: $it", it.right - it.left >= 47.5.dp && it.bottom - it.top >= 47.5.dp)
         } }
         bounds.forEachIndexed { i, a -> bounds.drop(i + 1).forEach { b ->
             assertTrue("Targets overlap: $a / $b", a.right <= b.left || b.right <= a.left || a.bottom <= b.top || b.bottom <= a.top)
@@ -133,6 +134,7 @@ class Issue113ScreenshotMatrixTest {
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "issue113").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        bitmap.recycle()
     }
 
     @Composable
