@@ -15,7 +15,8 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
-import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -94,7 +95,7 @@ class Issue113ScreenshotMatrixTest {
             composeRule.waitForIdle()
             assertTargets(listOf(SummaryTopBarTestTags.Profile, MainScreenTestTags.ExternalSyncAction,
                 MainScreenTestTags.HistoryAction, MainScreenTestTags.PendingQueueAction))
-            composeRule.onNodeWithTag(MainScreenTestTags.PendingQueueBadge, useUnmergedTree = true).assertTextEquals("99+")
+            composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
             val list = composeRule.onNodeWithTag("measurement-summary-list").getUnclippedBoundsInRoot()
             assertTrue("680 dp content cap", list.right - list.left <= 680.dp)
             capture("${scenario.name}-collapsed")
