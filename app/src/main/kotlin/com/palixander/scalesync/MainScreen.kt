@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -50,6 +49,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -585,9 +585,8 @@ internal fun ScaleSyncScaffold(
                             onPendingQueueRequested =
                                 measurementsCallbacks.onPendingQueueRequested,
                             onHistoryRequested = measurementsCallbacks.onHistoryRequested,
-                            petMeasurementEnabled = !state.scanning && !state.isRefreshing &&
-                                state.petMeasurement == PetMeasurementUiState.Idle,
-                            onPetMeasurementRequested = petMeasurementCallbacks.onOpen,
+                            profileSelection = profileSelection,
+                            onProfileSelected = onProfileSelected,
                             isExternalSyncPaused = state.isExternalSyncPaused,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
@@ -784,11 +783,48 @@ private fun HuaweiTopBar(
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
     onHistoryRequested: () -> Unit,
-    petMeasurementEnabled: Boolean,
-    onPetMeasurementRequested: () -> Unit,
+    profileSelection: ProfileSelectionUiState?,
+    onProfileSelected: (ProfileKey) -> Unit,
     isExternalSyncPaused: Boolean,
     onToggleExternalSyncPause: () -> Unit,
 ) {
+    if (showMeasurementActions) {
+        SummaryTopBar(
+            profileSelection = profileSelection,
+            onProfileSelected = onProfileSelected,
+        ) {
+                HuaweiIconButton(
+                    icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
+                    contentDescription = if (isExternalSyncPaused) {
+                        "Возобновить внешнюю синхронизацию"
+                    } else {
+                        "Приостановить внешнюю синхронизацию"
+                    },
+                    onClick = onToggleExternalSyncPause,
+                    modifier = Modifier
+                        .testTag(MainScreenTestTags.ExternalSyncAction)
+                        .semantics {
+                            externalSyncPaused = isExternalSyncPaused
+                            stateDescription = if (isExternalSyncPaused) "Приостановлена" else "Включена"
+                        },
+                    colors = if (isExternalSyncPaused) {
+                        IconButtonDefaults.iconButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error,
+                        )
+                    } else {
+                        IconButtonDefaults.iconButtonColors()
+                    },
+                )
+            HuaweiIconButton(
+                icon = HuaweiIcons.Calendar,
+                contentDescription = "Открыть историю измерений",
+                onClick = onHistoryRequested,
+                modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
+            )
+            PendingQueueAction(pendingCount, onPendingQueueRequested)
+        }
+        return
+    }
     TopAppBar(
         modifier = Modifier.testTag(MainScreenTestTags.TopBar),
         title = {
@@ -806,46 +842,6 @@ private fun HuaweiTopBar(
                     contentDescription = backContentDescription,
                     onClick = onBack,
                     modifier = backModifier,
-                )
-            }
-        },
-        actions = {
-            if (showMeasurementActions) {
-                PendingQueueAction(
-                    pendingCount = pendingCount,
-                    onClick = onPendingQueueRequested,
-                )
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Calendar,
-                    contentDescription = "Открыть историю измерений",
-                    onClick = onHistoryRequested,
-                    modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
-                )
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Dog,
-                    contentDescription = "Взвесить питомца",
-                    onClick = onPetMeasurementRequested,
-                    modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
-                    enabled = petMeasurementEnabled,
-                )
-                HuaweiIconButton(
-                    icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
-                    contentDescription = if (isExternalSyncPaused) {
-                        "Возобновить внешнюю синхронизацию"
-                    } else {
-                        "Приостановить внешнюю синхронизацию"
-                    },
-                    onClick = onToggleExternalSyncPause,
-                    modifier = Modifier
-                        .testTag(MainScreenTestTags.ExternalSyncAction)
-                        .semantics { externalSyncPaused = isExternalSyncPaused },
-                    colors = if (isExternalSyncPaused) {
-                        IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        )
-                    } else {
-                        IconButtonDefaults.iconButtonColors()
-                    },
                 )
             }
         },
@@ -877,20 +873,17 @@ private fun PendingQueueAction(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 6.dp, end = 6.dp)
-                    .size(if (pendingCount <= 9) 16.dp else 8.dp)
-                    .testTag(MainScreenTestTags.PendingQueueBadge),
+                    .testTag(MainScreenTestTags.PendingQueueBadge)
+                    .clearAndSetSemantics { },
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
             ) {
-                if (pendingCount <= 9) {
-                    Box(contentAlignment = Alignment.Center) {
+                Box(modifier = Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
                         Text(
-                            text = pendingCount.toString(),
-                            modifier = Modifier.clearAndSetSemantics { },
+                            text = if (pendingCount > 99) "99+" else pendingCount.toString(),
                             style = MaterialTheme.typography.labelSmall,
                         )
-                    }
                 }
             }
         }

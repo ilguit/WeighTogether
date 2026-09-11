@@ -17,7 +17,6 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -60,7 +59,7 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarShowsPendingHistoryPetAndPauseActionsInOrderWithSemantics() {
+    fun summaryTopBarShowsPauseHistoryAndQueueActionsInOrderWithSemantics() {
         var pendingQueueClicks = 0
         var historyClicks = 0
         var petMeasurementClicks = 0
@@ -103,30 +102,14 @@ class MeasurementsShellNavigationUiTest {
         val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
         val petMeasurementAction = composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
         val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
-        assertTrue(
-            "Pending queue action must not overlap the history action",
-            pendingQueueAction.getUnclippedBoundsInRoot().right <=
-                historyAction.getUnclippedBoundsInRoot().left,
-        )
-        assertTrue(
-            "History action must not overlap the pet measurement action",
-            historyAction.getUnclippedBoundsInRoot().right <=
-                petMeasurementAction.getUnclippedBoundsInRoot().left,
-        )
-        assertTrue(
-            "Pet measurement action must not overlap the external sync action",
-            petMeasurementAction.getUnclippedBoundsInRoot().right <=
-                externalSyncAction.getUnclippedBoundsInRoot().left,
-        )
+        petMeasurementAction.assertDoesNotExist()
+        assertTrue(externalSyncAction.getUnclippedBoundsInRoot().right <= historyAction.getUnclippedBoundsInRoot().left)
+        assertTrue(historyAction.getUnclippedBoundsInRoot().right <= pendingQueueAction.getUnclippedBoundsInRoot().left)
         pendingQueueAction
             .assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
             .performClick()
         historyAction
             .assertContentDescriptionEquals("Открыть историю измерений")
-            .performClick()
-        petMeasurementAction
-            .assertIsEnabled()
-            .assertContentDescriptionEquals("Взвесить питомца")
             .performClick()
         externalSyncAction
             .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию")
@@ -143,7 +126,7 @@ class MeasurementsShellNavigationUiTest {
         composeRule.runOnIdle {
             assertEquals(1, pendingQueueClicks)
             assertEquals(1, historyClicks)
-            assertEquals(1, petMeasurementClicks)
+            assertEquals(0, petMeasurementClicks)
             assertEquals(2, pauseClicks)
         }
     }
@@ -178,14 +161,13 @@ class MeasurementsShellNavigationUiTest {
         val topBarBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBar)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
-        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle)
+        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle, useUnmergedTree = true)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
         val actionBounds = listOf(
-            MainScreenTestTags.PendingQueueAction,
-            MainScreenTestTags.HistoryAction,
-            MainScreenTestTags.PetMeasurementAction,
             MainScreenTestTags.ExternalSyncAction,
+            MainScreenTestTags.HistoryAction,
+            MainScreenTestTags.PendingQueueAction,
         ).map { tag ->
             composeRule.onNodeWithTag(tag)
                 .assertIsDisplayed()
@@ -215,7 +197,7 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
-    fun petMeasurementTopActionIsDisabledWhileBleWorkIsActive() {
+    fun petMeasurementTopActionIsAbsentWhileBleWorkIsActive() {
         var clicks = 0
 
         composeRule.setContent {
@@ -241,8 +223,7 @@ class MeasurementsShellNavigationUiTest {
         }
 
         composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
-            .assertIsNotEnabled()
-            .performClick()
+            .assertDoesNotExist()
         composeRule.runOnIdle { assertEquals(0, clicks) }
     }
 
@@ -296,7 +277,11 @@ class MeasurementsShellNavigationUiTest {
             "Открыть неназначенные измерения. Ожидают назначения: 10",
         )
         badge.assertIsDisplayed()
-        composeRule.onNodeWithText("10", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
+
+        setPendingCount(pendingCount, 135)
+        action.assertContentDescriptionEquals("Открыть неназначенные измерения. Ожидают назначения: 135")
+        composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
 
         setPendingCount(pendingCount, 0)
         action.assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
