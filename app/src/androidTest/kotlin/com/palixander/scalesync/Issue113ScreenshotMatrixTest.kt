@@ -162,7 +162,7 @@ class Issue113ScreenshotMatrixTest {
         ScaleSyncScaffold(
             state = MainUiState(profilesLoaded = true, accounts = listOf(human), pets = pets,
                 resolverQueue = ResolverQueueState(pending = List(123) { index -> PendingMeasurement(
-                    PendingMeasurementId("synthetic-$index"), "00:00:00:00:00:00", now, 72.4, 512, true, true, byteArrayOf(), "synthetic-$index", now,
+                    PendingMeasurementId("synthetic-$index"), "00:00:00:00:00:00", now, 72.4, 512, true, true, byteArrayOf(), "synthetic-$index", now.plusSeconds(index.toLong()),
                 ) })),
             profileSelection = ProfileSelectionUiState(profiles, profiles.first().key, human.id),
             currentSection = AppSection.MEASUREMENTS, measurementsDestination = MeasurementsDestination.SUMMARY,
