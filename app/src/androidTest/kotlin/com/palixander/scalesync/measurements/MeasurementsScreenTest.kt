@@ -1,5 +1,6 @@
 package com.palixander.scalesync.measurements
 
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
@@ -15,9 +16,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
@@ -224,7 +228,7 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun homeKgChartIsImmediatelyBelowSummaryAndLegendKeepsCatalogColors() {
+    fun homeKgChartIsImmediatelyBelowSummaryAndSeriesHaveCheckboxSemantics() {
         val state = sampleState().copy(homeKgChart = homeChartState())
 
         composeRule.setContent {
@@ -237,12 +241,13 @@ class MeasurementsScreenTest {
             .getUnclippedBoundsInRoot().top
         assertTrue("The home chart must follow the summary card", chartTop >= summaryBottom)
         composeRule.onNodeWithTag("home-kg-vico-chart").assertExists()
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
         HomeKgChartSeriesCatalog.forEach { metric ->
             val node = composeRule.onNodeWithTag("home-kg-legend-${metric.key}")
-            node.assertExists().assertIsSelected()
-            composeRule.onNodeWithContentDescription(
-                "${metric.label}, цвет ${metric.color.argb.toUInt().toString(16).uppercase()}",
-            ).assertExists()
+            node.assertExists().assertIsOn()
+            node.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
+            node.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
+            node.assertTextContains(metric.label)
         }
     }
 
@@ -269,11 +274,12 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, callbacks) }
         }
 
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
         val weight = composeRule.onNodeWithTag("home-kg-legend-weight_kg")
-        weight.assertIsSelected().performClick()
-        weight.assertIsNotSelected()
+        weight.assertIsOn().performScrollTo().performClick()
+        weight.assertIsOff()
         weight.performClick()
-        weight.assertIsSelected()
+        weight.assertIsOn()
         composeRule.runOnIdle {
             assertEquals(listOf("weight_kg", "weight_kg"), toggledKeys)
         }
@@ -289,6 +295,7 @@ class MeasurementsScreenTest {
 
         composeRule.onNodeWithTag("home-kg-chart-no-data").assertExists()
         composeRule.onNodeWithText("За последние 14 дней нет данных для графика.").assertExists()
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
         HomeKgChartSeriesCatalog.forEach { metric ->
             composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertExists()
         }
@@ -305,11 +312,54 @@ class MeasurementsScreenTest {
         }
 
         composeRule.onNodeWithTag("home-kg-chart-no-active").assertExists()
-        composeRule.onNodeWithText("Выберите показатели в легенде, чтобы показать график.")
+        composeRule.onNodeWithText("Выберите показатели в списке, чтобы показать график.")
             .assertExists()
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
         HomeKgChartSeriesCatalog.forEach { metric ->
-            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertIsNotSelected()
+            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertIsOff()
         }
+    }
+
+    @Test
+    fun seriesSelectorRestoresExpansionAndSupportsZeroOneAndAllSelections() {
+        val restoration = StateRestorationTester(composeRule)
+        var chart by mutableStateOf(homeChartState(withData = false).copy(activeSeriesKeys = emptySet()))
+        restoration.setContent {
+            ScaleSyncTheme {
+                androidx.compose.foundation.rememberScrollState().let { scroll ->
+                    androidx.compose.foundation.layout.Column(
+                        Modifier.verticalScroll(scroll),
+                    ) {
+                        HomeKgChart(chart, { key ->
+                            chart = chart.copy(activeSeriesKeys = if (key in chart.activeSeriesKeys) {
+                                chart.activeSeriesKeys - key
+                            } else {
+                                chart.activeSeriesKeys + key
+                            })
+                        })
+                    }
+                }
+            }
+        }
+        composeRule.onNodeWithText("Показатели · 0 из 8").assertExists()
+        composeRule.onNodeWithTag("home-kg-legend-weight_kg").assertDoesNotExist()
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
+        composeRule.onNodeWithTag("home-kg-legend-weight_kg").performScrollTo().performClick()
+        composeRule.onNodeWithText("Показатели · 1 из 8").assertExists()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.onNodeWithTag("home-kg-legend-weight_kg").assertIsOn()
+        HomeKgChartSeriesCatalog.drop(1).forEach { metric ->
+            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").performScrollTo().performClick()
+        }
+        composeRule.onNodeWithText("Показатели · 8 из 8").assertExists()
+        HomeKgChartSeriesCatalog.forEach { metric ->
+            composeRule.onNodeWithTag("home-kg-legend-${metric.key}").assertIsOn()
+                .performScrollTo().performClick()
+        }
+        composeRule.onNodeWithText("Показатели · 0 из 8").assertExists()
+        composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo().performClick()
+        restoration.emulateSavedInstanceStateRestore()
+        composeRule.onNodeWithTag("home-kg-legend-weight_kg").assertDoesNotExist()
     }
 
     @Test
