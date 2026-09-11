@@ -793,28 +793,28 @@ private fun HuaweiTopBar(
             profileSelection = profileSelection,
             onProfileSelected = onProfileSelected,
         ) {
-                HuaweiIconButton(
-                    icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
-                    contentDescription = if (isExternalSyncPaused) {
-                        "Возобновить внешнюю синхронизацию"
-                    } else {
-                        "Приостановить внешнюю синхронизацию"
+            HuaweiIconButton(
+                icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
+                contentDescription = if (isExternalSyncPaused) {
+                    "Возобновить внешнюю синхронизацию"
+                } else {
+                    "Приостановить внешнюю синхронизацию"
+                },
+                onClick = onToggleExternalSyncPause,
+                modifier = Modifier
+                    .testTag(MainScreenTestTags.ExternalSyncAction)
+                    .semantics {
+                        externalSyncPaused = isExternalSyncPaused
+                        stateDescription = if (isExternalSyncPaused) "Приостановлена" else "Включена"
                     },
-                    onClick = onToggleExternalSyncPause,
-                    modifier = Modifier
-                        .testTag(MainScreenTestTags.ExternalSyncAction)
-                        .semantics {
-                            externalSyncPaused = isExternalSyncPaused
-                            stateDescription = if (isExternalSyncPaused) "Приостановлена" else "Включена"
-                        },
-                    colors = if (isExternalSyncPaused) {
-                        IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        )
-                    } else {
-                        IconButtonDefaults.iconButtonColors()
-                    },
-                )
+                colors = if (isExternalSyncPaused) {
+                    IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    IconButtonDefaults.iconButtonColors()
+                },
+            )
             HuaweiIconButton(
                 icon = HuaweiIcons.Calendar,
                 contentDescription = "Открыть историю измерений",
@@ -880,10 +880,10 @@ private fun PendingQueueAction(
                 contentColor = MaterialTheme.colorScheme.onError,
             ) {
                 Box(modifier = Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
-                        Text(
-                            text = if (pendingCount > 99) "99+" else pendingCount.toString(),
-                            style = MaterialTheme.typography.labelSmall,
-                        )
+                    Text(
+                        text = if (pendingCount > 99) "99+" else pendingCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 }
             }
         }
