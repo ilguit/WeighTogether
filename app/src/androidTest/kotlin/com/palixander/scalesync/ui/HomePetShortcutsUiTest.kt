@@ -41,7 +41,8 @@ class HomePetShortcutsUiTest {
         composeRule.setContent {
             ScaleSyncTheme { HomePetShortcuts(emptyList(), {}, { addCalls++ }) }
         }
-        assertEquals(48.dp, composeRule.onNodeWithTag(Tags.Block).getUnclippedBoundsInRoot().height)
+        val block = composeRule.onNodeWithTag(Tags.Block).getUnclippedBoundsInRoot()
+        assertEquals(48.dp, block.bottom - block.top)
         composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         val toggle = composeRule.onNodeWithTag(Tags.Toggle).getUnclippedBoundsInRoot()
