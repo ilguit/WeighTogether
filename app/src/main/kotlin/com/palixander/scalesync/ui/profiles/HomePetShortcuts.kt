@@ -100,7 +100,10 @@ fun HomePetShortcuts(
             Box(
                 modifier = Modifier.fillMaxWidth().height(48.dp)
                     .testTag(HomePetShortcutsTestTags.Toggle)
-                    .semantics { contentDescription = label; stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто" }
+                    .semantics {
+                        contentDescription = label
+                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                    }
                     .clickable(role = Role.Button, onClickLabel = label) { expanded = !expanded }
                     .pointerInput(Unit) {
                         var handled = false

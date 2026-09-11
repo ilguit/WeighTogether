@@ -189,7 +189,8 @@ fun MeasurementsScreen(
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (state.destination) {
                 MeasurementsDestination.SUMMARY -> MeasurementSummaryScreen(
-                    summaryHeader = summaryHeader,                    state = state,
+                    summaryHeader = summaryHeader,
+                    state = state,
                     metricsExpanded = summaryMetricsExpanded,
                     onMetricsExpandedChange = { summaryMetricsExpanded = it },
                     onSyncRequested = { syncMeasurementId = it.finalMeasurementId },

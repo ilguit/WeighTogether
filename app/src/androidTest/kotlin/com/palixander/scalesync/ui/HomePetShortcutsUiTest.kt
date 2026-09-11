@@ -87,7 +87,7 @@ class HomePetShortcutsUiTest {
     @Test fun widthAndFontChangesRecomputeOverflowAndKeepFullAccessibleNames() {
         val width = mutableStateOf(140.dp)
         val fontScale = mutableStateOf(1f)
-        val pets = listOf(pet("1", "Барсик"), pet("2", "Мурка"))
+        val pets = listOf(pet("1", "Барсик-кот"), pet("2", "Мурка-кошка"))
         composeRule.setContent {
             val density = LocalDensity.current
             CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale.value)) {
@@ -101,7 +101,7 @@ class HomePetShortcutsUiTest {
         composeRule.onNodeWithTag(Tags.Toggle).assertDoesNotExist()
         composeRule.runOnIdle { fontScale.value = 2f }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
-        composeRule.onNodeWithContentDescription("Барсик, питомец").assertIsDisplayed()
+        composeRule.onNodeWithContentDescription("Барсик-кот, питомец").assertIsDisplayed()
     }
 
     @Test fun verticalDragOpensAndClosesWithoutTap() {
