@@ -7,12 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -50,6 +50,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -82,6 +83,10 @@ import com.palixander.scalesync.ui.profiles.ProfileDestination
 import com.palixander.scalesync.ui.profiles.ProfileKey
 import com.palixander.scalesync.ui.profiles.ProfileNavigationState
 import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
+import com.palixander.scalesync.ui.profiles.HomePetShortcuts
+import com.palixander.scalesync.ui.profiles.ProfilePresentation
+import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
+import com.palixander.scalesync.ui.profiles.profileFallbackMessage
 import com.palixander.scalesync.ui.profiles.ProfileSelector
 import com.palixander.scalesync.ui.profiles.buildProfilePresentations
 import com.palixander.scalesync.ui.profiles.reconcileProfileNavigation
@@ -420,15 +425,18 @@ fun ScaleSyncApp(
             onCloseAndDiscard = viewModel::closeUnsavedPreviewAndDiscard,
         ),
         onOpenResolver = viewModel::openResolver,
-        measurementsContent = { padding ->
+        measurementsContent = { padding, summaryHeader ->
             MeasurementsScreen(
-                state = measurementsState,
+                state = measurementsState.copy(
+                    isLoading = measurementsState.isLoading || !state.profilesLoaded,
+                ),
                 callbacks = measurementsViewModel.callbacks.copy(
                     onPendingAssignRequested = viewModel::openResolverFromQueue,
                     onPendingPreviewRequested = viewModel::showPendingWithoutSavingFromQueue,
                     onPendingDeleteRequested = viewModel::deletePendingFromQueue,
                 ),
                 showAccountSelector = false,
+                summaryHeader = summaryHeader,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
@@ -483,7 +491,7 @@ internal fun ScaleSyncScaffold(
     resolverCallbacks: MeasurementResolverCallbacks = MeasurementResolverCallbacks.None,
     unsavedPreviewCallbacks: UnsavedPreviewCallbacks = UnsavedPreviewCallbacks.None,
     onOpenResolver: () -> Unit = {},
-    measurementsContent: @Composable (PaddingValues) -> Unit,
+    measurementsContent: @Composable (PaddingValues, @Composable () -> Unit) -> Unit,
     chartsContent: @Composable (PaddingValues) -> Unit,
 ) {
     val petDestination = profileDestination as? ProfileDestination.PetShell
@@ -585,9 +593,8 @@ internal fun ScaleSyncScaffold(
                             onPendingQueueRequested =
                                 measurementsCallbacks.onPendingQueueRequested,
                             onHistoryRequested = measurementsCallbacks.onHistoryRequested,
-                            petMeasurementEnabled = !state.scanning && !state.isRefreshing &&
-                                state.petMeasurement == PetMeasurementUiState.Idle,
-                            onPetMeasurementRequested = petMeasurementCallbacks.onOpen,
+                            profileSelection = profileSelection,
+                            onProfileSelected = onProfileSelected,
                             isExternalSyncPaused = state.isExternalSyncPaused,
                             onToggleExternalSyncPause = onToggleExternalSyncPause,
                         )
@@ -677,28 +684,34 @@ internal fun ScaleSyncScaffold(
                                 )
                             },
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(padding)
-                                    .consumeWindowInsets(padding),
-                            ) {
-                                profileSelection?.let { selection ->
-                                    ProfileSelector(
-                                        state = selection,
-                                        onProfileSelected = onProfileSelected,
-                                        modifier = Modifier.padding(
-                                            horizontal = HuaweiDimensions.ContentPadding,
-                                            vertical = HuaweiDimensions.CompactContentPadding,
-                                        ),
-                                    )
+                            measurementsContent(padding) {
+                                if (state.profilesLoaded) {
+                                    Column {
+                                        profileSelection?.let { selection ->
+                                            profileFallbackMessage(selection)?.let { message ->
+                                                Text(
+                                                    text = message,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    modifier = Modifier.testTag(ProfileSelectorTestTags.Fallback),
+                                                )
+                                            }
+                                        }
+                                        HomePetShortcuts(
+                                            pets = profileSelection?.profiles
+                                                ?.filterIsInstance<ProfilePresentation.Pet>().orEmpty(),
+                                            onProfileSelected = onProfileSelected,
+                                            onAddPet = settingsCallbacks.onCreatePet,
+                                        )
+                                    }
+                                } else {
+                                    androidx.compose.material3.LinearProgressIndicator(Modifier.fillMaxWidth())
                                 }
-                                Box(Modifier.weight(1f)) { measurementsContent(PaddingValues()) }
                             }
                         }
                     }
 
-                    currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding)
+                    currentSection == AppSection.MEASUREMENTS -> measurementsContent(padding) {}
 
                     else -> Column(
                         modifier = Modifier
@@ -784,11 +797,48 @@ private fun HuaweiTopBar(
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
     onHistoryRequested: () -> Unit,
-    petMeasurementEnabled: Boolean,
-    onPetMeasurementRequested: () -> Unit,
+    profileSelection: ProfileSelectionUiState?,
+    onProfileSelected: (ProfileKey) -> Unit,
     isExternalSyncPaused: Boolean,
     onToggleExternalSyncPause: () -> Unit,
 ) {
+    if (showMeasurementActions) {
+        SummaryTopBar(
+            profileSelection = profileSelection,
+            onProfileSelected = onProfileSelected,
+        ) {
+            HuaweiIconButton(
+                icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
+                contentDescription = if (isExternalSyncPaused) {
+                    "Возобновить внешнюю синхронизацию"
+                } else {
+                    "Приостановить внешнюю синхронизацию"
+                },
+                onClick = onToggleExternalSyncPause,
+                modifier = Modifier
+                    .testTag(MainScreenTestTags.ExternalSyncAction)
+                    .semantics {
+                        externalSyncPaused = isExternalSyncPaused
+                        stateDescription = if (isExternalSyncPaused) "Приостановлена" else "Включена"
+                    },
+                colors = if (isExternalSyncPaused) {
+                    IconButtonDefaults.iconButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error,
+                    )
+                } else {
+                    IconButtonDefaults.iconButtonColors()
+                },
+            )
+            HuaweiIconButton(
+                icon = HuaweiIcons.Calendar,
+                contentDescription = "Открыть историю измерений",
+                onClick = onHistoryRequested,
+                modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
+            )
+            PendingQueueAction(pendingCount, onPendingQueueRequested)
+        }
+        return
+    }
     TopAppBar(
         modifier = Modifier.testTag(MainScreenTestTags.TopBar),
         title = {
@@ -806,46 +856,6 @@ private fun HuaweiTopBar(
                     contentDescription = backContentDescription,
                     onClick = onBack,
                     modifier = backModifier,
-                )
-            }
-        },
-        actions = {
-            if (showMeasurementActions) {
-                PendingQueueAction(
-                    pendingCount = pendingCount,
-                    onClick = onPendingQueueRequested,
-                )
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Calendar,
-                    contentDescription = "Открыть историю измерений",
-                    onClick = onHistoryRequested,
-                    modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
-                )
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Dog,
-                    contentDescription = "Взвесить питомца",
-                    onClick = onPetMeasurementRequested,
-                    modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
-                    enabled = petMeasurementEnabled,
-                )
-                HuaweiIconButton(
-                    icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
-                    contentDescription = if (isExternalSyncPaused) {
-                        "Возобновить внешнюю синхронизацию"
-                    } else {
-                        "Приостановить внешнюю синхронизацию"
-                    },
-                    onClick = onToggleExternalSyncPause,
-                    modifier = Modifier
-                        .testTag(MainScreenTestTags.ExternalSyncAction)
-                        .semantics { externalSyncPaused = isExternalSyncPaused },
-                    colors = if (isExternalSyncPaused) {
-                        IconButtonDefaults.iconButtonColors(
-                            contentColor = MaterialTheme.colorScheme.error,
-                        )
-                    } else {
-                        IconButtonDefaults.iconButtonColors()
-                    },
                 )
             }
         },
@@ -877,20 +887,17 @@ private fun PendingQueueAction(
                 modifier = Modifier
                     .align(Alignment.TopEnd)
                     .padding(top = 6.dp, end = 6.dp)
-                    .size(if (pendingCount <= 9) 16.dp else 8.dp)
-                    .testTag(MainScreenTestTags.PendingQueueBadge),
+                    .testTag(MainScreenTestTags.PendingQueueBadge)
+                    .clearAndSetSemantics { },
                 shape = CircleShape,
                 color = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
             ) {
-                if (pendingCount <= 9) {
-                    Box(contentAlignment = Alignment.Center) {
-                        Text(
-                            text = pendingCount.toString(),
-                            modifier = Modifier.clearAndSetSemantics { },
-                            style = MaterialTheme.typography.labelSmall,
-                        )
-                    }
+                Box(modifier = Modifier.padding(horizontal = 4.dp), contentAlignment = Alignment.Center) {
+                    Text(
+                        text = if (pendingCount > 99) "99+" else pendingCount.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 }
             }
         }

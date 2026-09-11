@@ -300,7 +300,7 @@ class SettingsShellUiTest {
                         onProfileBirthDateChanged = {},
                         onProfileSexChanged = {},
                         settingsCallbacks = settingsCallbacks(),
-                        measurementsContent = {},
+                        measurementsContent = { _, _ -> },
                         chartsContent = {},
                     )
                 }
@@ -729,7 +729,7 @@ class SettingsShellUiTest {
                     ),
                     onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
                 ),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
