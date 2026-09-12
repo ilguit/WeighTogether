@@ -102,7 +102,9 @@ class Issue113ScreenshotMatrixTest {
                 MainScreenTestTags.PetMeasurementAction, MainScreenTestTags.PendingQueueAction))
             composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
             val list = composeRule.onNodeWithTag("measurement-summary-list").getUnclippedBoundsInRoot()
-            assertTrue("680 dp content cap", list.right - list.left <= 680.dp)
+            // ForcedSize maps dp constraints to integer pixels before bounds convert back to dp.
+            assertTrue("680 dp content cap in ${scenario.name}: width=${list.right - list.left}, bounds=$list",
+                list.right - list.left <= 680.5.dp)
             capture("${scenario.name}-collapsed")
             scrollTo(HomePetShortcutsTestTags.Toggle).performClick()
             capture("${scenario.name}-pets-expanded")
@@ -124,7 +126,7 @@ class Issue113ScreenshotMatrixTest {
             HomeKgChartSeriesCatalog.forEach { metric ->
                 val node = scrollTo("home-kg-legend-${metric.key}")
                 val bounds = node.getUnclippedBoundsInRoot()
-                assertTrue("Series target ${metric.key}", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
+                assertTrue("Series target ${metric.key} in ${scenario.name}: $bounds", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
             }
             capture("${scenario.name}-series-expanded")
         }
