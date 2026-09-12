@@ -1,5 +1,9 @@
 package com.palixander.scalesync
 
+import android.graphics.Bitmap
+import android.view.KeyEvent
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -51,8 +55,8 @@ class PetProfileEditorDialogUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val catalog = PetBreedCatalog()
-    private val mixedDog = PetBreedSelection.Available(
-        requireNotNull(catalog.search("Метис", PetSpecies.DOG).singleOrNull()),
+    private val unmappedDog = PetBreedSelection.Available(
+        requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
     )
 
     @Test
@@ -64,7 +68,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Луна",
                     species = PetSpecies.DOG,
                     sex = PetSex.FEMALE,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Day("2020", "02", "29"),
                     dogAdultWeightCategory = DogAdultWeightCategory.III,
                 ),
@@ -83,7 +87,7 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale).assertIsSelected()
-        composeRule.onNodeWithText("Метис").assertExists()
+        composeRule.onNodeWithText("Доберман").assertExists()
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear)
             .performScrollTo()
@@ -123,6 +127,7 @@ class PetProfileEditorDialogUiTest {
             .assertContentDescriptionEquals("Вернуться к профилям")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsDisplayed()
+        captureSyntheticScreenshot("empty-editor")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesGroup)
             .assertContentDescriptionEquals("Вид питомца")
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
@@ -147,7 +152,7 @@ class PetProfileEditorDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, dismisses) }
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertTextContains("Луна")
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Discard).performClick()
         composeRule.runOnIdle { assertEquals(1, dismisses) }
     }
@@ -189,13 +194,13 @@ class PetProfileEditorDialogUiTest {
                 ),
             ),
         )
-        val dog = catalog.search("Danish Mastiff", PetSpecies.DOG)
-            .first { "Danish Mastiff" in it.aliases }
+        val dog = catalog.search("Russian Black Terrier", PetSpecies.DOG)
+            .first { "Russian Black Terrier" in it.aliases }
         setEditor(state)
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
-            .performTextInput("Danish Mastiff")
+            .performTextInput("Russian Black Terrier")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(dog.id.value))
             .assertIsDisplayed()
             .performClick()
@@ -307,10 +312,22 @@ class PetProfileEditorDialogUiTest {
         }
     }
 
+    private fun captureSyntheticScreenshot(name: String) {
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "issue115")
+        check(directory.mkdirs() || directory.isDirectory)
+        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        File(directory, "$name.png").outputStream().use {
+            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+        }
+        screenshot.recycle()
+    }
+
     private fun chooseBirthPart(tag: String, value: Int) {
         composeRule.onNodeWithTag(tag).performScrollTo().performClick()
         composeRule.onNodeWithTag("pet-birth-options")
             .performScrollToNode(hasTestTag("pet-birth-option-$value"))
+        captureSyntheticScreenshot("picker-$tag-$value")
         composeRule.onNodeWithTag("pet-birth-option-$value").performClick()
     }
 
@@ -431,7 +448,7 @@ class PetProfileEditorDialogUiTest {
         val initialDraft = PetProfileDraft.create().copy(
             displayName = "Бим",
             species = PetSpecies.DOG,
-            breed = mixedDog,
+            breed = unmappedDog,
             dogAdultWeightCategory = DogAdultWeightCategory.II,
         )
         val state = mutableStateOf(PetProfileEditorState(initialDraft))
@@ -465,7 +482,7 @@ class PetProfileEditorDialogUiTest {
                 PetProfileDraft.create().copy(
                     displayName = "Бим",
                     species = PetSpecies.DOG,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Month("2026", ""),
                 ),
             ),
@@ -504,7 +521,7 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
             .assertIsDisplayed()
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle {
             assertEquals(0, saves)
             assertEquals(0, dismisses)
@@ -615,7 +632,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Бим",
                     species = PetSpecies.DOG,
                     sex = PetSex.MALE,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Year("2020"),
                     dogAdultWeightCategory = DogAdultWeightCategory.IV,
                 ),

@@ -186,7 +186,7 @@ internal fun PetProfileEditorDialog(
         if (fieldErrors.hasErrors) requestFirstInvalidField()
     }
 
-    BackHandler(enabled = !locked, onBack = ::requestClose)
+    BackHandler(onBack = ::requestClose)
 
     Scaffold(
         modifier = modifier.fillMaxSize().testTag(PetProfileEditorTestTags.Dialog),

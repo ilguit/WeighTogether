@@ -1,5 +1,7 @@
 package com.palixander.scalesync
 
+import android.view.KeyEvent
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
@@ -200,11 +202,11 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
@@ -224,7 +226,7 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, cancelled) }
         composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
