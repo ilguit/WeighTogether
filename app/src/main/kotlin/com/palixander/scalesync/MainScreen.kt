@@ -499,22 +499,26 @@ internal fun ScaleSyncScaffold(
         state.pets.firstOrNull { it.pet.id == destination.petId }
     }
     val profileEditorOpen = state.profileEditor.isOpen
+    val accountEditorOpen = currentSection == AppSection.SETTINGS &&
+        settingsDestination == SettingsDestination.PROFILES &&
+        state.accountManagement.editor != null && !profileEditorOpen &&
+        currentDestination != AppDestination.CHANGELOG
     val changelogOpen = !profileEditorOpen && currentDestination == AppDestination.CHANGELOG
     val settingsDetailOpen = currentSection == AppSection.SETTINGS &&
         settingsDestination != SettingsDestination.ROOT && !changelogOpen
     val settingsBackFocusRequester = remember { FocusRequester() }
-    LaunchedEffect(settingsDetailOpen, settingsDestination) {
-        if (settingsDetailOpen) settingsBackFocusRequester.requestFocus()
+    LaunchedEffect(settingsDetailOpen, settingsDestination, accountEditorOpen) {
+        if (settingsDetailOpen && !accountEditorOpen) settingsBackFocusRequester.requestFocus()
     }
     val measurementsChrome = measurementsChromeFor(measurementsDestination)
     val showTopBar = when {
-        manualDraft != null -> false
+        manualDraft != null || accountEditorOpen -> false
         profileEditorOpen -> true
         currentSection == AppSection.MEASUREMENTS -> measurementsChrome.showTopBar
         else -> true
     }
-    val showBottomNavigation = manualDraft == null && petDestination == null && !profileEditorOpen && !changelogOpen &&
-        !settingsDetailOpen && when (currentSection) {
+    val showBottomNavigation = manualDraft == null && petDestination == null &&
+        !profileEditorOpen && !accountEditorOpen && !changelogOpen && !settingsDetailOpen && when (currentSection) {
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
@@ -533,7 +537,7 @@ internal fun ScaleSyncScaffold(
         onBack = { onDestinationChanged(AppDestination.ROOT) },
     )
     BackHandler(
-        enabled = settingsDetailOpen,
+        enabled = settingsDetailOpen && !accountEditorOpen,
         onBack = { onSettingsDestinationChanged(SettingsDestination.ROOT) },
     )
     BackHandler(enabled = petDestination != null, onBack = onPetBack)
