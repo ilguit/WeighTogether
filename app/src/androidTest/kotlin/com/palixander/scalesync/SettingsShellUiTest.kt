@@ -4,7 +4,6 @@ import android.graphics.Bitmap
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onRoot
-import androidx.compose.ui.test.printToString
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import androidx.activity.ComponentActivity
@@ -78,7 +77,7 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfileRow).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
-        composeRule.onNodeWithText("Профили").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.List).assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
@@ -100,9 +99,9 @@ class SettingsShellUiTest {
         setSettingsShell(expandSections = false)
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanEdit(completeAccount().id)).performClick()
+        composeRule.onNodeWithText("Изменить").performClick()
         composeRule.waitForIdle()
         val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue116").apply { mkdirs() }
-        File(output, "editor-semantics.txt").writeText(composeRule.onRoot(useUnmergedTree = true).printToString())
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
         File(output, "editor.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         composeRule.onNodeWithText("Изменить профиль").assertIsDisplayed()
