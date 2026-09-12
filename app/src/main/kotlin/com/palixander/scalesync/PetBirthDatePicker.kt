@@ -1,11 +1,22 @@
 package com.palixander.scalesync
 
 import java.time.LocalDate
+import java.time.Month
+import java.time.format.TextStyle
+import java.util.Locale
 import java.time.YearMonth
 
 internal enum class PetBirthDatePart(val label: String) {
     YEAR("Год"), MONTH("Месяц"), DAY("День"),
 }
+
+internal fun petBirthDatePartLabel(part: PetBirthDatePart, value: Int): String =
+    if (part == PetBirthDatePart.MONTH && value in 1..12) {
+        Month.of(value).getDisplayName(TextStyle.FULL_STANDALONE, Locale.forLanguageTag("ru"))
+            .replaceFirstChar { it.titlecase(Locale.forLanguageTag("ru")) }
+    } else {
+        value.toString()
+    }
 
 internal fun PetBirthDateInput.component(part: PetBirthDatePart): Int? = when (part) {
     PetBirthDatePart.YEAR -> when (this) {

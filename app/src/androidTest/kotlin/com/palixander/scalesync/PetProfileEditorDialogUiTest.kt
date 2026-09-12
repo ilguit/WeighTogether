@@ -94,9 +94,10 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear)
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
-            .performScrollTo()
-            .performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithText("Месяц: Февраль").assertExists()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-part-clear").performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexClear)
             .performScrollTo()
             .performClick()
@@ -269,7 +270,10 @@ class PetProfileEditorDialogUiTest {
             assertEquals(PetBirthDateInput.Year("2020"), state.value.draft.birthDate)
         }
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay).assertDoesNotExist()
-        chooseBirthPart(PetProfileEditorTestTags.BirthMonth, 2)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).performScrollTo().performClick()
+        composeRule.onNodeWithText("Февраль").assertExists()
+        composeRule.onNodeWithTag("pet-birth-option-2").performClick()
+        composeRule.onNodeWithText("Месяц: Февраль").assertExists()
         composeRule.runOnIdle {
             assertEquals(PetBirthDateInput.Month("2020", "2"), state.value.draft.birthDate)
         }
@@ -282,7 +286,9 @@ class PetProfileEditorDialogUiTest {
         composeRule.runOnIdle {
             assertEquals(PetBirthDateInput.Year("2020"), state.value.draft.birthDate)
         }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-part-clear").performClick()
         composeRule.runOnIdle {
             assertEquals(PetBirthDateInput.Empty, state.value.draft.birthDate)
         }
@@ -684,9 +690,9 @@ class PetProfileEditorDialogUiTest {
             assertTrue(catBounds.right <= dogBounds.left)
             assertTrue(maleBounds.right <= femaleBounds.left)
         }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear)
             .performScrollTo()
-            .assertContentDescriptionEquals("Очистить дату рождения питомца")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(
             PetProfileEditorTestTags.category(DogAdultWeightCategory.IV),

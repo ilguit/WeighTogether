@@ -555,17 +555,8 @@ private fun BirthDateEditor(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag(birthPartTag(part)),
-                ) { Text("${part.label}: ${selected ?: "Выбрать"}") }
+                ) { Text("${part.label}: ${selected?.let { petBirthDatePartLabel(part, it) } ?: "Выбрать"}") }
             }
-        }
-        if (value != PetBirthDateInput.Empty) {
-            TextButton(
-                onClick = { onChange(PetBirthDateInput.Empty) },
-                enabled = enabled,
-                modifier = Modifier.heightIn(min = 48.dp)
-                    .testTag(PetProfileEditorTestTags.BirthClear)
-                    .semantics { contentDescription = "Очистить дату рождения питомца" },
-            ) { Text("Очистить дату") }
         }
         error?.let { FieldError(birthDateErrorMessage(it)) }
     }
@@ -586,7 +577,7 @@ private fun BirthDateEditor(
                 ) {
                     items(options, key = { it }) { option ->
                         SelectionRow(
-                            label = option.toString(),
+                            label = petBirthDatePartLabel(part, option),
                             selected = selected == option,
                             enabled = enabled,
                             tag = "pet-birth-option-$option",
