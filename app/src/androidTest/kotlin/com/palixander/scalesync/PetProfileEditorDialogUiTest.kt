@@ -314,7 +314,11 @@ class PetProfileEditorDialogUiTest {
     }
 
     private fun captureSyntheticScreenshot(name: String) {
+        composeRule.waitForIdle()
         val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        // Dialog window transitions run outside Compose's idling resources.
+        android.os.SystemClock.sleep(350)
         val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "issue115")
         check(directory.mkdirs() || directory.isDirectory)
         val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
