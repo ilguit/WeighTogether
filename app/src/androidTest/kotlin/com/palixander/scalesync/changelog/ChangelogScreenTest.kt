@@ -1,6 +1,11 @@
 package com.palixander.scalesync.changelog
 
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -127,6 +132,55 @@ class ChangelogScreenTest {
         setContent(releases.take(1))
         composeRule.onNodeWithTag(tags.releaseChanges("0.1.6")).assertIsDisplayed()
         composeRule.onNodeWithTag(tags.PreviousReleases).assertDoesNotExist()
+    }
+
+    @Test
+    fun disclosureIndicatorKeepsItsCenterWhenToggled() {
+        setContent(items = releases.take(2))
+        assertStableDisclosureGeometry()
+    }
+
+    @Test
+    fun narrowLargeTextDoesNotOverlapDisclosureIndicator() {
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                ScaleSyncTheme {
+                    ChangelogScreen(
+                        modifier = Modifier.width(280.dp),
+                        releases = releases.take(2),
+                        latestChanges = emptyList(),
+                    )
+                }
+            }
+        }
+        assertStableDisclosureGeometry()
+    }
+
+    private fun assertStableDisclosureGeometry() {
+        fun geometry(): Pair<Float, Float> {
+            val row = composeRule.onNodeWithTag(tags.PreviousReleasesToggle).getUnclippedBoundsInRoot()
+            val icon = composeRule.onNodeWithTag(tags.PreviousReleasesIndicator, useUnmergedTree = true)
+                .getUnclippedBoundsInRoot()
+            val title = composeRule.onNodeWithTag(tags.PreviousReleasesTitle, useUnmergedTree = true)
+                .getUnclippedBoundsInRoot()
+            assertEquals(24f, (icon.right - icon.left).value, 0.5f)
+            assertEquals(24f, (icon.bottom - icon.top).value, 0.5f)
+            assertTrue(row.bottom - row.top >= 48.dp)
+            assertTrue(title.right <= icon.left)
+            assertEquals(((row.top + row.bottom) / 2).value, ((icon.top + icon.bottom) / 2).value, 0.5f)
+            return ((icon.left + icon.right) / 2 - row.left).value to
+                ((icon.top + icon.bottom) / 2 - row.top).value
+        }
+        val before = geometry()
+        composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+        composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertExists()
+        val expanded = geometry()
+        assertEquals(before.first, expanded.first, 0.5f)
+        assertEquals(before.second, expanded.second, 0.5f)
+        composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+        composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertDoesNotExist()
+        assertEquals(before, geometry())
     }
 
     private fun setContent(
