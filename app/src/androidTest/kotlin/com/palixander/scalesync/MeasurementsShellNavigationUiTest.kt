@@ -103,14 +103,14 @@ class MeasurementsShellNavigationUiTest {
         val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
         val petMeasurementAction = composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
         val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
-        petMeasurementAction.assertDoesNotExist()
-        assertTrue(externalSyncAction.getUnclippedBoundsInRoot().right <= historyAction.getUnclippedBoundsInRoot().left)
-        assertTrue(historyAction.getUnclippedBoundsInRoot().right <= pendingQueueAction.getUnclippedBoundsInRoot().left)
+        historyAction.assertDoesNotExist()
+        assertTrue(externalSyncAction.getUnclippedBoundsInRoot().right <= petMeasurementAction.getUnclippedBoundsInRoot().left)
+        assertTrue(petMeasurementAction.getUnclippedBoundsInRoot().right <= pendingQueueAction.getUnclippedBoundsInRoot().left)
         pendingQueueAction
             .assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
             .performClick()
-        historyAction
-            .assertContentDescriptionEquals("Открыть историю измерений")
+        petMeasurementAction
+            .assertContentDescriptionEquals("Взвесить питомца")
             .performClick()
         externalSyncAction
             .assertContentDescriptionEquals("Приостановить внешнюю синхронизацию")
@@ -126,8 +126,8 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.runOnIdle {
             assertEquals(1, pendingQueueClicks)
-            assertEquals(1, historyClicks)
-            assertEquals(0, petMeasurementClicks)
+            assertEquals(0, historyClicks)
+            assertEquals(1, petMeasurementClicks)
             assertEquals(2, pauseClicks)
         }
     }
@@ -167,7 +167,7 @@ class MeasurementsShellNavigationUiTest {
             .getUnclippedBoundsInRoot()
         val actionBounds = listOf(
             MainScreenTestTags.ExternalSyncAction,
-            MainScreenTestTags.HistoryAction,
+            MainScreenTestTags.PetMeasurementAction,
             MainScreenTestTags.PendingQueueAction,
         ).map { tag ->
             composeRule.onNodeWithTag(tag)
@@ -198,7 +198,7 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
-    fun petMeasurementTopActionIsAbsentWhileBleWorkIsActive() {
+    fun petMeasurementTopActionDispatchesWhileBleWorkIsActive() {
         var clicks = 0
 
         composeRule.setContent {
@@ -224,8 +224,8 @@ class MeasurementsShellNavigationUiTest {
         }
 
         composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
-            .assertDoesNotExist()
-        composeRule.runOnIdle { assertEquals(0, clicks) }
+            .assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(1, clicks) }
     }
 
     @Test
@@ -392,7 +392,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
-        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
 
         composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
         composeRule.onNodeWithText("История").assertIsDisplayed()
@@ -407,12 +407,12 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
-    fun cardAndTopBarHistoryEntriesOpenTheSameHistory() {
+    fun cardHistoryRemainsAvailableAfterReturningToSummary() {
         setMeasurementsShell()
         composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
         composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
         pressSystemBack()
-        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
         composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
     }
 
@@ -429,7 +429,7 @@ class MeasurementsShellNavigationUiTest {
         composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
         composeRule.onNodeWithText("Изменить").performClick()
         assertNestedEditorChrome()

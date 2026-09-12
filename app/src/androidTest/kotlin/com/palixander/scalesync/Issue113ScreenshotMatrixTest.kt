@@ -94,7 +94,7 @@ class Issue113ScreenshotMatrixTest {
             composeRule.runOnIdle { current.value = scenario }
             composeRule.waitForIdle()
             assertTargets(listOf(SummaryTopBarTestTags.Profile, MainScreenTestTags.ExternalSyncAction,
-                MainScreenTestTags.HistoryAction, MainScreenTestTags.PendingQueueAction))
+                MainScreenTestTags.PetMeasurementAction, MainScreenTestTags.PendingQueueAction))
             composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
             val list = composeRule.onNodeWithTag("measurement-summary-list").getUnclippedBoundsInRoot()
             assertTrue("680 dp content cap", list.right - list.left <= 680.dp)

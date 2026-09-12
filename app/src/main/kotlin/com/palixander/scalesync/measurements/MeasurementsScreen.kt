@@ -556,74 +556,79 @@ private fun MeasurementSummaryCard(
                 vertical = HuaweiDimensions.CompactContentPadding,
             ),
         ) {
-            FlowRow(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = formatMeasurementDateTime(summary.latest.measuredAt),
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                    color = HuaweiColors.Secondary,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                TextButton(
-                    onClick = onHistoryRequested,
-                    modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
-                        .testTag("summary-history"),
-                    colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
-                ) { Text("История →") }
-                if (summary.latest.hasSyncPresentation) {
-                    HuaweiStatusAction(
-                        icon = summary.latest.sync.state.icon,
-                        contentDescription = summary.latest.sync.label,
-                        onClick = onSyncRequested,
-                        tone = summary.latest.sync.state.tone,
-                        enabled = summary.latest.canSync,
-                        modifier = Modifier.testTag("summary-sync-status"),
+            SummaryHeader(
+                date = {
+                    Text(
+                        text = formatMeasurementDateTime(summary.latest.measuredAt),
+                        modifier = Modifier.testTag("summary-date"),
+                        color = HuaweiColors.Secondary,
+                        style = MaterialTheme.typography.bodySmall,
                     )
-                }
-                if (summary.latest.hasFinalActions) Box {
-                    HuaweiIconButton(
-                        icon = HuaweiIcons.More,
-                        contentDescription = "Действия с последним измерением",
-                        onClick = { menuExpanded = true },
-                        enabled = summary.latest.canEdit || summary.latest.canDelete,
-                        modifier = Modifier.testTag("summary-more-actions"),
-                    )
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        shape = MaterialTheme.shapes.medium,
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Изменить") },
-                            leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onEditRequested()
-                            },
-                            enabled = summary.latest.canEdit,
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
-                            modifier = Modifier.testTag("summary-delete-measurement"),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HuaweiIcons.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
+                },
+                history = {
+                    TextButton(
+                        onClick = onHistoryRequested,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag("summary-history"),
+                        colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
+                    ) { Text("История →") }
+                },
+                actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (summary.latest.hasSyncPresentation) {
+                            SummaryStatusAction(
+                                icon = summary.latest.sync.state.icon,
+                                contentDescription = summary.latest.sync.label,
+                                onClick = onSyncRequested,
+                                tone = summary.latest.sync.state.tone,
+                                enabled = summary.latest.canSync,
+                                modifier = Modifier.testTag("summary-sync-status"),
+                            )
+                        }
+                        if (summary.latest.hasFinalActions) Box {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.More,
+                                contentDescription = "Действия с последним измерением",
+                                onClick = { menuExpanded = true },
+                                enabled = summary.latest.canEdit || summary.latest.canDelete,
+                                modifier = Modifier.testTag("summary-more-actions"),
+                            )
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Изменить") },
+                                    leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onEditRequested()
+                                    },
+                                    enabled = summary.latest.canEdit,
                                 )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDeleteRequested()
-                            },
-                            enabled = summary.latest.canDelete,
-                        )
+                                DropdownMenuItem(
+                                    text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                                    modifier = Modifier.testTag("summary-delete-measurement"),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = HuaweiIcons.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDeleteRequested()
+                                    },
+                                    enabled = summary.latest.canDelete,
+                                )
+                            }
+                        }
                     }
-                }
-            }
+                },
+            )
 
             val referenceMetrics = summary.latest.referenceMetrics.takeUnless {
                 summary.latest.isPreliminary
