@@ -57,6 +57,21 @@ class PetBirthDatePickerTest {
         assertTrue(options(PetBirthDateInput.Year("2020"), PetBirthDatePart.DAY).isEmpty())
     }
 
+    @Test
+    fun monthLabelsUseFullRussianNamesAndOtherPartsRemainNumeric() {
+        val names = listOf(
+            "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
+            "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
+        )
+        assertEquals(names, (1..12).map { petBirthDatePartLabel(PetBirthDatePart.MONTH, it) })
+        assertEquals("2020", petBirthDatePartLabel(PetBirthDatePart.YEAR, 2020))
+        assertEquals("29", petBirthDatePartLabel(PetBirthDatePart.DAY, 29))
+        val restored = PetBirthDateInput.Day("2020", "02", "09")
+        assertEquals("Февраль", petBirthDatePartLabel(
+            PetBirthDatePart.MONTH, requireNotNull(restored.component(PetBirthDatePart.MONTH)),
+        ))
+    }
+
     private fun select(input: PetBirthDateInput, part: PetBirthDatePart, value: Int?) =
         selectPetBirthDatePart(input, part, value, today)
 
