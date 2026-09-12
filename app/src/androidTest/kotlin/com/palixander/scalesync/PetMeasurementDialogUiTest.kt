@@ -21,6 +21,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.palixander.scalesync.domain.Pet
+import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import com.palixander.scalesync.domain.PetSpecies
@@ -44,7 +45,11 @@ class PetMeasurementDialogUiTest {
             pets = listOf(
                 PetWithLatestWeight(
                     pet,
-                    measurement(pet.id, first = 70.0, second = 74.25),
+                    measurement(pet.id, first = 70.0, second = 74.25).copy(
+                        firstWeightKg = null,
+                        secondWeightKg = null,
+                        origin = MeasurementOrigin.MANUAL,
+                    ),
                 ),
             ),
             callbacks = callbacks(onStart = { selected = it }),
@@ -52,6 +57,8 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithContentDescription("Барсик. Последний вес:", substring = true)
             .assertIsDisplayed()
+        composeRule.onNodeWithTag("pet-latest-manual-origin-${pet.id}", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Введено вручную", useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.pet(pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(pet.id, selected) }
     }

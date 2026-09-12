@@ -1,7 +1,6 @@
 package com.palixander.scalesync
 
 import com.palixander.scalesync.measurements.formatWeight
-import com.palixander.scalesync.ui.components.ManualOriginIndicator
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
@@ -362,12 +361,7 @@ private fun PetSelection(
                     .testTag(PetMeasurementTestTags.pet(item.pet.id)),
             ) {
                 Text(item.pet.displayName, style = MaterialTheme.typography.titleMedium)
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(detail, style = MaterialTheme.typography.bodySmall, modifier = Modifier.weight(1f))
-                    item.latestMeasurement?.let {
-                        ManualOriginIndicator(it.origin, Modifier.testTag("pet-latest-manual-origin-${item.pet.id}"))
-                    }
-                }
+                Text(detail, style = MaterialTheme.typography.bodySmall)
             }
         }
     }

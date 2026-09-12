@@ -95,7 +95,7 @@ fun HomePetShortcuts(
         val control = subcompose("toggle") {
             val label = if (expanded) "Свернуть список питомцев" else "Развернуть список питомцев"
             Box(
-                modifier = Modifier.fillMaxWidth().height(48.dp)
+                modifier = Modifier.fillMaxWidth().height(24.dp)
                     .testTag(HomePetShortcutsTestTags.Toggle)
                     .semantics {
                         contentDescription = label

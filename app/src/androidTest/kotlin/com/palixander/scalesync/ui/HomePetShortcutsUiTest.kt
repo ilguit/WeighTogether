@@ -36,16 +36,17 @@ import org.junit.Test
 class HomePetShortcutsUiTest {
     @get:Rule val composeRule = createComposeRule()
 
-    @Test fun zeroPetsHasOnly48DpControlAndAddAppearsAfterTap() {
+    @Test fun zeroPetsHasOnly24DpControlAndAddAppearsAfterTap() {
         var addCalls = 0
         composeRule.setContent {
             ScaleSyncTheme { HomePetShortcuts(emptyList(), {}, { addCalls++ }) }
         }
         val block = composeRule.onNodeWithTag(Tags.Block).getUnclippedBoundsInRoot()
-        assertEquals(48.dp, block.bottom - block.top)
+        assertEquals(24.dp, block.bottom - block.top)
         composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         val toggle = composeRule.onNodeWithTag(Tags.Toggle).getUnclippedBoundsInRoot()
+        assertEquals(24.dp, toggle.bottom - toggle.top)
         val add = composeRule.onNodeWithTag(Tags.Add).getUnclippedBoundsInRoot()
         assertTrue(add.bottom <= toggle.top)
         composeRule.onNodeWithTag(Tags.Add).performClick()
