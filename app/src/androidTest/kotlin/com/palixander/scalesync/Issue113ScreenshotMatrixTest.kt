@@ -15,6 +15,9 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.captureToImage
@@ -107,9 +110,15 @@ class Issue113ScreenshotMatrixTest {
             composeRule.onNodeWithTag("summary-expand-metrics").performScrollTo().performClick()
             capture("${scenario.name}-card-expanded")
             composeRule.onNodeWithTag("summary-expand-metrics").performScrollTo().performClick()
-            composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo()
+            val seriesToggle = composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo()
+            // Lazy content may restore expansion when scenarios reuse the same list item key.
+            if (seriesToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription] == "Развёрнуто") {
+                seriesToggle.performClick()
+            }
+            seriesToggle.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
             capture("${scenario.name}-chart-collapsed")
-            composeRule.onNodeWithTag("home-kg-series-toggle").performClick()
+            seriesToggle.performScrollTo().performClick()
+            seriesToggle.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Развёрнуто"))
             HomeKgChartSeriesCatalog.forEach { metric ->
                 val node = composeRule.onNodeWithTag("home-kg-legend-${metric.key}").performScrollTo()
                 val bounds = node.getUnclippedBoundsInRoot()
@@ -132,7 +141,7 @@ class Issue113ScreenshotMatrixTest {
     private fun capture(name: String) {
         composeRule.waitForIdle()
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "issue113").apply { mkdirs() }
+        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue114").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

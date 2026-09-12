@@ -72,7 +72,8 @@ class SummaryHeaderUiTest {
                     assertTrue(history.right <= sync.left)
                     assertTrue(sync.right <= more.left)
                     assertEquals(header.right, more.right)
-                    assertTrue(sync.right - sync.left >= 48.dp && sync.bottom - sync.top >= 48.dp)
+                    // Density conversion rounds the 48 dp layout size to whole physical pixels.
+                    assertTrue("48 dp status target: $sync", sync.right - sync.left >= 47.5.dp && sync.bottom - sync.top >= 47.5.dp)
                     assertTrue(history.left >= header.left && more.bottom <= header.bottom)
                 }
             }
