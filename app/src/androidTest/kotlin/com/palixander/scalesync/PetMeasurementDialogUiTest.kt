@@ -70,7 +70,7 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateAction).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertDoesNotExist()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).assertDoesNotExist()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.onNodeWithText("Введите имя питомца").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput(" барсик ")
