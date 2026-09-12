@@ -721,7 +721,9 @@ internal fun ScaleSyncScaffold(
                     ) {
                         profileSelection?.let { selection ->
                             ProfileSelector(
-                                state = selection,
+                                state = selection.copy(
+                                    profiles = selection.profiles.filterIsInstance<ProfilePresentation.Human>(),
+                                ),
                                 onProfileSelected = onProfileSelected,
                                 modifier = Modifier.padding(
                                     horizontal = HuaweiDimensions.ContentPadding,
