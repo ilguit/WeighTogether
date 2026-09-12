@@ -43,6 +43,7 @@ class SummaryTopBarUiTest {
                 SummaryTopBar(selection.value, { selection.value = selection.value.copy(selectedKey = it) }) {}
             }
         }
+        composeRule.onNodeWithTag("summary-profile-icon", useUnmergedTree = true).assertIsDisplayed()
         composeRule.onNodeWithTag(SummaryTopBarTestTags.Profile).performClick()
         composeRule.onNodeWithTag(SummaryTopBarTestTags.human("first")).assertIsSelected()
         composeRule.onNodeWithText("Тестовый питомец").assertDoesNotExist()

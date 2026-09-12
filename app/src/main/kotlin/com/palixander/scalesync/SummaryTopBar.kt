@@ -14,7 +14,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,24 +74,24 @@ private fun HumanProfileDropdown(
     val name = (selection?.selectedProfile as? ProfilePresentation.Human)?.displayName
         ?: if (selection == null) "Загрузка профилей…" else "Выберите профиль"
     Box(modifier) {
-        TextButton(
+        FilledTonalButton(
             onClick = { expanded = true },
             enabled = humans.isNotEmpty(),
-            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+            modifier = Modifier.heightIn(min = 48.dp)
                 .testTag(SummaryTopBarTestTags.Profile)
                 .semantics {
                     contentDescription = "Выбор профиля: $name"
                     stateDescription = if (expanded) "Развёрнут" else "Свёрнут"
                 },
         ) {
+            Icon(HuaweiIcons.Profile, contentDescription = null, modifier = Modifier.size(20.dp).testTag("summary-profile-icon"))
             Text(
                 name,
-                modifier = Modifier.weight(1f).testTag(MainScreenTestTags.TopBarTitle),
-                style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f, fill = false).padding(start = 8.dp).testTag(MainScreenTestTags.TopBarTitle),
+                style = MaterialTheme.typography.labelLarge,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
             )
-            Icon(HuaweiIcons.ChevronDown, contentDescription = null, modifier = Modifier.size(24.dp))
         }
         DropdownMenu(
             expanded = expanded && humans.isNotEmpty(),

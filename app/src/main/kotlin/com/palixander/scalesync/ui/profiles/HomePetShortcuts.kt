@@ -6,9 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,7 +65,6 @@ fun HomePetShortcuts(
             rowWidth = next
             firstRowCount++
         }
-        val hasControl = pets.isEmpty() || firstRowCount < pets.size
         val visibleCount = if (expanded) pets.size else firstRowCount
         val visible = pets.take(visibleCount).map { pet ->
             subcompose("pet-${pet.key.petId.value}") {
@@ -95,7 +92,7 @@ fun HomePetShortcuts(
             rowHeight = maxOf(rowHeight, placeable.height)
         }
         val buttonsHeight = y + rowHeight
-        val control = if (hasControl) subcompose("toggle") {
+        val control = subcompose("toggle") {
             val label = if (expanded) "Свернуть список питомцев" else "Развернуть список питомцев"
             Box(
                 modifier = Modifier.fillMaxWidth().height(48.dp)
@@ -119,27 +116,26 @@ fun HomePetShortcuts(
                     },
                 contentAlignment = Alignment.Center,
             ) {
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                 Icon(
                     imageVector = HuaweiIcons.ChevronDown,
                     contentDescription = null,
-                    modifier = Modifier.size(20.dp).rotate(if (expanded) 180f else 0f),
+                    modifier = Modifier.size(16.dp).rotate(if (expanded) 180f else 0f),
                 )
             }
-        }.single().measure(childConstraints) else null
-        val add = if (pets.isEmpty() && expanded) subcompose("add") {
+        }.single().measure(childConstraints)
+        val add = if (expanded) subcompose("add") {
             HuaweiFilterButton(
                 text = "Добавить питомца", onClick = onAddPet,
                 modifier = Modifier.testTag(HomePetShortcutsTestTags.Add),
             )
         }.single().measure(childConstraints) else null
-        layout(width, buttonsHeight + (control?.height ?: 0) + (add?.height ?: 0)) {
+        layout(width, buttonsHeight + control.height + (add?.height ?: 0)) {
             visible.forEachIndexed { index, placeable ->
                 val (left, top) = positions[index]
                 placeable.placeRelative(left, top)
             }
-            control?.placeRelative(0, buttonsHeight)
-            add?.placeRelative(0, buttonsHeight + (control?.height ?: 0))
+            add?.placeRelative(0, buttonsHeight)
+            control.placeRelative(0, buttonsHeight + (add?.height ?: 0))
         }
     }
 }

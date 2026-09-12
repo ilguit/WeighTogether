@@ -15,6 +15,9 @@ import androidx.compose.ui.test.DeviceConfigurationOverride
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.FontScale
 import androidx.compose.ui.test.ForcedSize
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.captureToImage
@@ -23,6 +26,8 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
@@ -94,29 +99,43 @@ class Issue113ScreenshotMatrixTest {
             composeRule.runOnIdle { current.value = scenario }
             composeRule.waitForIdle()
             assertTargets(listOf(SummaryTopBarTestTags.Profile, MainScreenTestTags.ExternalSyncAction,
-                MainScreenTestTags.HistoryAction, MainScreenTestTags.PendingQueueAction))
+                MainScreenTestTags.PetMeasurementAction, MainScreenTestTags.PendingQueueAction))
             composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
             val list = composeRule.onNodeWithTag("measurement-summary-list").getUnclippedBoundsInRoot()
-            assertTrue("680 dp content cap", list.right - list.left <= 680.dp)
+            // ForcedSize maps dp constraints to integer pixels before bounds convert back to dp.
+            assertTrue("680 dp content cap in ${scenario.name}: width=${list.right - list.left}, bounds=$list",
+                list.right - list.left <= 680.5.dp)
             capture("${scenario.name}-collapsed")
-            composeRule.onNodeWithTag(HomePetShortcutsTestTags.Toggle).performScrollTo().performClick()
+            scrollTo(HomePetShortcutsTestTags.Toggle).performClick()
             capture("${scenario.name}-pets-expanded")
-            composeRule.onNodeWithTag(HomePetShortcutsTestTags.Toggle).performScrollTo().performClick()
-            composeRule.onNodeWithTag("summary-history").performScrollTo()
+            scrollTo(HomePetShortcutsTestTags.Toggle).performClick()
+            scrollTo("summary-history")
             assertTargets(listOf("summary-history", "summary-sync-status", "summary-more-actions"))
-            composeRule.onNodeWithTag("summary-expand-metrics").performScrollTo().performClick()
+            scrollTo("summary-expand-metrics").performClick()
             capture("${scenario.name}-card-expanded")
-            composeRule.onNodeWithTag("summary-expand-metrics").performScrollTo().performClick()
-            composeRule.onNodeWithTag("home-kg-series-toggle").performScrollTo()
+            scrollTo("summary-expand-metrics").performClick()
+            val seriesToggle = scrollTo("home-kg-series-toggle")
+            // Lazy content may restore expansion when scenarios reuse the same list item key.
+            if (seriesToggle.fetchSemanticsNode().config[SemanticsProperties.StateDescription] == "Развёрнуто") {
+                seriesToggle.performClick()
+            }
+            seriesToggle.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Свёрнуто"))
             capture("${scenario.name}-chart-collapsed")
-            composeRule.onNodeWithTag("home-kg-series-toggle").performClick()
+            scrollTo("home-kg-series-toggle").performClick()
+            seriesToggle.assert(SemanticsMatcher.expectValue(SemanticsProperties.StateDescription, "Развёрнуто"))
             HomeKgChartSeriesCatalog.forEach { metric ->
-                val node = composeRule.onNodeWithTag("home-kg-legend-${metric.key}").performScrollTo()
+                val node = scrollTo("home-kg-legend-${metric.key}")
                 val bounds = node.getUnclippedBoundsInRoot()
-                assertTrue("Series target ${metric.key}", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
+                assertTrue("Series target ${metric.key} in ${scenario.name}: $bounds", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
             }
             capture("${scenario.name}-series-expanded")
         }
+    }
+
+    private fun scrollTo(tag: String): androidx.compose.ui.test.SemanticsNodeInteraction {
+        // Search through the lazy list first: an offscreen composed child can have stale bounds.
+        composeRule.onNodeWithTag("measurement-summary-list").performScrollToNode(hasTestTag(tag))
+        return composeRule.onNodeWithTag(tag).performScrollTo().assertIsDisplayed()
     }
 
     // ForcedSize rounds 48 dp to integral pixels; allow at most half a dp for that conversion.
@@ -132,7 +151,7 @@ class Issue113ScreenshotMatrixTest {
     private fun capture(name: String) {
         composeRule.waitForIdle()
         val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
-        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.cacheDir, "issue113").apply { mkdirs() }
+        val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue114").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
     }

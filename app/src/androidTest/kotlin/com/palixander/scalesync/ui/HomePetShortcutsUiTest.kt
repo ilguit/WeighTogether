@@ -47,23 +47,29 @@ class HomePetShortcutsUiTest {
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         val toggle = composeRule.onNodeWithTag(Tags.Toggle).getUnclippedBoundsInRoot()
         val add = composeRule.onNodeWithTag(Tags.Add).getUnclippedBoundsInRoot()
-        assertTrue(add.top >= toggle.bottom)
+        assertTrue(add.bottom <= toggle.top)
         composeRule.onNodeWithTag(Tags.Add).performClick()
         composeRule.runOnIdle { assertEquals(1, addCalls) }
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
     }
 
-    @Test fun allFitHasNoControlAndDispatchesExactProfile() {
+    @Test fun allFitStillExpandsToAddAndDispatchesExactProfile() {
         var selected: ProfileKey? = null
         composeRule.setContent {
             ScaleSyncTheme {
                 HomePetShortcuts(listOf(pet("1", "Кот"), pet("2", "Пёс")), { selected = it }, {}, Modifier.width(320.dp))
             }
         }
-        composeRule.onNodeWithTag(Tags.Toggle).assertDoesNotExist()
+        composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.onNodeWithTag(Tags.pet("2")).performClick()
         composeRule.runOnIdle { assertEquals(ProfileKey.Pet(PetId("2")), selected) }
+        composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
+        composeRule.onNodeWithTag(Tags.Toggle).performClick()
+        composeRule.onNodeWithTag(Tags.Add).assertIsDisplayed()
+        val add = composeRule.onNodeWithTag(Tags.Add).getUnclippedBoundsInRoot()
+        val toggle = composeRule.onNodeWithTag(Tags.Toggle).getUnclippedBoundsInRoot()
+        assertTrue(add.bottom <= toggle.top)
     }
 
     @Test fun overflowHidesSemanticsAndRestoresExpansionWithStableWrapping() {
@@ -98,7 +104,7 @@ class HomePetShortcutsUiTest {
         }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.runOnIdle { width.value = 320.dp }
-        composeRule.onNodeWithTag(Tags.Toggle).assertDoesNotExist()
+        composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.runOnIdle { fontScale.value = 2f }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.onNodeWithContentDescription("Барсик-кот, питомец").assertIsDisplayed()

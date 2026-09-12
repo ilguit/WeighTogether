@@ -596,7 +596,7 @@ internal fun ScaleSyncScaffold(
                             pendingCount = state.resolverQueue.pendingCount,
                             onPendingQueueRequested =
                                 measurementsCallbacks.onPendingQueueRequested,
-                            onHistoryRequested = measurementsCallbacks.onHistoryRequested,
+                            onPetMeasurementRequested = petMeasurementCallbacks.onOpen,
                             profileSelection = profileSelection,
                             onProfileSelected = onProfileSelected,
                             isExternalSyncPaused = state.isExternalSyncPaused,
@@ -802,7 +802,7 @@ private fun HuaweiTopBar(
     showMeasurementActions: Boolean,
     pendingCount: Int,
     onPendingQueueRequested: () -> Unit,
-    onHistoryRequested: () -> Unit,
+    onPetMeasurementRequested: () -> Unit,
     profileSelection: ProfileSelectionUiState?,
     onProfileSelected: (ProfileKey) -> Unit,
     isExternalSyncPaused: Boolean,
@@ -836,10 +836,10 @@ private fun HuaweiTopBar(
                 },
             )
             HuaweiIconButton(
-                icon = HuaweiIcons.Calendar,
-                contentDescription = "Открыть историю измерений",
-                onClick = onHistoryRequested,
-                modifier = Modifier.testTag(MainScreenTestTags.HistoryAction),
+                icon = HuaweiIcons.Cat,
+                contentDescription = "Взвесить питомца",
+                onClick = onPetMeasurementRequested,
+                modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
             )
             PendingQueueAction(pendingCount, onPendingQueueRequested)
         }
