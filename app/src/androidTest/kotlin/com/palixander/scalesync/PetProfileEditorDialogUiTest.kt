@@ -36,6 +36,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performScrollToNode
 import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -330,6 +331,8 @@ class PetProfileEditorDialogUiTest {
 
     private fun clearBreedThroughPicker() {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextReplacement("Другая порода")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedOther)
             .assertTextEquals("Другая порода").performClick()
     }
