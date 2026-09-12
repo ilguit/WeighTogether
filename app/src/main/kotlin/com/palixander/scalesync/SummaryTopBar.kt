@@ -48,7 +48,7 @@ internal fun SummaryTopBar(
     actions: @Composable RowScope.() -> Unit,
 ) {
     Column(
-        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 4.dp)
+        Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 16.dp, vertical = 8.dp)
             .testTag(MainScreenTestTags.TopBar),
     ) {
         if (LocalDensity.current.fontScale > 1.3f) {
