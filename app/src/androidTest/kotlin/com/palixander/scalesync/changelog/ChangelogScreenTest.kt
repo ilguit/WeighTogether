@@ -1,11 +1,16 @@
 package com.palixander.scalesync.changelog
 
+import android.graphics.Bitmap
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.darkColorScheme
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Density
-import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
@@ -157,20 +162,66 @@ class ChangelogScreenTest {
         assertStableDisclosureGeometry()
     }
 
+    @Test
+    fun syntheticDisclosureScreenshotsCoverWidthsFontsAndColorSchemes() {
+        val narrow = mutableStateOf(false)
+        val dark = mutableStateOf(false)
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(density.density, fontScale = if (narrow.value) 2f else 1f),
+            ) {
+                ScaleSyncTheme {
+                    // The app currently has a light theme; exercise a dark Material palette as well.
+                    MaterialTheme(colorScheme = if (dark.value) darkColorScheme() else MaterialTheme.colorScheme) {
+                        ChangelogScreen(
+                            modifier = Modifier.width(if (narrow.value) 280.dp else 360.dp),
+                            releases = releases.take(2),
+                            latestChanges = emptyList(),
+                        )
+                    }
+                }
+            }
+        }
+        for (isDark in listOf(false, true)) {
+            for (isNarrow in listOf(false, true)) {
+                composeRule.runOnIdle { dark.value = isDark; narrow.value = isNarrow }
+                val name = "${if (isDark) "dark" else "light"}-${if (isNarrow) "narrow-font2" else "normal"}"
+                captureSyntheticScreenshot("$name-collapsed")
+                composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+                composeRule.onNodeWithTag(tags.PreviousReleasesContent).assertExists()
+                captureSyntheticScreenshot("$name-expanded")
+                composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
+            }
+        }
+    }
+
+    private fun captureSyntheticScreenshot(name: String) {
+        composeRule.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "issue117")
+        check(directory.mkdirs() || directory.isDirectory)
+        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        File(directory, "$name.png").outputStream().use {
+            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+        }
+        screenshot.recycle()
+    }
+
     private fun assertStableDisclosureGeometry() {
         fun geometry(): Pair<Float, Float> {
-            val row = composeRule.onNodeWithTag(tags.PreviousReleasesToggle).getUnclippedBoundsInRoot()
+            val row = composeRule.onNodeWithTag(tags.PreviousReleasesToggle).fetchSemanticsNode().boundsInRoot
             val icon = composeRule.onNodeWithTag(tags.PreviousReleasesIndicator, useUnmergedTree = true)
-                .getUnclippedBoundsInRoot()
+                .fetchSemanticsNode().boundsInRoot
             val title = composeRule.onNodeWithTag(tags.PreviousReleasesTitle, useUnmergedTree = true)
-                .getUnclippedBoundsInRoot()
-            assertEquals(24f, (icon.right - icon.left).value, 0.5f)
-            assertEquals(24f, (icon.bottom - icon.top).value, 0.5f)
-            assertTrue(row.bottom - row.top >= 48.dp)
+                .fetchSemanticsNode().boundsInRoot
+            val density = composeRule.density.density
+            assertEquals(24f * density, icon.width, 0.5f)
+            assertEquals(24f * density, icon.height, 0.5f)
+            assertTrue(row.height >= 48f * density)
             assertTrue(title.right <= icon.left)
-            assertEquals(((row.top + row.bottom) / 2).value, ((icon.top + icon.bottom) / 2).value, 0.5f)
-            return ((icon.left + icon.right) / 2 - row.left).value to
-                ((icon.top + icon.bottom) / 2 - row.top).value
+            assertEquals(row.center.y, icon.center.y, 0.5f)
+            return (icon.center.x - row.left) to (icon.center.y - row.top)
         }
         val before = geometry()
         composeRule.onNodeWithTag(tags.PreviousReleasesToggle).performClick()
