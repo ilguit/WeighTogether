@@ -1,5 +1,12 @@
 package com.palixander.scalesync
 
+import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.printToString
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -93,6 +100,11 @@ class SettingsShellUiTest {
         setSettingsShell(expandSections = false)
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.humanEdit(completeAccount().id)).performClick()
+        composeRule.waitForIdle()
+        val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue116").apply { mkdirs() }
+        File(output, "editor-semantics.txt").writeText(composeRule.onRoot(useUnmergedTree = true).printToString())
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        File(output, "editor.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         composeRule.onNodeWithText("Изменить профиль").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertDoesNotExist()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
