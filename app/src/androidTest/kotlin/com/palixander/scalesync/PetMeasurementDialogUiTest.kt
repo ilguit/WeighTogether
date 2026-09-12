@@ -1,5 +1,7 @@
 package com.palixander.scalesync
 
+import android.view.KeyEvent
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
@@ -70,7 +72,7 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateAction).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertDoesNotExist()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).assertDoesNotExist()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.onNodeWithText("Введите имя питомца").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput(" барсик ")
@@ -156,9 +158,7 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(2, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle {
-            composeRule.activity.onBackPressedDispatcher.onBackPressed()
-        }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(3, cancelled) }
     }
 
@@ -200,11 +200,11 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
@@ -224,8 +224,15 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, cancelled) }
         composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
+    private fun pressSystemBack() {
+        // Apply state changes and register the current dialog's Back callback before injecting input.
+        composeRule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        composeRule.waitForIdle()
     }
 
     private fun setDialog(
