@@ -158,9 +158,7 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(2, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle {
-            composeRule.activity.onBackPressedDispatcher.onBackPressed()
-        }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(3, cancelled) }
     }
 
@@ -202,11 +200,11 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
 
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
@@ -226,8 +224,15 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, cancelled) }
         composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
 
-        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
+    private fun pressSystemBack() {
+        // Apply state changes and register the current dialog's Back callback before injecting input.
+        composeRule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        composeRule.waitForIdle()
     }
 
     private fun setDialog(

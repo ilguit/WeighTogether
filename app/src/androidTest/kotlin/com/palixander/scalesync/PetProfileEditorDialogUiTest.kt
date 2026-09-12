@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import androidx.test.espresso.Espresso.closeSoftKeyboard
 import android.graphics.Bitmap
 import android.view.KeyEvent
 import androidx.test.platform.app.InstrumentationRegistry
@@ -98,9 +99,7 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexClear)
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedClear)
-            .performScrollTo()
-            .performClick()
+        clearBreedThroughPicker()
 
         composeRule.runOnIdle {
             assertNull(state.value.draft.sex)
@@ -152,6 +151,8 @@ class PetProfileEditorDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, dismisses) }
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertTextContains("Луна")
 
+        closeSoftKeyboard()
+        composeRule.waitForIdle()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Discard).performClick()
         composeRule.runOnIdle { assertEquals(1, dismisses) }
@@ -321,6 +322,12 @@ class PetProfileEditorDialogUiTest {
             check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
         }
         screenshot.recycle()
+    }
+
+    private fun clearBreedThroughPicker() {
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedOther)
+            .assertTextEquals("Другая порода").performClick()
     }
 
     private fun chooseBirthPart(tag: String, value: Int) {
@@ -514,6 +521,7 @@ class PetProfileEditorDialogUiTest {
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Сохранение профиля питомца")
+            .performScrollTo()
             .assert(
                 SemanticsMatcher.expectValue(
                     SemanticsProperties.StateDescription,
@@ -521,6 +529,8 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
             .assertIsDisplayed()
+        closeSoftKeyboard()
+        composeRule.waitForIdle()
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle {
             assertEquals(0, saves)
@@ -587,10 +597,7 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(replacement.id.value))
             .performClick()
         composeRule.runOnIdle { assertEquals(replacement.id, state.value.draft.breed?.id) }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedClear)
-            .performScrollTo()
-            .assertContentDescriptionEquals("Очистить породу питомца")
-            .performClick()
+        clearBreedThroughPicker()
         composeRule.runOnIdle { assertNull(state.value.draft.breed) }
     }
 
