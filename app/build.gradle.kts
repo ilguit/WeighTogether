@@ -15,7 +15,7 @@ android {
         applicationId = "com.palixander.scalesync"
         minSdk = 26
         targetSdk = 36
-        versionCode = 159
+        versionCode = 179
         versionName = "0.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -40,6 +40,7 @@ android {
     }
 
     packaging {
+        resources.merges += "META-INF/services/kotlinx.coroutines.CoroutineExceptionHandler"
         resources.excludes += setOf("META-INF/DEPENDENCIES", "META-INF/LICENSE*", "META-INF/NOTICE*")
     }
 
@@ -89,9 +90,12 @@ dependencies {
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.5.0")
     testImplementation("org.robolectric:robolectric:4.16.1")
-    androidTestImplementation("androidx.test:runner:1.5.0")
+    androidTestImplementation("androidx.test:runner:1.7.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
     androidTestImplementation("androidx.work:work-testing:2.10.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.11.4")
+    // The app classloader must discover the exception collector used by Compose instrumentation.
+    debugImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.11.0")
 }

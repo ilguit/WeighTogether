@@ -1,5 +1,7 @@
 package com.palixander.scalesync
 
+import android.view.KeyEvent
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.activity.ComponentActivity
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.geometry.Offset
@@ -19,6 +21,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import com.palixander.scalesync.domain.Pet
+import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import com.palixander.scalesync.domain.PetSpecies
@@ -42,7 +45,11 @@ class PetMeasurementDialogUiTest {
             pets = listOf(
                 PetWithLatestWeight(
                     pet,
-                    measurement(pet.id, first = 70.0, second = 74.25),
+                    measurement(pet.id, first = 70.0, second = 74.25).copy(
+                        firstWeightKg = null,
+                        secondWeightKg = null,
+                        origin = MeasurementOrigin.MANUAL,
+                    ),
                 ),
             ),
             callbacks = callbacks(onStart = { selected = it }),
@@ -50,6 +57,8 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithContentDescription("Барсик. Последний вес:", substring = true)
             .assertIsDisplayed()
+        composeRule.onNodeWithTag("pet-latest-manual-origin-${pet.id}", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithContentDescription("Введено вручную", useUnmergedTree = true).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.pet(pet.id)).performClick()
         composeRule.runOnIdle { assertEquals(pet.id, selected) }
     }
@@ -70,7 +79,7 @@ class PetMeasurementDialogUiTest {
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateAction).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexMale).assertDoesNotExist()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).assertDoesNotExist()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).assertDoesNotExist()
         composeRule.onNodeWithTag(PetMeasurementTestTags.CreateConfirm).performClick()
         composeRule.onNodeWithText("Введите имя питомца").assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.NameField).performTextInput(" барсик ")
@@ -156,9 +165,7 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(2, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle {
-            composeRule.activity.onBackPressedDispatcher.onBackPressed()
-        }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(3, cancelled) }
     }
 
@@ -200,11 +207,11 @@ class PetMeasurementDialogUiTest {
 
         composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).assertDoesNotExist()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(0, cancelled) }
 
         composeRule.runOnIdle { state.value = PetMeasurementUiState.AwaitingFirstWeight(pet) }
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
     }
 
@@ -224,8 +231,15 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, cancelled) }
         composeRule.onNodeWithTag(PetMeasurementTestTags.Dialog).assertIsDisplayed()
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        pressSystemBack()
         composeRule.runOnIdle { assertEquals(1, cancelled) }
+    }
+
+    private fun pressSystemBack() {
+        // Apply state changes and register the current dialog's Back callback before injecting input.
+        composeRule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
+        composeRule.waitForIdle()
     }
 
     private fun setDialog(

@@ -17,7 +17,6 @@ import androidx.compose.ui.test.ForcedSize
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsEnabled
-import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotDisplayed
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
@@ -26,6 +25,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipe
@@ -60,7 +60,7 @@ class MeasurementsShellNavigationUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
-    fun summaryTopBarShowsPendingHistoryPetAndPauseActionsInOrderWithSemantics() {
+    fun summaryTopBarShowsPauseHistoryAndQueueActionsInOrderWithSemantics() {
         var pendingQueueClicks = 0
         var historyClicks = 0
         var petMeasurementClicks = 0
@@ -92,7 +92,7 @@ class MeasurementsShellNavigationUiTest {
                     pauseClicks += 1
                     paused.value = !paused.value
                 },
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -103,29 +103,13 @@ class MeasurementsShellNavigationUiTest {
         val historyAction = composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction)
         val petMeasurementAction = composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
         val externalSyncAction = composeRule.onNodeWithTag(MainScreenTestTags.ExternalSyncAction)
-        assertTrue(
-            "Pending queue action must not overlap the history action",
-            pendingQueueAction.getUnclippedBoundsInRoot().right <=
-                historyAction.getUnclippedBoundsInRoot().left,
-        )
-        assertTrue(
-            "History action must not overlap the pet measurement action",
-            historyAction.getUnclippedBoundsInRoot().right <=
-                petMeasurementAction.getUnclippedBoundsInRoot().left,
-        )
-        assertTrue(
-            "Pet measurement action must not overlap the external sync action",
-            petMeasurementAction.getUnclippedBoundsInRoot().right <=
-                externalSyncAction.getUnclippedBoundsInRoot().left,
-        )
+        historyAction.assertDoesNotExist()
+        assertTrue(externalSyncAction.getUnclippedBoundsInRoot().right <= petMeasurementAction.getUnclippedBoundsInRoot().left)
+        assertTrue(petMeasurementAction.getUnclippedBoundsInRoot().right <= pendingQueueAction.getUnclippedBoundsInRoot().left)
         pendingQueueAction
             .assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
             .performClick()
-        historyAction
-            .assertContentDescriptionEquals("Открыть историю измерений")
-            .performClick()
         petMeasurementAction
-            .assertIsEnabled()
             .assertContentDescriptionEquals("Взвесить питомца")
             .performClick()
         externalSyncAction
@@ -142,7 +126,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.runOnIdle {
             assertEquals(1, pendingQueueClicks)
-            assertEquals(1, historyClicks)
+            assertEquals(0, historyClicks)
             assertEquals(1, petMeasurementClicks)
             assertEquals(2, pauseClicks)
         }
@@ -169,7 +153,7 @@ class MeasurementsShellNavigationUiTest {
                     onProfileSexChanged = {},
                     settingsCallbacks = settingsCallbacks(),
                     onToggleExternalSyncPause = {},
-                    measurementsContent = {},
+                    measurementsContent = { _, _ -> },
                     chartsContent = {},
                 )
             }
@@ -178,14 +162,13 @@ class MeasurementsShellNavigationUiTest {
         val topBarBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBar)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
-        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle)
+        val titleBounds = composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle, useUnmergedTree = true)
             .assertIsDisplayed()
             .getUnclippedBoundsInRoot()
         val actionBounds = listOf(
-            MainScreenTestTags.PendingQueueAction,
-            MainScreenTestTags.HistoryAction,
-            MainScreenTestTags.PetMeasurementAction,
             MainScreenTestTags.ExternalSyncAction,
+            MainScreenTestTags.PetMeasurementAction,
+            MainScreenTestTags.PendingQueueAction,
         ).map { tag ->
             composeRule.onNodeWithTag(tag)
                 .assertIsDisplayed()
@@ -215,7 +198,7 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
-    fun petMeasurementTopActionIsDisabledWhileBleWorkIsActive() {
+    fun petMeasurementTopActionDispatchesWhileBleWorkIsActive() {
         var clicks = 0
 
         composeRule.setContent {
@@ -235,15 +218,14 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
 
         composeRule.onNodeWithTag(MainScreenTestTags.PetMeasurementAction)
-            .assertIsNotEnabled()
-            .performClick()
-        composeRule.runOnIdle { assertEquals(0, clicks) }
+            .assertIsDisplayed().performClick()
+        composeRule.runOnIdle { assertEquals(1, clicks) }
     }
 
     @Test
@@ -269,7 +251,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
                 onToggleExternalSyncPause = {},
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
@@ -296,7 +278,11 @@ class MeasurementsShellNavigationUiTest {
             "Открыть неназначенные измерения. Ожидают назначения: 10",
         )
         badge.assertIsDisplayed()
-        composeRule.onNodeWithText("10", useUnmergedTree = true).assertDoesNotExist()
+        composeRule.onNodeWithText("10", useUnmergedTree = true).assertIsDisplayed()
+
+        setPendingCount(pendingCount, 135)
+        action.assertContentDescriptionEquals("Открыть неназначенные измерения. Ожидают назначения: 135")
+        composeRule.onNodeWithText("99+", useUnmergedTree = true).assertIsDisplayed()
 
         setPendingCount(pendingCount, 0)
         action.assertContentDescriptionEquals("Открыть неназначенные измерения. Очередь пуста")
@@ -322,7 +308,7 @@ class MeasurementsShellNavigationUiTest {
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
                 onRefreshFromScale = { refreshCalls += 1 },
-                measurementsContent = { padding ->
+                measurementsContent = { padding, summaryHeader ->
                     LazyColumn(
                         modifier = Modifier.fillMaxSize().padding(padding),
                     ) {
@@ -335,7 +321,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.PullToRefresh).performTouchInput {
             swipe(
-                start = Offset(center.x, top + 1),
+                start = Offset(center.x, top + height * 0.25f),
                 end = Offset(center.x, bottom - 1),
                 durationMillis = 1_000,
             )
@@ -362,21 +348,24 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }
 
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsNotDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertDoesNotExist()
 
         composeRule.runOnIdle { refreshing.value = true }
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertIsDisplayed()
 
         composeRule.runOnIdle { refreshing.value = false }
-        composeRule.onNodeWithTag(MainScreenTestTags.PullToRefreshIndicator)
-            .assertIsNotDisplayed()
+        composeRule.onNode(androidx.compose.ui.test.hasProgressBarRangeInfo(
+            androidx.compose.ui.semantics.ProgressBarRangeInfo.Indeterminate,
+        )).assertDoesNotExist()
     }
 
     @Test
@@ -403,7 +392,7 @@ class MeasurementsShellNavigationUiTest {
 
         composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
-        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
 
         composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
         composeRule.onNodeWithText("История").assertIsDisplayed()
@@ -415,6 +404,16 @@ class MeasurementsShellNavigationUiTest {
         composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.TopBar).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
+    }
+
+    @Test
+    fun cardHistoryRemainsAvailableAfterReturningToSummary() {
+        setMeasurementsShell()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        pressSystemBack()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
     }
 
     @Test
@@ -430,7 +429,7 @@ class MeasurementsShellNavigationUiTest {
         composeRule.onNodeWithTag("measurement-summary").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
 
-        composeRule.onNodeWithTag(MainScreenTestTags.HistoryAction).performClick()
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
         composeRule.onNodeWithTag("history-toggle-latest").performClick()
         composeRule.onNodeWithText("Изменить").performClick()
         assertNestedEditorChrome()
@@ -537,8 +536,9 @@ class MeasurementsShellNavigationUiTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = { padding ->
+                measurementsContent = { padding, summaryHeader ->
                     MeasurementsScreen(
+                        summaryHeader = summaryHeader,
                         state = measurementState,
                         callbacks = callbacks,
                         modifier = Modifier.fillMaxSize().padding(padding),

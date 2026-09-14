@@ -1,5 +1,11 @@
 package com.palixander.scalesync
 
+import android.graphics.Bitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.test.captureToImage
+import androidx.compose.ui.test.onRoot
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -12,9 +18,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertHasClickAction
 import androidx.compose.ui.test.assertHasNoClickAction
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assert
@@ -69,14 +77,47 @@ class SettingsShellUiTest {
 
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfileRow).assertDoesNotExist()
         composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
-        composeRule.onNodeWithText("Профили").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.List).assertIsDisplayed()
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
         composeRule.onNodeWithText("Новый профиль").assertIsDisplayed()
-        composeRule.onNodeWithText("Отмена").performClick()
-        composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertDoesNotExist()
+        composeRule.onNodeWithText("Профили").assertDoesNotExist()
+        composeRule.onAllNodesWithTag(AccountManagementTestTags.EditorBack).assertCountEquals(1)
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.List).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+    }
+
+    @Test
+    fun editingProfileOwnsBackAndKeepsUnsavedChangesUntilDiscardConfirmed() {
+        setSettingsShell(expandSections = false)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.humanEdit(completeAccount().id)).performClick()
+        composeRule.onNodeWithText("Изменить").performClick()
+        composeRule.waitForIdle()
+        val output = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue116").apply { mkdirs() }
+        val bitmap = composeRule.onRoot().captureToImage().asAndroidBitmap()
+        File(output, "editor.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        composeRule.onNodeWithText("Изменить профиль").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertDoesNotExist()
+        composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorName).performTextReplacement("Новое имя")
+
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorDiscardPrompt).assertIsDisplayed()
+        composeRule.onNodeWithText("Продолжить редактирование").performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorName).assertTextContains("Новое имя")
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorDiscardConfirm).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertDoesNotExist()
+        composeRule.onNodeWithTag(AccountManagementTestTags.List).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertIsDisplayed()
     }
 
     @Test
@@ -86,6 +127,7 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.Add).performClick()
 
         composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).performClick()
         composeRule.onNodeWithText("Введите имя от 1 до 50 символов").assertIsDisplayed()
         composeRule.onNodeWithText("Допустимый рост: 100–230 см").assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.SnackbarHost).assertExists()
@@ -300,7 +342,7 @@ class SettingsShellUiTest {
                         onProfileBirthDateChanged = {},
                         onProfileSexChanged = {},
                         settingsCallbacks = settingsCallbacks(),
-                        measurementsContent = {},
+                        measurementsContent = { _, _ -> },
                         chartsContent = {},
                     )
                 }
@@ -676,8 +718,21 @@ class SettingsShellUiTest {
         composeRule.runOnIdle { assertEquals(0, managementCalls) }
     }
 
+    @Test
+    fun busyProfileEditorConsumesSystemBackAndDisablesItsBackButton() {
+        setSettingsShell(expandSections = false, operationInProgress = true)
+        composeRule.onNodeWithTag(SettingsScreenTestTags.ProfilesRow).performClick()
+        composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorBack).assertIsNotEnabled()
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorSave).assertIsNotEnabled()
+        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        composeRule.onNodeWithTag(AccountManagementTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.SettingsBack).assertDoesNotExist()
+    }
+
     private fun setSettingsShell(
         expandSections: Boolean = true,
+        operationInProgress: Boolean = false,
         settings: AppSettings = AppSettings(),
         healthConnect: HealthConnectPermissionsUiState = HealthConnectPermissionsUiState(),
         healthConnectSystemManagementAvailable: Boolean = true,
@@ -694,6 +749,8 @@ class SettingsShellUiTest {
                     AccountManagementUiState(
                         accounts = listOfNotNull(account),
                         primaryAccountId = account?.id,
+                        operationInProgress = operationInProgress,
+                        editor = if (operationInProgress) com.palixander.scalesync.ui.accounts.AccountEditorDraft.add() else null,
                     ),
                 )
             }
@@ -729,7 +786,7 @@ class SettingsShellUiTest {
                     ),
                     onIgnoreUnknownMeasurementsChanged = onIgnoreUnknownMeasurementsChanged,
                 ),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }

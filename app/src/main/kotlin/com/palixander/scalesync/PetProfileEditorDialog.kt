@@ -3,11 +3,15 @@ package com.palixander.scalesync
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.imePadding
+import java.time.LocalDate
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +25,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -59,9 +62,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.selectableGroup
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.domain.BirthDatePrecision
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
@@ -88,9 +89,6 @@ internal object PetProfileEditorTestTags {
     const val BreedQuery = "pet-profile-editor-breed-query"
     const val BreedNoResults = "pet-profile-editor-breed-no-results"
     const val BreedOther = "pet-profile-editor-breed-other"
-    const val BirthPrecisionYear = "pet-profile-editor-birth-precision-year"
-    const val BirthPrecisionMonth = "pet-profile-editor-birth-precision-month"
-    const val BirthPrecisionDay = "pet-profile-editor-birth-precision-day"
     const val BirthYear = "pet-profile-editor-birth-year"
     const val BirthMonth = "pet-profile-editor-birth-month"
     const val BirthDay = "pet-profile-editor-birth-day"
@@ -188,7 +186,7 @@ internal fun PetProfileEditorDialog(
         if (fieldErrors.hasErrors) requestFirstInvalidField()
     }
 
-    BackHandler(enabled = !locked, onBack = ::requestClose)
+    BackHandler(onBack = ::requestClose)
 
     Scaffold(
         modifier = modifier.fillMaxSize().testTag(PetProfileEditorTestTags.Dialog),
@@ -219,7 +217,12 @@ internal fun PetProfileEditorDialog(
             )
         },
         bottomBar = {
-            Surface(shadowElevation = 8.dp) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().imePadding()
+                    .windowInsetsPadding(WindowInsets.navigationBars),
+                color = MaterialTheme.colorScheme.background,
+                shadowElevation = 2.dp,
+            ) {
                 Button(
                     onClick = {
                         if (!locked) {
@@ -228,9 +231,11 @@ internal fun PetProfileEditorDialog(
                         }
                     },
                     enabled = !locked,
+                    shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(HuaweiDimensions.ContentPadding)
+                        .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(PetProfileEditorTestTags.Save),
                 ) { Text(if (busy) "Сохранение…" else "Сохранить") }
             }
@@ -530,34 +535,6 @@ private fun PrimarySelectionButton(
 }
 
 @Composable
-private fun ChoiceButton(
-    label: String,
-    selected: Boolean,
-    enabled: Boolean,
-    tag: String,
-    onClick: () -> Unit,
-) {
-    OutlinedButton(
-        onClick = onClick,
-        enabled = enabled,
-        border = BorderStroke(
-            1.dp,
-            if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-        ),
-        modifier = Modifier
-            .heightIn(min = 48.dp)
-            .testTag(tag)
-            .semantics {
-                role = Role.RadioButton
-                this.selected = selected
-            },
-    ) {
-        RadioButton(selected = selected, onClick = null, enabled = enabled)
-        Text(label)
-    }
-}
-
-@Composable
 private fun BirthDateEditor(
     value: PetBirthDateInput,
     error: PetBirthDateValidationError?,
@@ -565,116 +542,76 @@ private fun BirthDateEditor(
     onChange: (PetBirthDateInput) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    var activePart by rememberSaveable { mutableStateOf<PetBirthDatePart?>(null) }
+    val today = LocalDate.now()
+    LaunchedEffect(enabled) { if (!enabled) activePart = null }
     EditorSection("Дата рождения (необязательно)", modifier) {
-        Text(
-            "Точность даты",
-            style = MaterialTheme.typography.labelLarge,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            BirthPrecisionChoice(BirthDatePrecision.YEAR, value, enabled, onChange)
-            BirthPrecisionChoice(BirthDatePrecision.MONTH, value, enabled, onChange)
-            BirthPrecisionChoice(BirthDatePrecision.DAY, value, enabled, onChange)
-        }
-        if (value != PetBirthDateInput.Empty) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                NumberComponentField(
-                    value = value.yearComponent(),
-                    label = "Год",
-                    tag = PetProfileEditorTestTags.BirthYear,
-                    maxLength = 4,
+        Text("Выберите год, затем при желании уточните месяц и день.")
+        PetBirthDatePart.entries.forEach { part ->
+            if (petBirthDateOptions(value, part, today).isNotEmpty()) {
+                val selected = value.component(part)
+                OutlinedButton(
+                    onClick = { activePart = part },
                     enabled = enabled,
-                    isError = error != null,
-                    modifier = Modifier.width(112.dp),
-                    onValueChange = { onChange(value.withYear(it)) },
-                )
-                if (value is PetBirthDateInput.Month || value is PetBirthDateInput.Day) {
-                    NumberComponentField(
-                        value = value.monthComponent(),
-                        label = "Месяц",
-                        tag = PetProfileEditorTestTags.BirthMonth,
-                        maxLength = 2,
-                        enabled = enabled,
-                        isError = error != null,
-                        modifier = Modifier.width(112.dp),
-                        onValueChange = { onChange(value.withMonth(it)) },
-                    )
-                }
-                if (value is PetBirthDateInput.Day) {
-                    NumberComponentField(
-                        value = value.day,
-                        label = "День",
-                        tag = PetProfileEditorTestTags.BirthDay,
-                        maxLength = 2,
-                        enabled = enabled,
-                        isError = error != null,
-                        modifier = Modifier.width(112.dp),
-                        onValueChange = { onChange(value.copy(day = it)) },
-                    )
-                }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                        .testTag(birthPartTag(part)),
+                ) { Text("${part.label}: ${selected?.let { petBirthDatePartLabel(part, it) } ?: "Выбрать"}") }
             }
-            TextButton(
-                onClick = { onChange(PetBirthDateInput.Empty) },
-                enabled = enabled,
-                modifier = Modifier
-                    .heightIn(min = 48.dp)
-                    .testTag(PetProfileEditorTestTags.BirthClear)
-                    .semantics { contentDescription = "Очистить дату рождения питомца" },
-            ) { Text("Очистить дату") }
         }
         error?.let { FieldError(birthDateErrorMessage(it)) }
     }
-}
-
-@Composable
-private fun BirthPrecisionChoice(
-    precision: BirthDatePrecision,
-    value: PetBirthDateInput,
-    enabled: Boolean,
-    onChange: (PetBirthDateInput) -> Unit,
-) {
-    val tag = when (precision) {
-        BirthDatePrecision.YEAR -> PetProfileEditorTestTags.BirthPrecisionYear
-        BirthDatePrecision.MONTH -> PetProfileEditorTestTags.BirthPrecisionMonth
-        BirthDatePrecision.DAY -> PetProfileEditorTestTags.BirthPrecisionDay
+    activePart?.takeIf { enabled }?.let { part ->
+        val options = petBirthDateOptions(value, part, today)
+        val selected = value.component(part)
+        val listState = rememberLazyListState(
+            initialFirstVisibleItemIndex = options.indexOf(selected).coerceAtLeast(0),
+        )
+        AlertDialog(
+            onDismissRequest = { activePart = null },
+            title = { Text("Дата рождения: ${part.label.lowercase()}") },
+            text = {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxWidth().heightIn(max = 320.dp)
+                        .testTag("pet-birth-options"),
+                ) {
+                    items(options, key = { it }) { option ->
+                        SelectionRow(
+                            label = petBirthDatePartLabel(part, option),
+                            selected = selected == option,
+                            enabled = enabled,
+                            tag = "pet-birth-option-$option",
+                            onClick = {
+                                onChange(selectPetBirthDatePart(value, part, option, today))
+                                activePart = null
+                            },
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { activePart = null }) { Text("Отмена") }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    onChange(selectPetBirthDatePart(value, part, null, today))
+                    activePart = null
+                }, modifier = Modifier.testTag("pet-birth-part-clear")) {
+                    Text(when (part) {
+                        PetBirthDatePart.YEAR -> "Очистить дату"
+                        PetBirthDatePart.MONTH -> "Оставить только год"
+                        PetBirthDatePart.DAY -> "Оставить год и месяц"
+                    })
+                }
+            },
+        )
     }
-    ChoiceButton(
-        label = birthDatePrecisionLabel(precision),
-        selected = value.precision == precision,
-        enabled = enabled,
-        tag = tag,
-        onClick = { onChange(value.withPrecision(precision)) },
-    )
 }
 
-@Composable
-private fun NumberComponentField(
-    value: String,
-    label: String,
-    tag: String,
-    maxLength: Int,
-    enabled: Boolean,
-    isError: Boolean,
-    modifier: Modifier = Modifier,
-    onValueChange: (String) -> Unit,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { input ->
-            onValueChange(input.filter(Char::isDigit).take(maxLength))
-        },
-        label = { Text(label) },
-        enabled = enabled,
-        isError = isError,
-        singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        modifier = modifier.testTag(tag),
-    )
+private fun birthPartTag(part: PetBirthDatePart): String = when (part) {
+    PetBirthDatePart.YEAR -> PetProfileEditorTestTags.BirthYear
+    PetBirthDatePart.MONTH -> PetProfileEditorTestTags.BirthMonth
+    PetBirthDatePart.DAY -> PetProfileEditorTestTags.BirthDay
 }
 
 @Composable
@@ -914,47 +851,6 @@ private fun FieldError(message: String) {
         style = MaterialTheme.typography.bodySmall,
         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
     )
-}
-
-private fun PetBirthDateInput.withPrecision(precision: BirthDatePrecision): PetBirthDateInput =
-    when (precision) {
-        BirthDatePrecision.YEAR -> PetBirthDateInput.Year(yearComponent())
-        BirthDatePrecision.MONTH -> PetBirthDateInput.Month(yearComponent(), monthComponent())
-        BirthDatePrecision.DAY -> PetBirthDateInput.Day(
-            yearComponent(),
-            monthComponent(),
-            (this as? PetBirthDateInput.Day)?.day.orEmpty(),
-        )
-    }
-
-private fun PetBirthDateInput.yearComponent(): String = when (this) {
-    PetBirthDateInput.Empty -> ""
-    is PetBirthDateInput.Year -> year
-    is PetBirthDateInput.Month -> year
-    is PetBirthDateInput.Day -> year
-}
-
-private fun PetBirthDateInput.monthComponent(): String = when (this) {
-    is PetBirthDateInput.Month -> month
-    is PetBirthDateInput.Day -> month
-    PetBirthDateInput.Empty,
-    is PetBirthDateInput.Year,
-    -> ""
-}
-
-private fun PetBirthDateInput.withYear(year: String): PetBirthDateInput = when (this) {
-    PetBirthDateInput.Empty -> PetBirthDateInput.Year(year)
-    is PetBirthDateInput.Year -> copy(year = year)
-    is PetBirthDateInput.Month -> copy(year = year)
-    is PetBirthDateInput.Day -> copy(year = year)
-}
-
-private fun PetBirthDateInput.withMonth(month: String): PetBirthDateInput = when (this) {
-    is PetBirthDateInput.Month -> copy(month = month)
-    is PetBirthDateInput.Day -> copy(month = month)
-    PetBirthDateInput.Empty,
-    is PetBirthDateInput.Year,
-    -> this
 }
 
 private fun petNameErrorMessage(error: PetNameValidationError): String = when (error) {

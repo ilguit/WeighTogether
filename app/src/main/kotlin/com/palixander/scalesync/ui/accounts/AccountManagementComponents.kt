@@ -4,6 +4,11 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -545,9 +550,9 @@ fun AccountEditorScreen(
             if (draft == initialDraft) onDismiss() else discardRequested = true
         }
     }
-    BackHandler(enabled = !operationInProgress, onBack = requestClose)
+    BackHandler(onBack = requestClose)
     Scaffold(
-        modifier = modifier.fillMaxSize().testTag(AccountManagementTestTags.Editor),
+        modifier = modifier.fillMaxSize().imePadding().testTag(AccountManagementTestTags.Editor),
         topBar = {
             TopAppBar(
                 title = {
@@ -565,13 +570,18 @@ fun AccountEditorScreen(
                         icon = HuaweiIcons.Back,
                         contentDescription = "Вернуться к профилям",
                         onClick = requestClose,
+                        enabled = !operationInProgress,
                         modifier = Modifier.testTag(AccountManagementTestTags.EditorBack),
                     )
                 },
             )
         },
         bottomBar = {
-            Surface(shadowElevation = 8.dp) {
+            Surface(
+                modifier = Modifier.fillMaxWidth().windowInsetsPadding(WindowInsets.navigationBars),
+                color = MaterialTheme.colorScheme.background,
+                shadowElevation = 2.dp,
+            ) {
                 Button(
                     onClick = {
                         validationRequested = true
@@ -592,8 +602,10 @@ fun AccountEditorScreen(
                     },
                     enabled = !operationInProgress && !saveSubmitted,
                     modifier = Modifier.fillMaxWidth()
-                        .padding(HuaweiDimensions.ContentPadding)
+                        .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(AccountManagementTestTags.EditorSave),
+                    shape = MaterialTheme.shapes.medium,
                 ) { Text(if (operationInProgress) "Сохранение…" else "Сохранить") }
             }
         },

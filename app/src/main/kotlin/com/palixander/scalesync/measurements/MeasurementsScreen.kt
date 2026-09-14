@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -126,6 +127,7 @@ fun MeasurementsScreen(
     callbacks: MeasurementsCallbacks,
     modifier: Modifier = Modifier,
     showAccountSelector: Boolean = true,
+    summaryHeader: @Composable () -> Unit = {},
 ) {
     var summaryMetricsExpanded by rememberSaveable { mutableStateOf(false) }
     var expandedHistoryIds by rememberSaveable { mutableStateOf(emptyList<String>()) }
@@ -188,6 +190,7 @@ fun MeasurementsScreen(
         Box(modifier = Modifier.fillMaxWidth().weight(1f)) {
             when (state.destination) {
                 MeasurementsDestination.SUMMARY -> MeasurementSummaryScreen(
+                    summaryHeader = summaryHeader,
                     state = state,
                     metricsExpanded = summaryMetricsExpanded,
                     onMetricsExpandedChange = { summaryMetricsExpanded = it },
@@ -466,26 +469,25 @@ private fun MeasurementSummaryScreen(
     callbacks: MeasurementsCallbacks,
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
+    summaryHeader: @Composable () -> Unit,
 ) {
-    Column(Modifier.fillMaxSize()) {
-        Box(Modifier.fillMaxWidth().weight(1f)) {
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(
+            modifier = Modifier.widthIn(max = 680.dp).fillMaxSize()
+                .testTag("measurement-summary-list"),
+            contentPadding = PaddingValues(
+                horizontal = HuaweiDimensions.ContentPadding,
+                vertical = HuaweiDimensions.CompactContentPadding,
+            ),
+            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        ) {
+            item(key = "summary-header") { summaryHeader() }
             when {
-            state.isLoading && state.summary == null -> LoadingState("Загрузка последнего измерения")
-            state.hasNoLatestMeasurement -> NoLatestMeasurementState()
-
-            state.summary != null -> {
-                LazyColumn(
-                    modifier = Modifier
-                        .widthIn(max = 680.dp)
-                        .fillMaxHeight()
-                        .fillMaxWidth()
-                        .align(Alignment.TopCenter),
-                    contentPadding = PaddingValues(
-                        horizontal = HuaweiDimensions.ContentPadding,
-                        vertical = HuaweiDimensions.CompactContentPadding,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-                ) {
+                state.isLoading && state.summary == null -> item {
+                    LoadingState("Загрузка последнего измерения")
+                }
+                state.hasNoLatestMeasurement -> item { NoLatestMeasurementState() }
+                state.summary != null -> {
                     if (state.isLoading) {
                         item { LinearProgressIndicator(Modifier.fillMaxWidth()) }
                     }
@@ -494,6 +496,7 @@ private fun MeasurementSummaryScreen(
                             summary = state.summary,
                             expanded = metricsExpanded,
                             onExpandedChange = onMetricsExpandedChange,
+                            onHistoryRequested = callbacks.onHistoryRequested,
                             onSyncRequested = { onSyncRequested(state.summary.latest) },
                             onEditRequested = {
                                 callbacks.onEditRequested(
@@ -516,10 +519,9 @@ private fun MeasurementSummaryScreen(
                             )
                         }
                     }
-                    item { Spacer(Modifier.height(12.dp)) }
                 }
             }
-            }
+            item { Spacer(Modifier.height(12.dp)) }
         }
     }
 }
@@ -530,6 +532,7 @@ private fun MeasurementSummaryCard(
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     onSyncRequested: () -> Unit,
+    onHistoryRequested: () -> Unit,
     onEditRequested: () -> Unit,
     onDeleteRequested: () -> Unit,
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
@@ -553,74 +556,79 @@ private fun MeasurementSummaryCard(
                 vertical = HuaweiDimensions.CompactContentPadding,
             ),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Row(
-                    modifier = Modifier.weight(1f),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
+            SummaryHeader(
+                date = {
                     Text(
                         text = formatMeasurementDateTime(summary.latest.measuredAt),
-                        modifier = Modifier.weight(1f, fill = false),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.testTag("summary-date"),
+                        color = HuaweiColors.Secondary,
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    if (summary.latest.hasSyncPresentation) {
-                        HuaweiStatusAction(
-                            icon = summary.latest.sync.state.icon,
-                            contentDescription = summary.latest.sync.label,
-                            onClick = onSyncRequested,
-                            tone = summary.latest.sync.state.tone,
-                            enabled = summary.latest.canSync,
-                            modifier = Modifier.testTag("summary-sync-status"),
-                        )
-                    }
-                }
-                if (summary.latest.hasFinalActions) Box {
-                    HuaweiIconButton(
-                        icon = HuaweiIcons.More,
-                        contentDescription = "Действия с последним измерением",
-                        onClick = { menuExpanded = true },
-                        enabled = summary.latest.canEdit || summary.latest.canDelete,
-                        modifier = Modifier.testTag("summary-more-actions"),
-                    )
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                        containerColor = MaterialTheme.colorScheme.surface,
-                        shape = MaterialTheme.shapes.medium,
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Изменить") },
-                            leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onEditRequested()
-                            },
-                            enabled = summary.latest.canEdit,
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
-                            modifier = Modifier.testTag("summary-delete-measurement"),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HuaweiIcons.Delete,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
+                },
+                history = {
+                    TextButton(
+                        onClick = onHistoryRequested,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag("summary-history"),
+                        colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
+                    ) { Text("История →") }
+                },
+                actions = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (summary.latest.hasSyncPresentation) {
+                            SummaryStatusAction(
+                                icon = summary.latest.sync.state.icon,
+                                contentDescription = summary.latest.sync.label,
+                                onClick = onSyncRequested,
+                                tone = summary.latest.sync.state.tone,
+                                enabled = summary.latest.canSync,
+                                modifier = Modifier.testTag("summary-sync-status"),
+                            )
+                        }
+                        if (summary.latest.hasFinalActions) Box {
+                            HuaweiIconButton(
+                                icon = HuaweiIcons.More,
+                                contentDescription = "Действия с последним измерением",
+                                onClick = { menuExpanded = true },
+                                enabled = summary.latest.canEdit || summary.latest.canDelete,
+                                modifier = Modifier.testTag("summary-more-actions"),
+                            )
+                            DropdownMenu(
+                                expanded = menuExpanded,
+                                onDismissRequest = { menuExpanded = false },
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Изменить") },
+                                    leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onEditRequested()
+                                    },
+                                    enabled = summary.latest.canEdit,
                                 )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDeleteRequested()
-                            },
-                            enabled = summary.latest.canDelete,
-                        )
+                                DropdownMenuItem(
+                                    text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                                    modifier = Modifier.testTag("summary-delete-measurement"),
+                                    leadingIcon = {
+                                        Icon(
+                                            imageVector = HuaweiIcons.Delete,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.error,
+                                        )
+                                    },
+                                    onClick = {
+                                        menuExpanded = false
+                                        onDeleteRequested()
+                                    },
+                                    enabled = summary.latest.canDelete,
+                                )
+                            }
+                        }
                     }
-                }
-            }
+                },
+            )
 
             val referenceMetrics = summary.latest.referenceMetrics.takeUnless {
                 summary.latest.isPreliminary
@@ -628,8 +636,8 @@ private fun MeasurementSummaryCard(
             val weightReference = referenceMetrics.firstOrNull {
                 it.definition.metric == BodyMetric.WEIGHT
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
+            FlowRow(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Column {
                     if (!expanded && weightReference != null) {
                         CompactSummaryReferenceMetric(
                             presentation = weightReference,
@@ -637,9 +645,8 @@ private fun MeasurementSummaryCard(
                             modifier = Modifier.padding(top = 4.dp),
                         )
                     } else if (weightReference == null) {
-                        Row(
-                            modifier = Modifier.padding(top = 4.dp),
-                            verticalAlignment = Alignment.Bottom,
+                        FlowRow(
+                            modifier = Modifier.padding(top = 4.dp).semantics(mergeDescendants = true) {},
                         ) {
                             Text(
                                 text = formatDisplayValue(
@@ -653,8 +660,8 @@ private fun MeasurementSummaryCard(
                             )
                             Text(
                                 text = " кг",
-                                modifier = Modifier.padding(bottom = 4.dp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.align(Alignment.Bottom).padding(bottom = 4.dp),
+                                color = HuaweiColors.Secondary,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
@@ -675,7 +682,7 @@ private fun MeasurementSummaryCard(
             }
             Text(
                 text = formatWeightDelta(summary.weightDeltaKg),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = HuaweiColors.Secondary,
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -695,6 +702,7 @@ private fun MeasurementSummaryCard(
 
             TextButton(
                 onClick = { onExpandedChange(!expanded) },
+                colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
@@ -750,7 +758,7 @@ private fun MetricDetailsGrid(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columnCount = if (maxWidth < 300.dp) 1 else 2
+        val columnCount = if (maxWidth < 300.dp || LocalDensity.current.fontScale > 1.3f) 1 else 2
         Column {
             metrics.chunked(columnCount).forEach { rowMetrics ->
                 Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
@@ -777,7 +785,7 @@ private fun MetricDetail(
     ) {
         Text(
             text = metric.label,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            color = HuaweiColors.Secondary,
             style = MaterialTheme.typography.bodySmall,
         )
         Text(text = metric.displayValue(), style = MaterialTheme.typography.titleSmall)
@@ -803,7 +811,7 @@ private fun CompactReferenceGrid(
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier.fillMaxWidth()) {
-        val columnCount = if (maxWidth >= 300.dp) 2 else 1
+        val columnCount = if (maxWidth >= 300.dp && LocalDensity.current.fontScale <= 1.3f) 2 else 1
         Column(
             modifier = Modifier.testTag(
                 if (columnCount == 2) ReferenceComponentTestTags.GridTwoColumns
@@ -845,11 +853,11 @@ private fun CompactSummaryReferenceMetric(
         if (!primary) {
             Text(
                 text = presentation.title,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = HuaweiColors.Secondary,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        Row(verticalAlignment = Alignment.Bottom) {
+        FlowRow {
             Text(
                 text = presentation.visualNumber
                     ?: stringResource(R.string.reference_missing_value_symbol),
@@ -868,6 +876,7 @@ private fun CompactSummaryReferenceMetric(
                 Text(
                     text = " ${presentation.visibleUnit}",
                     modifier = Modifier
+                        .align(Alignment.Bottom)
                         .then(if (primary) Modifier.padding(bottom = 5.dp) else Modifier)
                         .semantics {
                             compactSummaryReferenceContentColor = referenceContent.value.toLong()
@@ -1631,11 +1640,11 @@ private fun NestedScreenHeader(
 @Composable
 private fun NoLatestMeasurementState() {
     Column(
-        modifier = Modifier.fillMaxSize(),
+        modifier = Modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Box(
-            modifier = Modifier.fillMaxWidth().weight(1f),
+            modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
             HuaweiSurface(

@@ -3,6 +3,7 @@ package com.palixander.scalesync.changelog
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.BuildConfig
 import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 
 internal object ChangelogScreenTestTags {
@@ -24,6 +26,8 @@ internal object ChangelogScreenTestTags {
     const val LatestChangesContent = "changelog-latest-changes-content"
     const val PreviousReleases = "changelog-previous-releases"
     const val PreviousReleasesToggle = "changelog-previous-releases-toggle"
+    const val PreviousReleasesIndicator = "changelog-previous-releases-indicator"
+    const val PreviousReleasesTitle = "changelog-previous-releases-title"
     const val PreviousReleasesContent = "changelog-previous-releases-content"
     fun release(version: String) = "changelog-release-$version"
     fun releaseChanges(version: String) = "changelog-release-changes-$version"
@@ -118,7 +122,7 @@ private fun PreviousReleasesCard(
     HuaweiSurface(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
                     .clickable(
                         role = Role.Button,
                         onClickLabel = if (expanded) "Свернуть предыдущие версии" else "Развернуть предыдущие версии",
@@ -131,13 +135,18 @@ private fun PreviousReleasesCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Предыдущие версии", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "⌄",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    "Предыдущие версии",
                     style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.weight(1f).padding(end = HuaweiDimensions.CompactItemSpacing)
+                        .testTag(ChangelogScreenTestTags.PreviousReleasesTitle),
+                )
+                Icon(
+                    HuaweiIcons.ChevronDown,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp).rotate(if (expanded) 180f else 0f)
-                        .clearAndSetSemantics { },
+                        .testTag(ChangelogScreenTestTags.PreviousReleasesIndicator),
                 )
             }
             if (expanded) {

@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -65,7 +66,8 @@ class ChangelogShellNavigationUiTest {
 
     private fun assertSettingsChromeRestored() {
         composeRule.onNodeWithTag(ChangelogScreenTestTags.List).assertDoesNotExist()
-        composeRule.onNodeWithText("Настройки").assertIsDisplayed()
+        composeRule.onNodeWithTag(MainScreenTestTags.TopBarTitle)
+            .assertTextEquals("Настройки").assertIsDisplayed()
         composeRule.onNodeWithTag(SettingsScreenTestTags.List).assertIsDisplayed()
         composeRule.onNodeWithTag(MainScreenTestTags.BottomNavigation).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Вернуться к настройкам").assertDoesNotExist()
@@ -91,7 +93,7 @@ class ChangelogShellNavigationUiTest {
                 settingsCallbacks = settingsCallbacks(
                     onOpenChangelog = { destination.value = AppDestination.CHANGELOG },
                 ),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = {},
             )
         }

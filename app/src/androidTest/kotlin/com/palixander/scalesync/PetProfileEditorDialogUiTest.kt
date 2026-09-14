@@ -1,5 +1,10 @@
 package com.palixander.scalesync
 
+import androidx.test.espresso.Espresso.closeSoftKeyboard
+import android.graphics.Bitmap
+import android.view.KeyEvent
+import androidx.test.platform.app.InstrumentationRegistry
+import java.io.File
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.CompositionLocalProvider
@@ -29,6 +34,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performScrollToNode
+import androidx.compose.ui.test.hasTestTag
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -49,8 +57,8 @@ class PetProfileEditorDialogUiTest {
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     private val catalog = PetBreedCatalog()
-    private val mixedDog = PetBreedSelection.Available(
-        requireNotNull(catalog.search("Метис", PetSpecies.DOG).singleOrNull()),
+    private val unmappedDog = PetBreedSelection.Available(
+        requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
     )
 
     @Test
@@ -62,7 +70,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Луна",
                     species = PetSpecies.DOG,
                     sex = PetSex.FEMALE,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Day("2020", "02", "29"),
                     dogAdultWeightCategory = DogAdultWeightCategory.III,
                 ),
@@ -81,20 +89,19 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale).assertIsSelected()
-        composeRule.onNodeWithText("Метис").assertExists()
+        composeRule.onNodeWithText("Доберман").assertExists()
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear)
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
-            .performScrollTo()
-            .performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithText("Месяц: Февраль").assertExists()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-part-clear").performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexClear)
             .performScrollTo()
             .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedClear)
-            .performScrollTo()
-            .performClick()
+        clearBreedThroughPicker()
 
         composeRule.runOnIdle {
             assertNull(state.value.draft.sex)
@@ -121,6 +128,7 @@ class PetProfileEditorDialogUiTest {
             .assertContentDescriptionEquals("Вернуться к профилям")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsDisplayed()
+        captureSyntheticScreenshot("empty-editor")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesGroup)
             .assertContentDescriptionEquals("Вид питомца")
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
@@ -145,7 +153,9 @@ class PetProfileEditorDialogUiTest {
         composeRule.runOnIdle { assertEquals(0, dismisses) }
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertTextContains("Луна")
 
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        closeSoftKeyboard()
+        composeRule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Discard).performClick()
         composeRule.runOnIdle { assertEquals(1, dismisses) }
     }
@@ -187,13 +197,13 @@ class PetProfileEditorDialogUiTest {
                 ),
             ),
         )
-        val dog = catalog.search("Danish Mastiff", PetSpecies.DOG)
-            .first { "Danish Mastiff" in it.aliases }
+        val dog = catalog.search("Russian Black Terrier", PetSpecies.DOG)
+            .first { "Russian Black Terrier" in it.aliases }
         setEditor(state)
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
-            .performTextInput("Danish Mastiff")
+            .performTextInput("Russian Black Terrier")
         composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(dog.id.value))
             .assertIsDisplayed()
             .performClick()
@@ -253,36 +263,92 @@ class PetProfileEditorDialogUiTest {
         val actions = mutableListOf<PetProfileAction>()
         setEditor(state, actions = actions)
 
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionYear)
-            .performScrollTo()
-            .performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).performTextInput("2020")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay).assertDoesNotExist()
+        chooseBirthPart(PetProfileEditorTestTags.BirthYear, 2020)
         composeRule.runOnIdle {
             assertEquals(PetBirthDateInput.Year("2020"), state.value.draft.birthDate)
         }
-
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionMonth).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).performTextInput("02")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).performScrollTo().performClick()
+        composeRule.onNodeWithText("Февраль").assertExists()
+        composeRule.onNodeWithTag("pet-birth-option-2").performClick()
+        composeRule.onNodeWithText("Месяц: Февраль").assertExists()
         composeRule.runOnIdle {
-            assertEquals(PetBirthDateInput.Month("2020", "02"), state.value.draft.birthDate)
+            assertEquals(PetBirthDateInput.Month("2020", "2"), state.value.draft.birthDate)
         }
-
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthPrecisionDay).performClick()
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay).performTextInput("29")
+        chooseBirthPart(PetProfileEditorTestTags.BirthDay, 29)
         composeRule.runOnIdle {
-            assertEquals(PetBirthDateInput.Day("2020", "02", "29"), state.value.draft.birthDate)
-            assertTrue(actions.any { it == PetProfileAction.BirthDateChanged(PetBirthDateInput.Year("")) })
-            assertTrue(
-                actions.any {
-                    it == PetProfileAction.BirthDateChanged(PetBirthDateInput.Month("2020", ""))
-                },
-            )
-            assertTrue(
-                actions.any {
-                    it == PetProfileAction.BirthDateChanged(PetBirthDateInput.Day("2020", "02", ""))
-                },
-            )
+            assertEquals(PetBirthDateInput.Day("2020", "2", "29"), state.value.draft.birthDate)
         }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-part-clear").performClick()
+        composeRule.runOnIdle {
+            assertEquals(PetBirthDateInput.Year("2020"), state.value.draft.birthDate)
+        }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-part-clear").performClick()
+        composeRule.runOnIdle {
+            assertEquals(PetBirthDateInput.Empty, state.value.draft.birthDate)
+        }
+    }
+
+    @Test
+    fun editingLeapDayDropsImpossibleDayWhenYearChanges() {
+        val state = mutableStateOf(
+            PetProfileEditorState(
+                PetProfileDraft.create().copy(
+                    displayName = "Луна",
+                    species = PetSpecies.CAT,
+                    birthDate = PetBirthDateInput.Day("2024", "02", "29"),
+                ),
+            ),
+        )
+        setEditor(state)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay)
+            .performScrollTo().assertTextEquals("День: 29")
+        chooseBirthPart(PetProfileEditorTestTags.BirthYear, 2025)
+        composeRule.runOnIdle {
+            assertEquals(PetBirthDateInput.Month("2025", "2"), state.value.draft.birthDate)
+        }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthDay)
+            .performScrollTo().assertTextEquals("День: Выбрать")
+        chooseBirthPart(PetProfileEditorTestTags.BirthDay, 28)
+        composeRule.runOnIdle {
+            assertEquals(PetBirthDateInput.Day("2025", "2", "28"), state.value.draft.birthDate)
+        }
+    }
+
+    private fun captureSyntheticScreenshot(name: String) {
+        composeRule.waitForIdle()
+        val instrumentation = InstrumentationRegistry.getInstrumentation()
+        instrumentation.waitForIdleSync()
+        // Dialog window transitions run outside Compose's idling resources.
+        android.os.SystemClock.sleep(350)
+        val directory = File(instrumentation.targetContext.getExternalFilesDir(null), "issue115")
+        check(directory.mkdirs() || directory.isDirectory)
+        val screenshot = requireNotNull(instrumentation.uiAutomation.takeScreenshot())
+        File(directory, "$name.png").outputStream().use {
+            check(screenshot.compress(Bitmap.CompressFormat.PNG, 100, it))
+        }
+        screenshot.recycle()
+    }
+
+    private fun clearBreedThroughPicker() {
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
+            .performTextReplacement("Другая порода")
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedOther)
+            .assertTextEquals("Другая порода").performClick()
+    }
+
+    private fun chooseBirthPart(tag: String, value: Int) {
+        composeRule.onNodeWithTag(tag).performScrollTo().performClick()
+        composeRule.onNodeWithTag("pet-birth-options")
+            .performScrollToNode(hasTestTag("pet-birth-option-$value"))
+        captureSyntheticScreenshot("picker-$tag-$value")
+        composeRule.onNodeWithTag("pet-birth-option-$value").performClick()
     }
 
     @Test
@@ -402,7 +468,7 @@ class PetProfileEditorDialogUiTest {
         val initialDraft = PetProfileDraft.create().copy(
             displayName = "Бим",
             species = PetSpecies.DOG,
-            breed = mixedDog,
+            breed = unmappedDog,
             dogAdultWeightCategory = DogAdultWeightCategory.II,
         )
         val state = mutableStateOf(PetProfileEditorState(initialDraft))
@@ -436,7 +502,7 @@ class PetProfileEditorDialogUiTest {
                 PetProfileDraft.create().copy(
                     displayName = "Бим",
                     species = PetSpecies.DOG,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Month("2026", ""),
                 ),
             ),
@@ -460,12 +526,15 @@ class PetProfileEditorDialogUiTest {
         )
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SaveError)
             .performScrollTo()
             .assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Сохранение профиля питомца")
+            .performScrollTo()
             .assert(
                 SemanticsMatcher.expectValue(
                     SemanticsProperties.StateDescription,
@@ -473,7 +542,9 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
             .assertIsDisplayed()
-        composeRule.runOnIdle { composeRule.activity.onBackPressedDispatcher.onBackPressed() }
+        closeSoftKeyboard()
+        composeRule.waitForIdle()
+        InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.runOnIdle {
             assertEquals(0, saves)
             assertEquals(0, dismisses)
@@ -539,10 +610,7 @@ class PetProfileEditorDialogUiTest {
         composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(replacement.id.value))
             .performClick()
         composeRule.runOnIdle { assertEquals(replacement.id, state.value.draft.breed?.id) }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedClear)
-            .performScrollTo()
-            .assertContentDescriptionEquals("Очистить породу питомца")
-            .performClick()
+        clearBreedThroughPicker()
         composeRule.runOnIdle { assertNull(state.value.draft.breed) }
     }
 
@@ -584,7 +652,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Бим",
                     species = PetSpecies.DOG,
                     sex = PetSex.MALE,
-                    breed = mixedDog,
+                    breed = unmappedDog,
                     birthDate = PetBirthDateInput.Year("2020"),
                     dogAdultWeightCategory = DogAdultWeightCategory.IV,
                 ),
@@ -622,9 +690,9 @@ class PetProfileEditorDialogUiTest {
             assertTrue(catBounds.right <= dogBounds.left)
             assertTrue(maleBounds.right <= femaleBounds.left)
         }
-        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthClear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear)
             .performScrollTo()
-            .assertContentDescriptionEquals("Очистить дату рождения питомца")
             .assertIsDisplayed()
         composeRule.onNodeWithTag(
             PetProfileEditorTestTags.category(DogAdultWeightCategory.IV),

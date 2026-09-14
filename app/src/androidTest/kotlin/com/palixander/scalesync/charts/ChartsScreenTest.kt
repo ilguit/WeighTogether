@@ -213,7 +213,7 @@ class ChartsScreenTest {
                 onProfileBirthDateChanged = {},
                 onProfileSexChanged = {},
                 settingsCallbacks = settingsCallbacks(),
-                measurementsContent = {},
+                measurementsContent = { _, _ -> },
                 chartsContent = { padding ->
                     ChartsScreen(
                         state = state,

@@ -4,7 +4,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -14,18 +13,25 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
@@ -37,6 +43,7 @@ import com.palixander.scalesync.charts.rememberChartMarker
 import com.palixander.scalesync.charts.rememberChartStartAxis
 import com.palixander.scalesync.charts.rememberChartLine
 import com.palixander.scalesync.charts.rememberChartLineLayer
+import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -165,7 +172,7 @@ internal fun HomeKgChart(
                 )
 
                 state.activeSeriesKeys.isEmpty() -> HomeChartMessage(
-                    text = "Выберите показатели в легенде, чтобы показать график.",
+                    text = "Выберите показатели в списке, чтобы показать график.",
                     tag = "home-kg-chart-no-active",
                 )
 
@@ -177,21 +184,33 @@ internal fun HomeKgChart(
                 else -> HomeKgVicoChart(state, plottedSeries, zoneId)
             }
 
-            Text(
-                "Показатели",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-            )
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            var expanded by rememberSaveable { mutableStateOf(false) }
+            TextButton(
+                onClick = { expanded = !expanded },
+                modifier = Modifier.fillMaxWidth()
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .semantics { stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто" }
+                    .testTag("home-kg-series-toggle"),
             ) {
-                state.series.forEach { series ->
-                    HomeKgLegendItem(
-                        series = series,
-                        selected = series.key in state.activeSeriesKeys,
-                        onClick = { onSeriesToggled(series.key) },
-                    )
+                Text(
+                    "Показатели · ${state.series.count { it.key in state.activeSeriesKeys }} из ${state.series.size}",
+                    modifier = Modifier.weight(1f),
+                )
+                Icon(
+                    HuaweiIcons.ChevronDown,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp).rotate(if (expanded) 180f else 0f),
+                )
+            }
+            if (expanded) {
+                Column {
+                    state.series.forEach { series ->
+                        HomeKgSeriesItem(
+                            series = series,
+                            selected = series.key in state.activeSeriesKeys,
+                            onClick = { onSeriesToggled(series.key) },
+                        )
+                    }
                 }
             }
         }
@@ -216,37 +235,23 @@ private fun HomeChartMessage(text: String, tag: String) {
 }
 
 @Composable
-private fun HomeKgLegendItem(
+private fun HomeKgSeriesItem(
     series: HomeKgChartSeries,
     selected: Boolean,
     onClick: () -> Unit,
 ) {
-    val color = Color(series.color.argb)
-    Surface(
-        modifier = Modifier
+    Row(
+        modifier = Modifier.fillMaxWidth()
             .heightIn(min = HuaweiDimensions.TouchTarget)
             .toggleable(value = selected, role = Role.Checkbox, onValueChange = { onClick() })
-            .semantics {
-                this.selected = selected
-                contentDescription = "${series.label}, цвет ${series.color.argb.toUInt().toString(16).uppercase()}"
-            }
-            .testTag("home-kg-legend-${series.key}"),
-        shape = MaterialTheme.shapes.medium,
-        color = if (selected) color.copy(alpha = 0.14f) else MaterialTheme.colorScheme.surface,
-        border = androidx.compose.foundation.BorderStroke(1.dp, color),
+            .testTag("home-kg-legend-${series.key}")
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(7.dp),
-        ) {
-            Box(
-                Modifier
-                    .size(10.dp)
-                    .background(color, CircleShape),
-            )
-            Text(series.label, style = MaterialTheme.typography.labelMedium)
-        }
+        Checkbox(checked = selected, onCheckedChange = null)
+        Box(Modifier.size(10.dp).background(Color(series.color.argb), CircleShape))
+        Text(series.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
