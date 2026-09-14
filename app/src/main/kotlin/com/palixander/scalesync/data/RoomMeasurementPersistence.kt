@@ -626,6 +626,27 @@ class RoomMeasurementPersistence(
         DiscardPendingResult.Discarded(undoToken)
     }
 
+    override suspend fun clearUnassignedPending(): Int = database.withTransaction {
+        val pending = pendingDao.getUnassigned()
+        if (pending.isEmpty()) return@withTransaction 0
+        val expiresAt = now().plus(TOMBSTONE_TTL).toEpochMilli()
+        pendingDao.upsertAllTombstones(
+            pending.map { value ->
+                MeasurementTombstoneEntity(
+                    deduplicationHash = value.deduplicationHash,
+                    expiresAtEpochMillis = expiresAt,
+                    deviceAddress = value.deviceAddress,
+                    measuredAtEpochSecond = value.measuredAtEpochSecond,
+                    rawWeight = value.rawWeight,
+                )
+            },
+        )
+        check(pendingDao.deleteUnassigned() == pending.size) {
+            "Unassigned pending measurements changed inside their clear transaction"
+        }
+        pending.size
+    }
+
     override suspend fun discardUnknownPendingIfEnabled(
         pendingId: PendingMeasurementId,
     ): AutoIgnorePendingPersistenceResult = database.withTransaction {

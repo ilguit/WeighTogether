@@ -181,7 +181,7 @@ interface MeasurementRepository {
     /** Pending values are emitted in FIFO order (enqueuedAt, then durable id). */
     fun observePending(): Flow<List<PendingMeasurement>>
 
-    /** Unassigned pending values are emitted in FIFO order (enqueuedAt, then durable id). */
+    /** Unassigned pending values are emitted newest first (enqueuedAt, then durable id). */
     fun observeUnassignedPending(): Flow<List<PendingMeasurement>>
 
     suspend fun getPending(id: PendingMeasurementId): PendingMeasurement?
@@ -209,6 +209,10 @@ interface MeasurementRepository {
      * Only a successful discard returns an in-memory undo token.
      */
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
+
+    /** Atomically tombstones and removes every pending value without a provisional account. */
+    suspend fun clearUnassignedPending(): Int =
+        error("Bulk pending cleanup is not supported by this repository")
 
     /**
      * Atomically discards [pendingId] and persists [ignoreUnknownMeasurements]. A successful

@@ -81,6 +81,9 @@ interface MeasurementRoutingPersistence {
 
     suspend fun discardPending(pendingId: PendingMeasurementId): DiscardPendingResult
 
+    suspend fun clearUnassignedPending(): Int =
+        error("Bulk pending cleanup is not supported by this persistence")
+
     /** Re-checks the persisted policy and discards in the same transaction. */
     suspend fun discardUnknownPendingIfEnabled(
         pendingId: PendingMeasurementId,

@@ -468,6 +468,12 @@ data class MeasurementDeleteConfirmation(
     val isDeleting: Boolean = false,
 )
 
+data class PendingClearConfirmation(
+    val count: Int,
+    val isClearing: Boolean = false,
+    val errorMessage: String? = null,
+)
+
 val MeasurementDeleteConfirmation.measuredAt: Instant
     get() = Instant.ofEpochSecond(measuredAtEpochSecond)
 
@@ -481,6 +487,7 @@ data class MeasurementsUiState(
     val isLoading: Boolean = true,
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+    val pendingClearConfirmation: PendingClearConfirmation? = null,
     val homeKgChart: HomeKgChartUiState? = null,
     val accountSelector: AccountSelectorUiState = AccountSelectorUiState(
         accounts = emptyList(),
@@ -525,6 +532,9 @@ data class MeasurementsCallbacks(
     val onPendingAssignRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingPreviewRequested: (PendingMeasurementId) -> Unit = {},
     val onPendingDeleteRequested: (PendingMeasurementId) -> Unit = {},
+    val onPendingClearRequested: () -> Unit = {},
+    val onPendingClearConfirmed: () -> Unit = {},
+    val onPendingClearDismissed: () -> Unit = {},
     val onHomeKgChartSeriesToggled: (seriesKey: String) -> Unit = {},
 ) {
     companion object {
@@ -545,6 +555,9 @@ data class MeasurementsCallbacks(
             onPendingAssignRequested = {},
             onPendingPreviewRequested = {},
             onPendingDeleteRequested = {},
+            onPendingClearRequested = {},
+            onPendingClearConfirmed = {},
+            onPendingClearDismissed = {},
             onHomeKgChartSeriesToggled = {},
         )
     }
