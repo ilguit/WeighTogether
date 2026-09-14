@@ -39,39 +39,90 @@ class PetProfilePresentationTest {
                 category = DogAdultWeightCategory.III,
             ),
             catalog,
+            LocalDate.of(2026, 2, 28),
         )
 
         assertEquals(
             listOf(
                 PetProfileSummaryItem("Пол", "Самка"),
                 PetProfileSummaryItem("Порода", "Лабрадор-ретривер"),
-                PetProfileSummaryItem("Дата рождения", "29.02.2020 (день)"),
+                PetProfileSummaryItem("Дата рождения", "29.02.2020"),
+                PetProfileSummaryItem("Возраст", "5 лет"),
                 PetProfileSummaryItem("Весовая категория", "III — 9–15 кг"),
             ),
             summary.items,
         )
         assertEquals(
-            "Пол: Самка. Порода: Лабрадор-ретривер. Дата рождения: 29.02.2020 (день). " +
+            "Пол: Самка. Порода: Лабрадор-ретривер. Дата рождения: 29.02.2020. Возраст: 5 лет. " +
                 "Весовая категория: III — 9–15 кг",
             summary.contentDescription,
         )
     }
 
     @Test
-    fun `birth date presentation preserves every visible precision`() {
+    fun `birth date presentation omits precision suffix and adds truthful age`() {
         val cases = listOf(
-            PartialBirthDate.Year(Year.of(2020)) to "2020 (год)",
-            PartialBirthDate.Month(YearMonth.of(2020, 2)) to "02.2020 (месяц)",
-            PartialBirthDate.Day(LocalDate.of(2020, 2, 29)) to "29.02.2020 (день)",
+            PartialBirthDate.Year(Year.of(2020)) to listOf(
+                PetProfileSummaryItem("Дата рождения", "2020"),
+                PetProfileSummaryItem("Возраст", "3–4 года"),
+            ),
+            PartialBirthDate.Month(YearMonth.of(2020, 2)) to listOf(
+                PetProfileSummaryItem("Дата рождения", "02.2020"),
+                PetProfileSummaryItem("Возраст", "51–52 месяца"),
+            ),
+            PartialBirthDate.Day(LocalDate.of(2020, 2, 29)) to listOf(
+                PetProfileSummaryItem("Дата рождения", "29.02.2020"),
+                PetProfileSummaryItem("Возраст", "4 года"),
+            ),
         )
 
         cases.forEach { (birthDate, expected) ->
             assertEquals(
                 expected,
-                petProfileSummary(pet(birthDate = birthDate), catalog)
-                    .items.single().value,
+                petProfileSummary(
+                    pet(birthDate = birthDate),
+                    catalog,
+                    LocalDate.of(2024, 6, 15),
+                ).items,
             )
         }
+    }
+
+    @Test
+    fun `exact young ages use localized days weeks and months around boundaries`() {
+        val today = LocalDate.of(2024, 6, 15)
+        val cases = listOf(
+            today.minusDays(1) to "1 день",
+            today.minusDays(14) to "2 недели",
+            today.minusMonths(3) to "3 месяца",
+            today.minusYears(2).plusDays(1) to "23 месяца",
+            today.minusYears(2) to "2 года",
+        )
+
+        cases.forEach { (birthDate, expected) ->
+            assertEquals(
+                expected,
+                petProfileSummary(
+                    pet(birthDate = PartialBirthDate.Day(birthDate)),
+                    catalog,
+                    today,
+                ).items.single { it.label == "Возраст" }.value,
+            )
+        }
+    }
+
+    @Test
+    fun `age row is included in accessible profile description`() {
+        val summary = petProfileSummary(
+            pet(birthDate = PartialBirthDate.Month(YearMonth.of(2024, 5))),
+            catalog,
+            LocalDate.of(2024, 6, 15),
+        )
+
+        assertEquals(
+            "Дата рождения: 05.2024. Возраст: 0–1 месяц",
+            summary.contentDescription,
+        )
     }
 
     @Test

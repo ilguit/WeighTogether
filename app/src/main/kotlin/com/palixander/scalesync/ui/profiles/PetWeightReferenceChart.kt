@@ -229,7 +229,7 @@ internal fun petWeightChartLegendEntries(
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
         add(
             PetWeightChartLegendEntry(
-                "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы",
+                "▰ Светло-зелёная зона — породный диапазон",
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
             ),
         )
@@ -260,6 +260,35 @@ internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProven
     WeightReferenceProvenance.POPULATION,
     WeightReferenceProvenance.WEIGHT_CATEGORY,
     -> populationWeightChartLegendEntries()
+}
+
+internal fun petWeightChartDescription(
+    factualCount: Int,
+    reference: PetHistoryWeightReference,
+    showReferenceExplanation: Boolean,
+    hasBreedTimeline: Boolean,
+    isPopulationReference: Boolean,
+    legendEntries: List<PetWeightChartLegendEntry>,
+): String = buildString {
+    append("График веса питомца. ")
+    append(if (factualCount == 0) "Измерений нет. " else "Измерений: $factualCount. ")
+    val available = reference as? PetHistoryWeightReference.Available
+    if (showReferenceExplanation && !hasBreedTimeline) {
+        append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
+        if (available != null) append(
+            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
+            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
+            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
+            else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
+            else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
+        )
+    }
+    if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
+    if (legendEntries.isNotEmpty()) {
+        append(" Отображаются: ")
+        append(legendEntries.joinToString("; ") { it.label })
+        append('.')
+    }
 }
 
 /** Smooth rendering samples; input knots remain the authoritative values. */
@@ -344,9 +373,30 @@ internal fun petWeightDisplayedSeries(
         WeightReferenceProvenance.WEIGHT_CATEGORY,
     )
     val breedSeries = if (useLegacyBreedTimeline) breedWeightReferenceChartSeries(breedReferenceTimeline) else emptyList()
+    val hasBreedBoundaries = breedSeries.any {
+        it.kind == BreedWeightReferenceSeriesKind.LOWER_BOUNDARY ||
+            it.kind == BreedWeightReferenceSeriesKind.UPPER_BOUNDARY
+    }
     if (breedSeries.isNotEmpty()) {
+        if (!hasBreedBoundaries && reference is PetHistoryWeightReference.Available) {
+            petWeightReferenceChartSeries(reference)
+                .filter { it.kind == PetWeightReferenceSeriesKind.LOWER || it.kind == PetWeightReferenceSeriesKind.UPPER }
+                .forEachIndexed { index, series ->
+                    val lower = series.kind == PetWeightReferenceSeriesKind.LOWER
+                    add(
+                        PetWeightDisplayedSeries(
+                            id = "category-${series.kind.name.lowercase()}-$index",
+                            kind = if (lower) PetWeightDisplayedSeriesKind.CATEGORY_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+                            label = if (lower) "Нижняя граница эталона" else "Верхняя граница эталона",
+                            x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                            y = series.points.map { it.second },
+                            style = PetWeightDisplayedSeriesStyle.CATEGORY,
+                        ),
+                    )
+                }
+        }
         val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
-        breedSeries.forEach { series ->
+        breedSeries.distinctBy { Triple(it.kind, it.xEpochMillis, it.points.map { point -> point.second }) }.forEach { series ->
             val occurrence = counters.getOrDefault(series.kind, 0)
             counters[series.kind] = occurrence + 1
             val (kind, label, style) = when (series.kind) {
@@ -648,29 +698,14 @@ internal fun PetWeightReferenceChartCard(
     val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() } &&
         available?.provenance !in setOf(WeightReferenceProvenance.BREED_CURVE, WeightReferenceProvenance.BREED_EXACT_OBSERVATION, WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
     val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
-    val description = buildString {
-        append("График веса питомца. ")
-        append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
-        if (showReferenceExplanation && !hasBreedTimeline) {
-            append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
-            if (available != null) append(
-                if (available?.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
-                else if (available?.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
-                else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
-                else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
-                else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
-            )
-        }
-        if (breedReference is PetHistoryBreedReference.Available) {
-            append(" ${breedReference.accessibilityLabel}")
-        }
-        if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
-        if (legendEntries.isNotEmpty()) {
-            append(" Отображаются: ")
-            append(legendEntries.joinToString("; ") { it.label })
-            append('.')
-        }
-    }
+    val description = petWeightChartDescription(
+        factualCount = factual.size,
+        reference = reference,
+        showReferenceExplanation = showReferenceExplanation,
+        hasBreedTimeline = hasBreedTimeline,
+        isPopulationReference = isPopulationReference,
+        legendEntries = legendEntries,
+    )
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
