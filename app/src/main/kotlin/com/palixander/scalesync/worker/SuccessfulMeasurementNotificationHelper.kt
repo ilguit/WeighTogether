@@ -121,7 +121,7 @@ class SuccessfulMeasurementNotificationHelper(
             identity.notificationTag,
             identity.notificationId,
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Измерение сохранено")
                 .setContentText(
                     SuccessfulMeasurementNotificationContract.contentText(accountDisplayName),

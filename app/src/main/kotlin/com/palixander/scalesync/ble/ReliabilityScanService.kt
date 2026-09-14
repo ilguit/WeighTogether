@@ -111,4 +111,4 @@ class ReliabilityScanService : Service() {
 }
 
 @DrawableRes
-internal fun reliabilityScanNotificationSmallIcon(): Int = R.drawable.ic_app_monochrome
+internal fun reliabilityScanNotificationSmallIcon(): Int = R.drawable.ic_notification
