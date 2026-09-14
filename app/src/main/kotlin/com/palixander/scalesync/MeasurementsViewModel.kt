@@ -493,14 +493,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
-                interaction.update { state ->
-                    state.copy(
-                        pendingClearConfirmation = state.pendingClearConfirmation?.copy(
-                            isClearing = false,
-                            errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
-                        ),
-                    )
-                }
+                handlePendingClearFailure(interaction, ::showMessage)
             }
         }
     }
@@ -548,6 +541,22 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+}
+
+internal fun handlePendingClearFailure(
+    interaction: MutableStateFlow<MeasurementsInteractionState>,
+    showMessage: (String) -> Unit,
+) {
+    val message = "Не удалось очистить измерения. Попробуйте ещё раз."
+    interaction.update { state ->
+        state.copy(
+            pendingClearConfirmation = state.pendingClearConfirmation?.copy(
+                isClearing = false,
+                errorMessage = message,
+            ),
+        )
+    }
+    showMessage(message)
 }
 
 internal data class MeasurementsInteractionState(

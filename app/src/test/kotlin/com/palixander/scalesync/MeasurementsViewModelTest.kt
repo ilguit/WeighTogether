@@ -19,6 +19,7 @@ import com.palixander.scalesync.measurements.MeasurementUiType
 import com.palixander.scalesync.measurements.MeasurementUiValues
 import com.palixander.scalesync.measurements.MeasurementsDestination
 import com.palixander.scalesync.measurements.MeasurementsNavigationState
+import com.palixander.scalesync.measurements.PendingClearConfirmation
 import com.palixander.scalesync.measurements.buildHomeKgChartUiState
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import java.time.Instant
@@ -37,6 +38,33 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 
 class MeasurementsViewModelTest {
+    @Test
+    fun pendingClearFailureKeepsRetryableDialogAndEmitsSnackbar() {
+        val interaction = MutableStateFlow(
+            MeasurementsInteractionState(
+                pendingClearConfirmation = PendingClearConfirmation(
+                    count = 3,
+                    isClearing = true,
+                ),
+            ),
+        )
+        val messages = mutableListOf<String>()
+
+        handlePendingClearFailure(interaction, messages::add)
+
+        assertEquals(
+            PendingClearConfirmation(
+                count = 3,
+                errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
+            ),
+            interaction.value.pendingClearConfirmation,
+        )
+        assertEquals(
+            listOf("Не удалось очистить измерения. Попробуйте ещё раз."),
+            messages,
+        )
+    }
+
     @Test
     fun manualOriginSurvivesEditedLocalOnlyPresentation() {
         for (origin in com.palixander.scalesync.domain.MeasurementOrigin.entries) {
