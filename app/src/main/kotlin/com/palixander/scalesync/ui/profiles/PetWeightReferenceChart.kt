@@ -262,6 +262,35 @@ internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProven
     -> populationWeightChartLegendEntries()
 }
 
+internal fun petWeightChartDescription(
+    factualCount: Int,
+    reference: PetHistoryWeightReference,
+    showReferenceExplanation: Boolean,
+    hasBreedTimeline: Boolean,
+    isPopulationReference: Boolean,
+    legendEntries: List<PetWeightChartLegendEntry>,
+): String = buildString {
+    append("График веса питомца. ")
+    append(if (factualCount == 0) "Измерений нет. " else "Измерений: $factualCount. ")
+    val available = reference as? PetHistoryWeightReference.Available
+    if (showReferenceExplanation && !hasBreedTimeline) {
+        append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
+        if (available != null) append(
+            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
+            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
+            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
+            else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
+            else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
+        )
+    }
+    if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
+    if (legendEntries.isNotEmpty()) {
+        append(" Отображаются: ")
+        append(legendEntries.joinToString("; ") { it.label })
+        append('.')
+    }
+}
+
 /** Smooth rendering samples; input knots remain the authoritative values. */
 internal fun monotoneSmoothedChartPoints(
     x: List<Long>,
@@ -669,29 +698,14 @@ internal fun PetWeightReferenceChartCard(
     val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() } &&
         available?.provenance !in setOf(WeightReferenceProvenance.BREED_CURVE, WeightReferenceProvenance.BREED_EXACT_OBSERVATION, WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
     val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
-    val description = buildString {
-        append("График веса питомца. ")
-        append(if (factual.isEmpty()) "Измерений нет. " else "Измерений: ${factual.size}. ")
-        if (showReferenceExplanation && !hasBreedTimeline) {
-            append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
-            if (available != null) append(
-                if (available?.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
-                else if (available?.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
-                else if (available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
-                else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
-                else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
-            )
-        }
-        if (breedReference is PetHistoryBreedReference.Available) {
-            append(" ${breedReference.accessibilityLabel}")
-        }
-        if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
-        if (legendEntries.isNotEmpty()) {
-            append(" Отображаются: ")
-            append(legendEntries.joinToString("; ") { it.label })
-            append('.')
-        }
-    }
+    val description = petWeightChartDescription(
+        factualCount = factual.size,
+        reference = reference,
+        showReferenceExplanation = showReferenceExplanation,
+        hasBreedTimeline = hasBreedTimeline,
+        isPopulationReference = isPopulationReference,
+        legendEntries = legendEntries,
+    )
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {

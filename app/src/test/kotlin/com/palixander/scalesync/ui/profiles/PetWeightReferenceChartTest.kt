@@ -281,6 +281,32 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `chart description announces displayed corgi timeline without adult companion`() {
+        val reference = available(emptyList()).copy(
+            accessibilityLabel = "Ориентир щенка корги. Дополнительный ориентир: взрослая собака 9–12 кг",
+        )
+        val displayed = listOf(
+            displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_LOWER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Нижняя граница щенка"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_UPPER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Верхняя граница щенка"),
+        )
+
+        val description = petWeightChartDescription(
+            factualCount = 2,
+            reference = reference,
+            showReferenceExplanation = true,
+            hasBreedTimeline = true,
+            isPopulationReference = false,
+            legendEntries = petWeightChartLegendEntries(displayed),
+        )
+
+        assertTrue(description.contains("Измерений: 2"))
+        assertTrue(description.contains("● Фактический вес"))
+        assertTrue(description.contains("▰ Светло-зелёная зона — породный диапазон"))
+        assertTrue(!description.contains("Дополнительный ориентир"))
+        assertTrue(!description.contains("взрослая собака"))
+    }
+
     @Test fun `breed center keeps only base boundaries and preserves marker legend contract`() {
         val date = LocalDate.of(2026, 9, 1)
         val x = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
