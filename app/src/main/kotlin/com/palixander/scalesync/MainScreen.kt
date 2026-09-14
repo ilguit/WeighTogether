@@ -133,6 +133,18 @@ internal fun measurementsChromeFor(destination: MeasurementsDestination): Measur
         )
     }
 
+internal fun shellContentUsesFullSafeDrawingInsets(
+    manualDraftOpen: Boolean,
+    petProfileOpen: Boolean,
+    profileEditorOpen: Boolean,
+    currentSection: AppSection,
+    measurementsChrome: MeasurementsChrome,
+): Boolean = manualDraftOpen || petProfileOpen || (
+    !profileEditorOpen &&
+        currentSection == AppSection.MEASUREMENTS &&
+        measurementsChrome.contentUsesSafeDrawingInsets
+)
+
 internal object MainScreenTestTags {
     const val TopBar = "main-top-bar"
     const val TopBarTitle = "main-top-bar-title"
@@ -522,11 +534,14 @@ internal fun ScaleSyncScaffold(
         AppSection.MEASUREMENTS -> measurementsChrome.showBottomNavigation
         AppSection.CHARTS, AppSection.SETTINGS -> true
     }
-    val contentWindowInsets = if (
-        manualDraft != null || (!profileEditorOpen &&
-        currentSection == AppSection.MEASUREMENTS &&
-        measurementsChrome.contentUsesSafeDrawingInsets)
-    ) {
+    val contentUsesFullSafeDrawingInsets = shellContentUsesFullSafeDrawingInsets(
+        manualDraftOpen = manualDraft != null,
+        petProfileOpen = petDestination != null,
+        profileEditorOpen = profileEditorOpen,
+        currentSection = currentSection,
+        measurementsChrome = measurementsChrome,
+    )
+    val contentWindowInsets = if (contentUsesFullSafeDrawingInsets) {
         WindowInsets.safeDrawing
     } else {
         WindowInsets.safeDrawing.only(WindowInsetsSides.Horizontal)
