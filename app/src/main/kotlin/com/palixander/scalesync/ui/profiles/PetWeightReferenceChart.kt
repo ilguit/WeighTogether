@@ -502,7 +502,9 @@ private fun centerOnlyBreedPresentationEnvelope(
                     date to when (series.kind) {
                         PetWeightReferenceSeriesKind.LOWER -> centers?.minOrNull()?.let { minOf(value, it) } ?: value
                         PetWeightReferenceSeriesKind.UPPER -> centers?.maxOrNull()?.let { maxOf(value, it) } ?: value
-                        PetWeightReferenceSeriesKind.CENTER -> value
+                        PetWeightReferenceSeriesKind.MEDIAN_LOWER,
+                        PetWeightReferenceSeriesKind.MEDIAN_UPPER,
+                        -> value
                     }
                 },
                 xEpochMillis = series.points.map { (date, _) ->
