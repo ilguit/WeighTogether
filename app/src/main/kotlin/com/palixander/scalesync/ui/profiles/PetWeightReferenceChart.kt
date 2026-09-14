@@ -93,6 +93,7 @@ internal enum class PetWeightReferenceSeriesKind {
 internal data class PetWeightReferenceChartSeries(
     val kind: PetWeightReferenceSeriesKind,
     val points: List<Pair<LocalDate, Double>>,
+    val xEpochMillis: List<Long>? = null,
 )
 
 internal data class BreedWeightReferenceChartSeries(
@@ -379,8 +380,7 @@ internal fun petWeightDisplayedSeries(
     }
     if (breedSeries.isNotEmpty()) {
         if (!hasBreedBoundaries && reference is PetHistoryWeightReference.Available) {
-            petWeightReferenceChartSeries(reference)
-                .filter { it.kind == PetWeightReferenceSeriesKind.LOWER || it.kind == PetWeightReferenceSeriesKind.UPPER }
+            centerOnlyBreedPresentationEnvelope(reference, breedReferenceTimeline)
                 .forEachIndexed { index, series ->
                     val lower = series.kind == PetWeightReferenceSeriesKind.LOWER
                     add(
@@ -388,7 +388,8 @@ internal fun petWeightDisplayedSeries(
                             id = "category-${series.kind.name.lowercase()}-$index",
                             kind = if (lower) PetWeightDisplayedSeriesKind.CATEGORY_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
                             label = if (lower) "Нижняя граница эталона" else "Верхняя граница эталона",
-                            x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                            x = series.xEpochMillis
+                                ?: series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                             y = series.points.map { it.second },
                             style = PetWeightDisplayedSeriesStyle.CATEGORY,
                         ),
@@ -468,6 +469,57 @@ internal fun petWeightDisplayedSeries(
                 ),
             )
         }
+    }
+}
+
+/**
+ * Expands the displayed base envelope to include center-only breed observations.
+ *
+ * This is deliberately a presentation projection: source reference points and breed timeline
+ * values remain untouched. A missing breed value or base point ends the current segment, so the
+ * chart never invents values across documented or measurement gaps.
+ */
+private fun centerOnlyBreedPresentationEnvelope(
+    reference: PetHistoryWeightReference.Available,
+    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
+): List<PetWeightReferenceChartSeries> {
+    val baseByDate = reference.segments
+        .flatten()
+        .associateBy(PetHistoryReferencePoint::date)
+    val segments = mutableListOf<MutableList<Triple<LocalDate, Long, Pair<Double, Double>>>>()
+
+    breedReferenceTimeline.forEach { timelinePoint ->
+        val centers = timelinePoint.values.orEmpty().mapNotNull { value ->
+            (value as? PetHistoryBreedChartValue.Single)?.valueKg
+        }
+        val base = baseByDate[timelinePoint.date]
+        if (base == null || centers.isEmpty()) {
+            if (segments.lastOrNull()?.isNotEmpty() == true) segments.add(mutableListOf())
+        } else {
+            if (segments.isEmpty()) segments.add(mutableListOf())
+            segments.last().add(
+                Triple(
+                    timelinePoint.date,
+                    timelinePoint.xEpochMillis,
+                    minOf(base.lowerKg, centers.min()) to maxOf(base.upperKg, centers.max()),
+                ),
+            )
+        }
+    }
+
+    return segments.filter { it.isNotEmpty() }.flatMap { segment ->
+        listOf(
+            PetWeightReferenceChartSeries(
+                kind = PetWeightReferenceSeriesKind.LOWER,
+                points = segment.map { (date, _, bounds) -> date to bounds.first },
+                xEpochMillis = segment.map { (_, x, _) -> x },
+            ),
+            PetWeightReferenceChartSeries(
+                kind = PetWeightReferenceSeriesKind.UPPER,
+                points = segment.map { (date, _, bounds) -> date to bounds.second },
+                xEpochMillis = segment.map { (_, x, _) -> x },
+            ),
+        )
     }
 }
 
