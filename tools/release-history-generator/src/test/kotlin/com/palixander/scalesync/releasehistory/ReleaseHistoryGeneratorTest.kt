@@ -6,6 +6,8 @@ import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
 import java.nio.file.Files
 import java.nio.file.Path
 
@@ -359,7 +361,7 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
-    fun `builds newest-first history from annotated first-parent tags`() {
+    fun `builds newest-first history from annotated ancestor tags`() {
         val git = TestGit(directory)
         git.init()
         git.fragment(1, "one", true, "Первое изменение")
@@ -474,7 +476,7 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
-    fun `rejects baseline boundary that is only a merged ancestor`() {
+    fun `accepts baseline boundary that is a merged ancestor`() {
         val git = TestGit(directory)
         git.init()
         git.file("README.md", "base")
@@ -486,23 +488,28 @@ class ReleaseHistoryGeneratorTest {
         git.file("side.txt", "side")
         git.commit("Side boundary")
         val sideBoundary = git.head()
+        git.fragment(7, "release", true, "Выпущенное изменение")
+        git.commit("Released (#7)")
+        git.annotatedTag("apk/0.1.7")
         git.checkout("main")
+        git.fragment(8, "latest", true, "Последнее изменение")
+        git.commit("Latest (#8)")
         git.mergeNoFastForward("side", "Merge side")
 
-        val error = assertThrows(GenerationException::class.java) {
-            ReleaseHistoryGenerator(GitRepository(directory)).generate(
-                "HEAD",
-                "0.1.7",
-                ReleaseFlavor.PERSONAL,
-                ReleaseHistoryMode.BUILD,
-                ReleaseHistoryBaseline(sideBoundary, emptyList()),
-            )
-        }
-        assertTrue(error.message!!.contains("first-parent"))
+        val history = ReleaseHistoryGenerator(GitRepository(directory)).generate(
+            "HEAD",
+            "0.1.7",
+            ReleaseFlavor.PERSONAL,
+            ReleaseHistoryMode.BUILD,
+            ReleaseHistoryBaseline(sideBoundary, emptyList()),
+        )
+        assertEquals(listOf("0.1.7"), history.releases.map { it.version })
+        assertEquals(listOf(7), history.releases.single().changes.map { it.issue })
+        assertEquals(listOf(8), history.latestChanges.map { it.issue })
     }
 
     @Test
-    fun `ignores lightweight unreachable and merged-side tags`() {
+    fun `ignores lightweight and unreachable tags but includes merged ancestor tags`() {
         val git = TestGit(directory)
         git.init()
         git.fragment(1, "base", true, "Первое изменение")
@@ -516,11 +523,148 @@ class ReleaseHistoryGeneratorTest {
         git.fragment(99, "side", true, "Боковое изменение")
         git.commit("Side task (#99)")
         git.annotatedTag("apk/8.8.8")
+        git.branch("unreachable")
+        git.checkout("unreachable")
+        git.file("unreachable.txt", "unused")
+        git.commit("Unreachable")
+        git.annotatedTag("apk/9.0.0")
         git.checkout("main")
         git.mergeNoFastForward("side", "Merge side branch")
 
         val tags = GitRepository(directory).reachableAnnotatedApkTags("HEAD")
-        assertEquals(listOf("apk/0.1.0"), tags.map { it.name })
+        assertEquals(listOf("apk/8.8.8", "apk/0.1.0"), tags.map { it.name })
+    }
+
+    @Test
+    fun `old task merges released main and keeps multiple releases out of latest changes`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "base", true, "Первый выпуск")
+        git.commit("Base (#1)")
+        git.annotatedTag("apk/0.1")
+        git.branch("task")
+        git.fragment(2, "release", true, "Второй выпуск")
+        git.commit("Release (#2)")
+        git.annotatedTag("apk/0.2")
+        git.fragment(3, "release", true, "Третий выпуск")
+        git.commit("Release (#3)")
+        git.annotatedTag("apk/0.3")
+        git.checkout("task")
+        git.fragment(4, "task", true, "Новые изменения")
+        git.commit("Task (#4)")
+        git.mergeNoFastForward("main", "Update old task")
+
+        val generator = ReleaseHistoryGenerator(GitRepository(directory))
+        val history = generator.generate("HEAD", "0.3", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        assertEquals(listOf("0.3", "0.2", "0.1"), history.releases.map { it.version })
+        assertEquals(listOf(listOf(3), listOf(2), listOf(1)), history.releases.map { it.changes.map { it.issue } })
+        assertEquals(listOf(4), history.latestChanges.map { it.issue })
+        assertEquals(history, generator.generate("HEAD", "0.3", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD))
+        val candidate = generator.generate("HEAD", "0.4", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        assertEquals(listOf("0.4", "0.3", "0.2", "0.1"), candidate.releases.map { it.version })
+        assertEquals(listOf(4), candidate.releases.first().changes.map { it.issue })
+        assertTrue(candidate.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `rejects incomparable merged release tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("main-file", "main")
+        git.commit("Main release")
+        git.annotatedTag("apk/0.2")
+        git.checkout("side")
+        git.file("side-file", "side")
+        git.commit("Side release")
+        git.annotatedTag("apk/0.3")
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side")
+        val error = assertThrows(GenerationException::class.java) {
+            GitRepository(directory).reachableAnnotatedApkTags("HEAD")
+        }
+        assertTrue(error.message!!.contains("incomparable"))
+        assertTrue(error.message!!.contains("apk/0.2"))
+        assertTrue(error.message!!.contains("apk/0.3"))
+    }
+
+    @Test
+    fun `rejects multiple release tags on one commit`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.2")
+        git.annotatedTag("apk/0.3")
+        val error = assertThrows(GenerationException::class.java) {
+            GitRepository(directory).reachableAnnotatedApkTags("HEAD")
+        }
+        assertTrue(error.message!!.contains("Multiple annotated APK tags"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["0.3.0", "0.2"])
+    fun `rejects decreasing or equivalent versions along the release chain`(version: String) {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.3")
+        git.file("later", "later")
+        git.commit("Later")
+        git.annotatedTag("apk/$version")
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", version, ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+        assertTrue(error.message!!.contains("Nonmonotonic"))
+    }
+
+    @Test
+    fun `rejects baseline on a sibling branch of a reachable release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("main-file", "main")
+        git.commit("Main release")
+        git.annotatedTag("apk/0.2")
+        git.checkout("side")
+        git.file("side-file", "side")
+        git.commit("Baseline")
+        val boundary = git.head()
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side")
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory)).generate(
+                "HEAD", "0.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD,
+                ReleaseHistoryBaseline(boundary, emptyList()),
+            )
+        }
+        assertTrue(error.message!!.contains("incomparable by ancestry"))
+    }
+
+    @Test
+    fun `latest changes start at baseline when all tags precede it`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.1")
+        git.file("legacy", "legacy")
+        git.commit("Legacy historical change (#90)")
+        val boundary = git.head()
+        git.fragment(8, "latest", true, "Последнее изменение")
+        git.commit("Latest (#8)")
+        val history = ReleaseHistoryGenerator(GitRepository(directory)).generate(
+            "HEAD", "0.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD,
+            ReleaseHistoryBaseline(boundary, emptyList()),
+        )
+        assertTrue(history.releases.isEmpty())
+        assertEquals(listOf(8), history.latestChanges.map { it.issue })
     }
 
     @Test
