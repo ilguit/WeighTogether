@@ -55,7 +55,7 @@ abstract class HomePetShortcutsTestCases {
         composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
     }
 
-    @Test fun fullWidthRowsHideAddAndDispatchExactProfile() {
+    @Test fun collapsedShowsWholeFirstRowAndDispatchesExactProfile() {
         var selected: ProfileKey? = null
         composeRule.setContent {
             ScaleSyncTheme {
@@ -63,27 +63,41 @@ abstract class HomePetShortcutsTestCases {
             }
         }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
-        assertFullWidth("1")
-        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
+        assertRowFillsWidth("1", "2")
+        composeRule.onNodeWithTag(Tags.pet("2")).assertIsDisplayed()
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
-        assertFullWidth("1")
-        assertFullWidth("2")
+        assertRowFillsWidth("1", "2")
         composeRule.onNodeWithTag(Tags.pet("2")).performClick()
         composeRule.runOnIdle { assertEquals(ProfileKey.Pet(PetId("2")), selected) }
         composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
+        composeRule.onNodeWithTag(Tags.Toggle).performClick()
+        composeRule.onNodeWithTag(Tags.pet("2")).assertIsDisplayed()
+        composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
+    }
+
+    @Test fun expandedFillsLastIncompleteRowAndKeepsEightDpGaps() {
+        val pets = listOf(pet("1", "Кот"), pet("2", "Пёс"), pet("3", "Лис"))
+        composeRule.setContent {
+            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(150.dp)) }
+        }
+        assertRowFillsWidth("1", "2")
+        composeRule.onNodeWithTag(Tags.pet("3")).assertDoesNotExist()
+        composeRule.onNodeWithTag(Tags.Toggle).performClick()
+        assertRowFillsWidth("1", "2")
+        assertFullWidth("3")
         val first = composeRule.onNodeWithTag(Tags.pet("1")).getUnclippedBoundsInRoot()
         val second = composeRule.onNodeWithTag(Tags.pet("2")).getUnclippedBoundsInRoot()
-        assertEquals(8.dp, second.top - first.bottom)
-        composeRule.onNodeWithTag(Tags.Toggle).performClick()
-        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
-        composeRule.onNodeWithTag(Tags.Add).assertDoesNotExist()
+        val third = composeRule.onNodeWithTag(Tags.pet("3")).getUnclippedBoundsInRoot()
+        assertEquals(8.dp, second.left - first.right)
+        assertEquals(8.dp, third.top - first.bottom)
+        assertTrue(kotlin.math.abs(((first.right - first.left) - (second.right - second.left)).value) <= 1f)
     }
 
     @Test fun collapsedHidesSemanticsAndRestoresExpansionWithStableRows() {
         val restoration = StateRestorationTester(composeRule)
         val pets = List(5) { pet("$it", "Длинное имя питомца $it") }
         restoration.setContent {
-            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(200.dp)) }
+            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(100.dp)) }
         }
         composeRule.onNodeWithTag(Tags.pet("0")).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Длинное имя питомца 1, питомец").assertDoesNotExist()
@@ -98,7 +112,7 @@ abstract class HomePetShortcutsTestCases {
     }
 
     @Test fun widthAndFontChangesKeepFullWidthAndAccessibleNames() {
-        val width = mutableStateOf(140.dp)
+        val width = mutableStateOf(100.dp)
         val fontScale = mutableStateOf(1f)
         val pets = listOf(pet("1", "Барсик-кот"), pet("2", "Мурка-кошка"))
         composeRule.setContent {
@@ -110,12 +124,17 @@ abstract class HomePetShortcutsTestCases {
             }
         }
         assertFullWidth("1")
+        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
         composeRule.runOnIdle { width.value = 320.dp }
-        assertFullWidth("1")
-        composeRule.runOnIdle { fontScale.value = 2f }
+        assertRowFillsWidth("1", "2")
+        composeRule.runOnIdle {
+            width.value = 120.dp
+            fontScale.value = 2f
+        }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.onNodeWithContentDescription("Барсик-кот, питомец").assertIsDisplayed()
         assertFullWidth("1")
+        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         assertFullWidth("2")
         composeRule.onNodeWithContentDescription("Мурка-кошка, питомец").assertIsDisplayed()
@@ -160,6 +179,15 @@ abstract class HomePetShortcutsTestCases {
         val button = composeRule.onNodeWithTag(Tags.pet(id)).getUnclippedBoundsInRoot()
         assertEquals(block.left, button.left)
         assertEquals(block.right, button.right)
+    }
+
+    private fun assertRowFillsWidth(firstId: String, lastId: String) {
+        val block = composeRule.onNodeWithTag(Tags.Block).getUnclippedBoundsInRoot()
+        val first = composeRule.onNodeWithTag(Tags.pet(firstId)).getUnclippedBoundsInRoot()
+        val last = composeRule.onNodeWithTag(Tags.pet(lastId)).getUnclippedBoundsInRoot()
+        assertEquals(block.left, first.left)
+        assertEquals(block.right, last.right)
+        assertEquals(first.top, last.top)
     }
 
     private fun pet(id: String, name: String) = ProfilePresentation.Pet(
