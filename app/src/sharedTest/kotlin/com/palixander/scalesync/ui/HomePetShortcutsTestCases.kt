@@ -90,7 +90,7 @@ abstract class HomePetShortcutsTestCases {
         val third = composeRule.onNodeWithTag(Tags.pet("3")).getUnclippedBoundsInRoot()
         assertEquals(8.dp, second.left - first.right)
         assertEquals(8.dp, third.top - first.bottom)
-        assertTrue(kotlin.math.abs((first.right - first.left) - (second.right - second.left)).value <= 1f)
+        assertTrue(kotlin.math.abs(((first.right - first.left) - (second.right - second.left)).value) <= 1f)
     }
 
     @Test fun collapsedHidesSemanticsAndRestoresExpansionWithStableRows() {
