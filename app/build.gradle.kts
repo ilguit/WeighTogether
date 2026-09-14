@@ -51,6 +51,8 @@ android {
         }
     }
 
+    sourceSets.getByName("test").java.srcDir("src/sharedTest/kotlin")
+    sourceSets.getByName("androidTest").java.srcDir("src/sharedTest/kotlin")
     sourceSets.getByName("androidTest").assets.srcDir("$projectDir/schemas")
 }
 
@@ -87,6 +89,7 @@ dependencies {
     implementation("androidx.work:work-runtime-ktx:2.10.1")
     implementation("androidx.health.connect:connect-client:1.1.0")
 
+    testImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
     testImplementation("junit:junit:4.13.2")
     testImplementation("androidx.test:core:1.5.0")
     testImplementation("org.robolectric:robolectric:4.16.1")
