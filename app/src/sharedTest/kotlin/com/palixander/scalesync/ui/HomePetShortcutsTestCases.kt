@@ -78,7 +78,7 @@ abstract class HomePetShortcutsTestCases {
     @Test fun expandedFillsLastIncompleteRowAndKeepsEightDpGaps() {
         val pets = listOf(pet("1", "Кот"), pet("2", "Пёс"), pet("3", "Лис"))
         composeRule.setContent {
-            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(190.dp)) }
+            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(150.dp)) }
         }
         assertRowFillsWidth("1", "2")
         composeRule.onNodeWithTag(Tags.pet("3")).assertDoesNotExist()

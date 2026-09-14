@@ -53,7 +53,7 @@ fun HomePetShortcuts(
                 Box(Modifier.clearAndSetSemantics {}) {
                     HuaweiFilterButton(text = pet.displayName, icon = pet.selectorIcon(), onClick = {})
                 }
-            }.single().measure(childConstraints).width
+            }.single().measure(Constraints()).width
         }
         val rows = mutableListOf<List<Int>>()
         var currentRow = mutableListOf<Int>()
