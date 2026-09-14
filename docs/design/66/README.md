@@ -18,3 +18,8 @@ no screen layout, text, navigation or business behavior changes are required.
 
 Requirements and owner confirmation: https://github.com/ilguit/XiaomiScaleSync/issues/66#issuecomment-5659235661
 Independent design review: https://github.com/ilguit/XiaomiScaleSync/issues/66#issuecomment-5659238935
+
+`icon-verification.png` compares the selected reference with the actual Android XML
+paths at the adaptive visible 72/108 crop: circle/squircle, light/dark monochrome,
+48 px launcher and 24 px notification (actual size plus enlarged pixels).
+These are software renders; device screenshots remain part of manual QA.
