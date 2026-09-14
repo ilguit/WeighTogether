@@ -128,7 +128,7 @@ abstract class HomePetShortcutsTestCases {
         composeRule.runOnIdle { width.value = 320.dp }
         assertRowFillsWidth("1", "2")
         composeRule.runOnIdle {
-            width.value = 150.dp
+            width.value = 120.dp
             fontScale.value = 2f
         }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
