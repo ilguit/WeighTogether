@@ -141,18 +141,36 @@ class PetHistoryBreedReferencePresenterTest {
             pet,
             listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
         ).single().values!!
-        assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Single })
-        assertTrue(timelineValues.any { it is PetHistoryBreedChartValue.Interval })
+        assertEquals(1, timelineValues.size)
+        assertTrue(timelineValues.single() is PetHistoryBreedChartValue.Single)
         assertEquals(
-            listOf(
-                BreedWeightReferenceSeriesKind.CENTER,
-                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
-                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
-            ),
+            listOf(BreedWeightReferenceSeriesKind.CENTER),
             breedWeightReferenceChartSeries(
                 presenter().presentTimeline(pet, listOf(PetHistoryBreedReferenceTimelineMoment(1, today))),
             )
                 .map(BreedWeightReferenceChartSeries::kind),
+        )
+    }
+
+    @Test
+    fun `young corgi timeline excludes adult companion while presentation retains it`() {
+        val pet = dog().copy(
+            breedId = BreedId("VBO:0200995"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2025, 9, 1)),
+        )
+
+        val presentation = presenter().present(pet) as PetHistoryBreedReference.Available
+        val timeline = presenter().presentTimeline(
+            pet,
+            listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
+        )
+
+        assertEquals(1, presentation.companionReferences.size)
+        assertTrue(presentation.accessibilityLabel.contains("Дополнительный ориентир"))
+        assertEquals(1, timeline.single().values!!.size)
+        assertEquals(
+            listOf(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, BreedWeightReferenceSeriesKind.CENTER),
+            breedWeightReferenceChartSeries(timeline).map(BreedWeightReferenceChartSeries::kind),
         )
     }
 

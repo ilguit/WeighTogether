@@ -260,7 +260,7 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            listOf("● Фактический вес", "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы"),
+            listOf("● Фактический вес", "▰ Светло-зелёная зона — породный диапазон"),
             petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
         )
     }
@@ -274,11 +274,56 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             listOf(
-                "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы",
+                "▰ Светло-зелёная зона — породный диапазон",
                 "— Породная медиана или среднее",
             ),
             petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
         )
+    }
+
+    @Test fun `breed center keeps only base boundaries and preserves marker legend contract`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val x = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        val displayed = petWeightDisplayedSeries(
+            factual = emptyList(),
+            reference = available(listOf(PetHistoryReferencePoint(date, 6.0, 8.0, 9.0, 12.0))),
+            breedReferenceTimeline = listOf(
+                timelinePoint(date, PetHistoryBreedChartValue.Single(10.4, "Среднее", "shiba-center")),
+            ),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(
+            listOf(PetWeightDisplayedSeriesKind.CATEGORY_LOWER, PetWeightDisplayedSeriesKind.CATEGORY_UPPER, PetWeightDisplayedSeriesKind.BREED_CENTER),
+            displayed.map(PetWeightDisplayedSeries::kind),
+        )
+        assertEquals(3, displayed.map(PetWeightDisplayedSeries::id).distinct().size)
+        assertEquals(
+            listOf("— Нижняя граница эталона", "— Верхняя граница эталона", "— Породная медиана или среднее"),
+            petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
+        )
+        assertEquals(
+            "Нижняя граница эталона: 6.00 кг\nВерхняя граница эталона: 12.00 кг\nМедиана или среднее: 10.40 кг",
+            formatPetWeightDisplayedMarker(x, displayed, Locale.US),
+        )
+        assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
+    }
+
+    @Test fun `breed interval suppresses base boundaries and duplicate breed series`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val interval = PetHistoryBreedChartValue.Interval(8.0, 12.0, null, "Диапазон", "range")
+        val displayed = petWeightDisplayedSeries(
+            factual = emptyList(),
+            reference = available(listOf(PetHistoryReferencePoint(date, 6.0, 8.0, 9.0, 14.0))),
+            breedReferenceTimeline = listOf(timelinePoint(date, interval, interval)),
+            zoneId = ZoneOffset.UTC,
+        )
+
+        assertEquals(
+            listOf(PetWeightDisplayedSeriesKind.BREED_LOWER, PetWeightDisplayedSeriesKind.BREED_UPPER),
+            displayed.map(PetWeightDisplayedSeries::kind),
+        )
+        assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
     }
 
     @Test fun `bundled AmStaff range displays factual lower and upper without zero or center`() {

@@ -229,7 +229,7 @@ internal fun petWeightChartLegendEntries(
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
         add(
             PetWeightChartLegendEntry(
-                "▰ Светло-зелёная зона — породный диапазон; тонкие линии — его границы",
+                "▰ Светло-зелёная зона — породный диапазон",
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
             ),
         )
@@ -344,9 +344,30 @@ internal fun petWeightDisplayedSeries(
         WeightReferenceProvenance.WEIGHT_CATEGORY,
     )
     val breedSeries = if (useLegacyBreedTimeline) breedWeightReferenceChartSeries(breedReferenceTimeline) else emptyList()
+    val hasBreedBoundaries = breedSeries.any {
+        it.kind == BreedWeightReferenceSeriesKind.LOWER_BOUNDARY ||
+            it.kind == BreedWeightReferenceSeriesKind.UPPER_BOUNDARY
+    }
     if (breedSeries.isNotEmpty()) {
+        if (!hasBreedBoundaries && reference is PetHistoryWeightReference.Available) {
+            petWeightReferenceChartSeries(reference)
+                .filter { it.kind == PetWeightReferenceSeriesKind.LOWER || it.kind == PetWeightReferenceSeriesKind.UPPER }
+                .forEachIndexed { index, series ->
+                    val lower = series.kind == PetWeightReferenceSeriesKind.LOWER
+                    add(
+                        PetWeightDisplayedSeries(
+                            id = "category-${series.kind.name.lowercase()}-$index",
+                            kind = if (lower) PetWeightDisplayedSeriesKind.CATEGORY_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+                            label = if (lower) "Нижняя граница эталона" else "Верхняя граница эталона",
+                            x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                            y = series.points.map { it.second },
+                            style = PetWeightDisplayedSeriesStyle.CATEGORY,
+                        ),
+                    )
+                }
+        }
         val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
-        breedSeries.forEach { series ->
+        breedSeries.distinctBy { Triple(it.kind, it.xEpochMillis, it.points.map { point -> point.second }) }.forEach { series ->
             val occurrence = counters.getOrDefault(series.kind, 0)
             counters[series.kind] = occurrence + 1
             val (kind, label, style) = when (series.kind) {

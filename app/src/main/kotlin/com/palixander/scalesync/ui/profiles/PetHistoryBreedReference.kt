@@ -155,16 +155,6 @@ class PetHistoryBreedReferencePresenter(
                         locale,
                         resolution.reference.source.id,
                     )
-                } + resolution.reference.companionGroups.flatMap { group ->
-                    group.values.map { value ->
-                        value.chartValue(
-                            resolution.reference.breedRussianName,
-                            group.ageScope.label(),
-                            group.source.kind.label(),
-                            locale,
-                            group.source.id,
-                        )
-                    }
                 }
                 is BreedWeightReferenceResolution.Unavailable -> null
             }
