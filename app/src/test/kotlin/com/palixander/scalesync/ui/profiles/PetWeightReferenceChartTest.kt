@@ -412,10 +412,13 @@ class PetWeightReferenceChartTest {
         val repeatedDisplay = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
 
         assertEquals(firstDisplay.map(PetWeightDisplayedSeries::id), repeatedDisplay.map(PetWeightDisplayedSeries::id))
-        assertEquals(6, firstDisplay.size)
-        assertEquals(6, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
-        assertTrue(firstDisplay.all { it.x.size == 1 })
-        assertTrue(firstDisplay.none { gap.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() in it.x })
+        assertEquals(3, firstDisplay.size)
+        assertEquals(3, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
+        assertEquals(listOf(7.0, 8.0, 8.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
+        assertEquals(listOf(12.0, 12.0, 13.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
+        assertTrue(firstDisplay.filter { it.kind != PetWeightDisplayedSeriesKind.BREED_CENTER }.all {
+            gap.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() in it.x
+        })
     }
 
     @Test fun `breed interval suppresses base boundaries and duplicate breed series`() {
