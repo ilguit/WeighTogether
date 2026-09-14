@@ -202,9 +202,11 @@ fun MeasurementsScreen(
 
                 MeasurementsDestination.PENDING_QUEUE -> PendingQueueDestination(
                     pendingMeasurements = state.pendingMeasurements,
+                    isClearInProgress = state.pendingClearConfirmation?.isClearing == true,
                     onAssign = callbacks.onPendingAssignRequested,
                     onPreview = callbacks.onPendingPreviewRequested,
                     onDelete = callbacks.onPendingDeleteRequested,
+                    onClear = callbacks.onPendingClearRequested,
                     onBack = callbacks.onBackRequested,
                 )
 
@@ -234,6 +236,13 @@ fun MeasurementsScreen(
                     confirmation = confirmation,
                     onConfirm = { callbacks.onDeleteConfirmed(confirmation.measurementId) },
                     onDismiss = callbacks.onDeleteDismissed,
+                )
+            }
+            state.pendingClearConfirmation?.let { confirmation ->
+                ClearPendingDialog(
+                    confirmation = confirmation,
+                    onConfirm = callbacks.onPendingClearConfirmed,
+                    onDismiss = callbacks.onPendingClearDismissed,
                 )
             }
             SnackbarHost(
@@ -275,9 +284,11 @@ fun MeasurementsScreen(
 @Composable
 private fun PendingQueueDestination(
     pendingMeasurements: List<PendingMeasurementUiItem>,
+    isClearInProgress: Boolean,
     onAssign: (PendingMeasurementId) -> Unit,
     onPreview: (PendingMeasurementId) -> Unit,
     onDelete: (PendingMeasurementId) -> Unit,
+    onClear: () -> Unit,
     onBack: () -> Unit,
 ) {
     LazyColumn(
@@ -302,6 +313,18 @@ private fun PendingQueueDestination(
         if (pendingMeasurements.isEmpty()) {
             item { EmptyPendingQueueCard() }
         } else {
+            item {
+                OutlinedButton(
+                    onClick = onClear,
+                    enabled = !isClearInProgress,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .testTag("pending-clear-all"),
+                ) {
+                    Text("Очистить всё")
+                }
+            }
             items(
                 items = pendingMeasurements,
                 key = { it.id.value },
@@ -316,6 +339,57 @@ private fun PendingQueueDestination(
         }
         item { Spacer(Modifier.height(12.dp)) }
     }
+}
+
+@Composable
+private fun ClearPendingDialog(
+    confirmation: PendingClearConfirmation,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        modifier = Modifier.testTag("pending-clear-dialog"),
+        onDismissRequest = { if (!confirmation.isClearing) onDismiss() },
+        icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
+        title = { Text("Очистить неназначенные измерения?") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Будут удалены все неназначенные измерения (${confirmation.count}) без " +
+                        "возможности восстановления.",
+                )
+                confirmation.errorMessage?.let { error ->
+                    Text(
+                        text = error,
+                        color = MaterialTheme.colorScheme.error,
+                        modifier = Modifier.testTag("pending-clear-error"),
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = onConfirm,
+                enabled = !confirmation.isClearing,
+                modifier = Modifier
+                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .testTag("pending-clear-confirm"),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.error,
+                    contentColor = MaterialTheme.colorScheme.onError,
+                ),
+            ) {
+                Text(if (confirmation.isClearing) "Очистка…" else "Очистить")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss,
+                enabled = !confirmation.isClearing,
+                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+            ) { Text("Отмена") }
+        },
+    )
 }
 
 @Composable

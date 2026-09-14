@@ -20,6 +20,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.assertIsDisplayed
@@ -550,6 +551,70 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("empty-pending-queue").assertIsDisplayed()
         composeRule.onNodeWithText("Нет неназначенных измерений").assertIsDisplayed()
         composeRule.onNodeWithText("Все измерения обработаны.").assertIsDisplayed()
+    }
+
+    @Test
+    fun pendingQueueClearAllRequiresConfirmationAndShowsFailureForRetry() {
+        var requested = false
+        var confirmed = false
+        var dismissed = false
+        var state by mutableStateOf(
+            MeasurementsUiState(
+                destination = MeasurementsDestination.PENDING_QUEUE,
+                pendingMeasurements = listOf(
+                    pendingItem("pending-clear", "2026-08-15T12:42:00Z", 72.4, 512),
+                ),
+                isLoading = false,
+            ),
+        )
+        val callbacks = MeasurementsCallbacks.None.copy(
+            onPendingClearRequested = { requested = true },
+            onPendingClearConfirmed = { confirmed = true },
+            onPendingClearDismissed = { dismissed = true },
+        )
+        composeRule.setContent { ScaleSyncTheme { MeasurementsScreen(state, callbacks) } }
+
+        composeRule.onNodeWithTag("pending-clear-all").performClick()
+        composeRule.runOnIdle { assertTrue(requested) }
+        composeRule.runOnIdle {
+            state = state.copy(pendingClearConfirmation = PendingClearConfirmation(count = 1))
+        }
+        composeRule.onNodeWithTag("pending-clear-dialog").assertIsDisplayed()
+        composeRule.onNodeWithText("Будут удалены все неназначенные измерения (1) без возможности восстановления.")
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag("pending-clear-confirm").performClick()
+        composeRule.runOnIdle { assertTrue(confirmed) }
+
+        composeRule.runOnIdle {
+            state = state.copy(
+                pendingClearConfirmation = PendingClearConfirmation(
+                    count = 1,
+                    errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
+                ),
+            )
+        }
+        composeRule.onNodeWithTag("pending-clear-error").assertIsDisplayed()
+        composeRule.onNodeWithText("Отмена").performClick()
+        composeRule.runOnIdle { assertTrue(dismissed) }
+    }
+
+    @Test
+    fun pendingQueueClearConfirmationLocksActionsWhileClearing() {
+        val state = MeasurementsUiState(
+            destination = MeasurementsDestination.PENDING_QUEUE,
+            pendingMeasurements = listOf(
+                pendingItem("pending-clear", "2026-08-15T12:42:00Z", 72.4, 512),
+            ),
+            pendingClearConfirmation = PendingClearConfirmation(count = 1, isClearing = true),
+            isLoading = false,
+        )
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("pending-clear-confirm").assertIsNotEnabled()
+        composeRule.onNodeWithTag("pending-clear-all").assertIsNotEnabled()
+        composeRule.onNodeWithText("Очистка…").assertIsDisplayed()
     }
 
     @Test

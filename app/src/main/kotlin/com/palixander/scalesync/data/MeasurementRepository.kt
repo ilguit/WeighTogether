@@ -368,6 +368,9 @@ class MeasurementRepository(
         requireNotNull(ingestionCoordinator) { "Multi-account ingestion is not configured" }
             .discard(pendingId)
 
+    override suspend fun clearUnassignedPending(): Int =
+        requireMultiAccountPersistence().clearUnassignedPending()
+
     override suspend fun discardPendingAndUpdateIgnorePolicy(
         pendingId: PendingMeasurementId,
         ignoreUnknownMeasurements: Boolean,

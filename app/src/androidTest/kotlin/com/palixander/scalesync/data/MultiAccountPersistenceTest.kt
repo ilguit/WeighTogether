@@ -20,6 +20,7 @@ import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.domain.RestorePendingResult
 import com.palixander.scalesync.domain.RoutingDecision
+import com.palixander.scalesync.domain.toRawScaleMeasurement
 import com.palixander.scalesync.domain.routing.MatchingEngine
 import com.palixander.scalesync.worker.MeasurementSyncScheduler
 import java.time.Instant
@@ -403,6 +404,49 @@ class MultiAccountPersistenceTest {
         currentTime = currentTime.plus(RoomMeasurementPersistence.TOMBSTONE_TTL).plusSeconds(1)
         assertTrue(persistence.enqueue(firstRaw) is PendingPersistenceResult.Inserted)
         assertEquals(0, database.pendingMeasurementDao().tombstoneCount())
+    }
+
+    @Test
+    fun clearUnassignedPendingIsAtomicTombstonesRowsAndPreservesAssignedPending() = runBlocking {
+        val persistence = persistence()
+        val oldest = persistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        currentTime = currentTime.plusSeconds(1)
+        val newest = persistence.enqueue(raw("2026-08-15T10:01:00Z", 71.0))
+            as PendingPersistenceResult.Inserted
+        currentTime = currentTime.plusSeconds(1)
+        val assigned = persistence.enqueue(raw("2026-08-15T10:02:00Z", 72.0))
+            as PendingPersistenceResult.Inserted
+        val dao = database.pendingMeasurementDao()
+        dao.update(requireNotNull(dao.get(assigned.pending.id.value)).copy(provisionalAccountId = "account"))
+
+        assertEquals(
+            listOf(newest.pending.id, oldest.pending.id),
+            persistence.observeUnassignedPending().first().map { it.id },
+        )
+        assertEquals(2, persistence.clearUnassignedPending())
+
+        assertEquals(listOf(assigned.pending.id), persistence.observePending().first().map { it.id })
+        assertEquals(2, dao.tombstoneCount())
+        assertEquals(PendingPersistenceResult.Tombstoned, persistence.enqueue(oldest.pending.toRawScaleMeasurement()))
+        assertEquals(PendingPersistenceResult.Tombstoned, persistence.enqueue(newest.pending.toRawScaleMeasurement()))
+    }
+
+    @Test
+    fun failedClearUnassignedPendingRollsBackTombstonesAndRows() = runBlocking {
+        val actualDao = database.pendingMeasurementDao()
+        val normalPersistence = persistence()
+        val pending = normalPersistence.enqueue(raw("2026-08-15T10:00:00Z", 70.0))
+            as PendingPersistenceResult.Inserted
+        val failingDao = object : PendingMeasurementDao by actualDao {
+            override suspend fun deleteUnassigned(): Int = 0
+        }
+
+        val failure = runCatching { persistence(failingDao).clearUnassignedPending() }
+
+        assertTrue(failure.exceptionOrNull() is IllegalStateException)
+        assertNotNull(normalPersistence.getPending(pending.pending.id))
+        assertEquals(0, actualDao.tombstoneCount())
     }
 
     @Test

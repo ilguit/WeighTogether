@@ -22,6 +22,7 @@ import com.palixander.scalesync.measurements.MeasurementsCallbacks
 import com.palixander.scalesync.measurements.MeasurementsDestination
 import com.palixander.scalesync.measurements.MeasurementsNavigationState
 import com.palixander.scalesync.measurements.PendingMeasurementUiItem
+import com.palixander.scalesync.measurements.PendingClearConfirmation
 import com.palixander.scalesync.measurements.MeasurementsUiEvent
 import com.palixander.scalesync.measurements.MeasurementsUiState
 import com.palixander.scalesync.measurements.buildMeasurementSummary
@@ -49,6 +50,7 @@ import java.time.Clock
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -238,6 +240,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
             isLoading = current.loadState is AccountScopedLoad.Loading,
             editor = currentInteraction.editor,
             deleteConfirmation = deletion,
+            pendingClearConfirmation = currentInteraction.pendingClearConfirmation,
             homeKgChart = current.homeKgChart,
             accountSelector = current.accountSelection.selector,
         )
@@ -262,6 +265,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         onDeleteRequested = ::requestDelete,
         onDeleteConfirmed = ::confirmDelete,
         onDeleteDismissed = ::dismissDelete,
+        onPendingClearRequested = ::requestPendingClear,
+        onPendingClearConfirmed = ::confirmPendingClear,
+        onPendingClearDismissed = ::dismissPendingClear,
         onRetryRequested = ::retry,
         onAccountSelected = ::selectAccount,
         onHomeKgChartSeriesToggled = ::toggleHomeKgChartSeries,
@@ -459,6 +465,53 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    private fun requestPendingClear() {
+        val current = currentInteraction()
+        if (current.pendingClearConfirmation?.isClearing == true) return
+        val count = pending.value.measurements.size
+        if (count == 0) return
+        interaction.value = current.copy(
+            pendingClearConfirmation = PendingClearConfirmation(count = count),
+        )
+    }
+
+    private fun confirmPendingClear() {
+        val current = currentInteraction()
+        val confirmation = current.pendingClearConfirmation ?: return
+        if (confirmation.isClearing) return
+        interaction.value = current.copy(
+            pendingClearConfirmation = confirmation.copy(isClearing = true, errorMessage = null),
+        )
+        viewModelScope.launch {
+            try {
+                val cleared = repository.clearUnassignedPending()
+                interaction.update { state -> state.copy(pendingClearConfirmation = null) }
+                showMessage(
+                    if (cleared == 0) "Неназначенных измерений уже нет"
+                    else "Неназначенные измерения удалены",
+                )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                interaction.update { state ->
+                    state.copy(
+                        pendingClearConfirmation = state.pendingClearConfirmation?.copy(
+                            isClearing = false,
+                            errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
+                        ),
+                    )
+                }
+            }
+        }
+    }
+
+    private fun dismissPendingClear() {
+        val current = currentInteraction()
+        if (current.pendingClearConfirmation?.isClearing != true) {
+            interaction.value = current.copy(pendingClearConfirmation = null)
+        }
+    }
+
     private fun retry(id: String) {
         currentInteraction()
         if (measurements.value.load.valuesOrEmpty().finalized.none { it.id == id }) return
@@ -503,6 +556,7 @@ internal data class MeasurementsInteractionState(
     val navigation: MeasurementsNavigationState = MeasurementsNavigationState(),
     val editor: MeasurementEditorState? = null,
     val deleteConfirmation: MeasurementDeleteConfirmation? = null,
+    val pendingClearConfirmation: PendingClearConfirmation? = null,
     val saveOperation: MeasurementOperationToken? = null,
     val deleteRequestOperation: MeasurementOperationToken? = null,
     val deleteOperation: MeasurementOperationToken? = null,
@@ -517,6 +571,7 @@ internal data class MeasurementsInteractionState(
             navigation = navigation.afterAccountSelectionChanged(),
             editor = null,
             deleteConfirmation = null,
+            pendingClearConfirmation = null,
             saveOperation = null,
             deleteRequestOperation = null,
             deleteOperation = null,

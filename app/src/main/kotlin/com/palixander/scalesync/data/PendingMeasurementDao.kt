@@ -14,7 +14,7 @@ interface PendingMeasurementDao {
 
     @Query(
         "SELECT * FROM pending_measurements WHERE provisionalAccountId IS NULL " +
-            "ORDER BY enqueuedAtEpochMillis ASC, id ASC",
+            "ORDER BY enqueuedAtEpochMillis DESC, id DESC",
     )
     fun observeUnassigned(): Flow<List<PendingMeasurementEntity>>
 
@@ -29,7 +29,7 @@ interface PendingMeasurementDao {
 
     @Query(
         "SELECT * FROM pending_measurements WHERE provisionalAccountId IS NULL " +
-            "ORDER BY enqueuedAtEpochMillis ASC, id ASC",
+            "ORDER BY enqueuedAtEpochMillis DESC, id DESC",
     )
     suspend fun getUnassigned(): List<PendingMeasurementEntity>
 
@@ -109,6 +109,9 @@ interface PendingMeasurementDao {
 
     @Query("DELETE FROM pending_measurements WHERE id = :id")
     suspend fun delete(id: String): Int
+
+    @Query("DELETE FROM pending_measurements WHERE provisionalAccountId IS NULL")
+    suspend fun deleteUnassigned(): Int
 
     @Query("DELETE FROM pending_measurements")
     suspend fun deleteAll(): Int
