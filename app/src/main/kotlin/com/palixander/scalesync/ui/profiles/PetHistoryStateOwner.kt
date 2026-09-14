@@ -333,7 +333,11 @@ class PetHistoryStateOwner(
                     )
                     current.baseState(presentationRange).copy(
                         pet = observedPet,
-                        profileSummary = petProfileSummary(observedPet, referenceData.breedCatalog),
+                        profileSummary = petProfileSummary(
+                            observedPet,
+                            referenceData.breedCatalog,
+                            LocalDate.now(clock),
+                        ),
                         content = content,
                         series = series,
                         weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
