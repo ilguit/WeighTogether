@@ -12,6 +12,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.palixander.scalesync.R
 import com.palixander.scalesync.MainActivity
 import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.data.SuccessfulMeasurementNotifier
