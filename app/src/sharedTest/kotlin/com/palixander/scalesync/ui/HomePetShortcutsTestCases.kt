@@ -97,7 +97,7 @@ abstract class HomePetShortcutsTestCases {
         val restoration = StateRestorationTester(composeRule)
         val pets = List(5) { pet("$it", "Длинное имя питомца $it") }
         restoration.setContent {
-            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(200.dp)) }
+            ScaleSyncTheme { HomePetShortcuts(pets, {}, {}, Modifier.width(100.dp)) }
         }
         composeRule.onNodeWithTag(Tags.pet("0")).assertIsDisplayed()
         composeRule.onNodeWithContentDescription("Длинное имя питомца 1, питомец").assertDoesNotExist()
@@ -112,7 +112,7 @@ abstract class HomePetShortcutsTestCases {
     }
 
     @Test fun widthAndFontChangesKeepFullWidthAndAccessibleNames() {
-        val width = mutableStateOf(140.dp)
+        val width = mutableStateOf(100.dp)
         val fontScale = mutableStateOf(1f)
         val pets = listOf(pet("1", "Барсик-кот"), pet("2", "Мурка-кошка"))
         composeRule.setContent {
@@ -124,12 +124,17 @@ abstract class HomePetShortcutsTestCases {
             }
         }
         assertFullWidth("1")
+        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
         composeRule.runOnIdle { width.value = 320.dp }
-        assertFullWidth("1")
-        composeRule.runOnIdle { fontScale.value = 2f }
+        assertRowFillsWidth("1", "2")
+        composeRule.runOnIdle {
+            width.value = 180.dp
+            fontScale.value = 2f
+        }
         composeRule.onNodeWithTag(Tags.Toggle).assertExists()
         composeRule.onNodeWithContentDescription("Барсик-кот, питомец").assertIsDisplayed()
         assertFullWidth("1")
+        composeRule.onNodeWithTag(Tags.pet("2")).assertDoesNotExist()
         composeRule.onNodeWithTag(Tags.Toggle).performClick()
         assertFullWidth("2")
         composeRule.onNodeWithContentDescription("Мурка-кошка, питомец").assertIsDisplayed()
