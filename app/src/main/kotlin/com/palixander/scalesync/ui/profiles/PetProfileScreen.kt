@@ -83,6 +83,9 @@ object PetProfileScreenTestTags {
     fun preset(preset: ChartRangePreset) = "pet-history-period-${preset.name.lowercase()}"
 }
 
+internal fun petProfileListContentPadding(): PaddingValues =
+    PaddingValues(bottom = HuaweiDimensions.ContentPadding)
+
 @Composable
 internal fun PetProfileScreen(
     state: PetHistoryUiState,
@@ -125,6 +128,7 @@ internal fun PetProfileScreen(
             .testTag(PetProfileScreenTestTags.shell(state.petId.value))
             .semantics { contentDescription = "История измерений питомца ${state.pet?.displayName.orEmpty()}" },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        contentPadding = petProfileListContentPadding(),
     ) {
         item {
             Button(
