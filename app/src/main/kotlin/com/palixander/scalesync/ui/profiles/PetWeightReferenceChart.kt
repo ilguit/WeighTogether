@@ -387,7 +387,7 @@ internal fun petWeightDisplayedSeries(
                         PetWeightDisplayedSeries(
                             id = "category-${series.kind.name.lowercase()}-$index",
                             kind = if (lower) PetWeightDisplayedSeriesKind.CATEGORY_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
-                            label = if (lower) "Нижняя граница эталона" else "Верхняя граница эталона",
+                            label = if (lower) "Согласованная нижняя граница ориентира" else "Согласованная верхняя граница ориентира",
                             x = series.xEpochMillis
                                 ?: series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                             y = series.points.map { it.second },
@@ -476,8 +476,8 @@ internal fun petWeightDisplayedSeries(
  * Expands the displayed base envelope to include center-only breed observations.
  *
  * This is deliberately a presentation projection: source reference points and breed timeline
- * values remain untouched. A missing breed value or base point ends the current segment, so the
- * chart never invents values across documented or measurement gaps.
+ * values remain untouched. Existing base segments are retained as-is, and only points with a
+ * matching breed observation are expanded, so no values are interpolated across gaps.
  */
 private fun centerOnlyBreedPresentationEnvelope(
     reference: PetHistoryWeightReference.Available,

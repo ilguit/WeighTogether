@@ -325,11 +325,17 @@ class PetWeightReferenceChartTest {
         )
         assertEquals(3, displayed.map(PetWeightDisplayedSeries::id).distinct().size)
         assertEquals(
-            listOf("— Нижняя граница эталона", "— Верхняя граница эталона", "— Породная медиана или среднее"),
+            listOf(
+                "— Согласованная нижняя граница ориентира",
+                "— Согласованная верхняя граница ориентира",
+                "— Породная медиана или среднее",
+            ),
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
         assertEquals(
-            "Нижняя граница эталона: 6.00 кг\nВерхняя граница эталона: 12.00 кг\nМедиана или среднее: 10.40 кг",
+            "Согласованная нижняя граница ориентира: 6.00 кг\n" +
+                "Согласованная верхняя граница ориентира: 12.00 кг\n" +
+                "Медиана или среднее: 10.40 кг",
             formatPetWeightDisplayedMarker(x, displayed, Locale.US),
         )
         assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
@@ -387,10 +393,17 @@ class PetWeightReferenceChartTest {
         assertEquals(3, displayed.map(PetWeightDisplayedSeries::id).distinct().size)
         assertEquals(xs, petWeightDisplayedMarkerXs(displayed))
         assertEquals(
-            listOf("— Нижняя граница эталона", "— Верхняя граница эталона", "— Породная медиана или среднее"),
+            listOf(
+                "— Согласованная нижняя граница ориентира",
+                "— Согласованная верхняя граница ориентира",
+                "— Породная медиана или среднее",
+            ),
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
-        assertTrue(formatPetWeightDisplayedMarker(xs.first(), displayed, Locale.US).contains("Нижняя граница эталона: 7.00 кг"))
+        assertTrue(
+            formatPetWeightDisplayedMarker(xs.first(), displayed, Locale.US)
+                .contains("Согласованная нижняя граница ориентира: 7.00 кг"),
+        )
     }
 
     @Test fun `center-only envelope splits at gaps and keeps stable unique ids`() {
