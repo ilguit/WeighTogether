@@ -491,25 +491,38 @@ private fun centerOnlyBreedPresentationEnvelope(
         centers.takeIf { it.isNotEmpty() }?.let {
             timelinePoint.date to (timelinePoint.xEpochMillis to it)
         }
-    }.toMap()
+    }.groupBy(
+        keySelector = { it.first },
+        valueTransform = { it.second },
+    ).mapValues { (_, observations) ->
+        observations.groupBy(
+            keySelector = { it.first },
+            valueTransform = { it.second },
+        ).map { (xEpochMillis, centersAtTimestamp) ->
+            xEpochMillis to centersAtTimestamp.flatten()
+        }.sortedBy { it.first }
+    }
 
     return petWeightReferenceChartSeries(reference)
         .filter { it.kind == PetWeightReferenceSeriesKind.LOWER || it.kind == PetWeightReferenceSeriesKind.UPPER }
         .map { series ->
-            series.copy(
-                points = series.points.map { (date, value) ->
-                    val centers = breedByDate[date]?.second
-                    date to when (series.kind) {
-                        PetWeightReferenceSeriesKind.LOWER -> centers?.minOrNull()?.let { minOf(value, it) } ?: value
-                        PetWeightReferenceSeriesKind.UPPER -> centers?.maxOrNull()?.let { maxOf(value, it) } ?: value
-                        PetWeightReferenceSeriesKind.MEDIAN_LOWER,
-                        PetWeightReferenceSeriesKind.MEDIAN_UPPER,
-                        -> value
+            val projectedPoints = series.points.flatMap { (date, value) ->
+                breedByDate[date]
+                    ?.map { (xEpochMillis, centers) ->
+                        val projectedValue = when (series.kind) {
+                            PetWeightReferenceSeriesKind.LOWER -> minOf(value, requireNotNull(centers.minOrNull()))
+                            PetWeightReferenceSeriesKind.UPPER -> maxOf(value, requireNotNull(centers.maxOrNull()))
+                            PetWeightReferenceSeriesKind.MEDIAN_LOWER,
+                            PetWeightReferenceSeriesKind.MEDIAN_UPPER,
+                            -> value
+                        }
+                        Triple(date, xEpochMillis, projectedValue)
                     }
-                },
-                xEpochMillis = series.points.map { (date, _) ->
-                    breedByDate[date]?.first ?: date.atStartOfDay(zoneId).toInstant().toEpochMilli()
-                },
+                    ?: listOf(Triple(date, date.atStartOfDay(zoneId).toInstant().toEpochMilli(), value))
+            }.sortedBy { it.second }
+            series.copy(
+                points = projectedPoints.map { (date, _, value) -> date to value },
+                xEpochMillis = projectedPoints.map { it.second },
             )
         }
 }

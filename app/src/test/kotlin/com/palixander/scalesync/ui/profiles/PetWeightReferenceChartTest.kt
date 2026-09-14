@@ -406,6 +406,50 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `center-only envelope keeps distinct observations from the same day selectable`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val morningX = date.atTime(8, 15).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val eveningX = date.atTime(19, 45).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val reference = available(listOf(PetHistoryReferencePoint(date, 8.0, 9.0, 11.0, 12.0)))
+        val timeline = listOf(
+            PetHistoryBreedReferenceTimelinePoint(
+                morningX,
+                date,
+                listOf(PetHistoryBreedChartValue.Single(7.0, "Среднее", "shiba")),
+            ),
+            PetHistoryBreedReferenceTimelinePoint(
+                eveningX,
+                date,
+                listOf(PetHistoryBreedChartValue.Single(13.0, "Среднее", "shiba")),
+            ),
+        )
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
+
+        assertEquals(listOf(morningX, eveningX), displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
+        }.x)
+        assertEquals(listOf(7.0, 8.0), displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
+        }.y)
+        assertEquals(listOf(12.0, 13.0), displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER
+        }.y)
+        assertEquals(listOf(morningX, eveningX), petWeightDisplayedMarkerXs(displayed))
+        assertEquals(
+            "Согласованная нижняя граница ориентира: 7.00 кг\n" +
+                "Согласованная верхняя граница ориентира: 12.00 кг\n" +
+                "Медиана или среднее: 7.00 кг",
+            formatPetWeightDisplayedMarker(morningX, displayed, Locale.US),
+        )
+        assertEquals(
+            "Согласованная нижняя граница ориентира: 8.00 кг\n" +
+                "Согласованная верхняя граница ориентира: 13.00 кг\n" +
+                "Медиана или среднее: 13.00 кг",
+            formatPetWeightDisplayedMarker(eveningX, displayed, Locale.US),
+        )
+    }
+
     @Test fun `center-only envelope splits at gaps and keeps stable unique ids`() {
         val first = LocalDate.of(2026, 7, 1)
         val gap = LocalDate.of(2026, 8, 1)
