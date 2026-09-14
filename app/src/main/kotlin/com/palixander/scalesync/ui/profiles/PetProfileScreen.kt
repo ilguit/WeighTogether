@@ -2,6 +2,8 @@ package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.ui.components.ManualOriginIndicator
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -143,12 +145,13 @@ internal fun PetProfileScreen(
         }
         item {
             Row(
-                modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.PeriodFilter),
+                modifier = Modifier.fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .testTag(PetProfileScreenTestTags.PeriodFilter),
                 horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
                 listOf(
                     ChartRangePreset.ALL,
-                    ChartRangePreset.LAST_7_DAYS,
                     ChartRangePreset.LAST_30_DAYS,
                     ChartRangePreset.LAST_3_MONTHS,
                 )
@@ -156,8 +159,8 @@ internal fun PetProfileScreen(
                         FilterChip(
                             selected = state.rangePreset == preset,
                             onClick = { callbacks.selectRangePreset(preset) },
-                            label = { Text(preset.petTitle()) },
-                            modifier = Modifier.weight(1f).testTag(PetProfileScreenTestTags.preset(preset)),
+                            label = { Text(preset.petTitle(), maxLines = 1, softWrap = false) },
+                            modifier = Modifier.testTag(PetProfileScreenTestTags.preset(preset)),
                         )
                     }
             }

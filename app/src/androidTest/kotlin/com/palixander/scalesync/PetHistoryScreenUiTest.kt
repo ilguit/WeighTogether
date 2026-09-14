@@ -10,6 +10,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.test.SemanticsMatcher
@@ -17,6 +18,7 @@ import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsDisplayed
@@ -28,10 +30,12 @@ import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
@@ -65,6 +69,7 @@ import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
@@ -206,11 +211,59 @@ class PetHistoryScreenUiTest {
 
         composeRule.onNodeWithTag(PetProfileScreenTestTags.Empty).assertIsDisplayed()
         composeRule.onNodeWithTag(PetProfileScreenTestTags.StartMeasurement).performClick()
-        composeRule.onNodeWithTag(PetProfileScreenTestTags.preset(ChartRangePreset.LAST_7_DAYS)).performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.preset(ChartRangePreset.LAST_30_DAYS)).performClick()
         composeRule.runOnIdle {
             assertEquals(1, starts)
-            assertEquals(ChartRangePreset.LAST_7_DAYS, selected)
+            assertEquals(ChartRangePreset.LAST_30_DAYS, selected)
         }
+    }
+
+    @Test fun petPeriodsRemainSelectableAndSingleLineAtNarrowWidthWithLargeText() {
+        val selected = mutableListOf<ChartRangePreset>()
+        var screenState by mutableStateOf(state(PetHistoryContent.Empty))
+        composeRule.setContent {
+            val density = LocalDensity.current
+            CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 2f)) {
+                Box(Modifier.width(320.dp)) {
+                    PetProfileScreen(
+                        screenState,
+                        callbacks().copy(selectRangePreset = { preset ->
+                            selected += preset
+                            screenState = screenState.copy(rangePreset = preset)
+                        }),
+                        PaddingValues(),
+                        {},
+                    )
+                }
+            }
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.preset(ChartRangePreset.LAST_7_DAYS))
+            .assertDoesNotExist()
+        composeRule.onNodeWithText("7 дней").assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.PeriodFilter).assert(hasScrollAction())
+        val periods = listOf(
+            ChartRangePreset.ALL to "Всё",
+            ChartRangePreset.LAST_30_DAYS to "30 дней",
+            ChartRangePreset.LAST_3_MONTHS to "3 месяца",
+        )
+        periods.forEach { (preset, title) ->
+            composeRule.onNodeWithTag(PetProfileScreenTestTags.preset(preset))
+                .performScrollTo()
+                .assertIsDisplayed()
+                .performClick()
+                .assertIsSelected()
+            val layouts = mutableListOf<TextLayoutResult>()
+            composeRule.onNodeWithText(title, useUnmergedTree = true)
+                .assertIsDisplayed()
+                .performSemanticsAction(SemanticsActions.GetTextLayoutResult) { it(layouts) }
+            composeRule.runOnIdle {
+                assertEquals(1, layouts.size)
+                assertEquals(1, layouts.single().lineCount)
+                assertFalse(layouts.single().hasVisualOverflow)
+            }
+        }
+        composeRule.runOnIdle { assertEquals(periods.map { it.first }, selected) }
     }
 
     @Test fun emptyProfileSummaryIsExplicitAndEditTargetsExactPetAccessibly() {
