@@ -35,10 +35,10 @@ class ReleaseHistoryPlugin : Plugin<Project> {
                     configured.currentVersion.set(versionName.map { it.substringBefore('-') })
                     configured.flavor.set(flavor)
                     configured.mode.set(releaseHistoryMode)
-                    configured.generatorSchemaVersion.set(2)
+                    configured.generatorSchemaVersion.set(3)
                     configured.gitMetadata.set(project.providers.exec {
                         it.commandLine(
-                            "git", "-C", project.rootDir, "log", "--first-parent",
+                            "git", "-C", project.rootDir, "log", "--full-history",
                             "--format=%H%x00%s", "HEAD", "--", ".release-notes", ".release-history",
                         )
                     }.standardOutput.asText)

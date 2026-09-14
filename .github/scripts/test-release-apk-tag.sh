@@ -101,8 +101,7 @@ git -C "$repo" checkout --quiet main
 third_sha="$(append_commit "$repo" third)"
 assert_eq "$(run_script "$repo" preflight 0.1.3 "$third_sha")" "apk/0.1.2"
 
-# A release tag on a merged side branch must not replace the nearest tag on
-# the first-parent chain.
+# A release introduced by the second parent replaces its older ancestor release.
 merge_repo="$(new_fixture merged-side)"
 merge_base="$(git -C "$merge_repo" rev-parse HEAD)"
 git -C "$merge_repo" tag -a apk/0.5.0 "$merge_base" -m first-parent
@@ -114,15 +113,14 @@ printf 'side\n' >"${merge_repo}/side.txt"
 git -C "$merge_repo" add side.txt
 git -C "$merge_repo" commit --quiet -m side
 side_sha="$(git -C "$merge_repo" rev-parse HEAD)"
-git -C "$merge_repo" tag -a apk/9.9.9 "$side_sha" -m side
-git -C "$merge_repo" push --quiet origin refs/tags/apk/9.9.9
+git -C "$merge_repo" tag -a apk/0.6 "$side_sha" -m side
+git -C "$merge_repo" push --quiet origin refs/tags/apk/0.6
 git -C "$merge_repo" checkout --quiet main
 git -C "$merge_repo" merge --quiet --no-ff side -m "Merge side"
 merge_head="$(git -C "$merge_repo" rev-parse HEAD)"
-assert_eq "$(run_script "$merge_repo" preflight 0.5.1 "$merge_head")" "apk/0.5.0"
+assert_eq "$(run_script "$merge_repo" preflight 0.7 "$merge_head")" "apk/0.6"
 
-# With no release tag on the first-parent chain, a merged-side tag does not
-# manufacture a previous release boundary.
+# A release reached only through the second parent is still a release boundary.
 side_only_repo="$(new_fixture side-only)"
 git -C "$side_only_repo" branch side
 append_commit "$side_only_repo" main >/dev/null
@@ -136,7 +134,92 @@ git -C "$side_only_repo" push --quiet origin refs/tags/apk/7.7.7
 git -C "$side_only_repo" checkout --quiet main
 git -C "$side_only_repo" merge --quiet --no-ff side -m "Merge side"
 side_only_head="$(git -C "$side_only_repo" rev-parse HEAD)"
-assert_eq "$(run_script "$side_only_repo" preflight 0.6.0 "$side_only_head")" "null"
+assert_eq "$(run_script "$side_only_repo" preflight 7.7.8 "$side_only_head")" "apk/7.7.7"
+
+# Reproduce an old task branch updated from main after multiple releases.
+old_repo="$(new_fixture old-task)"
+git -C "$old_repo" branch old-task
+old_base="$(git -C "$old_repo" rev-parse HEAD)"
+git -C "$old_repo" tag -a apk/0.2 "$old_base" -m release
+release_sha="$(append_commit "$old_repo" release)"
+git -C "$old_repo" tag -a apk/0.3 "$release_sha" -m release
+next_release_sha="$(append_commit "$old_repo" next-release)"
+git -C "$old_repo" tag -a apk/0.10 "$next_release_sha" -m release
+git -C "$old_repo" push --quiet origin main --tags
+git -C "$old_repo" checkout --quiet old-task
+printf 'task\n' >"${old_repo}/task.txt"
+git -C "$old_repo" add task.txt
+git -C "$old_repo" commit --quiet -m task
+git -C "$old_repo" merge --quiet --no-ff main -m "Update old task"
+old_head="$(git -C "$old_repo" rev-parse HEAD)"
+assert_eq "$(run_script "$old_repo" previous 0.10 "$old_head")" "apk/0.10"
+assert_eq "$(run_script "$old_repo" previous 0.10 "$old_head")" "apk/0.10"
+assert_eq "$(run_script "$old_repo" preflight 0.11 "$old_head")" "apk/0.10"
+if run_script "$old_repo" preflight 0.10.0 "$old_head" >"${test_root}/equal.out" 2>&1; then
+    fail "equal numeric candidate version unexpectedly succeeded"
+fi
+grep -q 'must be greater' "${test_root}/equal.out" || fail "missing numeric equality diagnostic"
+
+# Publishing a second version on an existing boundary must not create ambiguity.
+for mode in preflight publish; do
+    if run_script "$old_repo" "$mode" 0.11 "$next_release_sha" >"${test_root}/retag.out" 2>&1; then
+        fail "$mode accepted a second version at one commit"
+    fi
+    grep -q 'already tagged as' "${test_root}/retag.out" || fail "missing retag diagnostic"
+done
+[[ -z "$(git -C "$old_repo" ls-remote --tags origin refs/tags/apk/0.11)" ]] || fail "invalid tag published"
+
+# A shallow clone cannot silently lose older boundaries.
+shallow_repo="${test_root}/shallow"
+git clone --quiet --depth 1 --branch main "file://${test_root}/old-task.git" "$shallow_repo"
+shallow_head="$(git -C "$shallow_repo" rev-parse HEAD)"
+if run_script "$shallow_repo" previous 0.10 "$shallow_head" >"${test_root}/shallow.out" 2>&1; then
+    fail "shallow history unexpectedly succeeded"
+fi
+grep -q 'full Git history is required' "${test_root}/shallow.out" || fail "missing shallow diagnostic"
+
+# Multiple names for one commit are ambiguous, including an idempotent rerun.
+git -C "$old_repo" tag -a apk/0.10.1 "$next_release_sha" -m duplicate
+git -C "$old_repo" push --quiet origin refs/tags/apk/0.10.1
+for mode in previous preflight publish; do
+    if run_script "$old_repo" "$mode" 0.10 "$next_release_sha" >"${test_root}/duplicate.out" 2>&1; then
+        fail "$mode accepted duplicate release boundaries"
+    fi
+    grep -q 'multiple annotated APK tags' "${test_root}/duplicate.out" || fail "missing duplicate diagnostic"
+done
+
+# Two merged releases without an ancestor relationship cannot be ordered.
+ambiguous_repo="$(new_fixture ambiguous)"
+git -C "$ambiguous_repo" branch side
+main_release="$(append_commit "$ambiguous_repo" main)"
+git -C "$ambiguous_repo" tag -a apk/0.2 "$main_release" -m main
+git -C "$ambiguous_repo" checkout --quiet side
+printf 'side\n' >"${ambiguous_repo}/side.txt"
+git -C "$ambiguous_repo" add side.txt
+git -C "$ambiguous_repo" commit --quiet -m side
+git -C "$ambiguous_repo" tag -a apk/0.3 -m side
+git -C "$ambiguous_repo" checkout --quiet main
+git -C "$ambiguous_repo" merge --quiet --no-ff side -m merge
+git -C "$ambiguous_repo" push --quiet origin main --tags
+ambiguous_head="$(git -C "$ambiguous_repo" rev-parse HEAD)"
+if run_script "$ambiguous_repo" previous 0.4 "$ambiguous_head" >"${test_root}/ambiguous.out" 2>&1; then
+    fail "incomparable releases unexpectedly succeeded"
+fi
+grep -q 'incomparable by ancestry' "${test_root}/ambiguous.out" || fail "missing ambiguity diagnostic"
+
+# Numeric comparisons, including zero padding, must agree with the generator.
+for versions in '0.10 0.9' '0.3 0.3.0' '0.03 0.3'; do
+    read -r older_version newer_version <<<"$versions"
+    order_repo="$(new_fixture "order-${older_version}-${newer_version}")"
+    git -C "$order_repo" tag -a "apk/$older_version" -m older
+    order_head="$(append_commit "$order_repo" newer)"
+    git -C "$order_repo" tag -a "apk/$newer_version" -m newer
+    git -C "$order_repo" push --quiet origin main --tags
+    if run_script "$order_repo" previous 0.11 "$order_head" >"${test_root}/order.out" 2>&1; then
+        fail "non-increasing versions $versions unexpectedly succeeded"
+    fi
+    grep -q 'versions must increase' "${test_root}/order.out" || fail "missing version order diagnostic"
+done
 
 # Reusing a released version for another commit fails clearly.
 if run_script "$repo" preflight 0.1.2 "$third_sha" >"${test_root}/conflict.out" 2>&1; then
@@ -160,6 +243,7 @@ assert_eq "$(run_script "$lightweight_repo" previous 0.1.9 "$lightweight_sha")" 
 partial_repo="$(new_fixture partial)"
 partial_sha="$(git -C "$partial_repo" rev-parse HEAD)"
 git -C "$partial_repo" tag -a apk/0.2.0 "$partial_sha" -m partial
+assert_eq "$(run_script "$partial_repo" previous 0.2.0 "$partial_sha")" "null"
 run_script "$partial_repo" publish 0.2.0 "$partial_sha"
 assert_eq "$(git -C "$partial_repo" ls-remote --tags origin refs/tags/apk/0.2.0^{} | awk '{print $1}')" "$partial_sha"
 

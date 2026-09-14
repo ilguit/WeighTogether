@@ -29,13 +29,19 @@ Version 0.1.5 is intentionally absent: the repository records a version bump
 and catalog maintenance, but no explicit APK release handoff. Empty historical
 versions are not emitted.
 
-Generation is pinned to the exact checked-out commit and its first-parent
-history. Only annotated `apk/<version>` tags on that chain are release
-boundaries. CI must therefore check out full history and tags. A repeated build
+Generation is pinned to the exact checked-out commit and its full ancestry,
+including every merge parent. Reachable annotated `apk/<version>` tags are
+release boundaries and must form one ancestor chain with strictly increasing
+numeric dotted versions (two- and three-component versions are supported;
+missing components compare as zero). Multiple tags at one commit, incomparable
+tagged commits, and non-increasing versions fail explicitly. Unreachable and
+lightweight tags are ignored. The shell uses the same chain rules but considers
+only published remote tags. The baseline boundary is also checked using full
+ancestry. CI must therefore check out full history and tags. A repeated build
 of an already tagged commit is deterministic and does not add a duplicate
 release.
 
-The Gradle task is cacheable: the exact HEAD, first-parent metadata, APK tag
+The Gradle task is cacheable: the exact HEAD, full ancestry metadata, APK tag
 refs, baseline, fragments, flavor, version, and generator schema are declared
 inputs; generated Kotlin and canonical `res/raw/app_release_history.json` are
 declared outputs. Tracked worktree state is also an input so a dirty-tree guard

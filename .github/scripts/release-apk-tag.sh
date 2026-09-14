@@ -18,7 +18,7 @@ version_name="$2"
 commit_sha="${3,,}"
 
 [[ "$command_name" == "previous" || "$command_name" == "preflight" || "$command_name" == "publish" ]] || usage
-[[ "$version_name" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z]+([.-][0-9A-Za-z]+)*)?$ ]] ||
+[[ "$version_name" =~ ^[0-9]+(\.[0-9]+)+$ ]] ||
     die "invalid base versionName '$version_name'"
 [[ "$commit_sha" =~ ^[0-9a-f]{40}$ ]] || die "commit SHA must contain exactly 40 hexadecimal characters"
 git cat-file -e "${commit_sha}^{commit}" 2>/dev/null || die "commit $commit_sha does not exist"
@@ -73,12 +73,47 @@ check_current_remote_tag() {
     return 1
 }
 
+# Numeric components match the generator's Int range; missing components are
+# zero (0.3 and 0.3.0 denote the same version).
+validate_version() {
+    local version="$1" part normalized
+    local -a parts
+    [[ "$version" =~ ^[0-9]+(\.[0-9]+)+$ ]] || die "release version '$version' is not numeric dotted notation"
+    IFS=. read -r -a parts <<<"$version"
+    for part in "${parts[@]}"; do
+        normalized="${part#"${part%%[!0]*}"}"
+        normalized="${normalized:-0}"
+        [[ ${#normalized} -le 10 ]] && ((10#$normalized <= 2147483647)) ||
+            die "release version '$version' has an out-of-range numeric component"
+    done
+}
+
+version_is_greater() {
+    local left="$1" right="$2" index left_part right_part
+    local -a left_parts right_parts
+    IFS=. read -r -a left_parts <<<"$left"
+    IFS=. read -r -a right_parts <<<"$right"
+    for ((index=0; index<${#left_parts[@]} || index<${#right_parts[@]}; index++)); do
+        left_part="${left_parts[$index]:-0}"
+        right_part="${right_parts[$index]:-0}"
+        ((10#$left_part > 10#$right_part)) && return 0
+        ((10#$left_part < 10#$right_part)) && return 1
+    done
+    return 1
+}
+
 previous_release_tag() {
     local excluded_tag="${1:-}"
-    local object ref name position output commit
-    local -a reachable=()
+    local object ref name output commit newer="" previous="null"
     declare -A annotated=()
-    declare -A first_parent_position=()
+    declare -A reachable=()
+    [[ "$(git rev-parse --is-shallow-repository)" == "false" ]] ||
+        die "full Git history is required; fetch --unshallow --tags before selecting a release"
+    local ancestry
+    ancestry="$(git rev-list --topo-order "$commit_sha")" || die "failed to read commit ancestry"
+    while read -r commit; do
+        reachable["$commit"]=1
+    done <<<"$ancestry"
 
     output="$(git ls-remote --tags origin 'refs/tags/apk/*')" || die "failed to query remote APK tags"
     while read -r object ref; do
@@ -86,42 +121,55 @@ previous_release_tag() {
         if [[ "$ref" == refs/tags/apk/*^\{\} ]]; then
             name="${ref#refs/tags/}"
             name="${name%\^\{\}}"
-            annotated["$name"]="$object"
+            [[ "${name#apk/}" != */* ]] || continue
+            [[ -n "${reachable[$object]+x}" ]] || continue
+            validate_version "${name#apk/}"
+            [[ -z "${annotated[$object]+x}" ]] ||
+                die "multiple annotated APK tags point to $object: ${annotated[$object]}, $name"
+            annotated["$object"]="$name"
         fi
     done <<<"$output"
 
-    position=0
+    # Validate the complete chain before excluding a same-version rerun. A
+    # topological walk orders descendants before ancestors across every parent.
     while read -r commit; do
-        [[ -n "${commit:-}" ]] || continue
-        first_parent_position["$commit"]="$position"
-        ((position += 1))
-    done < <(git rev-list --first-parent "$commit_sha")
-
-    for name in "${!annotated[@]}"; do
-        [[ -z "$excluded_tag" || "$name" != "$excluded_tag" ]] || continue
-        object="${annotated[$name]}"
-        git cat-file -e "${object}^{commit}" 2>/dev/null || continue
-        [[ -n "${first_parent_position[$object]+x}" ]] || continue
-        reachable+=("${first_parent_position[$object]} ${name}")
-    done
-
-    if ((${#reachable[@]} == 0)); then
-        printf 'null\n'
-    else
-        printf '%s\n' "${reachable[@]}" | LC_ALL=C sort -k1,1n -k2,2 | sed -n '1p' | cut -d' ' -f2-
-    fi
+        [[ -n "${annotated[$commit]+x}" ]] || continue
+        name="${annotated[$commit]}"
+        if [[ -n "$excluded_tag" && "$commit" == "$commit_sha" && "$name" != "$excluded_tag" ]]; then
+            die "commit $commit_sha is already tagged as $name; cannot add $excluded_tag"
+        fi
+        if [[ -n "$newer" ]]; then
+            git merge-base --is-ancestor "$commit" "$newer" ||
+                die "ambiguous APK release history: $name and ${annotated[$newer]} are incomparable by ancestry"
+            version_is_greater "${annotated[$newer]#apk/}" "${name#apk/}" ||
+                die "APK release versions must increase by ancestry: $name then ${annotated[$newer]}"
+        fi
+        newer="$commit"
+        if [[ "$previous" == "null" && "$name" != "$excluded_tag" ]]; then
+            previous="$name"
+        fi
+    done <<<"$ancestry"
+    printf '%s\n' "$previous"
 }
+
+validate_version "$version_name"
 
 if [[ "$command_name" == "previous" ]]; then
     previous_release_tag
     exit 0
 fi
 
+previous_tag="$(previous_release_tag "$tag_name")"
+if [[ "$previous_tag" != "null" ]]; then
+    version_is_greater "$version_name" "${previous_tag#apk/}" ||
+        die "release version $version_name must be greater than $previous_tag"
+fi
+
 if [[ "$command_name" == "preflight" ]]; then
     if check_current_remote_tag; then
         echo "release-apk-tag: $tag_name already points to $commit_sha; preflight is idempotent" >&2
     fi
-    previous_release_tag "$tag_name"
+    printf '%s\n' "$previous_tag"
     exit 0
 fi
 
@@ -130,7 +178,6 @@ if check_current_remote_tag; then
     exit 0
 fi
 
-previous_tag="$(previous_release_tag "$tag_name")"
 if git show-ref --verify --quiet "refs/tags/${tag_name}"; then
     local_target="$(git rev-parse "${tag_name}^{commit}")"
     [[ "$local_target" == "$commit_sha" ]] ||

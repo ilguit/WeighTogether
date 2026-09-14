@@ -29,9 +29,27 @@ class ReleaseHistoryGenerator(
             )
         }
         val tags = repository.reachableAnnotatedApkTags(head)
+        tags.zipWithNext().forEach { (newer, older) ->
+            if (compareVersions(newer.version, older.version) <= 0) {
+                throw GenerationException(
+                    "Nonmonotonic APK release history: ${newer.name} must be newer than ancestor ${older.name}",
+                )
+            }
+        }
         baseline?.let {
-            if (!repository.isFirstParentAncestor(it.boundaryCommit, head)) {
-                throw GenerationException("Baseline boundary ${it.boundaryCommit} is not on the first-parent history of $head")
+            if (!repository.isAncestor(it.boundaryCommit, head)) {
+                throw GenerationException("Baseline boundary ${it.boundaryCommit} is not an ancestor of $head")
+            }
+        }
+        baseline?.let { boundary ->
+            tags.forEach { tag ->
+                if (!repository.isAncestor(boundary.boundaryCommit, tag.commitSha) &&
+                    !repository.isAncestor(tag.commitSha, boundary.boundaryCommit)
+                ) {
+                    throw GenerationException(
+                        "Baseline boundary ${boundary.boundaryCommit} and ${tag.name} are incomparable by ancestry",
+                    )
+                }
             }
         }
         val headTags = tags.filter { it.commitSha == head }
@@ -92,7 +110,7 @@ class ReleaseHistoryGenerator(
             }
         }
         val taggedPoints = tags
-            .filter { baseline == null || repository.isFirstParentAncestor(baseline.boundaryCommit, it.commitSha) }
+            .filter { baseline == null || repository.isAncestor(baseline.boundaryCommit, it.commitSha) }
             .map { ReleasePoint(it.version, it.commitSha) }
         val points = when (mode) {
             ReleaseHistoryMode.BUILD -> taggedPoints
@@ -115,7 +133,7 @@ class ReleaseHistoryGenerator(
             oldestGeneratedVersion == null || compareVersions(it.version, oldestGeneratedVersion) < 0
         }
         val latestRange = if (mode == ReleaseHistoryMode.BUILD) {
-            val latestBoundary = tags.firstOrNull()?.commitSha ?: baseline?.boundaryCommit
+            val latestBoundary = taggedPoints.firstOrNull()?.commitSha ?: baseline?.boundaryCommit
             if (latestBoundary == head) {
                 null
             } else {

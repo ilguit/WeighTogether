@@ -7,8 +7,8 @@ class GitRepository(private val root: Path) {
 
     fun isShallow(): Boolean = git("rev-parse", "--is-shallow-repository").trim() == "true"
 
-    fun isFirstParentAncestor(ancestor: String, descendant: String): Boolean =
-        git("rev-list", "--first-parent", descendant)
+    fun isAncestor(ancestor: String, descendant: String): Boolean =
+        git("rev-list", descendant)
             .lineSequence()
             .any { it == ancestor }
 
@@ -32,24 +32,24 @@ class GitRepository(private val root: Path) {
     }
 
     fun reachableAnnotatedApkTags(head: String): List<ApkTag> {
-        val firstParent = git("rev-list", "--first-parent", head).lineSequence().filter { it.isNotBlank() }.toList()
-        val position = firstParent.withIndex().associate { it.value to it.index }
-        val tags = git(
-            "for-each-ref",
-            "--format=%(refname:short)%00%(objecttype)%00%(*objectname)",
-            "refs/tags/apk/",
-        ).lineSequence().filter { it.isNotBlank() }.mapNotNull { line ->
-            val fields = line.split('\u0000')
-            if (fields.size != 3 || fields[1] != "tag" || fields[2].isBlank()) return@mapNotNull null
-            val version = APK_TAG.matchEntire(fields[0])?.groupValues?.get(1) ?: return@mapNotNull null
-            ApkTag(fields[0], version, fields[2])
-        }.filter { it.commitSha in position }
+        // Topological order always places a descendant before its ancestors, regardless
+        // of which merge parent introduced the release or the commits' timestamps.
+        val ancestry = git("rev-list", "--topo-order", head).lineSequence().filter { it.isNotBlank() }.toList()
+        val position = ancestry.withIndex().associate { it.value to it.index }
+        val tags = annotatedApkTags().filter { it.commitSha in position }
             .sortedWith(compareBy<ApkTag> { position.getValue(it.commitSha) }.thenBy { it.name })
-            .toList()
         val duplicateCommit = tags.groupBy { it.commitSha }.values.firstOrNull { it.size > 1 }
         if (duplicateCommit != null) {
             throw GenerationException("Multiple annotated APK tags point to ${duplicateCommit.first().commitSha}: " +
                 duplicateCommit.joinToString { it.name })
+        }
+        tags.zipWithNext().forEach { (newer, older) ->
+            if (!isAncestor(older.commitSha, newer.commitSha)) {
+                throw GenerationException(
+                    "Ambiguous APK release history: ${newer.name} and ${older.name} are incomparable " +
+                        "by ancestry; release tags must form one ancestor chain",
+                )
+            }
         }
         return tags
     }
