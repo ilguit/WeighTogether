@@ -425,8 +425,12 @@ class PetWeightReferenceChartTest {
         val repeatedDisplay = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
 
         assertEquals(firstDisplay.map(PetWeightDisplayedSeries::id), repeatedDisplay.map(PetWeightDisplayedSeries::id))
-        assertEquals(3, firstDisplay.size)
-        assertEquals(3, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
+        assertEquals(4, firstDisplay.size)
+        assertEquals(4, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
+        assertEquals(
+            listOf(listOf(7.0), listOf(13.0)),
+            firstDisplay.filter { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.map(PetWeightDisplayedSeries::y),
+        )
         assertEquals(listOf(7.0, 8.0, 8.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
         assertEquals(listOf(12.0, 12.0, 13.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
         assertTrue(firstDisplay.filter { it.kind != PetWeightDisplayedSeriesKind.BREED_CENTER }.all {
