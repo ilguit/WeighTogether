@@ -197,7 +197,7 @@ class PendingMeasurementNotificationHelper(
         notifications.notify(
             NOTIFICATION_ID,
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle(context.getString(R.string.app_name))
                 .setContentText(text)
                 .setContentIntent(contentIntent)

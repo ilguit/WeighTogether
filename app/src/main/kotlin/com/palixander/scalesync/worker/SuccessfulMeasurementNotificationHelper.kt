@@ -12,6 +12,7 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import com.palixander.scalesync.R
 import com.palixander.scalesync.MainActivity
 import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.data.SuccessfulMeasurementNotifier
@@ -121,7 +122,7 @@ class SuccessfulMeasurementNotificationHelper(
             identity.notificationTag,
             identity.notificationId,
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(android.R.drawable.ic_dialog_info)
+                .setSmallIcon(R.drawable.ic_notification)
                 .setContentTitle("Измерение сохранено")
                 .setContentText(
                     SuccessfulMeasurementNotificationContract.contentText(accountDisplayName),
