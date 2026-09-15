@@ -11,6 +11,7 @@ import org.w3c.dom.Element
 class AppLogoResourceTest {
     private val main = File("src/main").takeIf { it.exists() } ?: File("app/src/main")
     private val android = "http://schemas.android.com/apk/res/android"
+    private val launcherNames = listOf("ic_scalesync_launcher", "ic_scalesync_launcher_round")
 
     private fun xml(path: String): Element = DocumentBuilderFactory.newInstance().apply {
         isNamespaceAware = true
@@ -22,15 +23,31 @@ class AppLogoResourceTest {
     }
 
     @Test
+    fun manifestUsesUniquelyNamedLauncherResources() {
+        val application = xml("AndroidManifest.xml").getElementsByTagName("application").item(0) as Element
+        assertEquals("@mipmap/ic_scalesync_launcher", application.getAttributeNS(android, "icon"))
+        assertEquals("@mipmap/ic_scalesync_launcher_round", application.getAttributeNS(android, "roundIcon"))
+
+        for (directory in listOf("mipmap-anydpi", "mipmap-anydpi-v33")) {
+            assertTrue(!File(main, "res/$directory/ic_launcher.xml").exists())
+            assertTrue(!File(main, "res/$directory/ic_launcher_round.xml").exists())
+        }
+    }
+
+    @Test
     fun allLauncherConfigurationsUseSharedBrandLayers() {
         for (directory in listOf("mipmap-anydpi", "mipmap-anydpi-v33")) {
-            for (name in listOf("ic_launcher", "ic_launcher_round")) {
+            for (name in launcherNames) {
                 val icon = xml("res/$directory/$name.xml")
+                val background = icon.getElementsByTagName("background").item(0) as Element
                 val foreground = icon.getElementsByTagName("foreground").item(0) as Element
+                assertEquals("@color/huawei_primary", background.getAttributeNS(android, "drawable"))
                 assertEquals("@drawable/ic_app_foreground", foreground.getAttributeNS(android, "drawable"))
                 if (directory.endsWith("v33")) {
                     val mono = icon.getElementsByTagName("monochrome").item(0) as Element
                     assertEquals("@drawable/ic_app_monochrome", mono.getAttributeNS(android, "drawable"))
+                } else {
+                    assertEquals(0, icon.getElementsByTagName("monochrome").length)
                 }
             }
         }
