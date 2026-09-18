@@ -19,6 +19,8 @@ class ProfilePhotoPicker internal constructor(
     val takePhoto: () -> Unit,
 )
 
+/** Temporary compatibility entry point for editors while the shared crop surface is attached. */
+@Deprecated("Use onPhotoPrepared and confirm the crop explicitly")
 @Composable
 fun rememberProfilePhotoPicker(
     store: ProfilePhotoStore,
@@ -27,14 +29,42 @@ fun rememberProfilePhotoPicker(
     onError: (ProfilePhotoError) -> Unit,
 ): ProfilePhotoPicker {
     val scope = rememberCoroutineScope()
+    return rememberProfilePhotoPicker(
+        store = store,
+        onPhotoPrepared = { prepared ->
+            scope.launch {
+                try {
+                    onPhotoReady(store.confirmCrop(owner, prepared, ProfilePhotoCropTransform()))
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (known: ProfilePhotoException) {
+                    prepared.cancel()
+                    onError(known.error)
+                } catch (_: Exception) {
+                    prepared.cancel()
+                    onError(ProfilePhotoError.PROCESSING_FAILED)
+                }
+            }
+        },
+        onError = onError,
+    )
+}
+
+@Composable
+fun rememberProfilePhotoPicker(
+    store: ProfilePhotoStore,
+    onPhotoPrepared: (PreparedProfilePhoto) -> Unit,
+    onError: (ProfilePhotoError) -> Unit,
+): ProfilePhotoPicker {
+    val scope = rememberCoroutineScope()
     // Keep only the validated, app-private filename in saved state. The Uri is rebuilt by the
     // store, so an Activity/process recreation cannot lose the destination before the result.
     var pendingCaptureIdentifier by rememberSaveable { mutableStateOf<String?>(null) }
 
-    fun import(block: suspend () -> String) {
+    fun prepare(block: suspend () -> PreparedProfilePhoto) {
         scope.launch {
             try {
-                onPhotoReady(block())
+                onPhotoPrepared(block())
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (known: ProfilePhotoException) {
@@ -46,19 +76,19 @@ fun rememberProfilePhotoPicker(
     }
 
     val gallery = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
-        if (uri != null) import { store.import(owner, uri) }
+        if (uri != null) prepare { store.prepare(uri) }
     }
     val camera = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
         val capture = pendingCaptureIdentifier?.let(store::restoreCapture)
         pendingCaptureIdentifier = null
         if (capture != null) {
-            if (success) import { store.completeCapture(owner, capture) } else capture.cancel()
+            if (success) prepare { store.prepareCapture(capture) } else capture.cancel()
         } else if (success) {
             onError(ProfilePhotoError.PROCESSING_FAILED)
         }
     }
 
-    return remember(store, owner, gallery, camera) {
+    return remember(store, gallery, camera) {
         ProfilePhotoPicker(
             chooseFromGallery = {
                 gallery.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
