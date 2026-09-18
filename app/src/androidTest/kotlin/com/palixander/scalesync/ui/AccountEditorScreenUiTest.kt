@@ -1,5 +1,7 @@
 package com.palixander.scalesync.ui
 
+import android.graphics.Bitmap
+import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -20,6 +22,7 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -29,6 +32,11 @@ import com.palixander.scalesync.ui.accounts.AccountEditorDraft
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoCropTestTags
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
+import java.io.ByteArrayOutputStream
 import java.time.LocalDate
 import org.junit.Assert.assertTrue
 import org.junit.Assert.assertEquals
@@ -37,6 +45,45 @@ import org.junit.Test
 
 class AccountEditorScreenUiTest {
     @get:Rule val composeRule = createComposeRule()
+
+    @Test
+    fun preparedPhotoOpenedByRealEditorCanBeCancelledWithoutChangingDraft() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = ProfilePhotoStore(context)
+        val prepared = preparedPhoto(store)
+        var draft by mutableStateOf(AccountEditorDraft.add())
+
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountEditorScreen(
+                    draft = draft,
+                    accounts = emptyList(),
+                    operationInProgress = false,
+                    onDraftChanged = { draft = it },
+                    onCreate = {},
+                    onUpdate = {},
+                    onDismiss = {},
+                    photoPickerFactory = { _, onPrepared, _ ->
+                        ProfilePhotoPicker(
+                            chooseFromGallery = { onPrepared(prepared) },
+                            takePhoto = {},
+                        )
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorPhotoGallery)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Cancel).performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertEquals(AccountEditorDraft.add(), draft)
+            assertEquals(null, store.restorePrepared(prepared.identifier))
+        }
+    }
 
     @Test
     fun editorUsesRequiredFieldOrderAndPinnedSave() {
@@ -161,4 +208,13 @@ class AccountEditorScreenUiTest {
     private fun bounds(tag: String) = composeRule.onNodeWithTag(tag)
         .assertIsDisplayed()
         .getUnclippedBoundsInRoot()
+
+    private fun preparedPhoto(store: ProfilePhotoStore): PreparedProfilePhoto {
+        val bitmap = Bitmap.createBitmap(80, 40, Bitmap.Config.ARGB_8888)
+        val bytes = ByteArrayOutputStream().also {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it)
+            bitmap.recycle()
+        }.toByteArray()
+        return bytes.inputStream().use(store::prepare)
+    }
 }

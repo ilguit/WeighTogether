@@ -73,6 +73,9 @@ import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
 import com.palixander.scalesync.profile.rememberProfilePhotoCropController
@@ -140,6 +143,13 @@ internal fun PetProfileEditorDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    photoPickerFactory: @Composable (
+        ProfilePhotoStore,
+        (PreparedProfilePhoto) -> Unit,
+        (ProfilePhotoError) -> Unit,
+    ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+        rememberProfilePhotoPicker(store, onPrepared, onError)
+    },
 ) {
     var breedPickerOpen by rememberSaveable { mutableStateOf(false) }
     var submitted by rememberSaveable { mutableStateOf(false) }
@@ -183,10 +193,10 @@ internal fun PetProfileEditorDialog(
         )
     }
     val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
-            store = store,
-            onPhotoPrepared = { photoCrop?.open(it) },
-            onError = { error -> photoError = petPhotoErrorMessage(error) },
+        photoPickerFactory(
+            store,
+            { photoCrop?.open(it) },
+            { error -> photoError = petPhotoErrorMessage(error) },
         )
     }
 

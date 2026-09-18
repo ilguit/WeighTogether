@@ -84,6 +84,9 @@ import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
 import com.palixander.scalesync.profile.rememberProfilePhotoCropController
@@ -537,6 +540,13 @@ fun AccountEditorScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
+    photoPickerFactory: @Composable (
+        ProfilePhotoStore,
+        (PreparedProfilePhoto) -> Unit,
+        (ProfilePhotoError) -> Unit,
+    ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+        rememberProfilePhotoPicker(store, onPrepared, onError)
+    },
 ) {
     val validation = validateAccountEditor(draft, accounts, today)
     val initialDraft = remember(draft.editingAccountId) {
@@ -578,10 +588,10 @@ fun AccountEditorScreen(
         )
     }
     val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
-            store = store,
-            onPhotoPrepared = { photoCrop?.open(it) },
-            onError = { error -> photoError = profilePhotoErrorMessage(error) },
+        photoPickerFactory(
+            store,
+            { photoCrop?.open(it) },
+            { error -> photoError = profilePhotoErrorMessage(error) },
         )
     }
     LaunchedEffect(Unit) {

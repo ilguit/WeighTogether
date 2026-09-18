@@ -46,6 +46,11 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoCropTestTags
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
+import java.io.ByteArrayOutputStream
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -60,6 +65,38 @@ class PetProfileEditorDialogUiTest {
     private val unmappedDog = PetBreedSelection.Available(
         requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
     )
+
+    @Test
+    fun preparedPhotoConfirmedThroughRealEditorUpdatesPetDraftAndConsumesSource() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = ProfilePhotoStore(context)
+        val prepared = preparedPhoto(store)
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+
+        setEditor(
+            state = state,
+            photoPickerFactory = { _, onPrepared, _ ->
+                ProfilePhotoPicker(
+                    chooseFromGallery = { onPrepared(prepared) },
+                    takePhoto = {},
+                )
+            },
+        )
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.PhotoGallery)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertDoesNotExist()
+        composeRule.runOnIdle {
+            val path = state.value.draft.photoPath
+            assertTrue(path?.startsWith("profile-photos/pets/") == true)
+            assertTrue(requireNotNull(path).let(store::resolve).isFile)
+            assertNull(store.restorePrepared(prepared.identifier))
+        }
+    }
 
     @Test
     fun filledEditShowsValuesAndEveryOptionalFieldCanBeCleared() {
@@ -717,6 +754,17 @@ class PetProfileEditorDialogUiTest {
         fontScale: Float? = null,
         onSave: () -> Unit = {},
         onDismiss: () -> Unit = {},
+        photoPickerFactory: @androidx.compose.runtime.Composable (
+            ProfilePhotoStore,
+            (PreparedProfilePhoto) -> Unit,
+            (com.palixander.scalesync.profile.ProfilePhotoError) -> Unit,
+        ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+            com.palixander.scalesync.profile.rememberProfilePhotoPicker(
+                store,
+                onPrepared,
+                onError,
+            )
+        },
     ) {
         composeRule.setContent {
             val content: @androidx.compose.runtime.Composable () -> Unit = {
@@ -734,6 +782,7 @@ class PetProfileEditorDialogUiTest {
                         onSave = onSave,
                         onDismiss = onDismiss,
                         modifier = modifier,
+                        photoPickerFactory = photoPickerFactory,
                     )
                 }
             }
@@ -746,5 +795,14 @@ class PetProfileEditorDialogUiTest {
                 ) { content() }
             }
         }
+    }
+
+    private fun preparedPhoto(store: ProfilePhotoStore): PreparedProfilePhoto {
+        val bitmap = Bitmap.createBitmap(80, 40, Bitmap.Config.ARGB_8888)
+        val bytes = ByteArrayOutputStream().also {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it)
+            bitmap.recycle()
+        }.toByteArray()
+        return bytes.inputStream().use(store::prepare)
     }
 }
