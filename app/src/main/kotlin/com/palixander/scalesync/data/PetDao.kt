@@ -82,6 +82,9 @@ interface PetDao {
     @Query("SELECT COUNT(*) FROM pet_measurements WHERE petId = :petId")
     suspend fun countMeasurements(petId: String): Int
 
+    @Query("SELECT COUNT(*) FROM pets WHERE photoPath = :photoPath")
+    suspend fun countPhotoReferences(photoPath: String): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertPet(pet: PetEntity): Long
 

@@ -13,6 +13,7 @@ import com.palixander.scalesync.core.BodyCompositionCalculator
 import com.palixander.scalesync.core.MiScalePacketParser
 import com.palixander.scalesync.data.AppDatabase
 import com.palixander.scalesync.data.MeasurementRepository
+import com.palixander.scalesync.data.ProfilePhotoReferenceCoordinator
 import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RoomAccountRepository
 import com.palixander.scalesync.data.RoomMeasurementPersistence
@@ -55,8 +56,13 @@ class AppContainer(application: Application) {
     internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val profileStore = ProfileStore(application, externalSyncOperations)
     val profilePhotos = ProfilePhotoStore(application)
+    private val profilePhotoReferences = ProfilePhotoReferenceCoordinator(database, profilePhotos)
     val packetParser = MiScalePacketParser()
-    val pets = RoomPetRepository(database, photoLifecycle = profilePhotos)
+    val pets = RoomPetRepository(
+        database,
+        photoLifecycle = profilePhotos,
+        photoReferences = profilePhotoReferences,
+    )
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(
         context = application,
@@ -77,6 +83,7 @@ class AppContainer(application: Application) {
         database,
         calculator = calculator,
         photoLifecycle = profilePhotos,
+        photoReferences = profilePhotoReferences,
     )
     val repository = MeasurementRepository(
         database.measurementDao(),

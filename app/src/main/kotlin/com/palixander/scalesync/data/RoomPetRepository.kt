@@ -28,6 +28,8 @@ class RoomPetRepository(
     private val newId: () -> String = { UUID.randomUUID().toString() },
     private val breedCatalog: BreedCatalog = BreedCatalog.bundled(),
     private val photoLifecycle: ProfilePhotoLifecycle = ProfilePhotoLifecycle.None,
+    private val photoReferences: ProfilePhotoReferenceCoordinator =
+        ProfilePhotoReferenceCoordinator(database, photoLifecycle),
 ) : PetRepository {
     override fun observePets(): Flow<List<PetWithLatestWeight>> =
         dao.observePetsWithLatestMeasurement().map { rows -> rows.map { it.toDomain() } }
@@ -43,50 +45,55 @@ class RoomPetRepository(
             PetWithMeasurementCount(pet.toDomain(), dao.countMeasurements(id.value))
         }
 
-    override suspend fun createPet(pet: NewPet): Pet = database.withTransaction {
-        require(pet.species != PetSpecies.UNSPECIFIED) {
-            "A species is required when creating a pet"
+    override suspend fun createPet(pet: NewPet): Pet =
+        photoReferences.mutate(setOfNotNull(pet.photoPath)) {
+            val created = database.withTransaction {
+                require(pet.species != PetSpecies.UNSPECIFIED) {
+                    "A species is required when creating a pet"
+                }
+                validateBreedSpecies(pet.breedId?.value, pet.species)
+                dao.getPetByNormalizedName(pet.normalizedName)?.let {
+                    throw PetNameConflictException(pet.normalizedName)
+                }
+                val entity = pet.toPetEntity(id = newId(), timestamp = now())
+                if (dao.insertPet(entity) == -1L) {
+                    throw PetNameConflictException(pet.normalizedName)
+                }
+                entity.toDomain()
+            }
+            ProfilePhotoMutation(created)
         }
-        validateBreedSpecies(pet.breedId?.value, pet.species)
-        dao.getPetByNormalizedName(pet.normalizedName)?.let {
-            throw PetNameConflictException(pet.normalizedName)
-        }
-        val entity = pet.toPetEntity(id = newId(), timestamp = now())
-        if (dao.insertPet(entity) == -1L) {
-            throw PetNameConflictException(pet.normalizedName)
-        }
-        entity.toDomain()
-    }
 
     override suspend fun updatePet(pet: PetUpdate): Pet {
-        val (saved, dereferencedPhotoPath) = database.withTransaction {
-            val existing = dao.getPet(pet.id.value) ?: throw PetNotFoundException(pet.id)
-            validateBreedSpecies(pet.breedId?.value, pet.species)
-            val conflicting = dao.getPetByNormalizedName(pet.normalizedName)
-            if (conflicting != null && conflicting.id != existing.id) {
-                throw PetNameConflictException(pet.normalizedName)
+        return photoReferences.mutate(setOfNotNull(pet.photoPath)) {
+            val (saved, dereferencedPhotoPath) = database.withTransaction {
+                val existing = dao.getPet(pet.id.value) ?: throw PetNotFoundException(pet.id)
+                validateBreedSpecies(pet.breedId?.value, pet.species)
+                val conflicting = dao.getPetByNormalizedName(pet.normalizedName)
+                if (conflicting != null && conflicting.id != existing.id) {
+                    throw PetNameConflictException(pet.normalizedName)
+                }
+                val updated = existing.withUpdate(pet, updatedAt = now())
+                check(
+                    dao.updatePet(
+                        id = updated.id,
+                        displayName = updated.displayName,
+                        normalizedName = updated.normalizedName,
+                        species = updated.species,
+                        sex = updated.sex,
+                        breedId = updated.breedId,
+                        birthYear = updated.birthYear,
+                        birthMonth = updated.birthMonth,
+                        birthDay = updated.birthDay,
+                        dogAdultWeightCategory = updated.dogAdultWeightCategory,
+                        photoPath = updated.photoPath,
+                        updatedAtEpochMillis = updated.updatedAtEpochMillis,
+                    ) == 1,
+                ) { "Pet ${existing.id} disappeared while updating" }
+                updated.toDomain() to existing.photoPath?.takeIf { it != updated.photoPath }
             }
-            val updated = existing.withUpdate(pet, updatedAt = now())
-            check(
-                dao.updatePet(
-                    id = updated.id,
-                    displayName = updated.displayName,
-                    normalizedName = updated.normalizedName,
-                    species = updated.species,
-                    sex = updated.sex,
-                    breedId = updated.breedId,
-                    birthYear = updated.birthYear,
-                    birthMonth = updated.birthMonth,
-                    birthDay = updated.birthDay,
-                    dogAdultWeightCategory = updated.dogAdultWeightCategory,
-                    photoPath = updated.photoPath,
-                    updatedAtEpochMillis = updated.updatedAtEpochMillis,
-                ) == 1,
-            ) { "Pet ${existing.id} disappeared while updating" }
-            updated.toDomain() to existing.photoPath?.takeIf { it != updated.photoPath }
+            ProfilePhotoMutation(saved, setOfNotNull(dereferencedPhotoPath))
         }
-        dereferencedPhotoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
-        return saved
     }
 
     override suspend fun previewPetDeletion(id: PetId): PetDeletionPreview =
@@ -96,14 +103,17 @@ class RoomPetRepository(
         }
 
     override suspend fun deletePet(id: PetId): PetDeletionPreview {
-        val (deleted, photoPath) = database.withTransaction {
-            val pet = dao.getPet(id.value) ?: throw PetNotFoundException(id)
-            val preview = PetDeletionPreview(pet.toDomain(), dao.countMeasurements(id.value))
-            check(dao.deletePet(id.value) == 1) { "Pet ${id.value} disappeared while deleting" }
-            preview to pet.photoPath
+        return photoReferences.mutate(emptySet()) {
+            val (deleted, photoPath) = database.withTransaction {
+                val pet = dao.getPet(id.value) ?: throw PetNotFoundException(id)
+                val preview = PetDeletionPreview(pet.toDomain(), dao.countMeasurements(id.value))
+                check(dao.deletePet(id.value) == 1) {
+                    "Pet ${id.value} disappeared while deleting"
+                }
+                preview to pet.photoPath
+            }
+            ProfilePhotoMutation(deleted, setOfNotNull(photoPath))
         }
-        photoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
-        return deleted
     }
 
     override suspend fun deleteMeasurement(petId: PetId, measurementId: String) {

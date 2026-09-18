@@ -24,6 +24,9 @@ interface AccountDao {
     @Query("SELECT COUNT(*) FROM accounts")
     suspend fun count(): Int
 
+    @Query("SELECT COUNT(*) FROM accounts WHERE photoPath = :photoPath")
+    suspend fun countPhotoReferences(photoPath: String): Int
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(account: AccountEntity): Long
 
