@@ -201,6 +201,24 @@ class PetHistoryBreedReferencePresenterTest {
         )
     }
 
+    @Test
+    fun `Shiba presentation uses NIPPO interval and retains inactive NSCA average in details`() {
+        val result = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0201220"), sex = PetSex.FEMALE),
+        ) as PetHistoryBreedReference.Available
+
+        val interval = result.chartValues.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(7.0, interval.lowerKg, 0.0)
+        assertEquals(9.0, interval.upperKg, 0.0)
+        assertNull(interval.centerKg)
+        assertEquals("Nihon Ken Hozonkai", result.source.title)
+        assertEquals("https://www.nihonken-hozonkai.or.jp/en/shibainu/", result.source.url)
+        assertTrue(result.details.any {
+            it.sexLabel.contains("Самка") && it.valueLabel.contains("7,7") &&
+                it.sourceTitle == "National Shiba Club of America"
+        })
+    }
+
     private fun presenter() = PetHistoryBreedReferencePresenter(clock = clock, locale = Locale.forLanguageTag("ru-RU"))
 
     private fun dog() = Pet(

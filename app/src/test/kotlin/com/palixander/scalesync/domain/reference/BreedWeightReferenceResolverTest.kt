@@ -119,8 +119,16 @@ class BreedWeightReferenceResolverTest {
         assertTrue(median is BreedWeightValue.Single)
         val meanSd = resolve("VBO:0200131", PetSex.MALE, PartialBirthDate.Day(today.minusDays(91))).available().values.single()
         assertTrue(meanSd is BreedWeightValue.Single && meanSd.spread != null)
-        val approximate = resolve("VBO:0201220", PetSex.FEMALE, null).available().values.single()
-        assertEquals(BreedReferenceStatisticKind.APPROXIMATE_AVERAGE, approximate.statistic)
+        val shiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
+        val interval = shiba.values.single() as BreedWeightValue.Interval
+        assertEquals(BreedReferenceStatisticKind.RANGE, interval.statistic)
+        assertEquals(7.0, interval.lower, 0.0)
+        assertEquals(9.0, interval.upper, 0.0)
+        assertEquals("Nihon Ken Hozonkai", shiba.source.title)
+        assertEquals("https://www.nihonken-hozonkai.or.jp/en/shibainu/", shiba.source.url)
+        assertTrue(shiba.details.any {
+            it.sex == BreedReferenceSex.FEMALE && (it.value as? BreedWeightValue.Single)?.value == 7.7
+        })
     }
 
     @Test

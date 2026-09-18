@@ -204,7 +204,13 @@ class BreedWeightReferenceResolver(
                 sampleUnit = records.firstNotNullOfOrNull(BreedReferenceValue::sampleUnit),
                 limitations = records.flatMap(BreedReferenceValue::limitations).distinct(),
                 ageDisclosure = actualDisclosure,
-                details = eligible.filter { it.id !in chosenIds }.map { it.toDetail(snapshot, age.selectedAgeDays) },
+                details = breed.values
+                    .filter {
+                        it.measure == BreedReferenceMeasure.WEIGHT &&
+                            it.id !in chosenIds &&
+                            (it.activeForProduct || it.statistic == BreedReferenceStatisticKind.APPROXIMATE_AVERAGE)
+                    }
+                    .map { it.toDetail(snapshot, age.selectedAgeDays) },
                 companionGroups = companionGroups,
             ),
         )
