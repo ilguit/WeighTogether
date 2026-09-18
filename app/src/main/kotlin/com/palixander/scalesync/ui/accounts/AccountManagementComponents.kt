@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -540,6 +541,7 @@ fun AccountEditorScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
+    profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
     photoPickerFactory: @Composable (
         ProfilePhotoStore,
         (PreparedProfilePhoto) -> Unit,
@@ -562,12 +564,15 @@ fun AccountEditorScreen(
     val birthDateFocus = remember { FocusRequester() }
     val heightFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val photoStore = currentProfilePhotoStore()
+    val photoStore = profilePhotoStore
     var photoError by remember(draft.editingAccountId) { mutableStateOf<String?>(null) }
-    val photoOwner = remember(draft.editingAccountId) {
+    val newPhotoOwnerId = rememberSaveable(draft.editingAccountId) {
+        "new-account-${java.util.UUID.randomUUID()}"
+    }
+    val photoOwner = remember(draft.editingAccountId, newPhotoOwnerId) {
         ProfilePhotoOwner(
             ProfilePhotoOwnerType.ACCOUNT,
-            draft.editingAccountId?.value ?: "new-account-${java.util.UUID.randomUUID()}",
+            draft.editingAccountId?.value ?: newPhotoOwnerId,
         )
     }
     fun deleteTransientPhoto(path: String?) {

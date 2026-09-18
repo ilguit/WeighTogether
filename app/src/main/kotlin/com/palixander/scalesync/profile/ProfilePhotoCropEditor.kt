@@ -56,6 +56,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.viewModelScope
 import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filterNotNull
@@ -84,6 +85,32 @@ class ProfilePhotoCropController internal constructor(
 
 private enum class ProfilePhotoCropPhase { READY, SAVING, CONSUMED }
 
+internal class ProfilePhotoDeliveryTargets {
+    private data class Target(
+        val token: Any,
+        val deliver: (String) -> Unit,
+        val reportError: (ProfilePhotoError) -> Unit,
+    )
+
+    private val current = MutableStateFlow<Target?>(null)
+
+    fun attach(token: Any, deliver: (String) -> Unit, reportError: (ProfilePhotoError) -> Unit) {
+        current.value = Target(token, deliver, reportError)
+    }
+
+    fun detach(token: Any) {
+        if (current.value?.token === token) current.value = null
+    }
+
+    suspend fun deliver(dispatcher: CoroutineDispatcher, path: String) {
+        withContext(dispatcher) { current.filterNotNull().first().deliver(path) }
+    }
+
+    suspend fun report(dispatcher: CoroutineDispatcher, error: ProfilePhotoError) {
+        withContext(dispatcher) { current.filterNotNull().first().reportError(error) }
+    }
+}
+
 /**
  * Owns one crop operation across Activity recreation. The ViewModel, rather than either
  * composition, owns confirmation so a restored editor cannot start a second import while the
@@ -92,13 +119,7 @@ private enum class ProfilePhotoCropPhase { READY, SAVING, CONSUMED }
 internal class ProfilePhotoCropStateOwner(
     private val savedState: SavedStateHandle,
 ) : ViewModel() {
-    private data class DeliveryTarget(
-        val token: Any,
-        val deliver: (String) -> Unit,
-        val reportError: (ProfilePhotoError) -> Unit,
-    )
-
-    private val deliveryTarget = MutableStateFlow<DeliveryTarget?>(null)
+    private val deliveryTargets = ProfilePhotoDeliveryTargets()
     var identifier by mutableStateOf(savedState.get<String>(IDENTIFIER))
         private set
     var transform by mutableStateOf(
@@ -114,11 +135,11 @@ internal class ProfilePhotoCropStateOwner(
     val saving: Boolean get() = phase == ProfilePhotoCropPhase.SAVING
 
     fun attach(token: Any, deliver: (String) -> Unit, reportError: (ProfilePhotoError) -> Unit) {
-        deliveryTarget.value = DeliveryTarget(token, deliver, reportError)
+        deliveryTargets.attach(token, deliver, reportError)
     }
 
     fun detach(token: Any) {
-        if (deliveryTarget.value?.token === token) deliveryTarget.value = null
+        deliveryTargets.detach(token)
     }
 
     fun open(prepared: PreparedProfilePhoto, cancelPrevious: (String) -> Unit) {
@@ -165,8 +186,7 @@ internal class ProfilePhotoCropStateOwner(
         viewModelScope.launch {
             try {
                 store.confirmCrop(owner, prepared, requestedTransform) { path ->
-                    val target = deliveryTarget.filterNotNull().first()
-                    withContext(Dispatchers.Main.immediate) { target.deliver(path) }
+                    deliveryTargets.deliver(Dispatchers.Main.immediate, path)
                 }
                 phase = ProfilePhotoCropPhase.CONSUMED
                 clear()
@@ -174,10 +194,10 @@ internal class ProfilePhotoCropStateOwner(
                 throw cancelled
             } catch (known: ProfilePhotoException) {
                 phase = ProfilePhotoCropPhase.READY
-                deliveryTarget.filterNotNull().first().reportError(known.error)
+                deliveryTargets.report(Dispatchers.Main.immediate, known.error)
             } catch (_: Exception) {
                 phase = ProfilePhotoCropPhase.READY
-                deliveryTarget.filterNotNull().first().reportError(ProfilePhotoError.PROCESSING_FAILED)
+                deliveryTargets.report(Dispatchers.Main.immediate, ProfilePhotoError.PROCESSING_FAILED)
             }
         }
     }

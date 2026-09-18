@@ -1,6 +1,7 @@
 package com.palixander.scalesync.ui
 
 import android.graphics.Bitmap
+import androidx.activity.ComponentActivity
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -19,7 +20,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
-import androidx.compose.ui.test.junit4.v2.createComposeRule
+import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -44,7 +45,7 @@ import org.junit.Rule
 import org.junit.Test
 
 class AccountEditorScreenUiTest {
-    @get:Rule val composeRule = createComposeRule()
+    @get:Rule val composeRule = createAndroidComposeRule<ComponentActivity>()
 
     @Test
     fun preparedPhotoOpenedByRealEditorCanBeCancelledWithoutChangingDraft() {
@@ -82,6 +83,42 @@ class AccountEditorScreenUiTest {
         composeRule.runOnIdle {
             assertEquals(AccountEditorDraft.add(), draft)
             assertEquals(null, store.restorePrepared(prepared.identifier))
+        }
+    }
+
+    @Test
+    fun newAccountCropRemainsOpenAcrossActivityRecreation() {
+        val store = ProfilePhotoStore(InstrumentationRegistry.getInstrumentation().targetContext)
+        val prepared = preparedPhoto(store)
+        var draft by mutableStateOf(AccountEditorDraft.add())
+
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountEditorScreen(
+                    draft = draft,
+                    accounts = emptyList(),
+                    operationInProgress = false,
+                    onDraftChanged = { draft = it },
+                    onCreate = {},
+                    onUpdate = {},
+                    onDismiss = {},
+                    profilePhotoStore = store,
+                    photoPickerFactory = { _, onPrepared, _ ->
+                        ProfilePhotoPicker({ onPrepared(prepared) }, {})
+                    },
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(AccountManagementTestTags.EditorPhotoGallery)
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        composeRule.waitUntil(10_000) { draft.photoPath != null }
+        composeRule.runOnIdle {
+            assertTrue(draft.photoPath?.startsWith("profile-photos/accounts/") == true)
         }
     }
 

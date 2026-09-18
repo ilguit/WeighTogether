@@ -143,6 +143,7 @@ internal fun PetProfileEditorDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
     photoPickerFactory: @Composable (
         ProfilePhotoStore,
         (PreparedProfilePhoto) -> Unit,
@@ -166,13 +167,16 @@ internal fun PetProfileEditorDialog(
     val birthDateFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val photoStore = currentProfilePhotoStore()
+    val photoStore = profilePhotoStore
     var photoError by remember(draft.mode) { mutableStateOf<String?>(null) }
-    val photoOwner = remember(draft.mode) {
+    val newPhotoOwnerId = rememberSaveable(draft.mode) {
+        "new-pet-${java.util.UUID.randomUUID()}"
+    }
+    val photoOwner = remember(draft.mode, newPhotoOwnerId) {
         ProfilePhotoOwner(
             ProfilePhotoOwnerType.PET,
             (draft.mode as? PetProfileEditorMode.Edit)?.petId?.value
-                ?: "new-pet-${java.util.UUID.randomUUID()}",
+                ?: newPhotoOwnerId,
         )
     }
     fun deleteTransientPhoto(path: String?) {
