@@ -127,8 +127,26 @@ class BreedWeightReferenceResolverTest {
         assertEquals("Nihon Ken Hozonkai", shiba.source.title)
         assertEquals("https://www.nihonken-hozonkai.or.jp/en/shibainu/", shiba.source.url)
         assertTrue(shiba.details.any {
-            it.sex == BreedReferenceSex.FEMALE && (it.value as? BreedWeightValue.Single)?.value == 7.7
+            it.id == "shi-fw" &&
+                it.sex == BreedReferenceSex.FEMALE &&
+                (it.value as? BreedWeightValue.Single)?.value == 7.7 &&
+                it.source?.id == "shibaclub"
         })
+    }
+
+    @Test
+    fun `only archived NSCA Shiba averages bypass inactive detail filtering`() {
+        val femaleShiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
+        val maleShiba = resolve("VBO:0201220", PetSex.MALE, null).available()
+        val beagle = resolve("VBO:0200131", PetSex.MALE, null).available()
+        val amstaff = resolve("VBO:0200055", PetSex.MALE, null).available()
+
+        assertTrue(femaleShiba.details.any { it.id == "shi-fw" && it.source?.id == "shibaclub" })
+        assertTrue(maleShiba.details.any { it.id == "shi-mw" && it.source?.id == "shibaclub" })
+        assertTrue(femaleShiba.values.none { it.referenceId == "shibaclub:shi-fw" })
+        assertTrue(maleShiba.values.none { it.referenceId == "shibaclub:shi-mw" })
+        assertTrue(beagle.details.none { it.id == "bea-model-mature" })
+        assertTrue(amstaff.details.none { it.id == "ams-rejected" })
     }
 
     @Test

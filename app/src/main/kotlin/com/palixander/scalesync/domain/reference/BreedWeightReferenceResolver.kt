@@ -208,7 +208,7 @@ class BreedWeightReferenceResolver(
                     .filter {
                         it.measure == BreedReferenceMeasure.WEIGHT &&
                             it.id !in chosenIds &&
-                            (it.activeForProduct || it.statistic == BreedReferenceStatisticKind.APPROXIMATE_AVERAGE)
+                            (it.activeForProduct || it.isArchivedShibaNscaAverage(breed.breedId))
                     }
                     .map { it.toDetail(snapshot, age.selectedAgeDays) },
                 companionGroups = companionGroups,
@@ -356,6 +356,12 @@ class BreedWeightReferenceResolver(
     }
 
     private fun PetSex.toReferenceSex() = if (this == PetSex.MALE) BreedReferenceSex.MALE else BreedReferenceSex.FEMALE
+    private fun BreedReferenceValue.isArchivedShibaNscaAverage(breedId: String) =
+        breedId == "VBO:0201220" &&
+            id in ARCHIVED_SHIBA_NSCA_WEIGHT_IDS &&
+            sourceId == "shibaclub" &&
+            statistic == BreedReferenceStatisticKind.APPROXIMATE_AVERAGE
+
     private fun unavailable(reason: BreedWeightReferenceUnavailableReason) = BreedWeightReferenceResolution.Unavailable(reason)
 
     private fun sourcePriority(kind: BreedReferenceSourceKind?): Int = when (kind) {
@@ -365,5 +371,9 @@ class BreedWeightReferenceResolver(
         BreedReferenceSourceKind.OBSERVATIONAL -> 3
         BreedReferenceSourceKind.MODELLED -> 4
         null -> 5
+    }
+
+    private companion object {
+        val ARCHIVED_SHIBA_NSCA_WEIGHT_IDS = setOf("shi-mw", "shi-fw")
     }
 }
