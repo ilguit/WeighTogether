@@ -75,6 +75,7 @@ import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.profile.ProfilePhotoError
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoCropController
 import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import kotlinx.coroutines.launch
 
@@ -169,8 +170,8 @@ internal fun PetProfileEditorDialog(
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
-    val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
+    val photoCrop = photoStore?.let { store ->
+        rememberProfilePhotoCropController(
             store = store,
             owner = photoOwner,
             onPhotoReady = { path ->
@@ -178,6 +179,13 @@ internal fun PetProfileEditorDialog(
                 deleteTransientPhoto(draft.photoPath)
                 dispatchPhoto(onAction, path, locked)
             },
+            onError = { error -> photoError = petPhotoErrorMessage(error) },
+        )
+    }
+    val photoPicker = photoStore?.let { store ->
+        rememberProfilePhotoPicker(
+            store = store,
+            onPhotoPrepared = { photoCrop?.open(it) },
             onError = { error -> photoError = petPhotoErrorMessage(error) },
         )
     }

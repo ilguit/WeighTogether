@@ -86,6 +86,7 @@ import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.profile.ProfilePhotoError
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoCropController
 import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -564,8 +565,8 @@ fun AccountEditorScreen(
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
-    val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
+    val photoCrop = photoStore?.let { store ->
+        rememberProfilePhotoCropController(
             store = store,
             owner = photoOwner,
             onPhotoReady = { path ->
@@ -573,6 +574,13 @@ fun AccountEditorScreen(
                 deleteTransientPhoto(draft.photoPath)
                 onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.PhotoChanged(path)))
             },
+            onError = { error -> photoError = profilePhotoErrorMessage(error) },
+        )
+    }
+    val photoPicker = photoStore?.let { store ->
+        rememberProfilePhotoPicker(
+            store = store,
+            onPhotoPrepared = { photoCrop?.open(it) },
             onError = { error -> photoError = profilePhotoErrorMessage(error) },
         )
     }
