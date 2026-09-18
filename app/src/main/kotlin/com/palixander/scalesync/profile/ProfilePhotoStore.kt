@@ -40,6 +40,7 @@ class ProfilePhotoStore private constructor(
     context: Context,
     private val maxDimensionPx: Int,
     private val deleteFile: (File) -> Boolean,
+    private val afterManagedPhotoCreated: suspend (String) -> Unit,
 ) : ProfilePhotoLifecycle {
     private val appContext = context.applicationContext
     private val filesRoot = appContext.filesDir.canonicalFile
@@ -53,7 +54,7 @@ class ProfilePhotoStore private constructor(
     constructor(
         context: Context,
         maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
-    ) : this(context, maxDimensionPx, File::delete)
+    ) : this(context, maxDimensionPx, File::delete, {})
 
     fun resolve(photoPath: String): File {
         validateManagedProfilePhotoPath(photoPath)
@@ -146,10 +147,23 @@ class ProfilePhotoStore private constructor(
         owner: ProfilePhotoOwner,
         prepared: PreparedProfilePhoto,
         transform: ProfilePhotoCropTransform,
-    ): String = withContext(Dispatchers.IO + NonCancellable) {
+        deliver: suspend (String) -> Unit,
+    ) = withContext(Dispatchers.IO + NonCancellable) {
         val restored = restorePrepared(prepared.identifier)
             ?: throw ProfilePhotoException(ProfilePhotoError.UNREADABLE_SOURCE)
-        importCropped(owner, restored, transform).also { restored.cancel() }
+        val path = importCropped(owner, restored, transform)
+        try {
+            afterManagedPhotoCreated(path)
+            // Ownership changes only when the caller has installed the path in its draft. Keeping
+            // creation, handoff, and prepared-source cleanup in one NonCancellable section means
+            // Activity disposal cannot strand the managed JPEG between those steps.
+            deliver(path)
+            restored.cancel()
+        } catch (failure: Throwable) {
+            runCatching { onPhotoDereferenced(path) }
+                .onFailure(failure::addSuppressed)
+            throw failure
+        }
     }
 
     private fun importCropped(
@@ -322,8 +336,9 @@ class ProfilePhotoStore private constructor(
         internal fun createForTest(
             context: Context,
             maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
+            afterManagedPhotoCreated: suspend (String) -> Unit = {},
             deleteFile: (File) -> Boolean,
-        ) = ProfilePhotoStore(context, maxDimensionPx, deleteFile)
+        ) = ProfilePhotoStore(context, maxDimensionPx, deleteFile, afterManagedPhotoCreated)
     }
 
     private fun deleteStaleCaptures(nowMillis: Long = System.currentTimeMillis()) {

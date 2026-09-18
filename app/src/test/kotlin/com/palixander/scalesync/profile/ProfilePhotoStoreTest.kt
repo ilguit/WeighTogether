@@ -8,6 +8,9 @@ import androidx.test.core.app.ApplicationProvider
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.util.concurrent.atomic.AtomicReference
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -52,7 +55,8 @@ class ProfilePhotoStoreTest {
         val owner = ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "../../unsafe/account")
 
         val prepared = store.prepare(image(width = 200, height = 100))
-        val path = store.confirmCrop(owner, prepared, ProfilePhotoCropTransform())
+        var path = ""
+        store.confirmCrop(owner, prepared, ProfilePhotoCropTransform()) { path = it }
 
         assertTrue(path.startsWith("profile-photos/accounts/"))
         assertFalse(path.contains("unsafe"))
@@ -66,11 +70,13 @@ class ProfilePhotoStoreTest {
     @Test
     fun `second import is atomic and keeps old image until lifecycle callback`() = runBlocking {
         val owner = ProfilePhotoOwner(ProfilePhotoOwnerType.PET, "pet-1")
-        val first = store.prepare(image()).let {
-            store.confirmCrop(owner, it, ProfilePhotoCropTransform())
+        var first = ""
+        store.prepare(image()).let {
+            store.confirmCrop(owner, it, ProfilePhotoCropTransform()) { path -> first = path }
         }
-        val second = store.prepare(image()).let {
-            store.confirmCrop(owner, it, ProfilePhotoCropTransform())
+        var second = ""
+        store.prepare(image()).let {
+            store.confirmCrop(owner, it, ProfilePhotoCropTransform()) { path -> second = path }
         }
 
         assertNotEquals(first, second)
@@ -201,11 +207,12 @@ class ProfilePhotoStoreTest {
         source.recycle()
         val prepared = store.prepare(ByteArrayInputStream(bytes.toByteArray()))
 
-        val path = store.confirmCrop(
+        var path = ""
+        store.confirmCrop(
             ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "account"),
             prepared,
             ProfilePhotoCropTransform(panX = 1f),
-        )
+        ) { path = it }
 
         val cropped = BitmapFactory.decodeFile(store.resolve(path).path)
         assertEquals(cropped.width, cropped.height)
@@ -215,6 +222,63 @@ class ProfilePhotoStoreTest {
             android.graphics.Color.red(pixel) > android.graphics.Color.blue(pixel),
         )
         cropped.recycle()
+    }
+
+    @Test
+    fun `cancellation after managed rename still hands path to draft atomically`() = runBlocking {
+        val enteredHandoff = CompletableDeferred<Unit>()
+        val continueHandoff = CompletableDeferred<Unit>()
+        val delivered = AtomicReference<String?>()
+        store = ProfilePhotoStore.createForTest(
+            context = context,
+            maxDimensionPx = 64,
+            deleteFile = File::delete,
+            afterManagedPhotoCreated = {
+                enteredHandoff.complete(Unit)
+                continueHandoff.await()
+            },
+        )
+        val prepared = store.prepare(image())
+
+        val confirmation = launch {
+            store.confirmCrop(
+                ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "account"),
+                prepared,
+                ProfilePhotoCropTransform(),
+            ) { delivered.set(it) }
+        }
+        enteredHandoff.await()
+        confirmation.cancel()
+        continueHandoff.complete(Unit)
+        confirmation.join()
+
+        val path = delivered.get()
+        assertTrue("The managed path must be handed off despite cancellation", path != null)
+        assertTrue(store.resolve(checkNotNull(path)).isFile)
+        assertFalse("A delivered crop must consume its prepared source", prepared.file.exists())
+    }
+
+    @Test
+    fun `failed crop handoff deletes managed output and preserves prepared source`() = runBlocking {
+        val prepared = store.prepare(image())
+
+        try {
+            store.confirmCrop(
+                ProfilePhotoOwner(ProfilePhotoOwnerType.PET, "pet"),
+                prepared,
+                ProfilePhotoCropTransform(),
+            ) { throw IllegalStateException("draft unavailable") }
+            throw AssertionError("Expected handoff failure")
+        } catch (expected: IllegalStateException) {
+            assertEquals("draft unavailable", expected.message)
+        }
+
+        assertTrue(prepared.file.isFile)
+        val managed = File(context.filesDir, "profile-photos")
+            .walkTopDown()
+            .filter(File::isFile)
+            .toList()
+        assertTrue("Failed handoff must not leave a managed orphan: $managed", managed.isEmpty())
     }
 
     @Test

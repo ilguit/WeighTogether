@@ -120,10 +120,16 @@ fun rememberProfilePhotoCropController(
             },
             onConfirm = { transform, completed ->
                 try {
-                    val path = store.confirmCrop(owner, photo, transform)
-                    prepared = null
-                    identifier = null
-                    onPhotoReady(path)
+                    store.confirmCrop(owner, photo, transform) { path ->
+                        withContext(Dispatchers.Main.immediate) {
+                            // Clear the restorable source before ownership is handed to the draft.
+                            // These mutations and the callback inherit the store's NonCancellable
+                            // handoff even if this composition is being disposed for recreation.
+                            prepared = null
+                            identifier = null
+                            onPhotoReady(path)
+                        }
+                    }
                     completed(null)
                 } catch (cancelled: CancellationException) {
                     throw cancelled
