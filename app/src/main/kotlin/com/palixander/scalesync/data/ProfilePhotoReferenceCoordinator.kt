@@ -29,14 +29,11 @@ class ProfilePhotoReferenceCoordinator(
     ): T {
         val retained = retainedPhotoPaths.filterTo(linkedSetOf(), String::isNotBlank)
         lease(retained)
-        var reconciliationStarted = false
         var failure: Throwable? = null
         try {
             return operationMutex.withLock {
                 val result = mutation()
                 deletionCandidates += result.dereferencedPhotoPaths.filter(String::isNotBlank)
-                reconciliationStarted = true
-                reconcileLocked()
                 result.value
             }
         } catch (caught: Throwable) {
@@ -44,15 +41,22 @@ class ProfilePhotoReferenceCoordinator(
             throw caught
         } finally {
             withContext(NonCancellable) {
-                release(retained)
-                if (!reconciliationStarted) {
-                    try {
-                        // A failed/cancelled operation may have been leasing a candidate queued by
-                        // an earlier mutation. Reconsider it after releasing this operation's lease.
-                        operationMutex.withLock { reconcileLocked() }
-                    } catch (cleanupFailure: Throwable) {
-                        failure?.addSuppressed(cleanupFailure) ?: throw cleanupFailure
-                    }
+                var cleanupFailure: Throwable? = null
+                try {
+                    release(retained)
+                } catch (caught: Throwable) {
+                    cleanupFailure = caught
+                }
+                try {
+                    // Always retry queued candidates after releasing this operation's lease. The
+                    // candidate is removed only after its lifecycle callback succeeds, so a failed
+                    // or cancelled caller leaves cleanup work available to the next mutation.
+                    operationMutex.withLock { reconcileLocked() }
+                } catch (caught: Throwable) {
+                    cleanupFailure?.addSuppressed(caught) ?: run { cleanupFailure = caught }
+                }
+                cleanupFailure?.let { caught ->
+                    failure?.addSuppressed(caught) ?: throw caught
                 }
             }
         }
@@ -70,13 +74,21 @@ class ProfilePhotoReferenceCoordinator(
     }
 
     private suspend fun reconcileLocked() {
-        val leased = leaseMutex.withLock { leasedPaths.keys.toSet() }
         val iterator = deletionCandidates.iterator()
         while (iterator.hasNext()) {
             val path = iterator.next()
-            if (path in leased || isReferenced(path)) continue
-            lifecycle.onPhotoDereferenced(path)
-            iterator.remove()
+            if (isReferenced(path)) continue
+            val deleted = leaseMutex.withLock {
+                if (path in leasedPaths) {
+                    false
+                } else {
+                    // Keep the lease decision stable until deletion finishes. A mutation trying to
+                    // install this path either leased it first or waits until this cleanup is done.
+                    lifecycle.onPhotoDereferenced(path)
+                    true
+                }
+            }
+            if (deleted) iterator.remove()
         }
     }
 

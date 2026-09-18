@@ -17,9 +17,11 @@ import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -97,6 +99,62 @@ class ProfilePhotoReferenceCoordinatorTest {
 
         pets.updatePet(PetUpdate(pet.id, pet.displayName, pet.species, photoPath = PHOTO_B))
         assertEquals(listOf(PHOTO_A), deleted)
+    }
+
+    @Test
+    fun cancellationAfterCommitStillCompletesPostReleaseReconciliation() = runBlocking {
+        val lifecycleStarted = CompletableDeferred<Unit>()
+        val releaseLifecycle = CompletableDeferred<Unit>()
+        val deleted = mutableListOf<String>()
+        val coordinator = ProfilePhotoReferenceCoordinator(database) { path ->
+            lifecycleStarted.complete(Unit)
+            releaseLifecycle.await()
+            deleted += path
+        }
+        val accounts = accountRepository(coordinator)
+        val account = accounts.createAccount(newAccount("A"))
+
+        val update = launch(start = CoroutineStart.UNDISPATCHED) {
+            accounts.updateAccount(
+                AccountUpdate(account.id, account.displayName, PROFILE, PHOTO_B),
+                ProfileHistoryUpdateMode.KEEP_EXISTING,
+            )
+        }
+        lifecycleStarted.await()
+        update.cancel()
+        releaseLifecycle.complete(Unit)
+        update.join()
+
+        assertTrue(update.isCancelled)
+        assertEquals(PHOTO_B, accounts.getAccount(account.id)?.photoPath)
+        assertEquals(listOf(PHOTO_A), deleted)
+    }
+
+    @Test
+    fun failedLifecycleKeepsCandidateForSuccessfulRetry() = runBlocking {
+        val attempts = mutableListOf<String>()
+        var failLifecycle = true
+        val coordinator = ProfilePhotoReferenceCoordinator(database) { path ->
+            attempts += path
+            if (failLifecycle) error("filesystem unavailable")
+        }
+        val accounts = accountRepository(coordinator)
+        val account = accounts.createAccount(newAccount("A"))
+
+        val firstUpdate = runCatching {
+            accounts.updateAccount(
+                AccountUpdate(account.id, account.displayName, PROFILE, PHOTO_B),
+                ProfileHistoryUpdateMode.KEEP_EXISTING,
+            )
+        }
+        assertTrue(firstUpdate.isFailure)
+        assertEquals(PHOTO_B, accounts.getAccount(account.id)?.photoPath)
+        assertEquals(listOf(PHOTO_A), attempts)
+
+        failLifecycle = false
+        coordinator.mutate<Unit>(emptySet()) { ProfilePhotoMutation(Unit) }
+
+        assertEquals(listOf(PHOTO_A, PHOTO_A), attempts)
     }
 
     private fun accountRepository(coordinator: ProfilePhotoReferenceCoordinator) =
