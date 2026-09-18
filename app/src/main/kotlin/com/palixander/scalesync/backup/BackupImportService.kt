@@ -9,6 +9,8 @@ import com.palixander.scalesync.data.MeasurementEntity
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
+import com.palixander.scalesync.data.ProfilePhotoMutation
+import com.palixander.scalesync.data.ProfilePhotoReferenceCoordinator
 import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
@@ -102,8 +104,35 @@ class RoomBackupImportGateway internal constructor(
     private val settingsSnapshot: () -> VersionedPortableProfileSettings,
     private val importService: BackupImportService = BackupImportService(),
     private val checkpointCodec: BackupImportCheckpointCodec = BackupImportCheckpointCodec(),
+    private val photoReferences: ProfilePhotoReferenceCoordinator =
+        ProfilePhotoReferenceCoordinator(database),
 ) : BackupImportGateway {
-    override suspend fun stage(preview: BackupImportPreview): Unit =
+    override suspend fun stage(preview: BackupImportPreview) {
+        if (preview.mode == BackupImportMode.REPLACE) {
+            val retainedPhotoPaths = buildSet {
+                preview.result.accounts.mapNotNullTo(this) { it.photoPath }
+                preview.result.pets.mapNotNullTo(this) { it.photoPath }
+            }
+            photoReferences.mutate(retainedPhotoPaths) {
+                val dereferencedPhotoPaths = replaceWithinTransaction(preview)
+                ProfilePhotoMutation(Unit, dereferencedPhotoPaths)
+            }
+        } else {
+            importWithinTransaction(preview)
+        }
+    }
+
+    private suspend fun replaceWithinTransaction(preview: BackupImportPreview): Set<String> =
+        database.withTransaction {
+            val dereferencedPhotoPaths = buildSet {
+                database.accountDao().getAll().mapNotNullTo(this) { it.photoPath }
+                database.petDao().getAllPetsForBackup().mapNotNullTo(this) { it.photoPath }
+            }
+            importWithinTransaction(preview)
+            dereferencedPhotoPaths
+        }
+
+    private suspend fun importWithinTransaction(preview: BackupImportPreview): Unit =
         database.withTransaction {
         val currentDatabase = BackupDatabaseSnapshot(
             accounts = database.accountDao().getAll(),

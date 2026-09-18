@@ -127,6 +127,7 @@ class AppContainer(application: Application) {
             database,
             profileStore::versionedPortableSnapshot,
             backupImport,
+            photoReferences = profilePhotoReferences,
         ),
         profileStore.asPortableSettingsWriter(),
         externalSyncOperations,
