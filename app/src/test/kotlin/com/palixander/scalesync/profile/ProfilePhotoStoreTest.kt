@@ -75,6 +75,16 @@ class ProfilePhotoStoreTest {
     }
 
     @Test
+    fun `dereferencing an absent managed photo is idempotent`() = runBlocking {
+        val missingPath = "profile-photos/accounts/missing/photo.jpg"
+
+        store.onPhotoDereferenced(missingPath)
+        store.onPhotoDereferenced(missingPath)
+
+        assertFalse(store.resolve(missingPath).exists())
+    }
+
+    @Test
     fun `cancel removes camera temporary output`() {
         val capture = store.createCapture()
         assertTrue(capture.file.exists())

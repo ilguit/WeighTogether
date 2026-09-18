@@ -12,6 +12,8 @@ import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.ProfileHistoryUpdateMode
+import com.palixander.scalesync.profile.ProfilePhotoStore
+import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import kotlinx.coroutines.CompletableDeferred
@@ -155,6 +157,37 @@ class ProfilePhotoReferenceCoordinatorTest {
         coordinator.mutate<Unit>(emptySet()) { ProfilePhotoMutation(Unit) }
 
         assertEquals(listOf(PHOTO_A, PHOTO_A), attempts)
+    }
+
+    @Test
+    fun productionLifecycleDeleteFailureIsRetriedUntilFileIsRemoved() = runBlocking {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val photoFile = File(context.filesDir, PHOTO_A).apply {
+            parentFile?.mkdirs()
+            writeText("photo")
+        }
+        var allowDelete = false
+        val store = ProfilePhotoStore.createForTest(context) { file ->
+            allowDelete && file.delete()
+        }
+        val coordinator = ProfilePhotoReferenceCoordinator(database, store)
+        val accounts = accountRepository(coordinator)
+        val account = accounts.createAccount(newAccount("A"))
+
+        val firstUpdate = runCatching {
+            accounts.updateAccount(
+                AccountUpdate(account.id, account.displayName, PROFILE, PHOTO_B),
+                ProfileHistoryUpdateMode.KEEP_EXISTING,
+            )
+        }
+
+        assertTrue(firstUpdate.isFailure)
+        assertTrue(photoFile.isFile)
+        allowDelete = true
+
+        coordinator.mutate<Unit>(emptySet()) { ProfilePhotoMutation(Unit) }
+
+        assertTrue(!photoFile.exists())
     }
 
     private fun accountRepository(coordinator: ProfilePhotoReferenceCoordinator) =

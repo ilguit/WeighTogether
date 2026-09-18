@@ -11,6 +11,7 @@ import com.palixander.scalesync.data.ProfilePhotoLifecycle
 import com.palixander.scalesync.domain.validateManagedProfilePhotoPath
 import java.io.File
 import java.io.FileInputStream
+import java.io.IOException
 import java.io.InputStream
 import java.security.MessageDigest
 import java.util.UUID
@@ -34,9 +35,10 @@ data class ProfilePhotoOwner(
 }
 
 /** App-private profile photo storage. Returned paths are relative to [Context.getFilesDir]. */
-class ProfilePhotoStore(
+class ProfilePhotoStore private constructor(
     context: Context,
-    private val maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
+    private val maxDimensionPx: Int,
+    private val deleteFile: (File) -> Boolean,
 ) : ProfilePhotoLifecycle {
     private val appContext = context.applicationContext
     private val filesRoot = appContext.filesDir.canonicalFile
@@ -45,6 +47,11 @@ class ProfilePhotoStore(
     init {
         require(maxDimensionPx > 0)
     }
+
+    constructor(
+        context: Context,
+        maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
+    ) : this(context, maxDimensionPx, File::delete)
 
     fun resolve(photoPath: String): File {
         validateManagedProfilePhotoPath(photoPath)
@@ -139,8 +146,11 @@ class ProfilePhotoStore(
         }
 
     override suspend fun onPhotoDereferenced(photoPath: String) {
-        resolve(photoPath).delete()
-        removeEmptyParents(resolve(photoPath).parentFile)
+        val photo = resolve(photoPath)
+        if (photo.exists() && !deleteFile(photo) && photo.exists()) {
+            throw IOException("Cannot delete managed profile photo: $photoPath")
+        }
+        removeEmptyParents(photo.parentFile)
     }
 
     private fun removeEmptyParents(start: File?) {
@@ -208,6 +218,12 @@ class ProfilePhotoStore(
         private const val CAPTURE_DIRECTORY = "profile-photo-capture"
         private const val STALE_CAPTURE_AGE_MILLIS = 24 * 60 * 60 * 1_000L
         private val CAPTURE_FILE_PATTERN = Regex("capture-[A-Za-z0-9._-]+\\.jpg")
+
+        internal fun createForTest(
+            context: Context,
+            maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
+            deleteFile: (File) -> Boolean,
+        ) = ProfilePhotoStore(context, maxDimensionPx, deleteFile)
     }
 
     private fun deleteStaleCaptures(nowMillis: Long = System.currentTimeMillis()) {
