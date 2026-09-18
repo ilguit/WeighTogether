@@ -13,12 +13,14 @@ import com.palixander.scalesync.core.BodyCompositionCalculator
 import com.palixander.scalesync.core.MiScalePacketParser
 import com.palixander.scalesync.data.AppDatabase
 import com.palixander.scalesync.data.MeasurementRepository
+import com.palixander.scalesync.data.ProfilePhotoReferenceCoordinator
 import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RoomAccountRepository
 import com.palixander.scalesync.data.RoomMeasurementPersistence
 import com.palixander.scalesync.data.RoomPetRepository
 import com.palixander.scalesync.data.SyncAwareAccountRepository
 import com.palixander.scalesync.sync.HealthConnectGateway
+import com.palixander.scalesync.profile.ProfilePhotoStore
 import com.palixander.scalesync.worker.ExternalSyncPauseCoordinator
 import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 import com.palixander.scalesync.worker.MeasurementWorkSweepScheduler
@@ -53,8 +55,14 @@ class AppContainer(application: Application) {
     val database: AppDatabase = AppDatabase.build(application)
     internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val profileStore = ProfileStore(application, externalSyncOperations)
+    val profilePhotos = ProfilePhotoStore(application)
+    private val profilePhotoReferences = ProfilePhotoReferenceCoordinator(database, profilePhotos)
     val packetParser = MiScalePacketParser()
-    val pets = RoomPetRepository(database)
+    val pets = RoomPetRepository(
+        database,
+        photoLifecycle = profilePhotos,
+        photoReferences = profilePhotoReferences,
+    )
     val healthConnect = HealthConnectGateway(application)
     val syncScheduler = SyncWorkScheduler(
         context = application,
@@ -71,7 +79,12 @@ class AppContainer(application: Application) {
         calculator = calculator,
     )
     /** Read-side dependency for ingestion. It must not depend on measurement orchestration. */
-    val baseAccounts = RoomAccountRepository(database, calculator = calculator)
+    val baseAccounts = RoomAccountRepository(
+        database,
+        calculator = calculator,
+        photoLifecycle = profilePhotos,
+        photoReferences = profilePhotoReferences,
+    )
     val repository = MeasurementRepository(
         database.measurementDao(),
         // The legacy provider is never reached in live DI because all writes use the configured
@@ -114,6 +127,7 @@ class AppContainer(application: Application) {
             database,
             profileStore::versionedPortableSnapshot,
             backupImport,
+            photoReferences = profilePhotoReferences,
         ),
         profileStore.asPortableSettingsWriter(),
         externalSyncOperations,

@@ -123,6 +123,7 @@ data class Pet(
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val photoPath: String? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -131,6 +132,7 @@ data class Pet(
         }
         require(!updatedAt.isBefore(createdAt)) { "Updated time cannot precede created time" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
+        validateManagedProfilePhotoPath(photoPath)
     }
 }
 
@@ -141,11 +143,13 @@ data class NewPet(
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val photoPath: String? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
+        validateManagedProfilePhotoPath(photoPath)
     }
 
     val normalizedName: String = normalizePetName(displayName)
@@ -159,11 +163,13 @@ data class PetUpdate(
     val breedId: BreedId? = null,
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val photoPath: String? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
+        validateManagedProfilePhotoPath(photoPath)
     }
 
     val normalizedName: String = normalizePetName(displayName)

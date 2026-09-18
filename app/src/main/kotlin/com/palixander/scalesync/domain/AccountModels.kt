@@ -68,6 +68,7 @@ data class Account(
     val profile: AccountProfile,
     val createdAt: Instant,
     val updatedAt: Instant,
+    val photoPath: String? = null,
 ) {
     init {
         require(displayName == displayName.trim()) { "Account display name must be trimmed" }
@@ -78,18 +79,21 @@ data class Account(
             "Normalized name must match the display name"
         }
         require(!updatedAt.isBefore(createdAt)) { "Updated time cannot precede created time" }
+        validateManagedProfilePhotoPath(photoPath)
     }
 }
 
 data class NewAccount(
     val displayName: String,
     val profile: AccountProfile.Complete,
+    val photoPath: String? = null,
 ) {
     init {
         require(displayName == displayName.trim()) { "Account display name must be trimmed" }
         require(displayName.length in ACCOUNT_NAME_LENGTH) {
             "Account display name must contain 1 to 50 characters"
         }
+        validateManagedProfilePhotoPath(photoPath)
     }
 
     val normalizedName: String = normalizeAccountName(displayName)
@@ -99,12 +103,14 @@ data class AccountUpdate(
     val id: AccountId,
     val displayName: String,
     val profile: AccountProfile.Complete,
+    val photoPath: String? = null,
 ) {
     init {
         require(displayName == displayName.trim()) { "Account display name must be trimmed" }
         require(displayName.length in ACCOUNT_NAME_LENGTH) {
             "Account display name must contain 1 to 50 characters"
         }
+        validateManagedProfilePhotoPath(photoPath)
     }
 
     val normalizedName: String = normalizeAccountName(displayName)
@@ -139,3 +145,18 @@ fun normalizeAccountName(displayName: String): String =
 val ACCOUNT_NAME_LENGTH: IntRange = 1..50
 val WEIGHT_DELTA_KG_RANGE: ClosedFloatingPointRange<Double> = 0.1..50.0
 const val DEFAULT_WEIGHT_DELTA_KG: Double = 3.0
+
+/** Ensures profile photos only reference files owned by the app's managed media store. */
+fun validateManagedProfilePhotoPath(path: String?) {
+    if (path == null) return
+    require(path.isNotBlank()) { "Profile photo path must not be blank" }
+    require(!path.startsWith('/') && !path.startsWith('\\')) {
+        "Profile photo path must be relative"
+    }
+    require('\\' !in path && ':' !in path) {
+        "Profile photo path must not be a URI or use platform-specific separators"
+    }
+    require(path.split('/').none { it.isBlank() || it == "." || it == ".." }) {
+        "Profile photo path must contain only managed relative path segments"
+    }
+}

@@ -80,7 +80,13 @@ import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.ProfilePhotoOwner
+import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.time.LocalDate
@@ -103,6 +109,10 @@ object AccountManagementTestTags {
     const val EditorSexGroup = "account-editor-sex-group"
     const val EditorHeight = "account-editor-height"
     const val EditorBirthDate = "account-editor-birth-date"
+    const val EditorPhoto = "account-editor-photo"
+    const val EditorPhotoGallery = "account-editor-photo-gallery"
+    const val EditorPhotoCamera = "account-editor-photo-camera"
+    const val EditorPhotoRemove = "account-editor-photo-remove"
     const val EditorSave = "account-editor-save"
     const val EditorDiscardPrompt = "account-editor-discard-prompt"
     const val EditorDiscardConfirm = "account-editor-discard-confirm"
@@ -357,6 +367,7 @@ private fun AccountRow(
     onDelete: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val photoStore = currentProfilePhotoStore()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -366,17 +377,15 @@ private fun AccountRow(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val completeProfile = account.profile as? AccountProfile.Complete
-        ProfileGlyph(
-            glyph = when (completeProfile?.sex) {
-                Sex.MALE -> "♂"
-                Sex.FEMALE -> "♀"
-                null -> "?"
-            },
-            description = when (completeProfile?.sex) {
+        ProfileAvatar(
+            photoPath = account.photoPath,
+            fallbackIcon = HuaweiIcons.Profile,
+            contentDescription = when (completeProfile?.sex) {
                 Sex.MALE -> "Мужчина"
                 Sex.FEMALE -> "Женщина"
                 null -> "Профиль"
             },
+            store = photoStore,
             modifier = Modifier.padding(end = 10.dp),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -426,6 +435,7 @@ private fun PetProfileRow(
     onDelete: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
+    val photoStore = currentProfilePhotoStore()
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -434,13 +444,15 @@ private fun PetProfileRow(
             .padding(start = 16.dp, top = 12.dp, end = 4.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        ProfileGlyph(
-            glyph = when (pet.pet.species) {
-                PetSpecies.CAT -> "🐱"
-                PetSpecies.DOG -> "🐶"
-                PetSpecies.UNSPECIFIED -> "🐾"
+        ProfileAvatar(
+            photoPath = pet.pet.photoPath,
+            fallbackIcon = when (pet.pet.species) {
+                PetSpecies.CAT -> HuaweiIcons.Cat
+                PetSpecies.DOG -> HuaweiIcons.Dog
+                PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
             },
-            description = speciesLabel,
+            contentDescription = speciesLabel,
+            store = photoStore,
             modifier = Modifier.padding(end = 10.dp),
         )
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -539,6 +551,31 @@ fun AccountEditorScreen(
     val birthDateFocus = remember { FocusRequester() }
     val heightFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+    val photoStore = currentProfilePhotoStore()
+    var photoError by remember(draft.editingAccountId) { mutableStateOf<String?>(null) }
+    val photoOwner = remember(draft.editingAccountId) {
+        ProfilePhotoOwner(
+            ProfilePhotoOwnerType.ACCOUNT,
+            draft.editingAccountId?.value ?: "new-account-${java.util.UUID.randomUUID()}",
+        )
+    }
+    fun deleteTransientPhoto(path: String?) {
+        if (path != null && path != initialDraft.photoPath) {
+            scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
+        }
+    }
+    val photoPicker = photoStore?.let { store ->
+        rememberProfilePhotoPicker(
+            store = store,
+            owner = photoOwner,
+            onPhotoReady = { path ->
+                photoError = null
+                deleteTransientPhoto(draft.photoPath)
+                onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.PhotoChanged(path)))
+            },
+            onError = { error -> photoError = profilePhotoErrorMessage(error) },
+        )
+    }
     LaunchedEffect(Unit) {
         titleFocus.requestFocus()
     }
@@ -617,6 +654,43 @@ fun AccountEditorScreen(
                     .padding(HuaweiDimensions.ContentPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
+                ProfileAvatar(
+                    photoPath = draft.photoPath,
+                    fallbackIcon = HuaweiIcons.Profile,
+                    contentDescription = "Фото профиля",
+                    store = photoStore,
+                    size = 96.dp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                        .testTag(AccountManagementTestTags.EditorPhoto),
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { photoPicker?.chooseFromGallery?.invoke() },
+                        enabled = !operationInProgress && photoPicker != null,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(AccountManagementTestTags.EditorPhotoGallery),
+                    ) { Text("Галерея") }
+                    OutlinedButton(
+                        onClick = { photoPicker?.takePhoto?.invoke() },
+                        enabled = !operationInProgress && photoPicker != null,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(AccountManagementTestTags.EditorPhotoCamera),
+                    ) { Text("Камера") }
+                    if (draft.photoPath != null) OutlinedButton(
+                        onClick = {
+                            deleteTransientPhoto(draft.photoPath)
+                            onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.PhotoChanged(null)))
+                        },
+                        enabled = !operationInProgress,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(AccountManagementTestTags.EditorPhotoRemove),
+                    ) { Text("Удалить фото") }
+                }
+                photoError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                 OutlinedTextField(
                     value = draft.name,
                     onValueChange = { onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.NameChanged(it))) },
@@ -705,7 +779,10 @@ fun AccountEditorScreen(
         title = { Text("Отменить изменения?") },
         text = { Text("Несохранённые изменения профиля будут потеряны.") },
         confirmButton = {
-            TextButton(onClick = onDismiss,
+            TextButton(onClick = {
+                deleteTransientPhoto(draft.photoPath)
+                onDismiss()
+            },
                 modifier = Modifier.testTag(AccountManagementTestTags.EditorDiscardConfirm)) {
                 Text("Отменить изменения")
             }
@@ -714,6 +791,12 @@ fun AccountEditorScreen(
             TextButton(onClick = { discardRequested = false }) { Text("Продолжить редактирование") }
         },
     )
+}
+
+private fun profilePhotoErrorMessage(error: ProfilePhotoError): String = when (error) {
+    ProfilePhotoError.UNREADABLE_SOURCE -> "Не удалось прочитать изображение"
+    ProfilePhotoError.INVALID_IMAGE -> "Выбранный файл не является изображением"
+    ProfilePhotoError.PROCESSING_FAILED -> "Не удалось обработать изображение"
 }
 
 @Composable

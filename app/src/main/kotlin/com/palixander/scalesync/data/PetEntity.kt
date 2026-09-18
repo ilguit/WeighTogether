@@ -33,6 +33,7 @@ data class PetEntity(
     val birthMonth: Int? = null,
     val birthDay: Int? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val photoPath: String? = null,
 ) {
     fun toDomain(): Pet = Pet(
         id = PetId(id),
@@ -45,6 +46,7 @@ data class PetEntity(
         breedId = breedId?.let(::canonicalBreedId)?.let(::BreedId),
         birthDate = toPartialBirthDate(),
         dogAdultWeightCategory = dogAdultWeightCategory,
+        photoPath = photoPath,
     )
 
     private fun toPartialBirthDate(): PartialBirthDate? =

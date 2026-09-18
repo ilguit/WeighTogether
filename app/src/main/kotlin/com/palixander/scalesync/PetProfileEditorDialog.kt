@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -67,8 +68,14 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.ProfilePhotoOwner
+import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import kotlinx.coroutines.launch
 
 internal object PetProfileEditorTestTags {
@@ -76,6 +83,10 @@ internal object PetProfileEditorTestTags {
     const val Content = "pet-profile-editor-content"
     const val Title = "pet-profile-editor-title"
     const val NameField = "pet-profile-editor-name"
+    const val Photo = "pet-profile-editor-photo"
+    const val PhotoGallery = "pet-profile-editor-photo-gallery"
+    const val PhotoCamera = "pet-profile-editor-photo-camera"
+    const val PhotoRemove = "pet-profile-editor-photo-remove"
     const val SpeciesCat = "pet-profile-editor-species-cat"
     const val SpeciesDog = "pet-profile-editor-species-dog"
     const val SpeciesGroup = "pet-profile-editor-species-group"
@@ -144,6 +155,32 @@ internal fun PetProfileEditorDialog(
     val birthDateFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+    val photoStore = currentProfilePhotoStore()
+    var photoError by remember(draft.mode) { mutableStateOf<String?>(null) }
+    val photoOwner = remember(draft.mode) {
+        ProfilePhotoOwner(
+            ProfilePhotoOwnerType.PET,
+            (draft.mode as? PetProfileEditorMode.Edit)?.petId?.value
+                ?: "new-pet-${java.util.UUID.randomUUID()}",
+        )
+    }
+    fun deleteTransientPhoto(path: String?) {
+        if (path != null && path != initialDraft.photoPath) {
+            scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
+        }
+    }
+    val photoPicker = photoStore?.let { store ->
+        rememberProfilePhotoPicker(
+            store = store,
+            owner = photoOwner,
+            onPhotoReady = { path ->
+                photoError = null
+                deleteTransientPhoto(draft.photoPath)
+                dispatchPhoto(onAction, path, locked)
+            },
+            onError = { error -> photoError = petPhotoErrorMessage(error) },
+        )
+    }
 
     LaunchedEffect(Unit) {
         if (!fieldErrors.hasErrors) titleFocus.requestFocus()
@@ -254,6 +291,47 @@ internal fun PetProfileEditorDialog(
                     .testTag(PetProfileEditorTestTags.Content),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
+                ProfileAvatar(
+                    photoPath = draft.photoPath,
+                    fallbackIcon = when (draft.species) {
+                        PetSpecies.CAT -> HuaweiIcons.Cat
+                        PetSpecies.DOG -> HuaweiIcons.Dog
+                        else -> HuaweiIcons.Profile
+                    },
+                    contentDescription = "Фото питомца",
+                    store = photoStore,
+                    size = 96.dp,
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                        .testTag(PetProfileEditorTestTags.Photo),
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { photoPicker?.chooseFromGallery?.invoke() },
+                        enabled = !locked && photoPicker != null,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(PetProfileEditorTestTags.PhotoGallery),
+                    ) { Text("Галерея") }
+                    OutlinedButton(
+                        onClick = { photoPicker?.takePhoto?.invoke() },
+                        enabled = !locked && photoPicker != null,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(PetProfileEditorTestTags.PhotoCamera),
+                    ) { Text("Камера") }
+                    if (draft.photoPath != null) OutlinedButton(
+                        onClick = {
+                            deleteTransientPhoto(draft.photoPath)
+                            dispatch(PetProfileAction.PhotoChanged(null))
+                        },
+                        enabled = !locked,
+                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                            .testTag(PetProfileEditorTestTags.PhotoRemove),
+                    ) { Text("Удалить фото") }
+                }
+                photoError?.let { FieldError(it) }
                 OutlinedTextField(
                     value = draft.displayName,
                     onValueChange = { dispatch(PetProfileAction.DisplayNameChanged(it)) },
@@ -477,7 +555,10 @@ internal fun PetProfileEditorDialog(
             text = { Text("Несохранённые изменения профиля питомца будут потеряны.") },
             confirmButton = {
                 Button(
-                    onClick = onDismiss,
+                    onClick = {
+                        deleteTransientPhoto(draft.photoPath)
+                        onDismiss()
+                    },
                     modifier = Modifier.testTag(PetProfileEditorTestTags.Discard),
                 ) { Text("Отменить изменения") }
             },
@@ -489,6 +570,16 @@ internal fun PetProfileEditorDialog(
             },
         )
     }
+}
+
+private fun dispatchPhoto(onAction: (PetProfileAction) -> Unit, path: String, locked: Boolean) {
+    if (!locked) onAction(PetProfileAction.PhotoChanged(path))
+}
+
+private fun petPhotoErrorMessage(error: ProfilePhotoError): String = when (error) {
+    ProfilePhotoError.UNREADABLE_SOURCE -> "Не удалось прочитать изображение"
+    ProfilePhotoError.INVALID_IMAGE -> "Выбранный файл не является изображением"
+    ProfilePhotoError.PROCESSING_FAILED -> "Не удалось обработать изображение"
 }
 
 @Composable

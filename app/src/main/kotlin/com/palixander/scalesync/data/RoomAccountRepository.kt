@@ -29,6 +29,9 @@ class RoomAccountRepository(
     private val calculator: BodyCompositionCalculator = BodyCompositionCalculator(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val photoLifecycle: ProfilePhotoLifecycle = ProfilePhotoLifecycle.None,
+    private val photoReferences: ProfilePhotoReferenceCoordinator =
+        ProfilePhotoReferenceCoordinator(database, photoLifecycle),
 ) : AccountRepository, AccountSettingsWriter {
     override fun observeAccounts(): Flow<List<Account>> = accountDao.observeAll().map { accounts ->
         accounts.map(AccountEntity::toDomain)
@@ -40,66 +43,81 @@ class RoomAccountRepository(
 
     override suspend fun getAccount(id: AccountId): Account? = accountDao.get(id.value)?.toDomain()
 
-    override suspend fun createAccount(account: NewAccount): Account = database.withTransaction {
-        ensureAppState()
-        accountDao.getByNormalizedName(account.normalizedName)?.let {
-            throw AccountNameConflictException(account.normalizedName)
+    override suspend fun createAccount(account: NewAccount): Account =
+        photoReferences.mutate(setOfNotNull(account.photoPath)) {
+            val created = database.withTransaction {
+                ensureAppState()
+                accountDao.getByNormalizedName(account.normalizedName)?.let {
+                    throw AccountNameConflictException(account.normalizedName)
+                }
+                val timestamp = now()
+                val entity = account.toEntity(
+                    id = newId(),
+                    createdAt = timestamp,
+                    updatedAt = timestamp,
+                )
+                if (accountDao.insert(entity) == -1L) {
+                    throw AccountNameConflictException(account.normalizedName)
+                }
+                if (accountDao.count() == 1) {
+                    check(appStateDao.setPrimary(entity.id) == 1) { "App state singleton is missing" }
+                }
+                entity.toDomain()
+            }
+            ProfilePhotoMutation(created)
         }
-        val timestamp = now()
-        val entity = account.toEntity(
-            id = newId(),
-            createdAt = timestamp,
-            updatedAt = timestamp,
-        )
-        if (accountDao.insert(entity) == -1L) {
-            throw AccountNameConflictException(account.normalizedName)
-        }
-        if (accountDao.count() == 1) {
-            check(appStateDao.setPrimary(entity.id) == 1) { "App state singleton is missing" }
-        }
-        entity.toDomain()
-    }
 
     override suspend fun hasProfileRecalculationCandidates(accountId: AccountId): Boolean =
         measurementDao.hasProfileRecalculationCandidates(accountId.value)
 
     override suspend fun attemptProfileUpdate(
         account: AccountUpdate,
-    ): ProfileUpdateAttemptResult = database.withTransaction {
-        val current = accountDao.get(account.id.value)
-            ?: throw AccountNotFoundException(account.id)
-        val updated = account.toEntity(current, now())
-        if (current.requiresProfileRecalculation(updated) &&
-            measurementDao.hasProfileRecalculationCandidates(current.id)
-        ) {
-            return@withTransaction ProfileUpdateAttemptResult.ConfirmationRequired
+    ): ProfileUpdateAttemptResult {
+        return photoReferences.mutate(setOfNotNull(account.photoPath)) {
+            val (result, dereferencedPhotoPath) = database.withTransaction {
+                val current = accountDao.get(account.id.value)
+                    ?: throw AccountNotFoundException(account.id)
+                val updated = account.toEntity(current, now())
+                if (current.requiresProfileRecalculation(updated) &&
+                    measurementDao.hasProfileRecalculationCandidates(current.id)
+                ) {
+                    return@withTransaction ProfileUpdateAttemptResult.ConfirmationRequired to null
+                }
+                saveAccountLocked(account, current, updated)
+                ProfileUpdateAttemptResult.Saved(updated.toDomain()) to current.replacedPhotoPath(updated)
+            }
+            ProfilePhotoMutation(result, setOfNotNull(dereferencedPhotoPath))
         }
-        saveAccountLocked(account, current, updated)
-        ProfileUpdateAttemptResult.Saved(updated.toDomain())
     }
 
     override suspend fun updateAccount(
         account: AccountUpdate,
         historyUpdateMode: ProfileHistoryUpdateMode,
-    ): Account = database.withTransaction {
-        val current = accountDao.get(account.id.value)
-            ?: throw AccountNotFoundException(account.id)
-        val updated = account.toEntity(current, now())
-        if (current.requiresProfileRecalculation(updated) &&
-            historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
-        ) {
-            val profile = account.profile.toUserProfile()
-            measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
-                val recalculated = measurement
-                    .backfillMissingSyncedCalculatedValues()
-                    .recalculate(calculator, profile)
-                check(measurementDao.update(recalculated) == 1) {
-                    "Measurement ${measurement.id} disappeared during profile recalculation"
+    ): Account {
+        return photoReferences.mutate(setOfNotNull(account.photoPath)) {
+            val (saved, dereferencedPhotoPath) = database.withTransaction {
+                val current = accountDao.get(account.id.value)
+                    ?: throw AccountNotFoundException(account.id)
+                val updated = account.toEntity(current, now())
+                if (current.requiresProfileRecalculation(updated) &&
+                    historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
+                ) {
+                    val profile = account.profile.toUserProfile()
+                    measurementDao.getProfileRecalculationCandidates(current.id)
+                        .forEach { measurement ->
+                            val recalculated = measurement
+                                .backfillMissingSyncedCalculatedValues()
+                                .recalculate(calculator, profile)
+                            check(measurementDao.update(recalculated) == 1) {
+                                "Measurement ${measurement.id} disappeared during profile recalculation"
+                            }
+                        }
                 }
+                saveAccountLocked(account, current, updated)
+                updated.toDomain() to current.replacedPhotoPath(updated)
             }
+            ProfilePhotoMutation(saved, setOfNotNull(dereferencedPhotoPath))
         }
-        saveAccountLocked(account, current, updated)
-        updated.toDomain()
     }
 
     override suspend fun setPrimaryAccount(
@@ -121,13 +139,21 @@ class RoomAccountRepository(
     }
 
     override suspend fun deleteAccount(accountId: AccountId) {
-        database.withTransaction {
-            ensureAppState()
-            val state = requireNotNull(appStateDao.get())
-            if (state.primaryAccountId == accountId.value) {
-                throw PrimaryAccountReplacementRequiredException(accountId)
+        photoReferences.mutate(emptySet()) {
+            val photoPath = database.withTransaction {
+                ensureAppState()
+                val state = requireNotNull(appStateDao.get())
+                if (state.primaryAccountId == accountId.value) {
+                    throw PrimaryAccountReplacementRequiredException(accountId)
+                }
+                val deleted = accountDao.get(accountId.value)
+                    ?: throw AccountNotFoundException(accountId)
+                if (accountDao.delete(accountId.value) != 1) {
+                    throw AccountNotFoundException(accountId)
+                }
+                deleted.photoPath
             }
-            if (accountDao.delete(accountId.value) != 1) throw AccountNotFoundException(accountId)
+            ProfilePhotoMutation(Unit, setOfNotNull(photoPath))
         }
     }
 
@@ -136,34 +162,44 @@ class RoomAccountRepository(
         replacementAccountId: AccountId?,
         historySyncMode: PrimaryHistorySyncMode,
     ) {
-        database.withTransaction {
-            ensureAppState()
-            val state = requireNotNull(appStateDao.get())
-            if (state.primaryAccountId != primaryAccountId.value) {
-                throw PrimaryAccountChangedException(primaryAccountId)
-            }
-            if (replacementAccountId == primaryAccountId) {
-                throw IllegalArgumentException("Replacement account must differ from the deleted account")
-            }
-            val accountCount = accountDao.count()
-            if (replacementAccountId == null && accountCount > 1) {
-                throw PrimaryAccountReplacementRequiredException(primaryAccountId)
-            }
-            if (replacementAccountId != null && accountDao.get(replacementAccountId.value) == null) {
-                throw AccountNotFoundException(replacementAccountId)
-            }
+        photoReferences.mutate(emptySet()) {
+            val photoPath = database.withTransaction {
+                ensureAppState()
+                val state = requireNotNull(appStateDao.get())
+                if (state.primaryAccountId != primaryAccountId.value) {
+                    throw PrimaryAccountChangedException(primaryAccountId)
+                }
+                if (replacementAccountId == primaryAccountId) {
+                    throw IllegalArgumentException(
+                        "Replacement account must differ from the deleted account",
+                    )
+                }
+                val accountCount = accountDao.count()
+                if (replacementAccountId == null && accountCount > 1) {
+                    throw PrimaryAccountReplacementRequiredException(primaryAccountId)
+                }
+                if (replacementAccountId != null &&
+                    accountDao.get(replacementAccountId.value) == null
+                ) {
+                    throw AccountNotFoundException(replacementAccountId)
+                }
 
-            check(appStateDao.setPrimary(replacementAccountId?.value) == 1) {
-                "App state singleton is missing"
+                check(appStateDao.setPrimary(replacementAccountId?.value) == 1) {
+                    "App state singleton is missing"
+                }
+                if (replacementAccountId != null &&
+                    historySyncMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY
+                ) {
+                    measurementDao.promoteEligibleHistory(replacementAccountId.value)
+                }
+                val deleted = accountDao.get(primaryAccountId.value)
+                    ?: throw AccountNotFoundException(primaryAccountId)
+                if (accountDao.delete(primaryAccountId.value) != 1) {
+                    throw AccountNotFoundException(primaryAccountId)
+                }
+                deleted.photoPath
             }
-            if (replacementAccountId != null &&
-                historySyncMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY
-            ) {
-                measurementDao.promoteEligibleHistory(replacementAccountId.value)
-            }
-            if (accountDao.delete(primaryAccountId.value) != 1) {
-                throw AccountNotFoundException(primaryAccountId)
-            }
+            ProfilePhotoMutation(Unit, setOfNotNull(photoPath))
         }
     }
 
@@ -236,6 +272,7 @@ private fun NewAccount.toEntity(
     isProfileComplete = true,
     createdAtEpochMillis = createdAt.toEpochMilli(),
     updatedAtEpochMillis = updatedAt.toEpochMilli(),
+    photoPath = photoPath,
 )
 
 private fun AccountUpdate.toEntity(current: AccountEntity, updatedAt: Instant): AccountEntity =
@@ -247,7 +284,11 @@ private fun AccountUpdate.toEntity(current: AccountEntity, updatedAt: Instant): 
         sex = profile.sex.name,
         isProfileComplete = true,
         updatedAtEpochMillis = updatedAt.toEpochMilli(),
+        photoPath = photoPath,
     )
+
+private fun AccountEntity.replacedPhotoPath(updated: AccountEntity): String? =
+    photoPath?.takeIf { it != updated.photoPath }
 
 private fun AccountEntity.requiresProfileRecalculation(updated: AccountEntity): Boolean =
     !isProfileComplete ||

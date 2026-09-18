@@ -14,6 +14,7 @@ import com.palixander.scalesync.data.PendingMeasurementEntity
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
+import com.palixander.scalesync.data.ProfilePhotoReferenceCoordinator
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
@@ -134,6 +135,56 @@ class RoomBackupImportGatewayTest {
         }
         assertEquals(listOf("new"), database.accountDao().getAll().map { it.id })
         assertEquals(listOf("new-m"), database.measurementDao().getAllForBackup().map { it.id })
+        assertEquals(null, gateway.pendingRecovery())
+    }
+
+    @Test
+    fun replaceDeletesOnlyPhotosUnreferencedAfterCommittedDatabaseTransaction() = runBlocking {
+        val removedAccountPhoto = "profile-photos/accounts/old/removed.jpg"
+        val removedPetPhoto = "profile-photos/pets/old-pet/removed.jpg"
+        val deleted = mutableListOf<String>()
+        gateway = RoomBackupImportGateway(
+            database,
+            { currentSettings },
+            photoReferences = ProfilePhotoReferenceCoordinator(database) { deleted += it },
+        )
+        database.accountDao().insert(account("old").copy(photoPath = removedAccountPhoto))
+        database.petDao().insertPets(listOf(pet("old-pet").copy(photoPath = removedPetPhoto)))
+
+        val replacement = preview(
+            BackupImportMode.REPLACE,
+            accounts = listOf(account("new")),
+            measurements = emptyList(),
+        )
+        apply(replacement)
+
+        assertEquals(setOf(removedAccountPhoto, removedPetPhoto), deleted.toSet())
+        assertEquals(null, database.accountDao().getAll().single().photoPath)
+    }
+
+    @Test
+    fun failedReplaceRollbackPreservesAllExistingPhotos() = runBlocking {
+        val accountPhoto = "profile-photos/accounts/old/photo.jpg"
+        val petPhoto = "profile-photos/pets/old-pet/photo.jpg"
+        val deleted = mutableListOf<String>()
+        gateway = RoomBackupImportGateway(
+            database,
+            { currentSettings },
+            photoReferences = ProfilePhotoReferenceCoordinator(database) { deleted += it },
+        )
+        database.accountDao().insert(account("old").copy(photoPath = accountPhoto))
+        database.petDao().insertPets(listOf(pet("old-pet").copy(photoPath = petPhoto)))
+        val invalid = preview(
+            BackupImportMode.REPLACE,
+            accounts = listOf(account("new")),
+            measurements = listOf(measurement("orphan", "missing", SyncStatus.SYNCED)),
+        )
+
+        assertThrows(Exception::class.java) { runBlocking { gateway.stage(invalid) } }
+
+        assertEquals(emptyList<String>(), deleted)
+        assertEquals(accountPhoto, database.accountDao().getAll().single().photoPath)
+        assertEquals(petPhoto, database.petDao().getAllPetsForBackup().single().photoPath)
         assertEquals(null, gateway.pendingRecovery())
     }
 

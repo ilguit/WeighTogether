@@ -5,6 +5,7 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
@@ -26,6 +27,8 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 
 object HomePetShortcutsTestTags {
@@ -44,6 +47,7 @@ fun HomePetShortcuts(
     modifier: Modifier = Modifier,
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
+    val photoStore = currentProfilePhotoStore()
     SubcomposeLayout(modifier.fillMaxWidth().testTag(HomePetShortcutsTestTags.Block)) { constraints ->
         val width = constraints.maxWidth
         val gap = 8.dp.roundToPx()
@@ -51,7 +55,14 @@ fun HomePetShortcuts(
         val naturalWidths = pets.map { pet ->
             subcompose("probe-${pet.key.petId.value}") {
                 Box(Modifier.clearAndSetSemantics {}) {
-                    HuaweiFilterButton(text = pet.displayName, icon = pet.selectorIcon(), onClick = {})
+                    HuaweiFilterButton(
+                        text = pet.displayName,
+                        icon = pet.selectorIcon(),
+                        leadingContent = pet.photoPath()?.let { path -> {
+                            ProfileAvatar(path, pet.selectorIcon(), "", photoStore, Modifier.padding(end = 7.dp), 24.dp)
+                        } },
+                        onClick = {},
+                    )
                 }
             }.single().measure(Constraints()).width
         }
@@ -86,6 +97,9 @@ fun HomePetShortcuts(
                     HuaweiFilterButton(
                         text = pet.displayName,
                         icon = pet.selectorIcon(),
+                        leadingContent = pet.photoPath()?.let { path -> {
+                            ProfileAvatar(path, pet.selectorIcon(), "", photoStore, Modifier.padding(end = 7.dp), 24.dp)
+                        } },
                         onClick = { onProfileSelected(pet.key) },
                         modifier = Modifier.testTag(HomePetShortcutsTestTags.pet(pet.key.petId.value))
                             .semantics { contentDescription = "${pet.displayName}, питомец" },

@@ -18,6 +18,26 @@ import org.junit.Test
 
 class MultiAccountUiContractsTest {
     @Test
+    fun `photo path survives draft reducer saver and create mapping`() {
+        val photo = "profile-photos/accounts/new/profile.webp"
+        val draft = reduceAccountEditor(
+            AccountEditorDraft.add().copy(
+                name = "Анна",
+                heightCm = "170",
+                birthDate = LocalDate.of(1990, 1, 2),
+                sex = Sex.FEMALE,
+            ),
+            AccountEditorAction.PhotoChanged(photo),
+        )
+
+        assertEquals(photo, draft.photoPath)
+        assertEquals(draft, AccountEditorDraftSaver.restore(saveAccountEditorDraft(draft)))
+        assertEquals(
+            photo,
+            draft.toNewAccountOrNull(validateAccountEditor(draft, emptyList(), LocalDate.of(2026, 1, 1)))?.photoPath,
+        )
+    }
+    @Test
     fun profileUpdateConfirmationCancelRestoresEditorWithoutWritingStateAway() {
         val account = account("one", "One")
         val draft = AccountEditorDraft.edit(account).copy(heightCm = "181")

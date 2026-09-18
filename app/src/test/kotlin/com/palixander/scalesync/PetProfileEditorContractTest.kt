@@ -22,6 +22,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetProfileEditorContractTest {
+    @Test
+    fun `photo action is persisted by create validation`() {
+        val photo = "profile-photos/pets/new/profile.webp"
+        val initial = PetProfileEditorState(
+            PetProfileDraft.create().copy(displayName = "Луна", species = PetSpecies.CAT),
+        )
+        val changed = PetProfileReducer.reduce(initial, PetProfileAction.PhotoChanged(photo))
+
+        assertEquals(photo, changed.draft.photoPath)
+        val saved = validatePetProfileDraft(changed.draft, LocalDate.of(2026, 1, 1)).newPet
+        assertEquals(photo, saved?.photoPath)
+    }
     private val today = LocalDate.of(2026, 8, 31)
     private val breedCatalog = PetBreedCatalog()
     private val dogMixed = requireNotNull(
