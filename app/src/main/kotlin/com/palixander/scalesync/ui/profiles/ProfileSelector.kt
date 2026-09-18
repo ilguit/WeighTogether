@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.MaterialTheme
@@ -14,8 +15,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 
@@ -32,6 +36,7 @@ fun ProfileSelector(
     onProfileSelected: (ProfileKey) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val photoStore = currentProfilePhotoStore()
     Column(
         modifier = modifier
             .fillMaxWidth()
@@ -55,6 +60,16 @@ fun ProfileSelector(
                 HuaweiFilterButton(
                     text = profile.displayName,
                     icon = profile.selectorIcon(),
+                    leadingContent = profile.photoPath()?.let { path -> {
+                        ProfileAvatar(
+                            photoPath = path,
+                            fallbackIcon = profile.selectorIcon(),
+                            contentDescription = "",
+                            store = photoStore,
+                            size = 24.dp,
+                            modifier = Modifier.padding(end = 7.dp),
+                        )
+                    } },
                     selected = profile.key == state.selectedKey,
                     onClick = { onProfileSelected(profile.key) },
                     modifier = Modifier.testTag(tag).semantics {
@@ -72,6 +87,11 @@ fun ProfileSelector(
             )
         }
     }
+}
+
+internal fun ProfilePresentation.photoPath(): String? = when (this) {
+    is ProfilePresentation.Human -> account.photoPath
+    is ProfilePresentation.Pet -> petWithLatestWeight.pet.photoPath
 }
 
 internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {

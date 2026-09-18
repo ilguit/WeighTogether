@@ -103,6 +103,7 @@ fun HuaweiFilterButton(
     icon: ImageVector? = null,
     selected: Boolean = false,
     enabled: Boolean = true,
+    leadingContent: (@Composable () -> Unit)? = null,
 ) {
     OutlinedButton(
         onClick = onClick,
@@ -129,7 +130,8 @@ fun HuaweiFilterButton(
         ),
         contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
     ) {
-        icon?.let {
+        leadingContent?.invoke()
+        if (leadingContent == null) icon?.let {
             Icon(
                 imageVector = it,
                 contentDescription = null,

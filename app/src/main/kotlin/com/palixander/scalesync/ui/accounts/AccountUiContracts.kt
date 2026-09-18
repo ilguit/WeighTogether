@@ -21,6 +21,7 @@ data class AccountEditorDraft(
     val heightCm: String = "",
     val birthDate: LocalDate? = null,
     val sex: Sex? = null,
+    val photoPath: String? = null,
 ) {
     companion object {
         fun add(): AccountEditorDraft = AccountEditorDraft()
@@ -31,6 +32,7 @@ data class AccountEditorDraft(
             heightCm = account.profile.heightCm?.let(::formatLocalizedDecimal).orEmpty(),
             birthDate = account.profile.birthDate,
             sex = account.profile.sex,
+            photoPath = account.photoPath,
         )
     }
 }
@@ -43,6 +45,7 @@ val AccountEditorDraftSaver: Saver<AccountEditorDraft, Any> = listSaver(
             draft.heightCm,
             draft.birthDate?.toEpochDay() ?: MissingBirthDateEpochDay,
             draft.sex?.name.orEmpty(),
+            draft.photoPath.orEmpty(),
         )
     },
     restore = { saved ->
@@ -54,6 +57,7 @@ val AccountEditorDraftSaver: Saver<AccountEditorDraft, Any> = listSaver(
                 .takeUnless { it == MissingBirthDateEpochDay }
                 ?.let(LocalDate::ofEpochDay),
             sex = (saved[4] as String).takeIf(String::isNotEmpty)?.let(Sex::valueOf),
+            photoPath = (saved[5] as String).takeIf(String::isNotEmpty),
         )
     },
 )
@@ -128,6 +132,7 @@ fun AccountEditorDraft.toNewAccountOrNull(validation: AccountEditorValidation): 
             birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
+        photoPath = photoPath,
     )
 }
 
@@ -142,6 +147,7 @@ fun AccountEditorDraft.toAccountUpdateOrNull(validation: AccountEditorValidation
             birthDate = requireNotNull(validation.birthDate),
             sex = requireNotNull(validation.sex),
         ),
+        photoPath = photoPath,
     )
 }
 
@@ -150,6 +156,7 @@ sealed interface AccountEditorAction {
     data class HeightChanged(val value: String) : AccountEditorAction
     data class BirthDateChanged(val value: LocalDate?) : AccountEditorAction
     data class SexChanged(val value: Sex) : AccountEditorAction
+    data class PhotoChanged(val value: String?) : AccountEditorAction
 }
 
 fun reduceAccountEditor(
@@ -160,6 +167,7 @@ fun reduceAccountEditor(
     is AccountEditorAction.HeightChanged -> state.copy(heightCm = action.value)
     is AccountEditorAction.BirthDateChanged -> state.copy(birthDate = action.value)
     is AccountEditorAction.SexChanged -> state.copy(sex = action.value)
+    is AccountEditorAction.PhotoChanged -> state.copy(photoPath = action.value)
 }
 
 @Immutable

@@ -218,6 +218,7 @@ data class PetProfileDraft(
     val breed: PetBreedSelection? = null,
     val birthDate: PetBirthDateInput = PetBirthDateInput.Empty,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val photoPath: String? = null,
 ) {
     companion object {
         fun create(): PetProfileDraft = PetProfileDraft(
@@ -237,6 +238,7 @@ data class PetProfileDraft(
             breed = pet.breedId?.let { breedCatalog.resolve(it, pet.species) },
             birthDate = PetBirthDateInput.from(pet.birthDate),
             dogAdultWeightCategory = pet.dogAdultWeightCategory,
+            photoPath = pet.photoPath,
         )
     }
 }
@@ -297,6 +299,7 @@ sealed interface PetProfileAction {
     data class DogAdultWeightCategoryChanged(
         val category: DogAdultWeightCategory?,
     ) : PetProfileAction
+    data class PhotoChanged(val photoPath: String?) : PetProfileAction
 
     data object ConfirmSpeciesChange : PetProfileAction
     data object CancelSpeciesChange : PetProfileAction
@@ -340,6 +343,7 @@ object PetProfileReducer {
                 state,
                 action.category,
             )
+            is PetProfileAction.PhotoChanged -> state.withDraft { copy(photoPath = action.photoPath) }
             PetProfileAction.ConfirmSpeciesChange,
             PetProfileAction.CancelSpeciesChange,
             -> state
@@ -528,6 +532,7 @@ fun validatePetProfileDraft(
                 breedId = draft.breed?.id?.let { BreedId(canonicalBreedId(it.value)) },
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
+                photoPath = draft.photoPath,
             ),
         )
         is PetProfileEditorMode.Edit -> ValidatedPetProfile.Edit(
@@ -539,6 +544,7 @@ fun validatePetProfileDraft(
                 breedId = draft.breed?.id?.let { BreedId(canonicalBreedId(it.value)) },
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
+                photoPath = draft.photoPath,
             ),
         )
     }

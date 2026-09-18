@@ -48,6 +48,8 @@ import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
@@ -377,6 +379,7 @@ private fun PetProfileSummaryCard(
     summary: PetProfileSummary,
     onEdit: () -> Unit,
 ) {
+    val photoStore = currentProfilePhotoStore()
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -406,26 +409,43 @@ private fun PetProfileSummaryCard(
                         },
                 ) { Text("Изменить") }
             }
-            if (summary.isEmpty) {
-                Text(
-                    text = EmptyPetProfileSummary,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            } else {
-                summary.items.forEach { item ->
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.Top,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                ) {
+                    if (summary.isEmpty) {
                         Text(
-                            text = item.label,
+                            text = EmptyPetProfileSummary,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
+                            style = MaterialTheme.typography.bodyMedium,
                         )
-                        Text(
-                            text = item.value,
-                            style = MaterialTheme.typography.bodyLarge,
-                        )
+                    } else summary.items.forEach { item ->
+                        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                            Text(
+                                text = item.label,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelMedium,
+                            )
+                            Text(text = item.value, style = MaterialTheme.typography.bodyLarge)
+                        }
                     }
                 }
+                if (pet.photoPath != null) ProfileAvatar(
+                    photoPath = pet.photoPath,
+                    fallbackIcon = when (pet.species) {
+                        com.palixander.scalesync.domain.PetSpecies.CAT -> HuaweiIcons.Cat
+                        com.palixander.scalesync.domain.PetSpecies.DOG -> HuaweiIcons.Dog
+                        com.palixander.scalesync.domain.PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+                    },
+                    contentDescription = "Фото питомца ${pet.displayName}",
+                    store = photoStore,
+                    size = 72.dp,
+                )
             }
         }
     }
