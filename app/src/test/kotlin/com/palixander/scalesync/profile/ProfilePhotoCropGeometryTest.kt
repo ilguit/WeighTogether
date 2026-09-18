@@ -1,6 +1,7 @@
 package com.palixander.scalesync.profile
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ProfilePhotoCropGeometryTest {
@@ -62,6 +63,32 @@ class ProfilePhotoCropGeometryTest {
         assertEquals(1f, moved.panX, EPSILON)
         assertEquals(0f, moved.panY, EPSILON)
         assertEquals(1f, moved.zoom, EPSILON)
+    }
+
+    @Test
+    fun `integer bounds stay square and inside source after fractional pan`() {
+        val geometry = ProfilePhotoCropGeometry(101, 67, 299f)
+
+        val crop = geometry.sourceCropBounds(
+            ProfilePhotoCropTransform(zoom = 1.7f, panX = 0.37f, panY = -0.41f),
+        )
+
+        assertTrue(crop.size > 0)
+        assertTrue(crop.left >= 0)
+        assertTrue(crop.top >= 0)
+        assertTrue(crop.left + crop.size <= 101)
+        assertTrue(crop.top + crop.size <= 67)
+    }
+
+    @Test
+    fun `integer bounds reach exact source edges`() {
+        val geometry = ProfilePhotoCropGeometry(101, 67, 299f)
+
+        val leading = geometry.sourceCropBounds(ProfilePhotoCropTransform(panX = -1f))
+        val trailing = geometry.sourceCropBounds(ProfilePhotoCropTransform(panX = 1f))
+
+        assertEquals(0, leading.left)
+        assertEquals(101, trailing.left + trailing.size)
     }
 
     private fun assertRect(

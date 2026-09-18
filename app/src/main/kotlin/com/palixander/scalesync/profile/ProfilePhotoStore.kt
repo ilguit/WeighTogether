@@ -4,7 +4,6 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Matrix
-import android.graphics.Rect
 import android.net.Uri
 import androidx.core.content.FileProvider
 import androidx.exifinterface.media.ExifInterface
@@ -171,20 +170,14 @@ class ProfilePhotoStore private constructor(
                 ?: throw ProfilePhotoException(ProfilePhotoError.INVALID_IMAGE)
             try {
                 val geometry = ProfilePhotoCropGeometry(source.width, source.height, 1f)
-                val crop = geometry.sourceCropRect(transform)
-                val outputSize = crop.width.toInt().coerceIn(1, maxDimensionPx)
-                val sourceRect = Rect(
-                    crop.left.toInt(),
-                    crop.top.toInt(),
-                    crop.right.toInt().coerceAtLeast(crop.left.toInt() + 1).coerceAtMost(source.width),
-                    crop.bottom.toInt().coerceAtLeast(crop.top.toInt() + 1).coerceAtMost(source.height),
-                )
+                val crop = geometry.sourceCropBounds(transform)
+                val outputSize = crop.size.coerceAtMost(maxDimensionPx)
                 val selection = Bitmap.createBitmap(
                     source,
-                    sourceRect.left,
-                    sourceRect.top,
-                    sourceRect.width(),
-                    sourceRect.height(),
+                    crop.left,
+                    crop.top,
+                    crop.size,
+                    crop.size,
                 )
                 try {
                     val output = if (selection.width == outputSize && selection.height == outputSize) {

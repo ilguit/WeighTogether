@@ -1,6 +1,7 @@
 package com.palixander.scalesync.profile
 
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /** A source-space rectangle. Values are pixels and may be fractional while the editor is moving. */
 data class ProfilePhotoCropRect(
@@ -12,6 +13,13 @@ data class ProfilePhotoCropRect(
     val width: Float get() = right - left
     val height: Float get() = bottom - top
 }
+
+/** Integer source bounds used identically by the preview and bitmap renderer. */
+data class ProfilePhotoCropBounds(
+    val left: Int,
+    val top: Int,
+    val size: Int,
+)
 
 /**
  * Serializable editor state. Pan is normalized to the available movement: -1 is the leading/top
@@ -68,6 +76,16 @@ class ProfilePhotoCropGeometry(
         val left = xTravel * ((value.panX + 1f) / 2f)
         val top = yTravel * ((value.panY + 1f) / 2f)
         return ProfilePhotoCropRect(left, top, left + cropSize, top + cropSize)
+    }
+
+    fun sourceCropBounds(transform: ProfilePhotoCropTransform): ProfilePhotoCropBounds {
+        val crop = sourceCropRect(transform)
+        val size = crop.width.toInt().coerceIn(1, minOf(sourceWidth, sourceHeight))
+        return ProfilePhotoCropBounds(
+            left = crop.left.roundToInt().coerceIn(0, sourceWidth - size),
+            top = crop.top.roundToInt().coerceIn(0, sourceHeight - size),
+            size = size,
+        )
     }
 
     /** Converts a preview translation into normalized pan without allowing empty viewport space. */

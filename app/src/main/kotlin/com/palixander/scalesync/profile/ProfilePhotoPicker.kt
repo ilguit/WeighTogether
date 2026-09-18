@@ -19,37 +19,6 @@ class ProfilePhotoPicker internal constructor(
     val takePhoto: () -> Unit,
 )
 
-/** Temporary compatibility entry point for editors while the shared crop surface is attached. */
-@Deprecated("Use onPhotoPrepared and confirm the crop explicitly")
-@Composable
-fun rememberProfilePhotoPicker(
-    store: ProfilePhotoStore,
-    owner: ProfilePhotoOwner,
-    onPhotoReady: (String) -> Unit,
-    onError: (ProfilePhotoError) -> Unit,
-): ProfilePhotoPicker {
-    val scope = rememberCoroutineScope()
-    return rememberProfilePhotoPicker(
-        store = store,
-        onPhotoPrepared = { prepared ->
-            scope.launch {
-                try {
-                    onPhotoReady(store.confirmCrop(owner, prepared, ProfilePhotoCropTransform()))
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (known: ProfilePhotoException) {
-                    prepared.cancel()
-                    onError(known.error)
-                } catch (_: Exception) {
-                    prepared.cancel()
-                    onError(ProfilePhotoError.PROCESSING_FAILED)
-                }
-            }
-        },
-        onError = onError,
-    )
-}
-
 @Composable
 fun rememberProfilePhotoPicker(
     store: ProfilePhotoStore,

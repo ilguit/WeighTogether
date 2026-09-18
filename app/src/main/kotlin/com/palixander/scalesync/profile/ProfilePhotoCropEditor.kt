@@ -159,7 +159,9 @@ private fun ProfilePhotoCropEditor(
     }
     val bitmap = imageLoad.first
     var viewportPx by remember { mutableStateOf(1f) }
-    var saving by rememberSaveable { mutableStateOf(false) }
+    // An in-flight coroutine belongs to this composition. It is cancelled when the Activity is
+    // recreated, so this flag must reset too instead of restoring a permanently disabled editor.
+    var saving by remember { mutableStateOf(false) }
     var error by rememberSaveable { mutableStateOf<ProfilePhotoError?>(null) }
     val scope = rememberCoroutineScope()
     val constrained = transform.constrained()
@@ -204,13 +206,13 @@ private fun ProfilePhotoCropEditor(
                             val diameter = minOf(size.width, size.height)
                             val origin = Offset((size.width - diameter) / 2f, (size.height - diameter) / 2f)
                             val geometry = ProfilePhotoCropGeometry(prepared.width, prepared.height, diameter)
-                            val crop = geometry.sourceCropRect(constrained)
+                            val crop = geometry.sourceCropBounds(constrained)
                             val circle = Path().apply { addOval(androidx.compose.ui.geometry.Rect(origin, Size(diameter, diameter))) }
                             clipPath(circle) {
                                 drawImage(
                                     image = image,
-                                    srcOffset = androidx.compose.ui.unit.IntOffset(crop.left.toInt(), crop.top.toInt()),
-                                    srcSize = androidx.compose.ui.unit.IntSize(crop.width.toInt().coerceAtLeast(1), crop.height.toInt().coerceAtLeast(1)),
+                                    srcOffset = androidx.compose.ui.unit.IntOffset(crop.left, crop.top),
+                                    srcSize = androidx.compose.ui.unit.IntSize(crop.size, crop.size),
                                     dstOffset = androidx.compose.ui.unit.IntOffset(origin.x.toInt(), origin.y.toInt()),
                                     dstSize = androidx.compose.ui.unit.IntSize(diameter.toInt(), diameter.toInt()),
                                 )
