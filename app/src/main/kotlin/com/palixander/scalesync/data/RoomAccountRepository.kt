@@ -29,6 +29,7 @@ class RoomAccountRepository(
     private val calculator: BodyCompositionCalculator = BodyCompositionCalculator(),
     private val now: () -> Instant = Instant::now,
     private val newId: () -> String = { UUID.randomUUID().toString() },
+    private val photoLifecycle: ProfilePhotoLifecycle = ProfilePhotoLifecycle.None,
 ) : AccountRepository, AccountSettingsWriter {
     override fun observeAccounts(): Flow<List<Account>> = accountDao.observeAll().map { accounts ->
         accounts.map(AccountEntity::toDomain)
@@ -65,41 +66,49 @@ class RoomAccountRepository(
 
     override suspend fun attemptProfileUpdate(
         account: AccountUpdate,
-    ): ProfileUpdateAttemptResult = database.withTransaction {
-        val current = accountDao.get(account.id.value)
-            ?: throw AccountNotFoundException(account.id)
-        val updated = account.toEntity(current, now())
-        if (current.requiresProfileRecalculation(updated) &&
-            measurementDao.hasProfileRecalculationCandidates(current.id)
-        ) {
-            return@withTransaction ProfileUpdateAttemptResult.ConfirmationRequired
+    ): ProfileUpdateAttemptResult {
+        val (result, dereferencedPhotoPath) = database.withTransaction {
+            val current = accountDao.get(account.id.value)
+                ?: throw AccountNotFoundException(account.id)
+            val updated = account.toEntity(current, now())
+            if (current.requiresProfileRecalculation(updated) &&
+                measurementDao.hasProfileRecalculationCandidates(current.id)
+            ) {
+                return@withTransaction ProfileUpdateAttemptResult.ConfirmationRequired to null
+            }
+            saveAccountLocked(account, current, updated)
+            ProfileUpdateAttemptResult.Saved(updated.toDomain()) to current.replacedPhotoPath(updated)
         }
-        saveAccountLocked(account, current, updated)
-        ProfileUpdateAttemptResult.Saved(updated.toDomain())
+        dereferencedPhotoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
+        return result
     }
 
     override suspend fun updateAccount(
         account: AccountUpdate,
         historyUpdateMode: ProfileHistoryUpdateMode,
-    ): Account = database.withTransaction {
-        val current = accountDao.get(account.id.value)
-            ?: throw AccountNotFoundException(account.id)
-        val updated = account.toEntity(current, now())
-        if (current.requiresProfileRecalculation(updated) &&
-            historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
-        ) {
-            val profile = account.profile.toUserProfile()
-            measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
-                val recalculated = measurement
-                    .backfillMissingSyncedCalculatedValues()
-                    .recalculate(calculator, profile)
-                check(measurementDao.update(recalculated) == 1) {
-                    "Measurement ${measurement.id} disappeared during profile recalculation"
+    ): Account {
+        val (saved, dereferencedPhotoPath) = database.withTransaction {
+            val current = accountDao.get(account.id.value)
+                ?: throw AccountNotFoundException(account.id)
+            val updated = account.toEntity(current, now())
+            if (current.requiresProfileRecalculation(updated) &&
+                historyUpdateMode == ProfileHistoryUpdateMode.RECALCULATE
+            ) {
+                val profile = account.profile.toUserProfile()
+                measurementDao.getProfileRecalculationCandidates(current.id).forEach { measurement ->
+                    val recalculated = measurement
+                        .backfillMissingSyncedCalculatedValues()
+                        .recalculate(calculator, profile)
+                    check(measurementDao.update(recalculated) == 1) {
+                        "Measurement ${measurement.id} disappeared during profile recalculation"
+                    }
                 }
             }
+            saveAccountLocked(account, current, updated)
+            updated.toDomain() to current.replacedPhotoPath(updated)
         }
-        saveAccountLocked(account, current, updated)
-        updated.toDomain()
+        dereferencedPhotoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
+        return saved
     }
 
     override suspend fun setPrimaryAccount(
@@ -121,14 +130,18 @@ class RoomAccountRepository(
     }
 
     override suspend fun deleteAccount(accountId: AccountId) {
-        database.withTransaction {
+        val photoPath = database.withTransaction {
             ensureAppState()
             val state = requireNotNull(appStateDao.get())
             if (state.primaryAccountId == accountId.value) {
                 throw PrimaryAccountReplacementRequiredException(accountId)
             }
+            val deleted = accountDao.get(accountId.value)
+                ?: throw AccountNotFoundException(accountId)
             if (accountDao.delete(accountId.value) != 1) throw AccountNotFoundException(accountId)
+            deleted.photoPath
         }
+        photoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
     }
 
     override suspend fun deletePrimaryWithReplacement(
@@ -136,7 +149,7 @@ class RoomAccountRepository(
         replacementAccountId: AccountId?,
         historySyncMode: PrimaryHistorySyncMode,
     ) {
-        database.withTransaction {
+        val photoPath = database.withTransaction {
             ensureAppState()
             val state = requireNotNull(appStateDao.get())
             if (state.primaryAccountId != primaryAccountId.value) {
@@ -161,10 +174,14 @@ class RoomAccountRepository(
             ) {
                 measurementDao.promoteEligibleHistory(replacementAccountId.value)
             }
+            val deleted = accountDao.get(primaryAccountId.value)
+                ?: throw AccountNotFoundException(primaryAccountId)
             if (accountDao.delete(primaryAccountId.value) != 1) {
                 throw AccountNotFoundException(primaryAccountId)
             }
+            deleted.photoPath
         }
+        photoPath?.let { photoLifecycle.onPhotoDereferenced(it) }
     }
 
     override suspend fun updateWeightDeltaKg(weightDeltaKg: Double) {
@@ -236,6 +253,7 @@ private fun NewAccount.toEntity(
     isProfileComplete = true,
     createdAtEpochMillis = createdAt.toEpochMilli(),
     updatedAtEpochMillis = updatedAt.toEpochMilli(),
+    photoPath = photoPath,
 )
 
 private fun AccountUpdate.toEntity(current: AccountEntity, updatedAt: Instant): AccountEntity =
@@ -247,7 +265,11 @@ private fun AccountUpdate.toEntity(current: AccountEntity, updatedAt: Instant): 
         sex = profile.sex.name,
         isProfileComplete = true,
         updatedAtEpochMillis = updatedAt.toEpochMilli(),
+        photoPath = photoPath,
     )
+
+private fun AccountEntity.replacedPhotoPath(updated: AccountEntity): String? =
+    photoPath?.takeIf { it != updated.photoPath }
 
 private fun AccountEntity.requiresProfileRecalculation(updated: AccountEntity): Boolean =
     !isProfileComplete ||

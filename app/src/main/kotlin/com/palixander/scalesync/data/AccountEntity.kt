@@ -24,6 +24,7 @@ data class AccountEntity(
     val isProfileComplete: Boolean,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val photoPath: String? = null,
 ) {
     fun toDomain(): Account {
         val storedHeight = heightCm?.takeIf(Double::isFinite)
@@ -60,6 +61,7 @@ data class AccountEntity(
             profile = profile,
             createdAt = Instant.ofEpochMilli(createdAtEpochMillis),
             updatedAt = Instant.ofEpochMilli(updatedAtEpochMillis),
+            photoPath = photoPath,
         )
     }
 }
