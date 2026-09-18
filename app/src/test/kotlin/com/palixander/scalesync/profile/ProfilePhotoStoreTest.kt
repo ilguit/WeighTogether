@@ -2,6 +2,7 @@ package com.palixander.scalesync.profile
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import androidx.core.content.FileProvider
 import androidx.test.core.app.ApplicationProvider
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -26,6 +27,12 @@ class ProfilePhotoStoreTest {
 
     @Before
     fun setUp() {
+        // FileProvider keeps a process-wide path cache while Robolectric gives each test a new
+        // data directory. Clear it so camera paths are resolved against this test's context.
+        FileProvider::class.java.getDeclaredField("sCache").apply { isAccessible = true }
+            .get(null)
+            .let { it as MutableMap<*, *> }
+            .clear()
         File(context.filesDir, "profile-photos").deleteRecursively()
         File(context.cacheDir, "profile-photo-capture").deleteRecursively()
         store = ProfilePhotoStore(context, maxDimensionPx = 64)
@@ -75,6 +82,34 @@ class ProfilePhotoStoreTest {
         capture.cancel()
 
         assertFalse(capture.file.exists())
+    }
+
+    @Test
+    fun `capture identifier restores camera output after state recreation`() {
+        val capture = store.createCapture()
+
+        val restored = ProfilePhotoStore(context, maxDimensionPx = 64)
+            .restoreCapture(capture.identifier)
+
+        assertEquals(capture.identifier, restored?.identifier)
+        assertEquals(capture.file.canonicalFile, restored?.file?.canonicalFile)
+    }
+
+    @Test
+    fun `capture restoration rejects paths outside managed capture directory`() {
+        assertEquals(null, store.restoreCapture("../capture-unsafe.jpg"))
+        assertEquals(null, store.restoreCapture("profile-photos/accounts/photo.jpg"))
+        assertEquals(null, store.restoreCapture("capture-missing.jpg"))
+    }
+
+    @Test
+    fun `creating capture removes abandoned stale output but preserves recent output`() {
+        val stale = store.createCapture()
+        stale.file.setLastModified(System.currentTimeMillis() - 25L * 60 * 60 * 1_000)
+        val recent = store.createCapture()
+
+        assertFalse(stale.file.exists())
+        assertTrue(recent.file.exists())
     }
 
     @Test(expected = IllegalArgumentException::class)

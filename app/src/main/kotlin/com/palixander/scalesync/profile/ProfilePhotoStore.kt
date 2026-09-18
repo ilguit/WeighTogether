@@ -106,13 +106,27 @@ class ProfilePhotoStore(
 
     fun createCapture(): PendingProfilePhotoCapture {
         check(captureRoot.mkdirs() || captureRoot.isDirectory) { "Cannot create capture directory" }
+        deleteStaleCaptures()
         val file = File.createTempFile("capture-", ".jpg", captureRoot)
         val uri = FileProvider.getUriForFile(
             appContext,
             "${appContext.packageName}.profilephotos.fileprovider",
             file,
         )
-        return PendingProfilePhotoCapture(uri, file)
+        return PendingProfilePhotoCapture(uri, file.name, file)
+    }
+
+    /** Restores an outstanding camera destination after the activity or process was recreated. */
+    fun restoreCapture(identifier: String): PendingProfilePhotoCapture? {
+        if (!CAPTURE_FILE_PATTERN.matches(identifier)) return null
+        val file = File(captureRoot, identifier).canonicalFile
+        if (file.parentFile != captureRoot.canonicalFile || !file.isFile) return null
+        val uri = FileProvider.getUriForFile(
+            appContext,
+            "${appContext.packageName}.profilephotos.fileprovider",
+            file,
+        )
+        return PendingProfilePhotoCapture(uri, identifier, file)
     }
 
     suspend fun completeCapture(owner: ProfilePhotoOwner, capture: PendingProfilePhotoCapture): String =
@@ -192,11 +206,22 @@ class ProfilePhotoStore(
         private const val JPEG_QUALITY = 90
         private const val PHOTO_DIRECTORY = "profile-photos"
         private const val CAPTURE_DIRECTORY = "profile-photo-capture"
+        private const val STALE_CAPTURE_AGE_MILLIS = 24 * 60 * 60 * 1_000L
+        private val CAPTURE_FILE_PATTERN = Regex("capture-[A-Za-z0-9._-]+\\.jpg")
+    }
+
+    private fun deleteStaleCaptures(nowMillis: Long = System.currentTimeMillis()) {
+        captureRoot.listFiles()?.forEach { file ->
+            if (file.isFile && nowMillis - file.lastModified() >= STALE_CAPTURE_AGE_MILLIS) {
+                file.delete()
+            }
+        }
     }
 }
 
 class PendingProfilePhotoCapture internal constructor(
     val uri: Uri,
+    val identifier: String,
     internal val file: File,
 ) {
     fun cancel() {
