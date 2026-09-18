@@ -29,8 +29,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,8 +48,18 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.lifecycle.SavedStateHandle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.compose.viewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -74,6 +82,129 @@ class ProfilePhotoCropController internal constructor(
     fun open(prepared: PreparedProfilePhoto) = openPhoto(prepared)
 }
 
+private enum class ProfilePhotoCropPhase { READY, SAVING, CONSUMED }
+
+/**
+ * Owns one crop operation across Activity recreation. The ViewModel, rather than either
+ * composition, owns confirmation so a restored editor cannot start a second import while the
+ * first composition is completing its handoff.
+ */
+internal class ProfilePhotoCropStateOwner(
+    private val savedState: SavedStateHandle,
+) : ViewModel() {
+    private data class DeliveryTarget(
+        val token: Any,
+        val deliver: (String) -> Unit,
+        val reportError: (ProfilePhotoError) -> Unit,
+    )
+
+    private val deliveryTarget = MutableStateFlow<DeliveryTarget?>(null)
+    var identifier by mutableStateOf(savedState.get<String>(IDENTIFIER))
+        private set
+    var transform by mutableStateOf(
+        ProfilePhotoCropTransform(
+            savedState[ZOOM] ?: 1f,
+            savedState[PAN_X] ?: 0f,
+            savedState[PAN_Y] ?: 0f,
+        ),
+    )
+        private set
+    private var phase by mutableStateOf(if (identifier == null) ProfilePhotoCropPhase.CONSUMED else ProfilePhotoCropPhase.READY)
+
+    val saving: Boolean get() = phase == ProfilePhotoCropPhase.SAVING
+
+    fun attach(token: Any, deliver: (String) -> Unit, reportError: (ProfilePhotoError) -> Unit) {
+        deliveryTarget.value = DeliveryTarget(token, deliver, reportError)
+    }
+
+    fun detach(token: Any) {
+        if (deliveryTarget.value?.token === token) deliveryTarget.value = null
+    }
+
+    fun open(prepared: PreparedProfilePhoto, cancelPrevious: (String) -> Unit) {
+        if (phase == ProfilePhotoCropPhase.SAVING) {
+            cancelPrevious(prepared.identifier)
+            return
+        }
+        identifier?.takeIf { it != prepared.identifier }?.let(cancelPrevious)
+        identifier = prepared.identifier
+        transform = ProfilePhotoCropTransform()
+        phase = ProfilePhotoCropPhase.READY
+        save()
+    }
+
+    fun updateTransform(value: ProfilePhotoCropTransform) {
+        if (phase != ProfilePhotoCropPhase.READY) return
+        transform = value
+        save()
+    }
+
+    fun cancel(cancelPrepared: (String) -> Unit) {
+        val current = identifier ?: return
+        if (phase != ProfilePhotoCropPhase.READY) return
+        phase = ProfilePhotoCropPhase.CONSUMED
+        clear()
+        cancelPrepared(current)
+    }
+
+    fun discardUnreadable() {
+        if (phase == ProfilePhotoCropPhase.READY) {
+            phase = ProfilePhotoCropPhase.CONSUMED
+            clear()
+        }
+    }
+
+    fun confirm(
+        store: ProfilePhotoStore,
+        owner: ProfilePhotoOwner,
+        prepared: PreparedProfilePhoto,
+    ) {
+        if (phase != ProfilePhotoCropPhase.READY || identifier != prepared.identifier) return
+        phase = ProfilePhotoCropPhase.SAVING
+        val requestedTransform = transform
+        viewModelScope.launch {
+            try {
+                store.confirmCrop(owner, prepared, requestedTransform) { path ->
+                    val target = deliveryTarget.filterNotNull().first()
+                    withContext(Dispatchers.Main.immediate) { target.deliver(path) }
+                }
+                phase = ProfilePhotoCropPhase.CONSUMED
+                clear()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (known: ProfilePhotoException) {
+                phase = ProfilePhotoCropPhase.READY
+                deliveryTarget.filterNotNull().first().reportError(known.error)
+            } catch (_: Exception) {
+                phase = ProfilePhotoCropPhase.READY
+                deliveryTarget.filterNotNull().first().reportError(ProfilePhotoError.PROCESSING_FAILED)
+            }
+        }
+    }
+
+    private fun save() {
+        savedState[IDENTIFIER] = identifier
+        savedState[ZOOM] = transform.zoom
+        savedState[PAN_X] = transform.panX
+        savedState[PAN_Y] = transform.panY
+    }
+
+    private fun clear() {
+        identifier = null
+        savedState[IDENTIFIER] = null
+        savedState[ZOOM] = null
+        savedState[PAN_X] = null
+        savedState[PAN_Y] = null
+    }
+
+    private companion object {
+        const val IDENTIFIER = "identifier"
+        const val ZOOM = "zoom"
+        const val PAN_X = "pan-x"
+        const val PAN_Y = "pan-y"
+    }
+}
+
 @Composable
 fun rememberProfilePhotoCropController(
     store: ProfilePhotoStore,
@@ -81,63 +212,50 @@ fun rememberProfilePhotoCropController(
     onPhotoReady: (String) -> Unit,
     onError: (ProfilePhotoError) -> Unit,
 ): ProfilePhotoCropController {
-    var identifier by rememberSaveable { mutableStateOf<String?>(null) }
-    var zoom by rememberSaveable { mutableStateOf(1f) }
-    var panX by rememberSaveable { mutableStateOf(0f) }
-    var panY by rememberSaveable { mutableStateOf(0f) }
-    var prepared by remember(store, identifier) {
-        mutableStateOf(identifier?.let(store::restorePrepared))
+    val stateOwner: ProfilePhotoCropStateOwner = viewModel(
+        key = "profile-photo-crop-${owner.type}-${owner.id}",
+    )
+    val identifier = stateOwner.identifier
+    val prepared = remember(store, identifier) { identifier?.let(store::restorePrepared) }
+    val deliveryToken = remember { Any() }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(stateOwner, deliveryToken, lifecycleOwner, onPhotoReady, onError) {
+        fun updateDeliveryTarget() {
+            if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+                stateOwner.attach(deliveryToken, onPhotoReady, onError)
+            } else {
+                stateOwner.detach(deliveryToken)
+            }
+        }
+        val observer = LifecycleEventObserver { _, _ -> updateDeliveryTarget() }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        updateDeliveryTarget()
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            stateOwner.detach(deliveryToken)
+        }
     }
-
-    LaunchedEffect(identifier) {
-        if (identifier != null && prepared == null) {
-            identifier = null
+    LaunchedEffect(identifier, prepared) {
+        if (identifier != null && prepared == null && !stateOwner.saving) {
+            stateOwner.discardUnreadable()
             onError(ProfilePhotoError.UNREADABLE_SOURCE)
         }
     }
 
     val controller = ProfilePhotoCropController { replacement ->
-            prepared?.takeIf { it.identifier != replacement.identifier }?.cancel()
-            identifier = replacement.identifier
-            prepared = replacement
-            zoom = 1f
-            panX = 0f
-            panY = 0f
+        stateOwner.open(replacement) { old -> store.restorePrepared(old)?.cancel() }
     }
     prepared?.let { photo ->
         ProfilePhotoCropEditor(
             prepared = photo,
-            transform = ProfilePhotoCropTransform(zoom, panX, panY),
-            onTransformChanged = {
-                zoom = it.zoom
-                panX = it.panX
-                panY = it.panY
-            },
+            transform = stateOwner.transform,
+            saving = stateOwner.saving,
+            onTransformChanged = stateOwner::updateTransform,
             onCancel = {
-                photo.cancel()
-                prepared = null
-                identifier = null
+                stateOwner.cancel { store.restorePrepared(it)?.cancel() }
             },
-            onConfirm = { transform, completed ->
-                try {
-                    store.confirmCrop(owner, photo, transform) { path ->
-                        withContext(Dispatchers.Main.immediate) {
-                            // Clear the restorable source before ownership is handed to the draft.
-                            // These mutations and the callback inherit the store's NonCancellable
-                            // handoff even if this composition is being disposed for recreation.
-                            prepared = null
-                            identifier = null
-                            onPhotoReady(path)
-                        }
-                    }
-                    completed(null)
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (known: ProfilePhotoException) {
-                    completed(known.error)
-                } catch (_: Exception) {
-                    completed(ProfilePhotoError.PROCESSING_FAILED)
-                }
+            onConfirm = {
+                stateOwner.confirm(store, owner, photo)
             },
         )
     }
@@ -151,9 +269,10 @@ fun rememberProfilePhotoCropController(
 internal fun ProfilePhotoCropEditor(
     prepared: PreparedProfilePhoto,
     transform: ProfilePhotoCropTransform,
+    saving: Boolean = false,
     onTransformChanged: (ProfilePhotoCropTransform) -> Unit,
     onCancel: () -> Unit,
-    onConfirm: suspend (ProfilePhotoCropTransform, (ProfilePhotoError?) -> Unit) -> Unit,
+    onConfirm: (ProfilePhotoCropTransform) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -166,11 +285,6 @@ internal fun ProfilePhotoCropEditor(
     }
     val bitmap = imageLoad.first
     var viewportPx by remember { mutableStateOf(1f) }
-    // An in-flight coroutine belongs to this composition. It is cancelled when the Activity is
-    // recreated, so this flag must reset too instead of restoring a permanently disabled editor.
-    var saving by remember { mutableStateOf(false) }
-    var error by rememberSaveable { mutableStateOf<ProfilePhotoError?>(null) }
-    val scope = rememberCoroutineScope()
     val constrained = transform.constrained()
     BackHandler(enabled = !saving, onBack = onCancel)
 
@@ -250,21 +364,11 @@ internal fun ProfilePhotoCropEditor(
                             modifier = Modifier.size(48.dp).testTag(ProfilePhotoCropTestTags.ZoomIn).semantics { contentDescription = "Увеличить фото" },
                         ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
                     }
-                    error?.let {
-                        Text("Не удалось обработать фото. Попробуйте ещё раз.", color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(ProfilePhotoCropTestTags.Error))
-                    }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
                         TextButton(onClick = onCancel, enabled = !saving, modifier = Modifier.heightIn(min = 48.dp).testTag(ProfilePhotoCropTestTags.Cancel)) { Text("Отмена") }
                         Button(
                             onClick = {
-                                saving = true
-                                error = null
-                                scope.launch {
-                                    onConfirm(constrained) { failure ->
-                                        error = failure
-                                        saving = false
-                                    }
-                                }
+                                onConfirm(constrained)
                             },
                             enabled = bitmap != null && !saving,
                             modifier = Modifier.heightIn(min = 48.dp).testTag(ProfilePhotoCropTestTags.Done),

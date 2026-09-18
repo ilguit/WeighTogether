@@ -14,6 +14,8 @@ import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -26,6 +28,9 @@ import androidx.compose.ui.unit.dp
 import androidx.test.platform.app.InstrumentationRegistry
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.io.ByteArrayOutputStream
+import java.io.File
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -126,6 +131,92 @@ class ProfilePhotoCropEditorUiTest {
     }
 
     @Test
+    fun confirmationPausedAfterRenameSurvivesRecreationAndDeliversExactlyOnce() {
+        val enteredHandoff = CompletableDeferred<Unit>()
+        val continueHandoff = CompletableDeferred<Unit>()
+        val deliveries = AtomicInteger()
+        var deliveredPath: String? = null
+        val store = ProfilePhotoStore.createForTest(
+            context = InstrumentationRegistry.getInstrumentation().targetContext,
+            maxDimensionPx = 320,
+            afterManagedPhotoCreated = {
+                enteredHandoff.complete(Unit)
+                continueHandoff.await()
+            },
+            deleteFile = File::delete,
+        )
+        val prepared = prepared(store)
+        lateinit var controller: ProfilePhotoCropController
+        composeRule.setContent {
+            ScaleSyncTheme {
+                controller = rememberProfilePhotoCropController(
+                    store,
+                    ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "handoff-recreate-test"),
+                    onPhotoReady = {
+                        deliveries.incrementAndGet()
+                        deliveredPath = it
+                    },
+                    onError = { error("Unexpected error: $it") },
+                )
+            }
+        }
+
+        composeRule.runOnIdle { controller.open(prepared) }
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        runBlocking { enteredHandoff.await() }
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).assertIsNotEnabled()
+        continueHandoff.complete(Unit)
+        composeRule.waitUntil(10_000) { deliveries.get() == 1 }
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertDoesNotExist()
+        composeRule.runOnIdle {
+            assertTrue(store.resolve(requireNotNull(deliveredPath)).isFile)
+            assertNull(store.restorePrepared(prepared.identifier))
+            assertTrue(deliveries.get() == 1)
+        }
+        runBlocking { store.onPhotoDereferenced(requireNotNull(deliveredPath)) }
+    }
+
+    @Test
+    fun failedDeliveryKeepsPreparedSourceAndAllowsRetry() {
+        val store = store()
+        val prepared = prepared(store)
+        val attempts = AtomicInteger()
+        val errors = AtomicInteger()
+        var deliveredPath: String? = null
+        lateinit var controller: ProfilePhotoCropController
+        composeRule.setContent {
+            ScaleSyncTheme {
+                controller = rememberProfilePhotoCropController(
+                    store,
+                    ProfilePhotoOwner(ProfilePhotoOwnerType.PET, "delivery-retry-test"),
+                    onPhotoReady = { path ->
+                        if (attempts.incrementAndGet() == 1) error("draft unavailable")
+                        deliveredPath = path
+                    },
+                    onError = { errors.incrementAndGet() },
+                )
+            }
+        }
+
+        composeRule.runOnIdle { controller.open(prepared) }
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        composeRule.waitUntil(10_000) { errors.get() == 1 }
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).assertIsEnabled().performClick()
+        composeRule.waitUntil(10_000) { deliveredPath != null }
+
+        composeRule.runOnIdle {
+            assertTrue(attempts.get() == 2)
+            assertNull(store.restorePrepared(prepared.identifier))
+            assertTrue(store.resolve(requireNotNull(deliveredPath)).isFile)
+        }
+        runBlocking { store.onPhotoDereferenced(requireNotNull(deliveredPath)) }
+    }
+
+    @Test
     fun explicitZoomControlsExposeSemanticsAndSliderChangesValue() {
         val store = store()
         val prepared = prepared(store)
@@ -137,7 +228,7 @@ class ProfilePhotoCropEditorUiTest {
                     transform.value,
                     onTransformChanged = { transform.value = it },
                     onCancel = {},
-                    onConfirm = { _, complete -> complete(null) },
+                    onConfirm = {},
                 )
             }
         }
@@ -168,7 +259,7 @@ class ProfilePhotoCropEditorUiTest {
                         ProfilePhotoCropTransform(),
                         onTransformChanged = {},
                         onCancel = {},
-                        onConfirm = { _, complete -> complete(null) },
+                        onConfirm = {},
                         modifier = Modifier.width(320.dp),
                     )
                 }
