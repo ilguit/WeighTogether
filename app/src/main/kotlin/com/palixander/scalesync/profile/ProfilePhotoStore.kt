@@ -18,6 +18,7 @@ import java.util.UUID
 import kotlin.math.max
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 
 enum class ProfilePhotoOwnerType(val directoryName: String) {
@@ -39,10 +40,12 @@ class ProfilePhotoStore private constructor(
     context: Context,
     private val maxDimensionPx: Int,
     private val deleteFile: (File) -> Boolean,
+    private val afterManagedPhotoCreated: suspend (String) -> Unit,
 ) : ProfilePhotoLifecycle {
     private val appContext = context.applicationContext
     private val filesRoot = appContext.filesDir.canonicalFile
     private val captureRoot = File(appContext.cacheDir, CAPTURE_DIRECTORY)
+    private val preparedRoot = File(appContext.cacheDir, PREPARED_DIRECTORY)
 
     init {
         require(maxDimensionPx > 0)
@@ -51,7 +54,7 @@ class ProfilePhotoStore private constructor(
     constructor(
         context: Context,
         maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
-    ) : this(context, maxDimensionPx, File::delete)
+    ) : this(context, maxDimensionPx, File::delete, {})
 
     fun resolve(photoPath: String): File {
         validateManagedProfilePhotoPath(photoPath)
@@ -61,10 +64,10 @@ class ProfilePhotoStore private constructor(
         return resolved
     }
 
-    suspend fun import(owner: ProfilePhotoOwner, source: Uri): String = withContext(Dispatchers.IO) {
+    suspend fun prepare(source: Uri): PreparedProfilePhoto = withContext(Dispatchers.IO) {
         try {
             appContext.contentResolver.openInputStream(source)?.use { input ->
-                import(owner, input)
+                prepare(input)
             } ?: throw ProfilePhotoException(ProfilePhotoError.UNREADABLE_SOURCE)
         } catch (known: ProfilePhotoException) {
             throw known
@@ -75,27 +78,137 @@ class ProfilePhotoStore private constructor(
         }
     }
 
-    internal fun import(owner: ProfilePhotoOwner, input: InputStream): String {
+    internal fun prepare(input: InputStream): PreparedProfilePhoto {
+        check(preparedRoot.mkdirs() || preparedRoot.isDirectory) { "Cannot create prepared photo directory" }
+        deleteStalePrepared()
+        val sourceFile = File.createTempFile("incoming-", ".tmp", preparedRoot)
+        val identifier = "prepared-${UUID.randomUUID()}.jpg"
+        val outputFile = File(preparedRoot, identifier)
+        val stagingFile = File(preparedRoot, ".$identifier.tmp")
+        try {
+            sourceFile.outputStream().use { output -> input.copyTo(output) }
+            val bitmap = decodeNormalized(sourceFile)
+            try {
+                writeJpeg(bitmap, stagingFile, PREPARED_JPEG_QUALITY)
+                if (!stagingFile.renameTo(outputFile)) {
+                    throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED)
+                }
+                return preparedPhoto(identifier, bitmap.width, bitmap.height, outputFile)
+            } finally {
+                bitmap.recycle()
+            }
+        } catch (failure: ProfilePhotoException) {
+            throw failure
+        } catch (failure: Exception) {
+            throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED, failure)
+        } finally {
+            sourceFile.delete()
+            stagingFile.delete()
+        }
+    }
+
+    fun restorePrepared(identifier: String): PreparedProfilePhoto? {
+        if (!PREPARED_FILE_PATTERN.matches(identifier)) return null
+        val file = File(preparedRoot, identifier).canonicalFile
+        if (file.parentFile != preparedRoot.canonicalFile || !file.isFile) return null
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(file.path, bounds)
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return null
+        return preparedPhoto(identifier, bounds.outWidth, bounds.outHeight, file)
+    }
+
+    private fun preparedPhoto(
+        identifier: String,
+        width: Int,
+        height: Int,
+        file: File,
+    ) = PreparedProfilePhoto(
+        identifier = identifier,
+        width = width,
+        height = height,
+        uri = FileProvider.getUriForFile(
+            appContext,
+            "${appContext.packageName}.profilephotos.fileprovider",
+            file,
+        ),
+        file = file,
+    )
+
+    suspend fun prepareCapture(capture: PendingProfilePhotoCapture): PreparedProfilePhoto =
+        withContext(Dispatchers.IO) {
+            try {
+                FileInputStream(capture.file).use(::prepare)
+            } finally {
+                capture.cancel()
+            }
+        }
+
+    suspend fun confirmCrop(
+        owner: ProfilePhotoOwner,
+        prepared: PreparedProfilePhoto,
+        transform: ProfilePhotoCropTransform,
+        deliver: suspend (String) -> Unit,
+    ) = withContext(Dispatchers.IO + NonCancellable) {
+        val restored = restorePrepared(prepared.identifier)
+            ?: throw ProfilePhotoException(ProfilePhotoError.UNREADABLE_SOURCE)
+        val path = importCropped(owner, restored, transform)
+        try {
+            afterManagedPhotoCreated(path)
+            // Ownership changes only when the caller has installed the path in its draft. Keeping
+            // creation, handoff, and prepared-source cleanup in one NonCancellable section means
+            // Activity disposal cannot strand the managed JPEG between those steps.
+            deliver(path)
+            restored.cancel()
+        } catch (failure: Throwable) {
+            runCatching { onPhotoDereferenced(path) }
+                .onFailure(failure::addSuppressed)
+            throw failure
+        }
+    }
+
+    private fun importCropped(
+        owner: ProfilePhotoOwner,
+        prepared: PreparedProfilePhoto,
+        transform: ProfilePhotoCropTransform,
+    ): String {
         val ownerDirectory = File(
             filesRoot,
             "$PHOTO_DIRECTORY/${owner.type.directoryName}/${owner.id.safeStorageKey()}",
         )
         check(ownerDirectory.mkdirs() || ownerDirectory.isDirectory) { "Cannot create profile photo directory" }
 
-        val sourceFile = File.createTempFile("source-", ".tmp", ownerDirectory)
         val outputFile = File(ownerDirectory, "${UUID.randomUUID()}.jpg")
         val stagingFile = File(ownerDirectory, ".${outputFile.name}.tmp")
         try {
-            sourceFile.outputStream().use { output -> input.copyTo(output) }
-            val bitmap = decodeNormalized(sourceFile)
+            val source = BitmapFactory.decodeFile(prepared.file.path)
+                ?: throw ProfilePhotoException(ProfilePhotoError.INVALID_IMAGE)
             try {
-                stagingFile.outputStream().buffered().use { output ->
-                    if (!bitmap.compress(Bitmap.CompressFormat.JPEG, JPEG_QUALITY, output)) {
-                        throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED)
+                val geometry = ProfilePhotoCropGeometry(source.width, source.height, 1f)
+                val crop = geometry.sourceCropBounds(transform)
+                val outputSize = crop.size.coerceAtMost(maxDimensionPx)
+                val selection = Bitmap.createBitmap(
+                    source,
+                    crop.left,
+                    crop.top,
+                    crop.size,
+                    crop.size,
+                )
+                try {
+                    val output = if (selection.width == outputSize && selection.height == outputSize) {
+                        selection
+                    } else {
+                        Bitmap.createScaledBitmap(selection, outputSize, outputSize, true)
                     }
+                    try {
+                        writeJpeg(output, stagingFile, JPEG_QUALITY)
+                    } finally {
+                        if (output !== selection) output.recycle()
+                    }
+                } finally {
+                    if (selection !== source) selection.recycle()
                 }
             } finally {
-                bitmap.recycle()
+                source.recycle()
             }
             if (!stagingFile.renameTo(outputFile)) {
                 throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED)
@@ -106,8 +219,15 @@ class ProfilePhotoStore private constructor(
         } catch (failure: Exception) {
             throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED, failure)
         } finally {
-            sourceFile.delete()
             stagingFile.delete()
+        }
+    }
+
+    private fun writeJpeg(bitmap: Bitmap, destination: File, quality: Int) {
+        destination.outputStream().buffered().use { output ->
+            if (!bitmap.compress(Bitmap.CompressFormat.JPEG, quality, output)) {
+                throw ProfilePhotoException(ProfilePhotoError.PROCESSING_FAILED)
+            }
         }
     }
 
@@ -135,15 +255,6 @@ class ProfilePhotoStore private constructor(
         )
         return PendingProfilePhotoCapture(uri, identifier, file)
     }
-
-    suspend fun completeCapture(owner: ProfilePhotoOwner, capture: PendingProfilePhotoCapture): String =
-        withContext(Dispatchers.IO) {
-            try {
-                FileInputStream(capture.file).use { import(owner, it) }
-            } finally {
-                capture.cancel()
-            }
-        }
 
     override suspend fun onPhotoDereferenced(photoPath: String) {
         val photo = resolve(photoPath)
@@ -216,14 +327,18 @@ class ProfilePhotoStore private constructor(
         private const val JPEG_QUALITY = 90
         private const val PHOTO_DIRECTORY = "profile-photos"
         private const val CAPTURE_DIRECTORY = "profile-photo-capture"
+        private const val PREPARED_DIRECTORY = "profile-photo-prepared"
         private const val STALE_CAPTURE_AGE_MILLIS = 24 * 60 * 60 * 1_000L
         private val CAPTURE_FILE_PATTERN = Regex("capture-[A-Za-z0-9._-]+\\.jpg")
+        private val PREPARED_FILE_PATTERN = Regex("prepared-[A-Fa-f0-9-]+\\.jpg")
+        private const val PREPARED_JPEG_QUALITY = 95
 
         internal fun createForTest(
             context: Context,
             maxDimensionPx: Int = DEFAULT_MAX_DIMENSION_PX,
+            afterManagedPhotoCreated: suspend (String) -> Unit = {},
             deleteFile: (File) -> Boolean,
-        ) = ProfilePhotoStore(context, maxDimensionPx, deleteFile)
+        ) = ProfilePhotoStore(context, maxDimensionPx, deleteFile, afterManagedPhotoCreated)
     }
 
     private fun deleteStaleCaptures(nowMillis: Long = System.currentTimeMillis()) {
@@ -232,6 +347,24 @@ class ProfilePhotoStore private constructor(
                 file.delete()
             }
         }
+    }
+
+    private fun deleteStalePrepared(nowMillis: Long = System.currentTimeMillis()) {
+        preparedRoot.listFiles()?.forEach { file ->
+            if (file.isFile && nowMillis - file.lastModified() >= STALE_CAPTURE_AGE_MILLIS) file.delete()
+        }
+    }
+}
+
+class PreparedProfilePhoto internal constructor(
+    val identifier: String,
+    val width: Int,
+    val height: Int,
+    val uri: Uri,
+    internal val file: File,
+) {
+    fun cancel() {
+        file.delete()
     }
 }
 

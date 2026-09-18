@@ -46,6 +46,14 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoCropTestTags
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.atomic.AtomicInteger
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -60,6 +68,80 @@ class PetProfileEditorDialogUiTest {
     private val unmappedDog = PetBreedSelection.Available(
         requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
     )
+
+    @Test
+    fun preparedPhotoConfirmedThroughRealEditorUpdatesPetDraftAndConsumesSource() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val store = ProfilePhotoStore(context)
+        val prepared = preparedPhoto(store)
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+
+        setEditor(
+            state = state,
+            photoPickerFactory = { _, onPrepared, _ ->
+                ProfilePhotoPicker(
+                    chooseFromGallery = { onPrepared(prepared) },
+                    takePhoto = {},
+                )
+            },
+        )
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.PhotoGallery)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        composeRule.waitForIdle()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertDoesNotExist()
+        composeRule.runOnIdle {
+            val path = state.value.draft.photoPath
+            assertTrue(path?.startsWith("profile-photos/pets/") == true)
+            assertTrue(requireNotNull(path).let(store::resolve).isFile)
+            assertNull(store.restorePrepared(prepared.identifier))
+        }
+    }
+
+    @Test
+    fun newPetCropInFlightHandoffSurvivesActivityRecreation() {
+        val enteredHandoff = CompletableDeferred<Unit>()
+        val continueHandoff = CompletableDeferred<Unit>()
+        val deliveries = AtomicInteger()
+        val store = ProfilePhotoStore.createForTest(
+            context = InstrumentationRegistry.getInstrumentation().targetContext,
+            maxDimensionPx = 320,
+            afterManagedPhotoCreated = {
+                enteredHandoff.complete(Unit)
+                continueHandoff.await()
+            },
+            deleteFile = File::delete,
+        )
+        val prepared = preparedPhoto(store)
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+
+        setEditor(
+            state = state,
+            profilePhotoStore = store,
+            actions = object : ArrayList<PetProfileAction>() {
+                override fun add(element: PetProfileAction): Boolean {
+                    if (element is PetProfileAction.PhotoChanged) deliveries.incrementAndGet()
+                    return super.add(element)
+                }
+            },
+            photoPickerFactory = { _, onPrepared, _ ->
+                ProfilePhotoPicker({ onPrepared(prepared) }, {})
+            },
+        )
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.PhotoGallery)
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Done).performClick()
+        runBlocking { enteredHandoff.await() }
+        composeRule.activityRule.scenario.recreate()
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Editor).assertIsDisplayed()
+        continueHandoff.complete(Unit)
+        composeRule.waitUntil(10_000) { state.value.draft.photoPath != null }
+        composeRule.runOnIdle { assertEquals(1, deliveries.get()) }
+    }
 
     @Test
     fun filledEditShowsValuesAndEveryOptionalFieldCanBeCleared() {
@@ -717,6 +799,18 @@ class PetProfileEditorDialogUiTest {
         fontScale: Float? = null,
         onSave: () -> Unit = {},
         onDismiss: () -> Unit = {},
+        profilePhotoStore: ProfilePhotoStore? = null,
+        photoPickerFactory: @androidx.compose.runtime.Composable (
+            ProfilePhotoStore,
+            (PreparedProfilePhoto) -> Unit,
+            (com.palixander.scalesync.profile.ProfilePhotoError) -> Unit,
+        ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+            com.palixander.scalesync.profile.rememberProfilePhotoPicker(
+                store,
+                onPrepared,
+                onError,
+            )
+        },
     ) {
         composeRule.setContent {
             val content: @androidx.compose.runtime.Composable () -> Unit = {
@@ -734,6 +828,9 @@ class PetProfileEditorDialogUiTest {
                         onSave = onSave,
                         onDismiss = onDismiss,
                         modifier = modifier,
+                        profilePhotoStore = profilePhotoStore
+                            ?: com.palixander.scalesync.ui.components.currentProfilePhotoStore(),
+                        photoPickerFactory = photoPickerFactory,
                     )
                 }
             }
@@ -746,5 +843,14 @@ class PetProfileEditorDialogUiTest {
                 ) { content() }
             }
         }
+    }
+
+    private fun preparedPhoto(store: ProfilePhotoStore): PreparedProfilePhoto {
+        val bitmap = Bitmap.createBitmap(80, 40, Bitmap.Config.ARGB_8888)
+        val bytes = ByteArrayOutputStream().also {
+            bitmap.compress(Bitmap.CompressFormat.JPEG, 90, it)
+            bitmap.recycle()
+        }.toByteArray()
+        return bytes.inputStream().use(store::prepare)
     }
 }

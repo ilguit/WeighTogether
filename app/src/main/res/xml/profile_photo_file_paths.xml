@@ -3,4 +3,7 @@
     <cache-path
         name="profile_photo_capture"
         path="profile-photo-capture/" />
+    <cache-path
+        name="profile_photo_prepared"
+        path="profile-photo-prepared/" />
 </paths>

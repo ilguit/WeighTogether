@@ -49,6 +49,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -84,8 +85,12 @@ import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoCropController
 import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -536,6 +541,14 @@ fun AccountEditorScreen(
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
+    profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
+    photoPickerFactory: @Composable (
+        ProfilePhotoStore,
+        (PreparedProfilePhoto) -> Unit,
+        (ProfilePhotoError) -> Unit,
+    ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+        rememberProfilePhotoPicker(store, onPrepared, onError)
+    },
 ) {
     val validation = validateAccountEditor(draft, accounts, today)
     val initialDraft = remember(draft.editingAccountId) {
@@ -551,12 +564,15 @@ fun AccountEditorScreen(
     val birthDateFocus = remember { FocusRequester() }
     val heightFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val photoStore = currentProfilePhotoStore()
+    val photoStore = profilePhotoStore
     var photoError by remember(draft.editingAccountId) { mutableStateOf<String?>(null) }
-    val photoOwner = remember(draft.editingAccountId) {
+    val newPhotoOwnerId = rememberSaveable(draft.editingAccountId) {
+        "new-account-${java.util.UUID.randomUUID()}"
+    }
+    val photoOwner = remember(draft.editingAccountId, newPhotoOwnerId) {
         ProfilePhotoOwner(
             ProfilePhotoOwnerType.ACCOUNT,
-            draft.editingAccountId?.value ?: "new-account-${java.util.UUID.randomUUID()}",
+            draft.editingAccountId?.value ?: newPhotoOwnerId,
         )
     }
     fun deleteTransientPhoto(path: String?) {
@@ -564,8 +580,8 @@ fun AccountEditorScreen(
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
-    val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
+    val photoCrop = photoStore?.let { store ->
+        rememberProfilePhotoCropController(
             store = store,
             owner = photoOwner,
             onPhotoReady = { path ->
@@ -574,6 +590,13 @@ fun AccountEditorScreen(
                 onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.PhotoChanged(path)))
             },
             onError = { error -> photoError = profilePhotoErrorMessage(error) },
+        )
+    }
+    val photoPicker = photoStore?.let { store ->
+        photoPickerFactory(
+            store,
+            { photoCrop?.open(it) },
+            { error -> photoError = profilePhotoErrorMessage(error) },
         )
     }
     LaunchedEffect(Unit) {

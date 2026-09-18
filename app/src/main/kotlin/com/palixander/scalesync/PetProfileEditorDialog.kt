@@ -73,8 +73,12 @@ import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.profile.ProfilePhotoError
+import com.palixander.scalesync.profile.PreparedProfilePhoto
+import com.palixander.scalesync.profile.ProfilePhotoPicker
+import com.palixander.scalesync.profile.ProfilePhotoStore
 import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
+import com.palixander.scalesync.profile.rememberProfilePhotoCropController
 import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import kotlinx.coroutines.launch
 
@@ -139,6 +143,14 @@ internal fun PetProfileEditorDialog(
     onSave: () -> Unit,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
+    profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
+    photoPickerFactory: @Composable (
+        ProfilePhotoStore,
+        (PreparedProfilePhoto) -> Unit,
+        (ProfilePhotoError) -> Unit,
+    ) -> ProfilePhotoPicker = { store, onPrepared, onError ->
+        rememberProfilePhotoPicker(store, onPrepared, onError)
+    },
 ) {
     var breedPickerOpen by rememberSaveable { mutableStateOf(false) }
     var submitted by rememberSaveable { mutableStateOf(false) }
@@ -155,13 +167,16 @@ internal fun PetProfileEditorDialog(
     val birthDateFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
-    val photoStore = currentProfilePhotoStore()
+    val photoStore = profilePhotoStore
     var photoError by remember(draft.mode) { mutableStateOf<String?>(null) }
-    val photoOwner = remember(draft.mode) {
+    val newPhotoOwnerId = rememberSaveable(draft.mode) {
+        "new-pet-${java.util.UUID.randomUUID()}"
+    }
+    val photoOwner = remember(draft.mode, newPhotoOwnerId) {
         ProfilePhotoOwner(
             ProfilePhotoOwnerType.PET,
             (draft.mode as? PetProfileEditorMode.Edit)?.petId?.value
-                ?: "new-pet-${java.util.UUID.randomUUID()}",
+                ?: newPhotoOwnerId,
         )
     }
     fun deleteTransientPhoto(path: String?) {
@@ -169,8 +184,8 @@ internal fun PetProfileEditorDialog(
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
-    val photoPicker = photoStore?.let { store ->
-        rememberProfilePhotoPicker(
+    val photoCrop = photoStore?.let { store ->
+        rememberProfilePhotoCropController(
             store = store,
             owner = photoOwner,
             onPhotoReady = { path ->
@@ -179,6 +194,13 @@ internal fun PetProfileEditorDialog(
                 dispatchPhoto(onAction, path, locked)
             },
             onError = { error -> photoError = petPhotoErrorMessage(error) },
+        )
+    }
+    val photoPicker = photoStore?.let { store ->
+        photoPickerFactory(
+            store,
+            { photoCrop?.open(it) },
+            { error -> photoError = petPhotoErrorMessage(error) },
         )
     }
 
