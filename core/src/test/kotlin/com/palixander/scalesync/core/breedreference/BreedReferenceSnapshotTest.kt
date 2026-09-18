@@ -56,6 +56,25 @@ class BreedReferenceSnapshotTest {
     }
 
     @Test
+    fun `Shiba uses official NIPPO ranges and preserves NSCA averages as inactive provenance`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        val values = snapshot.breed("VBO:0201220")!!.values
+        val nippo = snapshot.manifest.sources.single { it.id == "nippo" }
+
+        assertEquals("https://www.nihonken-hozonkai.or.jp/en/shibainu/", nippo.url)
+        assertTrue(values.any {
+            it.sex == BreedReferenceSex.MALE && it.lower == 9.0 && it.upper == 11.0 &&
+                it.sourceId == "nippo" && it.activeForProduct
+        })
+        assertTrue(values.any {
+            it.sex == BreedReferenceSex.FEMALE && it.lower == 7.0 && it.upper == 9.0 &&
+                it.sourceId == "nippo" && it.activeForProduct
+        })
+        assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.center == 10.4 && !it.activeForProduct })
+        assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.center == 7.7 && !it.activeForProduct })
+    }
+
+    @Test
     fun `runtime returns unavailable instead of throwing for corrupt bundle`() {
         val result = BreedReferenceSnapshot.loadOrUnavailable(
             streamProvider = { ByteArrayInputStream("{}".toByteArray()) },

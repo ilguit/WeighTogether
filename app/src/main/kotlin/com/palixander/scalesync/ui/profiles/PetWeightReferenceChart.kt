@@ -374,28 +374,7 @@ internal fun petWeightDisplayedSeries(
         WeightReferenceProvenance.WEIGHT_CATEGORY,
     )
     val breedSeries = if (useLegacyBreedTimeline) breedWeightReferenceChartSeries(breedReferenceTimeline) else emptyList()
-    val hasBreedBoundaries = breedSeries.any {
-        it.kind == BreedWeightReferenceSeriesKind.LOWER_BOUNDARY ||
-            it.kind == BreedWeightReferenceSeriesKind.UPPER_BOUNDARY
-    }
     if (breedSeries.isNotEmpty()) {
-        if (!hasBreedBoundaries && reference is PetHistoryWeightReference.Available) {
-            centerOnlyBreedPresentationEnvelope(reference, breedReferenceTimeline, zoneId)
-                .forEachIndexed { index, series ->
-                    val lower = series.kind == PetWeightReferenceSeriesKind.LOWER
-                    add(
-                        PetWeightDisplayedSeries(
-                            id = "category-${series.kind.name.lowercase()}-$index",
-                            kind = if (lower) PetWeightDisplayedSeriesKind.CATEGORY_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
-                            label = if (lower) "Согласованная нижняя граница ориентира" else "Согласованная верхняя граница ориентира",
-                            x = series.xEpochMillis
-                                ?: series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
-                            y = series.points.map { it.second },
-                            style = PetWeightDisplayedSeriesStyle.CATEGORY,
-                        ),
-                    )
-                }
-        }
         val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
         breedSeries.distinctBy { Triple(it.kind, it.xEpochMillis, it.points.map { point -> point.second }) }.forEach { series ->
             val occurrence = counters.getOrDefault(series.kind, 0)
@@ -470,61 +449,6 @@ internal fun petWeightDisplayedSeries(
             )
         }
     }
-}
-
-/**
- * Expands the displayed base envelope to include center-only breed observations.
- *
- * This is deliberately a presentation projection: source reference points and breed timeline
- * values remain untouched. Each existing base segment is expanded by the most conservative
- * center observed inside its date range. Segment boundaries remain authoritative, so gaps are
- * never bridged and a segment without a center is retained as-is.
- */
-private fun centerOnlyBreedPresentationEnvelope(
-    reference: PetHistoryWeightReference.Available,
-    breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint>,
-    zoneId: ZoneId,
-): List<PetWeightReferenceChartSeries> {
-    val centerObservations = breedReferenceTimeline.mapNotNull { timelinePoint ->
-        val centers = timelinePoint.values.orEmpty().mapNotNull { value ->
-            (value as? PetHistoryBreedChartValue.Single)?.valueKg
-        }
-        centers.takeIf { it.isNotEmpty() }?.let { timelinePoint.date to it }
-    }
-
-    return petWeightReferenceChartSeries(reference)
-        .filter { it.kind == PetWeightReferenceSeriesKind.LOWER || it.kind == PetWeightReferenceSeriesKind.UPPER }
-        .map { series ->
-            val firstDate = series.points.minOf { it.first }
-            val lastDate = series.points.maxOf { it.first }
-            val segmentCenters = centerObservations
-                .asSequence()
-                .filter { (date, _) -> date in firstDate..lastDate }
-                .flatMap { (_, centers) -> centers.asSequence() }
-                .toList()
-            val segmentCenter = when (series.kind) {
-                PetWeightReferenceSeriesKind.LOWER -> segmentCenters.minOrNull()
-                PetWeightReferenceSeriesKind.UPPER -> segmentCenters.maxOrNull()
-                PetWeightReferenceSeriesKind.MEDIAN_LOWER,
-                PetWeightReferenceSeriesKind.MEDIAN_UPPER,
-                -> null
-            }
-            val projectedPoints = series.points.map { (date, value) ->
-                date to when (series.kind) {
-                    PetWeightReferenceSeriesKind.LOWER -> segmentCenter?.let { minOf(value, it) } ?: value
-                    PetWeightReferenceSeriesKind.UPPER -> segmentCenter?.let { maxOf(value, it) } ?: value
-                    PetWeightReferenceSeriesKind.MEDIAN_LOWER,
-                    PetWeightReferenceSeriesKind.MEDIAN_UPPER,
-                    -> value
-                }
-            }
-            series.copy(
-                points = projectedPoints,
-                xEpochMillis = projectedPoints.map { (date, _) ->
-                    date.atStartOfDay(zoneId).toInstant().toEpochMilli()
-                },
-            )
-        }
 }
 
 internal fun formatPetWeightDisplayedMarker(
