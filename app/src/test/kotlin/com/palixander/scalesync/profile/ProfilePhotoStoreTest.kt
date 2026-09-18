@@ -10,8 +10,10 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -279,6 +281,45 @@ class ProfilePhotoStoreTest {
             .filter(File::isFile)
             .toList()
         assertTrue("Failed handoff must not leave a managed orphan: $managed", managed.isEmpty())
+    }
+
+    @Test
+    fun `permanent owner close after managed rename completes and removes undelivered output`() = runBlocking {
+        val enteredHandoff = CompletableDeferred<Unit>()
+        val continueHandoff = CompletableDeferred<Unit>()
+        val targets = ProfilePhotoDeliveryTargets()
+        store = ProfilePhotoStore.createForTest(
+            context = context,
+            maxDimensionPx = 64,
+            deleteFile = File::delete,
+            afterManagedPhotoCreated = {
+                enteredHandoff.complete(Unit)
+                continueHandoff.await()
+            },
+        )
+        val prepared = store.prepare(image())
+        val confirmation = async {
+            runCatching {
+                store.confirmCrop(
+                    ProfilePhotoOwner(ProfilePhotoOwnerType.PET, "closed-owner"),
+                    prepared,
+                    ProfilePhotoCropTransform(),
+                ) { path -> targets.deliver(kotlinx.coroutines.Dispatchers.Unconfined, path) }
+            }.exceptionOrNull()
+        }
+
+        enteredHandoff.await()
+        targets.close()
+        continueHandoff.complete(Unit)
+        val failure = withTimeout(5_000) { confirmation.await() }
+
+        assertTrue(failure is ProfilePhotoDeliveryClosedException)
+        assertTrue("An undelivered crop keeps its prepared source for TTL cleanup", prepared.file.isFile)
+        val managed = File(context.filesDir, "profile-photos")
+            .walkTopDown()
+            .filter(File::isFile)
+            .toList()
+        assertTrue("Closed delivery must not leave a managed orphan: $managed", managed.isEmpty())
     }
 
     @Test

@@ -59,7 +59,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -86,30 +85,61 @@ class ProfilePhotoCropController internal constructor(
 private enum class ProfilePhotoCropPhase { READY, SAVING, CONSUMED }
 
 internal class ProfilePhotoDeliveryTargets {
+    private sealed interface State {
+        data object Detached : State
+        data object Closed : State
+    }
+
     private data class Target(
         val token: Any,
         val deliver: (String) -> Unit,
         val reportError: (ProfilePhotoError) -> Unit,
-    )
+    ) : State
 
-    private val current = MutableStateFlow<Target?>(null)
+    private val current = MutableStateFlow<State>(State.Detached)
 
     fun attach(token: Any, deliver: (String) -> Unit, reportError: (ProfilePhotoError) -> Unit) {
-        current.value = Target(token, deliver, reportError)
+        val target = Target(token, deliver, reportError)
+        while (true) {
+            val state = current.value
+            if (state === State.Closed || current.compareAndSet(state, target)) return
+        }
     }
 
     fun detach(token: Any) {
-        if (current.value?.token === token) current.value = null
+        while (true) {
+            val state = current.value
+            if (state !is Target || state.token !== token) return
+            if (current.compareAndSet(state, State.Detached)) return
+        }
+    }
+
+    fun close() {
+        current.value = State.Closed
     }
 
     suspend fun deliver(dispatcher: CoroutineDispatcher, path: String) {
-        withContext(dispatcher) { current.filterNotNull().first().deliver(path) }
+        withContext(dispatcher) {
+            when (val state = current.first { it !== State.Detached }) {
+                is Target -> state.deliver(path)
+                State.Closed -> throw ProfilePhotoDeliveryClosedException()
+                State.Detached -> error("Detached state passed the delivery predicate")
+            }
+        }
     }
 
     suspend fun report(dispatcher: CoroutineDispatcher, error: ProfilePhotoError) {
-        withContext(dispatcher) { current.filterNotNull().first().reportError(error) }
+        withContext(dispatcher) {
+            when (val state = current.first { it !== State.Detached }) {
+                is Target -> state.reportError(error)
+                State.Closed -> throw ProfilePhotoDeliveryClosedException()
+                State.Detached -> kotlin.error("Detached state passed the delivery predicate")
+            }
+        }
     }
 }
+
+internal class ProfilePhotoDeliveryClosedException : IllegalStateException("Profile photo editor is permanently closed")
 
 /**
  * Owns one crop operation across Activity recreation. The ViewModel, rather than either
@@ -215,6 +245,11 @@ internal class ProfilePhotoCropStateOwner(
         savedState[ZOOM] = null
         savedState[PAN_X] = null
         savedState[PAN_Y] = null
+    }
+
+    override fun onCleared() {
+        deliveryTargets.close()
+        super.onCleared()
     }
 
     private companion object {
