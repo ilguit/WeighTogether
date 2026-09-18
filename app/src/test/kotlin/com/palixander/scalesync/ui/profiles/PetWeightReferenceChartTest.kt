@@ -344,6 +344,7 @@ class PetWeightReferenceChartTest {
     @Test fun `Shiba centers for both sexes expand presentation envelope without changing source data`() {
         val date = LocalDate.of(2026, 9, 1)
         val x = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
+        val baseX = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
         val shiba = requireNotNull(BreedReferenceSnapshot.bundled().breed("VBO:0201220"))
         val sourceReference = available(listOf(PetHistoryReferencePoint(date, 8.0, 9.0, 10.0, 10.0)))
 
@@ -359,7 +360,8 @@ class PetWeightReferenceChartTest {
             assertEquals(listOf(8.0.coerceAtMost(sourceCenter)), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
             assertEquals(listOf(10.0.coerceAtLeast(sourceCenter)), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
             assertEquals(listOf(sourceCenter), displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.y)
-            assertTrue(displayed.all { it.x == listOf(x) })
+            assertTrue(displayed.filter { it.kind != PetWeightDisplayedSeriesKind.BREED_CENTER }.all { it.x == listOf(baseX) })
+            assertEquals(listOf(x), displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.x)
             assertEquals(sourceCenter, sourceValue.valueKg, 0.0)
             assertEquals(sourceReference, sourceReference.copy())
             assertEquals(sourceTimeline, listOf(PetHistoryBreedReferenceTimelinePoint(x, date, listOf(sourceValue))))
@@ -386,12 +388,18 @@ class PetWeightReferenceChartTest {
 
         val displayed = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
 
-        assertEquals(listOf(7.0, 8.0, 8.0), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
-        assertEquals(listOf(12.0, 12.0, 13.0), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
-        assertEquals(xs, displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.x)
+        assertEquals(listOf(7.0, 7.0, 7.0), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
+        assertEquals(listOf(13.0, 13.0, 13.0), displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
+        assertEquals(
+            dates.map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() },
+            displayed.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.x,
+        )
         assertEquals(3, displayed.size)
         assertEquals(3, displayed.map(PetWeightDisplayedSeries::id).distinct().size)
-        assertEquals(xs, petWeightDisplayedMarkerXs(displayed))
+        assertEquals(
+            (xs + dates.map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }).distinct().sorted(),
+            petWeightDisplayedMarkerXs(displayed),
+        )
         assertEquals(
             listOf(
                 "— Согласованная нижняя граница ориентира",
@@ -402,8 +410,52 @@ class PetWeightReferenceChartTest {
         )
         assertTrue(
             formatPetWeightDisplayedMarker(xs.first(), displayed, Locale.US)
-                .contains("Согласованная нижняя граница ориентира: 7.00 кг"),
+                .contains("Медиана или среднее: 7.00 кг"),
         )
+    }
+
+    @Test fun `sparse Shiba centers expand every daily base point in their segment`() {
+        val dates = (0L..6L).map { LocalDate.of(2026, 9, 1).plusDays(it) }
+        val reference = available(dates.map { PetHistoryReferencePoint(it, 24.0, 26.0, 28.0, 30.0) })
+        val centerDates = listOf(dates[1], dates[5])
+        val centerXs = centerDates.map { it.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli() }
+        val timeline = centerDates.mapIndexed { index, date ->
+            PetHistoryBreedReferenceTimelinePoint(
+                centerXs[index],
+                date,
+                listOf(PetHistoryBreedChartValue.Single(10.4, "Среднее", "shiba-male")),
+            )
+        }
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
+
+        assertEquals(List(dates.size) { 10.4 }, displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
+        }.y)
+        assertEquals(List(dates.size) { 30.0 }, displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER
+        }.y)
+        assertEquals(centerXs, displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.x)
+        assertEquals(listOf(10.4, 10.4), displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.y)
+    }
+
+    @Test fun `center inside base range leaves the entire segment unchanged`() {
+        val dates = (0L..2L).map { LocalDate.of(2026, 9, 1).plusDays(it) }
+        val reference = available(dates.mapIndexed { index, date ->
+            PetHistoryReferencePoint(date, 8.0 + index, 9.0, 11.0, 12.0 + index)
+        })
+        val timeline = listOf(
+            timelinePoint(dates[1], PetHistoryBreedChartValue.Single(10.0, "Среднее", "inside")),
+        )
+
+        val displayed = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
+
+        assertEquals(listOf(8.0, 9.0, 10.0), displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
+        }.y)
+        assertEquals(listOf(12.0, 13.0, 14.0), displayed.single {
+            it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER
+        }.y)
     }
 
     @Test fun `center-only envelope keeps distinct observations from the same day selectable`() {
@@ -426,26 +478,23 @@ class PetWeightReferenceChartTest {
 
         val displayed = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
 
-        assertEquals(listOf(morningX, eveningX), displayed.single {
+        val baseX = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        assertEquals(listOf(baseX), displayed.single {
             it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
         }.x)
-        assertEquals(listOf(7.0, 8.0), displayed.single {
+        assertEquals(listOf(7.0), displayed.single {
             it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER
         }.y)
-        assertEquals(listOf(12.0, 13.0), displayed.single {
+        assertEquals(listOf(13.0), displayed.single {
             it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER
         }.y)
-        assertEquals(listOf(morningX, eveningX), petWeightDisplayedMarkerXs(displayed))
+        assertEquals(listOf(baseX, morningX, eveningX), petWeightDisplayedMarkerXs(displayed))
         assertEquals(
-            "Согласованная нижняя граница ориентира: 7.00 кг\n" +
-                "Согласованная верхняя граница ориентира: 12.00 кг\n" +
-                "Медиана или среднее: 7.00 кг",
+            "Медиана или среднее: 7.00 кг",
             formatPetWeightDisplayedMarker(morningX, displayed, Locale.US),
         )
         assertEquals(
-            "Согласованная нижняя граница ориентира: 8.00 кг\n" +
-                "Согласованная верхняя граница ориентира: 13.00 кг\n" +
-                "Медиана или среднее: 13.00 кг",
+            "Медиана или среднее: 13.00 кг",
             formatPetWeightDisplayedMarker(eveningX, displayed, Locale.US),
         )
     }
@@ -454,10 +503,10 @@ class PetWeightReferenceChartTest {
         val first = LocalDate.of(2026, 7, 1)
         val gap = LocalDate.of(2026, 8, 1)
         val last = LocalDate.of(2026, 9, 1)
-        val reference = available(listOf(
-            PetHistoryReferencePoint(first, 8.0, 9.0, 11.0, 12.0),
-            PetHistoryReferencePoint(gap, 8.0, 9.0, 11.0, 12.0),
-            PetHistoryReferencePoint(last, 8.0, 9.0, 11.0, 12.0),
+        val reference = availableSegments(listOf(
+            listOf(PetHistoryReferencePoint(first, 8.0, 9.0, 11.0, 12.0)),
+            listOf(PetHistoryReferencePoint(gap, 8.0, 9.0, 11.0, 12.0)),
+            listOf(PetHistoryReferencePoint(last, 8.0, 9.0, 11.0, 12.0)),
         ))
         val timeline = listOf(
             timelinePoint(first, PetHistoryBreedChartValue.Single(7.0, "Среднее", "shiba")),
@@ -469,17 +518,20 @@ class PetWeightReferenceChartTest {
         val repeatedDisplay = petWeightDisplayedSeries(emptyList(), reference, timeline, ZoneOffset.UTC)
 
         assertEquals(firstDisplay.map(PetWeightDisplayedSeries::id), repeatedDisplay.map(PetWeightDisplayedSeries::id))
-        assertEquals(4, firstDisplay.size)
-        assertEquals(4, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
+        assertEquals(8, firstDisplay.size)
+        assertEquals(8, firstDisplay.map(PetWeightDisplayedSeries::id).distinct().size)
         assertEquals(
             listOf(listOf(7.0), listOf(13.0)),
             firstDisplay.filter { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER }.map(PetWeightDisplayedSeries::y),
         )
-        assertEquals(listOf(7.0, 8.0, 8.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.y)
-        assertEquals(listOf(12.0, 12.0, 13.0), firstDisplay.single { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.y)
-        assertTrue(firstDisplay.filter { it.kind != PetWeightDisplayedSeriesKind.BREED_CENTER }.all {
-            gap.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() in it.x
-        })
+        assertEquals(
+            listOf(listOf(7.0), listOf(8.0), listOf(8.0)),
+            firstDisplay.filter { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_LOWER }.map(PetWeightDisplayedSeries::y),
+        )
+        assertEquals(
+            listOf(listOf(12.0), listOf(12.0), listOf(13.0)),
+            firstDisplay.filter { it.kind == PetWeightDisplayedSeriesKind.CATEGORY_UPPER }.map(PetWeightDisplayedSeries::y),
+        )
     }
 
     @Test fun `breed interval suppresses base boundaries and duplicate breed series`() {
