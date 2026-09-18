@@ -148,12 +148,13 @@ fun rememberProfilePhotoCropController(
 }
 
 @Composable
-private fun ProfilePhotoCropEditor(
+internal fun ProfilePhotoCropEditor(
     prepared: PreparedProfilePhoto,
     transform: ProfilePhotoCropTransform,
     onTransformChanged: (ProfilePhotoCropTransform) -> Unit,
     onCancel: () -> Unit,
     onConfirm: suspend (ProfilePhotoCropTransform, (ProfilePhotoError?) -> Unit) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val imageLoad by produceState<Pair<androidx.compose.ui.graphics.ImageBitmap?, Boolean>>(null to false, prepared.identifier) {
@@ -174,7 +175,7 @@ private fun ProfilePhotoCropEditor(
     BackHandler(enabled = !saving, onBack = onCancel)
 
     Dialog(onDismissRequest = { if (!saving) onCancel() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxSize().testTag(ProfilePhotoCropTestTags.Editor)) {
+        Surface(modifier.fillMaxSize().testTag(ProfilePhotoCropTestTags.Editor)) {
             Column(
                 Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -206,7 +207,8 @@ private fun ProfilePhotoCropEditor(
                                     }
                                 }.semantics {
                                     contentDescription = "Область кадрирования. Перетаскивайте фото двумя пальцами или одним пальцем"
-                                    stateDescription = "Масштаб ${(constrained.zoom * 100).toInt()} процентов"
+                                    stateDescription = "Масштаб ${(constrained.zoom * 100).toInt()} процентов; " +
+                                        "позиция ${(constrained.panX * 100).toInt()}, ${(constrained.panY * 100).toInt()}"
                                 }.testTag(ProfilePhotoCropTestTags.Viewport),
                         ) {
                             val diameter = minOf(size.width, size.height)
