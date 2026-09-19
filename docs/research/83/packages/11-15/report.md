@@ -39,5 +39,7 @@ class.
 
 These data are research inputs, not clinical thresholds. Conformation standards
 describe breed type and cannot by themselves establish healthy percentile
-bands. In particular, a shared secondary adult envelope must not be presented
-as a sex-specific norm merely because it is repeated on both sex rows.
+bands. The Golden Retriever and Australian Shepherd Wikipedia ranges are each
+stored once with `all` applicability. Their separate male and female rows
+contain only the sex-specific FCI heights, so a shared secondary adult weight
+envelope cannot be mistaken for sex-specific bounds.

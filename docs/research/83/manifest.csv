@@ -5,7 +5,7 @@ rank,registration_count,catalog_id,canonical_name,variety_scope,package,mapping_
 14,132,VBO:0200095,Australian Shepherd,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,secondary_fallback,gap
 15,126,VBO:0200470,East European Shepherd,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,primary_official_non_numeric,partial
 16,120,VBO:0200120,Basenji,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
-17,117,VBO:0200599,"German Spitz, Pomeranian",Pomeranian variety,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official_non_numeric,partial
+17,117,VBO:0200599,"German Spitz, Pomeranian",Pomeranian variety,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,secondary_fallback,partial
 18,111,VBO:0201135,Rhodesian Ridgeback,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,partial
 19,103,VBO:0200321,Central Asian Shepherd Dog,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
 20,102,VBO:0200893,Miniature Pinscher,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap

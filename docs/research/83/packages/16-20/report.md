@@ -17,7 +17,7 @@ Counts and rank are preserved from the official two-day Eurasia 2024 tables thro
 ## Adult findings
 
 - Basenji: FCI ideal values are 11 kg/43 cm for males and 9.5 kg/40 cm for females.
-- German Toy Spitz/Pomeranian: FCI height is 21 ± 3 cm. The standard supplies no numeric weight, so weight remains empty.
+- German Toy Spitz/Pomeranian: FCI height is 21 ± 3 cm and its weight statement is non-numeric. Following the source precedence, Wikipedia supplies a secondary all-sex adult fallback of 1.36–3.17 kg; it is kept on a separate row so it is not presented as an FCI value or a sex-specific range.
 - Rhodesian Ridgeback: FCI gives 36.5 kg and 63–69 cm for males; 32 kg and 61–66 cm for females.
 - Central Asian Shepherd Dog: FCI minima are 50 kg/70 cm for males and 40 kg/65 cm for females. No maxima are stated. The same standard says full maturity is reached at three years, so 24 months cannot automatically be treated as mature.
 - Miniature Pinscher: FCI gives 4–6 kg and 25–30 cm for both sexes.
@@ -39,5 +39,6 @@ No suitable numeric juvenile cohort was found for Basenji, Central Asian Shepher
 - `age-observations.csv`: only directly published numeric observations; ages are closed day intervals and units are explicit.
 - `gaps.csv`: explicit absent evidence and the decision taken for each gap.
 - `sources.csv`: URLs, years, pages, source types, samples, methods, and limitations.
+- `validate.py`: package-level structural and source-semantics regression checks.
 
 The age observations are evidence inputs, not ready-made clinical centiles. Combining cohorts, turning quartiles into min/max ranges, or estimating missing ages would require a separately specified modelling and validation step.
