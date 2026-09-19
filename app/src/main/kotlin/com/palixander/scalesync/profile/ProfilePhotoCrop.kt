@@ -117,4 +117,29 @@ class ProfilePhotoCropGeometry(
         val scale = displayScale(value)
         return panBy(value, -displayDeltaX / scale, -displayDeltaY / scale)
     }
+
+    /** Applies a viewport gesture while keeping the image point below the gesture centroid fixed. */
+    fun transformBy(
+        transform: ProfilePhotoCropTransform,
+        centroidX: Float,
+        centroidY: Float,
+        displayPanX: Float,
+        displayPanY: Float,
+        zoomChange: Float,
+    ): ProfilePhotoCropTransform {
+        val value = transform.constrained(maxZoom)
+        val oldCrop = sourceCropRect(value)
+        val oldScale = displayScale(value)
+        val effectiveZoom = zoomChange.takeIf { it.isFinite() && it > 0f } ?: 1f
+        val zoomed = value.copy(zoom = value.zoom * effectiveZoom).constrained(maxZoom)
+        val zoomedCrop = sourceCropRect(zoomed)
+        val newScale = displayScale(zoomed)
+        val sourceAtCentroidX = oldCrop.left + centroidX / oldScale
+        val sourceAtCentroidY = oldCrop.top + centroidY / oldScale
+        return panBy(
+            zoomed,
+            sourceAtCentroidX - (centroidX + displayPanX) / newScale - zoomedCrop.left,
+            sourceAtCentroidY - (centroidY + displayPanY) / newScale - zoomedCrop.top,
+        )
+    }
 }

@@ -5,6 +5,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
 import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
@@ -381,15 +382,20 @@ internal fun ProfilePhotoCropEditor(
                                             val event = awaitPointerEvent()
                                             val pan = event.calculatePan()
                                             val gestureZoom = event.calculateZoom()
+                                            val centroid = event.calculateCentroid(useCurrent = false)
                                             val geometry = ProfilePhotoCropGeometry(
                                                 prepared.width,
                                                 prepared.height,
                                                 minOf(size.width, size.height).toFloat(),
                                             )
-                                            val zoomed = gestureTransform.copy(
-                                                zoom = gestureTransform.zoom * gestureZoom,
-                                            ).constrained()
-                                            gestureTransform = geometry.moveImageBy(zoomed, pan.x, pan.y)
+                                            gestureTransform = geometry.transformBy(
+                                                transform = gestureTransform,
+                                                centroidX = centroid.x,
+                                                centroidY = centroid.y,
+                                                displayPanX = pan.x,
+                                                displayPanY = pan.y,
+                                                zoomChange = gestureZoom,
+                                            )
                                             latestOnTransformChanged(gestureTransform)
                                             if (pan != Offset.Zero || gestureZoom != 1f) {
                                                 event.changes.forEach { it.consume() }
