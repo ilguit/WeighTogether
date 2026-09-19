@@ -164,7 +164,7 @@ class BreedWeightReferenceResolver(
         val selectable = sexValues.filter { it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP }
         val selectedGroup = selectGroup(selectable, selectedSex, age.selectedAgeDays, snapshot)
             ?: return unavailable(
-                sexValues.firstNotNullOfOrNull(BreedReferenceValue::gap)
+                selectApplicableGap(sexValues, selectedSex, age.selectedAgeDays)?.gap
                     ?.let(BreedWeightReferenceUnavailableReason::DocumentedGap)
                     ?: BreedWeightReferenceUnavailableReason.NoApplicableValue,
             )
@@ -228,19 +228,13 @@ class BreedWeightReferenceResolver(
             groups.filter(CandidateGroup::adult)
         } else {
             val containing = groups.filter { it.contains(selectedAgeDays) }
-            if (containing.isNotEmpty()) containing else {
-                val futureMinimum = groups.filter { !it.adult && it.minimumDays!! > selectedAgeDays }
-                    .minOfOrNull { it.minimumDays!! }
-                if (futureMinimum != null) groups.filter { it.minimumDays == futureMinimum } else {
-                    val latestPast = groups.filter {
-                        !it.adult &&
-                            selectedAgeDays >= 365 &&
-                            requireNotNull(it.minimumDays) >= 365
-                    }
-                        .maxOfOrNull { it.minimumDays!! }
-                    if (latestPast != null) groups.filter { it.minimumDays == latestPast } else groups.filter(CandidateGroup::adult)
-                }
-            }
+            // Published age observations apply only to their declared interval. In particular,
+            // point observations must not be stretched to the next observation or interpolated.
+            // In the absence of per-record maturity metadata, one year is the conservative
+            // boundary at which an explicitly adult reference becomes applicable.
+            if (containing.isNotEmpty()) containing
+            else if (selectedAgeDays >= ADULT_REFERENCE_MINIMUM_DAYS) groups.filter(CandidateGroup::adult)
+            else emptyList()
         }
         return candidates.minWithOrNull(
             compareBy<CandidateGroup> { if (it.sex == selectedSex) 0 else 1 }
@@ -248,6 +242,27 @@ class BreedWeightReferenceResolver(
                 .thenBy { it.width }
                 .thenBy { it.source?.id.orEmpty() },
         )
+    }
+
+    private fun selectApplicableGap(
+        values: List<BreedReferenceValue>,
+        selectedSex: BreedReferenceSex,
+        selectedAgeDays: Long?,
+    ): BreedReferenceValue? {
+        if (selectedAgeDays == null) return null
+        return values
+            .asSequence()
+            .filter { value ->
+                value.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP &&
+                    !value.adult &&
+                    selectedAgeDays >= requireNotNull(value.ageMinimumDays) &&
+                    selectedAgeDays <= (value.ageMaximumDays ?: requireNotNull(value.ageMinimumDays)).toLong()
+            }
+            .minWithOrNull(
+                compareBy<BreedReferenceValue> { if (it.sex == selectedSex) 0 else 1 }
+                    .thenBy { (it.ageMaximumDays ?: it.ageMinimumDays!!) - it.ageMinimumDays!! }
+                    .thenBy(BreedReferenceValue::id),
+            )
     }
 
     private fun selectAdultCompanion(
@@ -374,6 +389,7 @@ class BreedWeightReferenceResolver(
     }
 
     private companion object {
+        const val ADULT_REFERENCE_MINIMUM_DAYS = 365L
         val ARCHIVED_SHIBA_NSCA_WEIGHT_IDS = setOf("shi-mw", "shi-fw")
     }
 }

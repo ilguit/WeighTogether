@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
+import com.palixander.scalesync.domain.ageAt
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -20,21 +21,41 @@ class BreedWeightReferenceResolverTest {
     private val today = LocalDate.of(2025, 1, 15)
 
     @Test
-    fun `selection table follows containing future then adult algorithm`() {
+    fun `selection table uses only containing age intervals then adult references`() {
         val cases = listOf(
             Case("corgi containing first range", "VBO:0200995", 200, BreedWeightAgeScope.Age(122, 334, "4–11 months"), false),
-            Case("corgi future second range", "VBO:0200995", 350, BreedWeightAgeScope.Age(365, 699, "12–23 months"), false),
             Case("labrador exact point", "VBO:0200800", 183, BreedWeightAgeScope.Age(183, 183, "6 months"), false),
-            Case("labrador nearest future", "VBO:0200800", 184, BreedWeightAgeScope.Age(274, 274, "9 months"), false),
-            Case("labrador after final point", "VBO:0200800", 731, BreedWeightAgeScope.Age(730, 730, "24 months"), false),
-            Case("dobermann future observation", "VBO:0200442", 13, BreedWeightAgeScope.Age(15, 15, "15 days"), false),
-            Case("dobermann after observations", "VBO:0200442", 16, BreedWeightAgeScope.Adult, true),
+            Case("labrador exact adult-age point", "VBO:0200800", 730, BreedWeightAgeScope.Age(730, 730, "24 months"), false),
+            Case("labrador after final point", "VBO:0200800", 731, BreedWeightAgeScope.Adult, true),
+            Case("dobermann adult threshold", "VBO:0200442", 365, BreedWeightAgeScope.Adult, true),
         )
         cases.forEach { case ->
             val result = resolve(case.breed, PetSex.MALE, PartialBirthDate.Day(today.minusDays(case.age.toLong()))).available()
             assertEquals(case.name, case.scope, result.ageScope)
             assertEquals(case.name, case.adultFallback, result.ageDisclosure.usedAdultFallback)
         }
+    }
+
+    @Test
+    fun `known juvenile never receives adult or future point reference`() {
+        listOf(
+            "corgi interval gap" to resolve("VBO:0200995", PetSex.MALE, PartialBirthDate.Day(today.minusDays(350))),
+            "labrador day after exact point" to resolve("VBO:0200800", PetSex.MALE, PartialBirthDate.Day(today.minusDays(184))),
+            "dobermann day between neonatal observations" to resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(13))),
+            "dobermann after neonatal observations" to resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(16))),
+            "adult-only breed puppy" to resolve("VBO:0201220", PetSex.MALE, PartialBirthDate.Day(today.minusDays(200))),
+        ).forEach { (name, result) ->
+            assertEquals(name, BreedWeightReferenceUnavailableReason.NoApplicableValue, result.unavailable())
+        }
+    }
+
+    @Test
+    fun `exact neonatal observation applies only on its declared day`() {
+        val exact = resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(12))).available()
+        assertEquals(BreedWeightAgeScope.Age(12, 12, "12 days"), exact.ageScope)
+
+        val between = resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(11)))
+        assertEquals(BreedWeightReferenceUnavailableReason.NoApplicableValue, between.unavailable())
     }
 
     @Test
@@ -46,24 +67,23 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `partial month selects upper possible age and discloses full interval`() {
+    fun `partial month discloses interval without stretching the next point`() {
         val result = resolve(
             "VBO:0200800",
             PetSex.MALE,
             PartialBirthDate.Month(YearMonth.of(2024, 8)),
-        ).available()
-        assertEquals(137L..167L, result.ageDisclosure.possibleAgeDays)
-        assertEquals(167L, result.ageDisclosure.selectedAgeDays)
-        assertTrue(result.ageDisclosure.partial)
-        assertEquals(BreedWeightAgeScope.Age(183, 183, "6 months"), result.ageScope)
+        )
+        assertEquals(BreedWeightReferenceUnavailableReason.NoApplicableValue, result.unavailable())
+        val age = PartialBirthDate.Month(YearMonth.of(2024, 8)).ageAt(today)
+        assertEquals(137L..167L, age.minimumDays..age.maximumDays)
     }
 
     @Test
-    fun `partial year uses upper possible age`() {
+    fun `partial year can select an exact point at its conservative upper possible age`() {
         val result = resolve("VBO:0200800", PetSex.MALE, PartialBirthDate.Year(Year.of(2024))).available()
         assertEquals(15L..380L, result.ageDisclosure.possibleAgeDays)
         assertEquals(380L, result.ageDisclosure.selectedAgeDays)
-        assertEquals(BreedWeightAgeScope.Age(457, 457, "15 months"), result.ageScope)
+        assertEquals(BreedWeightAgeScope.Adult, result.ageScope)
     }
 
     @Test
@@ -180,11 +200,14 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `documented gap is provenance detail and adult value is fallback`() {
-        val result = resolve("VBO:0200712", PetSex.MALE, PartialBirthDate.Day(today.minusDays(100))).available()
-        assertEquals(BreedWeightAgeScope.Adult, result.ageScope)
-        assertTrue(result.ageDisclosure.usedAdultFallback)
-        assertTrue(result.details.any { it.documentedGap != null && it.value == null })
+    fun `known juvenile returns applicable documented gap instead of adult value`() {
+        val result = resolve("VBO:0200712", PetSex.MALE, PartialBirthDate.Day(today.minusDays(100)))
+        assertEquals(
+            BreedWeightReferenceUnavailableReason.DocumentedGap(
+                "No breed-specific age values published; size-cluster model was not substituted.",
+            ),
+            result.unavailable(),
+        )
     }
 
     @Test
