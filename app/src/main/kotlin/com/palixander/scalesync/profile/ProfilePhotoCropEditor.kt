@@ -3,7 +3,11 @@ package com.palixander.scalesync.profile
 import android.graphics.BitmapFactory
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.calculateCentroid
+import androidx.compose.foundation.gestures.calculatePan
+import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.Box
@@ -29,6 +33,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -341,6 +346,8 @@ internal fun ProfilePhotoCropEditor(
     val bitmap = imageLoad.first
     var viewportPx by remember { mutableStateOf(1f) }
     val constrained = transform.constrained()
+    val latestTransform by rememberUpdatedState(constrained)
+    val latestOnTransformChanged by rememberUpdatedState(onTransformChanged)
     BackHandler(enabled = !saving, onBack = onCancel)
 
     Dialog(onDismissRequest = { if (!saving) onCancel() }, properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -367,12 +374,37 @@ internal fun ProfilePhotoCropEditor(
                         Canvas(
                             Modifier.sizeIn(maxWidth = 420.dp, maxHeight = 420.dp)
                                 .fillMaxWidth().aspectRatio(1f).padding(16.dp).onSizeChanged { viewportPx = minOf(it.width, it.height).toFloat() }
-                                .pointerInput(prepared.identifier, viewportPx, constrained) {
-                                    detectTransformGestures { _, pan, gestureZoom, _ ->
-                                        val geometry = ProfilePhotoCropGeometry(prepared.width, prepared.height, viewportPx)
-                                        val zoomed = constrained.copy(zoom = constrained.zoom * gestureZoom).constrained()
-                                        val scale = geometry.displayScale(zoomed)
-                                        onTransformChanged(geometry.panBy(zoomed, -pan.x / scale, -pan.y / scale))
+                                .pointerInput(prepared.identifier) {
+                                    awaitEachGesture {
+                                        awaitFirstDown(requireUnconsumed = false)
+                                        var gestureTransform = latestTransform
+                                        do {
+                                            val event = awaitPointerEvent()
+                                            val pan = event.calculatePan()
+                                            val gestureZoom = event.calculateZoom()
+                                            val previousCentroid = event.calculateCentroid(useCurrent = false)
+                                            val currentCentroid = event.calculateCentroid(useCurrent = true)
+                                            if (!previousCentroid.isFinite() || !currentCentroid.isFinite()) {
+                                                continue
+                                            }
+                                            val geometry = ProfilePhotoCropGeometry(
+                                                prepared.width,
+                                                prepared.height,
+                                                minOf(size.width, size.height).toFloat(),
+                                            )
+                                            gestureTransform = geometry.transformBy(
+                                                transform = gestureTransform,
+                                                centroidX = previousCentroid.x,
+                                                centroidY = previousCentroid.y,
+                                                displayPanX = pan.x,
+                                                displayPanY = pan.y,
+                                                zoomChange = gestureZoom,
+                                            )
+                                            latestOnTransformChanged(gestureTransform)
+                                            if (pan != Offset.Zero || gestureZoom != 1f) {
+                                                event.changes.forEach { it.consume() }
+                                            }
+                                        } while (event.changes.any { it.pressed })
                                     }
                                 }.semantics {
                                     contentDescription = "Область кадрирования. Перетаскивайте фото двумя пальцами или одним пальцем"
@@ -434,3 +466,5 @@ internal fun ProfilePhotoCropEditor(
         }
     }
 }
+
+private fun Offset.isFinite(): Boolean = x.isFinite() && y.isFinite()

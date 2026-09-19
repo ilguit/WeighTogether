@@ -66,6 +66,38 @@ class ProfilePhotoCropGeometryTest {
     }
 
     @Test
+    fun `displayed image follows finger one to one until crop reaches edge`() {
+        val geometry = ProfilePhotoCropGeometry(400, 200, 200f)
+        val start = ProfilePhotoCropTransform(zoom = 2f)
+
+        val moved = geometry.transformBy(start, 100f, 100f, 60f, 0f, 1f)
+        val startCrop = geometry.sourceCropRect(start)
+        val movedCrop = geometry.sourceCropRect(moved)
+        val displayedImageMovement = (startCrop.left - movedCrop.left) * geometry.displayScale(moved)
+
+        assertEquals(60f, displayedImageMovement, EPSILON)
+        val clamped = geometry.transformBy(moved, 100f, 100f, 10_000f, 0f, 1f)
+        assertEquals(0f, geometry.sourceCropRect(clamped).left, EPSILON)
+    }
+
+    @Test
+    fun `off center zoom keeps source point below gesture centroid`() {
+        val geometry = ProfilePhotoCropGeometry(400, 300, 200f)
+        val start = ProfilePhotoCropTransform(zoom = 1.5f, panX = 0.1f, panY = -0.1f)
+        val centroidX = 150f
+        val centroidY = 60f
+        val startCrop = geometry.sourceCropRect(start)
+        val sourceX = startCrop.left + centroidX / geometry.displayScale(start)
+        val sourceY = startCrop.top + centroidY / geometry.displayScale(start)
+
+        val zoomed = geometry.transformBy(start, centroidX, centroidY, 0f, 0f, 1.4f)
+        val zoomedCrop = geometry.sourceCropRect(zoomed)
+
+        assertEquals(centroidX, (sourceX - zoomedCrop.left) * geometry.displayScale(zoomed), EPSILON)
+        assertEquals(centroidY, (sourceY - zoomedCrop.top) * geometry.displayScale(zoomed), EPSILON)
+    }
+
+    @Test
     fun `integer bounds stay square and inside source after fractional pan`() {
         val geometry = ProfilePhotoCropGeometry(101, 67, 299f)
 
