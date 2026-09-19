@@ -22,6 +22,7 @@ enum class BreedReferenceStatisticKind {
     IDEAL_RANGE,
     STANDARD_POINT,
     MINIMUM,
+    MAXIMUM,
     DOCUMENTED_GAP,
 }
 enum class BreedReferenceMeasure { WEIGHT, HEIGHT }
@@ -175,6 +176,7 @@ class BreedReferenceSnapshot private constructor(
                         BreedReferenceStatisticKind.MEAN_SD -> require(value.center != null && value.spread != null)
                         BreedReferenceStatisticKind.IDEAL, BreedReferenceStatisticKind.STANDARD_POINT -> require(value.center != null)
                         BreedReferenceStatisticKind.MINIMUM -> require(value.lower != null && value.center == null && value.upper == null)
+                        BreedReferenceStatisticKind.MAXIMUM -> require(value.lower == null && value.center == null && value.upper != null && value.spread == null)
                         BreedReferenceStatisticKind.DOCUMENTED_GAP -> Unit
                     }
                 }

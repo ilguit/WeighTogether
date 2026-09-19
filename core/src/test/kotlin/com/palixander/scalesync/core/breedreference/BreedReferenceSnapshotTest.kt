@@ -14,6 +14,36 @@ import kotlin.test.assertTrue
 
 class BreedReferenceSnapshotTest {
     @Test
+    fun `maximum accepts only one published upper boundary`() {
+        val valid = bundledJson()
+        val value = valid.getAsJsonArray("breeds")[0].asJsonObject
+            .getAsJsonArray("values")[0].asJsonObject
+        value.addProperty("statistic", "maximum")
+        value.remove("lower")
+        refreshChecksum(valid)
+
+        val snapshot = assertIs<BreedReferenceSnapshotLoadResult.Available>(load(valid)).snapshot
+        val maximum = snapshot.breeds[0].values[0]
+        assertEquals(BreedReferenceStatisticKind.MAXIMUM, maximum.statistic)
+        assertEquals(null, maximum.lower)
+        assertEquals(12.0, maximum.upper)
+        assertEquals(null, maximum.center)
+
+        listOf("lower", "center", "spread").forEach { extraField ->
+            val invalid = valid.deepCopy()
+            invalid.getAsJsonArray("breeds")[0].asJsonObject
+                .getAsJsonArray("values")[0].asJsonObject.addProperty(extraField, 1.0)
+            refreshChecksum(invalid)
+            assertIs<BreedReferenceSnapshotLoadResult.Unavailable>(load(invalid))
+        }
+        val missingUpper = valid.deepCopy()
+        missingUpper.getAsJsonArray("breeds")[0].asJsonObject
+            .getAsJsonArray("values")[0].asJsonObject.remove("upper")
+        refreshChecksum(missingUpper)
+        assertIs<BreedReferenceSnapshotLoadResult.Unavailable>(load(missingUpper))
+    }
+
+    @Test
     fun `bundled snapshot contains all thirty researched breeds and Russian Black Terrier alias`() {
         val snapshot = BreedReferenceSnapshot.bundled()
 

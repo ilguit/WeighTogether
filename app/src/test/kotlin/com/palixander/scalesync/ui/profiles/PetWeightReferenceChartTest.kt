@@ -6,6 +6,7 @@ import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
+import com.palixander.scalesync.domain.reference.BreedWeightValue
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -15,6 +16,31 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `maximum is one upper boundary without synthetic lower or center`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val timeline = listOf(
+            timelinePoint(
+                date,
+                PetHistoryBreedChartValue.Boundary(
+                    valueKg = 5.0,
+                    direction = BreedWeightValue.Boundary.Direction.UPPER,
+                    statisticLabel = "Максимальный вес",
+                    accessibilityLabel = "Максимальный вес: 5 кг",
+                    seriesId = "maximum",
+                ),
+            ),
+        )
+
+        val series = breedWeightReferenceChartSeries(timeline)
+        assertEquals(listOf(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY), series.map { it.kind })
+        assertEquals(listOf(5.0), series.single().points.map { it.second })
+        val displayed = petWeightDisplayedSeries(emptyList(), available(emptyList()), timeline, ZoneOffset.UTC)
+        assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_UPPER), displayed.map { it.kind })
+        assertEquals("Максимальный вес", displayed.single().label)
+        assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_LOWER })
+        assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER })
+    }
+
     @Test fun `mixed birth observation and breed model render glyph and model band together`() {
         val birth = LocalDate.of(2026, 7, 1)
         val exact = PetHistoryReferenceSegment(

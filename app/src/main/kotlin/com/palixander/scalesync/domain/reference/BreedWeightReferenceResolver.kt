@@ -38,6 +38,16 @@ sealed interface BreedWeightValue {
         val spread: Double? = null,
         override val referenceId: String? = null,
     ) : BreedWeightValue
+
+    data class Boundary(
+        override val statistic: BreedReferenceStatisticKind,
+        override val unit: String,
+        val value: Double,
+        val direction: Direction,
+        override val referenceId: String? = null,
+    ) : BreedWeightValue {
+        enum class Direction { LOWER, UPPER }
+    }
 }
 
 sealed interface BreedWeightAgeScope {
@@ -390,6 +400,13 @@ class BreedWeightReferenceResolver(
             value.statistic,
             value.unit,
             value.lower!!,
+            referenceId = "${value.sourceId.orEmpty()}:${value.id}",
+        )
+        BreedReferenceStatisticKind.MAXIMUM -> BreedWeightValue.Boundary(
+            value.statistic,
+            value.unit,
+            value.upper!!,
+            BreedWeightValue.Boundary.Direction.UPPER,
             referenceId = "${value.sourceId.orEmpty()}:${value.id}",
         )
         BreedReferenceStatisticKind.MEAN_SD -> BreedWeightValue.Single(

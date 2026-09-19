@@ -45,6 +45,7 @@ import com.palixander.scalesync.charts.rememberChartLine
 import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
+import com.palixander.scalesync.domain.reference.BreedWeightValue
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -384,12 +385,12 @@ internal fun petWeightDisplayedSeries(
             val (kind, label, style) = when (series.kind) {
                 BreedWeightReferenceSeriesKind.LOWER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_LOWER,
-                    "Нижняя граница",
+                    series.statisticLabel ?: "Нижняя граница",
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.UPPER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_UPPER,
-                    "Верхняя граница",
+                    series.statisticLabel ?: "Верхняя граница",
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.CENTER -> Triple(
@@ -481,6 +482,10 @@ internal fun breedWeightReferenceChartSeries(
     val seriesIds = timeline.flatMap { point -> point.values.orEmpty().map(PetHistoryBreedChartValue::seriesId) }.distinct()
     return buildList {
         seriesIds.forEach { seriesId ->
+            val statisticLabel = timeline.asSequence()
+                .flatMap { it.values.orEmpty().asSequence() }
+                .firstOrNull { it.seriesId == seriesId }
+                ?.statisticLabel
             fun points(selector: (PetHistoryBreedChartValue) -> Double?): List<Pair<List<Pair<LocalDate, Double>>, List<Long>>> {
                 val segments = mutableListOf<MutableList<Pair<LocalDate, Double>>>()
                 val timestamps = mutableListOf<MutableList<Long>>()
@@ -508,15 +513,22 @@ internal fun breedWeightReferenceChartSeries(
             points { (it as? PetHistoryBreedChartValue.Interval)?.upperKg }
                 .forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, values, xEpochMillis = x)) }
             points {
+                (it as? PetHistoryBreedChartValue.Boundary)
+                    ?.takeIf { boundary -> boundary.direction == BreedWeightValue.Boundary.Direction.LOWER }
+                    ?.valueKg
+            }.forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, values, xEpochMillis = x, statisticLabel = statisticLabel)) }
+            points {
+                (it as? PetHistoryBreedChartValue.Boundary)
+                    ?.takeIf { boundary -> boundary.direction == BreedWeightValue.Boundary.Direction.UPPER }
+                    ?.valueKg
+            }.forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, values, xEpochMillis = x, statisticLabel = statisticLabel)) }
+            points {
                 when (it) {
                     is PetHistoryBreedChartValue.Interval -> it.centerKg
                     is PetHistoryBreedChartValue.Single -> it.valueKg
+                    is PetHistoryBreedChartValue.Boundary -> null
                 }
             }.forEach { (values, x) ->
-                val statisticLabel = timeline.asSequence()
-                    .flatMap { it.values.orEmpty().asSequence() }
-                    .firstOrNull { it.seriesId == seriesId }
-                    ?.statisticLabel
                 add(
                     BreedWeightReferenceChartSeries(
                         BreedWeightReferenceSeriesKind.CENTER,
@@ -587,6 +599,7 @@ internal fun petWeightChartRange(
                         add(value.upperKg)
                     }
                     is PetHistoryBreedChartValue.Single -> add(value.valueKg)
+                    is PetHistoryBreedChartValue.Boundary -> add(value.valueKg)
                 }
             }
         }
@@ -599,6 +612,7 @@ internal fun petWeightChartRange(
                         value.centerKg?.let(::add)
                     }
                     is PetHistoryBreedChartValue.Single -> add(value.valueKg)
+                    is PetHistoryBreedChartValue.Boundary -> add(value.valueKg)
                 }
             }
         }
