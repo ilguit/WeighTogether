@@ -89,6 +89,7 @@ import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
 import com.palixander.scalesync.ui.profiles.profileFallbackMessage
 import com.palixander.scalesync.ui.profiles.ProfileSelector
 import com.palixander.scalesync.ui.profiles.buildProfilePresentations
+import com.palixander.scalesync.ui.profiles.humanAccountIdForMeasurements
 import com.palixander.scalesync.ui.profiles.reconcileProfileNavigation
 import com.palixander.scalesync.ui.profiles.reconcileProfileSelection
 import kotlinx.coroutines.flow.Flow
@@ -252,11 +253,15 @@ fun ScaleSyncApp(
     }
     LaunchedEffect(profileSelection?.selectedKey, profileSelection?.fallback) {
         profileSelection?.let {
-            profileNavigation = reconcileProfileNavigation(
+            val reconciledNavigation = reconcileProfileNavigation(
                 state = profileNavigation,
                 selection = it,
                 profilesLoaded = state.profilesLoaded,
             )
+            profileNavigation = reconciledNavigation
+            reconciledNavigation.humanAccountIdForMeasurements()?.let { accountId ->
+                measurementsViewModel.callbacks.onAccountSelected(accountId)
+            }
         }
     }
     LaunchedEffect(measurementsViewModel) {
