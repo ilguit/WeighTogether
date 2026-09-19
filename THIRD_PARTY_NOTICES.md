@@ -74,6 +74,21 @@ The snapshot records explicit 0–24 month growth-data gaps for every added
 breed. Generic dog-size curves are not relabelled as breed observations and no
 values are digitised, interpolated or inferred from height.
 
+## German Shepherd Dog adult weight reference
+
+ScaleSync includes the sex-specific adult weight ranges from Fédération
+Cynologique Internationale Standard No. 166 for the German Shepherd Dog:
+30–40 kg for males and 22–32 kg for females. These are official conformation
+standard ranges, not clinical healthy-weight percentiles or observational
+population intervals. The source link, page reference, applicability and
+limitations are embedded in `breed_references.json`. The FCI standard remains
+copyright of its country of origin and the FCI.
+
+The popularity metadata retains the exact double-coat row from the two Eurasia
+2024 all-breed show tables (32 plus 31 registrations, rank 61). The separately
+listed long-and-harsh-outer-coat row has 25 plus 28 registrations and rank 70;
+the two varieties are not silently combined into a synthetic event rank.
+
 ## Liverpool canine growth-standard supporting data
 
 Salt C, Morris PJ, German AJ, Wilson D, Lund EM, Cole TJ, and Butterwick RF

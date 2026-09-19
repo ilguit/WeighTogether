@@ -3,7 +3,7 @@
     "schemaVersion": 1,
     "snapshotVersion": "2026.09.19.6",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "ec0c197b6d010380247ee91d172868b3edb5524d004c64dd360546758d34bb94",
+    "numericalDataSha256": "e8aac3ba3dc231adf9e6a852e559746f7dc7e74b44b4d005fe268855d0c32437",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -117,6 +117,15 @@
         "kind": "international_standard",
         "method": "Direct transcription of sex-specific standard weight points",
         "pageOrTable": "p.5"
+      },
+      {
+        "id": "fci166",
+        "title": "FCI Standard No. 166 German Shepherd Dog",
+        "url": "https://www.fci.be/Nomenclature/Standards/166g01-en.pdf",
+        "year": 2010,
+        "kind": "international_standard",
+        "method": "Direct transcription of sex-specific official weight ranges; conformation standard, not a clinical healthy-weight reference",
+        "pageOrTable": "p.8"
       },
       {
         "id": "fci161",
@@ -4328,6 +4337,60 @@
           "ageMaximumDays": 730,
           "sourceId": "salt",
           "gap": "No peer-reviewed or open quantitative longitudinal Rottweiler weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200577",
+      "russianName": "Немецкая овчарка",
+      "englishName": "German Shepherd Dog",
+      "popularityRank": 61,
+      "registrations": 63,
+      "values": [
+        {
+          "id": "gsd-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 30,
+          "upper": 40,
+          "sourceId": "fci166",
+          "limitations": [
+            "Official conformation standard range, not an observed population or clinical healthy-weight interval",
+            "The Eurasia popularity metadata maps the catalog breed to the separately listed double-coat variety; the long-and-harsh-outer-coat row is not included in the registration count"
+          ]
+        },
+        {
+          "id": "gsd-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 22,
+          "upper": 32,
+          "sourceId": "fci166",
+          "limitations": [
+            "Official conformation standard range, not an observed population or clinical healthy-weight interval",
+            "The Eurasia popularity metadata maps the catalog breed to the separately listed double-coat variety; the long-and-harsh-outer-coat row is not included in the registration count"
+          ]
+        },
+        {
+          "id": "gsd-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal German Shepherd Dog weight-by-age table covering 0–24 months was accepted for this snapshot; generic size-category curves were not substituted, digitised or interpolated."
         }
       ]
     }
