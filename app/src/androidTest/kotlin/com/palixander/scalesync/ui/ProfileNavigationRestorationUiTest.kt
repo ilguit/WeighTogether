@@ -18,6 +18,8 @@ import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetWithLatestWeight
+import com.palixander.scalesync.ProfileMeasurementSelectionEffect
+import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.profiles.ProfileKey
 import com.palixander.scalesync.ui.profiles.ProfileNavigationState
 import com.palixander.scalesync.ui.profiles.ProfileSelector
@@ -99,6 +101,46 @@ class ProfileNavigationRestorationUiTest {
         composeRule.runOnIdle { pets.value = emptyList() }
         composeRule.onNodeWithTag(ProfileSelectorTestTags.human(primary.id.value)).assertIsSelected()
         composeRule.runOnIdle { assertEquals(ProfileKey.Human(primary.id), navigation.selectedKey) }
+    }
+
+    @Test
+    fun restoredHumanSynchronizesAfterMeasurementAccountsBecomeReady() {
+        val human = account("restored-human")
+        val measurementSelector = mutableStateOf(AccountSelectorUiState(emptyList(), null, human.id))
+        var selectionAttempts = 0
+
+        composeRule.setContent {
+            var navigation by rememberSaveable(stateSaver = ProfileNavigationState.Saver) {
+                mutableStateOf(ProfileNavigationState().select(ProfileKey.Human(human.id)))
+            }
+            val selection = reconcileProfileSelection(
+                profiles = buildProfilePresentations(listOf(human), emptyList()),
+                requestedKey = navigation.selectedKey,
+                primaryAccountId = human.id,
+            )
+            ProfileMeasurementSelectionEffect(
+                navigation = navigation,
+                selection = selection,
+                profilesLoaded = true,
+                accountSelector = measurementSelector.value,
+                onNavigationChanged = { navigation = it },
+                onAccountSelected = { accountId ->
+                    selectionAttempts += 1
+                    measurementSelector.value = measurementSelector.value.copy(selectedAccountId = accountId)
+                },
+            )
+        }
+
+        composeRule.runOnIdle {
+            assertEquals(0, selectionAttempts)
+            measurementSelector.value = measurementSelector.value.copy(accounts = listOf(human))
+        }
+        composeRule.runOnIdle {
+            assertEquals(human.id, measurementSelector.value.selectedAccountId)
+            assertEquals(1, selectionAttempts)
+        }
+        composeRule.waitForIdle()
+        assertEquals(1, selectionAttempts)
     }
 
     private fun account(id: String) = Account(
