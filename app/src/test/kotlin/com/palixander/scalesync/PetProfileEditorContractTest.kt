@@ -294,7 +294,7 @@ class PetProfileEditorContractTest {
     fun `catalog keeps the supported dog set independent from cat options`() {
         val dogOptions = breedCatalog.search("", PetSpecies.DOG)
 
-        assertEquals(30, dogOptions.size)
+        assertEquals(50, dogOptions.size)
         assertTrue(dogOptions.all { it.species == PetSpecies.DOG })
         assertTrue(breedCatalog.search("", PetSpecies.CAT).all { it.species == PetSpecies.CAT })
     }
