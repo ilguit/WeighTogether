@@ -1,0 +1,21 @@
+rank,registration_count,catalog_id,canonical_name,variety_scope,package,mapping_file,registration_file,adult_file,age_file,gaps_file,sources_file,adult_source_priority,age_coverage
+11,142,VBO:0200985,Papillon,Papillon variety,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
+12,133,VBO:0200290,Cardigan Welsh Corgi,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,primary_official_non_numeric,gap
+13,133,VBO:0200610,Golden Retriever,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,secondary_fallback,partial
+14,132,VBO:0200095,Australian Shepherd,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,secondary_fallback,gap
+15,126,VBO:0200470,East European Shepherd,breed,packages/11-15,breeds.csv,breeds.csv,adult-reference.csv,age-observations.csv,gaps.csv,sources.csv,primary_official_non_numeric,partial
+16,120,VBO:0200120,Basenji,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
+17,117,VBO:0200599,"German Spitz, Pomeranian",Pomeranian variety,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official_non_numeric,partial
+18,111,VBO:0201135,Rhodesian Ridgeback,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,partial
+19,103,VBO:0200321,Central Asian Shepherd Dog,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
+20,102,VBO:0200893,Miniature Pinscher,breed,packages/16-20,adult-standards.csv,adult-standards.csv,adult-standards.csv,age-observations.csv,gaps.csv,sources.csv,primary_official,gap
+21,100,VBO:0200724,Jack Russell Terrier,breed,packages/21-25,breeds.csv,registrations_by_day.csv,breeds.csv,,growth_gaps.csv,sources.csv,primary_official,gap
+22,99,VBO:0200898,"Miniature Schnauzer, Pepper And Salt",pepper-and-salt variety,packages/21-25,breeds.csv,registrations_by_day.csv,breeds.csv,,growth_gaps.csv,sources.csv,primary_official,gap
+23,95,VBO:0200420,"Dachshund, Standard Smooth-Haired",standard smooth-haired variety,packages/21-25,breeds.csv,registrations_by_day.csv,breeds.csv,,growth_gaps.csv,sources.csv,secondary_fallback,gap
+24,94,VBO:0200193,Border Collie,breed,packages/21-25,breeds.csv,registrations_by_day.csv,breeds.csv,,growth_gaps.csv,sources.csv,secondary_fallback,gap
+25,92,VBO:0201089,Pug,breed,packages/21-25,breeds.csv,registrations_by_day.csv,breeds.csv,,growth_gaps.csv,sources.csv,primary_official,gap
+26,92,local:samoyed,Samoyed,breed,packages/26-30,breeds.csv,registrations.csv,adult_weight.csv,age_weight.csv,gaps.csv,sources.csv,secondary_fallback,gap
+27,91,local:miniature_schnauzer_black,Miniature Schnauzer — pure black,pure black variety,packages/26-30,breeds.csv,registrations.csv,adult_weight.csv,age_weight.csv,gaps.csv,sources.csv,primary_official,gap
+28,89,local:akita,Akita,FCI Japanese Akita,packages/26-30,breeds.csv,registrations.csv,adult_weight.csv,age_weight.csv,gaps.csv,sources.csv,secondary_fallback_ambiguous,gap
+29,88,local:miniature_schnauzer_black_silver,Miniature Schnauzer — black and silver,black-and-silver variety,packages/26-30,breeds.csv,registrations.csv,adult_weight.csv,age_weight.csv,gaps.csv,sources.csv,primary_official,gap
+30,85,local:miniature_american_shepherd,Miniature American Shepherd,breed,packages/26-30,breeds.csv,registrations.csv,adult_weight.csv,age_weight.csv,gaps.csv,sources.csv,primary_official_non_numeric,gap
