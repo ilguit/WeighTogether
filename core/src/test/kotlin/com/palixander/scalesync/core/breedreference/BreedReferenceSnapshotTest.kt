@@ -44,16 +44,44 @@ class BreedReferenceSnapshotTest {
     }
 
     @Test
-    fun `bundled snapshot contains all fifty researched breeds and Russian Black Terrier alias`() {
+    fun `bundled snapshot contains researched top fifty plus German Shepherd and Russian Black Terrier alias`() {
         val snapshot = BreedReferenceSnapshot.bundled()
 
         assertEquals(1, snapshot.manifest.schemaVersion)
-        assertEquals(50, snapshot.breeds.size)
-        assertEquals((1..50).toList(), snapshot.breeds.map { it.popularityRank }.sorted())
+        assertEquals(51, snapshot.breeds.size)
+        assertEquals((1..50).toList() + 61, snapshot.breeds.map { it.popularityRank }.sorted())
         assertSame(snapshot.breed("VBO:0200174"), snapshot.breed("VBO:0201146"))
         snapshot.breeds.filter { it.popularityRank <= 10 }.forEach { breed ->
             assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.WEIGHT })
         }
+    }
+
+    @Test
+    fun `German Shepherd preserves event row and official adult weight semantics`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        val germanShepherd = assertNotNull(snapshot.breed("VBO:0200577"))
+
+        assertEquals(61, germanShepherd.popularityRank)
+        assertEquals(63, germanShepherd.registrations)
+        assertEquals("Немецкая овчарка", germanShepherd.russianName)
+        assertEquals(
+            setOf(BreedReferenceSex.MALE, BreedReferenceSex.FEMALE),
+            germanShepherd.values.filter { it.adult }.map { it.sex }.toSet(),
+        )
+        assertTrue(germanShepherd.values.any {
+            it.id == "gsd-male" && it.statistic == BreedReferenceStatisticKind.RANGE &&
+                it.lower == 30.0 && it.upper == 40.0 && it.sourceId == "fci166"
+        })
+        assertTrue(germanShepherd.values.any {
+            it.id == "gsd-female" && it.statistic == BreedReferenceStatisticKind.RANGE &&
+                it.lower == 22.0 && it.upper == 32.0 && it.sourceId == "fci166"
+        })
+        assertTrue(germanShepherd.values.any {
+            it.id == "gsd-growth-gap" && !it.adult &&
+                it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP &&
+                it.ageMinimumDays == 0 && it.ageMaximumDays == 730
+        })
+        assertEquals("p.8", snapshot.manifest.sources.single { it.id == "fci166" }.pageOrTable)
     }
 
     @Test
