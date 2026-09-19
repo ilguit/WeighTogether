@@ -88,6 +88,34 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
+    fun `juvenile without age data exposes typed unavailable presentation instead of adult range`() {
+        val result = presenter().present(
+            dog().copy(
+                breedId = BreedId("VBO:0201220"),
+                birthDate = PartialBirthDate.Day(today.minusDays(200)),
+            ),
+        ) as PetHistoryBreedReference.Unavailable
+
+        assertEquals(BreedWeightReferenceUnavailableReason.NoApplicableValue, result.reason)
+        assertEquals("Для выбранной породы нет применимого ориентира веса.", result.message)
+        assertFalse(result.showEditAction)
+    }
+
+    @Test
+    fun `juvenile in documented gap exposes gap-specific presentation`() {
+        val result = presenter().present(
+            dog().copy(
+                breedId = BreedId("VBO:0200712"),
+                birthDate = PartialBirthDate.Day(today.minusDays(100)),
+            ),
+        ) as PetHistoryBreedReference.Unavailable
+
+        assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+        assertFalse(result.showEditAction)
+    }
+
+    @Test
     fun `cat presentation is hidden`() {
         assertEquals(PetHistoryBreedReference.Hidden, presenter().present(dog().copy(species = PetSpecies.CAT)))
     }
