@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.3",
+    "snapshotVersion": "2026.09.19.4",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "e06ce891592310784f62558667ef8abe18932b5ab590cb7f48e68ed63c3417f4",
+    "numericalDataSha256": "14a13b16cc7fc742276e264fe02c28a0c7af90f74234b040d3789f0707fa8416",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -411,6 +411,14 @@
         "url": "https://en.wikipedia.org/wiki/Dachshund",
         "kind": "professional_reference",
         "method": "Standard-size 16–32 lb range converted to kilograms; not coat-specific"
+      },
+      {
+        "id": "wiki-dachshund-miniature",
+        "title": "Wikipedia: Dachshund",
+        "url": "https://en.wikipedia.org/wiki/Dachshund",
+        "kind": "professional_reference",
+        "method": "Miniature-size infobox maximum of 5.0 kg transcribed directly; not coat-specific",
+        "pageOrTable": "Infobox"
       },
       {
         "id": "wiki-golden",
@@ -3983,7 +3991,7 @@
           "statistic": "maximum",
           "unit": "kg",
           "upper": 5,
-          "sourceId": "wiki-dachshund",
+          "sourceId": "wiki-dachshund-miniature",
           "limitations": [
             "Miniature-size infobox maximum; not coat-specific",
             "Article prose also publishes under 5.5 kg, which conflicts with the 5.0 kg infobox value; only the infobox maximum is active",

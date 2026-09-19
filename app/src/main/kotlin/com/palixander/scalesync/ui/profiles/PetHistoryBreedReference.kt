@@ -192,7 +192,10 @@ class PetHistoryBreedReferencePresenter(
             accessibilityLabel = buildString {
                 append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
                 append(values.joinToString(". "))
-                append(". Тип источника: $kind. Не является медицинской нормой.")
+                append(". Тип источника: $kind.")
+                sourcePresentation.method?.let { append(" Метод источника: $it.") }
+                sourcePresentation.limitations.forEach { append(" Ограничение: $it.") }
+                append(" Не является медицинской нормой.")
                 companions.forEach { companion ->
                     append(" Дополнительный ориентир ${companion.ageLabel}: ")
                     append(companion.valueLabels.joinToString(". "))

@@ -100,7 +100,12 @@ class BreedReferenceSnapshotTest {
         val dachshund = snapshot.breed("VBO:0200410")!!.values.single { it.id == "dms-adult" }
         assertEquals(5.0, dachshund.upper)
         assertEquals(null, dachshund.lower)
+        assertEquals("wiki-dachshund-miniature", dachshund.sourceId)
         assertTrue(dachshund.limitations.any { it.contains("5.5 kg") })
+        val miniatureSource = snapshot.manifest.sources.single { it.id == dachshund.sourceId }
+        assertEquals("Infobox", miniatureSource.pageOrTable)
+        assertTrue(miniatureSource.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
+        assertTrue(!miniatureSource.method.contains("16–32 lb"))
         assertTrue(snapshot.breed("VBO:0200027")!!.values.none { it.lower != null || it.center != null || it.upper != null })
         assertTrue(snapshot.breed("VBO:0201217")!!.values.all { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP })
         assertTrue(snapshot.breed("VBO:0200375")!!.values.any {

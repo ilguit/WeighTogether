@@ -271,7 +271,7 @@ def validate_runtime_snapshot_31_50():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     manifest = snapshot["manifest"]
     breeds = snapshot["breeds"]
-    assert manifest["snapshotVersion"] == "2026.09.19.3"
+    assert manifest["snapshotVersion"] == "2026.09.19.4"
     assert manifest["snapshotDate"] == "2026-09-19"
     assert len(breeds) == 50
     assert [row["popularityRank"] for row in breeds] == list(range(1, 51))
@@ -296,6 +296,11 @@ def validate_runtime_snapshot_31_50():
     assert dachshund["statistic"] == "maximum" and dachshund["upper"] == 5
     assert "lower" not in dachshund and "center" not in dachshund
     assert any("5.5 kg" in item for item in dachshund["limitations"])
+    assert dachshund["sourceId"] == "wiki-dachshund-miniature"
+    miniature_source = sources[dachshund["sourceId"]]
+    assert miniature_source["pageOrTable"] == "Infobox"
+    assert "Miniature-size infobox maximum of 5.0 kg" in miniature_source["method"]
+    assert "16–32 lb" not in miniature_source["method"]
 
     american_akita = by_id["VBO:0200027"]["values"]
     sheltie = by_id["VBO:0201217"]["values"]

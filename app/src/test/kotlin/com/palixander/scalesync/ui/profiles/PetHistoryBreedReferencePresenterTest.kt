@@ -326,7 +326,13 @@ class PetHistoryBreedReferencePresenterTest {
         assertEquals("Максимальный вес", maximumValue.statisticLabel)
         assertTrue(maximumValue.accessibilityLabel.contains("Максимальный вес"))
         assertTrue(maximumValue.accessibilityLabel.contains("5 кг"))
+        assertEquals("Infobox", maximum.source.pageOrTable)
+        assertTrue(maximum.source.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
+        assertTrue(!maximum.source.method.contains("16–32 lb"))
         assertTrue(maximum.source.limitations.any { it.contains("5.5 kg") })
+        assertTrue(maximum.accessibilityLabel.contains("Miniature-size infobox maximum of 5.0 kg"))
+        assertTrue(maximum.accessibilityLabel.contains("5.5 kg"))
+        assertTrue(!maximum.accessibilityLabel.contains("16–32 lb"))
         assertTrue(maximum.companionReferences.isEmpty())
 
         val range = presenter().present(

@@ -334,6 +334,10 @@ class BreedWeightReferenceResolverTest {
         val maximum = dachshund.values.single() as BreedWeightValue.Boundary
         assertEquals(5.0, maximum.value, 0.0)
         assertEquals(BreedWeightValue.Boundary.Direction.UPPER, maximum.direction)
+        assertEquals("wiki-dachshund-miniature", dachshund.source.id)
+        assertEquals("Infobox", dachshund.source.pageOrTable)
+        assertTrue(dachshund.source.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
+        assertTrue(!dachshund.source.method.contains("16–32 lb"))
         assertTrue(dachshund.limitations.any { it.contains("5.5 kg") })
     }
 
