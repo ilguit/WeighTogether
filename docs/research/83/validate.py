@@ -2,6 +2,7 @@
 """Validate the unified issue-83 manifest and heterogeneous evidence packages."""
 
 import csv
+import json
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -10,6 +11,13 @@ EXPECTED_COUNTS = [142, 133, 133, 132, 126, 120, 117, 111, 103, 102,
 PRIORITIES = {
     "primary_official", "primary_official_non_numeric", "secondary_fallback",
     "secondary_fallback_ambiguous",
+}
+EXPECTED_CATALOG_IDS = {
+    26: "VBO:0201174",
+    27: "VBO:0200899",
+    28: "VBO:0200734",
+    29: "VBO:0200897",
+    30: "VBO:0200880",
 }
 
 
@@ -129,23 +137,33 @@ def validate_26_30():
     sources = {row["source_id"] for row in read_csv(root / "sources.csv")}
     assert [int(row["rank"]) for row in breeds] == list(range(26, 31))
     assert len(ids) == 5
+    assert {int(row["rank"]): row["breed_id"] for row in breeds} == EXPECTED_CATALOG_IDS
+    assert all(row["mapping_source_id"] in sources for row in breeds)
+    catalog_path = ROOT.parents[2] / "core/src/main/resources/breed_catalog.json"
+    catalog = json.loads(catalog_path.read_text(encoding="utf-8"))
+    catalog_ids = {row["id"] for row in catalog["breeds"]}
+    assert ids <= catalog_ids
     registrations = read_csv(root / "registrations.csv")
     assert [int(row["registrations_total"]) for row in registrations] == EXPECTED_COUNTS[15:]
     for row in registrations:
         assert row["breed_id"] in ids
+        assert row["breed_id"] == EXPECTED_CATALOG_IDS[int(row["rank"])]
         assert int(row["day1_total"]) + int(row["day2_total"]) == int(row["registrations_total"])
         assert row["day1_source_id"] in sources and row["day2_source_id"] in sources
     adult = read_csv(root / "adult_weight.csv")
     assert {row["breed_id"] for row in adult} == ids
     for row in adult:
         assert row["source_id"] in sources and row["limitation"]
+        assert row["breed_id"] == EXPECTED_CATALOG_IDS[int(row["rank"])]
         if row["min_kg"] or row["max_kg"]:
             assert row["min_kg"] and row["max_kg"]
             assert number(row["min_kg"], "adult min") <= number(row["max_kg"], "adult max")
     assert not read_csv(root / "age_weight.csv")
     gaps = read_csv(root / "gaps.csv")
     assert {row["breed_id"] for row in gaps if row["field"] == "age_weight_0_24_months"} == ids
+    assert all(row["breed_id"] == EXPECTED_CATALOG_IDS[int(row["rank"])] for row in gaps)
     assert all(row["reason"] and row["relevant_source_ids"] for row in gaps)
+    assert all(source in sources for row in gaps for source in row["relevant_source_ids"].split(";"))
 
 
 def validate_distinctions(manifest):
@@ -157,6 +175,7 @@ def validate_distinctions(manifest):
     assert "Japanese" in by_rank[28]["variety_scope"]
     assert by_rank[28]["adult_source_priority"] == "secondary_fallback_ambiguous"
     assert by_rank[30]["adult_source_priority"] == "primary_official_non_numeric"
+    assert {rank: by_rank[rank]["catalog_id"] for rank in range(26, 31)} == EXPECTED_CATALOG_IDS
 
 
 def validate():

@@ -1,6 +1,6 @@
-rank,breed_id,display_name,source_listing_name,variety,fci_standard
-26,samoyed,Samoyed,SAMOYED,,212
-27,miniature_schnauzer_black,Miniature Schnauzer — pure black,MINIATURE SCHNAUZER BLACK,pure black with black undercoat,183
-28,akita,Akita,AKITA,FCI Japanese Akita (not American Akita),255
-29,miniature_schnauzer_black_silver,Miniature Schnauzer — black and silver,MINIATURE SCHNAUZER BLACK & SILVER,black and silver,183
-30,miniature_american_shepherd,Miniature American Shepherd,MINIATURE AMERICAN SHEPHERD,,367
+rank,breed_id,display_name,source_listing_name,variety,fci_standard,mapping_source_id
+26,VBO:0201174,Samoyed,SAMOYED,,212,vbo_2026_04_15
+27,VBO:0200899,"Miniature Schnauzer, Pure Black With Black Undercoat",MINIATURE SCHNAUZER BLACK,pure black with black undercoat,183,vbo_2026_04_15
+28,VBO:0200734,Japanese Akitainu,AKITA,FCI Japanese Akita (not American Akita),255,vbo_2026_04_15
+29,VBO:0200897,"Miniature Schnauzer, Black And Silver",MINIATURE SCHNAUZER BLACK & SILVER,black and silver,183,vbo_2026_04_15
+30,VBO:0200880,Miniature American Shepherd,MINIATURE AMERICAN SHEPHERD,,367,vbo_2026_04_15

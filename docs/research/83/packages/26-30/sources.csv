@@ -1,4 +1,5 @@
 source_id,tier,title,url,used_for,accessed_utc,notes
+vbo_2026_04_15,ontology,Veterinary Breed Ontology release 2026-04-15,https://github.com/monarch-initiative/vertebrate-breed-ontology/releases/tag/v2026-04-15,exact catalog identity mapping,2026-09-19,Vendored immutable ontology release used by the project breed catalog
 rkf_eurasia_2024_index,primary_official,RKF Eurasia 2024 statistics index,https://rkfshow.ru/statistics/statistics_EUR24.htm,event definition,2026-09-19,Official index links both dated tables
 rkf_eurasia_2024_day1,primary_official,Eurasia RKF President's Cup 2024 — 16 November registration table,https://rkfshow.ru/statistics/statistic_97.htm,day 1 registration totals,2026-09-19,Totals transcribed from each named breed or colour-variety block
 rkf_eurasia_2024_day2,primary_official,Eurasia CIS Cup 2024 — 17 November registration table,https://rkfshow.ru/statistics/statistic_98.htm,day 2 registration totals,2026-09-19,Totals transcribed from each named breed or colour-variety block

@@ -2,7 +2,7 @@
 
 ## Result
 
-The official two-day Eurasia 2024 registration baseline yields this reproducible order:
+The official two-day Eurasia 2024 registration baseline yields this reproducible order. Each row maps to the exact VBO concept shipped in the project catalog; Japanese Akita uses `VBO:0200734` rather than the ontology's ambiguous generic Akita entry:
 
 | Rank | Entry | Day 1 | Day 2 | Total |
 |---:|---|---:|---:|---:|

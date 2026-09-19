@@ -13,6 +13,14 @@ breeds = rows("breeds.csv")
 assert {int(r["rank"]) for r in breeds} == RANKS
 assert len({r["breed_id"] for r in breeds}) == 5
 breed_ids = {r["breed_id"] for r in breeds}
+expected_ids = {
+    26: "VBO:0201174",
+    27: "VBO:0200899",
+    28: "VBO:0200734",
+    29: "VBO:0200897",
+    30: "VBO:0200880",
+}
+assert {int(r["rank"]): r["breed_id"] for r in breeds} == expected_ids
 
 registrations = rows("registrations.csv")
 assert {int(r["rank"]) for r in registrations} == RANKS
@@ -36,9 +44,13 @@ sources = rows("sources.csv")
 assert all(None not in row for row in sources), "Malformed CSV row"
 source_ids = {r["source_id"] for r in sources}
 assert len(source_ids) == len(sources)
+assert all(row["mapping_source_id"] in source_ids for row in breeds)
 for row in registrations:
     assert row["day1_source_id"] in source_ids and row["day2_source_id"] in source_ids
 for row in adult:
     assert row["source_id"] in source_ids
+for row in gaps:
+    assert row["breed_id"] == expected_ids[int(row["rank"])]
+    assert all(source_id in source_ids for source_id in row["relevant_source_ids"].split(";"))
 
 print("validated ranks 26-30: mapping, registrations, adult values, explicit age gaps, provenance")

@@ -38,6 +38,13 @@ class Issue83DatasetTest(unittest.TestCase):
         self.assertIn("smooth-haired", self.by_rank[23]["variety_scope"])
         self.assertIn("Japanese", self.by_rank[28]["variety_scope"])
 
+    def test_final_five_use_exact_shipped_catalog_mappings(self):
+        self.assertEqual(
+            {rank: self.by_rank[rank]["catalog_id"] for rank in range(26, 31)},
+            VALIDATOR.EXPECTED_CATALOG_IDS,
+        )
+        self.assertTrue(all(not row["catalog_id"].startswith("local:") for row in self.manifest))
+
     def test_all_manifest_foreign_keys_resolve(self):
         for row in self.manifest:
             package = HERE / row["package"]

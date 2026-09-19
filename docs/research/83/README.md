@@ -45,8 +45,9 @@ Miniature Schnauzer colour varieties at ranks 22, 27, and 29 are separate event
 rows and catalog/mapping concepts and must not be deduplicated. Rank 23 is the
 standard smooth-haired Dachshund variety. Rank 28 maps “Akita” to Japanese FCI
 Akita, but its secondary adult range has explicit Japanese/American ambiguity.
-The ranks 26–30 package currently uses stable local identifiers rather than VBO
-IDs; those identifiers must not be interpreted as ontology mappings.
+Ranks 26–30 map to the exact catalog concepts already shipped by the project,
+including separate VBO concepts for both Miniature Schnauzer colour varieties
+and the Japanese Akita concept rather than the ontology's ambiguous Akita entry.
 
 These files are research inputs, not veterinary targets. Individual body
 condition, health, neuter status, and clinician judgement remain outside scope.
