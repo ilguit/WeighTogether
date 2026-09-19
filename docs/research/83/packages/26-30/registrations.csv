@@ -1,0 +1,6 @@
+rank,breed_id,day1_total,day2_total,registrations_total,day1_source_id,day2_source_id,derivation
+26,samoyed,47,45,92,rkf_eurasia_2024_day1,rkf_eurasia_2024_day2,47+45
+27,miniature_schnauzer_black,45,46,91,rkf_eurasia_2024_day1,rkf_eurasia_2024_day2,45+46
+28,akita,45,44,89,rkf_eurasia_2024_day1,rkf_eurasia_2024_day2,45+44
+29,miniature_schnauzer_black_silver,44,44,88,rkf_eurasia_2024_day1,rkf_eurasia_2024_day2,44+44
+30,miniature_american_shepherd,42,43,85,rkf_eurasia_2024_day1,rkf_eurasia_2024_day2,42+43
