@@ -101,20 +101,29 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `AmStaff official standard gap supersedes secondary adult values`() {
-        val gap = resolve("VBO:0200055", PetSex.MALE, null).documentedGap()
+    fun `AmStaff uses exactly one approximate combined Wikipedia interval`() {
+        listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
+            val reference = resolve("VBO:0200055", sex, null).available()
+            val interval = reference.values.single() as BreedWeightValue.Interval
 
-        assertTrue(gap.description.contains("FCI Standard No. 286"))
-        assertTrue(gap.description.contains("no numeric weight"))
+            assertEquals(BreedReferenceSex.COMBINED, reference.sex)
+            assertEquals(BreedReferenceStatisticKind.APPROXIMATE_RANGE, interval.statistic)
+            assertEquals(23.0, interval.lower, 0.0)
+            assertEquals(36.0, interval.upper, 0.0)
+            assertEquals("wiki-amstaff:ams-wiki-adult", interval.referenceId)
+            assertTrue(reference.companionGroups.isEmpty())
+            assertTrue(reference.limitations.any { it.contains("40–70 lb") })
+        }
     }
 
     @Test
-    fun `amstaff birth observation never leaks into the adult official gap`() {
+    fun `amstaff birth observation never leaks into the adult Wikipedia fallback`() {
         listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
             listOf(365, 800).forEach { age ->
-                val gap = resolve("VBO:0200055", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).documentedGap()
+                val reference = resolve("VBO:0200055", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
 
-                assertTrue("$sex at $age days uses the adult FCI gap", gap.description.contains("FCI Standard No. 286"))
+                assertEquals("$sex at $age days uses one adult interval", 1, reference.values.size)
+                assertTrue(reference.values.single() is BreedWeightValue.Interval)
             }
         }
     }
@@ -168,12 +177,19 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `Akita and AmStaff expose official adult gaps instead of inactive numbers`() {
-        listOf("VBO:0200734", "VBO:0200055").forEach { breedId ->
-            val reason = resolve(breedId, PetSex.MALE, null).unavailable()
+    fun `Akita exposes exactly one sex specific Wikipedia interval without companions`() {
+        listOf(
+            Triple(PetSex.MALE, 27.0, 59.0),
+            Triple(PetSex.FEMALE, 25.0, 45.0),
+        ).forEach { (sex, lower, upper) ->
+            val reference = resolve("VBO:0200734", sex, null).available()
+            val interval = reference.values.single() as BreedWeightValue.Interval
 
-            assertTrue(reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
-            assertTrue((reason as BreedWeightReferenceUnavailableReason.DocumentedGap).description.contains("FCI"))
+            assertEquals(if (sex == PetSex.MALE) BreedReferenceSex.MALE else BreedReferenceSex.FEMALE, reference.sex)
+            assertEquals(lower, interval.lower, 0.0)
+            assertEquals(upper, interval.upper, 0.0)
+            assertTrue(reference.companionGroups.isEmpty())
+            assertTrue(reference.details.none { it.id in setOf("aki-adult-weight-gap", "aki-mw", "aki-fw") && it.sex == reference.sex })
         }
     }
 

@@ -24,18 +24,21 @@ respective origin countries and the FCI.
 
 Where the applicable FCI standard publishes no weight, ScaleSync uses adult
 weight facts from the English Wikipedia articles “Dachshund”, “Samoyed dog”,
-and “Akita (dog breed)”, and the Italian Wikipedia article “Border Collie”.
+“Akita (dog breed)”, and “American Staffordshire Terrier”, and the Italian
+Wikipedia article “Border Collie”.
 Authors are the respective Wikipedia contributors. Wikipedia text is licensed
 under Creative Commons Attribution-ShareAlike 4.0:
-https://creativecommons.org/licenses/by-sa/4.0/. The Akita values remain
-inactive for product use because the source discusses Japanese/American naming
-ambiguity and publishes an unusually broad interval.
+https://creativecommons.org/licenses/by-sa/4.0/. The Akita fallback preserves
+the broad sex-specific infobox intervals and discloses the article's
+Japanese/American naming ambiguity. The American Staffordshire Terrier fallback
+uses the approximate combined-sex infobox range; a conflicting prose range is
+recorded as a limitation and is not merged into the product value.
 
-The American Staffordshire Terrier weight ranges from Svenska Terrierklubben
-and observational means from Andersson et al. are retained as inactive
-provenance only. FCI Standard No. 286 publishes preferred height by sex but no
-numeric weight, so ScaleSync does not present those secondary or empirical
-figures as a standard adult range.
+The American Staffordshire Terrier sex-specific ranges from Svenska
+Terrierklubben and observational means from Andersson et al. are retained as
+inactive provenance only. FCI Standard No. 286 publishes preferred height by
+sex but no numeric weight, so ScaleSync labels the Wikipedia value as an
+approximate secondary fallback rather than an official standard.
 
 ## Liverpool canine growth-standard supporting data
 
