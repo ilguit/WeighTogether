@@ -59,3 +59,7 @@ internal fun reconcileProfileNavigation(
     selection: ProfileSelectionUiState,
     profilesLoaded: Boolean,
 ): ProfileNavigationState = if (profilesLoaded) state.reconcile(selection) else state
+
+/** Keeps human measurement data aligned after navigation restoration or reconciliation. */
+internal fun ProfileNavigationState.humanAccountIdForMeasurements(): AccountId? =
+    (selectedKey as? ProfileKey.Human)?.accountId

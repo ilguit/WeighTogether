@@ -66,6 +66,7 @@ import com.palixander.scalesync.measurements.MeasurementsUiState
 import com.palixander.scalesync.measurements.MeasurementsUiEvent
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
+import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.MeasurementResolverCallbacks
 import com.palixander.scalesync.ui.routing.MeasurementResolverDialog
 import com.palixander.scalesync.ui.routing.PendingResolverForegroundFallback
@@ -89,6 +90,7 @@ import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
 import com.palixander.scalesync.ui.profiles.profileFallbackMessage
 import com.palixander.scalesync.ui.profiles.ProfileSelector
 import com.palixander.scalesync.ui.profiles.buildProfilePresentations
+import com.palixander.scalesync.ui.profiles.humanAccountIdForMeasurements
 import com.palixander.scalesync.ui.profiles.reconcileProfileNavigation
 import com.palixander.scalesync.ui.profiles.reconcileProfileSelection
 import kotlinx.coroutines.flow.Flow
@@ -250,15 +252,14 @@ fun ScaleSyncApp(
     } else {
         null
     }
-    LaunchedEffect(profileSelection?.selectedKey, profileSelection?.fallback) {
-        profileSelection?.let {
-            profileNavigation = reconcileProfileNavigation(
-                state = profileNavigation,
-                selection = it,
-                profilesLoaded = state.profilesLoaded,
-            )
-        }
-    }
+    ProfileMeasurementSelectionEffect(
+        navigation = profileNavigation,
+        selection = profileSelection,
+        profilesLoaded = state.profilesLoaded,
+        accountSelector = measurementsState.accountSelector,
+        onNavigationChanged = { profileNavigation = it },
+        onAccountSelected = measurementsViewModel.callbacks.onAccountSelected,
+    )
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
             when (event) {
@@ -464,6 +465,36 @@ fun ScaleSyncApp(
             )
         },
     )
+}
+
+@Composable
+internal fun ProfileMeasurementSelectionEffect(
+    navigation: ProfileNavigationState,
+    selection: ProfileSelectionUiState?,
+    profilesLoaded: Boolean,
+    accountSelector: AccountSelectorUiState,
+    onNavigationChanged: (ProfileNavigationState) -> Unit,
+    onAccountSelected: (com.palixander.scalesync.domain.AccountId) -> Unit,
+) {
+    LaunchedEffect(
+        selection?.selectedKey,
+        selection?.fallback,
+        accountSelector.accounts,
+        accountSelector.selectedAccountId,
+    ) {
+        selection?.let {
+            val reconciledNavigation = reconcileProfileNavigation(navigation, it, profilesLoaded)
+            onNavigationChanged(reconciledNavigation)
+            reconciledNavigation.humanAccountIdForMeasurements()?.let { accountId ->
+                if (
+                    accountSelector.selectedAccountId != accountId &&
+                    accountSelector.accounts.any { account -> account.id == accountId }
+                ) {
+                    onAccountSelected(accountId)
+                }
+            }
+        }
+    }
 }
 
 /**

@@ -92,6 +92,22 @@ class ProfileNavigationTest {
 
         assertEquals(ProfileKey.Human(account.id), state.selectedKey)
         assertEquals(ProfileDestination.HumanShell, state.destination)
+        assertEquals(account.id, state.humanAccountIdForMeasurements())
+    }
+
+    @Test
+    fun restoredHumanProvidesItsAccountForMeasurementSynchronization() {
+        val accountId = AccountId("restored-human")
+        val restored = roundTrip(ProfileNavigationState().select(ProfileKey.Human(accountId)))
+
+        assertEquals(accountId, restored.humanAccountIdForMeasurements())
+    }
+
+    @Test
+    fun petNavigationDoesNotChangeMeasurementAccountSelection() {
+        val pet = ProfileNavigationState().select(ProfileKey.Pet(PetId("pet")))
+
+        assertNull(pet.humanAccountIdForMeasurements())
     }
 
     @Test
