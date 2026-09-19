@@ -353,13 +353,24 @@ class BreedWeightReferenceResolver(
                 value.center,
                 referenceId = "${value.sourceId.orEmpty()}:${value.id}",
             )
-        BreedReferenceStatisticKind.MEAN, BreedReferenceStatisticKind.MEDIAN, BreedReferenceStatisticKind.APPROXIMATE_AVERAGE ->
+        BreedReferenceStatisticKind.MEAN,
+        BreedReferenceStatisticKind.MEDIAN,
+        BreedReferenceStatisticKind.APPROXIMATE_AVERAGE,
+        BreedReferenceStatisticKind.IDEAL,
+        BreedReferenceStatisticKind.STANDARD_POINT,
+        ->
             BreedWeightValue.Single(
                 value.statistic,
                 value.unit,
                 value.center!!,
                 referenceId = "${value.sourceId.orEmpty()}:${value.id}",
             )
+        BreedReferenceStatisticKind.MINIMUM -> BreedWeightValue.Single(
+            value.statistic,
+            value.unit,
+            value.lower!!,
+            referenceId = "${value.sourceId.orEmpty()}:${value.id}",
+        )
         BreedReferenceStatisticKind.MEAN_SD -> BreedWeightValue.Single(
             value.statistic,
             value.unit,

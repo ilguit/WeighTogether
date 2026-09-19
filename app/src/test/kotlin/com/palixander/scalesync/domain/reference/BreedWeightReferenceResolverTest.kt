@@ -155,6 +155,21 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `official point and minimum statistics retain their semantics`() {
+        val basenji = resolve("VBO:0200120", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
+        assertEquals(BreedReferenceStatisticKind.IDEAL, basenji.statistic)
+        assertEquals(11.0, basenji.value, 0.0)
+
+        val ridgeback = resolve("VBO:0201135", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
+        assertEquals(BreedReferenceStatisticKind.STANDARD_POINT, ridgeback.statistic)
+        assertEquals(36.5, ridgeback.value, 0.0)
+
+        val centralAsian = resolve("VBO:0200321", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
+        assertEquals(BreedReferenceStatisticKind.MINIMUM, centralAsian.statistic)
+        assertEquals(50.0, centralAsian.value, 0.0)
+    }
+
+    @Test
     fun `only archived NSCA Shiba averages bypass inactive detail filtering`() {
         val femaleShiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
         val maleShiba = resolve("VBO:0201220", PetSex.MALE, null).available()
