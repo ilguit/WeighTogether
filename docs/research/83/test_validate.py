@@ -51,6 +51,21 @@ class Issue83DatasetTest(unittest.TestCase):
             for column in ("mapping_file", "registration_file", "adult_file", "gaps_file", "sources_file"):
                 self.assertTrue((package / row[column]).is_file(), (row["rank"], column))
 
+    def test_every_rank_21_to_30_has_exact_height_evidence_or_explicit_gap(self):
+        for rank in range(21, 31):
+            row = self.by_rank[rank]
+            self.assertEqual(row["adult_height_file"], "adult_height.csv")
+            package = HERE / row["package"]
+            height_rows = VALIDATOR.read_csv(package / row["adult_height_file"])
+            matching = [height for height in height_rows if int(height["rank"]) == rank]
+            self.assertTrue(matching, rank)
+            actual = [
+                (height["sex"], height["min_height_cm"], height["max_height_cm"], height["source_id"], height["source_page"])
+                for height in matching
+            ]
+            self.assertEqual(actual, VALIDATOR.EXPECTED_HEIGHT_ROWS[rank])
+            self.assertTrue(all(height["unit"] == "cm" for height in matching))
+
 
 if __name__ == "__main__":
     unittest.main()

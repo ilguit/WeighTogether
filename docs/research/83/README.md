@@ -1,4 +1,4 @@
-# Issue #83: dog-breed weight evidence, ranks 11–30
+# Issue #83: dog-breed weight and height evidence, ranks 11–30
 
 This directory integrates four independently researched evidence packages for the
 20 Eurasia 2024 registration rows ranked 11 through 30. The ranking metric is the
@@ -15,11 +15,18 @@ means the package has no qualifying age-observation table; the corresponding
 `gaps_file` remains mandatory. Package schemas are intentionally preserved
 instead of flattening unlike value semantics into lossy min/max columns.
 
+For ranks 21–30, `adult_height_file` points to a separate structured table.
+Every one of those ranks has either official numeric FCI withers-height evidence
+or an explicit source-backed non-numeric/not-published row. Blank height fields
+mean that the cited standard does not supply a defensible number, never zero.
+
 Follow a manifest row into its referenced files to retain:
 
 - provenance and source type/priority (`sources_file`, `adult_source_priority`);
 - adult value status and applicability (`adult_file`), including ideal points,
   minima, approximate ranges, non-numeric standards, and secondary fallbacks;
+- adult withers-height sex/applicability, unit, standard semantics, exact PDF
+  page, limitations, and explicit gaps where applicable (`adult_height_file`);
 - sex, exact age/day interval, units, sample size, statistic, method, and
   limitations for observations (`age_file`);
 - explicit missing windows, search scope, and non-inference decisions

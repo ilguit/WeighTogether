@@ -35,6 +35,16 @@ for row in adult:
         assert row["min_kg"] and row["max_kg"]
         assert float(row["min_kg"]) <= float(row["max_kg"])
 
+height = rows("adult_height.csv")
+assert {int(row["rank"]) for row in height} == RANKS
+assert {row["breed_id"] for row in height} == breed_ids
+for row in height:
+    assert row["breed_id"] == expected_ids[int(row["rank"])]
+    assert row["source_id"] in {"fci_212", "fci_183", "fci_255", "fci_367"}
+    assert row["unit"] == "cm" and row["statistic_semantics"] and row["applicability"] and row["limitation"]
+    assert row["min_height_cm"] and row["max_height_cm"]
+    assert float(row["min_height_cm"]) <= float(row["max_height_cm"])
+
 age = rows("age_weight.csv")
 assert not age, "No exact source-backed age rows are expected in this package"
 gaps = rows("gaps.csv")
@@ -53,4 +63,4 @@ for row in gaps:
     assert row["breed_id"] == expected_ids[int(row["rank"])]
     assert all(source_id in source_ids for source_id in row["relevant_source_ids"].split(";"))
 
-print("validated ranks 26-30: mapping, registrations, adult values, explicit age gaps, provenance")
+print("validated ranks 26-30: mapping, registrations, adult weight/height, explicit age gaps, provenance")
