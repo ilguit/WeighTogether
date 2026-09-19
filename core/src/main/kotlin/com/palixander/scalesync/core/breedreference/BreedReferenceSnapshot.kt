@@ -124,7 +124,7 @@ class BreedReferenceSnapshot private constructor(
     private fun validate(catalog: BreedCatalog) {
         require(manifest.snapshotVersion.isNotBlank() && manifest.snapshotDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}")))
         require(manifest.sources.map { it.id }.toSet().size == manifest.sources.size) { "Duplicate source ID" }
-        require(breeds.size == 10) { "Expected ten supported breeds" }
+        require(breeds.isNotEmpty()) { "Expected at least one supported breed" }
         require(breeds.map { it.breedId }.toSet().size == breeds.size) { "Duplicate breed ID" }
         val dogCatalogIds = catalog.all(BreedSpecies.DOG).map { it.id }.toSet()
         val sourceIds = manifest.sources.map { it.id }.toSet()

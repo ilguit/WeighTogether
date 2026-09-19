@@ -14,17 +14,50 @@ import kotlin.test.assertTrue
 
 class BreedReferenceSnapshotTest {
     @Test
-    fun `bundled snapshot contains all ten researched breeds and Russian Black Terrier alias`() {
+    fun `bundled snapshot contains the original researched breeds and Russian Black Terrier alias`() {
         val snapshot = BreedReferenceSnapshot.bundled()
 
         assertEquals(1, snapshot.manifest.schemaVersion)
-        assertEquals(10, snapshot.breeds.size)
-        assertEquals((1..10).toList(), snapshot.breeds.map { it.popularityRank }.sorted())
+        assertTrue(snapshot.breeds.size >= 10)
+        assertEquals(snapshot.breeds.size, snapshot.breeds.map { it.popularityRank }.distinct().size)
         assertSame(snapshot.breed("VBO:0200174"), snapshot.breed("VBO:0201146"))
-        snapshot.breeds.forEach { breed ->
+        snapshot.breeds.filter { it.popularityRank <= 10 }.forEach { breed ->
             assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.WEIGHT })
             assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.HEIGHT })
         }
+    }
+
+    @Test
+    fun `ranks 21 through 30 preserve adult weights and explicit growth gaps`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        val packageBreeds = snapshot.breeds.filter { it.popularityRank in 21..30 }
+
+        assertEquals((21..30).toList(), packageBreeds.map { it.popularityRank })
+        packageBreeds.forEach { breed ->
+            assertTrue(breed.values.none { it.measure == BreedReferenceMeasure.HEIGHT })
+            assertTrue(breed.values.any {
+                !it.adult && it.measure == BreedReferenceMeasure.WEIGHT &&
+                    it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP &&
+                    it.ageMinimumDays == 0 && it.ageMaximumDays == 730
+            })
+        }
+        assertTrue(snapshot.breed("VBO:0200734")!!.values.filter { it.adult }.all { !it.activeForProduct })
+        assertTrue(snapshot.breed("VBO:0200880")!!.values.all {
+            it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP
+        })
+        assertTrue(snapshot.breed("VBO:0200724")!!.values.any {
+            it.adult && it.lower == 5.0 && it.upper == 6.0 && it.sourceId == "fci345"
+        })
+        assertTrue(snapshot.breed("VBO:0200193")!!.values.any {
+            it.adult && it.sex == BreedReferenceSex.FEMALE &&
+                it.lower == 12.0 && it.upper == 19.0 && it.sourceId == "wiki-border-it"
+        })
+        assertTrue(snapshot.breed("VBO:0201174")!!.values.any {
+            it.adult && it.sex == BreedReferenceSex.MALE &&
+                it.lower == 20.0 && it.upper == 30.0 && it.sourceId == "wiki-samoyed"
+        })
+        assertEquals("p.4", snapshot.manifest.sources.single { it.id == "fci345" }.pageOrTable)
+        assertTrue(snapshot.manifest.sources.single { it.id == "wiki-akita" }.method!!.contains("ambiguity"))
     }
 
     @Test
