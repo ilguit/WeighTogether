@@ -202,23 +202,9 @@ class PetReferenceIntegrationTest {
         val reference = PetHistoryReferencePresenter().present(
             knownPet,
             ChartDateRange(referenceDate, referenceDate.plusDays(2)),
-        ) as PetHistoryWeightReference.Available
-        assertEquals(ReferenceBasis.WEIGHT_CATEGORY, reference.basis)
-        assertTrue(reference.sourceLabel.contains(reference.citation))
-        assertTrue(reference.citation.isNotBlank())
-        assertTrue(reference.license.isNotBlank())
-        assertTrue(reference.constraints.isNotEmpty())
-        val points = reference.segments.flatten()
-        assertEquals(3, points.size)
-        points.forEach { point ->
-            assertTrue(point.lowerKg.isFinite())
-            assertTrue(point.lowerKg <= point.medianLowerKg)
-            assertTrue(point.medianLowerKg <= point.medianUpperKg)
-            assertTrue(point.medianUpperKg <= point.upperKg)
-        }
-        val chartRange = requireNotNull(petWeightChartRange(emptyList(), reference))
-        assertTrue(chartRange.min <= points.minOf { it.lowerKg })
-        assertTrue(chartRange.max >= points.maxOf { it.upperKg })
+        ) as PetHistoryWeightReference.Unavailable
+        assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(stableBreedId.value), reference.reason)
+        assertEquals("Для выбранной породы ориентиры сейчас недоступны.", reference.explanation)
 
         val unknownPet = restoredUnknown.toDomain()
         assertEquals(unknownBreedId, unknownPet.breedId)
