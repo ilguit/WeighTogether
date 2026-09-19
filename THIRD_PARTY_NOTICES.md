@@ -40,6 +40,32 @@ inactive provenance only. FCI Standard No. 286 publishes preferred height by
 sex but no numeric weight, so ScaleSync labels the Wikipedia value as an
 approximate secondary fallback rather than an official standard.
 
+## Dog breed adult weight references, ranks 31–50
+
+ScaleSync includes adult weight facts for ranks 31–50 of the Eurasia 2024
+research baseline. Official conformation values come from Fédération
+Cynologique Internationale standards 3, 73, 86, 99, 147, 149, 200, 215 and
+218. Standards that publish no numeric weight, or only a relative statement,
+are retained as provenance for explicit data gaps. Source links, applicability,
+page references, statistic semantics and limitations are embedded in
+`breed_references.json`. The FCI standards remain copyright of their respective
+origin countries and the FCI.
+
+Where the applicable standard does not provide a usable numeric weight,
+ScaleSync uses facts from the English Wikipedia articles for West Highland
+White Terrier, Bernese Mountain Dog, Norwich Terrier, Chinese Crested Dog,
+Thai Ridgeback, Dachshund, Miniature Bull Terrier, Kerry Blue Terrier and Rough
+Collie. Authors are the respective Wikipedia contributors. Wikipedia text is
+licensed under Creative Commons Attribution-ShareAlike 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/. Only numeric facts and their
+source limitations are represented; article prose is not redistributed or
+converted into growth curves. Conflicting values remain disclosed rather than
+being merged or averaged.
+
+The snapshot records explicit 0–24 month growth-data gaps for every added
+breed. Generic dog-size curves are not relabelled as breed observations and no
+values are digitised, interpolated or inferred from height.
+
 ## Liverpool canine growth-standard supporting data
 
 Salt C, Morris PJ, German AJ, Wilson D, Lund EM, Cole TJ, and Butterwick RF

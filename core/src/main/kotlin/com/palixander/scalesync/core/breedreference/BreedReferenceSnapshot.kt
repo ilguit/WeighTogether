@@ -22,6 +22,7 @@ enum class BreedReferenceStatisticKind {
     IDEAL_RANGE,
     STANDARD_POINT,
     MINIMUM,
+    MAXIMUM,
     DOCUMENTED_GAP,
 }
 enum class BreedReferenceMeasure { WEIGHT, HEIGHT }
@@ -137,9 +138,9 @@ class BreedReferenceSnapshot private constructor(
     private fun validate(catalog: BreedCatalog) {
         require(manifest.snapshotVersion.isNotBlank() && manifest.snapshotDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}")))
         require(manifest.sources.map { it.id }.toSet().size == manifest.sources.size) { "Duplicate source ID" }
-        require(breeds.size == 30) { "Expected exactly thirty supported breeds" }
-        require(breeds.map { it.popularityRank }.sorted() == (1..30).toList()) {
-            "Breed popularity ranks must be exactly 1 through 30"
+        require(breeds.size == 50) { "Expected exactly fifty supported breeds" }
+        require(breeds.map { it.popularityRank }.sorted() == (1..50).toList()) {
+            "Breed popularity ranks must be exactly 1 through 50"
         }
         require(breeds.map { it.breedId }.toSet().size == breeds.size) { "Duplicate breed ID" }
         val dogCatalogIds = catalog.all(BreedSpecies.DOG).map { it.id }.toSet()
@@ -175,6 +176,7 @@ class BreedReferenceSnapshot private constructor(
                         BreedReferenceStatisticKind.MEAN_SD -> require(value.center != null && value.spread != null)
                         BreedReferenceStatisticKind.IDEAL, BreedReferenceStatisticKind.STANDARD_POINT -> require(value.center != null)
                         BreedReferenceStatisticKind.MINIMUM -> require(value.lower != null && value.center == null && value.upper == null)
+                        BreedReferenceStatisticKind.MAXIMUM -> require(value.lower == null && value.center == null && value.upper != null && value.spread == null)
                         BreedReferenceStatisticKind.DOCUMENTED_GAP -> Unit
                     }
                 }

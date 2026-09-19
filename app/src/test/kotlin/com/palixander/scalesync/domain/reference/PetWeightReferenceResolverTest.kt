@@ -396,7 +396,14 @@ class PetWeightReferenceResolverTest {
     @Test
     fun `selected dog breeds without breed profiles never fall back to weight category`() {
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
-        listOf("VBO:0200290", "VBO:0200470", "VBO:0200880").forEach { breedId ->
+        listOf(
+            "VBO:0200290",
+            "VBO:0200470",
+            "VBO:0200880",
+            "VBO:0200410",
+            "VBO:0200027",
+            "VBO:0201217",
+        ).forEach { breedId ->
             assertEquals(
                 WeightReferenceUnavailableReason.UnsupportedBreed(breedId),
                 resolveDog(

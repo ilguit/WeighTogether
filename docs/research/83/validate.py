@@ -2,6 +2,7 @@
 """Validate the unified issue-83 manifest and heterogeneous evidence packages."""
 
 import csv
+import hashlib
 import json
 from pathlib import Path
 
@@ -31,6 +32,28 @@ EXPECTED_HEIGHT_ROWS = {
     29: [("all", "30", "35", "fci_183", "6")],
     30: [("male", "35.5", "46", "fci_367", "8"), ("female", "33", "43.5", "fci_367", "8")],
 }
+EXPECTED_RUNTIME_31_50 = [
+    (31, 84, "VBO:0201415"),
+    (32, 84, "VBO:0201448"),
+    (33, 83, "VBO:0200161"),
+    (34, 83, "VBO:0200339"),
+    (35, 82, "VBO:0200962"),
+    (36, 80, "VBO:0200485"),
+    (37, 79, "VBO:0200163"),
+    (38, 79, "VBO:0201198"),
+    (39, 78, "VBO:0200713"),
+    (40, 77, "VBO:0201403"),
+    (41, 77, "VBO:0200340"),
+    (42, 76, "VBO:0200345"),
+    (43, 76, "VBO:0201348"),
+    (44, 76, "VBO:0200410"),
+    (45, 74, "VBO:0200027"),
+    (46, 74, "VBO:0201217"),
+    (47, 73, "VBO:0200882"),
+    (48, 73, "VBO:0200764"),
+    (49, 73, "VBO:0200375"),
+    (50, 70, "VBO:0201143"),
+]
 
 
 def read_csv(path):
@@ -243,6 +266,57 @@ def validate_distinctions(manifest):
     assert {rank: by_rank[rank]["catalog_id"] for rank in range(26, 31)} == EXPECTED_CATALOG_IDS
 
 
+def validate_runtime_snapshot_31_50():
+    snapshot_path = ROOT.parents[2] / "core/src/main/resources/breed_references.json"
+    snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    manifest = snapshot["manifest"]
+    breeds = snapshot["breeds"]
+    assert manifest["snapshotVersion"] == "2026.09.19.4"
+    assert manifest["snapshotDate"] == "2026-09-19"
+    assert len(breeds) == 50
+    assert [row["popularityRank"] for row in breeds] == list(range(1, 51))
+    assert [
+        (row["popularityRank"], row["registrations"], row["breedId"])
+        for row in breeds[30:]
+    ] == EXPECTED_RUNTIME_31_50
+    canonical = json.dumps(breeds, ensure_ascii=False, separators=(",", ":"))
+    assert hashlib.sha256(canonical.encode("utf-8")).hexdigest() == manifest["numericalDataSha256"]
+
+    by_id = {row["breedId"]: row for row in breeds}
+    sources = {row["id"]: row for row in manifest["sources"]}
+    for _, _, breed_id in EXPECTED_RUNTIME_31_50:
+        values = by_id[breed_id]["values"]
+        growth = [row for row in values if not row["adult"]]
+        assert len(growth) == 1
+        assert (growth[0]["ageMinimumDays"], growth[0]["ageMaximumDays"]) == (0, 730)
+        assert growth[0]["statistic"] == "documented_gap"
+        assert "size-category curves were not substituted" in growth[0]["gap"]
+
+    dachshund = next(row for row in by_id["VBO:0200410"]["values"] if row["id"] == "dms-adult")
+    assert dachshund["statistic"] == "maximum" and dachshund["upper"] == 5
+    assert "lower" not in dachshund and "center" not in dachshund
+    assert any("5.5 kg" in item for item in dachshund["limitations"])
+    assert dachshund["sourceId"] == "wiki-dachshund-miniature"
+    miniature_source = sources[dachshund["sourceId"]]
+    assert miniature_source["pageOrTable"] == "Infobox"
+    assert "Miniature-size infobox maximum of 5.0 kg" in miniature_source["method"]
+    assert "16–32 lb" not in miniature_source["method"]
+
+    american_akita = by_id["VBO:0200027"]["values"]
+    sheltie = by_id["VBO:0201217"]["values"]
+    assert all(row["statistic"] == "documented_gap" for row in american_akita + sheltie)
+    assert not any(key in row for row in american_akita for key in ("lower", "center", "upper"))
+    collie_female = next(row for row in by_id["VBO:0200375"]["values"] if row["id"] == "col-female-gap")
+    assert collie_female["sex"] == "female" and collie_female["statistic"] == "documented_gap"
+    assert "no numeric female interval was synthesized" in collie_female["gap"]
+
+    assert sources["fci086"]["pageOrTable"] == "p.4"
+    assert sources["fci147"]["pageOrTable"] == "p.6"
+    assert "CC BY-SA" in sources["wiki-westie"]["method"]
+    assert by_id["VBO:0200764"]["values"][0]["sourceId"] == "fci003"
+    assert by_id["VBO:0200764"]["values"][1]["sourceId"] == "wiki-kerry-blue"
+
+
 def validate():
     manifest = validate_manifest()
     validate_11_15()
@@ -250,8 +324,9 @@ def validate():
     validate_21_25()
     validate_26_30()
     validate_distinctions(manifest)
+    validate_runtime_snapshot_31_50()
 
 
 if __name__ == "__main__":
     validate()
-    print("issue 83 validation: ranks 11-30, provenance, semantics, gaps and varieties OK")
+    print("issue 83/125 validation: research ranks 11-30 and runtime ranks 31-50, provenance, semantics, gaps and varieties OK")

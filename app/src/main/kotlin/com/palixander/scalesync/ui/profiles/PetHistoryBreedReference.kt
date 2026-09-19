@@ -104,6 +104,14 @@ sealed interface PetHistoryBreedChartValue {
         override val accessibilityLabel: String,
         override val seriesId: String = statisticLabel,
     ) : PetHistoryBreedChartValue
+
+    data class Boundary(
+        val valueKg: Double,
+        val direction: BreedWeightValue.Boundary.Direction,
+        override val statisticLabel: String,
+        override val accessibilityLabel: String,
+        override val seriesId: String = statisticLabel,
+    ) : PetHistoryBreedChartValue
 }
 
 data class PetHistoryBreedSource(
@@ -184,7 +192,10 @@ class PetHistoryBreedReferencePresenter(
             accessibilityLabel = buildString {
                 append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
                 append(values.joinToString(". "))
-                append(". Тип источника: $kind. Не является медицинской нормой.")
+                append(". Тип источника: $kind.")
+                sourcePresentation.method?.let { append(" Метод источника: $it.") }
+                sourcePresentation.limitations.forEach { append(" Ограничение: $it.") }
+                append(" Не является медицинской нормой.")
                 companions.forEach { companion ->
                     append(" Дополнительный ориентир ${companion.ageLabel}: ")
                     append(companion.valueLabels.joinToString(". "))
@@ -276,6 +287,13 @@ private fun BreedWeightValue.chartValue(
         )
         is BreedWeightValue.Single -> PetHistoryBreedChartValue.Single(
             valueKg = value,
+            seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
+            statisticLabel = statistic.label(),
+            accessibilityLabel = description,
+        )
+        is BreedWeightValue.Boundary -> PetHistoryBreedChartValue.Boundary(
+            valueKg = value,
+            direction = direction,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
             statisticLabel = statistic.label(),
             accessibilityLabel = description,
@@ -438,6 +456,7 @@ private fun BreedWeightValue.label(locale: Locale): String {
             (center?.let { "; центр: ${number.format(it)} кг" } ?: "")
         is BreedWeightValue.Single -> "$statisticLabel: ${number.format(value)} кг" +
             (spread?.let { " ± ${number.format(it)} кг" } ?: "")
+        is BreedWeightValue.Boundary -> "$statisticLabel: ${number.format(value)} кг"
     }
 }
 
@@ -453,6 +472,7 @@ private fun BreedReferenceStatisticKind.label() = when (this) {
     BreedReferenceStatisticKind.IDEAL_RANGE -> "Идеальный диапазон веса"
     BreedReferenceStatisticKind.STANDARD_POINT -> "Значение стандарта"
     BreedReferenceStatisticKind.MINIMUM -> "Минимальный вес"
+    BreedReferenceStatisticKind.MAXIMUM -> "Максимальный вес"
     BreedReferenceStatisticKind.DOCUMENTED_GAP -> "Документированный пропуск"
 }
 

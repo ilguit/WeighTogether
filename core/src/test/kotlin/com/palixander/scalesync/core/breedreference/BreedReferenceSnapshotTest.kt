@@ -14,16 +14,105 @@ import kotlin.test.assertTrue
 
 class BreedReferenceSnapshotTest {
     @Test
-    fun `bundled snapshot contains all thirty researched breeds and Russian Black Terrier alias`() {
+    fun `maximum accepts only one published upper boundary`() {
+        val valid = bundledJson()
+        val value = valid.getAsJsonArray("breeds")[0].asJsonObject
+            .getAsJsonArray("values")[0].asJsonObject
+        value.addProperty("statistic", "maximum")
+        value.remove("lower")
+        refreshChecksum(valid)
+
+        val snapshot = assertIs<BreedReferenceSnapshotLoadResult.Available>(load(valid)).snapshot
+        val maximum = snapshot.breeds[0].values[0]
+        assertEquals(BreedReferenceStatisticKind.MAXIMUM, maximum.statistic)
+        assertEquals(null, maximum.lower)
+        assertEquals(12.0, maximum.upper)
+        assertEquals(null, maximum.center)
+
+        listOf("lower", "center", "spread").forEach { extraField ->
+            val invalid = valid.deepCopy()
+            invalid.getAsJsonArray("breeds")[0].asJsonObject
+                .getAsJsonArray("values")[0].asJsonObject.addProperty(extraField, 1.0)
+            refreshChecksum(invalid)
+            assertIs<BreedReferenceSnapshotLoadResult.Unavailable>(load(invalid))
+        }
+        val missingUpper = valid.deepCopy()
+        missingUpper.getAsJsonArray("breeds")[0].asJsonObject
+            .getAsJsonArray("values")[0].asJsonObject.remove("upper")
+        refreshChecksum(missingUpper)
+        assertIs<BreedReferenceSnapshotLoadResult.Unavailable>(load(missingUpper))
+    }
+
+    @Test
+    fun `bundled snapshot contains all fifty researched breeds and Russian Black Terrier alias`() {
         val snapshot = BreedReferenceSnapshot.bundled()
 
         assertEquals(1, snapshot.manifest.schemaVersion)
-        assertEquals(30, snapshot.breeds.size)
-        assertEquals((1..30).toList(), snapshot.breeds.map { it.popularityRank }.sorted())
+        assertEquals(50, snapshot.breeds.size)
+        assertEquals((1..50).toList(), snapshot.breeds.map { it.popularityRank }.sorted())
         assertSame(snapshot.breed("VBO:0200174"), snapshot.breed("VBO:0201146"))
         snapshot.breeds.filter { it.popularityRank <= 10 }.forEach { breed ->
             assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.WEIGHT })
         }
+    }
+
+    @Test
+    fun `ranks 31 through 50 preserve approved adult semantics provenance and growth gaps`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        val packageBreeds = snapshot.breeds.filter { it.popularityRank in 31..50 }
+
+        assertEquals((31..50).toList(), packageBreeds.map { it.popularityRank })
+        packageBreeds.forEach { breed ->
+            assertTrue(breed.values.any {
+                !it.adult && it.measure == BreedReferenceMeasure.WEIGHT &&
+                    it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP &&
+                    it.ageMinimumDays == 0 && it.ageMaximumDays == 730 &&
+                    it.gap!!.contains("size-category curves were not substituted")
+            })
+        }
+
+        val expectedAdultStatistics = mapOf(
+            "VBO:0201415" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0201448" to setOf(BreedReferenceStatisticKind.MAXIMUM),
+            "VBO:0200161" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200339" to setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.IDEAL_RANGE),
+            "VBO:0200962" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200485" to setOf(BreedReferenceStatisticKind.STANDARD_POINT),
+            "VBO:0200163" to setOf(BreedReferenceStatisticKind.APPROXIMATE_AVERAGE),
+            "VBO:0201198" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200713" to setOf(BreedReferenceStatisticKind.MAXIMUM),
+            "VBO:0201403" to setOf(BreedReferenceStatisticKind.APPROXIMATE_RANGE),
+            "VBO:0200340" to setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.IDEAL_RANGE),
+            "VBO:0200345" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0201348" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200410" to setOf(BreedReferenceStatisticKind.MAXIMUM),
+            "VBO:0200027" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP),
+            "VBO:0201217" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP),
+            "VBO:0200882" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200764" to setOf(BreedReferenceStatisticKind.RANGE),
+            "VBO:0200375" to setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.DOCUMENTED_GAP),
+            "VBO:0201143" to setOf(BreedReferenceStatisticKind.STANDARD_POINT),
+        )
+        expectedAdultStatistics.forEach { (breedId, statistics) ->
+            assertEquals(statistics, snapshot.breed(breedId)!!.values.filter { it.adult }.map { it.statistic }.toSet())
+        }
+
+        val dachshund = snapshot.breed("VBO:0200410")!!.values.single { it.id == "dms-adult" }
+        assertEquals(5.0, dachshund.upper)
+        assertEquals(null, dachshund.lower)
+        assertEquals("wiki-dachshund-miniature", dachshund.sourceId)
+        assertTrue(dachshund.limitations.any { it.contains("5.5 kg") })
+        val miniatureSource = snapshot.manifest.sources.single { it.id == dachshund.sourceId }
+        assertEquals("Infobox", miniatureSource.pageOrTable)
+        assertTrue(miniatureSource.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
+        assertTrue(!miniatureSource.method.contains("16–32 lb"))
+        assertTrue(snapshot.breed("VBO:0200027")!!.values.none { it.lower != null || it.center != null || it.upper != null })
+        assertTrue(snapshot.breed("VBO:0201217")!!.values.all { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP })
+        assertTrue(snapshot.breed("VBO:0200375")!!.values.any {
+            it.id == "col-female-gap" && it.sex == BreedReferenceSex.FEMALE &&
+                it.gap!!.contains("no numeric female interval was synthesized")
+        })
+        assertTrue(snapshot.manifest.sources.single { it.id == "wiki-westie" }.method!!.contains("CC BY-SA"))
     }
 
     @Test
