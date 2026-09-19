@@ -101,25 +101,20 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `source priority selects official adult range while preserving alternatives`() {
-        val result = resolve("VBO:0200055", PetSex.MALE, null).available()
-        assertEquals("Svenska Terrierklubben", result.source.title)
-        assertEquals(BreedReferenceStatisticKind.RANGE, result.values.single().statistic)
-        assertTrue(result.details.any { it.value?.statistic == BreedReferenceStatisticKind.MEAN })
-        assertTrue(result.details.none { it.id == "ams-rejected" })
+    fun `AmStaff official standard gap supersedes secondary adult values`() {
+        val gap = resolve("VBO:0200055", PetSex.MALE, null).documentedGap()
+
+        assertTrue(gap.description.contains("FCI Standard No. 286"))
+        assertTrue(gap.description.contains("no numeric weight"))
     }
 
     @Test
-    fun `amstaff birth observation never leaks into an adult reference`() {
+    fun `amstaff birth observation never leaks into the adult official gap`() {
         listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
             listOf(365, 800).forEach { age ->
-                val result = resolve("VBO:0200055", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
-                val range = result.values.single() as BreedWeightValue.Interval
+                val gap = resolve("VBO:0200055", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).documentedGap()
 
-                assertEquals("$sex at $age days uses adult scope", BreedWeightAgeScope.Adult, result.ageScope)
-                assertEquals("$sex at $age days has no companion", emptyList<BreedWeightReferenceGroup>(), result.companionGroups)
-                assertEquals(if (sex == PetSex.MALE) 28.0 else 19.0, range.lower, 0.0)
-                assertEquals(if (sex == PetSex.MALE) 33.0 else 25.0, range.upper, 0.0)
+                assertTrue("$sex at $age days uses the adult FCI gap", gap.description.contains("FCI Standard No. 286"))
             }
         }
     }
@@ -173,18 +168,26 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `Akita and AmStaff expose official adult gaps instead of inactive numbers`() {
+        listOf("VBO:0200734", "VBO:0200055").forEach { breedId ->
+            val reason = resolve(breedId, PetSex.MALE, null).unavailable()
+
+            assertTrue(reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+            assertTrue((reason as BreedWeightReferenceUnavailableReason.DocumentedGap).description.contains("FCI"))
+        }
+    }
+
+    @Test
     fun `only archived NSCA Shiba averages bypass inactive detail filtering`() {
         val femaleShiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
         val maleShiba = resolve("VBO:0201220", PetSex.MALE, null).available()
         val beagle = resolve("VBO:0200131", PetSex.MALE, null).available()
-        val amstaff = resolve("VBO:0200055", PetSex.MALE, null).available()
 
         assertTrue(femaleShiba.details.any { it.id == "shi-fw" && it.source?.id == "shibaclub" })
         assertTrue(maleShiba.details.any { it.id == "shi-mw" && it.source?.id == "shibaclub" })
         assertTrue(femaleShiba.values.none { it.referenceId == "shibaclub:shi-fw" })
         assertTrue(maleShiba.values.none { it.referenceId == "shibaclub:shi-mw" })
         assertTrue(beagle.details.none { it.id == "bea-model-mature" })
-        assertTrue(amstaff.details.none { it.id == "ams-rejected" })
     }
 
     @Test

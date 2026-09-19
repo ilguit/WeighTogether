@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19",
+    "snapshotVersion": "2026.09.19.1",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "3a0b0eadaed550db3f8727ec5fdeaa35be7bfcb0970709bd9772c7eb7029a2c0",
+    "numericalDataSha256": "5743276e258c4861642b920b25b36b38c4121c30d237d149d4961168c6a5716e",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -155,6 +155,14 @@
         "url": "https://www.fci.be/Nomenclature/Standards/253g09-en.pdf",
         "kind": "international_standard",
         "method": "Ideal breed weight shared by all four colour varieties"
+      },
+      {
+        "id": "fci255",
+        "title": "FCI Standard No. 255 Akita",
+        "url": "https://www.fci.be/Nomenclature/Standards/255g05-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; height is numeric but weight is not published",
+        "pageOrTable": "p.5"
       },
       {
         "id": "fci257",
@@ -1335,7 +1343,11 @@
           "unit": "kg",
           "lower": 28,
           "upper": 33,
-          "sourceId": "swedish-terrier"
+          "sourceId": "swedish-terrier",
+          "activeForProduct": false,
+          "limitations": [
+            "Breed-club guidance, not a numeric weight published by FCI Standard No. 286"
+          ]
         },
         {
           "id": "ams-fr",
@@ -1347,7 +1359,11 @@
           "unit": "kg",
           "lower": 19,
           "upper": 25,
-          "sourceId": "swedish-terrier"
+          "sourceId": "swedish-terrier",
+          "activeForProduct": false,
+          "limitations": [
+            "Breed-club guidance, not a numeric weight published by FCI Standard No. 286"
+          ]
         },
         {
           "id": "ams-mm",
@@ -1361,6 +1377,7 @@
           "sampleSize": 570,
           "sampleUnit": "dogs",
           "sourceId": "andersson",
+          "activeForProduct": false,
           "limitations": [
             "SE 0.2 kg; BCS and quantiles unavailable"
           ]
@@ -1377,9 +1394,21 @@
           "sampleSize": 637,
           "sampleUnit": "dogs",
           "sourceId": "andersson",
+          "activeForProduct": false,
           "limitations": [
             "SE 0.2 kg; BCS and quantiles unavailable"
           ]
+        },
+        {
+          "id": "ams-adult-weight-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "sourceId": "fci286",
+          "gap": "FCI Standard No. 286 publishes preferred height by sex but no numeric weight; secondary and observational weight values are retained as inactive provenance only."
         },
         {
           "id": "ams-mh",
@@ -3059,6 +3088,17 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "gap": "Peer-reviewed early-growth research includes Akita only inside a multi-breed cluster; no exact breed-specific tabular monthly values were published. No curve digitisation or interpolation was performed."
+        },
+        {
+          "id": "aki-adult-weight-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "sourceId": "fci255",
+          "gap": "FCI Standard No. 255 publishes height but no numeric weight; ambiguous secondary weight ranges are retained as inactive provenance only."
         }
       ]
     },

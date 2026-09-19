@@ -50,6 +50,20 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `selected dog breed without reference presents breed unavailable instead of category fallback`() {
+        val date = LocalDate.of(2025, 1, 15)
+        listOf("VBO:0200290", "VBO:0200470", "VBO:0200880").forEach { breedId ->
+            val result = presenter.present(
+                dog(PartialBirthDate.Day(date.minusDays(100))).copy(breedId = BreedId(breedId)),
+                ChartDateRange(date, date),
+            ) as PetHistoryWeightReference.Unavailable
+
+            assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(breedId), result.reason)
+            assertEquals("Для выбранной породы ориентиры сейчас недоступны.", result.explanation)
+        }
+    }
+
+    @Test
     fun `partial birth date is explicitly approximate`() {
         val date = LocalDate.of(2025, 1, 15)
         val result = presenter.present(

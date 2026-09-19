@@ -258,20 +258,30 @@ class PetHistoryBreedReferencePresenterTest {
             pet,
             listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
         )
-        val values = requireNotNull(timeline.single().values)
+        assertNull(timeline.single().values)
+        assertTrue(breedWeightReferenceChartSeries(timeline).isEmpty())
+    }
 
-        assertEquals(1, values.size)
-        val range = values.single() as PetHistoryBreedChartValue.Interval
-        assertEquals(28.0, range.lowerKg, 0.0)
-        assertEquals(33.0, range.upperKg, 0.0)
-        assertNull(range.centerKg)
-        assertEquals(
-            listOf(
-                BreedWeightReferenceSeriesKind.LOWER_BOUNDARY,
-                BreedWeightReferenceSeriesKind.UPPER_BOUNDARY,
-            ),
-            breedWeightReferenceChartSeries(timeline).map(BreedWeightReferenceChartSeries::kind),
+    @Test
+    fun `official point and minimum labels survive presentation into chart series`() {
+        val cases = listOf(
+            Triple("VBO:0200120", "Идеальный вес", 11.0),
+            Triple("VBO:0201135", "Значение стандарта", 36.5),
+            Triple("VBO:0200321", "Минимальный вес", 50.0),
         )
+        cases.forEach { (breedId, label, expected) ->
+            val pet = dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)))
+            val presentation = presenter().present(pet) as PetHistoryBreedReference.Available
+            val value = presentation.chartValues.single() as PetHistoryBreedChartValue.Single
+            val timeline = presenter().presentTimeline(pet, listOf(PetHistoryBreedReferenceTimelineMoment(1, today)))
+            val series = breedWeightReferenceChartSeries(timeline).single()
+
+            assertEquals(expected, value.valueKg, 0.0)
+            assertEquals(label, value.statisticLabel)
+            assertTrue(value.accessibilityLabel.contains(label))
+            assertEquals(label, series.statisticLabel)
+            assertEquals(listOf(BreedWeightReferenceSeriesKind.CENTER), listOf(series.kind))
+        }
     }
 
     @Test

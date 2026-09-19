@@ -101,6 +101,7 @@ internal data class BreedWeightReferenceChartSeries(
     val points: List<Pair<LocalDate, Double>>,
     val showsPointMarkers: Boolean = false,
     val xEpochMillis: List<Long>,
+    val statisticLabel: String? = null,
 )
 
 internal enum class BreedWeightReferenceSeriesKind {
@@ -235,9 +236,10 @@ internal fun petWeightChartLegendEntries(
             ),
         )
     }
-    if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_CENTER }) {
-        add(PetWeightChartLegendEntry("— Породная медиана или среднее", PetWeightDisplayedSeriesStyle.BREED_CENTER))
-    }
+    displayedSeries
+        .filter { it.style == PetWeightDisplayedSeriesStyle.BREED_CENTER }
+        .distinctBy(PetWeightDisplayedSeries::label)
+        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.BREED_CENTER)) }
 }
 
 internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntry> = listOf(
@@ -392,7 +394,7 @@ internal fun petWeightDisplayedSeries(
                 )
                 BreedWeightReferenceSeriesKind.CENTER -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_CENTER,
-                    "Медиана или среднее",
+                    series.statisticLabel ?: "Медиана или среднее",
                     PetWeightDisplayedSeriesStyle.BREED_CENTER,
                 )
             }
@@ -408,6 +410,7 @@ internal fun petWeightDisplayedSeries(
             )
         }
     } else if (
+        (!useLegacyBreedTimeline || breedReferenceTimeline.isEmpty()) &&
         reference is PetHistoryWeightReference.Available &&
         reference.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION
     ) {
@@ -509,7 +512,20 @@ internal fun breedWeightReferenceChartSeries(
                     is PetHistoryBreedChartValue.Interval -> it.centerKg
                     is PetHistoryBreedChartValue.Single -> it.valueKg
                 }
-            }.forEach { (values, x) -> add(BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, values, xEpochMillis = x)) }
+            }.forEach { (values, x) ->
+                val statisticLabel = timeline.asSequence()
+                    .flatMap { it.values.orEmpty().asSequence() }
+                    .firstOrNull { it.seriesId == seriesId }
+                    ?.statisticLabel
+                add(
+                    BreedWeightReferenceChartSeries(
+                        BreedWeightReferenceSeriesKind.CENTER,
+                        values,
+                        xEpochMillis = x,
+                        statisticLabel = statisticLabel,
+                    ),
+                )
+            }
         }
     }
 }

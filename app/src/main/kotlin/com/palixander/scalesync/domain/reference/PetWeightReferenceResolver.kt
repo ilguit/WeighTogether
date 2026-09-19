@@ -167,10 +167,8 @@ class PetWeightReferenceResolver(
             val matchingProfile = snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.BREED && it.species == referenceSpecies &&
                     it.sex == referenceSex && it.breedId == id.value
-            } ?: if (referenceSpecies == ReferenceSpecies.CAT) {
-                return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(id.value))
-            } else null
-            matchingProfile?.takeIf { it.supports(age) } ?: if (matchingProfile != null) {
+            } ?: return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(id.value))
+            matchingProfile.takeIf { it.supports(age) } ?: run {
                 return resolveProfile(
                     matchingProfile,
                     birthDate,
@@ -178,7 +176,7 @@ class PetWeightReferenceResolver(
                     WeightReferenceProvenance.BREED_CURVE,
                     canonicalBreedId,
                 )
-            } else null
+            }
         }
 
         val profile = if (breedProfile != null) {

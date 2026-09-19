@@ -40,7 +40,9 @@ class BreedReferenceSnapshotTest {
                     it.ageMinimumDays == 0 && it.ageMaximumDays == 730
             })
         }
-        assertTrue(snapshot.breed("VBO:0200734")!!.values.filter { it.adult }.all { !it.activeForProduct })
+        assertTrue(snapshot.breed("VBO:0200734")!!.values.filter {
+            it.adult && it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP
+        }.all { !it.activeForProduct })
         assertTrue(snapshot.breed("VBO:0200880")!!.values.all {
             it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP
         })
@@ -88,14 +90,33 @@ class BreedReferenceSnapshotTest {
     }
 
     @Test
-    fun `AmStaff QA replacement is sex specific and rejected combined range is provenance only`() {
+    fun `AmStaff numeric weights are inactive provenance and FCI absence is explicit`() {
         val values = BreedReferenceSnapshot.bundled().breed("VBO:0200055")!!.values
 
-        assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.lower == 28.0 && it.upper == 33.0 && it.activeForProduct })
-        assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.lower == 19.0 && it.upper == 25.0 && it.activeForProduct })
-        assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.center == 28.3 && it.sampleSize == 570 })
-        assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.center == 23.5 && it.sampleSize == 637 })
+        assertTrue(values.filter {
+            it.measure == BreedReferenceMeasure.WEIGHT && it.adult &&
+                it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP
+        }.all { !it.activeForProduct })
+        assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.lower == 28.0 && it.upper == 33.0 && !it.activeForProduct })
+        assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.lower == 19.0 && it.upper == 25.0 && !it.activeForProduct })
+        assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.center == 28.3 && it.sampleSize == 570 && !it.activeForProduct })
+        assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.center == 23.5 && it.sampleSize == 637 && !it.activeForProduct })
         assertTrue(values.any { it.sex == BreedReferenceSex.COMBINED && it.lower == 18.1 && !it.activeForProduct })
+        assertTrue(values.any {
+            it.id == "ams-adult-weight-gap" && it.sourceId == "fci286" &&
+                it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP && it.activeForProduct
+        })
+    }
+
+    @Test
+    fun `Akita inactive secondary ranges are paired with official adult weight gap`() {
+        val values = BreedReferenceSnapshot.bundled().breed("VBO:0200734")!!.values
+
+        assertTrue(values.filter { it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP }.all { !it.activeForProduct })
+        assertTrue(values.any {
+            it.id == "aki-adult-weight-gap" && it.sourceId == "fci255" &&
+                it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP && it.activeForProduct
+        })
     }
 
     @Test

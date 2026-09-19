@@ -31,6 +31,12 @@ https://creativecommons.org/licenses/by-sa/4.0/. The Akita values remain
 inactive for product use because the source discusses Japanese/American naming
 ambiguity and publishes an unusually broad interval.
 
+The American Staffordshire Terrier weight ranges from Svenska Terrierklubben
+and observational means from Andersson et al. are retained as inactive
+provenance only. FCI Standard No. 286 publishes preferred height by sex but no
+numeric weight, so ScaleSync does not present those secondary or empirical
+figures as a standard adult range.
+
 ## Liverpool canine growth-standard supporting data
 
 Salt C, Morris PJ, German AJ, Wilson D, Lund EM, Cole TJ, and Butterwick RF

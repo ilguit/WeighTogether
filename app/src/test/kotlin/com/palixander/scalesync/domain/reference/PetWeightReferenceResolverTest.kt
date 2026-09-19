@@ -394,27 +394,28 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `ordinary VBO dog breeds fall back to weight category and report actual basis`() {
+    fun `selected dog breeds without breed profiles never fall back to weight category`() {
         val birthDate = PartialBirthDate.Day(referenceDate.minusDays(100))
-        listOf("VBO:0000661", "VBO:0000663", "VBO:0000664").forEach { breedId ->
-            val result = resolveDog(
-                breedId = BreedId(breedId),
-                birthDate = birthDate,
-                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.II),
-            ).available()
-
-            assertEquals("dog-male-II", result.profileId)
-            assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
+        listOf("VBO:0200290", "VBO:0200470", "VBO:0200880").forEach { breedId ->
+            assertEquals(
+                WeightReferenceUnavailableReason.UnsupportedBreed(breedId),
+                resolveDog(
+                    breedId = BreedId(breedId),
+                    birthDate = birthDate,
+                    dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.II),
+                ).unavailable().reason,
+            )
         }
     }
 
     @Test
-    fun `ordinary VBO dog breed without category reports missing adult weight`() {
-        assertReason<WeightReferenceUnavailableReason.MissingDogAdultWeight>(
+    fun `selected dog breed without profile reports breed unavailable before category requirements`() {
+        assertEquals(
+            WeightReferenceUnavailableReason.UnsupportedBreed("VBO:0200470"),
             resolveDog(
-                breedId = BreedId("VBO:0000661"),
+                breedId = BreedId("VBO:0200470"),
                 birthDate = PartialBirthDate.Day(referenceDate.minusDays(100)),
-            ),
+            ).unavailable().reason,
         )
     }
 

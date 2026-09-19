@@ -275,7 +275,7 @@ class PetWeightReferenceChartTest {
         assertEquals(
             listOf(
                 "▰ Светло-зелёная зона — породный диапазон",
-                "— Породная медиана или среднее",
+                "— Медиана или среднее",
             ),
             petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
         )
@@ -323,14 +323,45 @@ class PetWeightReferenceChartTest {
         assertEquals(1, displayed.map(PetWeightDisplayedSeries::id).distinct().size)
         assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
         assertEquals(
-            listOf("— Породная медиана или среднее"),
+            listOf("— Среднее"),
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
         assertEquals(
-            "Медиана или среднее: 10.40 кг",
+            "Среднее: 10.40 кг",
             formatPetWeightDisplayedMarker(x, displayed, Locale.US),
         )
         assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
+    }
+
+    @Test fun `official point and minimum use exact labels and one series`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val x = date.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli()
+        listOf("Идеальный вес", "Значение стандарта", "Минимальный вес").forEach { label ->
+            val displayed = petWeightDisplayedSeries(
+                emptyList(),
+                available(listOf(PetHistoryReferencePoint(date, 1.0, 2.0, 3.0, 4.0))),
+                listOf(timelinePoint(date, PetHistoryBreedChartValue.Single(11.0, label, label))),
+                ZoneOffset.UTC,
+            )
+
+            assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_CENTER), displayed.map(PetWeightDisplayedSeries::kind))
+            assertEquals(label, displayed.single().label)
+            assertEquals("— $label", petWeightChartLegendEntries(displayed).single().label)
+            assertEquals("$label: 11.00 кг", formatPetWeightDisplayedMarker(x, displayed, Locale.US))
+        }
+    }
+
+    @Test fun `inactive-only Akita timeline suppresses generic numeric reference`() {
+        val date = LocalDate.of(2026, 9, 1)
+        val displayed = petWeightDisplayedSeries(
+            emptyList(),
+            available(listOf(PetHistoryReferencePoint(date, 20.0, 25.0, 30.0, 40.0))),
+            listOf(PetHistoryBreedReferenceTimelinePoint(date, null)),
+            ZoneOffset.UTC,
+        )
+
+        assertTrue(displayed.isEmpty())
+        assertTrue(petWeightChartLegendEntries(displayed).isEmpty())
     }
 
     @Test fun `Shiba official ranges display only breed boundaries and green band`() {
@@ -392,12 +423,12 @@ class PetWeightReferenceChartTest {
         assertEquals(listOf(7.0, 10.0, 13.0), displayed.single().y)
         assertEquals(xs, petWeightDisplayedMarkerXs(displayed))
         assertEquals(
-            listOf("— Породная медиана или среднее"),
+            listOf("— Среднее"),
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
         assertTrue(
             formatPetWeightDisplayedMarker(xs.first(), displayed, Locale.US)
-                .contains("Медиана или среднее: 7.00 кг"),
+                .contains("Среднее: 7.00 кг"),
         )
     }
 
@@ -418,48 +449,22 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
     }
 
-    @Test fun `bundled AmStaff range displays factual lower and upper without zero or center`() {
+    @Test fun `bundled AmStaff inactive ranges do not become chart series`() {
         val date = LocalDate.of(2026, 9, 1)
         val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
         val amstaff = requireNotNull(BreedReferenceSnapshot.bundled().breed("VBO:0200055"))
 
-        listOf(BreedReferenceSex.MALE, BreedReferenceSex.FEMALE).forEach { sex ->
-            val range = amstaff.values.single {
-                it.measure == BreedReferenceMeasure.WEIGHT && it.sex == sex && it.adult &&
-                    it.activeForProduct && it.lower != null && it.upper != null
-            }
-            val displayed = petWeightDisplayedSeries(
-                factual = listOf(ChartPoint(measuredAt / 1_000, 27.0)),
-                reference = available(listOf(PetHistoryReferencePoint(date, 0.0, 20.0, 21.0, 30.0))),
-                breedReferenceTimeline = listOf(
-                    PetHistoryBreedReferenceTimelinePoint(
-                        measuredAt,
-                        date,
-                        listOf(
-                            PetHistoryBreedChartValue.Interval(
-                                requireNotNull(range.lower),
-                                requireNotNull(range.upper),
-                                null,
-                                "Диапазон",
-                                "Диапазон",
-                            ),
-                        ),
-                    ),
-                ),
-                zoneId = ZoneOffset.UTC,
-            )
+        assertTrue(amstaff.values.filter {
+            it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.statistic.name != "DOCUMENTED_GAP"
+        }.all { !it.activeForProduct })
+        val displayed = petWeightDisplayedSeries(
+            factual = listOf(ChartPoint(measuredAt / 1_000, 27.0)),
+            reference = available(listOf(PetHistoryReferencePoint(date, 0.0, 20.0, 21.0, 30.0))),
+            breedReferenceTimeline = listOf(PetHistoryBreedReferenceTimelinePoint(measuredAt, date, null)),
+            zoneId = ZoneOffset.UTC,
+        )
 
-            assertEquals(
-                listOf(
-                    PetWeightDisplayedSeriesKind.FACTUAL,
-                    PetWeightDisplayedSeriesKind.BREED_LOWER,
-                    PetWeightDisplayedSeriesKind.BREED_UPPER,
-                ),
-                displayed.map(PetWeightDisplayedSeries::kind),
-            )
-            assertTrue(displayed.flatMap(PetWeightDisplayedSeries::y).none { it == 0.0 })
-            assertTrue(displayed.all { it.x == listOf(measuredAt) })
-        }
+        assertEquals(listOf(PetWeightDisplayedSeriesKind.FACTUAL), displayed.map(PetWeightDisplayedSeries::kind))
     }
 
     private fun displayedSeries(
@@ -640,7 +645,7 @@ class PetWeightReferenceChartTest {
             listOf(
                 BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, listOf(firstDate to 8.0, secondDate to 9.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
                 BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY, listOf(firstDate to 12.0, secondDate to 13.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
-                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, listOf(firstDate to 10.0, secondDate to 11.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }),
+                BreedWeightReferenceChartSeries(BreedWeightReferenceSeriesKind.CENTER, listOf(firstDate to 10.0, secondDate to 11.0), xEpochMillis = listOf(firstDate, secondDate).map { it.atStartOfDay(ZoneOffset.UTC).toInstant().toEpochMilli() }, statisticLabel = "Диапазон"),
             ),
             breedWeightReferenceChartSeries(timeline),
         )
