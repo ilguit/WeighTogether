@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.1",
+    "snapshotVersion": "2026.09.19.2",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "5743276e258c4861642b920b25b36b38c4121c30d237d149d4961168c6a5716e",
+    "numericalDataSha256": "fa9bf60db8f0530eb821038dc2dfe83d5f0d8570f8684787c80bc971b4285893",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -375,8 +375,19 @@
         "id": "wiki-akita",
         "title": "Wikipedia: Akita (dog breed)",
         "url": "https://en.wikipedia.org/wiki/Akita_(dog_breed)",
+        "year": 2026,
         "kind": "professional_reference",
-        "method": "Broad sex-specific fallback with Japanese/American naming ambiguity"
+        "method": "Current infobox sex-specific adult-weight fallback because FCI 255 supplies no weight; article scope has Japanese/American naming ambiguity",
+        "pageOrTable": "Infobox"
+      },
+      {
+        "id": "wiki-amstaff",
+        "title": "Wikipedia: American Staffordshire Terrier",
+        "url": "https://en.wikipedia.org/wiki/American_Staffordshire_Terrier",
+        "year": 2026,
+        "kind": "professional_reference",
+        "method": "Current infobox approximate combined adult-weight fallback because FCI 286 supplies no weight",
+        "pageOrTable": "Infobox"
       },
       {
         "id": "wiki-aussie",
@@ -1408,7 +1419,25 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci286",
-          "gap": "FCI Standard No. 286 publishes preferred height by sex but no numeric weight; secondary and observational weight values are retained as inactive provenance only."
+          "gap": "FCI Standard No. 286 publishes preferred height by sex but no numeric weight; the Wikipedia infobox is used as the documented secondary fallback.",
+          "activeForProduct": false
+        },
+        {
+          "id": "ams-wiki-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "approximate_range",
+          "unit": "kg",
+          "lower": 23,
+          "upper": 36,
+          "sourceId": "wiki-amstaff",
+          "limitations": [
+            "Approximate combined-sex range converted by the article from about 50–80 lb",
+            "Article prose separately reports 40–70 lb (18–32 kg); the conflicting prose range is not merged into the infobox fallback",
+            "Secondary reference, not a numeric weight published by FCI Standard No. 286"
+          ]
         },
         {
           "id": "ams-mh",
@@ -3054,7 +3083,6 @@
           "lower": 27,
           "upper": 59,
           "sourceId": "wiki-akita",
-          "activeForProduct": false,
           "limitations": [
             "Published secondary fallback is unusually broad",
             "Article discusses Japanese/American split; do not treat as a precise FCI ideal"
@@ -3071,7 +3099,6 @@
           "lower": 25,
           "upper": 45,
           "sourceId": "wiki-akita",
-          "activeForProduct": false,
           "limitations": [
             "Published secondary fallback is unusually broad",
             "Article discusses Japanese/American split; do not treat as a precise FCI ideal"
@@ -3098,7 +3125,8 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci255",
-          "gap": "FCI Standard No. 255 publishes height but no numeric weight; ambiguous secondary weight ranges are retained as inactive provenance only."
+          "gap": "FCI Standard No. 255 publishes height but no numeric weight; the Wikipedia infobox is used as the documented secondary fallback.",
+          "activeForProduct": false
         }
       ]
     },

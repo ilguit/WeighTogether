@@ -449,13 +449,18 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
     }
 
-    @Test fun `bundled AmStaff inactive ranges do not become chart series`() {
+    @Test fun `bundled AmStaff keeps exactly one active adult interval`() {
         val date = LocalDate.of(2026, 9, 1)
         val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
         val amstaff = requireNotNull(BreedReferenceSnapshot.bundled().breed("VBO:0200055"))
 
-        assertTrue(amstaff.values.filter {
+        val activeAdultWeights = amstaff.values.filter {
             it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.statistic.name != "DOCUMENTED_GAP"
+        }.filter { it.activeForProduct }
+        assertEquals(1, activeAdultWeights.size)
+        assertEquals("ams-wiki-adult", activeAdultWeights.single().id)
+        assertTrue(amstaff.values.filter {
+            it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.id != "ams-wiki-adult"
         }.all { !it.activeForProduct })
         val displayed = petWeightDisplayedSeries(
             factual = listOf(ChartPoint(measuredAt / 1_000, 27.0)),

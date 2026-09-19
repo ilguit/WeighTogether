@@ -248,7 +248,7 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
-    fun `adult amstaff timeline produces only adult lower and upper chart series`() {
+    fun `adult amstaff timeline produces only approximate lower and upper chart series`() {
         val pet = dog().copy(
             breedId = BreedId("VBO:0200055"),
             birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)),
@@ -258,8 +258,38 @@ class PetHistoryBreedReferencePresenterTest {
             pet,
             listOf(PetHistoryBreedReferenceTimelineMoment(1, today)),
         )
-        assertNull(timeline.single().values)
-        assertTrue(breedWeightReferenceChartSeries(timeline).isEmpty())
+        val values = requireNotNull(timeline.single().values)
+        val interval = values.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(23.0, interval.lowerKg, 0.0)
+        assertEquals(36.0, interval.upperKg, 0.0)
+        assertNull(interval.centerKg)
+        assertEquals(
+            listOf(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, BreedWeightReferenceSeriesKind.UPPER_BOUNDARY),
+            breedWeightReferenceChartSeries(timeline).map(BreedWeightReferenceChartSeries::kind),
+        )
+    }
+
+    @Test
+    fun `adult Akita presentation has one sex interval and exactly two boundaries`() {
+        listOf(PetSex.MALE to (27.0 to 59.0), PetSex.FEMALE to (25.0 to 45.0)).forEach { (sex, bounds) ->
+            val pet = dog().copy(
+                breedId = BreedId("VBO:0200734"),
+                sex = sex,
+                birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)),
+            )
+            val presentation = presenter().present(pet) as PetHistoryBreedReference.Available
+            val interval = presentation.chartValues.single() as PetHistoryBreedChartValue.Interval
+            val timeline = presenter().presentTimeline(pet, listOf(PetHistoryBreedReferenceTimelineMoment(1, today)))
+
+            assertEquals(bounds.first, interval.lowerKg, 0.0)
+            assertEquals(bounds.second, interval.upperKg, 0.0)
+            assertNull(interval.centerKg)
+            assertTrue(presentation.companionReferences.isEmpty())
+            assertEquals(
+                listOf(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, BreedWeightReferenceSeriesKind.UPPER_BOUNDARY),
+                breedWeightReferenceChartSeries(timeline).map(BreedWeightReferenceChartSeries::kind),
+            )
+        }
     }
 
     @Test
