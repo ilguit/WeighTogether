@@ -235,6 +235,28 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `documented adult gaps apply without birth date and at adult age while juvenile gaps stay age specific`() {
+        listOf(
+            "VBO:0200290" to Pair(
+                "FCI specifies that weight must be proportional to size but publishes no numeric adult weight; do not infer a value.",
+                "No open peer-reviewed or official breed-specific age/weight observations were located; do not infer from adult standards.",
+            ),
+            "VBO:0200880" to Pair(
+                "FCI 367 intentionally provides no numeric range and Wikipedia provides no weight; no substitute or inferred range was used.",
+                "No peer-reviewed or open dataset with exact breed-specific 0–24 month tabular weights was identified. Size-category curves were not relabelled as breed observations.",
+            ),
+        ).forEach { (breedId, gaps) ->
+            val withoutBirthDate = resolve(breedId, PetSex.MALE, null).documentedGap()
+            val adult = resolve(breedId, PetSex.MALE, PartialBirthDate.Day(today.minusDays(800))).documentedGap()
+            val juvenile = resolve(breedId, PetSex.MALE, PartialBirthDate.Day(today.minusDays(200))).documentedGap()
+
+            assertEquals("$breedId without birth date", gaps.first, withoutBirthDate.description)
+            assertEquals("$breedId at adult age", gaps.first, adult.description)
+            assertEquals("$breedId at juvenile age", gaps.second, juvenile.description)
+        }
+    }
+
+    @Test
     fun `aliases resolve to canonical breed`() {
         val result = resolve("VBO:0201146", PetSex.MALE, null).available()
         assertEquals("VBO:0200174", result.breedId)
@@ -264,6 +286,8 @@ class BreedWeightReferenceResolverTest {
 
     private fun BreedWeightReferenceResolution.available() = (this as BreedWeightReferenceResolution.Available).reference
     private fun BreedWeightReferenceResolution.unavailable() = (this as BreedWeightReferenceResolution.Unavailable).reason
+    private fun BreedWeightReferenceResolution.documentedGap() =
+        unavailable() as BreedWeightReferenceUnavailableReason.DocumentedGap
 
     private data class Case(
         val name: String,

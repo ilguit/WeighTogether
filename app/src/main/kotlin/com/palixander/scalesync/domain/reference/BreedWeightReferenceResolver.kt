@@ -164,7 +164,7 @@ class BreedWeightReferenceResolver(
         val selectable = sexValues.filter { it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP }
         val selectedGroup = selectGroup(selectable, selectedSex, age.selectedAgeDays, snapshot)
             ?: return unavailable(
-                selectApplicableGap(sexValues, selectedSex, age.selectedAgeDays)?.gap
+                selectApplicableGap(sexValues, selectedSex, age.selectedAgeDays, snapshot)?.gap
                     ?.let(BreedWeightReferenceUnavailableReason::DocumentedGap)
                     ?: BreedWeightReferenceUnavailableReason.NoApplicableValue,
             )
@@ -248,19 +248,31 @@ class BreedWeightReferenceResolver(
         values: List<BreedReferenceValue>,
         selectedSex: BreedReferenceSex,
         selectedAgeDays: Long?,
+        snapshot: BreedReferenceSnapshot,
     ): BreedReferenceValue? {
-        if (selectedAgeDays == null) return null
-        return values
-            .asSequence()
-            .filter { value ->
-                value.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP &&
-                    !value.adult &&
+        val gaps = values.filter { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP }
+        val applicable = if (selectedAgeDays == null) {
+            gaps.filter(BreedReferenceValue::adult)
+        } else {
+            val ageSpecific = gaps.filter { value ->
+                !value.adult &&
                     selectedAgeDays >= requireNotNull(value.ageMinimumDays) &&
                     selectedAgeDays <= (value.ageMaximumDays ?: requireNotNull(value.ageMinimumDays)).toLong()
             }
+            if (ageSpecific.isNotEmpty()) ageSpecific
+            else if (selectedAgeDays >= ADULT_REFERENCE_MINIMUM_DAYS) gaps.filter(BreedReferenceValue::adult)
+            else emptyList()
+        }
+        return applicable
             .minWithOrNull(
                 compareBy<BreedReferenceValue> { if (it.sex == selectedSex) 0 else 1 }
-                    .thenBy { (it.ageMaximumDays ?: it.ageMinimumDays!!) - it.ageMinimumDays!! }
+                    .thenBy { value ->
+                        sourcePriority(snapshot.manifest.sources.firstOrNull { it.id == value.sourceId }?.kind)
+                    }
+                    .thenBy { value ->
+                        if (value.adult) Int.MAX_VALUE
+                        else (value.ageMaximumDays ?: value.ageMinimumDays!!) - value.ageMinimumDays!!
+                    }
                     .thenBy(BreedReferenceValue::id),
             )
     }

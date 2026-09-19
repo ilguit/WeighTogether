@@ -129,6 +129,38 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
+    fun `adult and juvenile documented gaps remain available through presentation`() {
+        listOf("VBO:0200290", "VBO:0200880").forEach { breedId ->
+            val results = listOf(
+                presenter().present(dog().copy(breedId = BreedId(breedId))),
+                presenter().present(
+                    dog().copy(
+                        breedId = BreedId(breedId),
+                        birthDate = PartialBirthDate.Day(today.minusDays(800)),
+                    ),
+                ),
+                presenter().present(
+                    dog().copy(
+                        breedId = BreedId(breedId),
+                        birthDate = PartialBirthDate.Day(today.minusDays(200)),
+                    ),
+                ),
+            ).map { it as PetHistoryBreedReference.Unavailable }
+
+            results.forEach { result ->
+                assertTrue("$breedId exposes a documented gap", result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+                assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+                assertFalse(result.showEditAction)
+            }
+            val descriptions = results.map {
+                (it.reason as BreedWeightReferenceUnavailableReason.DocumentedGap).description
+            }
+            assertEquals("$breedId uses the same adult gap with or without a birth date", descriptions[0], descriptions[1])
+            assertTrue("$breedId juvenile gap does not get masked by adult gap", descriptions[1] != descriptions[2])
+        }
+    }
+
+    @Test
     fun `cat presentation is hidden`() {
         assertEquals(PetHistoryBreedReference.Hidden, presenter().present(dog().copy(species = PetSpecies.CAT)))
     }
