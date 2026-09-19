@@ -14,16 +14,15 @@ import kotlin.test.assertTrue
 
 class BreedReferenceSnapshotTest {
     @Test
-    fun `bundled snapshot contains all ten researched breeds and Russian Black Terrier alias`() {
+    fun `bundled snapshot contains the first twenty researched breeds and Russian Black Terrier alias`() {
         val snapshot = BreedReferenceSnapshot.bundled()
 
         assertEquals(1, snapshot.manifest.schemaVersion)
-        assertEquals(10, snapshot.breeds.size)
-        assertEquals((1..10).toList(), snapshot.breeds.map { it.popularityRank }.sorted())
+        assertTrue(snapshot.breeds.size >= 20)
+        assertEquals((1..20).toList(), snapshot.breeds.map { it.popularityRank }.filter { it <= 20 }.sorted())
         assertSame(snapshot.breed("VBO:0200174"), snapshot.breed("VBO:0201146"))
         snapshot.breeds.forEach { breed ->
             assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.WEIGHT })
-            assertTrue(breed.values.any { it.adult && it.measure == BreedReferenceMeasure.HEIGHT })
         }
     }
 
@@ -124,6 +123,42 @@ class BreedReferenceSnapshotTest {
         assertTrue(dogslife.method!!.contains("Owner-reported"))
         assertEquals(358, labrador.values.single { it.id == "lab-f24" }.sampleSize)
         assertTrue(labrador.values.any { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP })
+    }
+
+    @Test
+    fun `ranks eleven through twenty preserve safe adult mappings and exact statistic semantics`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+
+        assertEquals("Papillon", snapshot.breed("VBO:0200985")!!.englishName)
+        assertEquals(34.0, snapshot.breed("VBO:0200610")!!.values.single { it.id == "gold-adult" }.upper)
+        assertEquals(16.0, snapshot.breed("VBO:0200095")!!.values.single { it.id == "aussie-adult" }.lower)
+        assertEquals(BreedReferenceStatisticKind.IDEAL, snapshot.breed("VBO:0200120")!!.values.single { it.id == "bas-mw" }.statistic)
+        assertEquals(BreedReferenceStatisticKind.STANDARD_POINT, snapshot.breed("VBO:0201135")!!.values.single { it.id == "ridge-mw" }.statistic)
+        val centralAsianMale = snapshot.breed("VBO:0200321")!!.values.single { it.id == "cas-mw" }
+        assertEquals(BreedReferenceStatisticKind.MINIMUM, centralAsianMale.statistic)
+        assertEquals(50.0, centralAsianMale.lower)
+        assertEquals(null, centralAsianMale.upper)
+        assertEquals(6.0, snapshot.breed("VBO:0200893")!!.values.single { it.id == "minpin-adult" }.upper)
+    }
+
+    @Test
+    fun `new neonatal observations gaps and provenance remain source faithful`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        val pomeranian = snapshot.breed("VBO:0200599")!!.values
+        val ridgeback = snapshot.breed("VBO:0201135")!!.values
+
+        assertEquals(117, pomeranian.single { it.id == "pom-birth-mugnier" }.sampleSize)
+        assertEquals(0.124, pomeranian.single { it.id == "pom-birth-groppetti" }.center)
+        assertEquals(76, ridgeback.single { it.id == "ridge-birth-q" }.sampleSize)
+        assertEquals(0.55, ridgeback.single { it.id == "ridge-birth-r" }.upper)
+        assertTrue(snapshot.breeds.filter { it.popularityRank in 11..20 }.all { breed ->
+            breed.values.any { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP }
+        })
+        assertTrue(snapshot.breeds.filter { it.popularityRank in 11..20 }.flatMap { it.values }.all {
+            it.measure == BreedReferenceMeasure.WEIGHT
+        })
+        assertEquals("p.5", snapshot.manifest.sources.single { it.id == "fci077" }.pageOrTable)
+        assertTrue(snapshot.manifest.sources.single { it.id == "komarova2020" }.method!!.contains("sample sizes not exposed"))
     }
 
     private fun load(root: JsonObject) = BreedReferenceSnapshot.loadOrUnavailable(
