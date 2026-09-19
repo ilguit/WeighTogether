@@ -70,13 +70,13 @@ class ProfilePhotoCropGeometryTest {
         val geometry = ProfilePhotoCropGeometry(400, 200, 200f)
         val start = ProfilePhotoCropTransform(zoom = 2f)
 
-        val moved = geometry.moveImageBy(start, 60f, 0f)
+        val moved = geometry.transformBy(start, 100f, 100f, 60f, 0f, 1f)
         val startCrop = geometry.sourceCropRect(start)
         val movedCrop = geometry.sourceCropRect(moved)
         val displayedImageMovement = (startCrop.left - movedCrop.left) * geometry.displayScale(moved)
 
         assertEquals(60f, displayedImageMovement, EPSILON)
-        val clamped = geometry.moveImageBy(moved, 10_000f, 0f)
+        val clamped = geometry.transformBy(moved, 100f, 100f, 10_000f, 0f, 1f)
         assertEquals(0f, geometry.sourceCropRect(clamped).left, EPSILON)
     }
 

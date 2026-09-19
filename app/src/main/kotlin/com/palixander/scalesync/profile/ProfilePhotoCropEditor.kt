@@ -382,7 +382,11 @@ internal fun ProfilePhotoCropEditor(
                                             val event = awaitPointerEvent()
                                             val pan = event.calculatePan()
                                             val gestureZoom = event.calculateZoom()
-                                            val centroid = event.calculateCentroid(useCurrent = false)
+                                            val previousCentroid = event.calculateCentroid(useCurrent = false)
+                                            val currentCentroid = event.calculateCentroid(useCurrent = true)
+                                            if (!previousCentroid.isFinite() || !currentCentroid.isFinite()) {
+                                                continue
+                                            }
                                             val geometry = ProfilePhotoCropGeometry(
                                                 prepared.width,
                                                 prepared.height,
@@ -390,8 +394,8 @@ internal fun ProfilePhotoCropEditor(
                                             )
                                             gestureTransform = geometry.transformBy(
                                                 transform = gestureTransform,
-                                                centroidX = centroid.x,
-                                                centroidY = centroid.y,
+                                                centroidX = previousCentroid.x,
+                                                centroidY = previousCentroid.y,
                                                 displayPanX = pan.x,
                                                 displayPanY = pan.y,
                                                 zoomChange = gestureZoom,
@@ -462,3 +466,5 @@ internal fun ProfilePhotoCropEditor(
         }
     }
 }
+
+private fun Offset.isFinite(): Boolean = x.isFinite() && y.isFinite()

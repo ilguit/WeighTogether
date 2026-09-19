@@ -266,16 +266,51 @@ class ProfilePhotoCropEditorUiTest {
             }
         }
 
+        var panImmediatelyBeforeUp = 0f
         composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Viewport).performTouchInput {
             down(center)
             repeat(10) {
                 moveBy(Offset(10f, 0f), delayMillis = 32)
             }
+            panImmediatelyBeforeUp = transform.value.panX
             up()
         }
 
         composeRule.runOnIdle {
             assertTrue("Expected the full swipe, but panX was ${transform.value.panX}", transform.value.panX < -0.15f)
+            assertTrue(
+                "Pointer up reset pan from $panImmediatelyBeforeUp to ${transform.value.panX}",
+                kotlin.math.abs(transform.value.panX - panImmediatelyBeforeUp) < 0.0001f,
+            )
+        }
+        prepared.cancel()
+    }
+
+    @Test
+    fun tapAndUpDoNotResetExistingTransform() {
+        val store = store()
+        val prepared = prepared(store)
+        val initial = ProfilePhotoCropTransform(zoom = 2f, panX = -0.35f, panY = 0.2f)
+        val transform = mutableStateOf(initial)
+        composeRule.setContent {
+            ScaleSyncTheme {
+                ProfilePhotoCropEditor(
+                    prepared,
+                    transform.value,
+                    onTransformChanged = { transform.value = it },
+                    onCancel = {},
+                    onConfirm = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Viewport).performTouchInput {
+            down(center)
+            up()
+        }
+
+        composeRule.runOnIdle {
+            assertTrue("Tap/up changed $initial to ${transform.value}", transform.value == initial)
         }
         prepared.cancel()
     }
