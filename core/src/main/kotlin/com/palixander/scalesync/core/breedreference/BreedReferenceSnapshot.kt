@@ -135,9 +135,9 @@ class BreedReferenceSnapshot private constructor(
     private fun validate(catalog: BreedCatalog) {
         require(manifest.snapshotVersion.isNotBlank() && manifest.snapshotDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}")))
         require(manifest.sources.map { it.id }.toSet().size == manifest.sources.size) { "Duplicate source ID" }
-        require(breeds.size in 10..30) { "Expected between ten and thirty supported breeds" }
-        require(breeds.map { it.popularityRank }.sorted() == (1..breeds.size).toList()) {
-            "Breed popularity ranks must be contiguous"
+        require(breeds.size == 30) { "Expected exactly thirty supported breeds" }
+        require(breeds.map { it.popularityRank }.sorted() == (1..30).toList()) {
+            "Breed popularity ranks must be exactly 1 through 30"
         }
         require(breeds.map { it.breedId }.toSet().size == breeds.size) { "Duplicate breed ID" }
         val dogCatalogIds = catalog.all(BreedSpecies.DOG).map { it.id }.toSet()
