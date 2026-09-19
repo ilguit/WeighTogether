@@ -413,6 +413,15 @@ class PetWeightReferenceResolverTest {
                 ).unavailable().reason,
             )
         }
+
+        assertEquals(
+            WeightReferenceUnavailableReason.UnsupportedBreed("VBO:0200577"),
+            resolveDog(
+                breedId = BreedId("VBO:0200577"),
+                birthDate = birthDate,
+                dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.V),
+            ).unavailable().reason,
+        )
     }
 
     @Test

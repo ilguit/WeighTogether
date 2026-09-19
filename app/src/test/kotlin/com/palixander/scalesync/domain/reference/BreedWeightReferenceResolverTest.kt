@@ -140,6 +140,24 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `German Shepherd resolves its official sex specific adult ranges`() {
+        listOf(
+            Triple(PetSex.MALE, 30.0, 40.0),
+            Triple(PetSex.FEMALE, 22.0, 32.0),
+        ).forEach { (sex, lower, upper) ->
+            val reference = resolve("VBO:0200577", sex, null).available()
+            val interval = reference.values.single() as BreedWeightValue.Interval
+
+            assertEquals("VBO:0200577", reference.breedId)
+            assertEquals("Немецкая овчарка", reference.breedRussianName)
+            assertEquals(BreedWeightAgeScope.Adult, reference.ageScope)
+            assertEquals(lower, interval.lower, 0.0)
+            assertEquals(upper, interval.upper, 0.0)
+            assertTrue(interval.referenceId!!.startsWith("fci166:"))
+        }
+    }
+
+    @Test
     fun `amstaff birth observation never leaks into the adult Wikipedia fallback`() {
         listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
             listOf(365, 800).forEach { age ->

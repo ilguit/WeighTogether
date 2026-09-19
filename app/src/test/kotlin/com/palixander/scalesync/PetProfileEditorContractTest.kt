@@ -294,9 +294,43 @@ class PetProfileEditorContractTest {
     fun `catalog keeps the supported dog set independent from cat options`() {
         val dogOptions = breedCatalog.search("", PetSpecies.DOG)
 
-        assertEquals(50, dogOptions.size)
+        assertEquals(51, dogOptions.size)
         assertTrue(dogOptions.all { it.species == PetSpecies.DOG })
         assertTrue(breedCatalog.search("", PetSpecies.CAT).all { it.species == PetSpecies.CAT })
+    }
+
+    @Test
+    fun `German Shepherd is searchable and keeps its stable id through profile round trip`() {
+        val expectedId = BreedId("VBO:0200577")
+        val localized = breedCatalog.search("немецкая", PetSpecies.DOG).single()
+        val english = breedCatalog.search("German Shepherd", PetSpecies.DOG).single()
+
+        assertEquals(expectedId, localized.id)
+        assertEquals("Немецкая овчарка", localized.displayName)
+        assertEquals(localized, english)
+
+        val created = validatePetProfileDraft(
+            PetProfileDraft.create().copy(
+                displayName = "Рекс",
+                species = PetSpecies.DOG,
+                sex = PetSex.MALE,
+                breed = PetBreedSelection.Available(localized),
+            ),
+            today,
+        ).newPet
+        assertEquals(expectedId, created?.breedId)
+
+        val persisted = pet(
+            id = "rex",
+            name = "Рекс",
+            species = PetSpecies.DOG,
+            sex = PetSex.MALE,
+            breedId = created?.breedId,
+        )
+        val restored = PetProfileDraft.edit(persisted, breedCatalog)
+        assertEquals(expectedId, restored.breed?.id)
+        assertTrue(restored.breed is PetBreedSelection.Available)
+        assertEquals(expectedId, validatePetProfileDraft(restored, today, listOf(persisted)).petUpdate?.breedId)
     }
 
     @Test
