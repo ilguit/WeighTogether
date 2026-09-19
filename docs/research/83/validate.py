@@ -54,6 +54,14 @@ EXPECTED_RUNTIME_31_50 = [
     (49, 73, "VBO:0200375"),
     (50, 70, "VBO:0201143"),
 ]
+EXPECTED_RUSSIAN_NAMES_31_50 = [
+    "Вест-хайленд-уайт-терьер", "Йоркширский терьер", "Бернский зенненхунд",
+    "Чихуахуа длинношёрстный", "Норвич-терьер", "Английский бульдог", "Бишон-фризе",
+    "Шотландский терьер", "Малая итальянская борзая", "Веймаранер короткошёрстный",
+    "Чихуахуа короткошёрстный", "Китайская хохлатая собака", "Тайский риджбек",
+    "Такса миниатюрная гладкошёрстная", "Американская акита", "Шетландская овчарка",
+    "Миниатюрный бультерьер", "Керри-блю-терьер", "Колли длинношёрстный", "Ротвейлер",
+]
 
 
 def read_csv(path):
@@ -271,7 +279,7 @@ def validate_runtime_snapshot_31_50():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     manifest = snapshot["manifest"]
     breeds = snapshot["breeds"]
-    assert manifest["snapshotVersion"] == "2026.09.19.5"
+    assert manifest["snapshotVersion"] == "2026.09.19.6"
     assert manifest["snapshotDate"] == "2026-09-19"
     assert len(breeds) == 50
     assert [row["popularityRank"] for row in breeds] == list(range(1, 51))
@@ -279,6 +287,7 @@ def validate_runtime_snapshot_31_50():
         (row["popularityRank"], row["registrations"], row["breedId"])
         for row in breeds[30:]
     ] == EXPECTED_RUNTIME_31_50
+    assert [row["russianName"] for row in breeds[30:]] == EXPECTED_RUSSIAN_NAMES_31_50
     canonical = json.dumps(breeds, ensure_ascii=False, separators=(",", ":"))
     assert hashlib.sha256(canonical.encode("utf-8")).hexdigest() == manifest["numericalDataSha256"]
 

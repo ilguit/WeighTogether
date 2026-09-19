@@ -57,6 +57,36 @@ class BreedReferenceSnapshotTest {
     }
 
     @Test
+    fun `ranks 31 through 50 use the approved Russian names`() {
+        val expected = listOf(
+            Triple(31, "VBO:0201415", "Вест-хайленд-уайт-терьер"),
+            Triple(32, "VBO:0201448", "Йоркширский терьер"),
+            Triple(33, "VBO:0200161", "Бернский зенненхунд"),
+            Triple(34, "VBO:0200339", "Чихуахуа длинношёрстный"),
+            Triple(35, "VBO:0200962", "Норвич-терьер"),
+            Triple(36, "VBO:0200485", "Английский бульдог"),
+            Triple(37, "VBO:0200163", "Бишон-фризе"),
+            Triple(38, "VBO:0201198", "Шотландский терьер"),
+            Triple(39, "VBO:0200713", "Малая итальянская борзая"),
+            Triple(40, "VBO:0201403", "Веймаранер короткошёрстный"),
+            Triple(41, "VBO:0200340", "Чихуахуа короткошёрстный"),
+            Triple(42, "VBO:0200345", "Китайская хохлатая собака"),
+            Triple(43, "VBO:0201348", "Тайский риджбек"),
+            Triple(44, "VBO:0200410", "Такса миниатюрная гладкошёрстная"),
+            Triple(45, "VBO:0200027", "Американская акита"),
+            Triple(46, "VBO:0201217", "Шетландская овчарка"),
+            Triple(47, "VBO:0200882", "Миниатюрный бультерьер"),
+            Triple(48, "VBO:0200764", "Керри-блю-терьер"),
+            Triple(49, "VBO:0200375", "Колли длинношёрстный"),
+            Triple(50, "VBO:0201143", "Ротвейлер"),
+        )
+
+        assertEquals(expected, BreedReferenceSnapshot.bundled().breeds
+            .filter { it.popularityRank in 31..50 }
+            .map { Triple(it.popularityRank, it.breedId, it.russianName) })
+    }
+
+    @Test
     fun `ranks 31 through 50 preserve approved adult semantics provenance and growth gaps`() {
         val snapshot = BreedReferenceSnapshot.bundled()
         val packageBreeds = snapshot.breeds.filter { it.popularityRank in 31..50 }
