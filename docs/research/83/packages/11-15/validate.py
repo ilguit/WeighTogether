@@ -21,6 +21,20 @@ for row in rows("adult-reference.csv"):
     assert all(part in sources for part in row["source_id"].split("+"))
     if row["min_weight_kg"] and row["max_weight_kg"]:
         assert float(row["min_weight_kg"]) <= float(row["max_weight_kg"])
+adult = rows("adult-reference.csv")
+fallbacks = {
+    row["vbo_id"]: (row["sex"], row["min_weight_kg"], row["max_weight_kg"])
+    for row in adult if row["source_id"].startswith("WIKIPEDIA-")
+}
+assert fallbacks == {
+    "VBO:0200610": ("all", "25", "34"),
+    "VBO:0200095": ("all", "16", "32"),
+}
+assert all(
+    not row["min_weight_kg"]
+    for row in adult
+    if row["source_id"].startswith("FCI-") and row["vbo_id"] in fallbacks
+)
 for row in rows("age-observations.csv"):
     assert row["vbo_id"] in ids and row["source_id"] in sources
     assert 0 <= float(row["age_months"]) <= 24

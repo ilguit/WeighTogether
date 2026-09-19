@@ -73,6 +73,19 @@ def validate_11_15():
         assert row["sex"] in {"male", "female", "all"}
         assert row["value_status"] in {"standard", "partial"}
         assert row["limitations"]
+    fallbacks = {
+        row["vbo_id"]: (row["sex"], row["min_weight_kg"], row["max_weight_kg"])
+        for row in adult if row["source_id"].startswith("WIKIPEDIA-")
+    }
+    assert fallbacks == {
+        "VBO:0200610": ("all", "25", "34"),
+        "VBO:0200095": ("all", "16", "32"),
+    }
+    assert all(
+        not row["min_weight_kg"]
+        for row in adult
+        if row["source_id"].startswith("FCI-") and row["vbo_id"] in fallbacks
+    )
     age = read_csv(root / "age-observations.csv")
     for row in age:
         assert row["vbo_id"] in ids and row["source_id"] in sources
@@ -95,6 +108,16 @@ def validate_16_20():
         if row["weight_min_kg"] and row["weight_max_kg"]:
             assert number(row["weight_min_kg"], "adult min") <= number(row["weight_max_kg"], "adult max")
         assert row["weight_value_kind"] in {"ideal", "not_numeric", "standard_point", "minimum", "range"}
+    pomeranian = [row for row in adult if row["vbo_id"] == "VBO:0200599"]
+    assert len(pomeranian) == 2
+    pomeranian_fallback = [row for row in pomeranian if row["source_id"] == "WIKIPEDIA-POMERANIAN"]
+    assert len(pomeranian_fallback) == 1
+    assert (
+        pomeranian_fallback[0]["sex"],
+        pomeranian_fallback[0]["weight_min_kg"],
+        pomeranian_fallback[0]["weight_max_kg"],
+        pomeranian_fallback[0]["weight_value_kind"],
+    ) == ("all", "1.36", "3.17", "range")
     for row in read_csv(root / "age-observations.csv"):
         assert row["vbo_id"] in ids and row["source_id"] in sources
         assert 0 <= int(row["age_start_days"]) <= int(row["age_end_days"]) <= 731
@@ -103,6 +126,10 @@ def validate_16_20():
     gaps = read_csv(root / "gaps.csv")
     assert {row["vbo_id"] for row in gaps} == ids
     assert all(row["gap"] and row["search_scope"] and row["decision"] for row in gaps)
+    assert not any(
+        row["vbo_id"] == "VBO:0200599" and row["field_or_age_range"] == "adult weight"
+        for row in gaps
+    )
 
 
 def validate_21_25():
@@ -175,6 +202,7 @@ def validate_distinctions(manifest):
     assert "Japanese" in by_rank[28]["variety_scope"]
     assert by_rank[28]["adult_source_priority"] == "secondary_fallback_ambiguous"
     assert by_rank[30]["adult_source_priority"] == "primary_official_non_numeric"
+    assert by_rank[17]["adult_source_priority"] == "secondary_fallback"
     assert {rank: by_rank[rank]["catalog_id"] for rank in range(26, 31)} == EXPECTED_CATALOG_IDS
 
 
