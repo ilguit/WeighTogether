@@ -276,6 +276,68 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
+    fun `ranks 31 through 50 resolve approved adult references or explicit gaps`() {
+        val availableCases = listOf(
+            AdultCase("VBO:0201415", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0201448", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.MAXIMUM)),
+            AdultCase("VBO:0200161", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200339", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.IDEAL_RANGE)),
+            AdultCase("VBO:0200962", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200485", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.STANDARD_POINT)),
+            AdultCase("VBO:0200163", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.APPROXIMATE_AVERAGE)),
+            AdultCase("VBO:0201198", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200713", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.MAXIMUM)),
+            AdultCase("VBO:0201403", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.APPROXIMATE_RANGE)),
+            AdultCase("VBO:0200340", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.IDEAL_RANGE)),
+            AdultCase("VBO:0200345", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0201348", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200410", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.MAXIMUM)),
+            AdultCase("VBO:0200882", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200764", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0200375", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0201143", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.STANDARD_POINT)),
+        )
+        availableCases.forEach { case ->
+            val reference = resolve(case.breed, case.sex, null).available()
+            assertEquals(case.breed, case.referenceSex, reference.sex)
+            assertEquals(case.breed, case.statistics, reference.values.map { it.statistic }.toSet())
+        }
+
+        listOf("VBO:0200027", "VBO:0201217").forEach { breedId ->
+            val gap = resolve(breedId, PetSex.MALE, null).documentedGap()
+            assertTrue(breedId, gap.description.contains("no numeric adult weight"))
+        }
+        assertTrue(
+            resolve("VBO:0200375", PetSex.FEMALE, null).documentedGap().description
+                .contains("no numeric female interval was synthesized"),
+        )
+    }
+
+    @Test
+    fun `new researched breeds expose growth gaps without adult or category substitution`() {
+        val breedIds = listOf(
+            "VBO:0201415", "VBO:0201448", "VBO:0200161", "VBO:0200339", "VBO:0200962",
+            "VBO:0200485", "VBO:0200163", "VBO:0201198", "VBO:0200713", "VBO:0201403",
+            "VBO:0200340", "VBO:0200345", "VBO:0201348", "VBO:0200410", "VBO:0200027",
+            "VBO:0201217", "VBO:0200882", "VBO:0200764", "VBO:0200375", "VBO:0201143",
+        )
+        breedIds.forEach { breedId ->
+            val gap = resolve(
+                breedId,
+                PetSex.MALE,
+                PartialBirthDate.Day(today.minusDays(200)),
+            ).documentedGap()
+            assertTrue(breedId, gap.description.contains("size-category curves were not substituted"))
+        }
+
+        val dachshund = resolve("VBO:0200410", PetSex.MALE, null).available()
+        val maximum = dachshund.values.single() as BreedWeightValue.Boundary
+        assertEquals(5.0, maximum.value, 0.0)
+        assertEquals(BreedWeightValue.Boundary.Direction.UPPER, maximum.direction)
+        assertTrue(dachshund.limitations.any { it.contains("5.5 kg") })
+    }
+
+    @Test
     fun `aliases resolve to canonical breed`() {
         val result = resolve("VBO:0201146", PetSex.MALE, null).available()
         assertEquals("VBO:0200174", result.breedId)
@@ -314,5 +376,12 @@ class BreedWeightReferenceResolverTest {
         val age: Int,
         val scope: BreedWeightAgeScope,
         val adultFallback: Boolean,
+    )
+
+    private data class AdultCase(
+        val breed: String,
+        val sex: PetSex,
+        val referenceSex: BreedReferenceSex,
+        val statistics: Set<BreedReferenceStatisticKind>,
     )
 }

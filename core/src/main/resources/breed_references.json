@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.2",
+    "snapshotVersion": "2026.09.19.3",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "fa9bf60db8f0530eb821038dc2dfe83d5f0d8570f8684787c80bc971b4285893",
+    "numericalDataSha256": "e06ce891592310784f62558667ef8abe18932b5ab590cb7f48e68ed63c3417f4",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -436,6 +436,204 @@
         "url": "https://en.wikipedia.org/wiki/Samoyed_dog",
         "kind": "professional_reference",
         "method": "Sex-specific adult weight fallback because FCI 212 supplies no weight"
+      },
+      {
+        "id": "fci003",
+        "title": "FCI Standard No. 3 Kerry Blue Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/003g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of the male adult range; female numeric weight is not published",
+        "pageOrTable": "p.4"
+      },
+      {
+        "id": "fci045",
+        "title": "FCI Standard No. 45 Bernese Mountain Dog",
+        "url": "https://www.fci.be/Nomenclature/Standards/045g02-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci072",
+        "title": "FCI Standard No. 72 Norwich Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/072g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci073",
+        "title": "FCI Standard No. 73 Scottish Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/073g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of the combined adult range",
+        "pageOrTable": "p.4"
+      },
+      {
+        "id": "fci085",
+        "title": "FCI Standard No. 85 West Highland White Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/085g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci086",
+        "title": "FCI Standard No. 86 Yorkshire Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/086g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of the combined maximum weight",
+        "pageOrTable": "p.4"
+      },
+      {
+        "id": "fci088",
+        "title": "FCI Standard No. 88 Shetland Sheepdog",
+        "url": "https://www.fci.be/Nomenclature/Standards/088g01-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci099",
+        "title": "FCI Standard No. 99 Weimaraner",
+        "url": "https://www.fci.be/Nomenclature/Standards/099g07-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of approximate sex-specific ranges shared by short- and long-haired varieties",
+        "pageOrTable": "p.6"
+      },
+      {
+        "id": "fci147",
+        "title": "FCI Standard No. 147 Rottweiler",
+        "url": "https://www.fci.be/Nomenclature/Standards/147g02-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of sex-specific standard weight points",
+        "pageOrTable": "p.6"
+      },
+      {
+        "id": "fci148",
+        "title": "FCI Standard No. 148 Dachshund",
+        "url": "https://www.fci.be/Nomenclature/Standards/148g04-en.pdf",
+        "kind": "international_standard",
+        "method": "Size is specified by chest circumference, not numeric adult weight"
+      },
+      {
+        "id": "fci149",
+        "title": "FCI Standard No. 149 Bulldog",
+        "url": "https://www.fci.be/Nomenclature/Standards/149g02-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of sex-specific standard weight points",
+        "pageOrTable": "p.6"
+      },
+      {
+        "id": "fci156",
+        "title": "FCI Standard No. 156 Collie Rough",
+        "url": "https://www.fci.be/Nomenclature/Standards/156g01-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; female weight is relative to the male and no numeric female range is published"
+      },
+      {
+        "id": "fci200",
+        "title": "FCI Standard No. 200 Italian Sighthound",
+        "url": "https://www.fci.be/Nomenclature/Standards/200g10-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of the combined maximum weight",
+        "pageOrTable": "p.5"
+      },
+      {
+        "id": "fci215",
+        "title": "FCI Standard No. 215 Bichon Frisé",
+        "url": "https://www.fci.be/Nomenclature/Standards/215g09-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of the approximate combined adult weight",
+        "pageOrTable": "p.6"
+      },
+      {
+        "id": "fci218",
+        "title": "FCI Standard No. 218 Chihuahua",
+        "url": "https://www.fci.be/Nomenclature/Standards/218g09-en.pdf",
+        "kind": "international_standard",
+        "method": "Direct transcription of accepted and preferred weight ranges shared by both coat varieties",
+        "pageOrTable": "p.5"
+      },
+      {
+        "id": "fci288",
+        "title": "FCI Standard No. 288 Chinese Crested Dog",
+        "url": "https://www.fci.be/Nomenclature/Standards/288g09-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci338",
+        "title": "FCI Standard No. 338 Thai Ridgeback Dog",
+        "url": "https://www.fci.be/Nomenclature/Standards/338g05-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci344",
+        "title": "FCI Standard No. 344 American Akita",
+        "url": "https://www.fci.be/Nomenclature/Standards/344g05-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard; no numeric adult weight is published"
+      },
+      {
+        "id": "fci359",
+        "title": "FCI Standard No. 359 Miniature Bull Terrier",
+        "url": "https://www.fci.be/Nomenclature/Standards/359g03-en.pdf",
+        "kind": "international_standard",
+        "method": "Conformation standard explicitly has no weight limit"
+      },
+      {
+        "id": "wiki-westie",
+        "title": "Wikipedia: West Highland White Terrier",
+        "url": "https://en.wikipedia.org/wiki/West_Highland_White_Terrier",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-bernese",
+        "title": "Wikipedia: Bernese Mountain Dog",
+        "url": "https://en.wikipedia.org/wiki/Bernese_Mountain_Dog",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-norwich",
+        "title": "Wikipedia: Norwich Terrier",
+        "url": "https://en.wikipedia.org/wiki/Norwich_Terrier",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-chinese-crested",
+        "title": "Wikipedia: Chinese Crested Dog",
+        "url": "https://en.wikipedia.org/wiki/Chinese_Crested_Dog",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-thai-ridgeback",
+        "title": "Wikipedia: Thai Ridgeback",
+        "url": "https://en.wikipedia.org/wiki/Thai_Ridgeback",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-mini-bull",
+        "title": "Wikipedia: Miniature Bull Terrier",
+        "url": "https://en.wikipedia.org/wiki/Miniature_Bull_Terrier",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-kerry-blue",
+        "title": "Wikipedia: Kerry Blue Terrier",
+        "url": "https://en.wikipedia.org/wiki/Kerry_Blue_Terrier",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
+      },
+      {
+        "id": "wiki-rough-collie",
+        "title": "Wikipedia: Rough Collie",
+        "url": "https://en.wikipedia.org/wiki/Rough_Collie",
+        "kind": "professional_reference",
+        "method": "Secondary fallback transcribed from the English Wikipedia article; article text is available under CC BY-SA and page history supplies attribution"
       }
     ]
   },
@@ -3198,6 +3396,869 @@
           "unit": "kg",
           "sourceId": "salt",
           "gap": "No peer-reviewed or open dataset with exact breed-specific 0–24 month tabular weights was identified. Size-category curves were not relabelled as breed observations."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201415",
+      "russianName": "West Highland White Terrier",
+      "englishName": "West Highland White Terrier",
+      "popularityRank": 31,
+      "registrations": 84,
+      "values": [
+        {
+          "id": "whw-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 6.8,
+          "upper": 9.1,
+          "sourceId": "wiki-westie",
+          "limitations": [
+            "15–20 lb converted to kg and rounded to one decimal",
+            "Secondary fallback because FCI 85 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "whw-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal West Highland White Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201448",
+      "russianName": "Йоркширский терьер",
+      "englishName": "Yorkshire Terrier",
+      "popularityRank": 32,
+      "registrations": 84,
+      "values": [
+        {
+          "id": "yor-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "maximum",
+          "unit": "kg",
+          "upper": 3.2,
+          "sourceId": "fci086",
+          "limitations": [
+            "Official maximum, not a population interval"
+          ]
+        },
+        {
+          "id": "yor-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Yorkshire Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200161",
+      "russianName": "Bernese Mountain Dog",
+      "englishName": "Bernese Mountain Dog",
+      "popularityRank": 33,
+      "registrations": 83,
+      "values": [
+        {
+          "id": "ber-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 36,
+          "upper": 55,
+          "sourceId": "wiki-bernese",
+          "limitations": [
+            "Secondary fallback because FCI 45 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "ber-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 34,
+          "upper": 45,
+          "sourceId": "wiki-bernese",
+          "limitations": [
+            "Secondary fallback because FCI 45 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "ber-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Bernese Mountain Dog weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200339",
+      "russianName": "Chihuahua, Long-Haired",
+      "englishName": "Chihuahua, Long-Haired",
+      "popularityRank": 34,
+      "registrations": 83,
+      "values": [
+        {
+          "id": "chl-accepted",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 1,
+          "upper": 3,
+          "sourceId": "fci218",
+          "limitations": [
+            "Accepted standard range shared by long- and smooth-haired varieties"
+          ]
+        },
+        {
+          "id": "chl-ideal",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "ideal_range",
+          "unit": "kg",
+          "lower": 1.5,
+          "upper": 2.5,
+          "sourceId": "fci218",
+          "limitations": [
+            "Preferred weight within the accepted 1–3 kg range; shared by both coat varieties"
+          ]
+        },
+        {
+          "id": "chl-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal long-haired Chihuahua weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200962",
+      "russianName": "Norwich Terrier",
+      "englishName": "Norwich Terrier",
+      "popularityRank": 35,
+      "registrations": 82,
+      "values": [
+        {
+          "id": "nor-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 5,
+          "upper": 5.5,
+          "sourceId": "wiki-norwich",
+          "limitations": [
+            "Secondary fallback because FCI 72 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "nor-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Norwich Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200485",
+      "russianName": "English Bulldog",
+      "englishName": "English Bulldog",
+      "popularityRank": 36,
+      "registrations": 80,
+      "values": [
+        {
+          "id": "bul-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "standard_point",
+          "unit": "kg",
+          "center": 25,
+          "sourceId": "fci149",
+          "limitations": [
+            "Conformation standard point, not an observed average"
+          ]
+        },
+        {
+          "id": "bul-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "standard_point",
+          "unit": "kg",
+          "center": 23,
+          "sourceId": "fci149",
+          "limitations": [
+            "Conformation standard point, not an observed average"
+          ]
+        },
+        {
+          "id": "bul-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal English Bulldog weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200163",
+      "russianName": "Bichon Frise",
+      "englishName": "Bichon Frise",
+      "popularityRank": 37,
+      "registrations": 79,
+      "values": [
+        {
+          "id": "bic-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "approximate_average",
+          "unit": "kg",
+          "center": 5,
+          "sourceId": "fci215",
+          "limitations": [
+            "Approximate average, not a range or population mean"
+          ]
+        },
+        {
+          "id": "bic-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Bichon Frisé weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201198",
+      "russianName": "Scottish Terrier",
+      "englishName": "Scottish Terrier",
+      "popularityRank": 38,
+      "registrations": 79,
+      "values": [
+        {
+          "id": "sco-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 8.5,
+          "upper": 10.5,
+          "sourceId": "fci073",
+          "limitations": [
+            "Official conformation range, not an empirical percentile"
+          ]
+        },
+        {
+          "id": "sco-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Scottish Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200713",
+      "russianName": "Italian Greyhound",
+      "englishName": "Italian Greyhound",
+      "popularityRank": 39,
+      "registrations": 78,
+      "values": [
+        {
+          "id": "igr-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "maximum",
+          "unit": "kg",
+          "upper": 5,
+          "sourceId": "fci200",
+          "limitations": [
+            "Official maximum, not a population interval"
+          ]
+        },
+        {
+          "id": "igr-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Italian Greyhound weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201403",
+      "russianName": "Weimaraner, Short-Haired",
+      "englishName": "Weimaraner, Short-Haired",
+      "popularityRank": 40,
+      "registrations": 77,
+      "values": [
+        {
+          "id": "wei-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "approximate_range",
+          "unit": "kg",
+          "lower": 30,
+          "upper": 40,
+          "sourceId": "fci099",
+          "limitations": [
+            "Approximate official range shared by short- and long-haired varieties"
+          ]
+        },
+        {
+          "id": "wei-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "approximate_range",
+          "unit": "kg",
+          "lower": 25,
+          "upper": 35,
+          "sourceId": "fci099",
+          "limitations": [
+            "Approximate official range shared by short- and long-haired varieties"
+          ]
+        },
+        {
+          "id": "wei-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal short-haired Weimaraner weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200340",
+      "russianName": "Chihuahua, Smooth-Haired",
+      "englishName": "Chihuahua, Smooth-Haired",
+      "popularityRank": 41,
+      "registrations": 77,
+      "values": [
+        {
+          "id": "chs-accepted",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 1,
+          "upper": 3,
+          "sourceId": "fci218",
+          "limitations": [
+            "Accepted standard range shared by smooth- and long-haired varieties"
+          ]
+        },
+        {
+          "id": "chs-ideal",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "ideal_range",
+          "unit": "kg",
+          "lower": 1.5,
+          "upper": 2.5,
+          "sourceId": "fci218",
+          "limitations": [
+            "Preferred weight within the accepted 1–3 kg range; shared by both coat varieties"
+          ]
+        },
+        {
+          "id": "chs-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal smooth-haired Chihuahua weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200345",
+      "russianName": "Chinese Crested",
+      "englishName": "Chinese Crested",
+      "popularityRank": 42,
+      "registrations": 76,
+      "values": [
+        {
+          "id": "ccr-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 4.5,
+          "upper": 5.9,
+          "sourceId": "wiki-chinese-crested",
+          "limitations": [
+            "10–13 lb converted to kg and rounded to one decimal",
+            "Secondary fallback because FCI 288 publishes no numeric weight; applies to hairless and powderpuff varieties"
+          ]
+        },
+        {
+          "id": "ccr-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Chinese Crested Dog weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201348",
+      "russianName": "Thai Ridgeback",
+      "englishName": "Thai Ridgeback",
+      "popularityRank": 43,
+      "registrations": 76,
+      "values": [
+        {
+          "id": "thr-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 23,
+          "upper": 34,
+          "sourceId": "wiki-thai-ridgeback",
+          "limitations": [
+            "Secondary fallback because FCI 338 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "thr-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 16,
+          "upper": 25,
+          "sourceId": "wiki-thai-ridgeback",
+          "limitations": [
+            "Secondary fallback because FCI 338 publishes no numeric weight; source does not define adult age"
+          ]
+        },
+        {
+          "id": "thr-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Thai Ridgeback weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200410",
+      "russianName": "Dachshund, Miniature Smooth-Haired",
+      "englishName": "Dachshund, Miniature Smooth-Haired",
+      "popularityRank": 44,
+      "registrations": 76,
+      "values": [
+        {
+          "id": "dms-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "maximum",
+          "unit": "kg",
+          "upper": 5,
+          "sourceId": "wiki-dachshund",
+          "limitations": [
+            "Miniature-size infobox maximum; not coat-specific",
+            "Article prose also publishes under 5.5 kg, which conflicts with the 5.0 kg infobox value; only the infobox maximum is active",
+            "FCI 148 defines miniature size by chest circumference and publishes no adult weight"
+          ]
+        },
+        {
+          "id": "dms-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal miniature smooth-haired Dachshund weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200027",
+      "russianName": "American Akita",
+      "englishName": "American Akita",
+      "popularityRank": 45,
+      "registrations": 74,
+      "values": [
+        {
+          "id": "ama-adult-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "sourceId": "fci344",
+          "gap": "FCI Standard No. 344 publishes no numeric adult weight. Wikipedia redirects to the mixed Japanese/American Akita article, so its 27–59 kg male and 25–45 kg female values are unsuitable and were not reused."
+        },
+        {
+          "id": "ama-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal American Akita weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201217",
+      "russianName": "Shetland Sheepdog",
+      "englishName": "Shetland Sheepdog",
+      "popularityRank": 46,
+      "registrations": 74,
+      "values": [
+        {
+          "id": "she-adult-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "sourceId": "fci088",
+          "gap": "FCI Standard No. 88 and the English Wikipedia article publish no numeric adult weight; no value was inferred from height or generic size categories."
+        },
+        {
+          "id": "she-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Shetland Sheepdog weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200882",
+      "russianName": "Miniature Bull Terrier",
+      "englishName": "Miniature Bull Terrier",
+      "popularityRank": 47,
+      "registrations": 73,
+      "values": [
+        {
+          "id": "mbt-adult",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 9.1,
+          "upper": 15.9,
+          "sourceId": "wiki-mini-bull",
+          "limitations": [
+            "20–35 lb converted to kg and rounded to one decimal",
+            "Typical secondary range with weak inline citation support; FCI 359 explicitly specifies no weight limit"
+          ]
+        },
+        {
+          "id": "mbt-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Miniature Bull Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200764",
+      "russianName": "Kerry Blue Terrier",
+      "englishName": "Kerry Blue Terrier",
+      "popularityRank": 48,
+      "registrations": 73,
+      "values": [
+        {
+          "id": "kbt-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 15,
+          "upper": 18,
+          "sourceId": "fci003",
+          "limitations": [
+            "Official male range; Wikipedia publishes a conflicting 12–15 kg male range"
+          ]
+        },
+        {
+          "id": "kbt-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 10,
+          "upper": 13,
+          "sourceId": "wiki-kerry-blue",
+          "limitations": [
+            "Secondary fallback because FCI 3 publishes no numeric female weight",
+            "Wikipedia value is used only for females; its conflicting 12–15 kg male value does not replace the FCI male range"
+          ]
+        },
+        {
+          "id": "kbt-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Kerry Blue Terrier weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0200375",
+      "russianName": "Collie",
+      "englishName": "Collie",
+      "popularityRank": 49,
+      "registrations": 73,
+      "values": [
+        {
+          "id": "col-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "range",
+          "unit": "kg",
+          "lower": 22.7,
+          "upper": 31.8,
+          "sourceId": "wiki-rough-collie",
+          "limitations": [
+            "50–70 lb converted to kg and rounded to one decimal",
+            "Popularity row and VBO concept are mapped to Rough Collie; secondary source does not define adult age"
+          ]
+        },
+        {
+          "id": "col-female-gap",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "sourceId": "fci156",
+          "gap": "Published female weight is only described as 5–10 lb less than the male value; no numeric female interval was synthesized from that relative statement."
+        },
+        {
+          "id": "col-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Rough Collie weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
+        }
+      ]
+    },
+    {
+      "breedId": "VBO:0201143",
+      "russianName": "Ротвейлер",
+      "englishName": "Rottweiler",
+      "popularityRank": 50,
+      "registrations": 70,
+      "values": [
+        {
+          "id": "rot-male",
+          "measure": "weight",
+          "sex": "male",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "standard_point",
+          "unit": "kg",
+          "center": 50,
+          "sourceId": "fci147",
+          "limitations": [
+            "Official conformation standard point, not an observed average"
+          ]
+        },
+        {
+          "id": "rot-female",
+          "measure": "weight",
+          "sex": "female",
+          "adult": true,
+          "ageLabel": "adult",
+          "statistic": "standard_point",
+          "unit": "kg",
+          "center": 42,
+          "sourceId": "fci147",
+          "limitations": [
+            "FCI marks the female standard point as approximate",
+            "Conformation standard point, not an observed average"
+          ]
+        },
+        {
+          "id": "rot-growth-gap",
+          "measure": "weight",
+          "sex": "combined",
+          "adult": false,
+          "ageLabel": "0–24 months",
+          "statistic": "documented_gap",
+          "unit": "kg",
+          "ageMinimumDays": 0,
+          "ageMaximumDays": 730,
+          "sourceId": "salt",
+          "gap": "No peer-reviewed or open quantitative longitudinal Rottweiler weight-by-age table covering 0–24 months was found; generic size-category curves were not substituted, digitised or interpolated."
         }
       ]
     }
