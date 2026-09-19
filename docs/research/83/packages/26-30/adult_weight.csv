@@ -1,0 +1,8 @@
+rank,breed_id,sex,min_kg,max_kg,value_status,source_id,applicability,limitation
+26,samoyed,male,20,30,published_secondary,wikipedia_samoyed,breed,FCI 212 specifies height but no weight; Wikipedia value used per research fallback rule
+26,samoyed,female,16,20,published_secondary,wikipedia_samoyed,breed,FCI 212 specifies height but no weight; Wikipedia value used per research fallback rule
+27,miniature_schnauzer_black,unisex,4,8,official_approximate,fci_183,pure black variety,FCI says approximately 4–8 kg for dogs and bitches; range is shared by all four colour varieties
+28,akita,male,27,59,published_secondary_ambiguous,wikipedia_akita,Japanese Akita mapping,FCI 255 specifies height but no weight; Wikipedia infobox range is unusually broad and the article discusses Japanese/American split—do not treat as a precise FCI ideal
+28,akita,female,25,45,published_secondary_ambiguous,wikipedia_akita,Japanese Akita mapping,FCI 255 specifies height but no weight; Wikipedia infobox range is unusually broad and the article discusses Japanese/American split—do not treat as a precise FCI ideal
+29,miniature_schnauzer_black_silver,unisex,4,8,official_approximate,fci_183,black and silver variety,FCI says approximately 4–8 kg for dogs and bitches; range is shared by all four colour varieties
+30,miniature_american_shepherd,unisex,,,official_non_numeric,fci_367,breed,FCI explicitly says healthy weight varies with individual size sex and substance; Wikipedia supplies no numeric weight
