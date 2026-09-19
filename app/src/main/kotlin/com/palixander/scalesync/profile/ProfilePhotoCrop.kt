@@ -103,4 +103,18 @@ class ProfilePhotoCropGeometry(
             panY = if (yTravel == 0f) 0f else value.panY + sourceDeltaY * 2f / yTravel,
         ).constrained(maxZoom)
     }
+
+    /**
+     * Moves the displayed image by a viewport-space finger delta. The inverse sign is intentional:
+     * moving the bitmap right exposes source pixels farther to the left.
+     */
+    fun moveImageBy(
+        transform: ProfilePhotoCropTransform,
+        displayDeltaX: Float,
+        displayDeltaY: Float,
+    ): ProfilePhotoCropTransform {
+        val value = transform.constrained(maxZoom)
+        val scale = displayScale(value)
+        return panBy(value, -displayDeltaX / scale, -displayDeltaY / scale)
+    }
 }

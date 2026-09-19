@@ -22,6 +22,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.down
+import androidx.compose.ui.test.moveBy
+import androidx.compose.ui.test.up
 import androidx.compose.ui.test.swipe
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
@@ -243,6 +246,37 @@ class ProfilePhotoCropEditorUiTest {
             .assertContentDescriptionEquals("Масштаб фото")
             .performSemanticsAction(SemanticsActions.SetProgress) { set -> set(2.5f) }
         composeRule.runOnIdle { assertTrue(transform.value.zoom == 2.5f) }
+        prepared.cancel()
+    }
+
+    @Test
+    fun longSwipeAppliesEveryMoveWithoutRestartingGestureDetector() {
+        val store = store()
+        val prepared = prepared(store)
+        val transform = mutableStateOf(ProfilePhotoCropTransform(zoom = 2f))
+        composeRule.setContent {
+            ScaleSyncTheme {
+                ProfilePhotoCropEditor(
+                    prepared,
+                    transform.value,
+                    onTransformChanged = { transform.value = it },
+                    onCancel = {},
+                    onConfirm = {},
+                )
+            }
+        }
+
+        composeRule.onNodeWithTag(ProfilePhotoCropTestTags.Viewport).performTouchInput {
+            down(center)
+            repeat(10) {
+                moveBy(Offset(10f, 0f), delayMillis = 32)
+            }
+            up()
+        }
+
+        composeRule.runOnIdle {
+            assertTrue("Expected the full swipe, but panX was ${transform.value.panX}", transform.value.panX < -0.15f)
+        }
         prepared.cancel()
     }
 

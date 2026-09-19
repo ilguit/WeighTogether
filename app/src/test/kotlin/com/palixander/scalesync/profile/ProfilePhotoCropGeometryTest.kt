@@ -66,6 +66,21 @@ class ProfilePhotoCropGeometryTest {
     }
 
     @Test
+    fun `displayed image follows finger one to one until crop reaches edge`() {
+        val geometry = ProfilePhotoCropGeometry(400, 200, 200f)
+        val start = ProfilePhotoCropTransform(zoom = 2f)
+
+        val moved = geometry.moveImageBy(start, 60f, 0f)
+        val startCrop = geometry.sourceCropRect(start)
+        val movedCrop = geometry.sourceCropRect(moved)
+        val displayedImageMovement = (startCrop.left - movedCrop.left) * geometry.displayScale(moved)
+
+        assertEquals(60f, displayedImageMovement, EPSILON)
+        val clamped = geometry.moveImageBy(moved, 10_000f, 0f)
+        assertEquals(0f, geometry.sourceCropRect(clamped).left, EPSILON)
+    }
+
+    @Test
     fun `integer bounds stay square and inside source after fractional pan`() {
         val geometry = ProfilePhotoCropGeometry(101, 67, 299f)
 
