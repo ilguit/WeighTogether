@@ -45,8 +45,19 @@ class BreedReferenceSnapshotTest {
             it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP
         })
         assertTrue(snapshot.breed("VBO:0200724")!!.values.any {
-            it.adult && it.lower == 5.0 && it.upper == 6.0 && it.sourceId == "fci345"
+            it.adult && it.lower == 5.0 && it.upper == 6.0 && it.sourceId == "fci345" &&
+                it.statistic == BreedReferenceStatisticKind.IDEAL_RANGE
         })
+        assertEquals(
+            BreedReferenceStatisticKind.IDEAL_RANGE,
+            snapshot.breed("VBO:0201089")!!.values.single { it.id == "pug-w" }.statistic,
+        )
+        listOf("VBO:0200898", "VBO:0200899", "VBO:0200897").forEach { breedId ->
+            assertEquals(
+                BreedReferenceStatisticKind.APPROXIMATE_RANGE,
+                snapshot.breed(breedId)!!.values.single { it.adult }.statistic,
+            )
+        }
         assertTrue(snapshot.breed("VBO:0200193")!!.values.any {
             it.adult && it.sex == BreedReferenceSex.FEMALE &&
                 it.lower == 12.0 && it.upper == 19.0 && it.sourceId == "wiki-border-it"

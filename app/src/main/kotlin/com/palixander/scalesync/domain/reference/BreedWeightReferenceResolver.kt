@@ -281,7 +281,12 @@ class BreedWeightReferenceResolver(
             .filter { candidate ->
                 candidate.adult &&
                     (candidate.sex == selectedSex || candidate.sex == BreedReferenceSex.COMBINED) &&
-                    candidate.records.any { it.statistic == BreedReferenceStatisticKind.RANGE || it.statistic == BreedReferenceStatisticKind.QUANTILES }
+                    candidate.records.any {
+                        it.statistic == BreedReferenceStatisticKind.RANGE ||
+                            it.statistic == BreedReferenceStatisticKind.QUANTILES ||
+                            it.statistic == BreedReferenceStatisticKind.APPROXIMATE_RANGE ||
+                            it.statistic == BreedReferenceStatisticKind.IDEAL_RANGE
+                    }
             }
             .sortedWith(
                 compareBy<CandidateGroup> { if (it.sex == selectedSex) 0 else 1 }
@@ -344,7 +349,11 @@ class BreedWeightReferenceResolver(
     private fun BreedReferenceSource.toMetadata() = BreedWeightSourceMetadata(id, title, url, year, kind, geography, method, pageOrTable)
 
     private fun toWeightValue(value: BreedReferenceValue): BreedWeightValue? = when (value.statistic) {
-        BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.QUANTILES ->
+        BreedReferenceStatisticKind.RANGE,
+        BreedReferenceStatisticKind.QUANTILES,
+        BreedReferenceStatisticKind.APPROXIMATE_RANGE,
+        BreedReferenceStatisticKind.IDEAL_RANGE,
+        ->
             BreedWeightValue.Interval(
                 value.statistic,
                 value.unit,

@@ -16,8 +16,10 @@ enum class BreedReferenceStatisticKind {
     MEAN,
     MEDIAN,
     APPROXIMATE_AVERAGE,
+    APPROXIMATE_RANGE,
     MEAN_SD,
     IDEAL,
+    IDEAL_RANGE,
     STANDARD_POINT,
     MINIMUM,
     DOCUMENTED_GAP,
@@ -164,7 +166,11 @@ class BreedReferenceSnapshot private constructor(
                 } else {
                     require(value.sourceId != null && numbers.isNotEmpty() && value.gap == null) { "Incomplete numeric record" }
                     when (value.statistic) {
-                        BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.QUANTILES -> require(value.lower != null && value.upper != null)
+                        BreedReferenceStatisticKind.RANGE,
+                        BreedReferenceStatisticKind.QUANTILES,
+                        BreedReferenceStatisticKind.APPROXIMATE_RANGE,
+                        BreedReferenceStatisticKind.IDEAL_RANGE,
+                        -> require(value.lower != null && value.upper != null)
                         BreedReferenceStatisticKind.MEAN, BreedReferenceStatisticKind.MEDIAN, BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> require(value.center != null)
                         BreedReferenceStatisticKind.MEAN_SD -> require(value.center != null && value.spread != null)
                         BreedReferenceStatisticKind.IDEAL, BreedReferenceStatisticKind.STANDARD_POINT -> require(value.center != null)

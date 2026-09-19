@@ -46,6 +46,19 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
+    fun `official interval semantics remain visible in value labels`() {
+        val pug = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0201089")),
+        ) as PetHistoryBreedReference.Available
+        val schnauzer = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0200898")),
+        ) as PetHistoryBreedReference.Available
+
+        assertTrue(pug.valueLabels.single().startsWith("Идеальный диапазон веса:"))
+        assertTrue(schnauzer.valueLabels.single().startsWith("Приблизительный диапазон:"))
+    }
+
+    @Test
     fun `partial date discloses possible age and selected source age`() {
         val result = presenter().present(
             dog().copy(birthDate = PartialBirthDate.Month(YearMonth.of(2025, 1))),
