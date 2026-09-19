@@ -197,11 +197,12 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `labrador keeps age median and adult sex range from twelve months`() {
+    fun `labrador uses exact age medians with adult companion from twelve months`() {
         listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
-            val elevenMonths = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(334))).available()
-            assertTrue(elevenMonths.values.single() is BreedWeightValue.Single)
-            assertTrue(elevenMonths.companionGroups.isEmpty())
+            assertEquals(
+                BreedWeightReferenceUnavailableReason.NoApplicableValue,
+                resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(334))).unavailable(),
+            )
 
             listOf(365, 457, 730).forEach { age ->
                 val result = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
