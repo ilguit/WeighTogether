@@ -271,7 +271,7 @@ def validate_runtime_snapshot_31_50():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     manifest = snapshot["manifest"]
     breeds = snapshot["breeds"]
-    assert manifest["snapshotVersion"] == "2026.09.19.4"
+    assert manifest["snapshotVersion"] == "2026.09.19.5"
     assert manifest["snapshotDate"] == "2026-09-19"
     assert len(breeds) == 50
     assert [row["popularityRank"] for row in breeds] == list(range(1, 51))

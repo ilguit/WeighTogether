@@ -132,8 +132,8 @@ class BreedReferenceSnapshotTest {
         assertTrue(snapshot.breed("VBO:0200734")!!.values.filter {
             it.adult && it.statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP
         }.all { it.activeForProduct })
-        assertTrue(snapshot.breed("VBO:0200880")!!.values.all {
-            it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP
+        assertTrue(snapshot.breed("VBO:0200880")!!.values.any {
+            it.id == "mas-akc-adult" && it.lower == 9.1 && it.upper == 18.1 && it.activeForProduct
         })
         assertTrue(snapshot.breed("VBO:0200724")!!.values.any {
             it.adult && it.lower == 5.0 && it.upper == 6.0 && it.sourceId == "fci345" &&
@@ -179,19 +179,19 @@ class BreedReferenceSnapshotTest {
     }
 
     @Test
-    fun `AmStaff uses one Wikipedia fallback and keeps other numeric weights inactive`() {
+    fun `AmStaff uses sex specific French Wikipedia fallbacks and no combined active range`() {
         val values = BreedReferenceSnapshot.bundled().breed("VBO:0200055")!!.values
 
         val active = values.filter {
             it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.activeForProduct
         }
-        assertEquals(1, active.size)
-        assertTrue(active.single().let {
-            it.id == "ams-wiki-adult" && it.sex == BreedReferenceSex.COMBINED &&
-                it.statistic == BreedReferenceStatisticKind.APPROXIMATE_RANGE &&
-                it.lower == 23.0 && it.upper == 36.0 && it.sourceId == "wiki-amstaff" &&
-                it.limitations.any { limitation -> limitation.contains("40–70 lb") }
-        })
+        assertEquals(2, active.size)
+        assertTrue(active.any { it.id == "ams-wiki-male" && it.sex == BreedReferenceSex.MALE && it.lower == 25.0 && it.upper == 31.0 })
+        assertTrue(active.any { it.id == "ams-wiki-female" && it.sex == BreedReferenceSex.FEMALE && it.lower == 18.0 && it.upper == 25.0 })
+        assertTrue(active.none { it.sex == BreedReferenceSex.COMBINED })
+        val source = BreedReferenceSnapshot.bundled().manifest.sources.single { it.id == "wiki-amstaff" }
+        assertEquals("https://fr.wikipedia.org/wiki/American_Staffordshire_Terrier", source.url)
+        assertTrue(source.method!!.contains("French-language") && source.method.contains("2026-09-19"))
         assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.lower == 28.0 && it.upper == 33.0 && !it.activeForProduct })
         assertTrue(values.any { it.sex == BreedReferenceSex.FEMALE && it.lower == 19.0 && it.upper == 25.0 && !it.activeForProduct })
         assertTrue(values.any { it.sex == BreedReferenceSex.MALE && it.center == 28.3 && it.sampleSize == 570 && !it.activeForProduct })
@@ -201,6 +201,21 @@ class BreedReferenceSnapshotTest {
             it.id == "ams-adult-weight-gap" && it.sourceId == "fci286" &&
                 it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP && !it.activeForProduct
         })
+    }
+
+    @Test
+    fun `QA fallback breeds retain exact ranges and provenance`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        fun active(id: String) = snapshot.breed(id)!!.values.filter { it.adult && it.activeForProduct }
+
+        assertTrue(active("VBO:0200290").any { it.sex == BreedReferenceSex.MALE && it.lower == 14.0 && it.upper == 17.0 && it.sourceId == "wiki-cardigan" })
+        assertTrue(active("VBO:0200290").any { it.sex == BreedReferenceSex.FEMALE && it.lower == 11.0 && it.upper == 15.0 })
+        assertTrue(active("VBO:0200470").any { it.sex == BreedReferenceSex.MALE && it.lower == 35.0 && it.upper == 60.0 && it.sourceId == "wiki-veo" })
+        assertTrue(active("VBO:0200470").any { it.sex == BreedReferenceSex.FEMALE && it.lower == 30.0 && it.upper == 50.0 })
+        assertTrue(snapshot.manifest.sources.single { it.id == "wiki-veo" }.url.contains("oldid="))
+        assertTrue(active("VBO:0200880").single { it.id == "mas-akc-adult" }.let { it.sex == BreedReferenceSex.COMBINED && it.lower == 9.1 && it.upper == 18.1 })
+        assertTrue(active("VBO:0200321").any { it.id == "cas-wiki-range" && it.sex == BreedReferenceSex.COMBINED && it.lower == 40.0 && it.upper == 80.0 })
+        assertTrue(active("VBO:0200321").count { it.statistic == BreedReferenceStatisticKind.MINIMUM } == 2)
     }
 
     @Test

@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.4",
+    "snapshotVersion": "2026.09.19.5",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "14a13b16cc7fc742276e264fe02c28a0c7af90f74234b040d3789f0707fa8416",
+    "numericalDataSha256": "ec2e8465dada3278ff157a5260f6395768a4eda3d0cc60625d65f651c4944f6b",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -382,12 +382,34 @@
       },
       {
         "id": "wiki-amstaff",
-        "title": "Wikipedia: American Staffordshire Terrier",
-        "url": "https://en.wikipedia.org/wiki/American_Staffordshire_Terrier",
+        "title": "Wikipédia (français) : American Staffordshire Terrier",
+        "url": "https://fr.wikipedia.org/wiki/American_Staffordshire_Terrier",
         "year": 2026,
         "kind": "professional_reference",
-        "method": "Current infobox approximate combined adult-weight fallback because FCI 286 supplies no weight",
+        "geography": "France",
+        "method": "Sex-specific infobox values transcribed from the French-language article on 2026-09-19 because FCI 286 supplies no numeric weight; secondary source under CC BY-SA 4.0",
         "pageOrTable": "Infobox"
+      },
+      {
+        "id": "wiki-cardigan", "title": "Wikipedia (English): Cardigan Welsh Corgi",
+        "url": "https://en.wikipedia.org/wiki/Cardigan_Welsh_Corgi", "year": 2026, "kind": "professional_reference",
+        "method": "Sex-specific adult ranges transcribed from the English-language article on 2026-09-19 because FCI 38 supplies no numeric weight; secondary source under CC BY-SA 4.0", "pageOrTable": "Description"
+      },
+      {
+        "id": "wiki-veo", "title": "Wikipedia (русский): Восточноевропейская овчарка",
+        "url": "https://ru.wikipedia.org/w/index.php?title=%D0%92%D0%BE%D1%81%D1%82%D0%BE%D1%87%D0%BD%D0%BE%D0%B5%D0%B2%D1%80%D0%BE%D0%BF%D0%B5%D0%B9%D1%81%D0%BA%D0%B0%D1%8F_%D0%BE%D0%B2%D1%87%D0%B0%D1%80%D0%BA%D0%B0&oldid=153309534",
+        "year": 2026, "kind": "professional_reference", "geography": "Russia",
+        "method": "Sex-specific adult ranges transcribed from a fixed Russian-language Wikipedia revision retrieved 2026-09-19 because the RKF standard supplies no numeric weight; secondary source under CC BY-SA 4.0", "pageOrTable": "Infobox"
+      },
+      {
+        "id": "wiki-central-asian-range", "title": "Wikipedia: Central Asian Shepherd Dog",
+        "url": "https://en.wikipedia.org/wiki/Central_Asian_Shepherd_Dog", "year": 2026, "kind": "professional_reference",
+        "method": "Combined 40–80 kg descriptive adult range transcribed on 2026-09-19 as a secondary companion to the sex-specific FCI minimum; no sex split inferred; CC BY-SA 4.0", "pageOrTable": "Description"
+      },
+      {
+        "id": "akc-mas-weight-chart", "title": "AKC Breed Weight Chart",
+        "url": "https://www.akc.org/expert-advice/nutrition/breed-weight-chart/", "year": 2026, "kind": "professional_reference", "geography": "USA",
+        "method": "Published combined adult range of 20–40 lb converted to kilograms; no sex-specific values published", "pageOrTable": "Miniature American Shepherd row"
       },
       {
         "id": "wiki-aussie",
@@ -1629,21 +1651,25 @@
           "activeForProduct": false
         },
         {
-          "id": "ams-wiki-adult",
+          "id": "ams-wiki-male",
           "measure": "weight",
-          "sex": "combined",
+          "sex": "male",
           "adult": true,
           "ageLabel": "adult",
-          "statistic": "approximate_range",
+          "statistic": "range",
           "unit": "kg",
-          "lower": 23,
-          "upper": 36,
+          "lower": 25,
+          "upper": 31,
           "sourceId": "wiki-amstaff",
           "limitations": [
-            "Approximate combined-sex range converted by the article from about 50–80 lb",
-            "Article prose separately reports 40–70 lb (18–32 kg); the conflicting prose range is not merged into the infobox fallback",
+            "French-language Wikipedia infobox retrieved 2026-09-19",
             "Secondary reference, not a numeric weight published by FCI Standard No. 286"
           ]
+        },
+        {
+          "id": "ams-wiki-female", "measure": "weight", "sex": "female", "adult": true, "ageLabel": "adult",
+          "statistic": "range", "unit": "kg", "lower": 18, "upper": 25, "sourceId": "wiki-amstaff",
+          "limitations": ["French-language Wikipedia infobox retrieved 2026-09-19", "Secondary reference, not a numeric weight published by FCI Standard No. 286"]
         },
         {
           "id": "ams-mh",
@@ -2459,7 +2485,18 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci038",
-          "gap": "FCI specifies that weight must be proportional to size but publishes no numeric adult weight; do not infer a value."
+          "gap": "FCI specifies that weight must be proportional to size but publishes no numeric adult weight; the English Wikipedia ranges are used as the documented secondary fallback.",
+          "activeForProduct": false
+        },
+        {
+          "id": "card-wiki-male", "measure": "weight", "sex": "male", "adult": true, "ageLabel": "adult",
+          "statistic": "range", "unit": "kg", "lower": 14, "upper": 17, "sourceId": "wiki-cardigan",
+          "limitations": ["Secondary reference, not a numeric weight published by FCI Standard No. 38"]
+        },
+        {
+          "id": "card-wiki-female", "measure": "weight", "sex": "female", "adult": true, "ageLabel": "adult",
+          "statistic": "range", "unit": "kg", "lower": 11, "upper": 15, "sourceId": "wiki-cardigan",
+          "limitations": ["Secondary reference, not a numeric weight published by FCI Standard No. 38"]
         },
         {
           "id": "card-age-gap",
@@ -2592,7 +2629,18 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "rkf-veo",
-          "gap": "The official RKF standard publishes no numeric adult weight; do not infer a value."
+          "gap": "The official RKF standard publishes no numeric adult weight; a fixed Russian Wikipedia revision is used as the documented secondary fallback.",
+          "activeForProduct": false
+        },
+        {
+          "id": "veo-wiki-male", "measure": "weight", "sex": "male", "adult": true, "ageLabel": "adult",
+          "statistic": "range", "unit": "kg", "lower": 35, "upper": 60, "sourceId": "wiki-veo",
+          "limitations": ["Secondary reference, not a numeric weight published by the RKF standard"]
+        },
+        {
+          "id": "veo-wiki-female", "measure": "weight", "sex": "female", "adult": true, "ageLabel": "adult",
+          "statistic": "range", "unit": "kg", "lower": 30, "upper": 50, "sourceId": "wiki-veo",
+          "limitations": ["Secondary reference, not a numeric weight published by the RKF standard"]
         },
         {
           "id": "veo-m-birth",
@@ -2924,7 +2972,14 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci335",
-          "gap": "FCI specifies minimum weights only; no upper bounds may be invented."
+          "gap": "FCI specifies minimum weights only; no upper bounds may be invented from that standard.",
+          "activeForProduct": false
+        },
+        {
+          "id": "cas-wiki-range", "measure": "weight", "sex": "combined", "adult": true,
+          "ageLabel": "adult descriptive range", "statistic": "range", "unit": "kg", "lower": 40, "upper": 80,
+          "sourceId": "wiki-central-asian-range",
+          "limitations": ["Secondary combined-sex descriptive range; it does not replace or create upper bounds for the FCI sex-specific minima", "No sex split was inferred"]
         },
         {
           "id": "cas-age-gap",
@@ -3390,7 +3445,13 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci367",
-          "gap": "FCI 367 intentionally provides no numeric range and Wikipedia provides no weight; no substitute or inferred range was used."
+          "gap": "FCI 367 and Wikipedia provide no numeric range; the AKC breed weight chart is used as a documented combined-sex secondary fallback.",
+          "activeForProduct": false
+        },
+        {
+          "id": "mas-akc-adult", "measure": "weight", "sex": "combined", "adult": true, "ageLabel": "adult",
+          "statistic": "approximate_range", "unit": "kg", "lower": 9.1, "upper": 18.1, "sourceId": "akc-mas-weight-chart",
+          "limitations": ["Converted from the published 20–40 lb combined-sex range", "Professional secondary reference; neither FCI 367 nor Wikipedia publishes a numeric adult weight"]
         },
         {
           "id": "mas-growth-gap",
