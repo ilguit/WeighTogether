@@ -9,6 +9,7 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
+import com.palixander.scalesync.domain.reference.BreedWeightValue
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -312,6 +313,43 @@ class PetHistoryBreedReferencePresenterTest {
             assertEquals(label, series.statisticLabel)
             assertEquals(listOf(BreedWeightReferenceSeriesKind.CENTER), listOf(series.kind))
         }
+    }
+
+    @Test
+    fun `new breed maximum range point and gap retain exact presentation semantics`() {
+        val maximum = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0200410"), sex = PetSex.FEMALE),
+        ) as PetHistoryBreedReference.Available
+        val maximumValue = maximum.chartValues.single() as PetHistoryBreedChartValue.Boundary
+        assertEquals(5.0, maximumValue.valueKg, 0.0)
+        assertEquals(BreedWeightValue.Boundary.Direction.UPPER, maximumValue.direction)
+        assertEquals("Максимальный вес", maximumValue.statisticLabel)
+        assertTrue(maximumValue.accessibilityLabel.contains("Максимальный вес"))
+        assertTrue(maximumValue.accessibilityLabel.contains("5 кг"))
+        assertTrue(maximum.source.limitations.any { it.contains("5.5 kg") })
+        assertTrue(maximum.companionReferences.isEmpty())
+
+        val range = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0201198")),
+        ) as PetHistoryBreedReference.Available
+        val rangeValue = range.chartValues.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(8.5, rangeValue.lowerKg, 0.0)
+        assertEquals(10.5, rangeValue.upperKg, 0.0)
+        assertNull(rangeValue.centerKg)
+
+        val point = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0201143"), sex = PetSex.MALE),
+        ) as PetHistoryBreedReference.Available
+        val pointValue = point.chartValues.single() as PetHistoryBreedChartValue.Single
+        assertEquals(50.0, pointValue.valueKg, 0.0)
+        assertEquals("Значение стандарта", pointValue.statisticLabel)
+
+        val gap = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0200027")),
+        ) as PetHistoryBreedReference.Unavailable
+        assertTrue(gap.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", gap.message)
+        assertFalse(gap.showEditAction)
     }
 
     @Test
