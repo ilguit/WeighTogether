@@ -101,18 +101,41 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `AmStaff uses exactly one approximate combined Wikipedia interval`() {
-        listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
+    fun `AmStaff uses sex specific French Wikipedia intervals`() {
+        listOf(
+            Triple(PetSex.MALE, 25.0, 31.0),
+            Triple(PetSex.FEMALE, 18.0, 25.0),
+        ).forEach { (sex, lower, upper) ->
             val reference = resolve("VBO:0200055", sex, null).available()
             val interval = reference.values.single() as BreedWeightValue.Interval
 
-            assertEquals(BreedReferenceSex.COMBINED, reference.sex)
-            assertEquals(BreedReferenceStatisticKind.APPROXIMATE_RANGE, interval.statistic)
-            assertEquals(23.0, interval.lower, 0.0)
-            assertEquals(36.0, interval.upper, 0.0)
-            assertEquals("wiki-amstaff:ams-wiki-adult", interval.referenceId)
+            assertEquals(if (sex == PetSex.MALE) BreedReferenceSex.MALE else BreedReferenceSex.FEMALE, reference.sex)
+            assertEquals(BreedReferenceStatisticKind.RANGE, interval.statistic)
+            assertEquals(lower, interval.lower, 0.0)
+            assertEquals(upper, interval.upper, 0.0)
+            assertTrue(interval.referenceId!!.startsWith("wiki-amstaff:ams-wiki-"))
             assertTrue(reference.companionGroups.isEmpty())
-            assertTrue(reference.limitations.any { it.contains("40–70 lb") })
+            assertTrue(reference.source.url.startsWith("https://fr.wikipedia.org/"))
+        }
+    }
+
+    @Test
+    fun `QA fallback breeds resolve exact adult semantics`() {
+        data class AdultRange(val id: String, val sex: PetSex, val expectedSex: BreedReferenceSex, val lower: Double, val upper: Double, val source: String)
+        listOf(
+            AdultRange("VBO:0200290", PetSex.MALE, BreedReferenceSex.MALE, 14.0, 17.0, "wiki-cardigan"),
+            AdultRange("VBO:0200290", PetSex.FEMALE, BreedReferenceSex.FEMALE, 11.0, 15.0, "wiki-cardigan"),
+            AdultRange("VBO:0200470", PetSex.MALE, BreedReferenceSex.MALE, 35.0, 60.0, "wiki-veo"),
+            AdultRange("VBO:0200470", PetSex.FEMALE, BreedReferenceSex.FEMALE, 30.0, 50.0, "wiki-veo"),
+            AdultRange("VBO:0200880", PetSex.MALE, BreedReferenceSex.COMBINED, 9.1, 18.1, "akc-mas-weight-chart"),
+            AdultRange("VBO:0200880", PetSex.FEMALE, BreedReferenceSex.COMBINED, 9.1, 18.1, "akc-mas-weight-chart"),
+        ).forEach { case ->
+            val result = resolve(case.id, case.sex, null).available()
+            val interval = result.values.single() as BreedWeightValue.Interval
+            assertEquals(case.expectedSex, result.sex)
+            assertEquals(case.lower, interval.lower, 0.0)
+            assertEquals(case.upper, interval.upper, 0.0)
+            assertTrue(interval.referenceId!!.startsWith("${case.source}:"))
         }
     }
 
@@ -174,6 +197,12 @@ class BreedWeightReferenceResolverTest {
         val centralAsian = resolve("VBO:0200321", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
         assertEquals(BreedReferenceStatisticKind.MINIMUM, centralAsian.statistic)
         assertEquals(50.0, centralAsian.value, 0.0)
+        val centralReference = resolve("VBO:0200321", PetSex.MALE, null).available()
+        val publishedRange = centralReference.companionGroups.single().values.single() as BreedWeightValue.Interval
+        assertEquals(BreedReferenceSex.COMBINED, centralReference.companionGroups.single().sex)
+        assertEquals(BreedReferenceStatisticKind.RANGE, publishedRange.statistic)
+        assertEquals(40.0, publishedRange.lower, 0.0)
+        assertEquals(80.0, publishedRange.upper, 0.0)
     }
 
     @Test
@@ -254,24 +283,15 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `documented adult gaps apply without birth date and at adult age while juvenile gaps stay age specific`() {
+    fun `published adult fallbacks apply while juvenile gaps stay age specific`() {
         listOf(
-            "VBO:0200290" to Pair(
-                "FCI specifies that weight must be proportional to size but publishes no numeric adult weight; do not infer a value.",
-                "No open peer-reviewed or official breed-specific age/weight observations were located; do not infer from adult standards.",
-            ),
-            "VBO:0200880" to Pair(
-                "FCI 367 intentionally provides no numeric range and Wikipedia provides no weight; no substitute or inferred range was used.",
-                "No peer-reviewed or open dataset with exact breed-specific 0–24 month tabular weights was identified. Size-category curves were not relabelled as breed observations.",
-            ),
-        ).forEach { (breedId, gaps) ->
-            val withoutBirthDate = resolve(breedId, PetSex.MALE, null).documentedGap()
-            val adult = resolve(breedId, PetSex.MALE, PartialBirthDate.Day(today.minusDays(800))).documentedGap()
+            "VBO:0200290" to "No open peer-reviewed or official breed-specific age/weight observations were located; do not infer from adult standards.",
+            "VBO:0200880" to "No peer-reviewed or open dataset with exact breed-specific 0–24 month tabular weights was identified. Size-category curves were not relabelled as breed observations.",
+        ).forEach { (breedId, juvenileGap) ->
+            assertTrue(resolve(breedId, PetSex.MALE, null) is BreedWeightReferenceResolution.Available)
+            assertTrue(resolve(breedId, PetSex.MALE, PartialBirthDate.Day(today.minusDays(800))) is BreedWeightReferenceResolution.Available)
             val juvenile = resolve(breedId, PetSex.MALE, PartialBirthDate.Day(today.minusDays(200))).documentedGap()
-
-            assertEquals("$breedId without birth date", gaps.first, withoutBirthDate.description)
-            assertEquals("$breedId at adult age", gaps.first, adult.description)
-            assertEquals("$breedId at juvenile age", gaps.second, juvenile.description)
+            assertEquals("$breedId at juvenile age", juvenileGap, juvenile.description)
         }
     }
 

@@ -24,15 +24,23 @@ respective origin countries and the FCI.
 
 Where the applicable FCI standard publishes no weight, ScaleSync uses adult
 weight facts from the English Wikipedia articles “Dachshund”, “Samoyed dog”,
-“Akita (dog breed)”, and “American Staffordshire Terrier”, and the Italian
+“Akita (dog breed)”, “Cardigan Welsh Corgi”, and “Central Asian Shepherd Dog”,
+the French Wikipedia article “American Staffordshire Terrier”, the Russian
+Wikipedia article “Восточноевропейская овчарка”, and the Italian
 Wikipedia article “Border Collie”.
 Authors are the respective Wikipedia contributors. Wikipedia text is licensed
 under Creative Commons Attribution-ShareAlike 4.0:
 https://creativecommons.org/licenses/by-sa/4.0/. The Akita fallback preserves
 the broad sex-specific infobox intervals and discloses the article's
-Japanese/American naming ambiguity. The American Staffordshire Terrier fallback
-uses the approximate combined-sex infobox range; a conflicting prose range is
-recorded as a limitation and is not merged into the product value.
+Japanese/American naming ambiguity. The American Staffordshire Terrier,
+Cardigan, and East European Shepherd fallbacks preserve the published
+sex-specific ranges. The Central Asian Shepherd range remains a separate
+combined-sex secondary reference beside the official sex-specific minima.
+
+The Miniature American Shepherd combined adult range is converted from the
+American Kennel Club Breed Weight Chart's published 20–40 lb range. It is
+identified as a professional secondary reference: neither FCI Standard No. 367
+nor Wikipedia publishes a numeric adult weight, and no sex split is inferred.
 
 The American Staffordshire Terrier sex-specific ranges from Svenska
 Terrierklubben and observational means from Andersson et al. are retained as

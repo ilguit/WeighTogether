@@ -130,35 +130,37 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
-    fun `adult and juvenile documented gaps remain available through presentation`() {
+    fun `adult fallback breeds show published ranges while juvenile gaps stay unavailable`() {
         listOf("VBO:0200290", "VBO:0200880").forEach { breedId ->
-            val results = listOf(
-                presenter().present(dog().copy(breedId = BreedId(breedId))),
-                presenter().present(
-                    dog().copy(
-                        breedId = BreedId(breedId),
-                        birthDate = PartialBirthDate.Day(today.minusDays(800)),
-                    ),
-                ),
-                presenter().present(
-                    dog().copy(
-                        breedId = BreedId(breedId),
-                        birthDate = PartialBirthDate.Day(today.minusDays(200)),
-                    ),
-                ),
-            ).map { it as PetHistoryBreedReference.Unavailable }
-
-            results.forEach { result ->
-                assertTrue("$breedId exposes a documented gap", result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
-                assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
-                assertFalse(result.showEditAction)
-            }
-            val descriptions = results.map {
-                (it.reason as BreedWeightReferenceUnavailableReason.DocumentedGap).description
-            }
-            assertEquals("$breedId uses the same adult gap with or without a birth date", descriptions[0], descriptions[1])
-            assertTrue("$breedId juvenile gap does not get masked by adult gap", descriptions[1] != descriptions[2])
+            assertTrue(presenter().present(dog().copy(breedId = BreedId(breedId))) is PetHistoryBreedReference.Available)
+            assertTrue(presenter().present(dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(today.minusDays(800)))) is PetHistoryBreedReference.Available)
+            val juvenile = presenter().present(dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(today.minusDays(200)))) as PetHistoryBreedReference.Unavailable
+            assertTrue(juvenile.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+            assertFalse(juvenile.showEditAction)
         }
+    }
+
+    @Test
+    fun `QA breeds expose exact labels without miscalling standard points medians`() {
+        data class Case(val id: String, val sex: PetSex, val expected: String)
+        listOf(
+            Case("VBO:0200055", PetSex.MALE, "Диапазон: 25–31"),
+            Case("VBO:0200290", PetSex.FEMALE, "Диапазон: 11–15"),
+            Case("VBO:0200470", PetSex.MALE, "Диапазон: 35–60"),
+            Case("VBO:0200880", PetSex.FEMALE, "Приблизительный диапазон: 9,1–18,1"),
+            Case("VBO:0200120", PetSex.MALE, "Идеальный вес: 11"),
+            Case("VBO:0201135", PetSex.MALE, "Значение стандарта: 36,5"),
+        ).forEach { case ->
+            val result = presenter().present(dog().copy(breedId = BreedId(case.id), sex = case.sex)) as PetHistoryBreedReference.Available
+            assertTrue("${case.id} label", result.valueLabels.single().startsWith(case.expected))
+            assertFalse("${case.id} must not be called median", result.accessibilityLabel.contains("медиан", ignoreCase = true))
+            assertFalse(result.chartValues.any { it.statisticLabel.contains("медиан", ignoreCase = true) })
+        }
+
+        val central = presenter().present(dog().copy(breedId = BreedId("VBO:0200321"), sex = PetSex.MALE)) as PetHistoryBreedReference.Available
+        assertTrue(central.valueLabels.single().startsWith("Минимальный вес: 50"))
+        assertTrue(central.companionReferences.single().valueLabels.single().startsWith("Диапазон: 40–80"))
+        assertFalse(central.accessibilityLabel.contains("медиан", ignoreCase = true))
     }
 
     @Test
@@ -249,7 +251,7 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
-    fun `adult amstaff timeline produces only approximate lower and upper chart series`() {
+    fun `adult amstaff timeline produces only sex specific lower and upper chart series`() {
         val pet = dog().copy(
             breedId = BreedId("VBO:0200055"),
             birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)),
@@ -261,8 +263,8 @@ class PetHistoryBreedReferencePresenterTest {
         )
         val values = requireNotNull(timeline.single().values)
         val interval = values.single() as PetHistoryBreedChartValue.Interval
-        assertEquals(23.0, interval.lowerKg, 0.0)
-        assertEquals(36.0, interval.upperKg, 0.0)
+        assertEquals(25.0, interval.lowerKg, 0.0)
+        assertEquals(31.0, interval.upperKg, 0.0)
         assertNull(interval.centerKg)
         assertEquals(
             listOf(BreedWeightReferenceSeriesKind.LOWER_BOUNDARY, BreedWeightReferenceSeriesKind.UPPER_BOUNDARY),
@@ -303,7 +305,7 @@ class PetHistoryBreedReferencePresenterTest {
         cases.forEach { (breedId, label, expected) ->
             val pet = dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)))
             val presentation = presenter().present(pet) as PetHistoryBreedReference.Available
-            val value = presentation.chartValues.single() as PetHistoryBreedChartValue.Single
+            val value = presentation.chartValues.filterIsInstance<PetHistoryBreedChartValue.Single>().single()
             val timeline = presenter().presentTimeline(pet, listOf(PetHistoryBreedReferenceTimelineMoment(1, today)))
             val series = breedWeightReferenceChartSeries(timeline).single()
 

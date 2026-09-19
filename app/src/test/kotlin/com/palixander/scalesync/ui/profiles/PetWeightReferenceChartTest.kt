@@ -475,7 +475,7 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
     }
 
-    @Test fun `bundled AmStaff keeps exactly one active adult interval`() {
+    @Test fun `bundled AmStaff keeps exactly one active adult interval per sex`() {
         val date = LocalDate.of(2026, 9, 1)
         val measuredAt = date.atTime(14, 37).toInstant(ZoneOffset.UTC).toEpochMilli()
         val amstaff = requireNotNull(BreedReferenceSnapshot.bundled().breed("VBO:0200055"))
@@ -483,10 +483,11 @@ class PetWeightReferenceChartTest {
         val activeAdultWeights = amstaff.values.filter {
             it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.statistic.name != "DOCUMENTED_GAP"
         }.filter { it.activeForProduct }
-        assertEquals(1, activeAdultWeights.size)
-        assertEquals("ams-wiki-adult", activeAdultWeights.single().id)
+        assertEquals(2, activeAdultWeights.size)
+        assertEquals(setOf("ams-wiki-male", "ams-wiki-female"), activeAdultWeights.map { it.id }.toSet())
+        assertEquals(setOf(BreedReferenceSex.MALE, BreedReferenceSex.FEMALE), activeAdultWeights.map { it.sex }.toSet())
         assertTrue(amstaff.values.filter {
-            it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.id != "ams-wiki-adult"
+            it.measure == BreedReferenceMeasure.WEIGHT && it.adult && it.id !in setOf("ams-wiki-male", "ams-wiki-female")
         }.all { !it.activeForProduct })
         val displayed = petWeightDisplayedSeries(
             factual = listOf(ChartPoint(measuredAt / 1_000, 27.0)),
@@ -619,6 +620,16 @@ class PetWeightReferenceChartTest {
         assertTrue(!shouldShowWeightReferenceExplanation(unavailable, breed))
         assertTrue(shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Hidden))
         assertTrue(shouldShowWeightReferenceExplanation(available(emptyList()), breed))
+        assertTrue(shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Unavailable(
+            com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason.OtherBreed,
+            "other breed",
+            false,
+        )))
+        assertTrue(!shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Unavailable(
+            com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason.NoApplicableValue,
+            "selected breed",
+            false,
+        )))
     }
 
     @Test fun `range combines factual and reference extremes`() {

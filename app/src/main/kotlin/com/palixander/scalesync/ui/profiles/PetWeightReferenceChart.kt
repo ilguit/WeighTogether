@@ -46,6 +46,7 @@ import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.domain.reference.BreedWeightValue
+import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -654,7 +655,9 @@ internal fun shouldShowWeightReferenceExplanation(
     reference: PetHistoryWeightReference,
     breedReference: PetHistoryBreedReference,
 ): Boolean = reference is PetHistoryWeightReference.Available ||
-    breedReference !is PetHistoryBreedReference.Available
+    breedReference is PetHistoryBreedReference.Hidden ||
+    (breedReference is PetHistoryBreedReference.Unavailable &&
+        breedReference.reason == BreedWeightReferenceUnavailableReason.OtherBreed)
 
 @Composable
 internal fun PetWeightReferenceChartCard(

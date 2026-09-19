@@ -294,7 +294,10 @@ class BreedWeightReferenceResolver(
         primary: CandidateGroup,
         snapshot: BreedReferenceSnapshot,
     ): List<CandidateGroup> {
-        if (selectedAgeDays == null || selectedAgeDays < 365 || primary.adult) return emptyList()
+        val primaryIsAdultMinimum = primary.adult && primary.records.all {
+            it.statistic == BreedReferenceStatisticKind.MINIMUM
+        }
+        if (!primaryIsAdultMinimum && (selectedAgeDays == null || selectedAgeDays < 365 || primary.adult)) return emptyList()
         return values
             .groupBy { GroupKey(it.sex, it.adult, it.ageMinimumDays, it.ageMaximumDays, it.ageLabel, it.sourceId) }
             .map { (key, records) ->
@@ -302,6 +305,7 @@ class BreedWeightReferenceResolver(
             }
             .filter { candidate ->
                 candidate.adult &&
+                    candidate.key != primary.key &&
                     (candidate.sex == selectedSex || candidate.sex == BreedReferenceSex.COMBINED) &&
                     candidate.records.any {
                         it.statistic == BreedReferenceStatisticKind.RANGE ||
@@ -311,7 +315,10 @@ class BreedWeightReferenceResolver(
                     }
             }
             .sortedWith(
-                compareBy<CandidateGroup> { if (it.sex == selectedSex) 0 else 1 }
+                compareBy<CandidateGroup> {
+                    if (primaryIsAdultMinimum && it.sex == BreedReferenceSex.COMBINED) 0
+                    else if (it.sex == selectedSex) 0 else 1
+                }
                     .thenBy { sourcePriority(it.source?.kind) }
                     .thenBy { it.source?.id.orEmpty() },
             )
