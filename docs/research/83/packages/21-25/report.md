@@ -30,9 +30,25 @@ No quantitative breed/variety-specific longitudinal table meeting the evidence r
 
 Salt et al.'s peer-reviewed charts are strong evidence for general size-category monitoring but do not justify relabelling a generic curve as a breed/variety curve. The Dog Aging Project summary and the Swedish young-adult screening study are cross-sectional rather than breed-specific longitudinal puppy references. A Royal Canin Jack Russell chart covers only 0–2 months and is a manufacturer visual; its plotted values were not digitised and the remaining ages were not extrapolated.
 
+## Adult height at the withers
+
+`adult_height.csv` keeps height separate from weight so units and standard
+semantics cannot be conflated. FCI supplies 25–30 cm as an ideal range for
+Jack Russell Terrier (PDF page 4), 30–35 cm for dogs and bitches under the
+Miniature Schnauzer standard (page 6), and a 53 cm male ideal for Border
+Collie while describing females only as “slightly less” (page 4). The female
+Border Collie value therefore remains numeric-null.
+
+FCI 148 defines Dachshund size by chest circumference measured from at least
+15 months (page 8), not numeric withers height. FCI 253 contains no numeric
+height anywhere in its six pages. Both absences are explicit source-backed
+height gaps; no body-proportion or qualitative-leg wording was converted into
+centimetres.
+
 ## Files and integration constraints
 
 - `breeds.csv`: one row per rank, exact catalog ID/name, registration sum, adult bounds, method, applicability, and growth status.
+- `adult_height.csv`: sex/applicability-aware official withers-height evidence or an explicit source-backed gap for every rank.
 - `registrations_by_day.csv`: reproducible official day totals including male/female subtotals.
 - `growth_gaps.csv`: explicit age coverage and reason that no numeric trajectory is present.
 - `sources.csv`: provenance and source-specific limitations.

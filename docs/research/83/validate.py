@@ -19,6 +19,18 @@ EXPECTED_CATALOG_IDS = {
     29: "VBO:0200897",
     30: "VBO:0200880",
 }
+EXPECTED_HEIGHT_ROWS = {
+    21: [("all", "25", "30", "FCI-345", "4")],
+    22: [("all", "30", "35", "FCI-183", "6")],
+    23: [("all", "", "", "FCI-148", "8")],
+    24: [("male", "53", "53", "FCI-297", "4"), ("female", "", "", "FCI-297", "4")],
+    25: [("all", "", "", "FCI-253", "all")],
+    26: [("male", "54", "60", "fci_212", "5"), ("female", "50", "56", "fci_212", "5")],
+    27: [("all", "30", "35", "fci_183", "6")],
+    28: [("male", "64", "70", "fci_255", "5"), ("female", "58", "64", "fci_255", "5")],
+    29: [("all", "30", "35", "fci_183", "6")],
+    30: [("male", "35.5", "46", "fci_367", "8"), ("female", "33", "43.5", "fci_367", "8")],
+}
 
 
 def read_csv(path):
@@ -52,6 +64,9 @@ def validate_manifest():
             assert (package / row[key]).is_file(), f"missing {key} for rank {row['rank']}"
         if row["age_file"]:
             assert (package / row["age_file"]).is_file()
+        if int(row["rank"]) >= 21:
+            assert row["adult_height_file"] == "adult_height.csv"
+            assert (package / row["adult_height_file"]).is_file()
     return rows
 
 
@@ -128,6 +143,7 @@ def validate_21_25():
     gaps = read_csv(root / "growth_gaps.csv")
     assert {row["catalog_id"] for row in gaps} == ids
     assert all((row["age_start_month"], row["age_end_month"], row["status"]) == ("0", "24", "gap") for row in gaps)
+    validate_height_rows(read_csv(root / "adult_height.csv"), ids, sources, "catalog_id")
 
 
 def validate_26_30():
@@ -158,12 +174,33 @@ def validate_26_30():
         if row["min_kg"] or row["max_kg"]:
             assert row["min_kg"] and row["max_kg"]
             assert number(row["min_kg"], "adult min") <= number(row["max_kg"], "adult max")
+    validate_height_rows(read_csv(root / "adult_height.csv"), ids, sources, "breed_id")
     assert not read_csv(root / "age_weight.csv")
     gaps = read_csv(root / "gaps.csv")
     assert {row["breed_id"] for row in gaps if row["field"] == "age_weight_0_24_months"} == ids
     assert all(row["breed_id"] == EXPECTED_CATALOG_IDS[int(row["rank"])] for row in gaps)
     assert all(row["reason"] and row["relevant_source_ids"] for row in gaps)
     assert all(source in sources for row in gaps for source in row["relevant_source_ids"].split(";"))
+
+
+def validate_height_rows(rows, ids, sources, id_column):
+    ranks = {int(row["rank"]) for row in rows}
+    expected_ranks = set(range(21, 26)) if id_column == "catalog_id" else set(range(26, 31))
+    assert ranks == expected_ranks
+    assert {row[id_column] for row in rows} == ids
+    assert all(row["source_id"] in sources for row in rows)
+    limitation_column = "limitations" if id_column == "catalog_id" else "limitation"
+    assert all(row["unit"] == "cm" and row["statistic_semantics"] and row["applicability"] and row[limitation_column] for row in rows)
+    actual = {}
+    for row in rows:
+        rank = int(row["rank"])
+        actual.setdefault(rank, []).append((row["sex"], row["min_height_cm"], row["max_height_cm"], row["source_id"], row["source_page"]))
+        if row["min_height_cm"] or row["max_height_cm"]:
+            assert row["min_height_cm"] and row["max_height_cm"]
+            assert number(row["min_height_cm"], "height min") <= number(row["max_height_cm"], "height max")
+        else:
+            assert row["value_status"] in {"official_non_numeric", "official_non_numeric_relative", "official_not_published"}
+    assert actual == {rank: EXPECTED_HEIGHT_ROWS[rank] for rank in expected_ranks}
 
 
 def validate_distinctions(manifest):

@@ -25,11 +25,25 @@ The calculation is `day1_total + day2_total`; source pages and the literal opera
 
 `age_weight.csv` intentionally contains only its header. Searches prioritized peer-reviewed/open research. Salt et al. provide 12-week-to-2-year size-category charts; the Miniature Schnauzer study reports a breed growth figure; Leclerc et al. place Samoyed and Akita in a 20-breed cluster. None supplies an exact, directly applicable monthly 0–24-month table for every requested breed and Schnauzer colour variety. Plot digitisation, category-to-breed relabelling, and interpolation would create unsupported values, so each missing series is explicit in `gaps.csv`.
 
+## Adult height at the withers
+
+`adult_height.csv` transcribes the official FCI clauses and keeps their
+semantics. Samoyed is 57 ±3 cm for males and 53 ±3 cm for females (FCI 212,
+PDF page 5); the stored endpoints are the exact tolerance expansion. FCI 183
+gives 30–35 cm for dogs and bitches (page 6), applicable to both requested
+Miniature Schnauzer colour varieties. Japanese Akita is 67 ±3 cm for dogs and
+61 ±3 cm for bitches (FCI 255, page 5); applicability excludes American Akita.
+Miniature American Shepherd is 35.5–46 cm for males and 33–43.5 cm for females
+(FCI 367, page 8), with the standard's caveat that its minima do not apply to
+dogs under six months. These are conformation values, not empirical adult
+population intervals.
+
 ## Files and semantics
 
 - `breeds.csv`: stable rank-to-entry mapping and variety scope.
 - `registrations.csv`: both official day totals, sum, and provenance.
 - `adult_weight.csv`: sourced adult values, sex/applicability, status, and caveats.
+- `adult_height.csv`: sex/applicability-aware official withers-height values, units, semantics, pages, and limitations.
 - `age_weight.csv`: exact sourced age observations only (none qualified).
 - `gaps.csv`: actionable absence and ambiguity records.
 - `sources.csv`: source tier, URL, use, access date, and notes.
