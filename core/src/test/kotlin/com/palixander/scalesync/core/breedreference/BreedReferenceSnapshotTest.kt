@@ -129,8 +129,23 @@ class BreedReferenceSnapshotTest {
     fun `schema source breed alias sex age unit statistic and gap violations are rejected`() {
         val mutations: List<(JsonObject) -> Unit> = listOf(
             { it.getAsJsonObject("manifest").addProperty("schemaVersion", 2) },
+            { it.getAsJsonArray("breeds").remove(29) },
+            { it.getAsJsonArray("breeds")[29].asJsonObject.addProperty("popularityRank", 29) },
+            {
+                val sources = it.getAsJsonObject("manifest").getAsJsonArray("sources")
+                sources[1].asJsonObject.addProperty("id", sources[0].asJsonObject.get("id").asString)
+            },
             { it.getAsJsonArray("breeds")[0].asJsonObject.getAsJsonArray("values")[0].asJsonObject.addProperty("sourceId", "missing") },
             { it.getAsJsonArray("breeds")[0].asJsonObject.addProperty("breedId", "VBO:missing") },
+            {
+                val breeds = it.getAsJsonArray("breeds")
+                breeds[1].asJsonObject.addProperty("breedId", breeds[0].asJsonObject.get("breedId").asString)
+            },
+            {
+                val breeds = it.getAsJsonArray("breeds")
+                val duplicateId = breeds[0].asJsonObject.getAsJsonArray("values")[0].asJsonObject.get("id").asString
+                breeds[1].asJsonObject.getAsJsonArray("values")[0].asJsonObject.addProperty("id", duplicateId)
+            },
             { it.getAsJsonArray("breeds")[0].asJsonObject.add("aliases", Gson().toJsonTree(listOf("VBO:0201146"))) },
             { it.getAsJsonArray("breeds")[0].asJsonObject.getAsJsonArray("values")[0].asJsonObject.addProperty("sex", "unknown") },
             { it.getAsJsonArray("breeds")[0].asJsonObject.getAsJsonArray("values")[0].asJsonObject.addProperty("ageMinimumDays", -1) },
