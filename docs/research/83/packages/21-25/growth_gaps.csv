@@ -1,0 +1,6 @@
+rank,catalog_id,age_start_month,age_end_month,status,gap_reason,reviewed_source_ids
+21,VBO:0200724,0,24,gap,"No peer-reviewed or open quantitative longitudinal source with a reusable Jack Russell Terrier weight-by-age table was found; Royal Canin's 0-2 month chart is a non-peer-reviewed visual and was not digitised or extrapolated.",SALT-2017;RC-JRT-0-2
+22,VBO:0200898,0,24,gap,"No acceptable quantitative longitudinal source was found for the pepper-and-salt variety; sources for generic size classes cannot establish variety-specific values.",SALT-2017
+23,VBO:0200420,0,24,gap,"No acceptable quantitative longitudinal source was found for the standard smooth-haired size/coat combination; other Dachshund sizes or coats were not substituted.",SALT-2017
+24,VBO:0200193,0,24,gap,"No peer-reviewed or open quantitative longitudinal Border Collie weight-by-age table covering 0-24 months was found; cross-sectional adult datasets do not define growth trajectories.",SALT-2017;DAP-2025;SLENNING-2022
+25,VBO:0201089,0,24,gap,"No peer-reviewed or open quantitative longitudinal Pug weight-by-age table covering 0-24 months was found; generic size-class curves were not relabelled as breed-specific.",SALT-2017;DAP-2025

@@ -1,0 +1,6 @@
+rank,registrations_total,catalog_id,catalog_canonical_name,ranking_name,adult_min_kg,adult_max_kg,adult_source_id,adult_value_method,adult_applicability,growth_0_24_status
+21,100,VBO:0200724,Jack Russell Terrier,Jack Russell Terrier,5.0,6.0,FCI-345,"derived exactly from FCI ideal height 25-30 cm and equivalence 1 kg per 5 cm height","all FCI-recognized coat types; ideal weight rather than population interval",gap
+22,99,VBO:0200898,"Miniature Schnauzer, Pepper And Salt","Miniature Schnauzer P-S",4.0,8.0,FCI-183,"verbatim FCI weight interval","pepper-and-salt variety; FCI weight applies to the Miniature Schnauzer standard containing all four colour varieties",gap
+23,95,VBO:0200420,"Dachshund, Standard Smooth-Haired","Dachshund Standard Smooth-Haired",7.3,14.5,WIKI-DACHSHUND,"Wikipedia 16-32 lb converted to kg and rounded to one decimal","standard-size smooth-haired variety; FCI 148 defines size by chest circumference and supplies no adult weight",gap
+24,94,VBO:0200193,Border Collie,Border Collie,12.0,20.0,WIKI-BORDER-IT,"combined envelope of Wikipedia sex-specific intervals: female 12-19 kg and male 14-20 kg","breed-wide; sex-specific bounds retained in report; FCI 297 supplies no weight",gap
+25,92,VBO:0201089,Pug,Pug,6.3,8.1,FCI-253,"verbatim FCI ideal weight interval","all four FCI colour varieties; ideal weight rather than population interval",gap
