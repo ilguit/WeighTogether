@@ -48,7 +48,7 @@ class PetHistoryBreedReferencePresenterTest {
     @Test
     fun `partial date discloses possible age and selected source age`() {
         val result = presenter().present(
-            dog().copy(birthDate = PartialBirthDate.Month(YearMonth.of(2026, 1))),
+            dog().copy(birthDate = PartialBirthDate.Month(YearMonth.of(2025, 1))),
         ) as PetHistoryBreedReference.Available
 
         val disclosure = requireNotNull(result.partialDateDisclosure)
@@ -96,8 +96,8 @@ class PetHistoryBreedReferencePresenterTest {
             ),
         ) as PetHistoryBreedReference.Unavailable
 
-        assertEquals(BreedWeightReferenceUnavailableReason.NoApplicableValue, result.reason)
-        assertEquals("Для выбранной породы нет применимого ориентира веса.", result.message)
+        assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
         assertFalse(result.showEditAction)
     }
 

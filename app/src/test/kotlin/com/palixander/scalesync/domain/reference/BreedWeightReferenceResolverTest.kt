@@ -43,10 +43,13 @@ class BreedWeightReferenceResolverTest {
             "labrador day after exact point" to resolve("VBO:0200800", PetSex.MALE, PartialBirthDate.Day(today.minusDays(184))),
             "dobermann day between neonatal observations" to resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(13))),
             "dobermann after neonatal observations" to resolve("VBO:0200442", PetSex.MALE, PartialBirthDate.Day(today.minusDays(16))),
-            "adult-only breed puppy" to resolve("VBO:0201220", PetSex.MALE, PartialBirthDate.Day(today.minusDays(200))),
         ).forEach { (name, result) ->
             assertEquals(name, BreedWeightReferenceUnavailableReason.NoApplicableValue, result.unavailable())
         }
+        assertTrue(
+            resolve("VBO:0201220", PetSex.MALE, PartialBirthDate.Day(today.minusDays(200))).unavailable() is
+                BreedWeightReferenceUnavailableReason.DocumentedGap,
+        )
     }
 
     @Test
@@ -185,10 +188,11 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `younger observations are retained only in details`() {
+    fun `age after the final point uses adult reference and retains observations in details`() {
         val result = resolve("VBO:0200800", PetSex.MALE, PartialBirthDate.Day(today.minusDays(731))).available()
-        assertEquals(BreedWeightAgeScope.Age(730, 730, "24 months"), result.ageScope)
-        assertTrue(result.companionGroups.single().values.single() is BreedWeightValue.Interval)
+        assertEquals(BreedWeightAgeScope.Adult, result.ageScope)
+        assertTrue(result.values.single() is BreedWeightValue.Interval)
+        assertTrue(result.companionGroups.isEmpty())
         assertTrue(result.details.filter { it.sex == BreedReferenceSex.MALE }.all { it.youngerThanSelectedAge })
     }
 
@@ -199,7 +203,7 @@ class BreedWeightReferenceResolverTest {
             assertTrue(elevenMonths.values.single() is BreedWeightValue.Single)
             assertTrue(elevenMonths.companionGroups.isEmpty())
 
-            listOf(365, 457, 730, 800).forEach { age ->
+            listOf(365, 457, 730).forEach { age ->
                 val result = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(age.toLong()))).available()
                 assertTrue("$sex at $age days keeps Dogslife center", result.values.single() is BreedWeightValue.Single)
                 val companion = result.companionGroups.single()
@@ -211,6 +215,10 @@ class BreedWeightReferenceResolverTest {
                 assertEquals("Labrador Retriever Club", companion.source.title)
                 assertTrue(result.source.title.contains("Dogslife", ignoreCase = true))
             }
+
+            val adult = resolve("VBO:0200800", sex, PartialBirthDate.Day(today.minusDays(800))).available()
+            assertEquals(BreedWeightAgeScope.Adult, adult.ageScope)
+            assertTrue(adult.values.single() is BreedWeightValue.Interval)
         }
     }
 
