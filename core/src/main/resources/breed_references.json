@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.5",
+    "snapshotVersion": "2026.09.19.6",
     "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "ec2e8465dada3278ff157a5260f6395768a4eda3d0cc60625d65f651c4944f6b",
+    "numericalDataSha256": "ec0c197b6d010380247ee91d172868b3edb5524d004c64dd360546758d34bb94",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -3470,7 +3470,7 @@
     },
     {
       "breedId": "VBO:0201415",
-      "russianName": "West Highland White Terrier",
+      "russianName": "Вест-хайленд-уайт-терьер",
       "englishName": "West Highland White Terrier",
       "popularityRank": 31,
       "registrations": 84,
@@ -3544,7 +3544,7 @@
     },
     {
       "breedId": "VBO:0200161",
-      "russianName": "Bernese Mountain Dog",
+      "russianName": "Бернский зенненхунд",
       "englishName": "Bernese Mountain Dog",
       "popularityRank": 33,
       "registrations": 83,
@@ -3596,7 +3596,7 @@
     },
     {
       "breedId": "VBO:0200339",
-      "russianName": "Chihuahua, Long-Haired",
+      "russianName": "Чихуахуа длинношёрстный",
       "englishName": "Chihuahua, Long-Haired",
       "popularityRank": 34,
       "registrations": 83,
@@ -3648,7 +3648,7 @@
     },
     {
       "breedId": "VBO:0200962",
-      "russianName": "Norwich Terrier",
+      "russianName": "Норвич-терьер",
       "englishName": "Norwich Terrier",
       "popularityRank": 35,
       "registrations": 82,
@@ -3685,7 +3685,7 @@
     },
     {
       "breedId": "VBO:0200485",
-      "russianName": "English Bulldog",
+      "russianName": "Английский бульдог",
       "englishName": "English Bulldog",
       "popularityRank": 36,
       "registrations": 80,
@@ -3735,7 +3735,7 @@
     },
     {
       "breedId": "VBO:0200163",
-      "russianName": "Bichon Frise",
+      "russianName": "Бишон-фризе",
       "englishName": "Bichon Frise",
       "popularityRank": 37,
       "registrations": 79,
@@ -3771,7 +3771,7 @@
     },
     {
       "breedId": "VBO:0201198",
-      "russianName": "Scottish Terrier",
+      "russianName": "Шотландский терьер",
       "englishName": "Scottish Terrier",
       "popularityRank": 38,
       "registrations": 79,
@@ -3808,7 +3808,7 @@
     },
     {
       "breedId": "VBO:0200713",
-      "russianName": "Italian Greyhound",
+      "russianName": "Малая итальянская борзая",
       "englishName": "Italian Greyhound",
       "popularityRank": 39,
       "registrations": 78,
@@ -3844,7 +3844,7 @@
     },
     {
       "breedId": "VBO:0201403",
-      "russianName": "Weimaraner, Short-Haired",
+      "russianName": "Веймаранер короткошёрстный",
       "englishName": "Weimaraner, Short-Haired",
       "popularityRank": 40,
       "registrations": 77,
@@ -3896,7 +3896,7 @@
     },
     {
       "breedId": "VBO:0200340",
-      "russianName": "Chihuahua, Smooth-Haired",
+      "russianName": "Чихуахуа короткошёрстный",
       "englishName": "Chihuahua, Smooth-Haired",
       "popularityRank": 41,
       "registrations": 77,
@@ -3948,7 +3948,7 @@
     },
     {
       "breedId": "VBO:0200345",
-      "russianName": "Chinese Crested",
+      "russianName": "Китайская хохлатая собака",
       "englishName": "Chinese Crested",
       "popularityRank": 42,
       "registrations": 76,
@@ -3986,7 +3986,7 @@
     },
     {
       "breedId": "VBO:0201348",
-      "russianName": "Thai Ridgeback",
+      "russianName": "Тайский риджбек",
       "englishName": "Thai Ridgeback",
       "popularityRank": 43,
       "registrations": 76,
@@ -4038,7 +4038,7 @@
     },
     {
       "breedId": "VBO:0200410",
-      "russianName": "Dachshund, Miniature Smooth-Haired",
+      "russianName": "Такса миниатюрная гладкошёрстная",
       "englishName": "Dachshund, Miniature Smooth-Haired",
       "popularityRank": 44,
       "registrations": 76,
@@ -4076,7 +4076,7 @@
     },
     {
       "breedId": "VBO:0200027",
-      "russianName": "American Akita",
+      "russianName": "Американская акита",
       "englishName": "American Akita",
       "popularityRank": 45,
       "registrations": 74,
@@ -4109,7 +4109,7 @@
     },
     {
       "breedId": "VBO:0201217",
-      "russianName": "Shetland Sheepdog",
+      "russianName": "Шетландская овчарка",
       "englishName": "Shetland Sheepdog",
       "popularityRank": 46,
       "registrations": 74,
@@ -4142,7 +4142,7 @@
     },
     {
       "breedId": "VBO:0200882",
-      "russianName": "Miniature Bull Terrier",
+      "russianName": "Миниатюрный бультерьер",
       "englishName": "Miniature Bull Terrier",
       "popularityRank": 47,
       "registrations": 73,
@@ -4180,7 +4180,7 @@
     },
     {
       "breedId": "VBO:0200764",
-      "russianName": "Kerry Blue Terrier",
+      "russianName": "Керри-блю-терьер",
       "englishName": "Kerry Blue Terrier",
       "popularityRank": 48,
       "registrations": 73,
@@ -4233,7 +4233,7 @@
     },
     {
       "breedId": "VBO:0200375",
-      "russianName": "Collie",
+      "russianName": "Колли длинношёрстный",
       "englishName": "Collie",
       "popularityRank": 49,
       "registrations": 73,

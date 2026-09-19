@@ -300,6 +300,30 @@ class PetProfileEditorContractTest {
     }
 
     @Test
+    fun `new dog options use approved Russian names in alphabetic order`() {
+        val expected = listOf(
+            "Американская акита", "Английский бульдог", "Бернский зенненхунд", "Бишон-фризе",
+            "Веймаранер короткошёрстный", "Вест-хайленд-уайт-терьер", "Йоркширский терьер",
+            "Керри-блю-терьер", "Китайская хохлатая собака", "Колли длинношёрстный",
+            "Малая итальянская борзая", "Миниатюрный бультерьер", "Норвич-терьер", "Ротвейлер",
+            "Тайский риджбек", "Такса миниатюрная гладкошёрстная", "Чихуахуа длинношёрстный",
+            "Чихуахуа короткошёрстный", "Шетландская овчарка", "Шотландский терьер",
+        )
+        val newIds = setOf(
+            "VBO:0201415", "VBO:0201448", "VBO:0200161", "VBO:0200339", "VBO:0200962",
+            "VBO:0200485", "VBO:0200163", "VBO:0201198", "VBO:0200713", "VBO:0201403",
+            "VBO:0200340", "VBO:0200345", "VBO:0201348", "VBO:0200410", "VBO:0200027",
+            "VBO:0201217", "VBO:0200882", "VBO:0200764", "VBO:0200375", "VBO:0201143",
+        )
+
+        val options = breedCatalog.search("", PetSpecies.DOG).filter { it.id.value in newIds }
+
+        assertEquals(expected, options.map(PetBreedOption::displayName))
+        assertTrue(options.none { option -> option.displayName.any { it in 'A'..'Z' || it in 'a'..'z' } })
+        assertEquals("Бернский зенненхунд", breedCatalog.search("Bernese Mountain Dog", PetSpecies.DOG).single().displayName)
+    }
+
+    @Test
     fun `editor catalog remains constructible when breed snapshot is unavailable`() {
         listOf("corrupt snapshot", "unsupported schema", "checksum mismatch").forEach { reason ->
             val unavailableCatalog = PetBreedCatalog(
