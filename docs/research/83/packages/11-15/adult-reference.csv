@@ -1,0 +1,10 @@
+vbo_id,sex,min_weight_kg,max_weight_kg,min_height_cm,max_height_cm,source_id,source_page,value_status,limitations
+VBO:0200985,male,1.5,4.5,,28,FCI-077-1998,5,standard,"FCI has two weight categories; stored as the complete male envelope, not an ideal-health interval"
+VBO:0200985,female,1.5,5,,28,FCI-077-1998,5,standard,"FCI has two weight categories; stored as the complete female envelope, not an ideal-health interval"
+VBO:0200290,all,,,,30,FCI-038-2022,4,partial,"FCI specifies only ideal height and says weight must be proportional; no numeric weight"
+VBO:0200610,male,25,34,56,61,FCI-111-2009+WIKIPEDIA-GR,4,partial,"Height is FCI; shared adult weight envelope is secondary and not sex-specific"
+VBO:0200610,female,25,34,51,56,FCI-111-2009+WIKIPEDIA-GR,4,partial,"Height is FCI; shared adult weight envelope is secondary and not sex-specific"
+VBO:0200095,male,16,32,51,58,FCI-342-2009+WIKIPEDIA-AS,6,partial,"Height is FCI; shared typical weight envelope is secondary and not sex-specific"
+VBO:0200095,female,16,32,46,53,FCI-342-2009+WIKIPEDIA-AS,6,partial,"Height is FCI; shared typical weight envelope is secondary and not sex-specific"
+VBO:0200470,male,,,67,72,RKF-VEO-2020,5,partial,"Official RKF standard does not specify numeric weight"
+VBO:0200470,female,,,62,68,RKF-VEO-2020,5,partial,"Official RKF standard does not specify numeric weight"

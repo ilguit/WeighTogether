@@ -1,0 +1,5 @@
+vbo_id,sex,age_days,age_months,value_type,min_weight_kg,mean_weight_kg,max_weight_kg,sample_n,source_id,source_page,method,limitations
+VBO:0200610,combined,0,0,observed_range,0.360,,0.540,32,MILA-2020,3,"Prospective weights from four litters; breed row reports birth-weight range","Only birth weight is breed-specific; the paper's growth equation pools breeds and is not copied as Golden observations"
+VBO:0200470,male,0,0,mean,,0.529,,,KOMAROVA-2020,,"Comparative reproductive study; puppy live weight after drying","Sample size by breed/sex not exposed in accessible table; mean plus reported standard error"
+VBO:0200470,female,0,0,mean,,0.517,,,KOMAROVA-2020,,"Comparative reproductive study; puppy live weight after drying","Sample size by breed/sex not exposed in accessible table; mean plus reported standard error"
+VBO:0200470,combined,30,0.986,mean,,3.25,,,KOMAROVA-2020,,"Comparative reproductive study; mean puppy weight at 30 days","Sample size not exposed in accessible table; sex-combined value"

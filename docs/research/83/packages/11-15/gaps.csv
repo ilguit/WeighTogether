@@ -1,0 +1,9 @@
+vbo_id,field_or_age_window,gap_reason,searched_source_classes,do_not_infer
+VBO:0200985,age-specific weight 0-24 months,"No open peer-reviewed or official breed-specific observations located",peer-reviewed literature; official breed bodies,true
+VBO:0200290,adult numeric weight,"FCI standard deliberately gives proportionality rather than a number",FCI standard,true
+VBO:0200290,age-specific weight 0-24 months,"No open peer-reviewed or official breed-specific observations located",peer-reviewed literature; official breed bodies,true
+VBO:0200610,age-specific weight after birth through 24 months,"Located breed-specific birth range only; pooled size-class growth standards cannot be relabelled as breed observations",peer-reviewed literature; open datasets,true
+VBO:0200095,FCI numeric adult weight,"FCI standard specifies height but not weight; Wikipedia supplies only a shared typical envelope",FCI standard; Wikipedia fallback,true
+VBO:0200095,age-specific weight 0-24 months,"No open peer-reviewed or official breed-specific observations located",peer-reviewed literature; official breed bodies,true
+VBO:0200470,official numeric adult weight,"RKF standard specifies height but not weight",RKF standard; Wikipedia fallback,true
+VBO:0200470,age-specific weight after 30 days through 24 months,"Peer-reviewed source located only for birth and day 30; no defensible later observations located",peer-reviewed literature; official breed bodies,true
