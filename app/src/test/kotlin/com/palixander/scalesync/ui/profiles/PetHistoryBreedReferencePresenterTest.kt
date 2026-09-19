@@ -46,9 +46,22 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
+    fun `official interval semantics remain visible in value labels`() {
+        val pug = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0201089")),
+        ) as PetHistoryBreedReference.Available
+        val schnauzer = presenter().present(
+            dog().copy(breedId = BreedId("VBO:0200898")),
+        ) as PetHistoryBreedReference.Available
+
+        assertTrue(pug.valueLabels.single().startsWith("Идеальный диапазон веса:"))
+        assertTrue(schnauzer.valueLabels.single().startsWith("Приблизительный диапазон:"))
+    }
+
+    @Test
     fun `partial date discloses possible age and selected source age`() {
         val result = presenter().present(
-            dog().copy(birthDate = PartialBirthDate.Month(YearMonth.of(2026, 1))),
+            dog().copy(birthDate = PartialBirthDate.Month(YearMonth.of(2025, 1))),
         ) as PetHistoryBreedReference.Available
 
         val disclosure = requireNotNull(result.partialDateDisclosure)
@@ -85,6 +98,66 @@ class PetHistoryBreedReferencePresenterTest {
         assertTrue(invalid.showEditAction)
         assertEquals("Исправьте дату рождения, чтобы показать ориентир для возраста.", invalid.message)
         assertEquals("Ориентиры породы временно недоступны.", unavailable.message)
+    }
+
+    @Test
+    fun `juvenile without age data exposes typed unavailable presentation instead of adult range`() {
+        val result = presenter().present(
+            dog().copy(
+                breedId = BreedId("VBO:0201220"),
+                birthDate = PartialBirthDate.Day(today.minusDays(200)),
+            ),
+        ) as PetHistoryBreedReference.Unavailable
+
+        assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+        assertFalse(result.showEditAction)
+    }
+
+    @Test
+    fun `juvenile in documented gap exposes gap-specific presentation`() {
+        val result = presenter().present(
+            dog().copy(
+                breedId = BreedId("VBO:0200712"),
+                birthDate = PartialBirthDate.Day(today.minusDays(100)),
+            ),
+        ) as PetHistoryBreedReference.Unavailable
+
+        assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+        assertFalse(result.showEditAction)
+    }
+
+    @Test
+    fun `adult and juvenile documented gaps remain available through presentation`() {
+        listOf("VBO:0200290", "VBO:0200880").forEach { breedId ->
+            val results = listOf(
+                presenter().present(dog().copy(breedId = BreedId(breedId))),
+                presenter().present(
+                    dog().copy(
+                        breedId = BreedId(breedId),
+                        birthDate = PartialBirthDate.Day(today.minusDays(800)),
+                    ),
+                ),
+                presenter().present(
+                    dog().copy(
+                        breedId = BreedId(breedId),
+                        birthDate = PartialBirthDate.Day(today.minusDays(200)),
+                    ),
+                ),
+            ).map { it as PetHistoryBreedReference.Unavailable }
+
+            results.forEach { result ->
+                assertTrue("$breedId exposes a documented gap", result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
+                assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+                assertFalse(result.showEditAction)
+            }
+            val descriptions = results.map {
+                (it.reason as BreedWeightReferenceUnavailableReason.DocumentedGap).description
+            }
+            assertEquals("$breedId uses the same adult gap with or without a birth date", descriptions[0], descriptions[1])
+            assertTrue("$breedId juvenile gap does not get masked by adult gap", descriptions[1] != descriptions[2])
+        }
     }
 
     @Test

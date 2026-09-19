@@ -447,7 +447,12 @@ private fun BreedReferenceStatisticKind.label() = when (this) {
     BreedReferenceStatisticKind.MEAN -> "Среднее"
     BreedReferenceStatisticKind.MEDIAN -> "Медиана"
     BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> "Приблизительное среднее"
+    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> "Приблизительный диапазон"
     BreedReferenceStatisticKind.MEAN_SD -> "Среднее и стандартное отклонение"
+    BreedReferenceStatisticKind.IDEAL -> "Идеальный вес"
+    BreedReferenceStatisticKind.IDEAL_RANGE -> "Идеальный диапазон веса"
+    BreedReferenceStatisticKind.STANDARD_POINT -> "Значение стандарта"
+    BreedReferenceStatisticKind.MINIMUM -> "Минимальный вес"
     BreedReferenceStatisticKind.DOCUMENTED_GAP -> "Документированный пропуск"
 }
 

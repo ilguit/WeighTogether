@@ -10,7 +10,20 @@ import java.security.MessageDigest
 
 enum class BreedReferenceSex { MALE, FEMALE, COMBINED }
 enum class BreedReferenceSourceKind { INTERNATIONAL_STANDARD, NATIONAL_STANDARD, BREED_CLUB, PROFESSIONAL_REFERENCE, OBSERVATIONAL, MODELLED }
-enum class BreedReferenceStatisticKind { RANGE, QUANTILES, MEAN, MEDIAN, APPROXIMATE_AVERAGE, MEAN_SD, DOCUMENTED_GAP }
+enum class BreedReferenceStatisticKind {
+    RANGE,
+    QUANTILES,
+    MEAN,
+    MEDIAN,
+    APPROXIMATE_AVERAGE,
+    APPROXIMATE_RANGE,
+    MEAN_SD,
+    IDEAL,
+    IDEAL_RANGE,
+    STANDARD_POINT,
+    MINIMUM,
+    DOCUMENTED_GAP,
+}
 enum class BreedReferenceMeasure { WEIGHT, HEIGHT }
 
 data class BreedReferenceSource(
@@ -124,7 +137,10 @@ class BreedReferenceSnapshot private constructor(
     private fun validate(catalog: BreedCatalog) {
         require(manifest.snapshotVersion.isNotBlank() && manifest.snapshotDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}")))
         require(manifest.sources.map { it.id }.toSet().size == manifest.sources.size) { "Duplicate source ID" }
-        require(breeds.size == 10) { "Expected ten supported breeds" }
+        require(breeds.size == 30) { "Expected exactly thirty supported breeds" }
+        require(breeds.map { it.popularityRank }.sorted() == (1..30).toList()) {
+            "Breed popularity ranks must be exactly 1 through 30"
+        }
         require(breeds.map { it.breedId }.toSet().size == breeds.size) { "Duplicate breed ID" }
         val dogCatalogIds = catalog.all(BreedSpecies.DOG).map { it.id }.toSet()
         val sourceIds = manifest.sources.map { it.id }.toSet()
@@ -150,9 +166,15 @@ class BreedReferenceSnapshot private constructor(
                 } else {
                     require(value.sourceId != null && numbers.isNotEmpty() && value.gap == null) { "Incomplete numeric record" }
                     when (value.statistic) {
-                        BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.QUANTILES -> require(value.lower != null && value.upper != null)
+                        BreedReferenceStatisticKind.RANGE,
+                        BreedReferenceStatisticKind.QUANTILES,
+                        BreedReferenceStatisticKind.APPROXIMATE_RANGE,
+                        BreedReferenceStatisticKind.IDEAL_RANGE,
+                        -> require(value.lower != null && value.upper != null)
                         BreedReferenceStatisticKind.MEAN, BreedReferenceStatisticKind.MEDIAN, BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> require(value.center != null)
                         BreedReferenceStatisticKind.MEAN_SD -> require(value.center != null && value.spread != null)
+                        BreedReferenceStatisticKind.IDEAL, BreedReferenceStatisticKind.STANDARD_POINT -> require(value.center != null)
+                        BreedReferenceStatisticKind.MINIMUM -> require(value.lower != null && value.center == null && value.upper == null)
                         BreedReferenceStatisticKind.DOCUMENTED_GAP -> Unit
                     }
                 }
