@@ -1,0 +1,9 @@
+rank,registrations,breed_ru,canonical_breed,vbo_id,fci_standard,sex,weight_min_kg,weight_max_kg,weight_value_kind,height_min_cm,height_max_cm,height_value_kind,source_id,source_page,notes
+16,120,басенджи,Basenji,VBO:0200120,43,male,11,11,ideal,43,43,ideal,FCI-043-2000,4,"FCI gives an ideal point, not a range."
+16,120,басенджи,Basenji,VBO:0200120,43,female,9.5,9.5,ideal,40,40,ideal,FCI-043-2000,4,"FCI gives an ideal point, not a range."
+17,117,немецкий той-шпиц (померанский),"German Spitz, Pomeranian",VBO:0200599,97,all,,,not_numeric,18,24,range_derived_from_published_tolerance,FCI-097-2024,20,"FCI states 21 cm +/- 3 cm and only that weight should correspond to size; no numeric adult weight is published. Range endpoints are the direct arithmetic expansion of the explicit tolerance, not biological interpolation."
+18,111,родезийский риджбек,Rhodesian Ridgeback,VBO:0201135,146,male,36.5,36.5,standard_point,63,69,range,FCI-146-2025,5,"FCI publishes one weight value and a height range."
+18,111,родезийский риджбек,Rhodesian Ridgeback,VBO:0201135,146,female,32,32,standard_point,61,66,range,FCI-146-2025,5,"FCI publishes one weight value and a height range."
+19,103,среднеазиатская овчарка,Central Asian Shepherd Dog,VBO:0200321,335,male,50,,minimum,70,,minimum,FCI-335-2011,7,"No upper bound; FCI says larger size is desirable if proportion is retained. Full maturity is reached at age 3 years (page 4), outside the requested 0-24-month window."
+19,103,среднеазиатская овчарка,Central Asian Shepherd Dog,VBO:0200321,335,female,40,,minimum,65,,minimum,FCI-335-2011,7,"No upper bound; FCI says larger size is desirable if proportion is retained. Full maturity is reached at age 3 years (page 4), outside the requested 0-24-month window."
+20,102,цвергпинчер,Miniature Pinscher,VBO:0200893,185,all,4,6,range,25,30,range,FCI-185-2007,5,"The same range applies to dogs and bitches."
