@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.19.6",
-    "snapshotDate": "2026-09-19",
-    "numericalDataSha256": "e8aac3ba3dc231adf9e6a852e559746f7dc7e74b44b4d005fe268855d0c32437",
+    "snapshotVersion": "2026.09.20.1",
+    "snapshotDate": "2026-09-20",
+    "numericalDataSha256": "6c96f12e02a1d80594c108a61e05b9bd5884fd132b4a9249d2c437f46398beb7",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -412,8 +412,28 @@
       },
       {
         "id": "wiki-central-asian-range", "title": "Wikipedia: Central Asian Shepherd Dog",
-        "url": "https://en.wikipedia.org/wiki/Central_Asian_Shepherd_Dog", "year": 2026, "kind": "professional_reference",
-        "method": "Combined 40–80 kg descriptive adult range transcribed on 2026-09-19 as a secondary companion to the sex-specific FCI minimum; no sex split inferred; CC BY-SA 4.0", "pageOrTable": "Description"
+        "url": "https://en.wikipedia.org/w/index.php?title=Central_Asian_Shepherd_Dog&oldid=1375281952", "year": 2026, "kind": "professional_reference",
+        "method": "Combined 40–80 kg descriptive adult range transcribed from fixed revision 1375281952 on 2026-09-20 as a secondary companion to the sex-specific FCI minimum; no sex split inferred; CC BY-SA 4.0", "pageOrTable": "Description"
+      },
+      {
+        "id": "wiki-american-akita", "title": "Wikipedia (English): Akita (dog breed)",
+        "url": "https://en.wikipedia.org/w/index.php?title=Akita_(dog_breed)&oldid=1368872159", "year": 2026, "kind": "professional_reference", "geography": "United States",
+        "method": "American-type sex-specific typical adult ranges transcribed from fixed revision 1368872159 on 2026-09-20; Japanese-type and mixed Akita values were not used; secondary source under CC BY-SA 4.0", "pageOrTable": "Appearance"
+      },
+      {
+        "id": "wiki-basenji", "title": "Wikipedia (English): Basenji",
+        "url": "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1370295934", "year": 2026, "kind": "professional_reference",
+        "method": "Typical combined 20–24 lb adult range transcribed from fixed revision 1370295934 and converted to 9.1–10.9 kg on 2026-09-20; secondary source under CC BY-SA 4.0", "pageOrTable": "Characteristics / Appearance"
+      },
+      {
+        "id": "wiki-rottweiler", "title": "Wikipedia (English): Rottweiler",
+        "url": "https://en.wikipedia.org/w/index.php?title=Rottweiler&oldid=1368889170", "year": 2026, "kind": "professional_reference",
+        "method": "Sex-specific descriptive adult ranges transcribed from fixed revision 1368889170 on 2026-09-20; retained separately from the FCI conformation points; secondary source under CC BY-SA 4.0", "pageOrTable": "Infobox / Size"
+      },
+      {
+        "id": "wiki-ru-sheltie", "title": "Википедия (русский): Шелти",
+        "url": "https://ru.wikipedia.org/w/index.php?title=%D0%A8%D0%B5%D0%BB%D1%82%D0%B8&oldid=151572016", "year": 2026, "kind": "professional_reference",
+        "method": "Combined 6.8–11.3 kg infobox range transcribed from fixed revision 151572016 on 2026-09-20; no sex split inferred; secondary source under CC BY-SA 4.0", "pageOrTable": "Infobox"
       },
       {
         "id": "akc-mas-weight-chart", "title": "AKC Breed Weight Chart",
@@ -2732,7 +2752,8 @@
           "sourceId": "fci043",
           "limitations": [
             "Conformation ideal point, not an observed population distribution"
-          ]
+          ],
+          "activeForProduct": false
         },
         {
           "id": "bas-fw",
@@ -2746,6 +2767,17 @@
           "sourceId": "fci043",
           "limitations": [
             "Conformation ideal point, not an observed population distribution"
+          ],
+          "activeForProduct": false
+        },
+        {
+          "id": "bas-wiki-adult", "measure": "weight", "sex": "combined", "adult": true,
+          "ageLabel": "adult typical", "statistic": "range", "unit": "kg", "lower": 9.1, "upper": 10.9,
+          "sourceId": "wiki-basenji",
+          "limitations": [
+            "20–24 lb converted to kilograms and rounded to one decimal",
+            "Secondary descriptive typical range, not an observed population distribution or clinical healthy-weight interval",
+            "No sex split was inferred; FCI sex-specific ideal points remain preserved as inactive provenance"
           ]
         },
         {
@@ -4099,7 +4131,20 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci344",
-          "gap": "FCI Standard No. 344 publishes no numeric adult weight. Wikipedia redirects to the mixed Japanese/American Akita article, so its 27–59 kg male and 25–45 kg female values are unsuitable and were not reused."
+          "gap": "FCI Standard No. 344 publishes no numeric adult weight.",
+          "activeForProduct": false
+        },
+        {
+          "id": "ama-wiki-male", "measure": "weight", "sex": "male", "adult": true,
+          "ageLabel": "adult typical, American type", "statistic": "range", "unit": "kg", "lower": 45, "upper": 59,
+          "sourceId": "wiki-american-akita",
+          "limitations": ["Secondary typical range explicitly scoped to mature American-type males", "Not an observed population distribution or clinical healthy-weight interval; FCI 344 publishes no numeric weight"]
+        },
+        {
+          "id": "ama-wiki-female", "measure": "weight", "sex": "female", "adult": true,
+          "ageLabel": "adult typical, American type", "statistic": "range", "unit": "kg", "lower": 32, "upper": 45,
+          "sourceId": "wiki-american-akita",
+          "limitations": ["Secondary typical range explicitly scoped to mature American-type females", "Not an observed population distribution or clinical healthy-weight interval; FCI 344 publishes no numeric weight"]
         },
         {
           "id": "ama-growth-gap",
@@ -4132,7 +4177,14 @@
           "statistic": "documented_gap",
           "unit": "kg",
           "sourceId": "fci088",
-          "gap": "FCI Standard No. 88 and the English Wikipedia article publish no numeric adult weight; no value was inferred from height or generic size categories."
+          "gap": "FCI Standard No. 88 publishes no numeric adult weight.",
+          "activeForProduct": false
+        },
+        {
+          "id": "she-wiki-adult", "measure": "weight", "sex": "combined", "adult": true,
+          "ageLabel": "adult", "statistic": "range", "unit": "kg", "lower": 6.8, "upper": 11.3,
+          "sourceId": "wiki-ru-sheltie",
+          "limitations": ["Secondary Russian-language Wikipedia infobox range; no sex split was published or inferred", "Not an observed population distribution or clinical healthy-weight interval; FCI 88 publishes no numeric weight"]
         },
         {
           "id": "she-growth-gap",
@@ -4308,7 +4360,8 @@
           "sourceId": "fci147",
           "limitations": [
             "Official conformation standard point, not an observed average"
-          ]
+          ],
+          "activeForProduct": false
         },
         {
           "id": "rot-female",
@@ -4323,7 +4376,20 @@
           "limitations": [
             "FCI marks the female standard point as approximate",
             "Conformation standard point, not an observed average"
-          ]
+          ],
+          "activeForProduct": false
+        },
+        {
+          "id": "rot-wiki-male", "measure": "weight", "sex": "male", "adult": true,
+          "ageLabel": "adult", "statistic": "range", "unit": "kg", "lower": 50, "upper": 60,
+          "sourceId": "wiki-rottweiler",
+          "limitations": ["Secondary descriptive range, not an observed population distribution or clinical healthy-weight interval", "FCI male conformation point remains preserved as inactive provenance"]
+        },
+        {
+          "id": "rot-wiki-female", "measure": "weight", "sex": "female", "adult": true,
+          "ageLabel": "adult", "statistic": "range", "unit": "kg", "lower": 35, "upper": 48,
+          "sourceId": "wiki-rottweiler",
+          "limitations": ["Secondary descriptive range, not an observed population distribution or clinical healthy-weight interval", "FCI female conformation point remains preserved as inactive provenance"]
         },
         {
           "id": "rot-growth-gap",
