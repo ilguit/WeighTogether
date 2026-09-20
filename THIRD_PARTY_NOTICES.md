@@ -73,6 +73,26 @@ source limitations are represented; article prose is not redistributed or
 converted into growth curves. Conflicting values remain disclosed rather than
 being merged or averaged.
 
+The American Akita ranges come from the English Wikipedia article “Akita (dog
+breed)” at fixed revision
+https://en.wikipedia.org/w/index.php?title=Akita_(dog_breed)&oldid=1368872159;
+its contributor history is available at
+https://en.wikipedia.org/w/index.php?title=Akita_(dog_breed)&action=history.
+The Rottweiler ranges come from the English Wikipedia article “Rottweiler” at
+fixed revision
+https://en.wikipedia.org/w/index.php?title=Rottweiler&oldid=1368889170; its
+contributor history is available at
+https://en.wikipedia.org/w/index.php?title=Rottweiler&action=history. The
+combined-sex Shetland Sheepdog (Sheltie) range comes from the Russian Wikipedia
+article “Шелти” at fixed revision
+https://ru.wikipedia.org/w/index.php?title=%D0%A8%D0%B5%D0%BB%D1%82%D0%B8&oldid=151572016;
+its contributor history is available at
+https://ru.wikipedia.org/w/index.php?title=%D0%A8%D0%B5%D0%BB%D1%82%D0%B8&action=history.
+Authors are the contributors listed in those histories. These Wikipedia facts
+are used under Creative Commons Attribution-ShareAlike 4.0:
+https://creativecommons.org/licenses/by-sa/4.0/. The same fixed revision URLs
+are recorded in the `breed_references.json` source registry.
+
 The snapshot records explicit 0–24 month growth-data gaps for every added
 breed. Generic dog-size curves are not relabelled as breed observations and no
 values are digitised, interpolated or inferred from height.
