@@ -268,16 +268,18 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `only archived NSCA Shiba averages bypass inactive detail filtering`() {
+    fun `archived Shiba averages and official replacement provenance bypass inactive detail filtering`() {
         val femaleShiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
         val maleShiba = resolve("VBO:0201220", PetSex.MALE, null).available()
         val beagle = resolve("VBO:0200131", PetSex.MALE, null).available()
+        val rottweiler = resolve("VBO:0201143", PetSex.MALE, null).available()
 
         assertTrue(femaleShiba.details.any { it.id == "shi-fw" && it.source?.id == "shibaclub" })
         assertTrue(maleShiba.details.any { it.id == "shi-mw" && it.source?.id == "shibaclub" })
         assertTrue(femaleShiba.values.none { it.referenceId == "shibaclub:shi-fw" })
         assertTrue(maleShiba.values.none { it.referenceId == "shibaclub:shi-mw" })
         assertTrue(beagle.details.none { it.id == "bea-model-mature" })
+        assertTrue(rottweiler.details.any { it.id == "rot-male" && it.source?.id == "fci147" })
     }
 
     @Test

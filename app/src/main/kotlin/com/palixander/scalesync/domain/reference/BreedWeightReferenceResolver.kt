@@ -218,7 +218,7 @@ class BreedWeightReferenceResolver(
                     .filter {
                         it.measure == BreedReferenceMeasure.WEIGHT &&
                             it.id !in chosenIds &&
-                            (it.activeForProduct || it.isInactiveNumericProvenance() || it.isArchivedShibaNscaAverage(breed.breedId))
+                            (it.activeForProduct || it.isInactiveOfficialProvenance(snapshot) || it.isArchivedShibaNscaAverage(breed.breedId))
                     }
                     .map { it.toDetail(snapshot, age.selectedAgeDays) },
                 companionGroups = companionGroups,
@@ -226,9 +226,10 @@ class BreedWeightReferenceResolver(
         )
     }
 
-    private fun BreedReferenceValue.isInactiveNumericProvenance(): Boolean =
+    private fun BreedReferenceValue.isInactiveOfficialProvenance(snapshot: BreedReferenceSnapshot): Boolean =
         !activeForProduct && statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP &&
-            (lower != null || center != null || upper != null)
+            (lower != null || center != null || upper != null) &&
+            snapshot.manifest.sources.firstOrNull { it.id == sourceId }?.kind == BreedReferenceSourceKind.INTERNATIONAL_STANDARD
 
     private fun selectGroup(
         values: List<BreedReferenceValue>,
