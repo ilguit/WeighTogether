@@ -218,13 +218,17 @@ class BreedWeightReferenceResolver(
                     .filter {
                         it.measure == BreedReferenceMeasure.WEIGHT &&
                             it.id !in chosenIds &&
-                            (it.activeForProduct || it.isArchivedShibaNscaAverage(breed.breedId))
+                            (it.activeForProduct || it.isInactiveNumericProvenance() || it.isArchivedShibaNscaAverage(breed.breedId))
                     }
                     .map { it.toDetail(snapshot, age.selectedAgeDays) },
                 companionGroups = companionGroups,
             ),
         )
     }
+
+    private fun BreedReferenceValue.isInactiveNumericProvenance(): Boolean =
+        !activeForProduct && statistic != BreedReferenceStatisticKind.DOCUMENTED_GAP &&
+            (lower != null || center != null || upper != null)
 
     private fun selectGroup(
         values: List<BreedReferenceValue>,

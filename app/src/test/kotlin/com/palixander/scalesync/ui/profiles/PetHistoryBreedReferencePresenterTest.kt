@@ -148,7 +148,7 @@ class PetHistoryBreedReferencePresenterTest {
             Case("VBO:0200290", PetSex.FEMALE, "Диапазон: 11–15"),
             Case("VBO:0200470", PetSex.MALE, "Диапазон: 35–60"),
             Case("VBO:0200880", PetSex.FEMALE, "Приблизительный диапазон: 9,1–18,1"),
-            Case("VBO:0200120", PetSex.MALE, "Идеальный вес: 11"),
+            Case("VBO:0200120", PetSex.MALE, "Диапазон: 9,1–10,9"),
             Case("VBO:0201135", PetSex.MALE, "Значение стандарта: 36,5"),
         ).forEach { case ->
             val result = presenter().present(dog().copy(breedId = BreedId(case.id), sex = case.sex)) as PetHistoryBreedReference.Available
@@ -296,11 +296,10 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
-    fun `official point and minimum labels survive presentation into chart series`() {
+    fun `unchanged official point and minimum labels survive presentation into chart series`() {
         val cases = listOf(
-            Triple("VBO:0200120", "Идеальный вес", 11.0),
-            Triple("VBO:0201135", "Значение стандарта", 36.5),
             Triple("VBO:0200321", "Минимальный вес", 50.0),
+            Triple("VBO:0200485", "Значение стандарта", 25.0),
         )
         cases.forEach { (breedId, label, expected) ->
             val pet = dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)))
@@ -345,19 +344,61 @@ class PetHistoryBreedReferencePresenterTest {
         assertEquals(10.5, rangeValue.upperKg, 0.0)
         assertNull(rangeValue.centerKg)
 
-        val point = presenter().present(
+        val rottweiler = presenter().present(
             dog().copy(breedId = BreedId("VBO:0201143"), sex = PetSex.MALE),
         ) as PetHistoryBreedReference.Available
-        val pointValue = point.chartValues.single() as PetHistoryBreedChartValue.Single
-        assertEquals(50.0, pointValue.valueKg, 0.0)
-        assertEquals("Значение стандарта", pointValue.statisticLabel)
+        val rottweilerRange = rottweiler.chartValues.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(50.0, rottweilerRange.lowerKg, 0.0)
+        assertEquals(60.0, rottweilerRange.upperKg, 0.0)
 
-        val gap = presenter().present(
+        val americanAkita = presenter().present(
             dog().copy(breedId = BreedId("VBO:0200027")),
-        ) as PetHistoryBreedReference.Unavailable
-        assertTrue(gap.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
-        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", gap.message)
-        assertFalse(gap.showEditAction)
+        ) as PetHistoryBreedReference.Available
+        val akitaRange = americanAkita.chartValues.single() as PetHistoryBreedChartValue.Interval
+        assertEquals(45.0, akitaRange.lowerKg, 0.0)
+        assertEquals(59.0, akitaRange.upperKg, 0.0)
+    }
+
+
+    @Test
+    fun `new fallback ranges retain inactive official values in accessible details`() {
+        data class Case(
+            val breedId: String,
+            val sex: PetSex,
+            val lower: Double,
+            val upper: Double,
+            val inactiveValue: String,
+            val inactiveSource: String,
+        )
+        listOf(
+            Case("VBO:0200120", PetSex.MALE, 9.1, 10.9, "11", "FCI Standard No. 43 Basenji"),
+            Case("VBO:0201143", PetSex.MALE, 50.0, 60.0, "50", "FCI Standard No. 147 Rottweiler"),
+        ).forEach { case ->
+            val result = presenter().present(
+                dog().copy(breedId = BreedId(case.breedId), sex = case.sex),
+            ) as PetHistoryBreedReference.Available
+            val interval = result.chartValues.single() as PetHistoryBreedChartValue.Interval
+
+            assertEquals(case.lower, interval.lowerKg, 0.0)
+            assertEquals(case.upper, interval.upperKg, 0.0)
+            assertTrue(result.accessibilityLabel.contains("Диапазон"))
+            assertTrue(result.details.any { detail ->
+                detail.valueLabel.contains(case.inactiveValue) && detail.sourceTitle == case.inactiveSource
+            })
+        }
+    }
+
+    @Test
+    fun `Sheltie uses one combined range for either sex`() {
+        listOf(PetSex.MALE, PetSex.FEMALE).forEach { sex ->
+            val result = presenter().present(
+                dog().copy(breedId = BreedId("VBO:0201217"), sex = sex),
+            ) as PetHistoryBreedReference.Available
+            val interval = result.chartValues.single() as PetHistoryBreedChartValue.Interval
+            assertEquals(6.8, interval.lowerKg, 0.0)
+            assertEquals(11.3, interval.upperKg, 0.0)
+            assertTrue(result.accessibilityLabel.contains("6,8–11,3"))
+        }
     }
 
     @Test
