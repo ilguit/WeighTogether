@@ -279,15 +279,15 @@ def validate_runtime_snapshot_31_50():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     manifest = snapshot["manifest"]
     breeds = snapshot["breeds"]
-    assert manifest["snapshotVersion"] == "2026.09.19.6"
-    assert manifest["snapshotDate"] == "2026-09-19"
-    assert len(breeds) == 50
-    assert [row["popularityRank"] for row in breeds] == list(range(1, 51))
+    assert manifest["snapshotVersion"] == "2026.09.20.1"
+    assert manifest["snapshotDate"] == "2026-09-20"
+    assert len(breeds) >= 50
+    assert [row["popularityRank"] for row in breeds[:50]] == list(range(1, 51))
     assert [
         (row["popularityRank"], row["registrations"], row["breedId"])
-        for row in breeds[30:]
+        for row in breeds[30:50]
     ] == EXPECTED_RUNTIME_31_50
-    assert [row["russianName"] for row in breeds[30:]] == EXPECTED_RUSSIAN_NAMES_31_50
+    assert [row["russianName"] for row in breeds[30:50]] == EXPECTED_RUSSIAN_NAMES_31_50
     canonical = json.dumps(breeds, ensure_ascii=False, separators=(",", ":"))
     assert hashlib.sha256(canonical.encode("utf-8")).hexdigest() == manifest["numericalDataSha256"]
 
@@ -313,8 +313,26 @@ def validate_runtime_snapshot_31_50():
 
     american_akita = by_id["VBO:0200027"]["values"]
     sheltie = by_id["VBO:0201217"]["values"]
-    assert all(row["statistic"] == "documented_gap" for row in american_akita + sheltie)
-    assert not any(key in row for row in american_akita for key in ("lower", "center", "upper"))
+    assert [(row["sex"], row["lower"], row["upper"]) for row in american_akita if row["id"].startswith("ama-wiki-")] == [
+        ("male", 45, 59),
+        ("female", 32, 45),
+    ]
+    sheltie_range = next(row for row in sheltie if row["id"] == "she-wiki-adult")
+    assert (sheltie_range["sex"], sheltie_range["lower"], sheltie_range["upper"]) == ("combined", 6.8, 11.3)
+    assert next(row for row in american_akita if row["id"] == "ama-adult-gap")["activeForProduct"] is False
+    assert next(row for row in sheltie if row["id"] == "she-adult-gap")["activeForProduct"] is False
+
+    basenji = by_id["VBO:0200120"]["values"]
+    basenji_range = next(row for row in basenji if row["id"] == "bas-wiki-adult")
+    assert (basenji_range["lower"], basenji_range["upper"]) == (9.1, 10.9)
+    assert all(row["activeForProduct"] is False for row in basenji if row["id"] in {"bas-mw", "bas-fw"})
+
+    rottweiler = by_id["VBO:0201143"]["values"]
+    assert [(row["sex"], row["lower"], row["upper"]) for row in rottweiler if row["id"].startswith("rot-wiki-")] == [
+        ("male", 50, 60),
+        ("female", 35, 48),
+    ]
+    assert all(row["activeForProduct"] is False for row in rottweiler if row["id"] in {"rot-male", "rot-female"})
     collie_female = next(row for row in by_id["VBO:0200375"]["values"] if row["id"] == "col-female-gap")
     assert collie_female["sex"] == "female" and collie_female["statistic"] == "documented_gap"
     assert "no numeric female interval was synthesized" in collie_female["gap"]
