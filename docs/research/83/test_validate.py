@@ -66,6 +66,33 @@ class Issue83DatasetTest(unittest.TestCase):
             self.assertEqual(actual, VALIDATOR.EXPECTED_HEIGHT_ROWS[rank])
             self.assertTrue(all(height["unit"] == "cm" for height in matching))
 
+    def test_fixed_wikipedia_revision_rejects_stale_oldid(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1351259636",
+                "en",
+                "Basenji",
+                1351259637,
+            )
+
+    def test_fixed_wikipedia_revision_rejects_extra_query_parameter(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://ru.wikipedia.org/w/index.php?title=Среднеазиатская_овчарка&oldid=154838607&diff=prev",
+                "ru",
+                "Среднеазиатская_овчарка",
+                154838607,
+            )
+
+    def test_fixed_wikipedia_revision_rejects_duplicate_conflicting_oldid(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1351259637&oldid=1",
+                "en",
+                "Basenji",
+                1351259637,
+            )
+
 
 if __name__ == "__main__":
     unittest.main()

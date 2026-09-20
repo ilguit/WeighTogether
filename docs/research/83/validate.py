@@ -5,6 +5,7 @@ import csv
 import hashlib
 import json
 from pathlib import Path
+from urllib.parse import parse_qsl, urlsplit
 
 ROOT = Path(__file__).resolve().parent
 EXPECTED_COUNTS = [142, 133, 133, 132, 126, 120, 117, 111, 103, 102,
@@ -62,6 +63,19 @@ EXPECTED_RUSSIAN_NAMES_31_50 = [
     "Такса миниатюрная гладкошёрстная", "Американская акита", "Шетландская овчарка",
     "Миниатюрный бультерьер", "Керри-блю-терьер", "Колли длинношёрстный", "Ротвейлер",
 ]
+
+
+def validate_fixed_wikipedia_revision(url, language, title, oldid):
+    parsed = urlsplit(url)
+    assert parsed.scheme == "https", f"unexpected Wikipedia URL scheme: {url}"
+    assert parsed.netloc == f"{language}.wikipedia.org", f"unexpected Wikipedia host: {url}"
+    assert parsed.path == "/w/index.php", f"unexpected Wikipedia revision path: {url}"
+    assert not parsed.fragment, f"Wikipedia revision URL must not have a fragment: {url}"
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    expected = [("title", title), ("oldid", str(oldid))]
+    assert sorted(query) == sorted(expected), (
+        f"Wikipedia revision URL must contain exactly title={title!r} and oldid={oldid}: {url}"
+    )
 
 
 def read_csv(path):
@@ -340,8 +354,18 @@ def validate_runtime_snapshot_31_50():
     assert sources["fci086"]["pageOrTable"] == "p.4"
     assert sources["fci147"]["pageOrTable"] == "p.6"
     assert "CC BY-SA" in sources["wiki-westie"]["method"]
-    assert "oldid=1351259637" in sources["wiki-basenji"]["url"]
-    assert "oldid=154838607" in sources["wiki-central-asian-range"]["url"]
+    validate_fixed_wikipedia_revision(
+        sources["wiki-basenji"]["url"],
+        "en",
+        "Basenji",
+        1351259637,
+    )
+    validate_fixed_wikipedia_revision(
+        sources["wiki-central-asian-range"]["url"],
+        "ru",
+        "Среднеазиатская_овчарка",
+        154838607,
+    )
     assert by_id["VBO:0200764"]["values"][0]["sourceId"] == "fci003"
     assert by_id["VBO:0200764"]["values"][1]["sourceId"] == "wiki-kerry-blue"
 
