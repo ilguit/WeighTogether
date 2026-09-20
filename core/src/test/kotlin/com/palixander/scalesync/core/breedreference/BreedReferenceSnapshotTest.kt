@@ -144,12 +144,12 @@ class BreedReferenceSnapshotTest {
             "VBO:0200345" to setOf(BreedReferenceStatisticKind.RANGE),
             "VBO:0201348" to setOf(BreedReferenceStatisticKind.RANGE),
             "VBO:0200410" to setOf(BreedReferenceStatisticKind.MAXIMUM),
-            "VBO:0200027" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP),
-            "VBO:0201217" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP),
+            "VBO:0200027" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP, BreedReferenceStatisticKind.RANGE),
+            "VBO:0201217" to setOf(BreedReferenceStatisticKind.DOCUMENTED_GAP, BreedReferenceStatisticKind.RANGE),
             "VBO:0200882" to setOf(BreedReferenceStatisticKind.RANGE),
             "VBO:0200764" to setOf(BreedReferenceStatisticKind.RANGE),
             "VBO:0200375" to setOf(BreedReferenceStatisticKind.RANGE, BreedReferenceStatisticKind.DOCUMENTED_GAP),
-            "VBO:0201143" to setOf(BreedReferenceStatisticKind.STANDARD_POINT),
+            "VBO:0201143" to setOf(BreedReferenceStatisticKind.STANDARD_POINT, BreedReferenceStatisticKind.RANGE),
         )
         expectedAdultStatistics.forEach { (breedId, statistics) ->
             assertEquals(statistics, snapshot.breed(breedId)!!.values.filter { it.adult }.map { it.statistic }.toSet())
@@ -164,8 +164,10 @@ class BreedReferenceSnapshotTest {
         assertEquals("Infobox", miniatureSource.pageOrTable)
         assertTrue(miniatureSource.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
         assertTrue(!miniatureSource.method.contains("16–32 lb"))
-        assertTrue(snapshot.breed("VBO:0200027")!!.values.none { it.lower != null || it.center != null || it.upper != null })
-        assertTrue(snapshot.breed("VBO:0201217")!!.values.all { it.statistic == BreedReferenceStatisticKind.DOCUMENTED_GAP })
+        assertEquals(2, snapshot.breed("VBO:0200027")!!.values.count { it.adult && it.activeForProduct })
+        assertTrue(snapshot.breed("VBO:0201217")!!.values.any {
+            it.id == "she-wiki-adult" && it.activeForProduct && it.lower == 6.8 && it.upper == 11.3
+        })
         assertTrue(snapshot.breed("VBO:0200375")!!.values.any {
             it.id == "col-female-gap" && it.sex == BreedReferenceSex.FEMALE &&
                 it.gap!!.contains("no numeric female interval was synthesized")
@@ -274,6 +276,53 @@ class BreedReferenceSnapshotTest {
         assertTrue(active("VBO:0200880").single { it.id == "mas-akc-adult" }.let { it.sex == BreedReferenceSex.COMBINED && it.lower == 9.1 && it.upper == 18.1 })
         assertTrue(active("VBO:0200321").any { it.id == "cas-wiki-range" && it.sex == BreedReferenceSex.COMBINED && it.lower == 40.0 && it.upper == 80.0 })
         assertTrue(active("VBO:0200321").count { it.statistic == BreedReferenceStatisticKind.MINIMUM } == 2)
+        val centralAsianSource = snapshot.manifest.sources.single { it.id == "wiki-central-asian-range" }
+        assertTrue(centralAsianSource.url.contains("oldid=154838607"))
+        assertTrue(centralAsianSource.method!!.contains("inline citation does not substantiate the upper bound"))
+        val centralAsianRange = active("VBO:0200321").single { it.id == "cas-wiki-range" }
+        assertTrue(centralAsianRange.limitations.any { it.contains("FCI publishes only sex-specific minima") })
+        assertTrue(centralAsianRange.limitations.any { it.contains("inline citation does not substantiate the 80 kg upper bound") })
+    }
+
+    @Test
+    fun `QA2 adult fallbacks preserve exact semantics provenance and inactive official records`() {
+        val snapshot = BreedReferenceSnapshot.bundled()
+        data class Expected(
+            val breedId: String,
+            val valueId: String,
+            val sex: BreedReferenceSex,
+            val lower: Double,
+            val upper: Double,
+            val sourceId: String,
+        )
+        listOf(
+            Expected("VBO:0200027", "ama-wiki-male", BreedReferenceSex.MALE, 45.0, 59.0, "wiki-american-akita"),
+            Expected("VBO:0200027", "ama-wiki-female", BreedReferenceSex.FEMALE, 32.0, 45.0, "wiki-american-akita"),
+            Expected("VBO:0200120", "bas-wiki-adult", BreedReferenceSex.COMBINED, 9.1, 10.9, "wiki-basenji"),
+            Expected("VBO:0201217", "she-wiki-adult", BreedReferenceSex.COMBINED, 6.8, 11.3, "wiki-ru-sheltie"),
+            Expected("VBO:0201143", "rot-wiki-male", BreedReferenceSex.MALE, 50.0, 60.0, "wiki-rottweiler"),
+            Expected("VBO:0201143", "rot-wiki-female", BreedReferenceSex.FEMALE, 35.0, 48.0, "wiki-rottweiler"),
+        ).forEach { expected ->
+            val value = snapshot.breed(expected.breedId)!!.values.single { it.id == expected.valueId }
+            assertEquals(BreedReferenceStatisticKind.RANGE, value.statistic, expected.valueId)
+            assertEquals(expected.sex, value.sex, expected.valueId)
+            assertEquals(expected.lower, value.lower, expected.valueId)
+            assertEquals(expected.upper, value.upper, expected.valueId)
+            assertEquals(expected.sourceId, value.sourceId, expected.valueId)
+            assertTrue(value.activeForProduct, expected.valueId)
+            assertTrue(value.limitations.isNotEmpty(), expected.valueId)
+            assertTrue(snapshot.manifest.sources.single { it.id == expected.sourceId }.url.contains("oldid="), expected.sourceId)
+        }
+
+        listOf("bas-mw", "bas-fw", "ama-adult-gap", "she-adult-gap", "rot-male", "rot-female").forEach { id ->
+            assertTrue(snapshot.breeds.flatMap { it.values }.single { it.id == id }.activeForProduct.not(), id)
+        }
+        val basenjiSource = snapshot.manifest.sources.single { it.id == "wiki-basenji" }
+        assertTrue(basenjiSource.url.contains("oldid=1351259637"))
+        assertTrue(basenjiSource.method!!.contains("American Kennel Club"))
+        val basenjiRange = snapshot.breed("VBO:0200120")!!.values.single { it.id == "bas-wiki-adult" }
+        assertTrue(basenjiRange.limitations.any { it.contains("American Kennel Club") })
+        assertTrue(basenjiRange.limitations.any { it.contains("FCI sex-specific ideal points remain preserved as inactive provenance") })
     }
 
     @Test

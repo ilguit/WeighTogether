@@ -204,10 +204,6 @@ class BreedWeightReferenceResolverTest {
 
     @Test
     fun `official point and minimum statistics retain their semantics`() {
-        val basenji = resolve("VBO:0200120", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
-        assertEquals(BreedReferenceStatisticKind.IDEAL, basenji.statistic)
-        assertEquals(11.0, basenji.value, 0.0)
-
         val ridgeback = resolve("VBO:0201135", PetSex.MALE, null).available().values.single() as BreedWeightValue.Single
         assertEquals(BreedReferenceStatisticKind.STANDARD_POINT, ridgeback.statistic)
         assertEquals(36.5, ridgeback.value, 0.0)
@@ -221,6 +217,37 @@ class BreedWeightReferenceResolverTest {
         assertEquals(BreedReferenceStatisticKind.RANGE, publishedRange.statistic)
         assertEquals(40.0, publishedRange.lower, 0.0)
         assertEquals(80.0, publishedRange.upper, 0.0)
+    }
+
+    @Test
+    fun `QA2 fallbacks select one applicable range and inactive gaps never mask it`() {
+        data class Expected(
+            val breedId: String,
+            val sex: PetSex,
+            val referenceSex: BreedReferenceSex,
+            val lower: Double,
+            val upper: Double,
+            val sourceId: String,
+        )
+        listOf(
+            Expected("VBO:0200027", PetSex.MALE, BreedReferenceSex.MALE, 45.0, 59.0, "wiki-american-akita"),
+            Expected("VBO:0200027", PetSex.FEMALE, BreedReferenceSex.FEMALE, 32.0, 45.0, "wiki-american-akita"),
+            Expected("VBO:0200120", PetSex.MALE, BreedReferenceSex.COMBINED, 9.1, 10.9, "wiki-basenji"),
+            Expected("VBO:0200120", PetSex.FEMALE, BreedReferenceSex.COMBINED, 9.1, 10.9, "wiki-basenji"),
+            Expected("VBO:0201217", PetSex.MALE, BreedReferenceSex.COMBINED, 6.8, 11.3, "wiki-ru-sheltie"),
+            Expected("VBO:0201217", PetSex.FEMALE, BreedReferenceSex.COMBINED, 6.8, 11.3, "wiki-ru-sheltie"),
+            Expected("VBO:0201143", PetSex.MALE, BreedReferenceSex.MALE, 50.0, 60.0, "wiki-rottweiler"),
+            Expected("VBO:0201143", PetSex.FEMALE, BreedReferenceSex.FEMALE, 35.0, 48.0, "wiki-rottweiler"),
+        ).forEach { expected ->
+            val reference = resolve(expected.breedId, expected.sex, null).available()
+            val range = reference.values.single() as BreedWeightValue.Interval
+            assertEquals(expected.breedId, expected.referenceSex, reference.sex)
+            assertEquals(expected.breedId, BreedReferenceStatisticKind.RANGE, range.statistic)
+            assertEquals(expected.breedId, expected.lower, range.lower, 0.0)
+            assertEquals(expected.breedId, expected.upper, range.upper, 0.0)
+            assertEquals(expected.breedId, expected.sourceId, reference.source.id)
+            assertTrue(expected.breedId, reference.companionGroups.isEmpty())
+        }
     }
 
     @Test
@@ -241,16 +268,18 @@ class BreedWeightReferenceResolverTest {
     }
 
     @Test
-    fun `only archived NSCA Shiba averages bypass inactive detail filtering`() {
+    fun `archived Shiba averages and official replacement provenance bypass inactive detail filtering`() {
         val femaleShiba = resolve("VBO:0201220", PetSex.FEMALE, null).available()
         val maleShiba = resolve("VBO:0201220", PetSex.MALE, null).available()
         val beagle = resolve("VBO:0200131", PetSex.MALE, null).available()
+        val rottweiler = resolve("VBO:0201143", PetSex.MALE, null).available()
 
         assertTrue(femaleShiba.details.any { it.id == "shi-fw" && it.source?.id == "shibaclub" })
         assertTrue(maleShiba.details.any { it.id == "shi-mw" && it.source?.id == "shibaclub" })
         assertTrue(femaleShiba.values.none { it.referenceId == "shibaclub:shi-fw" })
         assertTrue(maleShiba.values.none { it.referenceId == "shibaclub:shi-mw" })
         assertTrue(beagle.details.none { it.id == "bea-model-mature" })
+        assertTrue(rottweiler.details.any { it.id == "rot-male" && it.source?.id == "fci147" })
     }
 
     @Test
@@ -330,10 +359,12 @@ class BreedWeightReferenceResolverTest {
             AdultCase("VBO:0200345", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
             AdultCase("VBO:0201348", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
             AdultCase("VBO:0200410", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.MAXIMUM)),
+            AdultCase("VBO:0200027", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
+            AdultCase("VBO:0201217", PetSex.FEMALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
             AdultCase("VBO:0200882", PetSex.MALE, BreedReferenceSex.COMBINED, setOf(BreedReferenceStatisticKind.RANGE)),
             AdultCase("VBO:0200764", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.RANGE)),
             AdultCase("VBO:0200375", PetSex.MALE, BreedReferenceSex.MALE, setOf(BreedReferenceStatisticKind.RANGE)),
-            AdultCase("VBO:0201143", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.STANDARD_POINT)),
+            AdultCase("VBO:0201143", PetSex.FEMALE, BreedReferenceSex.FEMALE, setOf(BreedReferenceStatisticKind.RANGE)),
         )
         availableCases.forEach { case ->
             val reference = resolve(case.breed, case.sex, null).available()
@@ -341,10 +372,6 @@ class BreedWeightReferenceResolverTest {
             assertEquals(case.breed, case.statistics, reference.values.map { it.statistic }.toSet())
         }
 
-        listOf("VBO:0200027", "VBO:0201217").forEach { breedId ->
-            val gap = resolve(breedId, PetSex.MALE, null).documentedGap()
-            assertTrue(breedId, gap.description.contains("no numeric adult weight"))
-        }
         assertTrue(
             resolve("VBO:0200375", PetSex.FEMALE, null).documentedGap().description
                 .contains("no numeric female interval was synthesized"),

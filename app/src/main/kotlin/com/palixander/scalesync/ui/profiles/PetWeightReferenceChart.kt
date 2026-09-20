@@ -134,11 +134,29 @@ internal data class BreedWeightReferenceBandPoint(
     val upperKg: Double,
 )
 
-internal data class BreedWeightReferenceBand(val points: List<BreedWeightReferenceBandPoint>) {
+internal data class BreedWeightReferenceBand(
+    val points: List<BreedWeightReferenceBandPoint>,
+    /** Visual-only fill for a published upper boundary; this does not add a lower reference value. */
+    val lowerEdge: LowerEdge = LowerEdge.PUBLISHED,
+) {
+    internal enum class LowerEdge {
+        PUBLISHED,
+        CHART_DOMAIN_MINIMUM,
+    }
+
     init {
         require(points.size >= 2)
         require(points.zipWithNext().all { (first, second) -> first.xEpochMillis < second.xEpochMillis })
     }
+}
+
+internal fun breedWeightReferenceBandLowerKg(
+    band: BreedWeightReferenceBand,
+    point: BreedWeightReferenceBandPoint,
+    chartDomainMinimumKg: Double,
+): Double = when (band.lowerEdge) {
+    BreedWeightReferenceBand.LowerEdge.PUBLISHED -> point.lowerKg
+    BreedWeightReferenceBand.LowerEdge.CHART_DOMAIN_MINIMUM -> chartDomainMinimumKg
 }
 
 /** Produces one polygon per stable source/statistic identity and continuous interval segment. */
@@ -148,21 +166,39 @@ internal fun breedWeightReferenceBands(
     val seriesIds = timeline.flatMap { point -> point.values.orEmpty().map(PetHistoryBreedChartValue::seriesId) }.distinct()
     return buildList {
         seriesIds.forEach { seriesId ->
+            val lowerEdge = timeline.asSequence()
+                .flatMap { it.values.orEmpty().asSequence() }
+                .firstOrNull { it.seriesId == seriesId }
+                .let { value ->
+                    if (value is PetHistoryBreedChartValue.Boundary &&
+                        value.direction == BreedWeightValue.Boundary.Direction.UPPER
+                    ) {
+                        BreedWeightReferenceBand.LowerEdge.CHART_DOMAIN_MINIMUM
+                    } else {
+                        BreedWeightReferenceBand.LowerEdge.PUBLISHED
+                    }
+                }
             var segment = mutableListOf<BreedWeightReferenceBandPoint>()
             fun finishSegment() {
-                if (segment.size >= 2) add(BreedWeightReferenceBand(segment))
+                if (segment.size >= 2) add(BreedWeightReferenceBand(segment, lowerEdge))
                 segment = mutableListOf()
             }
             timeline.forEach { timelinePoint ->
-                val interval = timelinePoint.values
-                    ?.firstOrNull { it.seriesId == seriesId } as? PetHistoryBreedChartValue.Interval
-                if (interval == null) {
+                val value = timelinePoint.values?.firstOrNull { it.seriesId == seriesId }
+                val bounds = when (value) {
+                    is PetHistoryBreedChartValue.Interval -> value.lowerKg to value.upperKg
+                    is PetHistoryBreedChartValue.Boundary -> value
+                        .takeIf { it.direction == BreedWeightValue.Boundary.Direction.UPPER }
+                        ?.let { it.valueKg to it.valueKg }
+                    else -> null
+                }
+                if (bounds == null) {
                     finishSegment()
                 } else {
                     val point = BreedWeightReferenceBandPoint(
                         xEpochMillis = timelinePoint.xEpochMillis,
-                        lowerKg = interval.lowerKg,
-                        upperKg = interval.upperKg,
+                        lowerKg = bounds.first,
+                        upperKg = bounds.second,
                     )
                     if (segment.lastOrNull()?.xEpochMillis?.let { it >= point.xEpochMillis } == true) finishSegment()
                     segment.add(point)
@@ -927,8 +963,9 @@ private class BreedWeightReferenceBandDecoration(
             bands.forEach { band ->
                 val path = Path()
                 band.points.forEachIndexed { index, point ->
-                    if (index == 0) path.moveTo(x(point.xEpochMillis), y(point.lowerKg))
-                    else path.lineTo(x(point.xEpochMillis), y(point.lowerKg))
+                    val lowerKg = breedWeightReferenceBandLowerKg(band, point, yRange.minY)
+                    if (index == 0) path.moveTo(x(point.xEpochMillis), y(lowerKg))
+                    else path.lineTo(x(point.xEpochMillis), y(lowerKg))
                 }
                 band.points.asReversed().forEach { point ->
                     path.lineTo(x(point.xEpochMillis), y(point.upperKg))

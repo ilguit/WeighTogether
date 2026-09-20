@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 import importlib.util
+import json
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 HERE = Path(__file__).resolve().parent
 SPEC = importlib.util.spec_from_file_location("issue83_validate", HERE / "validate.py")
@@ -65,6 +67,66 @@ class Issue83DatasetTest(unittest.TestCase):
             ]
             self.assertEqual(actual, VALIDATOR.EXPECTED_HEIGHT_ROWS[rank])
             self.assertTrue(all(height["unit"] == "cm" for height in matching))
+
+    def test_fixed_wikipedia_revision_rejects_stale_oldid(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1351259636",
+                "en",
+                "Basenji",
+                1351259637,
+            )
+
+    def test_fixed_wikipedia_revision_rejects_extra_query_parameter(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://ru.wikipedia.org/w/index.php?title=Среднеазиатская_овчарка&oldid=154838607&diff=prev",
+                "ru",
+                "Среднеазиатская_овчарка",
+                154838607,
+            )
+
+    def test_fixed_wikipedia_revision_rejects_duplicate_conflicting_oldid(self):
+        with self.assertRaises(AssertionError):
+            VALIDATOR.validate_fixed_wikipedia_revision(
+                "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1351259637&oldid=1",
+                "en",
+                "Basenji",
+                1351259637,
+            )
+
+    def assert_full_validator_rejects_stale_runtime_source(self, source_id, stale_oldid):
+        snapshot_path = HERE.parents[2] / "core/src/main/resources/breed_references.json"
+        original_read_text = Path.read_text
+        snapshot = json.loads(original_read_text(snapshot_path, encoding="utf-8"))
+        source = next(row for row in snapshot["manifest"]["sources"] if row["id"] == source_id)
+        current_oldid = source["url"].split("oldid=", 1)[1]
+        source["url"] = source["url"].replace(
+            f"oldid={current_oldid}",
+            f"oldid={stale_oldid}",
+        )
+        mutated_snapshot = json.dumps(snapshot, ensure_ascii=False)
+
+        def read_text(path, *args, **kwargs):
+            if path == snapshot_path:
+                return mutated_snapshot
+            return original_read_text(path, *args, **kwargs)
+
+        with patch.object(Path, "read_text", new=read_text):
+            with self.assertRaises(AssertionError):
+                VALIDATOR.validate()
+
+    def test_full_validator_rejects_stale_basenji_oldid(self):
+        self.assert_full_validator_rejects_stale_runtime_source(
+            "wiki-basenji",
+            1351259636,
+        )
+
+    def test_full_validator_rejects_stale_central_asian_oldid(self):
+        self.assert_full_validator_rejects_stale_runtime_source(
+            "wiki-central-asian-range",
+            154838606,
+        )
 
 
 if __name__ == "__main__":

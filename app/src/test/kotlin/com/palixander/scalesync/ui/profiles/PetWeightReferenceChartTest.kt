@@ -16,7 +16,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
-    @Test fun `maximum is one upper boundary without synthetic lower or center`() {
+    @Test fun `maximum is one upper boundary and a domain-minimum fill without synthetic provenance`() {
         val date = LocalDate.of(2026, 9, 1)
         val timeline = listOf(
             timelinePoint(
@@ -29,16 +29,71 @@ class PetWeightReferenceChartTest {
                     seriesId = "maximum",
                 ),
             ),
+            timelinePoint(
+                date.plusDays(1),
+                PetHistoryBreedChartValue.Boundary(
+                    valueKg = 5.0,
+                    direction = BreedWeightValue.Boundary.Direction.UPPER,
+                    statisticLabel = "Максимальный вес",
+                    accessibilityLabel = "Максимальный вес: 5 кг",
+                    seriesId = "maximum",
+                ),
+            ),
         )
 
         val series = breedWeightReferenceChartSeries(timeline)
         assertEquals(listOf(BreedWeightReferenceSeriesKind.UPPER_BOUNDARY), series.map { it.kind })
-        assertEquals(listOf(5.0), series.single().points.map { it.second })
+        assertEquals(listOf(5.0, 5.0), series.single().points.map { it.second })
+        val band = breedWeightReferenceBands(timeline).single()
+        assertEquals(BreedWeightReferenceBand.LowerEdge.CHART_DOMAIN_MINIMUM, band.lowerEdge)
+        assertEquals(listOf(5.0, 5.0), band.points.map(BreedWeightReferenceBandPoint::upperKg))
+        assertEquals(listOf(5.0, 5.0), band.points.map(BreedWeightReferenceBandPoint::lowerKg))
+        assertEquals(2.75, breedWeightReferenceBandLowerKg(band, band.points.first(), 2.75), 0.0)
         val displayed = petWeightDisplayedSeries(emptyList(), available(emptyList()), timeline, ZoneOffset.UTC)
         assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_UPPER), displayed.map { it.kind })
         assertEquals("Максимальный вес", displayed.single().label)
         assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_LOWER })
         assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER })
+    }
+
+    @Test fun `lower boundary and point do not create filled zones`() {
+        val dates = listOf(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2))
+        val lower = dates.map { date ->
+            timelinePoint(
+                date,
+                PetHistoryBreedChartValue.Boundary(
+                    2.0,
+                    BreedWeightValue.Boundary.Direction.LOWER,
+                    "Минимальный вес",
+                    "Минимальный вес: 2 кг",
+                    "minimum",
+                ),
+            )
+        }
+        val point = dates.map { date ->
+            timelinePoint(date, PetHistoryBreedChartValue.Single(25.0, "Значение стандарта", "25 кг", "point"))
+        }
+
+        assertTrue(breedWeightReferenceBands(lower).isEmpty())
+        assertTrue(breedWeightReferenceBands(point).isEmpty())
+    }
+
+    @Test fun `two Chihuahua intervals remain two published bands`() {
+        val dates = listOf(LocalDate.of(2026, 9, 1), LocalDate.of(2026, 9, 2))
+        val timeline = dates.map { date ->
+            timelinePoint(
+                date,
+                PetHistoryBreedChartValue.Interval(1.0, 3.0, null, "Допустимый диапазон", "1–3 кг", "allowed"),
+                PetHistoryBreedChartValue.Interval(1.5, 2.5, 2.0, "Идеальный диапазон", "1,5–2,5 кг", "ideal"),
+            )
+        }
+
+        val bands = breedWeightReferenceBands(timeline)
+
+        assertEquals(2, bands.size)
+        assertTrue(bands.all { it.lowerEdge == BreedWeightReferenceBand.LowerEdge.PUBLISHED })
+        assertEquals(listOf(1.0, 1.5), bands.map { it.points.first().lowerKg })
+        assertEquals(listOf(3.0, 2.5), bands.map { it.points.first().upperKg })
     }
 
     @Test fun `mixed birth observation and breed model render glyph and model band together`() {
