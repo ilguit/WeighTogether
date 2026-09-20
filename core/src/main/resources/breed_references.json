@@ -1,9 +1,9 @@
 {
   "manifest": {
     "schemaVersion": 1,
-    "snapshotVersion": "2026.09.20.1",
+    "snapshotVersion": "2026.09.20.2",
     "snapshotDate": "2026-09-20",
-    "numericalDataSha256": "6c96f12e02a1d80594c108a61e05b9bd5884fd132b4a9249d2c437f46398beb7",
+    "numericalDataSha256": "05cd7a9138dbeccf1437fd6e5b8c53906e2bfc06ecf43ab7d6887615964042fc",
     "sources": [
       {
         "id": "akc-cavalier",
@@ -411,9 +411,9 @@
         "method": "Sex-specific adult ranges transcribed from a fixed Russian-language Wikipedia revision retrieved 2026-09-19 because the RKF standard supplies no numeric weight; secondary source under CC BY-SA 4.0", "pageOrTable": "Infobox"
       },
       {
-        "id": "wiki-central-asian-range", "title": "Wikipedia: Central Asian Shepherd Dog",
-        "url": "https://en.wikipedia.org/w/index.php?title=Central_Asian_Shepherd_Dog&oldid=1375281952", "year": 2026, "kind": "professional_reference",
-        "method": "Combined 40–80 kg descriptive adult range transcribed from fixed revision 1375281952 on 2026-09-20 as a secondary companion to the sex-specific FCI minimum; no sex split inferred; CC BY-SA 4.0", "pageOrTable": "Description"
+        "id": "wiki-central-asian-range", "title": "Википедия (русский): Среднеазиатская овчарка",
+        "url": "https://ru.wikipedia.org/w/index.php?title=Среднеазиатская_овчарка&oldid=154838607", "year": 2026, "kind": "professional_reference",
+        "method": "Combined 40–80 kg descriptive adult range transcribed from fixed Russian-language revision 154838607 on 2026-09-20; the article's inline citation does not substantiate the upper bound, so this remains secondary descriptive evidence alongside the sex-specific FCI minima; no sex split inferred; CC BY-SA 4.0", "pageOrTable": "Характеристика породы"
       },
       {
         "id": "wiki-american-akita", "title": "Wikipedia (English): Akita (dog breed)",
@@ -422,8 +422,8 @@
       },
       {
         "id": "wiki-basenji", "title": "Wikipedia (English): Basenji",
-        "url": "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1370295934", "year": 2026, "kind": "professional_reference",
-        "method": "Typical combined 20–24 lb adult range transcribed from fixed revision 1370295934 and converted to 9.1–10.9 kg on 2026-09-20; secondary source under CC BY-SA 4.0", "pageOrTable": "Characteristics / Appearance"
+        "url": "https://en.wikipedia.org/w/index.php?title=Basenji&oldid=1351259637", "year": 2026, "kind": "professional_reference",
+        "method": "Typical combined 20–24 lb adult range transcribed from fixed revision 1351259637 and converted to 9.1–10.9 kg on 2026-09-20; the article attributes the figures to the American Kennel Club; secondary source under CC BY-SA 4.0", "pageOrTable": "Appearance"
       },
       {
         "id": "wiki-rottweiler", "title": "Wikipedia (English): Rottweiler",
@@ -2776,7 +2776,7 @@
           "sourceId": "wiki-basenji",
           "limitations": [
             "20–24 lb converted to kilograms and rounded to one decimal",
-            "Secondary descriptive typical range, not an observed population distribution or clinical healthy-weight interval",
+            "Secondary descriptive typical range attributed by the article to the American Kennel Club, not an observed population distribution or clinical healthy-weight interval",
             "No sex split was inferred; FCI sex-specific ideal points remain preserved as inactive provenance"
           ]
         },
@@ -3020,7 +3020,7 @@
           "id": "cas-wiki-range", "measure": "weight", "sex": "combined", "adult": true,
           "ageLabel": "adult descriptive range", "statistic": "range", "unit": "kg", "lower": 40, "upper": 80,
           "sourceId": "wiki-central-asian-range",
-          "limitations": ["Secondary combined-sex descriptive range; it does not replace or create upper bounds for the FCI sex-specific minima", "No sex split was inferred"]
+          "limitations": ["Secondary combined-sex descriptive range; FCI publishes only sex-specific minima of 50 kg for males and 40 kg for females", "The article's inline citation does not substantiate the 80 kg upper bound", "No sex split was inferred"]
         },
         {
           "id": "cas-age-gap",

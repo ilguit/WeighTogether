@@ -276,7 +276,12 @@ class BreedReferenceSnapshotTest {
         assertTrue(active("VBO:0200880").single { it.id == "mas-akc-adult" }.let { it.sex == BreedReferenceSex.COMBINED && it.lower == 9.1 && it.upper == 18.1 })
         assertTrue(active("VBO:0200321").any { it.id == "cas-wiki-range" && it.sex == BreedReferenceSex.COMBINED && it.lower == 40.0 && it.upper == 80.0 })
         assertTrue(active("VBO:0200321").count { it.statistic == BreedReferenceStatisticKind.MINIMUM } == 2)
-        assertTrue(snapshot.manifest.sources.single { it.id == "wiki-central-asian-range" }.url.contains("oldid=1375281952"))
+        val centralAsianSource = snapshot.manifest.sources.single { it.id == "wiki-central-asian-range" }
+        assertTrue(centralAsianSource.url.contains("oldid=154838607"))
+        assertTrue(centralAsianSource.method!!.contains("inline citation does not substantiate the upper bound"))
+        val centralAsianRange = active("VBO:0200321").single { it.id == "cas-wiki-range" }
+        assertTrue(centralAsianRange.limitations.any { it.contains("FCI publishes only sex-specific minima") })
+        assertTrue(centralAsianRange.limitations.any { it.contains("inline citation does not substantiate the 80 kg upper bound") })
     }
 
     @Test
@@ -312,6 +317,12 @@ class BreedReferenceSnapshotTest {
         listOf("bas-mw", "bas-fw", "ama-adult-gap", "she-adult-gap", "rot-male", "rot-female").forEach { id ->
             assertTrue(snapshot.breeds.flatMap { it.values }.single { it.id == id }.activeForProduct.not(), id)
         }
+        val basenjiSource = snapshot.manifest.sources.single { it.id == "wiki-basenji" }
+        assertTrue(basenjiSource.url.contains("oldid=1351259637"))
+        assertTrue(basenjiSource.method!!.contains("American Kennel Club"))
+        val basenjiRange = snapshot.breed("VBO:0200120")!!.values.single { it.id == "bas-wiki-adult" }
+        assertTrue(basenjiRange.limitations.any { it.contains("American Kennel Club") })
+        assertTrue(basenjiRange.limitations.any { it.contains("FCI sex-specific ideal points remain preserved as inactive provenance") })
     }
 
     @Test
