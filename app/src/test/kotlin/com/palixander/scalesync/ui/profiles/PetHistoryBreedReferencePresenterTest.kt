@@ -361,6 +361,27 @@ class PetHistoryBreedReferencePresenterTest {
     }
 
     @Test
+    fun `Yorkie Italian Greyhound and Miniature Dachshund maxima render upper-domain bands`() {
+        listOf("VBO:0201448", "VBO:0200713", "VBO:0200410").forEach { breedId ->
+            val pet = dog().copy(breedId = BreedId(breedId), sex = PetSex.FEMALE)
+            val presentation = presenter().present(pet) as PetHistoryBreedReference.Available
+            val published = presentation.chartValues.single() as PetHistoryBreedChartValue.Boundary
+            val moments = listOf(
+                PetHistoryBreedReferenceTimelineMoment(1L, today.minusDays(1)),
+                PetHistoryBreedReferenceTimelineMoment(2L, today),
+            )
+            val timeline = presenter().presentTimeline(pet, moments)
+            val band = breedWeightReferenceBands(timeline).single()
+
+            assertEquals(BreedWeightValue.Boundary.Direction.UPPER, published.direction)
+            assertEquals("Максимальный вес", published.statisticLabel)
+            assertEquals(BreedWeightReferenceBand.LowerEdge.CHART_DOMAIN_MINIMUM, band.lowerEdge)
+            assertTrue(band.points.all { it.upperKg == published.valueKg })
+            assertTrue(band.points.all { it.lowerKg == published.valueKg })
+        }
+    }
+
+    @Test
     fun `Shiba presentation uses NIPPO interval and retains inactive NSCA average in details`() {
         val result = presenter().present(
             dog().copy(breedId = BreedId("VBO:0201220"), sex = PetSex.FEMALE),
