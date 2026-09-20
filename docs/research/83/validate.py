@@ -279,7 +279,7 @@ def validate_runtime_snapshot_31_50():
     snapshot = json.loads(snapshot_path.read_text(encoding="utf-8"))
     manifest = snapshot["manifest"]
     breeds = snapshot["breeds"]
-    assert manifest["snapshotVersion"] == "2026.09.20.1"
+    assert manifest["snapshotVersion"] == "2026.09.20.2"
     assert manifest["snapshotDate"] == "2026-09-20"
     assert len(breeds) >= 50
     assert [row["popularityRank"] for row in breeds[:50]] == list(range(1, 51))
@@ -340,6 +340,8 @@ def validate_runtime_snapshot_31_50():
     assert sources["fci086"]["pageOrTable"] == "p.4"
     assert sources["fci147"]["pageOrTable"] == "p.6"
     assert "CC BY-SA" in sources["wiki-westie"]["method"]
+    assert "oldid=1351259637" in sources["wiki-basenji"]["url"]
+    assert "oldid=154838607" in sources["wiki-central-asian-range"]["url"]
     assert by_id["VBO:0200764"]["values"][0]["sourceId"] == "fci003"
     assert by_id["VBO:0200764"]["values"][1]["sourceId"] == "wiki-kerry-blue"
 

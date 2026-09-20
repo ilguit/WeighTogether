@@ -24,10 +24,12 @@ respective origin countries and the FCI.
 
 Where the applicable FCI standard publishes no weight, ScaleSync uses adult
 weight facts from the English Wikipedia articles “Dachshund”, “Samoyed dog”,
-“Akita (dog breed)”, “Cardigan Welsh Corgi”, and “Central Asian Shepherd Dog”,
+“Akita (dog breed)”, and “Cardigan Welsh Corgi”,
 the French Wikipedia article “American Staffordshire Terrier”, the Russian
-Wikipedia article “Восточноевропейская овчарка”, and the Italian
-Wikipedia article “Border Collie”.
+Wikipedia articles “Восточноевропейская овчарка” and “Среднеазиатская
+овчарка”, and the Italian Wikipedia article “Border Collie”. The Central Asian
+Shepherd fact is attributed to the fixed Russian Wikipedia revision
+`oldid=154838607` embedded in `breed_references.json`.
 Authors are the respective Wikipedia contributors. Wikipedia text is licensed
 under Creative Commons Attribution-ShareAlike 4.0:
 https://creativecommons.org/licenses/by-sa/4.0/. The Akita fallback preserves
@@ -60,10 +62,11 @@ page references, statistic semantics and limitations are embedded in
 origin countries and the FCI.
 
 Where the applicable standard does not provide a usable numeric weight,
-ScaleSync uses facts from the English Wikipedia articles for West Highland
-White Terrier, Bernese Mountain Dog, Norwich Terrier, Chinese Crested Dog,
-Thai Ridgeback, Dachshund, Miniature Bull Terrier, Kerry Blue Terrier and Rough
-Collie. Authors are the respective Wikipedia contributors. Wikipedia text is
+ScaleSync uses facts from the English Wikipedia articles for Basenji (fixed
+revision `oldid=1351259637`), West Highland White Terrier, Bernese Mountain
+Dog, Norwich Terrier, Chinese Crested Dog, Thai Ridgeback, Dachshund, Miniature
+Bull Terrier, Kerry Blue Terrier and Rough Collie. Authors are the respective
+Wikipedia contributors. Wikipedia text is
 licensed under Creative Commons Attribution-ShareAlike 4.0:
 https://creativecommons.org/licenses/by-sa/4.0/. Only numeric facts and their
 source limitations are represented; article prose is not redistributed or
