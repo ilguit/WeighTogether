@@ -6,6 +6,11 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import java.time.Instant
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -54,6 +59,242 @@ class PetMeasurementCoordinatorTest {
         )
         assertFalse(coordinator.isActive)
         assertEquals(0, scannerStops)
+    }
+
+    @Test
+    fun `cancel immediately invalidates startup and releases its late ingestion session`() = runBlocking {
+        val gate = CompletableDeferred<PetIngestionSession>()
+        var releases = 0
+        val startupStates = mutableListOf<PetMeasurementUiState>()
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = startupStates::add,
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = { gate.await() },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val startup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+
+        assertTrue(startupCoordinator.isActive)
+        startupCoordinator.cancel()
+
+        assertFalse(startupCoordinator.isActive)
+        assertEquals(PetMeasurementUiState.Idle, startupStates.last())
+
+        gate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { releases++ },
+            ),
+        )
+
+        assertNull(startup.await())
+        assertFalse(startupCoordinator.isActive)
+        assertEquals(listOf(PetMeasurementUiState.Idle), startupStates)
+        assertEquals(1, releases)
+    }
+
+    @Test
+    fun `stale startup completion cannot replace a newer startup`() = runBlocking {
+        val gates = ArrayDeque<CompletableDeferred<PetIngestionSession>>()
+        val firstGate = CompletableDeferred<PetIngestionSession>()
+        val secondGate = CompletableDeferred<PetIngestionSession>()
+        gates += firstGate
+        gates += secondGate
+        var firstReleases = 0
+        var secondReleases = 0
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = { gates.removeFirst().await() },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val staleStartup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+        startupCoordinator.cancel()
+        val currentStartup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+
+        firstGate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { firstReleases++ },
+            ),
+        )
+
+        assertNull(staleStartup.await())
+        assertTrue(startupCoordinator.isActive)
+        assertEquals(1, firstReleases)
+
+        secondGate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { secondReleases++ },
+            ),
+        )
+        val currentToken = requireNotNull(currentStartup.await())
+
+        assertTrue(startupCoordinator.isActive)
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        startupCoordinator.cancel(currentToken)
+        assertEquals(1, secondReleases)
+    }
+
+    @Test
+    fun `startup cancellation cannot publish idle over a newer operation`() {
+        val idlePublicationStarted = CountDownLatch(1)
+        val allowIdlePublication = CountDownLatch(1)
+        val reservationReachedGate = CountDownLatch(1)
+        val newerStartReachedLock = CountDownLatch(1)
+        val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
+        val blockedGate = CompletableDeferred<PetIngestionSession>()
+        val acquisition = AtomicInteger()
+        val startAttempt = AtomicInteger()
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = { state ->
+                if (state == PetMeasurementUiState.Idle) {
+                    idlePublicationStarted.countDown()
+                    check(allowIdlePublication.await(1, TimeUnit.SECONDS))
+                }
+                interleavedStates += state
+            },
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                if (acquisition.getAndIncrement() == 0) {
+                    reservationReachedGate.countDown()
+                    blockedGate.await()
+                } else {
+                    PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+                }
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+            beforeStartLockAttempt = {
+                if (startAttempt.getAndIncrement() == 1) newerStartReachedLock.countDown()
+            },
+        )
+
+        val threads = mutableListOf<Thread>()
+        val reservation = Thread {
+            runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
+        }.also(threads::add)
+        try {
+            reservation.start()
+            assertTrue(reservationReachedGate.await(1, TimeUnit.SECONDS))
+            assertTrue(startupCoordinator.isActive)
+
+            val cancellation = Thread { startupCoordinator.cancel() }.also(threads::add)
+            cancellation.start()
+            assertTrue(idlePublicationStarted.await(1, TimeUnit.SECONDS))
+
+            val newerStart = Thread {
+                runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
+            }.also(threads::add)
+            newerStart.start()
+
+            assertTrue(newerStartReachedLock.await(1, TimeUnit.SECONDS))
+            assertTrue(newerStart.awaitState(Thread.State.BLOCKED, 1_000))
+            allowIdlePublication.countDown()
+            cancellation.join(1_000)
+            assertFalse(cancellation.isAlive)
+            newerStart.join(1_000)
+            assertFalse(newerStart.isAlive)
+            blockedGate.complete(
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
+            )
+            reservation.join(1_000)
+            assertFalse(reservation.isAlive)
+
+            assertTrue(interleavedStates.last() is PetMeasurementUiState.AwaitingFirstWeight)
+        } finally {
+            allowIdlePublication.countDown()
+            blockedGate.complete(
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
+            )
+            threads.forEach { thread ->
+                thread.join(1_000)
+                if (thread.isAlive) {
+                    thread.interrupt()
+                    thread.join(1_000)
+                }
+            }
+            assertTrue(threads.none(Thread::isAlive))
+        }
+    }
+
+    @Test
+    fun `active cancellation reserves slot through cleanup and terminal publication`() = runBlocking {
+        val releaseStarted = CountDownLatch(1)
+        val allowRelease = CountDownLatch(1)
+        val terminalPublicationStarted = CountDownLatch(1)
+        val allowTerminalPublication = CountDownLatch(1)
+        val contendingStartAttempted = CountDownLatch(1)
+        val contendingStartFinished = CountDownLatch(1)
+        val contendingToken = AtomicReference<PetMeasurementCoordinator.OperationToken?>()
+        val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
+        val finishingCoordinator = PetMeasurementCoordinator(
+            setState = { state ->
+                if (state == PetMeasurementUiState.Cancelled) {
+                    terminalPublicationStarted.countDown()
+                    check(allowTerminalPublication.await(1, TimeUnit.SECONDS))
+                }
+                interleavedStates += state
+            },
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                PetIngestionSession(
+                    registerPetPacket = { _, _ -> },
+                    release = {
+                        releaseStarted.countDown()
+                        check(allowRelease.await(1, TimeUnit.SECONDS))
+                    },
+                )
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val firstToken = requireNotNull(finishingCoordinator.start(pet, SELECTED_ADDRESS))
+        val cancellation = Thread { finishingCoordinator.cancel(firstToken) }.apply { start() }
+        assertTrue(releaseStarted.await(1, TimeUnit.SECONDS))
+
+        val contendingStart = Thread {
+            contendingStartAttempted.countDown()
+            contendingToken.set(
+                runBlocking { finishingCoordinator.start(pet, SELECTED_ADDRESS) },
+            )
+            contendingStartFinished.countDown()
+        }.apply { start() }
+
+        assertTrue(contendingStartAttempted.await(1, TimeUnit.SECONDS))
+        assertTrue(contendingStartFinished.await(1, TimeUnit.SECONDS))
+        assertNull(contendingToken.get())
+        assertTrue(finishingCoordinator.isActive)
+
+        allowRelease.countDown()
+        assertTrue(terminalPublicationStarted.await(1, TimeUnit.SECONDS))
+        assertNull(finishingCoordinator.start(pet, SELECTED_ADDRESS))
+        assertTrue(finishingCoordinator.isActive)
+        allowTerminalPublication.countDown()
+        cancellation.join(1_000)
+        assertFalse(cancellation.isAlive)
+        contendingStart.join(1_000)
+        assertFalse(contendingStart.isAlive)
+        assertEquals(PetMeasurementUiState.Cancelled, interleavedStates.last())
+        assertFalse(finishingCoordinator.isActive)
+
+        val newerToken = requireNotNull(finishingCoordinator.start(pet, SELECTED_ADDRESS))
+        assertTrue(finishingCoordinator.isActive)
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), interleavedStates.last())
+        assertTrue(newerToken.id > firstToken.id)
     }
 
     @Test
@@ -829,6 +1070,14 @@ class PetMeasurementCoordinatorTest {
 
     private fun start(): PetMeasurementCoordinator.OperationToken =
         runBlocking { requireNotNull(coordinator.start(pet, SELECTED_ADDRESS)) }
+
+    private fun Thread.awaitState(expected: Thread.State, timeoutMillis: Long): Boolean {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+        while (isAlive && state != expected && System.nanoTime() < deadline) {
+            Thread.yield()
+        }
+        return state == expected
+    }
 
     private fun acceptAfterTransient(
         token: PetMeasurementCoordinator.OperationToken,
