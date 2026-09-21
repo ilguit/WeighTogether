@@ -9,7 +9,6 @@ import java.time.Instant
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -150,8 +149,7 @@ class PetMeasurementCoordinatorTest {
     @Test
     fun `startup cancellation cannot publish idle over a newer operation`() {
         val idlePublicationStarted = CountDownLatch(1)
-        val newerStartAttempted = CountDownLatch(1)
-        val newerStartReachedContention = AtomicBoolean(false)
+        val allowIdlePublication = CountDownLatch(1)
         val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
         val blockedGate = CompletableDeferred<PetIngestionSession>()
         var acquisition = 0
@@ -159,9 +157,7 @@ class PetMeasurementCoordinatorTest {
             setState = { state ->
                 if (state == PetMeasurementUiState.Idle) {
                     idlePublicationStarted.countDown()
-                    newerStartReachedContention.set(
-                        newerStartAttempted.await(1, TimeUnit.SECONDS),
-                    )
+                    check(allowIdlePublication.await(1, TimeUnit.SECONDS))
                 }
                 interleavedStates += state
             },
@@ -183,10 +179,11 @@ class PetMeasurementCoordinatorTest {
         assertTrue(idlePublicationStarted.await(1, TimeUnit.SECONDS))
 
         val newerStart = Thread {
-            newerStartAttempted.countDown()
             runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
         }.apply { start() }
 
+        assertTrue(newerStart.awaitState(Thread.State.BLOCKED, 1_000))
+        allowIdlePublication.countDown()
         cancellation.join(1_000)
         assertFalse(cancellation.isAlive)
         newerStart.join(1_000)
@@ -197,7 +194,6 @@ class PetMeasurementCoordinatorTest {
         reservation.join(1_000)
         assertFalse(reservation.isAlive)
 
-        assertTrue(newerStartReachedContention.get())
         assertTrue(interleavedStates.last() is PetMeasurementUiState.AwaitingFirstWeight)
     }
 
@@ -1041,6 +1037,14 @@ class PetMeasurementCoordinatorTest {
 
     private fun start(): PetMeasurementCoordinator.OperationToken =
         runBlocking { requireNotNull(coordinator.start(pet, SELECTED_ADDRESS)) }
+
+    private fun Thread.awaitState(expected: Thread.State, timeoutMillis: Long): Boolean {
+        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(timeoutMillis)
+        while (isAlive && state != expected && System.nanoTime() < deadline) {
+            Thread.yield()
+        }
+        return state == expected
+    }
 
     private fun acceptAfterTransient(
         token: PetMeasurementCoordinator.OperationToken,
