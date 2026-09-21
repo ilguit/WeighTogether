@@ -328,8 +328,8 @@ class PetWeightReferenceChartTest {
         assertTrue(boundaryAndP50.all { it.x == expectedX })
         assertTrue(boundaryAndP50.all { series -> series.x == band.points.map(BreedWeightReferenceBandPoint::xEpochMillis) })
         assertEquals(
-            "Нижняя граница P9: 2.00 кг\nМедиана P50: 3.00 кг\nВерхняя граница P91: 4.00 кг",
-            formatPetWeightDisplayedMarker(expectedX.first(), displayed, Locale.US),
+            "Дата: 01.08.2026\nНижняя граница P9: 2.00 кг\nМедиана P50: 3.00 кг\nВерхняя граница P91: 4.00 кг",
+            formatPetWeightDisplayedMarker(expectedX.first(), displayed, zoneId, Locale.US),
         )
     }
 
@@ -408,8 +408,8 @@ class PetWeightReferenceChartTest {
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
         assertEquals(
-            "Среднее: 10.40 кг",
-            formatPetWeightDisplayedMarker(x, displayed, Locale.US),
+            "Дата: 01.09.2026\nСреднее: 10.40 кг",
+            formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US),
         )
         assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
     }
@@ -428,7 +428,10 @@ class PetWeightReferenceChartTest {
             assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_CENTER), displayed.map(PetWeightDisplayedSeries::kind))
             assertEquals(label, displayed.single().label)
             assertEquals("— $label", petWeightChartLegendEntries(displayed).single().label)
-            assertEquals("$label: 11.00 кг", formatPetWeightDisplayedMarker(x, displayed, Locale.US))
+            assertEquals(
+                "Дата: 01.09.2026\n$label: 11.00 кг",
+                formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US),
+            )
         }
     }
 
@@ -508,7 +511,7 @@ class PetWeightReferenceChartTest {
             petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
         )
         assertTrue(
-            formatPetWeightDisplayedMarker(xs.first(), displayed, Locale.US)
+            formatPetWeightDisplayedMarker(xs.first(), displayed, ZoneOffset.UTC, Locale.US)
                 .contains("Среднее: 7.00 кг"),
         )
     }
@@ -569,32 +572,42 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            "Фактический вес: 24.50 кг\nНижняя граница: 22.00 кг",
-            formatPetWeightDisplayedMarker(selectedX, series, Locale.US),
+            "Дата: 01.01.1970\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
+            formatPetWeightDisplayedMarker(selectedX, series, ZoneOffset.UTC, Locale.US),
         )
-        assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, Locale.US))
+        assertEquals(
+            "Дата: 01.01.1970\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
+            formatPetWeightDisplayedMarker(3_000L, series, ZoneOffset.UTC, Locale.US),
+        )
     }
 
-    @Test fun `screen reader visits exact displayed x values and uses visual tooltip text`() {
-        val first = LocalDate.of(2026, 9, 1).atTime(8, 15).toInstant(ZoneOffset.UTC).toEpochMilli()
-        val second = LocalDate.of(2026, 9, 1).atTime(19, 45).toInstant(ZoneOffset.UTC).toEpochMilli()
+    @Test fun `tooltip keeps selected factual value and joins references by local date`() {
+        val zoneId = ZoneId.of("Asia/Yekaterinburg")
+        val selectedDate = LocalDate.of(2026, 9, 1)
+        val nextDate = selectedDate.plusDays(1)
+        val first = selectedDate.atTime(8, 15).atZone(zoneId).toInstant().toEpochMilli()
+        val second = selectedDate.atTime(19, 45).atZone(zoneId).toInstant().toEpochMilli()
+        val referenceXs = listOf(selectedDate, nextDate).map {
+            it.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        }
         val series = listOf(
             PetWeightDisplayedSeries("factual", PetWeightDisplayedSeriesKind.FACTUAL, "Фактический вес", listOf(first, second), listOf(24.5, 25.0), PetWeightDisplayedSeriesStyle.FACTUAL),
-            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", listOf(first, second), listOf(22.0, 22.5), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-            PetWeightDisplayedSeries("upper", PetWeightDisplayedSeriesKind.BREED_UPPER, "Верхняя граница", listOf(first), listOf(32.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", referenceXs, listOf(22.0, 22.5), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+            PetWeightDisplayedSeries("median", PetWeightDisplayedSeriesKind.BREED_CENTER, "Медиана", referenceXs, listOf(27.0, 27.5), PetWeightDisplayedSeriesStyle.BREED_CENTER),
+            PetWeightDisplayedSeries("upper", PetWeightDisplayedSeriesKind.BREED_UPPER, "Верхняя граница", referenceXs, listOf(32.0, 32.5), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
         )
 
-        val selectableXs = petWeightDisplayedMarkerXs(series)
-
-        assertEquals(listOf(first, second), selectableXs)
         assertEquals(
-            "Фактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
-            formatPetWeightDisplayedMarker(selectableXs[0], series, Locale.US),
+            "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
+            formatPetWeightDisplayedMarker(first, series, zoneId, Locale.US),
         )
         assertEquals(
-            "Фактический вес: 25.00 кг\nНижняя граница: 22.50 кг",
-            formatPetWeightDisplayedMarker(selectableXs[1], series, Locale.US),
+            "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
+            formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US),
         )
+        assertTrue(formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("25.00 кг"))
+        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("24.50 кг"))
+        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("22.50 кг"))
     }
 
     @Test fun `screen reader has no selectable x when nothing is displayed`() {
