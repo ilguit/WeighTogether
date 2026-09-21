@@ -414,10 +414,11 @@ internal class PetMeasurementCoordinator(
     fun cancel() {
         val token = synchronized(lock) {
             startupReservation = null
-            operation?.token
+            val activeToken = operation?.token
+            if (activeToken == null) setState(PetMeasurementUiState.Idle)
+            activeToken
         }
-        if (token == null) setState(PetMeasurementUiState.Idle)
-        else finish(token, PetMeasurementUiState.Cancelled)
+        if (token != null) finish(token, PetMeasurementUiState.Cancelled)
     }
 
     /** Cancels only the operation that owns [token], ignoring stale coroutine callbacks. */

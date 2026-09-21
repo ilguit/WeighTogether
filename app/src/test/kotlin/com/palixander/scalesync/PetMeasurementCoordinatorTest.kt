@@ -6,6 +6,9 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import java.time.Instant
+import java.util.Collections
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.async
@@ -140,6 +143,55 @@ class PetMeasurementCoordinatorTest {
         assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
         startupCoordinator.cancel(currentToken)
         assertEquals(1, secondReleases)
+    }
+
+    @Test
+    fun `startup cancellation cannot publish idle over a newer operation`() {
+        val idlePublicationStarted = CountDownLatch(1)
+        val newerOperationPublished = CountDownLatch(1)
+        val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
+        val blockedGate = CompletableDeferred<PetIngestionSession>()
+        var acquisition = 0
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = { state ->
+                if (state == PetMeasurementUiState.Idle) {
+                    idlePublicationStarted.countDown()
+                    newerOperationPublished.await(1, TimeUnit.SECONDS)
+                }
+                interleavedStates += state
+                if (state is PetMeasurementUiState.AwaitingFirstWeight) {
+                    newerOperationPublished.countDown()
+                }
+            },
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = {
+                if (acquisition++ == 0) blockedGate.await()
+                else PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+            },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+
+        val reservation = Thread {
+            runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
+        }.apply { start() }
+        while (!startupCoordinator.isActive) Thread.yield()
+        val cancellation = Thread { startupCoordinator.cancel() }.apply { start() }
+        assertTrue(idlePublicationStarted.await(1, TimeUnit.SECONDS))
+
+        val newerStart = Thread {
+            runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
+        }.apply { start() }
+
+        cancellation.join()
+        newerStart.join()
+        blockedGate.complete(
+            PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
+        )
+        reservation.join()
+
+        assertTrue(interleavedStates.last() is PetMeasurementUiState.AwaitingFirstWeight)
     }
 
     @Test
