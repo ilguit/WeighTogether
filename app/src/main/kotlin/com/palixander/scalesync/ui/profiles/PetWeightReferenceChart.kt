@@ -495,6 +495,7 @@ internal fun petWeightDisplayedSeries(
 internal fun formatPetWeightDisplayedMarker(
     targetXEpochMillis: Long,
     displayedSeries: List<PetWeightDisplayedSeries>,
+    zoneId: ZoneId,
     locale: Locale = Locale.getDefault(),
 ): String {
     val number = NumberFormat.getNumberInstance(locale).apply {
@@ -502,11 +503,22 @@ internal fun formatPetWeightDisplayedMarker(
         maximumFractionDigits = 2
         isGroupingUsed = false
     }
-    return displayedSeries.mapNotNull { series ->
-        series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let { index ->
+    val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
+    val values = displayedSeries.mapNotNull { series ->
+        val index = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
+            series.x.indexOf(targetXEpochMillis)
+        } else {
+            series.x.indexOfFirst { xEpochMillis ->
+                Instant.ofEpochMilli(xEpochMillis).atZone(zoneId).toLocalDate() == targetDate
+            }
+        }
+        index.takeIf { it >= 0 }?.let {
             "${series.label}: ${number.format(series.y[index])} кг"
         }
-    }.joinToString("\n")
+    }
+    if (values.isEmpty()) return ""
+    val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
+    return (listOf("Дата: $date") + values).joinToString("\n")
 }
 
 internal fun petWeightDisplayedMarkerXs(
@@ -854,11 +866,11 @@ private fun PetWeightVicoChart(
             PetAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerFormatter = remember(displayedSeries) {
+    val markerFormatter = remember(displayedSeries, zoneId) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries)
+            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId)
         }
     }
     val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
@@ -874,7 +886,7 @@ private fun PetWeightVicoChart(
         return true
     }
     val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
-        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries) }
+        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId) }
         ?.takeIf(String::isNotEmpty)
 
     LaunchedEffect(displayedSeries) {
