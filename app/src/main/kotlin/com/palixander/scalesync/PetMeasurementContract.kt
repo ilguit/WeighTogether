@@ -208,7 +208,7 @@ internal class PetMeasurementCoordinator(
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
-    private var starting = false
+    private var startupReservation: Long? = null
     private var operation: Operation? = null
 
     fun showSelection(): Boolean = synchronized(lock) {
@@ -228,23 +228,25 @@ internal class PetMeasurementCoordinator(
         selectedAddress: String,
         previousPetWeightKg: Double? = null,
     ): OperationToken? {
-        synchronized(lock) {
-            if (operation != null || starting) return null
-            starting = true
+        val reservation = synchronized(lock) {
+            if (operation != null || startupReservation != null) return null
+            (++nextOperationId).also { startupReservation = it }
         }
         val ingestionSession = try {
             acquirePetSessionGate(selectedAddress)
         } catch (error: Throwable) {
-            synchronized(lock) { starting = false }
+            synchronized(lock) {
+                if (startupReservation == reservation) startupReservation = null
+            }
             throw error
         }
         val token = synchronized(lock) {
-            starting = false
-            if (operation != null) {
+            if (startupReservation != reservation || operation != null) {
                 ingestionSession.release()
                 return null
             }
-            OperationToken(++nextOperationId, ingestionSession).also {
+            startupReservation = null
+            OperationToken(reservation, ingestionSession).also {
                 operation = Operation(
                     token = it,
                     pet = pet,
@@ -410,7 +412,10 @@ internal class PetMeasurementCoordinator(
         finish(token, PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE), PET_MEASUREMENT_TIMEOUT_MESSAGE)
 
     fun cancel() {
-        val token = synchronized(lock) { operation?.token }
+        val token = synchronized(lock) {
+            startupReservation = null
+            operation?.token
+        }
         if (token == null) setState(PetMeasurementUiState.Idle)
         else finish(token, PetMeasurementUiState.Cancelled)
     }
@@ -419,7 +424,10 @@ internal class PetMeasurementCoordinator(
     fun cancel(token: OperationToken) = finish(token, PetMeasurementUiState.Cancelled)
 
     fun clear() {
-        val token = synchronized(lock) { operation?.token }
+        val token = synchronized(lock) {
+            startupReservation = null
+            operation?.token
+        }
         if (token != null) finish(token, PetMeasurementUiState.Idle)
     }
 
@@ -446,7 +454,7 @@ internal class PetMeasurementCoordinator(
     }
 
     val isActive: Boolean
-        get() = synchronized(lock) { starting || operation != null }
+        get() = synchronized(lock) { startupReservation != null || operation != null }
 
     internal class OperationToken internal constructor(
         internal val id: Long,

@@ -57,6 +57,92 @@ class PetMeasurementCoordinatorTest {
     }
 
     @Test
+    fun `cancel immediately invalidates startup and releases its late ingestion session`() = runBlocking {
+        val gate = CompletableDeferred<PetIngestionSession>()
+        var releases = 0
+        val startupStates = mutableListOf<PetMeasurementUiState>()
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = startupStates::add,
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = { gate.await() },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val startup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+
+        assertTrue(startupCoordinator.isActive)
+        startupCoordinator.cancel()
+
+        assertFalse(startupCoordinator.isActive)
+        assertEquals(PetMeasurementUiState.Idle, startupStates.last())
+
+        gate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { releases++ },
+            ),
+        )
+
+        assertNull(startup.await())
+        assertFalse(startupCoordinator.isActive)
+        assertEquals(listOf(PetMeasurementUiState.Idle), startupStates)
+        assertEquals(1, releases)
+    }
+
+    @Test
+    fun `stale startup completion cannot replace a newer startup`() = runBlocking {
+        val gates = ArrayDeque<CompletableDeferred<PetIngestionSession>>()
+        val firstGate = CompletableDeferred<PetIngestionSession>()
+        val secondGate = CompletableDeferred<PetIngestionSession>()
+        gates += firstGate
+        gates += secondGate
+        var firstReleases = 0
+        var secondReleases = 0
+        val startupCoordinator = PetMeasurementCoordinator(
+            setState = states::add,
+            stopScanner = {},
+            restoreAutomaticScanning = {},
+            showMessage = {},
+            acquirePetSessionGate = { gates.removeFirst().await() },
+            monotonicNowNanos = { operationStartedAtNanos },
+        )
+        val staleStartup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+        startupCoordinator.cancel()
+        val currentStartup = async(start = CoroutineStart.UNDISPATCHED) {
+            startupCoordinator.start(pet, SELECTED_ADDRESS)
+        }
+
+        firstGate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { firstReleases++ },
+            ),
+        )
+
+        assertNull(staleStartup.await())
+        assertTrue(startupCoordinator.isActive)
+        assertEquals(1, firstReleases)
+
+        secondGate.complete(
+            PetIngestionSession(
+                registerPetPacket = { _, _ -> },
+                release = { secondReleases++ },
+            ),
+        )
+        val currentToken = requireNotNull(currentStartup.await())
+
+        assertTrue(startupCoordinator.isActive)
+        assertEquals(PetMeasurementUiState.AwaitingFirstWeight(pet), states.last())
+        startupCoordinator.cancel(currentToken)
+        assertEquals(1, secondReleases)
+    }
+
+    @Test
     fun `two distinct stable weights produce save request`() {
         val token = start()
         coordinator.attachTimeout(token) { timeoutCancellations++ }
