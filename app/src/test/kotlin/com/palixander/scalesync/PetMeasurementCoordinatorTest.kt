@@ -9,6 +9,7 @@ import java.time.Instant
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineStart
@@ -150,9 +151,11 @@ class PetMeasurementCoordinatorTest {
     fun `startup cancellation cannot publish idle over a newer operation`() {
         val idlePublicationStarted = CountDownLatch(1)
         val allowIdlePublication = CountDownLatch(1)
+        val newerStartReachedLock = CountDownLatch(1)
         val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
         val blockedGate = CompletableDeferred<PetIngestionSession>()
         var acquisition = 0
+        val startAttempt = AtomicInteger()
         val startupCoordinator = PetMeasurementCoordinator(
             setState = { state ->
                 if (state == PetMeasurementUiState.Idle) {
@@ -169,6 +172,9 @@ class PetMeasurementCoordinatorTest {
                 else PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
             },
             monotonicNowNanos = { operationStartedAtNanos },
+            beforeStartLockAttempt = {
+                if (startAttempt.getAndIncrement() == 1) newerStartReachedLock.countDown()
+            },
         )
 
         val reservation = Thread {
@@ -182,6 +188,7 @@ class PetMeasurementCoordinatorTest {
             runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
         }.apply { start() }
 
+        assertTrue(newerStartReachedLock.await(1, TimeUnit.SECONDS))
         assertTrue(newerStart.awaitState(Thread.State.BLOCKED, 1_000))
         allowIdlePublication.countDown()
         cancellation.join(1_000)

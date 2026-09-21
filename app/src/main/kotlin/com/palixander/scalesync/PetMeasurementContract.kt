@@ -205,6 +205,7 @@ internal class PetMeasurementCoordinator(
         PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
     },
     private val monotonicNowNanos: () -> Long,
+    private val beforeStartLockAttempt: () -> Unit = {},
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -229,6 +230,7 @@ internal class PetMeasurementCoordinator(
         selectedAddress: String,
         previousPetWeightKg: Double? = null,
     ): OperationToken? {
+        beforeStartLockAttempt()
         val reservation = synchronized(lock) {
             if (operation != null || startupReservation != null || finishingReservation != null) return null
             (++nextOperationId).also { startupReservation = it }
