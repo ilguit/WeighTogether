@@ -209,16 +209,17 @@ internal class PetMeasurementCoordinator(
     private val lock = Any()
     private var nextOperationId = 0L
     private var startupReservation: Long? = null
+    private var finishingReservation: Long? = null
     private var operation: Operation? = null
 
     fun showSelection(): Boolean = synchronized(lock) {
-        if (operation != null) return false
+        if (operation != null || finishingReservation != null) return false
         setState(PetMeasurementUiState.SelectingPet)
         true
     }
 
     fun showCreating(): Boolean = synchronized(lock) {
-        if (operation != null) return false
+        if (operation != null || finishingReservation != null) return false
         setState(PetMeasurementUiState.CreatingPet)
         true
     }
@@ -229,7 +230,7 @@ internal class PetMeasurementCoordinator(
         previousPetWeightKg: Double? = null,
     ): OperationToken? {
         val reservation = synchronized(lock) {
-            if (operation != null || startupReservation != null) return null
+            if (operation != null || startupReservation != null || finishingReservation != null) return null
             (++nextOperationId).also { startupReservation = it }
         }
         val ingestionSession = try {
@@ -242,23 +243,24 @@ internal class PetMeasurementCoordinator(
         }
         val token = synchronized(lock) {
             if (startupReservation != reservation || operation != null) {
-                ingestionSession.release()
-                return null
-            }
-            startupReservation = null
-            OperationToken(reservation, ingestionSession).also {
-                operation = Operation(
-                    token = it,
-                    pet = pet,
-                    selectedAddress = selectedAddress,
-                    startedAtNanos = monotonicNowNanos(),
-                    ingestionSession = ingestionSession,
-                    preSessionBaseline = ingestionSession.preSessionBaseline,
-                    previousPetWeightKg = previousPetWeightKg,
-                )
-                setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
+                null
+            } else {
+                startupReservation = null
+                OperationToken(reservation, ingestionSession).also {
+                    operation = Operation(
+                        token = it,
+                        pet = pet,
+                        selectedAddress = selectedAddress,
+                        startedAtNanos = monotonicNowNanos(),
+                        ingestionSession = ingestionSession,
+                        preSessionBaseline = ingestionSession.preSessionBaseline,
+                        previousPetWeightKg = previousPetWeightKg,
+                    )
+                    setState(PetMeasurementUiState.AwaitingFirstWeight(pet))
+                }
             }
         }
+        if (token == null) ingestionSession.release()
         return token
     }
 
@@ -415,7 +417,9 @@ internal class PetMeasurementCoordinator(
         val token = synchronized(lock) {
             startupReservation = null
             val activeToken = operation?.token
-            if (activeToken == null) setState(PetMeasurementUiState.Idle)
+            if (activeToken == null && finishingReservation == null) {
+                setState(PetMeasurementUiState.Idle)
+            }
             activeToken
         }
         if (token != null) finish(token, PetMeasurementUiState.Cancelled)
@@ -440,22 +444,31 @@ internal class PetMeasurementCoordinator(
         val cleanup = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return
             operation = null
+            finishingReservation = token.id
             Cleanup(
                 stopScanner = active.takeStopScanner(),
                 cancelTimeout = active.cancelTimeout,
                 releaseIngestionGate = active.ingestionSession.release,
             )
         }
-        cleanup.stopScanner?.invoke()
-        cleanup.cancelTimeout?.invoke()
-        cleanup.releaseIngestionGate()
-        restoreAutomaticScanning()
-        setState(terminalState)
-        message?.let(showMessage)
+        try {
+            cleanup.stopScanner?.invoke()
+            cleanup.cancelTimeout?.invoke()
+            cleanup.releaseIngestionGate()
+            restoreAutomaticScanning()
+            setState(terminalState)
+            message?.let(showMessage)
+        } finally {
+            synchronized(lock) {
+                if (finishingReservation == token.id) finishingReservation = null
+            }
+        }
     }
 
     val isActive: Boolean
-        get() = synchronized(lock) { startupReservation != null || operation != null }
+        get() = synchronized(lock) {
+            startupReservation != null || operation != null || finishingReservation != null
+        }
 
     internal class OperationToken internal constructor(
         internal val id: Long,
