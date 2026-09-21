@@ -151,10 +151,11 @@ class PetMeasurementCoordinatorTest {
     fun `startup cancellation cannot publish idle over a newer operation`() {
         val idlePublicationStarted = CountDownLatch(1)
         val allowIdlePublication = CountDownLatch(1)
+        val reservationReachedGate = CountDownLatch(1)
         val newerStartReachedLock = CountDownLatch(1)
         val interleavedStates = Collections.synchronizedList(mutableListOf<PetMeasurementUiState>())
         val blockedGate = CompletableDeferred<PetIngestionSession>()
-        var acquisition = 0
+        val acquisition = AtomicInteger()
         val startAttempt = AtomicInteger()
         val startupCoordinator = PetMeasurementCoordinator(
             setState = { state ->
@@ -168,8 +169,12 @@ class PetMeasurementCoordinatorTest {
             restoreAutomaticScanning = {},
             showMessage = {},
             acquirePetSessionGate = {
-                if (acquisition++ == 0) blockedGate.await()
-                else PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+                if (acquisition.getAndIncrement() == 0) {
+                    reservationReachedGate.countDown()
+                    blockedGate.await()
+                } else {
+                    PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
+                }
             },
             monotonicNowNanos = { operationStartedAtNanos },
             beforeStartLockAttempt = {
@@ -177,31 +182,52 @@ class PetMeasurementCoordinatorTest {
             },
         )
 
+        val threads = mutableListOf<Thread>()
         val reservation = Thread {
             runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
-        }.apply { start() }
-        while (!startupCoordinator.isActive) Thread.yield()
-        val cancellation = Thread { startupCoordinator.cancel() }.apply { start() }
-        assertTrue(idlePublicationStarted.await(1, TimeUnit.SECONDS))
+        }.also(threads::add)
+        try {
+            reservation.start()
+            assertTrue(reservationReachedGate.await(1, TimeUnit.SECONDS))
+            assertTrue(startupCoordinator.isActive)
 
-        val newerStart = Thread {
-            runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
-        }.apply { start() }
+            val cancellation = Thread { startupCoordinator.cancel() }.also(threads::add)
+            cancellation.start()
+            assertTrue(idlePublicationStarted.await(1, TimeUnit.SECONDS))
 
-        assertTrue(newerStartReachedLock.await(1, TimeUnit.SECONDS))
-        assertTrue(newerStart.awaitState(Thread.State.BLOCKED, 1_000))
-        allowIdlePublication.countDown()
-        cancellation.join(1_000)
-        assertFalse(cancellation.isAlive)
-        newerStart.join(1_000)
-        assertFalse(newerStart.isAlive)
-        blockedGate.complete(
-            PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
-        )
-        reservation.join(1_000)
-        assertFalse(reservation.isAlive)
+            val newerStart = Thread {
+                runBlocking { startupCoordinator.start(pet, SELECTED_ADDRESS) }
+            }.also(threads::add)
+            newerStart.start()
 
-        assertTrue(interleavedStates.last() is PetMeasurementUiState.AwaitingFirstWeight)
+            assertTrue(newerStartReachedLock.await(1, TimeUnit.SECONDS))
+            assertTrue(newerStart.awaitState(Thread.State.BLOCKED, 1_000))
+            allowIdlePublication.countDown()
+            cancellation.join(1_000)
+            assertFalse(cancellation.isAlive)
+            newerStart.join(1_000)
+            assertFalse(newerStart.isAlive)
+            blockedGate.complete(
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
+            )
+            reservation.join(1_000)
+            assertFalse(reservation.isAlive)
+
+            assertTrue(interleavedStates.last() is PetMeasurementUiState.AwaitingFirstWeight)
+        } finally {
+            allowIdlePublication.countDown()
+            blockedGate.complete(
+                PetIngestionSession(registerPetPacket = { _, _ -> }, release = {}),
+            )
+            threads.forEach { thread ->
+                thread.join(1_000)
+                if (thread.isAlive) {
+                    thread.interrupt()
+                    thread.join(1_000)
+                }
+            }
+            assertTrue(threads.none(Thread::isAlive))
+        }
     }
 
     @Test
