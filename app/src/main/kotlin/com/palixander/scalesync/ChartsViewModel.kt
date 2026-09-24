@@ -19,7 +19,6 @@ import com.palixander.scalesync.measurements.currentLocalDates
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.accounts.reconcileAccountSelection
 import java.time.Clock
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -43,30 +42,6 @@ internal data class ChartFilters(
     val activeFilterSheet: ChartFilterSheet? = null,
     val isCustomDatePickerOpen: Boolean = false,
 ) {
-    fun shiftDateWindowByDays(days: Long, today: LocalDate): ChartFilters {
-        val startEpochDay = startDate.toEpochDay()
-        val windowLengthMinusOne = endDateInclusive.toEpochDay() - startEpochDay
-        val latestStartEpochDay = today.toEpochDay() - windowLengthMinusOne
-        require(latestStartEpochDay >= LocalDate.MIN.toEpochDay()) {
-            "The date window must fit on or before today."
-        }
-        val requestedStartEpochDay = when {
-            days > 0 && startEpochDay > Long.MAX_VALUE - days -> Long.MAX_VALUE
-            days < 0 && startEpochDay < Long.MIN_VALUE - days -> Long.MIN_VALUE
-            else -> startEpochDay + days
-        }
-        if (days > 0 && requestedStartEpochDay > latestStartEpochDay) return this
-        val shiftedStartEpochDay = requestedStartEpochDay.coerceAtLeast(LocalDate.MIN.toEpochDay())
-
-        if (shiftedStartEpochDay == startEpochDay) return this
-
-        return copy(
-            startDate = LocalDate.ofEpochDay(shiftedStartEpochDay),
-            endDateInclusive = LocalDate.ofEpochDay(shiftedStartEpochDay + windowLengthMinusOne),
-            rangePreset = ChartRangePreset.CUSTOM,
-        )
-    }
-
     fun confirmCustomDateRange(startDate: LocalDate, endDateInclusive: LocalDate): ChartFilters =
         if (endDateInclusive.isBefore(startDate)) {
             this
@@ -181,23 +156,13 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             isLoading = true,
         ),
     )
-    private val measurements = combine(filters, accountSelector) { current, selector ->
-        current to selector.selectedAccountId
-    }.flatMapLatest { (current, accountId) ->
+    private val measurements = accountSelector.flatMapLatest { selector ->
+        val accountId = selector.selectedAccountId
         accountScopedLoad(
             accountId = accountId,
             emptyValue = emptyList(),
         ) { selectedAccountId ->
-            val range = inclusiveDateRangeToEpochRange(
-                current.startDate,
-                current.endDateInclusive,
-                zoneId,
-            )
-            repository.observeRangeEntities(
-                accountId = selectedAccountId,
-                startInclusive = Instant.ofEpochSecond(range.startInclusiveEpochSecond),
-                endExclusive = Instant.ofEpochSecond(range.endExclusiveEpochSecond),
-            )
+            repository.observeAllEntities(selectedAccountId)
         }
     }
 
@@ -253,7 +218,6 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         selectAll = ::selectAll,
         clearSelection = ::clearSelection,
         doneSelectingMetrics = ::doneSelectingMetrics,
-        shiftDateWindowByDays = ::shiftDateWindowByDays,
         onAccountSelected = ::selectAccount,
     )
 
@@ -310,11 +274,6 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
 
     fun doneSelectingMetrics() {
         filters.update(ChartFilters::doneSelectingMetrics)
-    }
-
-    fun shiftDateWindowByDays(days: Long) {
-        if (days == 0L) return
-        filters.update { it.shiftDateWindowByDays(days, currentDate.value) }
     }
 
     private fun setSelectedMetrics(selectedMetrics: Set<MeasurementMetric>) {

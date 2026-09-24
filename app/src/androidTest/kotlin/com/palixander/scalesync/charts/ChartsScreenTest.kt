@@ -9,11 +9,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import com.palixander.scalesync.AppSection
 import com.palixander.scalesync.ScaleSyncScaffold
 import com.palixander.scalesync.MainUiState
@@ -24,6 +29,7 @@ import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.LocalDate
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -97,7 +103,7 @@ class ChartsScreenTest {
 
     @Test
     fun metricCardShowsMinimumMaximumAndAverageStatistics() {
-        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val metric = chartMetricOptions().first()
         val state = chartsState().copy(
             selectedMetricKeys = setOf(metric.key),
             series = listOf(
@@ -121,6 +127,40 @@ class ChartsScreenTest {
         composeRule.onNodeWithContentDescription(
             "Среднее: ${formatChartStatistic(70.625, metric, Locale.getDefault())}",
         ).assertIsDisplayed()
+    }
+
+    @Test
+    fun horizontalDragScrollsMetricChartWithoutMovingParentList() {
+        val metric = chartMetricOptions().first()
+        val state = chartsState().copy(
+            startDate = LocalDate.of(2026, 7, 20),
+            selectedMetricKeys = setOf(metric.key),
+            series = listOf(
+                ChartSeries(
+                    metric,
+                    (0..20).map { day ->
+                        ChartPoint(
+                            LocalDate.of(2026, 7, 20).plusDays(day.toLong())
+                                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
+                            70.0 + day,
+                        )
+                    },
+                ),
+            ),
+        )
+        setContent(stateProvider = { state }, stateUpdater = {})
+
+        val chart = composeRule.onNodeWithTag(MetricChartTestTags.ChartHost)
+            .performScrollTo()
+            .assertIsDisplayed()
+        val initialOffset = chart.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chart.getUnclippedBoundsInRoot().top
+
+        chart.performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chart.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chart.getUnclippedBoundsInRoot().top.value, 1f)
     }
 
     @Test

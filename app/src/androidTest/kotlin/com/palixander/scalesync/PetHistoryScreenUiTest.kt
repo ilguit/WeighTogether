@@ -15,6 +15,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -32,6 +33,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
@@ -39,6 +42,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
+import com.palixander.scalesync.charts.ChartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.core.reference.ReferenceBasis
@@ -70,6 +74,7 @@ import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -128,6 +133,76 @@ class PetHistoryScreenUiTest {
         composeRule.runOnIdle { assertEquals(1, handled) }
         composeRule.waitForIdle()
         composeRule.runOnIdle { assertEquals(1, handled) }
+    }
+
+    @Test fun upToTenMeasurementsAreShownWithoutExpansionAction() {
+        val measurements = (1..10).map { row("measurement-$it") }
+
+        setScreen(state(PetHistoryContent.Multiple(measurements)))
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-10"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+    }
+
+    @Test fun moreThanTenMeasurementsShowNewestTenUntilAccessibleExpansion() {
+        val measurements = (1..12).map { row("measurement-$it") }
+
+        setScreen(state(PetHistoryContent.Multiple(measurements)))
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-10"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .assertContentDescriptionEquals("Показать остальные измерения")
+            .assertHeightIsAtLeast(48.dp)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-12"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+    }
+
+    @Test fun changingPetCollapsesPreviouslyExpandedMeasurements() {
+        val measurements = (1..11).map { row("measurement-$it") }
+        var screenState by mutableStateOf(state(PetHistoryContent.Multiple(measurements)))
+        composeRule.setContent {
+            PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+        }
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            val nextId = PetId("another-pet")
+            screenState = screenState.copy(
+                petId = nextId,
+                pet = screenState.pet?.copy(id = nextId, displayName = "Луна"),
+            )
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test fun loadingAndEmptyStatesDoNotOfferMeasurementExpansion() {
+        setScreen(state(PetHistoryContent.Multiple((1..11).map { row("measurement-$it") })).copy(isLoading = true))
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Loading).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+
+        setScreen(state(PetHistoryContent.Empty))
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Empty).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
     }
 
     @Test fun weightEditorIsScrollableValidatesInputAndExposesReadOnlyTime() {
@@ -597,6 +672,37 @@ class PetHistoryScreenUiTest {
             .assert(hasStateDescriptionContaining("27.08.2026"))
             .assert(hasStateDescriptionContaining("Нижняя граница: 3,20 кг"))
             .assert(hasStateDescriptionContaining("Верхняя граница: 4,70 кг"))
+    }
+
+    @Test fun petWeightChartDragScrollsViewportWithoutMovingListAndKeepsMarkerSelection() {
+        val reference = availableReference("Эталон по породе").copy(
+            segments = referenceSegments(
+                (0..90 step 5).map { day ->
+                    PetHistoryReferencePoint(
+                        LocalDate.of(2026, 7, 1).plusDays(day.toLong()),
+                        3.0 + day / 100.0,
+                        3.5 + day / 100.0,
+                        4.0 + day / 100.0,
+                        4.5 + day / 100.0,
+                    )
+                },
+            ),
+        )
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
+
+        val chart = composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasStateDescriptionContaining("01.07.2026"))
+        val initialMarker = chart.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+        val initialOffset = chart.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chart.getUnclippedBoundsInRoot().top
+
+        chart.performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chart.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chart.getUnclippedBoundsInRoot().top.value, 1f)
+        assertEquals(initialMarker, chart.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
     }
 
     @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {

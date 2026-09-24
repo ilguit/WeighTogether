@@ -28,7 +28,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -68,6 +71,7 @@ object PetProfileScreenTestTags {
     const val Empty = "pet-history-empty"
     const val NotFound = "pet-history-not-found"
     const val Loading = "pet-history-loading"
+    const val ShowRemaining = "pet-history-show-remaining"
     const val ActionError = "pet-history-action-error"
     const val ActionErrorDismiss = "pet-history-action-error-dismiss"
     const val DeleteDialog = "pet-history-delete-dialog"
@@ -111,10 +115,20 @@ internal fun PetProfileScreen(
         )
     }
     val listState = androidx.compose.foundation.lazy.rememberLazyListState()
+    var showAllMeasurements by remember(state.petId) { mutableStateOf(false) }
     val restoredMeasurementFocusRequester = remember(state.scrollToMeasurementId) { FocusRequester() }
-    androidx.compose.runtime.LaunchedEffect(state.scrollToMeasurementId, state.measurements, state.isLoading) {
+    androidx.compose.runtime.LaunchedEffect(
+        state.scrollToMeasurementId,
+        state.measurements,
+        state.isLoading,
+        showAllMeasurements,
+    ) {
         val index = state.measurements.indexOfFirst { it.id == state.scrollToMeasurementId }
         if (state.scrollToMeasurementId != null && index >= 0 && !state.isLoading) {
+            if (index >= DEFAULT_VISIBLE_MEASUREMENT_COUNT && !showAllMeasurements) {
+                showAllMeasurements = true
+                return@LaunchedEffect
+            }
             val precedingItems = 5 + (if (state.pet != null && !state.isNotFound) 1 else 0) +
                 (if (state.actionErrorMessage != null && state.deleteConfirmation == null) 1 else 0)
             listState.scrollToItem(precedingItems + index)
@@ -241,7 +255,12 @@ internal fun PetProfileScreen(
                 if (state.measurements.isEmpty()) item {
                     Text("Нет измерений за выбранный период", modifier = Modifier.testTag(PetProfileScreenTestTags.Empty))
                 } else {
-                    items(state.measurements, key = { it.id }) { measurement ->
+                    val visibleMeasurements = if (showAllMeasurements) {
+                        state.measurements
+                    } else {
+                        state.measurements.take(DEFAULT_VISIBLE_MEASUREMENT_COUNT)
+                    }
+                    items(visibleMeasurements, key = { it.id }) { measurement ->
                         HuaweiSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.measurement(measurement.id))
                                 .then(
@@ -285,11 +304,23 @@ internal fun PetProfileScreen(
                             }
                         }
                     }
+                    if (!showAllMeasurements && state.measurements.size > DEFAULT_VISIBLE_MEASUREMENT_COUNT) {
+                        item {
+                            TextButton(
+                                onClick = { showAllMeasurements = true },
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                                    .testTag(PetProfileScreenTestTags.ShowRemaining)
+                                    .semantics { contentDescription = "Показать остальные измерения" },
+                            ) { Text("Показать остальные") }
+                        }
+                    }
                 }
             }
         }
     }
 }
+
+private const val DEFAULT_VISIBLE_MEASUREMENT_COUNT = 10
 
 @Composable
 private fun PetWeightEditorScreen(

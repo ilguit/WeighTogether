@@ -36,8 +36,10 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
+import com.palixander.scalesync.charts.chartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
-import com.palixander.scalesync.charts.chartXRange
+import com.palixander.scalesync.charts.chartViewport
+import com.palixander.scalesync.charts.initialVisibleWidth
 import com.palixander.scalesync.charts.rememberChartBottomAxis
 import com.palixander.scalesync.charts.rememberChartMarker
 import com.palixander.scalesync.charts.rememberChartStartAxis
@@ -52,6 +54,7 @@ import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
+import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
@@ -842,13 +845,18 @@ private fun PetWeightVicoChart(
     referenceColor: Color,
     contentDescription: String,
 ) {
-    val xRange = remember(startDate, endDateInclusive, zoneId) {
-        chartXRange(startDate, endDateInclusive, zoneId)
+    val viewport = remember(displayedSeries, startDate, endDateInclusive, zoneId) {
+        chartViewport(
+            displayedSeries.flatMap(PetWeightDisplayedSeries::x),
+            startDate,
+            endDateInclusive,
+            zoneId,
+        )
     }
-    val rangeProvider = remember(xRange, yRange) {
+    val rangeProvider = remember(viewport, yRange) {
         object : CartesianLayerRangeProvider {
-            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.minX
-            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.maxX
+            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = viewport.modelRange.minX
+            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = viewport.modelRange.maxX
             override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange.min
             override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange.max
         }
@@ -894,8 +902,11 @@ private fun PetWeightVicoChart(
             formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId)
         }
     }
-    val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
-        rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
+    val zoomState = key(viewport.initialVisibleRange, zoneId) {
+        rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.x(viewport.initialVisibleWidth()))
+    }
+    val scrollState = key(viewport.initialVisibleRange, zoneId) {
+        rememberVicoScrollState(scrollEnabled = true, initialScroll = Scroll.Absolute.x(viewport.initialVisibleRange.minX))
     }
     val selectableXs = remember(displayedSeries) {
         petWeightDisplayedMarkerXs(displayedSeries)
@@ -941,6 +952,7 @@ private fun PetWeightVicoChart(
                 .testTag(PetWeightChartTestTags.Chart)
                 .semantics {
                     this.contentDescription = contentDescription
+                    chartScrollOffset = scrollState.value
                     role = Role.Button
                     stateDescription = accessibleMarker ?: "Нет доступных точек для выбора"
                     onClick("Выбрать следующую точку") { selectRelative(1) }
@@ -949,7 +961,7 @@ private fun PetWeightVicoChart(
                         CustomAccessibilityAction("Выбрать следующую точку") { selectRelative(1) },
                     )
                 },
-            scrollState = rememberVicoScrollState(scrollEnabled = true),
+            scrollState = scrollState,
             zoomState = zoomState,
         )
     }

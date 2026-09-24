@@ -211,7 +211,6 @@ private fun buildHomeKgChartUiState(
 ): HomeKgChartUiState {
     val orderedMeasurements = measurements
         .asSequence()
-        .filter { period.contains(it.measuredAtEpochSecond) }
         .sortedBy(MeasurementUiItem::measuredAtEpochSecond)
         .toList()
     val series = HomeKgChartSeriesCatalog.map { metric ->

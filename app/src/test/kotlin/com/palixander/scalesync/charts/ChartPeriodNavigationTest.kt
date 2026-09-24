@@ -2,43 +2,30 @@ package com.palixander.scalesync.charts
 
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ChartPeriodNavigationTest {
     @Test
-    fun `window length includes both boundary dates`() {
-        assertEquals(
-            7L,
-            chartWindowLengthDays(
-                startDate = LocalDate.of(2026, 8, 9),
-                endDateInclusive = LocalDate.of(2026, 8, 15),
-            ),
-        )
+    fun `viewport retains history outside the selected dates`() {
+        val zone = java.time.ZoneOffset.UTC
+        val start = LocalDate.of(2026, 8, 9)
+        val end = LocalDate.of(2026, 8, 15)
+        val older = start.minusMonths(2).atStartOfDay(zone).toInstant().toEpochMilli()
+        val newer = end.plusMonths(1).atStartOfDay(zone).toInstant().toEpochMilli()
+
+        val viewport = chartViewport(listOf(newer, older), start, end, zone)
+
+        assertEquals(older.toDouble(), viewport.modelRange.minX, 0.0)
+        assertEquals(newer.toDouble(), viewport.modelRange.maxX, 0.0)
+        assertEquals(chartXRange(start, end, zone), viewport.initialVisibleRange)
+        assertEquals(7 * 24 * 60 * 60 * 1000.0, viewport.initialVisibleWidth(), 0.0)
     }
 
     @Test
-    fun `single day window shifts by one day`() {
+    fun `empty model still exposes the complete selected window`() {
         val date = LocalDate.of(2026, 8, 15)
+        val viewport = chartViewport(emptyList(), date, date, java.time.ZoneOffset.UTC)
 
-        assertEquals(1L, chartWindowLengthDays(date, date))
-    }
-
-    @Test
-    fun `forward shift requires the complete inclusive window to fit by today`() {
-        val start = LocalDate.of(2026, 8, 1)
-        val end = LocalDate.of(2026, 8, 7)
-
-        assertFalse(canShiftChartWindowForward(start, end, LocalDate.of(2026, 8, 13)))
-        assertTrue(canShiftChartWindowForward(start, end, LocalDate.of(2026, 8, 14)))
-    }
-
-    @Test
-    fun `single day forward shift becomes available on the next date`() {
-        val date = LocalDate.of(2026, 8, 15)
-
-        assertFalse(canShiftChartWindowForward(date, date, date))
-        assertTrue(canShiftChartWindowForward(date, date, date.plusDays(1)))
+        assertEquals(viewport.initialVisibleRange, viewport.modelRange)
     }
 }

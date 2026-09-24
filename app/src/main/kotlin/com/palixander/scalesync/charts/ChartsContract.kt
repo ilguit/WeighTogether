@@ -171,7 +171,6 @@ data class ChartsCallbacks(
     val selectAll: () -> Unit,
     val clearSelection: () -> Unit,
     val doneSelectingMetrics: () -> Unit,
-    val shiftDateWindowByDays: (Long) -> Unit = {},
     val onAccountSelected: (AccountId) -> Unit = {},
 )
 
@@ -184,6 +183,8 @@ data class ChartXRange(
     val minX: Double,
     val maxX: Double,
 )
+
+data class ChartViewport(val modelRange: ChartXRange, val initialVisibleRange: ChartXRange)
 
 data class ChartYRange(val min: Double, val max: Double)
 
@@ -226,6 +227,25 @@ fun chartXRange(
         maxX = Math.multiplyExact(epochRange.endExclusiveEpochSecond, 1_000L).toDouble(),
     )
 }
+
+/** Keeps the full model scrollable while opening the chart at the user-selected dates. */
+fun chartViewport(
+    modelXs: List<Long>,
+    startDate: LocalDate,
+    endDateInclusive: LocalDate,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): ChartViewport {
+    val visible = chartXRange(startDate, endDateInclusive, zoneId)
+    return ChartViewport(
+        modelRange = ChartXRange(
+            minX = minOf(modelXs.minOrNull()?.toDouble() ?: visible.minX, visible.minX),
+            maxX = maxOf(modelXs.maxOrNull()?.toDouble() ?: visible.maxX, visible.maxX),
+        ),
+        initialVisibleRange = visible,
+    )
+}
+
+fun ChartViewport.initialVisibleWidth(): Double = initialVisibleRange.maxX - initialVisibleRange.minX
 
 fun formatChartMarkerText(
     measuredAtEpochSecond: Long,

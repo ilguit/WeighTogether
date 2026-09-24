@@ -36,11 +36,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import com.palixander.scalesync.MeasurementsViewModel
+import com.palixander.scalesync.charts.ChartScrollOffset
 import com.palixander.scalesync.core.ReferenceClassifier
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -59,6 +62,7 @@ import java.time.LocalDate
 import java.util.Locale
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -250,6 +254,43 @@ class MeasurementsScreenTest {
             node.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
             node.assertTextContains(metric.label)
         }
+    }
+
+    @Test
+    fun homeKgChartDragScrollsViewportWithoutMovingMeasurementsList() {
+        val baseChart = homeChartState()
+        val weight = baseChart.series.first()
+        val chart = baseChart.copy(
+            series = listOf(
+                weight.copy(
+                    points = (0..60).map { day ->
+                        HomeKgChartPoint(
+                            measurementId = "weight-$day",
+                            measuredAtEpochSecond = Instant.parse("2026-06-18T12:00:00Z")
+                                .plusSeconds(day * 86_400L).epochSecond,
+                            valueKg = 70.0 + day / 10.0,
+                        )
+                    },
+                ),
+            ),
+            activeSeriesKeys = setOf(weight.key),
+        )
+        val state = sampleState().copy(homeKgChart = chart)
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        val chartNode = composeRule.onNodeWithTag("home-kg-vico-chart")
+            .performScrollTo()
+            .assertIsDisplayed()
+        val initialOffset = chartNode.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chartNode.getUnclippedBoundsInRoot().top
+
+        chartNode.performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chartNode.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chartNode.getUnclippedBoundsInRoot().top.value, 1f)
     }
 
     @Test

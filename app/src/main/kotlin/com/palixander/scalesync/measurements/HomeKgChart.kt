@@ -36,7 +36,9 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
-import com.palixander.scalesync.charts.chartXRange
+import com.palixander.scalesync.charts.chartViewport
+import com.palixander.scalesync.charts.chartScrollOffset
+import com.palixander.scalesync.charts.initialVisibleWidth
 import com.palixander.scalesync.charts.chartYRange
 import com.palixander.scalesync.charts.rememberChartBottomAxis
 import com.palixander.scalesync.charts.rememberChartMarker
@@ -47,6 +49,7 @@ import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
@@ -145,7 +148,7 @@ internal fun HomeKgChart(
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
-    val hasPeriodData = state.series.any { it.points.isNotEmpty() }
+    val hasHistoryData = state.series.any { it.points.isNotEmpty() }
     val plottedSeries = state.series.filter { series ->
         series.key in state.activeSeriesKeys && series.points.isNotEmpty()
     }
@@ -166,8 +169,8 @@ internal fun HomeKgChart(
             }
 
             when {
-                !hasPeriodData -> HomeChartMessage(
-                    text = "За последние 14 дней нет данных для графика.",
+                !hasHistoryData -> HomeChartMessage(
+                    text = "Нет данных для графика.",
                     tag = "home-kg-chart-no-data",
                 )
 
@@ -262,19 +265,19 @@ private fun HomeKgVicoChart(
     zoneId: ZoneId,
 ) {
     val modelProducer = remember { CartesianChartModelProducer() }
-    val xRange = remember(state.period, zoneId) {
-        chartXRange(state.period.startDate, state.period.endDateInclusive, zoneId)
-    }
     val points = remember(plottedSeries) {
         plottedSeries.flatMap { series ->
             series.points.map { ChartPoint(it.measuredAtEpochSecond, it.valueKg) }
         }
     }
+    val viewport = remember(points, state.period, zoneId) {
+        chartViewport(points.mapNotNull(ChartPoint::xEpochMillis), state.period.startDate, state.period.endDateInclusive, zoneId)
+    }
     val yRange = remember(points) { chartYRange(points, decimalPlaces = 2) }
-    val rangeProvider = remember(xRange, yRange) {
+    val rangeProvider = remember(viewport, yRange) {
         object : CartesianLayerRangeProvider {
-            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.minX
-            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = xRange.maxX
+            override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) = viewport.modelRange.minX
+            override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) = viewport.modelRange.maxX
             override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange?.min ?: minY
             override fun getMaxY(minY: Double, maxY: Double, extraStore: ExtraStore) = yRange?.max ?: maxY
         }
@@ -299,8 +302,11 @@ private fun HomeKgVicoChart(
                 .orEmpty()
         }
     }
-    val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
-        rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.Content)
+    val zoomState = key(viewport.initialVisibleRange, zoneId) {
+        rememberVicoZoomState(zoomEnabled = true, initialZoom = Zoom.x(viewport.initialVisibleWidth()))
+    }
+    val scrollState = key(viewport.initialVisibleRange, zoneId) {
+        rememberVicoScrollState(scrollEnabled = true, initialScroll = Scroll.Absolute.x(viewport.initialVisibleRange.minX))
     }
 
     LaunchedEffect(plottedSeries) {
@@ -328,9 +334,12 @@ private fun HomeKgVicoChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(230.dp)
-            .semantics { contentDescription = "График динамики состава тела за последние 14 дней" }
+            .semantics {
+                contentDescription = "График динамики состава тела за последние 14 дней"
+                chartScrollOffset = scrollState.value
+            }
             .testTag("home-kg-vico-chart"),
-        scrollState = rememberVicoScrollState(scrollEnabled = true),
+        scrollState = scrollState,
         zoomState = zoomState,
     )
 }
