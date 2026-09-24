@@ -625,6 +625,24 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `category tooltip follows the rendered monotone curve between nonlinear anchors`() {
+        val series = listOf(
+            PetWeightDisplayedSeries(
+                "category",
+                PetWeightDisplayedSeriesKind.CATEGORY_LOWER,
+                "Нижняя граница",
+                listOf(0L, 8_000L, 16_000L),
+                listOf(0.0, 10.0, 11.0),
+                PetWeightDisplayedSeriesStyle.CATEGORY,
+            ),
+        )
+
+        assertEquals(
+            "Дата: 01.01.1970\nНижняя граница: 6.02 кг",
+            formatPetWeightDisplayedMarker(4_000L, series, ZoneOffset.UTC, Locale.US),
+        )
+    }
+
     @Test fun `tooltip interpolates non-midnight anchors on the same calendar date by epoch`() {
         val zoneId = ZoneId.of("Asia/Yekaterinburg")
         val date = LocalDate.of(2026, 9, 3)

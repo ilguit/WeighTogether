@@ -373,6 +373,15 @@ internal fun monotoneSmoothedChartPoints(
     return PetWeightChartModelSeries(renderedX, renderedY)
 }
 
+/** Geometry rendered by Vico and sampled by the marker formatter. */
+internal fun petWeightRenderedModelSeries(
+    series: PetWeightDisplayedSeries,
+): PetWeightChartModelSeries = if (series.style == PetWeightDisplayedSeriesStyle.CATEGORY) {
+    monotoneSmoothedChartPoints(series.x, series.y)
+} else {
+    PetWeightChartModelSeries(series.x, series.y)
+}
+
 /** The single source of truth for everything Vico displays. */
 internal data class PetWeightDisplayedSeries(
     val id: String,
@@ -508,7 +517,7 @@ internal fun formatPetWeightDisplayedMarker(
         val value = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
             series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let(series.y::get)
         } else {
-            series.valueAt(targetXEpochMillis)
+            petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
         value?.let {
             "${series.label}: ${number.format(it)} кг"
@@ -519,7 +528,7 @@ internal fun formatPetWeightDisplayedMarker(
     return (listOf("Дата: $date") + values).joinToString("\n")
 }
 
-private fun PetWeightDisplayedSeries.valueAt(targetXEpochMillis: Long): Double? {
+private fun PetWeightChartModelSeries.valueAt(targetXEpochMillis: Long): Double? {
     val values = x.indices.map { index -> x[index] to y[index] }.sortedBy { it.first }
     values.firstOrNull { (x, _) -> x == targetXEpochMillis }?.let { return it.second }
 
@@ -905,9 +914,7 @@ private fun PetWeightVicoChart(
         modelProducer.runTransaction {
             lineModel {
                 displayedSeries.forEach { chartSeries ->
-                    val rendered = if (chartSeries.style == PetWeightDisplayedSeriesStyle.CATEGORY) {
-                        monotoneSmoothedChartPoints(chartSeries.x, chartSeries.y)
-                    } else PetWeightChartModelSeries(chartSeries.x, chartSeries.y)
+                    val rendered = petWeightRenderedModelSeries(chartSeries)
                     series(x = rendered.x, y = rendered.y)
                 }
             }
