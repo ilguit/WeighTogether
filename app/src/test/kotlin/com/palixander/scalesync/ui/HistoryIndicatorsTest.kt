@@ -20,11 +20,11 @@ import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "w360dp-h1000dp")
 class HistoryIndicatorsTest : HistoryIndicatorsTestCases()
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "w360dp-h1000dp")
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 class HistoryIndicatorsScreenshotTest {
     @get:org.junit.Rule val composeRule = androidx.compose.ui.test.junit4.v2.createComposeRule()
