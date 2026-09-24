@@ -52,6 +52,7 @@ import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
+import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModelProducer
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
@@ -169,8 +170,6 @@ fun ChartsScreen(
                         startDate = state.startDate,
                         endDateInclusive = state.endDateInclusive,
                         zoneId = zoneId,
-                        onShiftDateWindowByDays = callbacks.shiftDateWindowByDays,
-                        today = state.currentDate,
                     )
                 }
             }
@@ -508,18 +507,20 @@ internal fun MetricChartCard(
     startDate: LocalDate,
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
-    onShiftDateWindowByDays: (Long) -> Unit = {},
-    today: LocalDate = LocalDate.now(zoneId),
 ) {
     val points = remember(series.points) { orderedChartPoints(series.points) }
-    val summary = remember(points) { chartValueSummary(points) }
+    val selectedRange = remember(startDate, endDateInclusive, zoneId) { chartXRange(startDate, endDateInclusive, zoneId) }
+    val selectedPoints = remember(points, selectedRange) {
+        points.filter { it.xEpochMillis?.toDouble()?.let { x -> x >= selectedRange.minX && x < selectedRange.maxX } == true }
+    }
+    val summary = remember(selectedPoints) { chartValueSummary(selectedPoints) }
     val currentValue = remember(summary.current, series.metric) {
         formatChartCurrentValue(summary.current?.value, series.metric)
     }
     val delta = remember(summary.delta, series.metric) {
         formatChartDelta(summary.delta, series.metric)
     }
-    val statistics = remember(points) { chartStatistics(points) }
+    val statistics = remember(selectedPoints) { chartStatistics(selectedPoints) }
     val minimum = remember(statistics?.minimum, series.metric) {
         formatChartStatistic(statistics?.minimum, series.metric)
     }
@@ -529,7 +530,6 @@ internal fun MetricChartCard(
     val average = remember(statistics?.average, series.metric) {
         formatChartStatistic(statistics?.average, series.metric)
     }
-    val windowLengthDays = chartWindowLengthDays(startDate, endDateInclusive)
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -580,23 +580,10 @@ internal fun MetricChartCard(
                     modifier = Modifier.weight(1f),
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Back,
-                    contentDescription = "Предыдущий период",
-                    onClick = { onShiftDateWindowByDays(-windowLengthDays) },
-                    modifier = Modifier.testTag(MetricChartTestTags.PreviousPeriod),
-                )
-                Box(
-                    modifier = Modifier.weight(1f),
-                    contentAlignment = Alignment.Center,
-                ) {
+            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
                         points.isEmpty() -> Text(
-                            text = "Нет данных за выбранный период",
+                            text = "Нет данных для графика",
                             modifier = Modifier.padding(vertical = 28.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
@@ -625,18 +612,6 @@ internal fun MetricChartCard(
                             modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                         )
                     }
-                }
-                HuaweiIconButton(
-                    icon = HuaweiIcons.ChevronRight,
-                    contentDescription = "Следующий период",
-                    onClick = { onShiftDateWindowByDays(windowLengthDays) },
-                    modifier = Modifier.testTag(MetricChartTestTags.NextPeriod),
-                    enabled = canShiftChartWindowForward(
-                        startDate = startDate,
-                        endDateInclusive = endDateInclusive,
-                        today = today,
-                    ),
-                )
             }
         }
     }
@@ -646,8 +621,6 @@ object MetricChartTestTags {
     const val Card = "metric-chart-card"
     const val ChartHost = "metric-chart-host"
     const val InsufficientInterval = "metric-chart-insufficient-interval"
-    const val PreviousPeriod = "metric-chart-previous-period"
-    const val NextPeriod = "metric-chart-next-period"
 }
 
 @Composable
@@ -687,17 +660,17 @@ internal fun MetricLineChart(
         points.mapNotNull { point -> point.xEpochMillis?.let { x -> x to point } }
     }
     val modelProducer = remember { CartesianChartModelProducer() }
-    val xRange = remember(startDate, endDateInclusive, zoneId) {
-        chartXRange(startDate, endDateInclusive, zoneId)
+    val viewport = remember(chartPoints, startDate, endDateInclusive, zoneId) {
+        chartViewport(chartPoints.map { it.first }, startDate, endDateInclusive, zoneId)
     }
     val yRange = remember(points, metric.decimalPlaces) { chartYRange(points, metric.decimalPlaces) }
-    val rangeProvider = remember(xRange, yRange) {
+    val rangeProvider = remember(viewport, yRange) {
         object : CartesianLayerRangeProvider {
             override fun getMinX(minX: Double, maxX: Double, extraStore: ExtraStore) =
-                xRange.minX
+                viewport.modelRange.minX
 
             override fun getMaxX(minX: Double, maxX: Double, extraStore: ExtraStore) =
-                xRange.maxX
+                viewport.modelRange.maxX
 
             override fun getMinY(minY: Double, maxY: Double, extraStore: ExtraStore) =
                 yRange?.min ?: minY
@@ -730,11 +703,14 @@ internal fun MetricLineChart(
             )
         }
     }
-    val zoomState = key(xRange.minX, xRange.maxX, zoneId) {
+    val zoomState = key(viewport.initialVisibleRange, zoneId) {
         rememberVicoZoomState(
             zoomEnabled = true,
-            initialZoom = Zoom.Content,
+            initialZoom = Zoom.x(viewport.initialVisibleWidth()),
         )
+    }
+    val scrollState = key(viewport.initialVisibleRange, zoneId) {
+        rememberVicoScrollState(scrollEnabled = true, initialScroll = Scroll.Absolute.x(viewport.initialVisibleRange.minX))
     }
 
     LaunchedEffect(points) {
@@ -768,23 +744,10 @@ internal fun MetricLineChart(
             .fillMaxWidth()
             .height(250.dp)
             .semantics { this.contentDescription = contentDescription },
-        // Date-window navigation is provided by the adjacent explicit buttons.
-        scrollState = rememberVicoScrollState(scrollEnabled = false),
+        scrollState = scrollState,
         zoomState = zoomState,
     )
 }
-
-internal fun chartWindowLengthDays(
-    startDate: LocalDate,
-    endDateInclusive: LocalDate,
-): Long = endDateInclusive.toEpochDay() - startDate.toEpochDay() + 1L
-
-internal fun canShiftChartWindowForward(
-    startDate: LocalDate,
-    endDateInclusive: LocalDate,
-    today: LocalDate,
-): Boolean = endDateInclusive.toEpochDay() <=
-    today.toEpochDay() - chartWindowLengthDays(startDate, endDateInclusive)
 
 private fun rangeLabel(
     preset: ChartRangePreset,

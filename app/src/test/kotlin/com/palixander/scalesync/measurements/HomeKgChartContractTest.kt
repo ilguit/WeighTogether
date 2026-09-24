@@ -71,7 +71,7 @@ class HomeKgChartContractTest {
     }
 
     @Test
-    fun `builder includes start instant and excludes measurements outside local period`() {
+    fun `builder retains the full history while period defines the initial viewport`() {
         val zoneId = ZoneId.of("Asia/Yekaterinburg")
         val clock = Clock.fixed(Instant.parse("2026-08-21T08:00:00Z"), ZoneOffset.UTC)
         val period = homeKgChartPeriod(zoneId, clock)
@@ -85,7 +85,10 @@ class HomeKgChartContractTest {
             clock = clock,
         )
 
-        assertEquals(listOf("start"), state.series.first().points.map(HomeKgChartPoint::measurementId))
+        assertEquals(
+            listOf("before", "start", "end"),
+            state.series.first().points.map(HomeKgChartPoint::measurementId),
+        )
         assertEquals(period, state.period)
     }
 

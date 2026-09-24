@@ -239,6 +239,34 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
+    fun `selected dates filter the list but keep full history in chart series`() = runBlocking {
+        val old = measurement("old", luna.id, "2025-12-01T10:00:00Z", 3.8)
+        val recent = measurement("recent", luna.id, "2026-03-20T10:00:00Z", 4.25)
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(
+                pets = mapOf(luna.id to luna),
+                histories = mapOf(luna.id to MutableStateFlow(listOf(old, recent))),
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.selectRangePreset(ChartRangePreset.LAST_30_DAYS)
+        yield()
+
+        assertEquals(listOf("recent"), owner.uiState.value.measurements.map { it.id })
+        assertEquals(listOf(old.measuredAt, recent.measuredAt), owner.uiState.value.series.points.map { it.measuredAt })
+        collector.cancelAndJoin()
+        scope.cancel()
+    }
+
+    @Test
     fun `editor keeps draft on failure blocks double save and returns to updated row on success`() = runBlocking {
         val original = measurement("one", luna.id, "2026-03-20T10:00:00Z", 4.12)
         val history = MutableStateFlow(listOf(original))

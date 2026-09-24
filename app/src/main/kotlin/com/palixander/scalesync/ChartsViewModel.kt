@@ -19,7 +19,6 @@ import com.palixander.scalesync.measurements.currentLocalDates
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.accounts.reconcileAccountSelection
 import java.time.Clock
-import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import kotlinx.coroutines.Dispatchers
@@ -181,23 +180,13 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             isLoading = true,
         ),
     )
-    private val measurements = combine(filters, accountSelector) { current, selector ->
-        current to selector.selectedAccountId
-    }.flatMapLatest { (current, accountId) ->
+    private val measurements = accountSelector.flatMapLatest { selector ->
+        val accountId = selector.selectedAccountId
         accountScopedLoad(
             accountId = accountId,
             emptyValue = emptyList(),
         ) { selectedAccountId ->
-            val range = inclusiveDateRangeToEpochRange(
-                current.startDate,
-                current.endDateInclusive,
-                zoneId,
-            )
-            repository.observeRangeEntities(
-                accountId = selectedAccountId,
-                startInclusive = Instant.ofEpochSecond(range.startInclusiveEpochSecond),
-                endExclusive = Instant.ofEpochSecond(range.endExclusiveEpochSecond),
-            )
+            repository.observeAllEntities(selectedAccountId)
         }
     }
 

@@ -324,12 +324,20 @@ class PetHistoryStateOwner(
                     } else {
                         current.range
                     }
-                    val (content, series) = petHistoryPresentation(
+                    val (content, _) = petHistoryPresentation(
                         measurements = measurements,
                         range = presentationRange,
                         zoneId = zoneId,
                         locale = locale,
                         includeAll = current.rangePreset == ChartRangePreset.ALL,
+                    )
+                    val fullHistoryRange = measurements.allHistoryRange(LocalDate.now(clock), zoneId)
+                    val (_, series) = petHistoryPresentation(
+                        measurements = measurements,
+                        range = fullHistoryRange,
+                        zoneId = zoneId,
+                        locale = locale,
+                        includeAll = true,
                     )
                     current.baseState(presentationRange).copy(
                         pet = observedPet,
@@ -340,7 +348,7 @@ class PetHistoryStateOwner(
                         ),
                         content = content,
                         series = series,
-                        weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
+                        weightReference = referenceData.referencePresenter.present(observedPet, fullHistoryRange),
                         breedReference = referenceData.breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
