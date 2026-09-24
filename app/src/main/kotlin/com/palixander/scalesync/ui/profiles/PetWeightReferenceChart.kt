@@ -505,20 +505,34 @@ internal fun formatPetWeightDisplayedMarker(
     }
     val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
     val values = displayedSeries.mapNotNull { series ->
-        val index = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
-            series.x.indexOf(targetXEpochMillis)
+        val value = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
+            series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let(series.y::get)
         } else {
-            series.x.indexOfFirst { xEpochMillis ->
-                Instant.ofEpochMilli(xEpochMillis).atZone(zoneId).toLocalDate() == targetDate
-            }
+            series.valueAt(targetDate, zoneId)
         }
-        index.takeIf { it >= 0 }?.let {
-            "${series.label}: ${number.format(series.y[index])} кг"
+        value?.let {
+            "${series.label}: ${number.format(it)} кг"
         }
     }
     if (values.isEmpty()) return ""
     val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
     return (listOf("Дата: $date") + values).joinToString("\n")
+}
+
+private fun PetWeightDisplayedSeries.valueAt(targetDate: LocalDate, zoneId: ZoneId): Double? {
+    val datedValues = x.indices.map { index ->
+        Instant.ofEpochMilli(x[index]).atZone(zoneId).toLocalDate() to y[index]
+    }
+    datedValues.firstOrNull { (date, _) -> date == targetDate }?.let { return it.second }
+
+    val insertionIndex = datedValues.indexOfFirst { (date, _) -> date > targetDate }
+    if (insertionIndex <= 0) return null
+    val (startDate, startValue) = datedValues[insertionIndex - 1]
+    val (endDate, endValue) = datedValues[insertionIndex]
+    val intervalDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate)
+    if (intervalDays <= 0) return null
+    val elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, targetDate)
+    return startValue + (endValue - startValue) * elapsedDays.toDouble() / intervalDays.toDouble()
 }
 
 internal fun petWeightDisplayedMarkerXs(

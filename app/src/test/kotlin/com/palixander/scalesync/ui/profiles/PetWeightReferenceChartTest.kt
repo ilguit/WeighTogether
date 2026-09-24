@@ -610,6 +610,68 @@ class PetWeightReferenceChartTest {
         assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("22.50 кг"))
     }
 
+    @Test fun `tooltip interpolates reference values between visible anchors`() {
+        val zoneId = ZoneOffset.UTC
+        val start = LocalDate.of(2026, 9, 1)
+        val target = start.plusDays(2)
+        val end = start.plusDays(4)
+        val factualX = target.atTime(12, 0).toInstant(zoneId).toEpochMilli()
+        val referenceX = listOf(start, end).map { it.atStartOfDay(zoneId).toInstant().toEpochMilli() }
+        val series = listOf(
+            PetWeightDisplayedSeries("factual", PetWeightDisplayedSeriesKind.FACTUAL, "Фактический вес", listOf(factualX), listOf(12.25), PetWeightDisplayedSeriesStyle.FACTUAL),
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", referenceX, listOf(10.0, 14.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        assertEquals(
+            "Дата: 03.09.2026\nФактический вес: 12.25 кг\nНижняя граница: 12.00 кг",
+            formatPetWeightDisplayedMarker(factualX, series, zoneId, Locale.US),
+        )
+    }
+
+    @Test fun `tooltip keeps exact reference anchors without interpolation`() {
+        val zoneId = ZoneOffset.UTC
+        val start = LocalDate.of(2026, 9, 1)
+        val end = start.plusDays(4)
+        val xs = listOf(start, end).map { it.atStartOfDay(zoneId).toInstant().toEpochMilli() }
+        val series = listOf(
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", xs, listOf(10.123, 14.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        assertEquals(
+            "Дата: 01.09.2026\nНижняя граница: 10.12 кг",
+            formatPetWeightDisplayedMarker(xs.first(), series, zoneId, Locale.US),
+        )
+    }
+
+    @Test fun `tooltip does not interpolate across segment gap or outside range`() {
+        val zoneId = ZoneOffset.UTC
+        val start = LocalDate.of(2026, 9, 1)
+        fun x(date: LocalDate) = date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        val series = listOf(
+            PetWeightDisplayedSeries("first", PetWeightDisplayedSeriesKind.BREED_LOWER, "Первый", listOf(x(start), x(start.plusDays(2))), listOf(10.0, 12.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+            PetWeightDisplayedSeries("second", PetWeightDisplayedSeriesKind.BREED_UPPER, "Второй", listOf(x(start.plusDays(5)), x(start.plusDays(7))), listOf(20.0, 22.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.minusDays(1)), series, zoneId, Locale.US))
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(4)), series, zoneId, Locale.US))
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(8)), series, zoneId, Locale.US))
+    }
+
+    @Test fun `tooltip selects one exact factual point when several share a date`() {
+        val zoneId = ZoneOffset.UTC
+        val date = LocalDate.of(2026, 9, 1)
+        val morning = date.atTime(8, 0).toInstant(zoneId).toEpochMilli()
+        val evening = date.atTime(20, 0).toInstant(zoneId).toEpochMilli()
+        val series = listOf(
+            PetWeightDisplayedSeries("factual", PetWeightDisplayedSeriesKind.FACTUAL, "Фактический вес", listOf(morning, evening), listOf(10.0, 11.0), PetWeightDisplayedSeriesStyle.FACTUAL),
+        )
+
+        assertEquals(
+            "Дата: 01.09.2026\nФактический вес: 11.00 кг",
+            formatPetWeightDisplayedMarker(evening, series, zoneId, Locale.US),
+        )
+    }
+
     @Test fun `screen reader has no selectable x when nothing is displayed`() {
         assertEquals(emptyList<Long>(), petWeightDisplayedMarkerXs(emptyList()))
     }
