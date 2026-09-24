@@ -1186,18 +1186,16 @@ internal fun MeasurementHistoryCard(
                             text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            if (!expanded || item.isWeightOnly) {
+                        if (!expanded || item.isWeightOnly) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
                                     text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
                                     modifier = Modifier.weight(1f).testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
                                 )
-                            } else {
-                                Spacer(Modifier.weight(1f))
+                                HistoryMeasurementIndicators(item.origin, item.isManuallyEdited, "history-${item.id}")
                             }
-                            HistoryMeasurementIndicators(item.origin, item.isManuallyEdited, "history-${item.id}")
                         }
                         if (item.isWeightOnly) {
                             Text(
@@ -1245,6 +1243,35 @@ internal fun MeasurementHistoryCard(
                     modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    if (item.isManuallyEdited) {
+                        HuaweiSurface(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .testTag("history-manual-notice-${item.id}"),
+                            containerColor = HuaweiColors.SurfaceInfo,
+                            contentPadding = PaddingValues(14.dp),
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    MANUALLY_EDITED_HISTORY_MESSAGE,
+                                    modifier = Modifier.weight(1f),
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                if (!item.isWeightOnly) {
+                                    HistoryMeasurementIndicators(item.origin, true, "history-${item.id}")
+                                }
+                            }
+                        }
+                    }
+                    if (!item.isWeightOnly && !item.isManuallyEdited &&
+                        item.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text("Введено вручную", modifier = Modifier.weight(1f))
+                            HistoryMeasurementIndicators(item.origin, false, "history-${item.id}")
+                        }
+                    }
                     if (item.referenceMetrics.isNotEmpty() && !item.isPreliminary) {
                         MeasurementReferenceGroups(
                             item = item,
@@ -1260,21 +1287,6 @@ internal fun MeasurementHistoryCard(
                             },
                             modifier = Modifier.padding(top = 4.dp),
                         )
-                    }
-                    if (item.isManuallyEdited) {
-                        HuaweiSurface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .testTag("history-manual-notice-${item.id}"),
-                            containerColor = HuaweiColors.SurfaceInfo,
-                            contentPadding = PaddingValues(14.dp),
-                        ) {
-                            Text(
-                                MANUALLY_EDITED_HISTORY_MESSAGE,
-                                color = MaterialTheme.colorScheme.secondary,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                        }
                     }
                     if (item.hasProfileSyncMismatch) {
                         HuaweiSurface(

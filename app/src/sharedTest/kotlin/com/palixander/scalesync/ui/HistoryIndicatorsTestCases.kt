@@ -27,6 +27,25 @@ abstract class HistoryIndicatorsTestCases {
     @get:Rule val composeRule = createComposeRule()
 
     @Test
+    fun expandingUneditedFullHistoryDoesNotLeaveBlankWeightLane() {
+        val expanded = mutableStateOf(false)
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Column(Modifier.width(360.dp)) {
+                    MeasurementHistoryCard(human(MeasurementOrigin.SCALE, false), expanded.value,
+                        { expanded.value = it }, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
+                }
+            }
+        }
+        val collapsed = composeRule.onNodeWithTag("history-toggle-human").getUnclippedBoundsInRoot()
+        composeRule.runOnIdle { expanded.value = true }
+        val open = composeRule.onNodeWithTag("history-toggle-human").getUnclippedBoundsInRoot()
+        assertTrue(open.bottom - open.top < collapsed.bottom - collapsed.top)
+        composeRule.onNodeWithTag("history-header-weight-human", true).assertDoesNotExist()
+        composeRule.onNodeWithTag("history-human-indicators").assertDoesNotExist()
+    }
+
+    @Test
     fun originAndEditMatrixKeepsHumanAndPetGeometryAtNarrowWidthsAndLargeFont() {
         val origin = mutableStateOf(MeasurementOrigin.SCALE)
         val edited = mutableStateOf(false)
