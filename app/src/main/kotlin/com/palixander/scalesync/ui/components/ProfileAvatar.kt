@@ -37,6 +37,9 @@ fun ProfileAvatar(
     store: ProfilePhotoStore?,
     modifier: Modifier = Modifier,
     size: Dp = 40.dp,
+    photoModifier: Modifier = Modifier,
+    fallbackModifier: Modifier = Modifier,
+    fallbackSize: Dp = size * 0.55f,
 ) {
     val bitmap = remember(store, photoPath) {
         photoPath?.let { path ->
@@ -54,14 +57,14 @@ fun ProfileAvatar(
                 bitmap = bitmap,
                 contentDescription = null,
                 contentScale = ContentScale.Crop,
-                modifier = Modifier.matchParentSize(),
+                modifier = photoModifier.matchParentSize(),
             )
         } else {
             Icon(
                 imageVector = fallbackIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = Modifier.size(size * 0.55f),
+                modifier = fallbackModifier.size(fallbackSize),
             )
         }
     }
