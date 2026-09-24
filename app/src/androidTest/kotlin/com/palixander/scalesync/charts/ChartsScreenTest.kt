@@ -129,7 +129,7 @@ class ChartsScreenTest {
 
     @Test
     fun horizontalDragIsHandledByMetricChartWithoutDismissingIt() {
-        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val metric = chartMetricOptions().first()
         val state = chartsState().copy(
             startDate = LocalDate.of(2026, 7, 20),
             selectedMetricKeys = setOf(metric.key),
