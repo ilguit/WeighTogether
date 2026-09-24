@@ -134,14 +134,15 @@ abstract class HistoryIndicatorsTestCases {
         assertTrue(button.right <= edit.left)
     }
 
-    protected fun human(origin: MeasurementOrigin, edited: Boolean) = MeasurementUiItem(
+}
+
+internal fun human(origin: MeasurementOrigin, edited: Boolean) = MeasurementUiItem(
         id = "human", measuredAtEpochSecond = 1_789_000_000,
         values = MeasurementUiValues(72.125, null, null, null, null, null, null, null, null, null, null, null, null, null, null, null),
         sync = MeasurementSyncPresentation(MeasurementSyncPresentationState.LOCAL_ONLY, emptyList(), false),
         origin = origin, isManuallyEdited = edited,
     )
 
-    protected fun pet(origin: MeasurementOrigin, edited: Boolean) = PetHistoryMeasurementUi(
+internal fun pet(origin: MeasurementOrigin, edited: Boolean) = PetHistoryMeasurementUi(
         "pet", 1_789_000_000, "09.09.2026, 12:00", 4.125, "4,125 кг", origin, edited,
     )
-}

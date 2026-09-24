@@ -5,9 +5,6 @@ import android.graphics.Bitmap
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.width
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.asAndroidBitmap
-import androidx.compose.ui.test.captureToImage
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.measurements.MeasurementHistoryCard
@@ -24,11 +21,18 @@ import org.robolectric.annotation.GraphicsMode
 
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
+class HistoryIndicatorsTest : HistoryIndicatorsTestCases()
+
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
-class HistoryIndicatorsTest : HistoryIndicatorsTestCases() {
+class HistoryIndicatorsScreenshotTest {
+    @get:org.junit.Rule val composeRule = androidx.compose.ui.test.junit4.v2.createComposeRule()
     @Test
     fun captureSyntheticHistoryExamples() {
+        lateinit var view: android.view.View
         composeRule.setContent {
+            view = androidx.compose.ui.platform.LocalView.current
             ScaleSyncTheme {
                 Column(Modifier.width(360.dp)) {
                     for (origin in listOf(MeasurementOrigin.SCALE, MeasurementOrigin.MANUAL)) {
@@ -48,7 +52,11 @@ class HistoryIndicatorsTest : HistoryIndicatorsTestCases() {
         }
         val directory = File("/tmp/scalesync-99-evidence").apply { mkdirs() }
         File(directory, "history-indicators-360.png").outputStream().use {
-            composeRule.onRoot().captureToImage().asAndroidBitmap().compress(Bitmap.CompressFormat.PNG, 100, it)
+            composeRule.runOnIdle {
+                val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
+                view.draw(android.graphics.Canvas(bitmap))
+                bitmap.compress(Bitmap.CompressFormat.PNG, 100, it)
+            }
         }
     }
 }
