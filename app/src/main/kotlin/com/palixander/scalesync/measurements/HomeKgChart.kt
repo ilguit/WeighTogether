@@ -37,6 +37,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartViewport
+import com.palixander.scalesync.charts.chartScrollOffset
 import com.palixander.scalesync.charts.initialVisibleWidth
 import com.palixander.scalesync.charts.chartYRange
 import com.palixander.scalesync.charts.rememberChartBottomAxis
@@ -333,7 +334,10 @@ private fun HomeKgVicoChart(
         modifier = Modifier
             .fillMaxWidth()
             .height(230.dp)
-            .semantics { contentDescription = "График динамики состава тела за последние 14 дней" }
+            .semantics {
+                contentDescription = "График динамики состава тела за последние 14 дней"
+                chartScrollOffset = scrollState.value
+            }
             .testTag("home-kg-vico-chart"),
         scrollState = scrollState,
         zoomState = zoomState,

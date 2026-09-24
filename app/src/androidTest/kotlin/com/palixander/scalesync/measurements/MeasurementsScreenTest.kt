@@ -26,6 +26,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.getUnclippedBoundsInRoot
+import androidx.compose.ui.test.fetchSemanticsNode
 import androidx.compose.ui.test.hasAnyDescendant
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -43,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import com.palixander.scalesync.MeasurementsViewModel
+import com.palixander.scalesync.charts.ChartScrollOffset
 import com.palixander.scalesync.core.ReferenceClassifier
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -61,6 +63,7 @@ import java.time.LocalDate
 import java.util.Locale
 import kotlinx.coroutines.channels.Channel
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -255,16 +258,16 @@ class MeasurementsScreenTest {
     }
 
     @Test
-    fun homeKgChartAcceptsHorizontalDragInsideMeasurementsList() {
+    fun homeKgChartDragScrollsViewportWithoutMovingMeasurementsList() {
         val baseChart = homeChartState()
         val weight = baseChart.series.first()
         val chart = baseChart.copy(
             series = listOf(
                 weight.copy(
-                    points = (0..20).map { day ->
+                    points = (0..60).map { day ->
                         HomeKgChartPoint(
                             measurementId = "weight-$day",
-                            measuredAtEpochSecond = Instant.parse("2026-07-20T12:00:00Z")
+                            measuredAtEpochSecond = Instant.parse("2026-06-18T12:00:00Z")
                                 .plusSeconds(day * 86_400L).epochSecond,
                             valueKg = 70.0 + day / 10.0,
                         )
@@ -278,11 +281,17 @@ class MeasurementsScreenTest {
             ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
         }
 
-        composeRule.onNodeWithTag("home-kg-vico-chart")
+        val chartNode = composeRule.onNodeWithTag("home-kg-vico-chart")
             .performScrollTo()
             .assertIsDisplayed()
-            .performTouchInput { swipeLeft(durationMillis = 500) }
-        composeRule.onNodeWithTag("home-kg-vico-chart").assertIsDisplayed()
+        val initialOffset = chartNode.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chartNode.getUnclippedBoundsInRoot().top
+
+        chartNode.performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chartNode.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chartNode.getUnclippedBoundsInRoot().top.value, 1f)
     }
 
     @Test

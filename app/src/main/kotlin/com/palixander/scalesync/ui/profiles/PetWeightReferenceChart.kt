@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
+import com.palixander.scalesync.charts.chartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.chartViewport
 import com.palixander.scalesync.charts.initialVisibleWidth
@@ -932,6 +933,7 @@ private fun PetWeightVicoChart(
                 .testTag(PetWeightChartTestTags.Chart)
                 .semantics {
                     this.contentDescription = contentDescription
+                    chartScrollOffset = scrollState.value
                     role = Role.Button
                     stateDescription = accessibleMarker ?: "Нет доступных точек для выбора"
                     onClick("Выбрать следующую точку") { selectRelative(1) }

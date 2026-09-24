@@ -743,7 +743,10 @@ internal fun MetricLineChart(
         modifier = modifier
             .fillMaxWidth()
             .height(250.dp)
-            .semantics { this.contentDescription = contentDescription },
+            .semantics {
+                this.contentDescription = contentDescription
+                chartScrollOffset = scrollState.value
+            },
         scrollState = scrollState,
         zoomState = zoomState,
     )

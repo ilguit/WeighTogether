@@ -15,6 +15,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.fetchSemanticsNode
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertHeightIsAtLeast
@@ -41,6 +43,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
+import com.palixander.scalesync.charts.ChartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.core.reference.ReferenceBasis
@@ -72,6 +75,7 @@ import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -671,14 +675,35 @@ class PetHistoryScreenUiTest {
             .assert(hasStateDescriptionContaining("Верхняя граница: 4,70 кг"))
     }
 
-    @Test fun petWeightChartAcceptsHorizontalDragAndKeepsAccessibleMarkerSelection() {
-        setScreen(state(PetHistoryContent.Empty).copy(weightReference = availableReference("Эталон по породе")))
+    @Test fun petWeightChartDragScrollsViewportWithoutMovingListAndKeepsMarkerSelection() {
+        val reference = availableReference("Эталон по породе").copy(
+            segments = referenceSegments(
+                (0..90 step 5).map { day ->
+                    PetHistoryReferencePoint(
+                        LocalDate.of(2026, 7, 1).plusDays(day.toLong()),
+                        3.0 + day / 100.0,
+                        3.5 + day / 100.0,
+                        4.0 + day / 100.0,
+                        4.5 + day / 100.0,
+                    )
+                },
+            ),
+        )
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = reference))
 
         val chart = composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assertIsDisplayed()
-            .assert(hasStateDescriptionContaining("01.08.2026"))
+            .assert(hasStateDescriptionContaining("01.07.2026"))
+        val initialMarker = chart.fetchSemanticsNode().config[SemanticsProperties.StateDescription]
+        val initialOffset = chart.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chart.getUnclippedBoundsInRoot().top
+
         chart.performTouchInput { swipeLeft(durationMillis = 500) }
-        chart.assertIsDisplayed()
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chart.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chart.getUnclippedBoundsInRoot().top.value, 1f)
+        assertEquals(initialMarker, chart.fetchSemanticsNode().config[SemanticsProperties.StateDescription])
     }
 
     @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {

@@ -9,6 +9,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.fetchSemanticsNode
+import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
@@ -28,6 +30,7 @@ import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.time.LocalDate
 import java.util.Locale
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotEquals
 import org.junit.Rule
 import org.junit.Test
 
@@ -128,7 +131,7 @@ class ChartsScreenTest {
     }
 
     @Test
-    fun horizontalDragIsHandledByMetricChartWithoutDismissingIt() {
+    fun horizontalDragScrollsMetricChartWithoutMovingParentList() {
         val metric = chartMetricOptions().first()
         val state = chartsState().copy(
             startDate = LocalDate.of(2026, 7, 20),
@@ -139,7 +142,7 @@ class ChartsScreenTest {
                     (0..20).map { day ->
                         ChartPoint(
                             LocalDate.of(2026, 7, 20).plusDays(day.toLong())
-                                .atStartOfDay(java.time.ZoneOffset.UTC).toEpochSecond(),
+                                .atStartOfDay(java.time.ZoneOffset.UTC).toInstant().toEpochMilli(),
                             70.0 + day,
                         )
                     },
@@ -148,11 +151,17 @@ class ChartsScreenTest {
         )
         setContent(stateProvider = { state }, stateUpdater = {})
 
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost)
+        val chart = composeRule.onNodeWithTag(MetricChartTestTags.ChartHost)
             .performScrollTo()
             .assertIsDisplayed()
-            .performTouchInput { swipeLeft(durationMillis = 500) }
-        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
+        val initialOffset = chart.fetchSemanticsNode().config[ChartScrollOffset]
+        val initialTop = chart.getUnclippedBoundsInRoot().top
+
+        chart.performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.waitForIdle()
+
+        assertNotEquals(initialOffset, chart.fetchSemanticsNode().config[ChartScrollOffset])
+        assertEquals(initialTop.value, chart.getUnclippedBoundsInRoot().top.value, 1f)
     }
 
     @Test
