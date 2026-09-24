@@ -57,7 +57,7 @@ class LocalDateRefreshTest {
     }
 
     @Test
-    fun `date emission rebuilds chart window without measurement or setting emission`() = runBlocking {
+    fun `date emission rebuilds chart viewport without dropping full history`() = runBlocking {
         val zoneId = ZoneOffset.UTC
         val boundaryMeasurement = refreshMeasurement(
             id = "old-boundary",
@@ -91,7 +91,7 @@ class LocalDateRefreshTest {
         assertEquals(LocalDate.of(2026, 8, 8), beforeMidnight.period.startDate)
         assertEquals(listOf("old-boundary"), beforeMidnight.series.first().points.map { it.measurementId })
         assertEquals(LocalDate.of(2026, 8, 9), afterMidnight.period.startDate)
-        assertTrue(afterMidnight.series.first().points.isEmpty())
+        assertEquals(listOf("old-boundary"), afterMidnight.series.first().points.map { it.measurementId })
     }
 
     @Test
