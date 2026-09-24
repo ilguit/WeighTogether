@@ -39,6 +39,7 @@ fun ProfileAvatar(
     size: Dp = 40.dp,
     photoModifier: Modifier = Modifier,
     fallbackModifier: Modifier = Modifier,
+    fallbackSize: Dp = size * 0.55f,
 ) {
     val bitmap = remember(store, photoPath) {
         photoPath?.let { path ->
@@ -63,7 +64,7 @@ fun ProfileAvatar(
                 imageVector = fallbackIcon,
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onPrimaryContainer,
-                modifier = fallbackModifier.size(size * 0.55f),
+                modifier = fallbackModifier.size(fallbackSize),
             )
         }
     }

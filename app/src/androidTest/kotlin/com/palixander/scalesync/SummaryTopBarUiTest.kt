@@ -15,9 +15,11 @@ import androidx.compose.ui.test.getUnclippedBoundsInRoot
 import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.test.assertContentDescriptionEquals
+import androidx.compose.ui.test.assertHeightIsEqualTo
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertWidthIsEqualTo
 import androidx.compose.ui.test.junit4.StateRestorationTester
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
@@ -110,6 +112,8 @@ class SummaryTopBarUiTest {
 
         composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfileFallback, useUnmergedTree = true)
             .assertIsDisplayed()
+            .assertWidthIsEqualTo(20.dp)
+            .assertHeightIsEqualTo(20.dp)
         composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfilePhoto, useUnmergedTree = true)
             .assertDoesNotExist()
     }

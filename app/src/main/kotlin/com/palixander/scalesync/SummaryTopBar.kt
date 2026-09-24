@@ -96,6 +96,7 @@ private fun HumanProfileDropdown(
                 store = photoStore,
                 modifier = Modifier.testTag(SummaryTopBarTestTags.ProfileAvatar),
                 size = 20.dp,
+                fallbackSize = 20.dp,
                 photoModifier = Modifier.testTag(SummaryTopBarTestTags.ProfilePhoto),
                 fallbackModifier = Modifier.testTag(SummaryTopBarTestTags.ProfileFallback),
             )
