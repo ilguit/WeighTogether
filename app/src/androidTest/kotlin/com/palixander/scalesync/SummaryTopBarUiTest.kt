@@ -1,5 +1,7 @@
 package com.palixander.scalesync
 
+import android.graphics.Bitmap
+import android.graphics.Color
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.WindowInsets
@@ -21,6 +23,7 @@ import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.test.platform.app.InstrumentationRegistry
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountProfile
@@ -30,6 +33,7 @@ import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.profiles.ProfilePresentation
 import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import java.io.File
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -66,6 +70,48 @@ class SummaryTopBarUiTest {
             assertEquals(second.key, selection.value.selectedKey)
             assertEquals(first.account.id, selection.value.primaryAccountId)
         }
+    }
+
+    @Test
+    fun selectedHumanWithManagedPhotoShowsPhotoInsteadOfFallbackIcon() {
+        val photoPath = "profile-photos/accounts/summary-top-bar/avatar.jpg"
+        val photoFile = profilePhotoFile(photoPath)
+        photoFile.parentFile?.mkdirs()
+        Bitmap.createBitmap(8, 8, Bitmap.Config.ARGB_8888).also { bitmap ->
+            bitmap.eraseColor(Color.RED)
+            photoFile.outputStream().use { bitmap.compress(Bitmap.CompressFormat.JPEG, 100, it) }
+            bitmap.recycle()
+        }
+        try {
+            val selected = human("with-photo", "Профиль с фото", photoPath)
+            composeRule.setContent {
+                ScaleSyncTheme {
+                    SummaryTopBar(ProfileSelectionUiState(listOf(selected), selected.key, selected.account.id), {}) {}
+                }
+            }
+
+            composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfilePhoto, useUnmergedTree = true)
+                .assertIsDisplayed()
+            composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfileFallback, useUnmergedTree = true)
+                .assertDoesNotExist()
+        } finally {
+            photoFile.delete()
+        }
+    }
+
+    @Test
+    fun selectedHumanWithoutPhotoShowsFallbackIcon() {
+        val selected = human("without-photo", "Профиль без фото")
+        composeRule.setContent {
+            ScaleSyncTheme {
+                SummaryTopBar(ProfileSelectionUiState(listOf(selected), selected.key, selected.account.id), {}) {}
+            }
+        }
+
+        composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfileFallback, useUnmergedTree = true)
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(SummaryTopBarTestTags.ProfilePhoto, useUnmergedTree = true)
+            .assertDoesNotExist()
     }
 
     @Test
@@ -108,7 +154,19 @@ class SummaryTopBarUiTest {
         assertEquals(8.dp, container.bottom - profile.bottom)
     }
 
-    private fun human(id: String, name: String) = ProfilePresentation.Human(
-        Account(AccountId(id), name, profile = AccountProfile.IncompleteRecovery(), createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH),
+    private fun human(id: String, name: String, photoPath: String? = null) = ProfilePresentation.Human(
+        Account(
+            AccountId(id),
+            name,
+            profile = AccountProfile.IncompleteRecovery(),
+            createdAt = Instant.EPOCH,
+            updatedAt = Instant.EPOCH,
+            photoPath = photoPath,
+        ),
     )
+
+    private fun profilePhotoFile(photoPath: String): File {
+        val application = InstrumentationRegistry.getInstrumentation().targetContext.applicationContext as ScaleSyncApplication
+        return application.container.profilePhotos.resolve(photoPath)
+    }
 }
