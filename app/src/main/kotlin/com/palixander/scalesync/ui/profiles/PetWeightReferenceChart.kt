@@ -373,6 +373,15 @@ internal fun monotoneSmoothedChartPoints(
     return PetWeightChartModelSeries(renderedX, renderedY)
 }
 
+/** Geometry rendered by Vico and sampled by the marker formatter. */
+internal fun petWeightRenderedModelSeries(
+    series: PetWeightDisplayedSeries,
+): PetWeightChartModelSeries = if (series.style == PetWeightDisplayedSeriesStyle.CATEGORY) {
+    monotoneSmoothedChartPoints(series.x, series.y)
+} else {
+    PetWeightChartModelSeries(series.x, series.y)
+}
+
 /** The single source of truth for everything Vico displays. */
 internal data class PetWeightDisplayedSeries(
     val id: String,
@@ -505,20 +514,32 @@ internal fun formatPetWeightDisplayedMarker(
     }
     val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
     val values = displayedSeries.mapNotNull { series ->
-        val index = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
-            series.x.indexOf(targetXEpochMillis)
+        val value = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
+            series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let(series.y::get)
         } else {
-            series.x.indexOfFirst { xEpochMillis ->
-                Instant.ofEpochMilli(xEpochMillis).atZone(zoneId).toLocalDate() == targetDate
-            }
+            petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
-        index.takeIf { it >= 0 }?.let {
-            "${series.label}: ${number.format(series.y[index])} кг"
+        value?.let {
+            "${series.label}: ${number.format(it)} кг"
         }
     }
     if (values.isEmpty()) return ""
     val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
     return (listOf("Дата: $date") + values).joinToString("\n")
+}
+
+private fun PetWeightChartModelSeries.valueAt(targetXEpochMillis: Long): Double? {
+    val values = x.indices.map { index -> x[index] to y[index] }.sortedBy { it.first }
+    values.firstOrNull { (x, _) -> x == targetXEpochMillis }?.let { return it.second }
+
+    val insertionIndex = values.indexOfFirst { (x, _) -> x > targetXEpochMillis }
+    if (insertionIndex <= 0) return null
+    val (startX, startValue) = values[insertionIndex - 1]
+    val (endX, endValue) = values[insertionIndex]
+    val intervalMillis = endX.toDouble() - startX.toDouble()
+    if (intervalMillis <= 0) return null
+    val elapsedMillis = targetXEpochMillis.toDouble() - startX.toDouble()
+    return startValue + (endValue - startValue) * elapsedMillis / intervalMillis
 }
 
 internal fun petWeightDisplayedMarkerXs(
@@ -893,9 +914,7 @@ private fun PetWeightVicoChart(
         modelProducer.runTransaction {
             lineModel {
                 displayedSeries.forEach { chartSeries ->
-                    val rendered = if (chartSeries.style == PetWeightDisplayedSeriesStyle.CATEGORY) {
-                        monotoneSmoothedChartPoints(chartSeries.x, chartSeries.y)
-                    } else PetWeightChartModelSeries(chartSeries.x, chartSeries.y)
+                    val rendered = petWeightRenderedModelSeries(chartSeries)
                     series(x = rendered.x, y = rendered.y)
                 }
             }
