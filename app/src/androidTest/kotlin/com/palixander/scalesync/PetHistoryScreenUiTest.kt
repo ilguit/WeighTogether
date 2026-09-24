@@ -130,6 +130,76 @@ class PetHistoryScreenUiTest {
         composeRule.runOnIdle { assertEquals(1, handled) }
     }
 
+    @Test fun upToTenMeasurementsAreShownWithoutExpansionAction() {
+        val measurements = (1..10).map { row("measurement-$it") }
+
+        setScreen(state(PetHistoryContent.Multiple(measurements)))
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-10"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+    }
+
+    @Test fun moreThanTenMeasurementsShowNewestTenUntilAccessibleExpansion() {
+        val measurements = (1..12).map { row("measurement-$it") }
+
+        setScreen(state(PetHistoryContent.Multiple(measurements)))
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-10"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .assertContentDescriptionEquals("Показать остальные измерения")
+            .assertHeightIsAtLeast(48.dp)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-12"))
+            .performScrollTo()
+            .assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+    }
+
+    @Test fun changingPetCollapsesPreviouslyExpandedMeasurements() {
+        val measurements = (1..11).map { row("measurement-$it") }
+        var screenState by mutableStateOf(state(PetHistoryContent.Multiple(measurements)))
+        composeRule.setContent {
+            PetProfileScreen(screenState, callbacks(), PaddingValues(), {})
+        }
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .performScrollTo()
+            .performClick()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .performScrollTo()
+            .assertIsDisplayed()
+
+        composeRule.runOnIdle {
+            val nextId = PetId("another-pet")
+            screenState = screenState.copy(
+                petId = nextId,
+                pet = screenState.pet?.copy(id = nextId, displayName = "Луна"),
+            )
+        }
+
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.measurement("measurement-11"))
+            .assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining)
+            .performScrollTo()
+            .assertIsDisplayed()
+    }
+
+    @Test fun loadingAndEmptyStatesDoNotOfferMeasurementExpansion() {
+        setScreen(state(PetHistoryContent.Multiple((1..11).map { row("measurement-$it") })).copy(isLoading = true))
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Loading).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+
+        setScreen(state(PetHistoryContent.Empty))
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.Empty).performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileScreenTestTags.ShowRemaining).assertDoesNotExist()
+    }
+
     @Test fun weightEditorIsScrollableValidatesInputAndExposesReadOnlyTime() {
         var input by mutableStateOf("4.12")
         val editor = com.palixander.scalesync.ui.profiles.PetWeightEditorState(
