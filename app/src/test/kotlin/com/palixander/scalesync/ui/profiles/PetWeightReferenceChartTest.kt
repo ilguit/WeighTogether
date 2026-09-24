@@ -572,16 +572,13 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            "Дата: 01.01.1970\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
+            "Дата: 01.01.1970\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг",
             formatPetWeightDisplayedMarker(selectedX, series, ZoneOffset.UTC, Locale.US),
         )
-        assertEquals(
-            "Дата: 01.01.1970\nНижняя граница: 22.00 кг\nВерхняя граница: 32.00 кг",
-            formatPetWeightDisplayedMarker(3_000L, series, ZoneOffset.UTC, Locale.US),
-        )
+        assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, ZoneOffset.UTC, Locale.US))
     }
 
-    @Test fun `tooltip keeps selected factual value and joins references by local date`() {
+    @Test fun `tooltip keeps selected factual value and interpolates references at its timestamp`() {
         val zoneId = ZoneId.of("Asia/Yekaterinburg")
         val selectedDate = LocalDate.of(2026, 9, 1)
         val nextDate = selectedDate.plusDays(1)
@@ -598,11 +595,11 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
+            "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.17 кг\nМедиана: 27.17 кг\nВерхняя граница: 32.17 кг",
             formatPetWeightDisplayedMarker(first, series, zoneId, Locale.US),
         )
         assertEquals(
-            "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
+            "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.41 кг\nМедиана: 27.41 кг\nВерхняя граница: 32.41 кг",
             formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US),
         )
         assertTrue(formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("25.00 кг"))
@@ -623,8 +620,24 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            "Дата: 03.09.2026\nФактический вес: 12.25 кг\nНижняя граница: 12.00 кг",
+            "Дата: 03.09.2026\nФактический вес: 12.25 кг\nНижняя граница: 12.50 кг",
             formatPetWeightDisplayedMarker(factualX, series, zoneId, Locale.US),
+        )
+    }
+
+    @Test fun `tooltip interpolates non-midnight anchors on the same calendar date by epoch`() {
+        val zoneId = ZoneId.of("Asia/Yekaterinburg")
+        val date = LocalDate.of(2026, 9, 3)
+        val morning = date.atTime(8, 0).atZone(zoneId).toInstant().toEpochMilli()
+        val noon = date.atTime(14, 0).atZone(zoneId).toInstant().toEpochMilli()
+        val evening = date.atTime(20, 0).atZone(zoneId).toInstant().toEpochMilli()
+        val series = listOf(
+            PetWeightDisplayedSeries("lower", PetWeightDisplayedSeriesKind.BREED_LOWER, "Нижняя граница", listOf(evening, morning), listOf(14.0, 10.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        )
+
+        assertEquals(
+            "Дата: 03.09.2026\nНижняя граница: 12.00 кг",
+            formatPetWeightDisplayedMarker(noon, series, zoneId, Locale.US),
         )
     }
 

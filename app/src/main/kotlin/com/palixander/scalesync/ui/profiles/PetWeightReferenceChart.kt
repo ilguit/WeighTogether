@@ -508,7 +508,7 @@ internal fun formatPetWeightDisplayedMarker(
         val value = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
             series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let(series.y::get)
         } else {
-            series.valueAt(targetDate, zoneId)
+            series.valueAt(targetXEpochMillis)
         }
         value?.let {
             "${series.label}: ${number.format(it)} кг"
@@ -519,20 +519,18 @@ internal fun formatPetWeightDisplayedMarker(
     return (listOf("Дата: $date") + values).joinToString("\n")
 }
 
-private fun PetWeightDisplayedSeries.valueAt(targetDate: LocalDate, zoneId: ZoneId): Double? {
-    val datedValues = x.indices.map { index ->
-        Instant.ofEpochMilli(x[index]).atZone(zoneId).toLocalDate() to y[index]
-    }
-    datedValues.firstOrNull { (date, _) -> date == targetDate }?.let { return it.second }
+private fun PetWeightDisplayedSeries.valueAt(targetXEpochMillis: Long): Double? {
+    val values = x.indices.map { index -> x[index] to y[index] }.sortedBy { it.first }
+    values.firstOrNull { (x, _) -> x == targetXEpochMillis }?.let { return it.second }
 
-    val insertionIndex = datedValues.indexOfFirst { (date, _) -> date > targetDate }
+    val insertionIndex = values.indexOfFirst { (x, _) -> x > targetXEpochMillis }
     if (insertionIndex <= 0) return null
-    val (startDate, startValue) = datedValues[insertionIndex - 1]
-    val (endDate, endValue) = datedValues[insertionIndex]
-    val intervalDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, endDate)
-    if (intervalDays <= 0) return null
-    val elapsedDays = java.time.temporal.ChronoUnit.DAYS.between(startDate, targetDate)
-    return startValue + (endValue - startValue) * elapsedDays.toDouble() / intervalDays.toDouble()
+    val (startX, startValue) = values[insertionIndex - 1]
+    val (endX, endValue) = values[insertionIndex]
+    val intervalMillis = endX.toDouble() - startX.toDouble()
+    if (intervalMillis <= 0) return null
+    val elapsedMillis = targetXEpochMillis.toDouble() - startX.toDouble()
+    return startValue + (endValue - startValue) * elapsedMillis / intervalMillis
 }
 
 internal fun petWeightDisplayedMarkerXs(
