@@ -36,6 +36,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Density
@@ -250,6 +252,37 @@ class MeasurementsScreenTest {
             node.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
             node.assertTextContains(metric.label)
         }
+    }
+
+    @Test
+    fun homeKgChartAcceptsHorizontalDragInsideMeasurementsList() {
+        val baseChart = homeChartState()
+        val weight = baseChart.series.first()
+        val chart = baseChart.copy(
+            series = listOf(
+                weight.copy(
+                    points = (0..20).map { day ->
+                        HomeKgChartPoint(
+                            measurementId = "weight-$day",
+                            measuredAtEpochSecond = Instant.parse("2026-07-20T12:00:00Z")
+                                .plusSeconds(day * 86_400L).epochSecond,
+                            valueKg = 70.0 + day / 10.0,
+                        )
+                    },
+                ),
+            ),
+            activeSeriesKeys = setOf(weight.key),
+        )
+        val state = sampleState().copy(homeKgChart = chart)
+        composeRule.setContent {
+            ScaleSyncTheme { MeasurementsScreen(state, MeasurementsCallbacks.None) }
+        }
+
+        composeRule.onNodeWithTag("home-kg-vico-chart")
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.onNodeWithTag("home-kg-vico-chart").assertIsDisplayed()
     }
 
     @Test

@@ -171,7 +171,6 @@ data class ChartsCallbacks(
     val selectAll: () -> Unit,
     val clearSelection: () -> Unit,
     val doneSelectingMetrics: () -> Unit,
-    val shiftDateWindowByDays: (Long) -> Unit = {},
     val onAccountSelected: (AccountId) -> Unit = {},
 )
 

@@ -239,7 +239,7 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
-    fun `selected dates filter the list but keep full history in chart series`() = runBlocking {
+    fun `selected dates change chart viewport while list and series keep full history`() = runBlocking {
         val old = measurement("old", luna.id, "2025-12-01T10:00:00Z", 3.8)
         val recent = measurement("recent", luna.id, "2026-03-20T10:00:00Z", 4.25)
         val scope = testScope()
@@ -260,7 +260,9 @@ class PetHistoryStateOwnerTest {
         owner.selectRangePreset(ChartRangePreset.LAST_30_DAYS)
         yield()
 
-        assertEquals(listOf("recent"), owner.uiState.value.measurements.map { it.id })
+        assertEquals(listOf("recent", "old"), owner.uiState.value.measurements.map { it.id })
+        assertEquals(LocalDate.of(2026, 2, 28), owner.uiState.value.startDate)
+        assertEquals(LocalDate.of(2026, 3, 29), owner.uiState.value.endDateInclusive)
         assertEquals(listOf(old.measuredAt, recent.measuredAt), owner.uiState.value.series.points.map { it.measuredAt })
         collector.cancelAndJoin()
         scope.cancel()

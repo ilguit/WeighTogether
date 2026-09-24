@@ -329,7 +329,7 @@ class PetHistoryStateOwner(
                         range = presentationRange,
                         zoneId = zoneId,
                         locale = locale,
-                        includeAll = current.rangePreset == ChartRangePreset.ALL,
+                        includeAll = true,
                     )
                     val fullHistoryRange = measurements.allHistoryRange(LocalDate.now(clock), zoneId)
                     val (_, series) = petHistoryPresentation(

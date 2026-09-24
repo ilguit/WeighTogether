@@ -12,8 +12,12 @@ import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import com.palixander.scalesync.AppSection
 import com.palixander.scalesync.ScaleSyncScaffold
 import com.palixander.scalesync.MainUiState
@@ -97,7 +101,7 @@ class ChartsScreenTest {
 
     @Test
     fun metricCardShowsMinimumMaximumAndAverageStatistics() {
-        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val metric = chartMetricOptions().first()
         val state = chartsState().copy(
             selectedMetricKeys = setOf(metric.key),
             series = listOf(
@@ -121,6 +125,33 @@ class ChartsScreenTest {
         composeRule.onNodeWithContentDescription(
             "Среднее: ${formatChartStatistic(70.625, metric, Locale.getDefault())}",
         ).assertIsDisplayed()
+    }
+
+    @Test
+    fun horizontalDragIsHandledByMetricChartWithoutDismissingIt() {
+        val metric = ChartMetricOption("weightKg", "Вес", "кг", 2)
+        val state = chartsState().copy(
+            selectedMetricKeys = setOf(metric.key),
+            series = listOf(
+                ChartSeries(
+                    metric,
+                    (0..20).map { day ->
+                        ChartPoint(
+                            LocalDate.of(2026, 7, 20).plusDays(day.toLong())
+                                .atStartOfDay(java.time.ZoneOffset.UTC).toEpochSecond(),
+                            70.0 + day,
+                        )
+                    },
+                ),
+            ),
+        )
+        setContent(stateProvider = { state }, stateUpdater = {})
+
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost)
+            .performScrollTo()
+            .assertIsDisplayed()
+            .performTouchInput { swipeLeft(durationMillis = 500) }
+        composeRule.onNodeWithTag(MetricChartTestTags.ChartHost).assertIsDisplayed()
     }
 
     @Test

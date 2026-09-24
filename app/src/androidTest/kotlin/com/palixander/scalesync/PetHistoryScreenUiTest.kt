@@ -32,6 +32,8 @@ import androidx.compose.ui.test.onAllNodesWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.swipeLeft
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performScrollTo
@@ -667,6 +669,16 @@ class PetHistoryScreenUiTest {
             .assert(hasStateDescriptionContaining("27.08.2026"))
             .assert(hasStateDescriptionContaining("Нижняя граница: 3,20 кг"))
             .assert(hasStateDescriptionContaining("Верхняя граница: 4,70 кг"))
+    }
+
+    @Test fun petWeightChartAcceptsHorizontalDragAndKeepsAccessibleMarkerSelection() {
+        setScreen(state(PetHistoryContent.Empty).copy(weightReference = availableReference("Эталон по породе")))
+
+        val chart = composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
+            .assertIsDisplayed()
+            .assert(hasStateDescriptionContaining("01.08.2026"))
+        chart.performTouchInput { swipeLeft(durationMillis = 500) }
+        chart.assertIsDisplayed()
     }
 
     @Test fun categoryReferenceAndMeasurementCountsHaveExplicitSemantics() {
