@@ -1,6 +1,7 @@
 package com.palixander.scalesync.measurements
 
 import com.palixander.scalesync.ui.components.ManualOriginIndicator
+import com.palixander.scalesync.ui.components.HistoryMeasurementIndicators
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.BorderStroke
@@ -1140,7 +1141,7 @@ private fun MeasurementHistoryScreen(
 }
 
 @Composable
-private fun MeasurementHistoryCard(
+internal fun MeasurementHistoryCard(
     item: MeasurementUiItem,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
@@ -1185,16 +1186,18 @@ private fun MeasurementHistoryCard(
                             text = formatMeasurementDateTime(item.measuredAt),
                             style = MaterialTheme.typography.titleSmall,
                         )
-                        if (!expanded || item.isWeightOnly) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (!expanded || item.isWeightOnly) {
                                 Text(
                                     text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
-                                    modifier = Modifier.weight(1f, fill = false).testTag("history-header-weight-${item.presentationKey}"),
+                                    modifier = Modifier.weight(1f).testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
                                 )
-                                ManualOriginIndicator(item.origin, Modifier.testTag("history-manual-origin-${item.id}"))
+                            } else {
+                                Spacer(Modifier.weight(1f))
                             }
+                            HistoryMeasurementIndicators(item.origin, item.isManuallyEdited, "history-${item.id}")
                         }
                         if (item.isWeightOnly) {
                             Text(
