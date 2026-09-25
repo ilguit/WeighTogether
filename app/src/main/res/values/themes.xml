@@ -1,4 +1,10 @@
 <resources>
+    <style name="Theme.ScaleSync.Starting" parent="Theme.SplashScreen">
+        <item name="windowSplashScreenBackground">@color/huawei_background</item>
+        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_scalesync_launcher</item>
+        <item name="postSplashScreenTheme">@style/Theme.ScaleSync</item>
+    </style>
+
     <style name="Theme.ScaleSync" parent="android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowActionModeOverlay">true</item>
