@@ -5,6 +5,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.BreedId
@@ -47,6 +48,51 @@ class PetHistoryReferencePresenterTest {
         assertTrue(result.license.isNotBlank())
         assertTrue(result.constraints.isNotEmpty())
         assertTrue(result.accessibilityLabel.contains(result.ageLabel))
+    }
+
+    @Test
+    fun `every bounded carry-forward profile and metadata presentation localizes its plateau disclosure`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val boundedProfiles = snapshot.profiles.filter {
+            it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD
+        }
+
+        assertTrue(boundedProfiles.isNotEmpty())
+        assertEquals(
+            setOf(365, 546, 548, 728, 730, 1_095, 1_460, 1_825),
+            boundedProfiles.map { it.points.last().ageDays }.toSet(),
+        )
+
+        boundedProfiles.forEach { profile ->
+            val metadata = checkNotNull(snapshot.metadataFor(profile.id))
+            val endpoint = profile.points.last().ageDays
+            assertEquals(10_958, metadata.supportedMaximumAgeDays)
+
+            listOf(
+                "profile ${profile.id}" to profile.constraints,
+                "metadata ${profile.id}" to metadata.constraints,
+            ).forEach { (presentation, constraints) ->
+                val localized = constraints.map(::localizedReferenceConstraint)
+                val plateau = localized.singleOrNull { it.startsWith("Подтверждённые") }
+
+                assertTrue("$presentation leaked an English plateau disclosure: $localized", localized.none {
+                    "Evidence-backed" in it
+                })
+                assertTrue(
+                    "$presentation omitted endpoint $endpoint: $localized",
+                    plateau?.replace(" ", "")?.contains(endpoint.toString()) == true,
+                )
+                assertTrue("$presentation omitted product maximum: $localized", plateau?.contains("10 958") == true)
+            }
+        }
+    }
+
+    @Test
+    fun `plateau localization requires the complete constraint pattern`() {
+        val unrelated =
+            "Evidence-backed/modelled values end at day 728; review this unrelated constraint separately"
+
+        assertEquals(unrelated, localizedReferenceConstraint(unrelated))
     }
 
     @Test
