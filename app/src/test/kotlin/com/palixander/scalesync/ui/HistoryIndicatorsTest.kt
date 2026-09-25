@@ -39,6 +39,7 @@ class HistoryIndicatorsScreenshotTest {
                         MeasurementHistoryCard(human(origin, false), false, {}, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
                     }
                     MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), false, {}, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
+                    MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), true, {}, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
                     for (origin in listOf(MeasurementOrigin.SCALE, MeasurementOrigin.MANUAL)) {
                         HuaweiSurface {
                             PetHistoryMeasurementDetails(pet(origin, false), true, {}, {})
@@ -50,7 +51,7 @@ class HistoryIndicatorsScreenshotTest {
                 }
             }
         }
-        val directory = File("/tmp/scalesync-99-evidence").apply { mkdirs() }
+        val directory = File("/tmp/scalesync-99-qa-evidence").apply { mkdirs() }
         File(directory, "history-indicators-360.png").outputStream().use {
             composeRule.runOnIdle {
                 val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
