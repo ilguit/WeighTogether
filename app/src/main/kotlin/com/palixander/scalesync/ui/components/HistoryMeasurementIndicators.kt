@@ -14,6 +14,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -21,6 +22,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.ui.icons.HuaweiIcons
+
+internal const val HistoryIndicatorAlpha = 0.55f
+
+internal fun historyIndicatorTint(onSurfaceVariant: Color): Color =
+    onSurfaceVariant.copy(alpha = HistoryIndicatorAlpha)
 
 /** Compact provenance affordance placed immediately after the value it describes. */
 @Composable
@@ -38,6 +44,7 @@ internal fun HistoryMeasurementIndicators(
     var explaining by remember { mutableStateOf(false) }
     var restoreFocus by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
+    val indicatorTint = historyIndicatorTint(MaterialTheme.colorScheme.onSurfaceVariant)
     LaunchedEffect(explaining, restoreFocus) {
         if (!explaining && restoreFocus) {
             withFrameNanos { }
@@ -58,13 +65,13 @@ internal fun HistoryMeasurementIndicators(
         if (manual) Icon(
             HuaweiIcons.Keyboard,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = indicatorTint,
             modifier = Modifier.size(20.dp).testTag("$tagPrefix-manual-origin"),
         )
         if (isManuallyEdited) Icon(
             HuaweiIcons.Edit,
             contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            tint = indicatorTint,
             modifier = Modifier.size(20.dp).testTag("$tagPrefix-manually-edited"),
         )
     }
