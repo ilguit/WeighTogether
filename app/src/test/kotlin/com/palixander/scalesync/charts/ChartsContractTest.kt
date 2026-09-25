@@ -16,6 +16,8 @@ class ChartsContractTest {
     fun `marker line policy preserves finite limits and maps unlimited to compose sentinel`() {
         assertEquals(2, chartMarkerRenderedLineLimit(2))
         assertEquals(Int.MAX_VALUE, chartMarkerRenderedLineLimit(null))
+        assertTrue(chartMarkerUsesDefaultLayerMargins(2))
+        assertFalse(chartMarkerUsesDefaultLayerMargins(null))
     }
 
     @Test
