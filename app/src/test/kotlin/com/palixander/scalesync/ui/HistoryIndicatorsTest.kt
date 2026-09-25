@@ -51,7 +51,7 @@ class HistoryIndicatorsScreenshotTest {
                 }
             }
         }
-        val directory = File("/tmp/scalesync-99-qa-evidence").apply { mkdirs() }
+        val directory = File("/tmp/scalesync-99-color-evidence").apply { mkdirs() }
         File(directory, "history-indicators-360.png").outputStream().use {
             composeRule.runOnIdle {
                 val bitmap = Bitmap.createBitmap(view.width, view.height, Bitmap.Config.ARGB_8888)
