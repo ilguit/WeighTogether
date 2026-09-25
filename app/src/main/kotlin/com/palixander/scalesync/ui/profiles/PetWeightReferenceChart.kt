@@ -491,7 +491,7 @@ internal fun petWeightDisplayedSeries(
         val isBreedModel = availableReference.provenance == WeightReferenceProvenance.BREED_CURVE
         val isFittedPopulation = availableReference.isFittedPopulationPercentiles
         val useBreedPresentation = isBreedModel || isFittedPopulation
-        petWeightReferenceChartSeries(reference).forEachIndexed { index, series ->
+        petWeightReferenceChartSeries(reference, factual, zoneId).forEachIndexed { index, series ->
             if (useBreedPresentation && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
                 PetWeightReferenceSeriesKind.LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to when {
@@ -516,7 +516,8 @@ internal fun petWeightDisplayedSeries(
                     id = "category-${series.kind.name.lowercase()}-$index",
                     kind = kind,
                     label = label,
-                    x = series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
+                    x = series.xEpochMillis
+                        ?: series.points.map { (date, _) -> date.atStartOfDay(zoneId).toInstant().toEpochMilli() },
                     y = series.points.map { it.second },
                     style = if (!useBreedPresentation) PetWeightDisplayedSeriesStyle.CATEGORY
                     else if (kind == PetWeightDisplayedSeriesKind.BREED_CENTER) PetWeightDisplayedSeriesStyle.BREED_CENTER
@@ -731,6 +732,8 @@ internal fun petWeightChartRange(
 
 internal fun petWeightReferenceChartSeries(
     reference: PetHistoryWeightReference,
+    factual: List<ChartPoint> = emptyList(),
+    zoneId: ZoneId = ZoneId.systemDefault(),
 ): List<PetWeightReferenceChartSeries> {
     val available = reference as? PetHistoryWeightReference.Available ?: return emptyList()
     return available.segments.flatMap { segment ->
@@ -738,20 +741,45 @@ internal fun petWeightReferenceChartSeries(
             PetWeightReferenceChartSeries(
                 PetWeightReferenceSeriesKind.LOWER,
                 segment.map { it.date to it.lowerKg },
+                referenceSegmentX(segment.map { it.date }, factual, zoneId),
             ),
             PetWeightReferenceChartSeries(
                 PetWeightReferenceSeriesKind.MEDIAN_LOWER,
                 segment.map { it.date to it.medianLowerKg },
+                referenceSegmentX(segment.map { it.date }, factual, zoneId),
             ),
             PetWeightReferenceChartSeries(
                 PetWeightReferenceSeriesKind.MEDIAN_UPPER,
                 segment.map { it.date to it.medianUpperKg },
+                referenceSegmentX(segment.map { it.date }, factual, zoneId),
             ),
             PetWeightReferenceChartSeries(
                 PetWeightReferenceSeriesKind.UPPER,
                 segment.map { it.date to it.upperKg },
+                referenceSegmentX(segment.map { it.date }, factual, zoneId),
             ),
         )
+    }
+}
+
+private fun referenceSegmentX(
+    dates: List<LocalDate>,
+    factual: List<ChartPoint>,
+    zoneId: ZoneId,
+): List<Long>? {
+    if (factual.isEmpty()) return null
+    val factualXsByDate = factual.mapNotNull { point ->
+        point.xEpochMillis?.let { x ->
+            runCatching { point.measuredAt.atZone(zoneId).toLocalDate() to x }.getOrNull()
+        }
+    }.groupBy({ it.first }, { it.second })
+    return dates.mapIndexed { index, date ->
+        val sameDayXs = factualXsByDate[date]
+        when {
+            index == 0 && sameDayXs != null -> sameDayXs.min()
+            index == dates.lastIndex && sameDayXs != null -> sameDayXs.max()
+            else -> date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+        }
     }
 }
 
@@ -840,13 +868,14 @@ internal fun PetWeightReferenceChartCard(
                         it.kind == PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER
                     } else displayedSeries,
                     breedBands = when {
-                        isPopulationReference -> populationWeightReferenceBands(available, zoneId)
-                        available?.provenance == WeightReferenceProvenance.BREED_CURVE -> populationWeightReferenceBands(available, zoneId)
+                        isPopulationReference -> populationWeightReferenceBands(available, zoneId, factual)
+                        available?.provenance == WeightReferenceProvenance.BREED_CURVE ->
+                            populationWeightReferenceBands(available, zoneId, factual)
                         available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> emptyList()
                         primaryReference == PetWeightPrimaryReference.LEGACY_BREED ->
                             breedWeightReferenceBands(breedReferenceTimeline)
                         primaryReference == PetWeightPrimaryReference.RESOLVED_REFERENCE && available != null ->
-                            populationWeightReferenceBands(available, zoneId)
+                            populationWeightReferenceBands(available, zoneId, factual)
                         else -> emptyList()
                     },
                     exactObservationGlyphs = exactObservationGlyphs,
@@ -1215,12 +1244,15 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
 internal fun populationWeightReferenceBands(
     reference: PetHistoryWeightReference.Available?,
     zoneId: ZoneId,
+    factual: List<ChartPoint> = emptyList(),
 ): List<BreedWeightReferenceBand> =
     reference?.segments.orEmpty().mapNotNull { segment ->
         segment.takeIf { it.size >= 2 }?.let { points ->
-            BreedWeightReferenceBand(points.map { point ->
+            val x = referenceSegmentX(points.map { it.date }, factual, zoneId)
+                ?: points.map { it.date.atStartOfDay(zoneId).toInstant().toEpochMilli() }
+            BreedWeightReferenceBand(points.mapIndexed { index, point ->
                 BreedWeightReferenceBandPoint(
-                    point.date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                    x[index],
                     point.lowerKg,
                     point.upperKg,
                 )

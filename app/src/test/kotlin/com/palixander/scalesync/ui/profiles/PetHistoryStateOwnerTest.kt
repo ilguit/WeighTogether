@@ -409,6 +409,47 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
+    fun `unrenderable instants stay in history but cannot poison chart and reference domain`() = runBlocking {
+        val russianBlue = pet("extreme", "Луна").copy(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100200"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2020, 1, 1)),
+        )
+        val normal = measurement("normal", russianBlue.id, "2026-03-20T10:15:00Z", 4.1)
+        val minimum = measurement("minimum", russianBlue.id, "2026-03-19T10:15:00Z", 3.9)
+            .copy(measuredAt = Instant.MIN)
+        val maximum = measurement("maximum", russianBlue.id, "2026-03-21T10:15:00Z", 4.2)
+            .copy(measuredAt = Instant.MAX)
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            russianBlue.id,
+            FakeRepository(
+                pets = mapOf(russianBlue.id to russianBlue),
+                histories = mapOf(russianBlue.id to MutableStateFlow(listOf(minimum, normal, maximum))),
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        val state = owner.uiState.value
+        assertNull(state.errorMessage)
+        assertEquals(setOf("minimum", "normal", "maximum"), state.measurements.map { it.id }.toSet())
+        assertEquals(listOf(normal.measuredAt), state.series.points.map { it.measuredAt })
+        val reference = state.weightReference as PetHistoryWeightReference.Available
+        assertEquals(state.startDate, reference.segments.first().first().date)
+        assertEquals(state.endDateInclusive, reference.segments.last().last().date)
+
+        collector.cancelAndJoin()
+        owner.close()
+        scope.cancel()
+    }
+
+    @Test
     fun `initial range keeps empty history on last 30 calendar days`() = runBlocking {
         val history = MutableStateFlow(emptyList<PetMeasurement>())
         val scope = testScope()

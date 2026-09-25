@@ -3,6 +3,7 @@ package com.palixander.scalesync.ui.profiles
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
+import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import com.palixander.scalesync.domain.PetRepository
@@ -319,8 +320,13 @@ class PetHistoryStateOwner(
                 if (observedPet == null) {
                     current.notFoundState()
                 } else {
+                    val chartMeasurements = measurements.filter { measurement ->
+                        measurement.petWeightKg.isFinite() &&
+                            ChartPoint(measurement.measuredAt.epochSecond, measurement.petWeightKg).xEpochMillis != null &&
+                            runCatching { measurement.measuredAt.atZone(zoneId).toLocalDate() }.isSuccess
+                    }
                     val presentationRange = if (current.rangePreset == ChartRangePreset.ALL) {
-                        measurements.allHistoryRange(LocalDate.now(clock), zoneId)
+                        chartMeasurements.allHistoryRange(LocalDate.now(clock), zoneId)
                     } else {
                         current.range
                     }
@@ -336,11 +342,11 @@ class PetHistoryStateOwner(
                     // factual history, so its reference overlays must cover that same model
                     // domain instead of disappearing as soon as the user pans out of the initial
                     // viewport.
-                    val referenceRange = presentationRange.coveringMeasurements(measurements, zoneId)
+                    val referenceRange = presentationRange.coveringMeasurements(chartMeasurements, zoneId)
                     val referenceDates = referenceSampleDates(referenceRange)
                     val (_, series) = petHistoryPresentation(
-                        measurements = measurements,
-                        range = measurements.allHistoryRange(LocalDate.now(clock), zoneId),
+                        measurements = chartMeasurements,
+                        range = chartMeasurements.allHistoryRange(LocalDate.now(clock), zoneId),
                         zoneId = zoneId,
                         locale = locale,
                         includeAll = true,
@@ -358,9 +364,14 @@ class PetHistoryStateOwner(
                         breedReference = referenceData.breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
-                            referenceDates.map { date ->
+                            referenceDates.mapIndexed { index, date ->
                                 PetHistoryBreedReferenceTimelineMoment(
-                                    date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                                    chartMeasurements.referenceXEpochMillis(
+                                        date = date,
+                                        isFirstReferenceDate = index == 0,
+                                        isLastReferenceDate = index == referenceDates.lastIndex,
+                                        zoneId = zoneId,
+                                    ),
                                     date,
                                 )
                             },
@@ -415,6 +426,23 @@ private fun ChartDateRange.coveringMeasurements(
         startDate = minOf(startDate, dates.minOrNull() ?: startDate),
         endDateInclusive = maxOf(endDateInclusive, dates.maxOrNull() ?: endDateInclusive),
     )
+}
+
+private fun List<PetMeasurement>.referenceXEpochMillis(
+    date: LocalDate,
+    isFirstReferenceDate: Boolean,
+    isLastReferenceDate: Boolean,
+    zoneId: ZoneId,
+): Long {
+    val sameDayXs = asSequence()
+        .filter { it.measuredAt.atZone(zoneId).toLocalDate() == date }
+        .map { requireNotNull(ChartPoint(it.measuredAt.epochSecond, it.petWeightKg).xEpochMillis) }
+        .toList()
+    return when {
+        isFirstReferenceDate && sameDayXs.isNotEmpty() -> sameDayXs.min()
+        isLastReferenceDate && sameDayXs.isNotEmpty() -> sameDayXs.max()
+        else -> date.atStartOfDay(zoneId).toInstant().toEpochMilli()
+    }
 }
 
 /** A one-day Vico domain collapses reference lines and bands into invisible vertical geometry. */
