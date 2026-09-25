@@ -13,6 +13,14 @@ import org.junit.Test
 
 class ChartsContractTest {
     @Test
+    fun `marker line policy preserves finite limits and maps unlimited to compose sentinel`() {
+        assertEquals(2, chartMarkerRenderedLineLimit(2))
+        assertEquals(Int.MAX_VALUE, chartMarkerRenderedLineLimit(null))
+        assertTrue(chartMarkerUsesDefaultLayerMargins(2))
+        assertFalse(chartMarkerUsesDefaultLayerMargins(null))
+    }
+
+    @Test
     fun `initial range contains seven days and uses supplied metric defaults`() {
         val weight = ChartMetricOption("weightKg", "Вес", "кг", 2)
         val fat = ChartMetricOption("fatPercent", "Жир", "%", 1, PercentagePointUnit)

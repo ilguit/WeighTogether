@@ -9,13 +9,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.patrykandpatrick.vico.compose.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
 import com.patrykandpatrick.vico.compose.cartesian.axis.VerticalAxis
+import com.patrykandpatrick.vico.compose.cartesian.data.CartesianChartModel
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianLayerRangeProvider
 import com.patrykandpatrick.vico.compose.cartesian.data.CartesianValueFormatter
+import com.patrykandpatrick.vico.compose.cartesian.layer.CartesianLayerDimensions
+import com.patrykandpatrick.vico.compose.cartesian.layer.CartesianLayerMargins
 import com.patrykandpatrick.vico.compose.cartesian.layer.LineCartesianLayer
 import com.patrykandpatrick.vico.compose.cartesian.layer.rememberLineCartesianLayer
+import com.patrykandpatrick.vico.compose.cartesian.marker.CartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.DefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.cartesian.marker.rememberDefaultCartesianMarker
 import com.patrykandpatrick.vico.compose.common.Fill
@@ -87,8 +92,8 @@ internal fun rememberChartBottomAxis(
 @Composable
 internal fun rememberChartMarker(
     valueFormatter: DefaultCartesianMarker.ValueFormatter,
-    lineCount: Int = 2,
-): DefaultCartesianMarker {
+    lineCount: Int? = 2,
+): CartesianMarker {
     val background = rememberShapeComponent(
         fill = Fill(MaterialTheme.colorScheme.inverseSurface),
         shape = MarkerCornerBasedShape(RoundedCornerShape(12.dp)),
@@ -98,12 +103,12 @@ internal fun rememberChartMarker(
             color = MaterialTheme.colorScheme.inverseOnSurface,
             textAlign = TextAlign.Center,
         ),
-        lineCount = lineCount,
+        lineCount = chartMarkerRenderedLineLimit(lineCount),
         padding = Insets(10.dp, 7.dp),
         background = background,
         minWidth = TextComponent.MinWidth.text("00.00.0000 00:00"),
     )
-    return rememberDefaultCartesianMarker(
+    val marker = rememberDefaultCartesianMarker(
         label = label,
         valueFormatter = valueFormatter,
         labelPosition = DefaultCartesianMarker.LabelPosition.AroundPoint,
@@ -117,4 +122,39 @@ internal fun rememberChartMarker(
         },
         indicatorSize = 14.dp,
     )
+    return if (chartMarkerUsesDefaultLayerMargins(lineCount)) {
+        marker
+    } else {
+        remember(marker) { UnlimitedLinesCartesianMarker(marker) }
+    }
+}
+
+/** Converts the chart API's explicit unlimited value to Compose's supported max-lines sentinel. */
+internal fun chartMarkerRenderedLineLimit(lineCount: Int?): Int = lineCount ?: Int.MAX_VALUE
+
+/**
+ * Unlimited labels can wrap to an arbitrary visual line count, so no finite empty-label height is
+ * suitable for reserving chart margins. The label is drawn around its selected point and fitted to
+ * the layer bounds instead.
+ */
+internal fun chartMarkerUsesDefaultLayerMargins(lineCount: Int?): Boolean = lineCount != null
+
+/**
+ * Keeps unlimited marker labels independent of Vico's empty-text margin-measurement behavior.
+ * Drawing remains fully delegated to [DefaultCartesianMarker].
+ */
+private class UnlimitedLinesCartesianMarker(
+    private val delegate: DefaultCartesianMarker,
+) : CartesianMarker by delegate {
+    override fun updateLayerMargins(
+        context: CartesianMeasuringContext,
+        layerMargins: CartesianLayerMargins,
+        layerDimensions: CartesianLayerDimensions,
+        model: CartesianChartModel,
+    ) = Unit
+
+    override fun equals(other: Any?): Boolean =
+        other is UnlimitedLinesCartesianMarker && delegate == other.delegate
+
+    override fun hashCode(): Int = delegate.hashCode()
 }

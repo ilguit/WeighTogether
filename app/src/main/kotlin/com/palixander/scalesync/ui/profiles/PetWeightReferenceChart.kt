@@ -941,7 +941,7 @@ private fun PetWeightVicoChart(
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
                 marker = rememberChartMarker(
                     markerFormatter,
-                    lineCount = displayedSeries.size,
+                    lineCount = null,
                 ),
                 decorations = listOf(bandDecoration, exactObservationDecoration),
             ),

@@ -104,11 +104,12 @@ data class PetHistoryUiState(
             clock: Clock = Clock.systemDefaultZone(),
         ): PetHistoryUiState {
             val today = LocalDate.now(clock)
+            val range = requireNotNull(ChartRangePreset.LAST_30_DAYS.rangeEndingOn(today))
             return PetHistoryUiState(
                 petId = petId,
-                startDate = today,
-                endDateInclusive = today,
-                rangePreset = ChartRangePreset.ALL,
+                startDate = range.startDate,
+                endDateInclusive = range.endDateInclusive,
+                rangePreset = ChartRangePreset.LAST_30_DAYS,
             )
         }
     }

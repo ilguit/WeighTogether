@@ -175,7 +175,7 @@ class PetHistoryStateOwnerTest {
     )
 
     @Test
-    fun `initial all range shows measurements from two months and bounds reference overlay`() = runBlocking {
+    fun `initial range covers last 30 calendar days while list and series keep full history`() = runBlocking {
         val oldDate = LocalDate.of(2026, 1, 20)
         val recentDate = LocalDate.of(2026, 3, 20)
         val puppy = pet("puppy", "Бим").copy(
@@ -203,9 +203,9 @@ class PetHistoryStateOwnerTest {
         yield()
 
         val state = owner.uiState.value
-        assertEquals(ChartRangePreset.ALL, state.rangePreset)
-        assertEquals(oldDate, state.startDate)
-        assertEquals(recentDate, state.endDateInclusive)
+        assertEquals(ChartRangePreset.LAST_30_DAYS, state.rangePreset)
+        assertEquals(LocalDate.of(2026, 2, 28), state.startDate)
+        assertEquals(LocalDate.of(2026, 3, 29), state.endDateInclusive)
         assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
         assertEquals(2, state.series.points.size)
         val reference = state.weightReference as PetHistoryWeightReference.Available
@@ -215,7 +215,7 @@ class PetHistoryStateOwnerTest {
     }
 
     @Test
-    fun `initial all range keeps empty history on today`() = runBlocking {
+    fun `initial range keeps empty history on last 30 calendar days`() = runBlocking {
         val history = MutableStateFlow(emptyList<PetMeasurement>())
         val scope = testScope()
         val owner = PetHistoryStateOwner(
@@ -230,11 +230,46 @@ class PetHistoryStateOwnerTest {
         yield()
 
         val state = owner.uiState.value
-        assertEquals(ChartRangePreset.ALL, state.rangePreset)
-        assertEquals(LocalDate.of(2026, 3, 29), state.startDate)
-        assertEquals(state.startDate, state.endDateInclusive)
+        assertEquals(ChartRangePreset.LAST_30_DAYS, state.rangePreset)
+        assertEquals(LocalDate.of(2026, 2, 28), state.startDate)
+        assertEquals(LocalDate.of(2026, 3, 29), state.endDateInclusive)
         assertTrue(state.content is PetHistoryContent.Empty)
         assertTrue(state.series.points.isEmpty())
+        scope.cancel()
+    }
+
+    @Test
+    fun `manual all range uses complete measurement bounds`() = runBlocking {
+        val oldDate = LocalDate.of(2026, 1, 20)
+        val recentDate = LocalDate.of(2026, 3, 20)
+        val history = MutableStateFlow(
+            listOf(
+                measurement("old", luna.id, "2026-01-20T10:00:00Z", 4.0),
+                measurement("recent", luna.id, "2026-03-20T10:00:00Z", 5.0),
+            ),
+        )
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            luna.id,
+            FakeRepository(pets = mapOf(luna.id to luna), histories = mapOf(luna.id to history)),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.selectRangePreset(ChartRangePreset.ALL)
+        yield()
+
+        val state = owner.uiState.value
+        assertEquals(ChartRangePreset.ALL, state.rangePreset)
+        assertEquals(oldDate, state.startDate)
+        assertEquals(recentDate, state.endDateInclusive)
+        assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
+        assertEquals(2, state.series.points.size)
+        collector.cancelAndJoin()
         scope.cancel()
     }
 
@@ -416,7 +451,7 @@ class PetHistoryStateOwnerTest {
 
         assertEquals(initialStartDate, owner.uiState.value.startDate)
         assertEquals(initialEndDate, owner.uiState.value.endDateInclusive)
-        assertEquals(ChartRangePreset.ALL, owner.uiState.value.rangePreset)
+        assertEquals(ChartRangePreset.LAST_30_DAYS, owner.uiState.value.rangePreset)
         assertEquals(listOf("inside"), owner.uiState.value.measurements.map { it.id })
         assertEquals("inside", owner.uiState.value.scrollToMeasurementId)
         scope.cancel()
