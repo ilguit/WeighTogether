@@ -108,6 +108,16 @@ abstract class HistoryIndicatorsTestCases {
                         val bounds = button.getUnclippedBoundsInRoot()
                         assertEquals(if (o == MeasurementOrigin.MANUAL && e) 44.dp else 20.dp, bounds.right - bounds.left)
                         assertEquals(24.dp, bounds.bottom - bounds.top)
+                        val iconBounds = listOfNotNull(
+                            manual.takeIf { o == MeasurementOrigin.MANUAL }?.getUnclippedBoundsInRoot(),
+                            edit.takeIf { e }?.getUnclippedBoundsInRoot(),
+                        )
+                        iconBounds.forEach { icon ->
+                            assertEquals(bounds.bottom.value, icon.bottom.value, 0.01f)
+                        }
+                        if (iconBounds.size == 2) {
+                            assertEquals(iconBounds[0].bottom.value, iconBounds[1].bottom.value, 0.01f)
+                        }
                     } else button.assertDoesNotExist()
                 }
             }
