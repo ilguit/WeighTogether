@@ -479,7 +479,7 @@ class PetWeightReferenceChartTest {
         }
     }
 
-    @Test fun `inactive-only Akita timeline suppresses generic numeric reference`() {
+    @Test fun `all-null legacy timeline falls back to available primary reference`() {
         val date = LocalDate.of(2026, 9, 1)
         val displayed = petWeightDisplayedSeries(
             emptyList(),
@@ -488,8 +488,16 @@ class PetWeightReferenceChartTest {
             ZoneOffset.UTC,
         )
 
-        assertTrue(displayed.isEmpty())
-        assertTrue(petWeightChartLegendEntries(displayed).isEmpty())
+        assertEquals(
+            listOf(
+                PetWeightDisplayedSeriesKind.CATEGORY_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER,
+                PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+            ),
+            displayed.map(PetWeightDisplayedSeries::kind),
+        )
+        assertEquals(4, petWeightChartLegendEntries(displayed).size)
     }
 
     @Test fun `Shiba official ranges display only breed boundaries and green band`() {
@@ -598,7 +606,16 @@ class PetWeightReferenceChartTest {
             zoneId = ZoneOffset.UTC,
         )
 
-        assertEquals(listOf(PetWeightDisplayedSeriesKind.FACTUAL), displayed.map(PetWeightDisplayedSeries::kind))
+        assertEquals(
+            listOf(
+                PetWeightDisplayedSeriesKind.FACTUAL,
+                PetWeightDisplayedSeriesKind.CATEGORY_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER,
+                PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER,
+                PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+            ),
+            displayed.map(PetWeightDisplayedSeries::kind),
+        )
     }
 
     private fun displayedSeries(
@@ -639,11 +656,11 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.17 кг\nМедиана: 27.17 кг\nВерхняя граница: 32.17 кг",
+            "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
             formatPetWeightDisplayedMarker(first, series, zoneId, Locale.US),
         )
         assertEquals(
-            "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.41 кг\nМедиана: 27.41 кг\nВерхняя граница: 32.41 кг",
+            "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
             formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US),
         )
         assertTrue(formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("25.00 кг"))

@@ -175,7 +175,7 @@ class PetHistoryStateOwnerTest {
     )
 
     @Test
-    fun `initial range covers last 30 calendar days while list and series keep full history`() = runBlocking {
+    fun `initial range drives references while list and factual series keep full history`() = runBlocking {
         val oldDate = LocalDate.of(2026, 1, 20)
         val recentDate = LocalDate.of(2026, 3, 20)
         val puppy = pet("puppy", "Бим").copy(
@@ -209,8 +209,10 @@ class PetHistoryStateOwnerTest {
         assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
         assertEquals(2, state.series.points.size)
         val reference = state.weightReference as PetHistoryWeightReference.Available
-        assertEquals(oldDate, reference.segments.first().first().date)
-        assertEquals(recentDate, reference.segments.last().last().date)
+        assertEquals(state.startDate, reference.segments.first().first().date)
+        assertEquals(state.endDateInclusive, reference.segments.last().last().date)
+        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
+        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
         scope.cancel()
     }
 
@@ -235,6 +237,9 @@ class PetHistoryStateOwnerTest {
         assertEquals(LocalDate.of(2026, 3, 29), state.endDateInclusive)
         assertTrue(state.content is PetHistoryContent.Empty)
         assertTrue(state.series.points.isEmpty())
+        assertEquals(30, state.breedReferenceTimeline.size)
+        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
+        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
         scope.cancel()
     }
 

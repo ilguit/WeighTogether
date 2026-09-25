@@ -401,6 +401,11 @@ internal data class PetWeightDisplayedSeries(
     }
 }
 
+/** Canonical decision used by every chart consumer: an all-null legacy timeline is absent. */
+internal fun hasDisplayableBreedReference(
+    timeline: List<PetHistoryBreedReferenceTimelinePoint>,
+): Boolean = timeline.any { !it.values.isNullOrEmpty() }
+
 internal fun petWeightDisplayedSeries(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
@@ -460,7 +465,7 @@ internal fun petWeightDisplayedSeries(
             )
         }
     } else if (
-        (!useLegacyBreedTimeline || breedReferenceTimeline.isEmpty()) &&
+        (!useLegacyBreedTimeline || !hasDisplayableBreedReference(breedReferenceTimeline)) &&
         reference is PetHistoryWeightReference.Available &&
         reference.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION
     ) {
@@ -516,11 +521,20 @@ internal fun formatPetWeightDisplayedMarker(
         isGroupingUsed = false
     }
     val targetDate = Instant.ofEpochMilli(targetXEpochMillis).atZone(zoneId).toLocalDate()
+    val isFactualSelection = displayedSeries.any { series ->
+        series.kind == PetWeightDisplayedSeriesKind.FACTUAL && targetXEpochMillis in series.x
+    }
     val values = displayedSeries.mapNotNull { series ->
         val value = if (series.kind == PetWeightDisplayedSeriesKind.FACTUAL) {
             series.x.indexOf(targetXEpochMillis).takeIf { it >= 0 }?.let(series.y::get)
         } else {
-            petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
+            // Reference samples represent a local calendar date. A factual point later on that
+            // same date must receive those bounds even when it is the final visible day (where
+            // epoch interpolation has no following anchor).
+            val referenceDayStart = targetDate.atStartOfDay(zoneId).toInstant().toEpochMilli()
+            val sameDateIndex = if (isFactualSelection) series.x.indexOf(referenceDayStart) else -1
+            if (sameDateIndex >= 0) series.y[sameDateIndex]
+            else petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
         value?.let {
             "${series.label}: ${number.format(it)} кг"
@@ -655,7 +669,7 @@ internal fun petWeightChartRange(
     breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
     breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
 ): PetWeightChartRange? {
-    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() }
+    val hasBreedTimeline = hasDisplayableBreedReference(breedReferenceTimeline)
     val values = buildList {
         addAll(factual.map(ChartPoint::value).filter(Double::isFinite))
         if (!hasBreedTimeline && reference is PetHistoryWeightReference.Available) {
@@ -780,7 +794,7 @@ internal fun PetWeightReferenceChartCard(
     }
     val factualColor = MaterialTheme.colorScheme.primary
     val referenceColor = MaterialTheme.colorScheme.tertiary
-    val hasBreedTimeline = breedReferenceTimeline.any { !it.values.isNullOrEmpty() } &&
+    val hasBreedTimeline = hasDisplayableBreedReference(breedReferenceTimeline) &&
         available?.provenance !in setOf(WeightReferenceProvenance.BREED_CURVE, WeightReferenceProvenance.BREED_EXACT_OBSERVATION, WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
     val showReferenceExplanation = shouldShowWeightReferenceExplanation(reference, breedReference)
     val description = petWeightChartDescription(

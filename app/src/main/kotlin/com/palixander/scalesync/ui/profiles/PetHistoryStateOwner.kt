@@ -331,10 +331,13 @@ class PetHistoryStateOwner(
                         locale = locale,
                         includeAll = true,
                     )
-                    val fullHistoryRange = measurements.allHistoryRange(LocalDate.now(clock), zoneId)
+                    // References describe the selected chart viewport, not the extent of factual
+                    // history. In particular, an empty or one-point history must still receive a
+                    // complete reference overlay for the selected range.
+                    val referenceDates = referenceSampleDates(presentationRange)
                     val (_, series) = petHistoryPresentation(
                         measurements = measurements,
-                        range = fullHistoryRange,
+                        range = measurements.allHistoryRange(LocalDate.now(clock), zoneId),
                         zoneId = zoneId,
                         locale = locale,
                         includeAll = true,
@@ -348,17 +351,15 @@ class PetHistoryStateOwner(
                         ),
                         content = content,
                         series = series,
-                        weightReference = referenceData.referencePresenter.present(observedPet, fullHistoryRange),
+                        weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
                         breedReference = referenceData.breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
-                            series.points.mapNotNull { point ->
-                                point.xEpochMillis?.let { epochMillis ->
-                                    PetHistoryBreedReferenceTimelineMoment(
-                                        epochMillis,
-                                        java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate(),
-                                    )
-                                }
+                            referenceDates.map { date ->
+                                PetHistoryBreedReferenceTimelineMoment(
+                                    date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                                    date,
+                                )
                             },
                         ),
                         isLoading = false,
