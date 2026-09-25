@@ -53,12 +53,13 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `all modelled cat breed ranges stop at their finite supported maximum`() {
+    fun `all modelled cat breed ranges carry their adult plateau through finite product maximum`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val profiles = snapshot.profiles.filter { it.id.matches(Regex("cat-breed-\\d{7}-(female|male)")) }
 
         assertEquals(52, profiles.size)
         profiles.forEach { profile ->
+            val maturity = profile.points.last().ageDays.toLong()
             val supportedMaximum = snapshot.metadataFor(profile.id)!!.supportedMaximumAgeDays.toLong()
             val sex = when (profile.sex.name) {
                 "FEMALE" -> PetSex.FEMALE
@@ -69,13 +70,13 @@ class PetWeightReferenceResolverTest {
                 species = PetSpecies.CAT,
                 sex = sex,
                 breedId = BreedId(profile.breedId!!),
-                birthDate = PartialBirthDate.Day(referenceDate.minusDays(supportedMaximum)),
+                birthDate = PartialBirthDate.Day(referenceDate.minusDays(maturity + 1)),
                 referenceDate = referenceDate,
             ).available()
             val adult = profile.points.last()
 
             assertEquals(profile.id, result.profileId)
-            assertEquals(supportedMaximum..supportedMaximum, result.ageDays)
+            assertEquals(maturity + 1..maturity + 1, result.ageDays)
             assertEquals(adult.lowerKg, result.bounds.lowerKg, 1e-12)
             assertEquals(adult.medianKg, result.bounds.medianLowerKg, 1e-12)
             assertEquals(adult.medianKg, result.bounds.medianUpperKg, 1e-12)
@@ -104,6 +105,80 @@ class PetWeightReferenceResolverTest {
 
         assertEquals(ReferenceBasis.POPULATION, result.reference.basis)
         assertEquals(WeightReferenceProvenance.POPULATION, result.reference.provenance)
+    }
+
+    @Test
+    fun `null unknown and mixed breeds use generic species reference routing`() {
+        val genericBreedIds = listOf(
+            null,
+            BreedId("scalesync:cat:breed-unknown"),
+            BreedId("scalesync:cat:mixed-breed"),
+        )
+        for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+            for (breedId in genericBreedIds) {
+                val result = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breedId,
+                    PartialBirthDate.Day(referenceDate.minusDays(1_000)),
+                    referenceDate,
+                ).available()
+                assertEquals("cat-population-${sex.name.lowercase()}", result.profileId)
+                assertEquals(ReferenceBasis.POPULATION, result.basis)
+                assertEquals(breedId, result.selectedBreedId)
+            }
+        }
+
+        for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+            for (breedId in listOf(
+                null,
+                BreedId("scalesync:dog:breed-unknown"),
+                BreedId("scalesync:dog:mixed-breed"),
+            )) {
+                val result = resolver.resolve(
+                    PetSpecies.DOG,
+                    sex,
+                    breedId,
+                    PartialBirthDate.Day(referenceDate.minusDays(1_000)),
+                    referenceDate,
+                    DogAdultWeight.Category(DogAdultWeightCategory.III),
+                ).available()
+                assertEquals("dog-${sex.name.lowercase()}-III", result.profileId)
+                assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
+                assertEquals(breedId, result.selectedBreedId)
+            }
+        }
+    }
+
+    @Test
+    fun `Russian Blue adult plateau is available for both sexes through finite product maximum`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val breedId = BreedId("VBO:0100200")
+        for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+            val profile = snapshot.profiles.single { it.breedId == breedId.value && it.sex.name == sex.name }
+            val maturity = profile.points.last().ageDays.toLong()
+            val adult = profile.points.last()
+            for (ageDays in listOf(maturity, maturity + 1, 3_000L, 10_958L)) {
+                val result = resolver.resolve(
+                    PetSpecies.CAT,
+                    sex,
+                    breedId,
+                    PartialBirthDate.Day(referenceDate.minusDays(ageDays)),
+                    referenceDate,
+                ).available()
+                assertEquals(profile.id, result.profileId)
+                assertEquals(adult.lowerKg, result.bounds.lowerKg, 1e-12)
+                assertEquals(adult.upperKg, result.bounds.upperKg, 1e-12)
+            }
+            val after = resolver.resolve(
+                PetSpecies.CAT,
+                sex,
+                breedId,
+                PartialBirthDate.Day(referenceDate.minusDays(10_959)),
+                referenceDate,
+            ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
+            assertEquals(10_958, after.supportedMaximumDays)
+        }
     }
 
     @Test

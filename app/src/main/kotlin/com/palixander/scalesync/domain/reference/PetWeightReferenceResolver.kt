@@ -1,6 +1,7 @@
 package com.palixander.scalesync.domain.reference
 
 import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedKind
 import com.palixander.scalesync.core.breed.BreedSpecies
 import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
 import com.palixander.scalesync.core.reference.ReferenceBasis
@@ -155,7 +156,7 @@ class PetWeightReferenceResolver(
             return unavailable(WeightReferenceUnavailableReason.InvalidBirthDate)
         }
 
-        val breedProfile = canonicalBreedId?.let { id ->
+        val breedRoute = canonicalBreedId?.let { id ->
             val breed = breedCatalog.findById(id.value)
             if (breed == null && referenceSpecies == ReferenceSpecies.DOG) {
                 return unavailable(WeightReferenceUnavailableReason.UnknownBreed(id.value))
@@ -164,6 +165,16 @@ class PetWeightReferenceResolver(
             if (breed != null && breed.species != expectedSpecies) {
                 return unavailable(WeightReferenceUnavailableReason.BreedSpeciesMismatch(id.value))
             }
+            when (breed?.kind) {
+                BreedKind.UNKNOWN,
+                BreedKind.MIXED,
+                -> BreedReferenceRoute.GENERIC
+                BreedKind.VBO -> BreedReferenceRoute.NAMED
+                null -> return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(id.value))
+            }
+        } ?: BreedReferenceRoute.GENERIC
+
+        val breedProfile = canonicalBreedId?.takeIf { breedRoute == BreedReferenceRoute.NAMED }?.let { id ->
             val matchingProfile = snapshot.profiles.singleOrNull {
                 it.basis == ReferenceBasis.BREED && it.species == referenceSpecies &&
                     it.sex == referenceSex && it.breedId == id.value
@@ -183,7 +194,7 @@ class PetWeightReferenceResolver(
             breedProfile
         } else {
             if (referenceSpecies == ReferenceSpecies.CAT) {
-                if (canonicalBreedId != null) {
+                if (breedRoute == BreedReferenceRoute.NAMED && canonicalBreedId != null) {
                     return unavailable(WeightReferenceUnavailableReason.UnsupportedBreed(canonicalBreedId.value))
                 }
                 snapshot.profiles.singleOrNull {
@@ -234,6 +245,8 @@ class PetWeightReferenceResolver(
         const val LEGACY_CANADIAN_SPHYNX_ID = "VBO:0100061"
         const val CANONICAL_SPHYNX_ID = "VBO:0100230"
     }
+
+    private enum class BreedReferenceRoute { GENERIC, NAMED }
 
     private fun resolveProfile(
         profile: ReferenceProfile,
