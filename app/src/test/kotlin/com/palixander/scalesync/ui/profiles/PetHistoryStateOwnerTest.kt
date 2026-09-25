@@ -283,7 +283,7 @@ class PetHistoryStateOwnerTest {
     )
 
     @Test
-    fun `initial range drives references while list and factual series keep full history`() = runBlocking {
+    fun `initial viewport stays selected while references cover scrollable factual history`() = runBlocking {
         val oldDate = LocalDate.of(2026, 1, 20)
         val recentDate = LocalDate.of(2026, 3, 20)
         val puppy = pet("puppy", "Бим").copy(
@@ -317,10 +317,135 @@ class PetHistoryStateOwnerTest {
         assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
         assertEquals(2, state.series.points.size)
         val reference = state.weightReference as PetHistoryWeightReference.Available
+        assertEquals(oldDate, reference.segments.first().first().date)
+        assertEquals(state.endDateInclusive, reference.segments.last().last().date)
+        assertEquals(oldDate, state.breedReferenceTimeline.first().date)
+        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
+        val displayed = petWeightDisplayedSeries(
+            state.series.points,
+            state.weightReference,
+            state.breedReferenceTimeline,
+            zone,
+        )
+        val oldTooltip = formatPetWeightDisplayedMarker(
+            history.value.first { it.id == "old" }.measuredAt.toEpochMilli(),
+            displayed,
+            zone,
+            Locale.US,
+        )
+        assertTrue(oldTooltip, oldTooltip.contains("Фактический вес: 4.00 кг"))
+        assertTrue(oldTooltip, oldTooltip.contains("Нижняя"))
+        assertTrue(oldTooltip, oldTooltip.contains("Верхняя"))
+        scope.cancel()
+    }
+
+    @Test
+    fun `custom viewport keeps both reference pipelines across long history in both pan directions`() = runBlocking {
+        val oldDate = LocalDate.of(2001, 1, 15)
+        val futureDate = LocalDate.of(2026, 6, 15)
+        val russianBlue = pet("russian-blue-pan", "Луна").copy(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100200"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2000, 1, 1)),
+        )
+        val old = measurement("old", russianBlue.id, "2001-01-15T10:00:00Z", 3.2)
+        val future = measurement("future", russianBlue.id, "2026-06-15T10:00:00Z", 4.1)
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            russianBlue.id,
+            FakeRepository(
+                pets = mapOf(russianBlue.id to russianBlue),
+                histories = mapOf(russianBlue.id to MutableStateFlow(listOf(old, future))),
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        owner.setDateRange(LocalDate.of(2014, 4, 1), LocalDate.of(2014, 4, 30))
+        yield()
+
+        val state = owner.uiState.value
+        assertEquals(ChartRangePreset.CUSTOM, state.rangePreset)
+        assertEquals(LocalDate.of(2014, 4, 1), state.startDate)
+        assertEquals(LocalDate.of(2014, 4, 30), state.endDateInclusive)
+        assertEquals(listOf("future", "old"), state.measurements.map { it.id })
+        assertEquals(listOf(old.measuredAt, future.measuredAt), state.series.points.map { it.measuredAt })
+
+        val resolved = state.weightReference as PetHistoryWeightReference.Available
+        val resolvedPoints = resolved.segments.flatMap { it.points }
+        assertEquals(oldDate, resolvedPoints.first().date)
+        assertEquals(futureDate, resolvedPoints.last().date)
+        assertTrue(resolvedPoints.size <= MAX_REFERENCE_CHART_SAMPLES)
+        assertEquals(MAX_REFERENCE_CHART_SAMPLES, state.breedReferenceTimeline.size)
+        assertEquals(oldDate, state.breedReferenceTimeline.first().date)
+        assertEquals(futureDate, state.breedReferenceTimeline.last().date)
+
+        val displayed = petWeightDisplayedSeries(
+            state.series.points,
+            state.weightReference,
+            state.breedReferenceTimeline,
+            zone,
+        )
+        listOf(old to "3.20", future to "4.10").forEach { (measurement, weight) ->
+            val tooltip = formatPetWeightDisplayedMarker(
+                measurement.measuredAt.toEpochMilli(),
+                displayed,
+                zone,
+                Locale.US,
+            )
+            assertTrue(tooltip, tooltip.contains("Фактический вес: $weight кг"))
+            assertTrue(tooltip, tooltip.contains("Нижняя"))
+            assertTrue(tooltip, tooltip.contains("Верхняя"))
+        }
+
+        collector.cancelAndJoin()
+        owner.close()
+        scope.cancel()
+    }
+
+    @Test
+    fun `unrenderable instants stay in history but cannot poison chart and reference domain`() = runBlocking {
+        val russianBlue = pet("extreme", "Луна").copy(
+            species = PetSpecies.CAT,
+            sex = PetSex.FEMALE,
+            breedId = BreedId("VBO:0100200"),
+            birthDate = PartialBirthDate.Day(LocalDate.of(2020, 1, 1)),
+        )
+        val normal = measurement("normal", russianBlue.id, "2026-03-20T10:15:00Z", 4.1)
+        val minimum = measurement("minimum", russianBlue.id, "2026-03-19T10:15:00Z", 3.9)
+            .copy(measuredAt = Instant.MIN)
+        val maximum = measurement("maximum", russianBlue.id, "2026-03-21T10:15:00Z", 4.2)
+            .copy(measuredAt = Instant.MAX)
+        val scope = testScope()
+        val owner = PetHistoryStateOwner(
+            russianBlue.id,
+            FakeRepository(
+                pets = mapOf(russianBlue.id to russianBlue),
+                histories = mapOf(russianBlue.id to MutableStateFlow(listOf(minimum, normal, maximum))),
+            ),
+            scope,
+            clock,
+            zone,
+            Locale.US,
+        )
+        val collector = scope.launch { owner.uiState.collect() }
+        yield()
+
+        val state = owner.uiState.value
+        assertNull(state.errorMessage)
+        assertEquals(setOf("minimum", "normal", "maximum"), state.measurements.map { it.id }.toSet())
+        assertEquals(listOf(normal.measuredAt), state.series.points.map { it.measuredAt })
+        val reference = state.weightReference as PetHistoryWeightReference.Available
         assertEquals(state.startDate, reference.segments.first().first().date)
         assertEquals(state.endDateInclusive, reference.segments.last().last().date)
-        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
-        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
+
+        collector.cancelAndJoin()
+        owner.close()
         scope.cancel()
     }
 

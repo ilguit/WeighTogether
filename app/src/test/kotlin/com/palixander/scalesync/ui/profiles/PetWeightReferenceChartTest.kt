@@ -377,6 +377,42 @@ class PetWeightReferenceChartTest {
         )
     }
 
+    @Test fun `resolved lines and band reach exact daytime factual boundaries without crossing a gap`() {
+        val zoneId = ZoneId.of("Asia/Yekaterinburg")
+        val firstDate = LocalDate.of(2026, 8, 1)
+        val gapDate = firstDate.plusDays(1)
+        val lastDate = firstDate.plusDays(2)
+        val firstX = firstDate.atTime(9, 15).atZone(zoneId).toInstant().toEpochMilli()
+        val lastX = lastDate.atTime(18, 45).atZone(zoneId).toInstant().toEpochMilli()
+        val factual = listOf(
+            ChartPoint(firstX / 1_000L, 3.0),
+            ChartPoint(lastX / 1_000L, 4.0),
+        )
+        val reference = availableSegments(
+            segments = listOf(
+                listOf(
+                    PetHistoryReferencePoint(firstDate, 2.0, 3.0, 3.0, 4.0),
+                    PetHistoryReferencePoint(gapDate, 2.1, 3.1, 3.1, 4.1),
+                ),
+                listOf(
+                    PetHistoryReferencePoint(lastDate, 2.2, 3.2, 3.2, 4.2),
+                    PetHistoryReferencePoint(lastDate.plusDays(1), 2.3, 3.3, 3.3, 4.3),
+                ),
+            ),
+            provenance = WeightReferenceProvenance.BREED_CURVE,
+        )
+
+        val displayed = petWeightDisplayedSeries(factual, reference, emptyList(), zoneId)
+            .filter { it.style != PetWeightDisplayedSeriesStyle.FACTUAL }
+        val bands = populationWeightReferenceBands(reference, zoneId, factual)
+
+        assertTrue(displayed.all { it.x.first() == firstX || it.x.first() == lastX })
+        assertEquals(firstX, bands.first().points.first().xEpochMillis)
+        assertEquals(lastX, bands.last().points.first().xEpochMillis)
+        assertEquals(2, bands.size)
+        assertTrue(bands.first().points.last().xEpochMillis < bands.last().points.first().xEpochMillis)
+    }
+
     @Test fun `breed interval has one zone legend entry and no center entry`() {
         val series = listOf(
             displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
