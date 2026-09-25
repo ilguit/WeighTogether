@@ -2,8 +2,8 @@ package com.palixander.scalesync.domain.reference
 
 import com.palixander.scalesync.core.breed.BreedCatalog
 import com.palixander.scalesync.core.breed.BreedSpecies
-import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
+import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.reference.ReferencePoint
 import com.palixander.scalesync.core.reference.ReferenceProfile
 import com.palixander.scalesync.core.reference.ReferenceSex
@@ -243,7 +243,8 @@ class PetWeightReferenceResolver(
         selectedBreedId: BreedId?,
     ): PetWeightReferenceResolution {
         val supportedMinimum = profile.points.first().ageDays
-        val supportedMaximum = profile.supportedMaximumAgeDays()
+        val supportedMaximum = snapshot.metadataFor(profile.id)?.supportedMaximumAgeDays
+            ?: return unavailable(WeightReferenceUnavailableReason.ProfileUnavailable(profile.id))
         if (age.minimumDays < supportedMinimum || age.maximumDays > supportedMaximum) {
             return unavailable(
                 WeightReferenceUnavailableReason.AgeOutOfRange(
@@ -254,15 +255,19 @@ class PetWeightReferenceResolver(
                 ),
             )
         }
-        val points = buildList {
-            snapshot.interpolate(profile.id, age.minimumDays.toInt())?.let(::add)
-            profile.points.filterTo(this) { it.ageDays.toLong() in age.minimumDays..age.maximumDays }
-            if (age.maximumDays != age.minimumDays) {
-                snapshot.interpolate(profile.id, age.maximumDays.toInt())?.let(::add)
-            }
+        val endpointPoints = listOfNotNull(
+            snapshot.interpolate(profile.id, age.minimumDays.toInt()),
+            snapshot.interpolate(profile.id, age.maximumDays.toInt()),
+        )
+        val hasUnavailableAge = (age.minimumDays..age.maximumDays).any { ageDays ->
+            snapshot.interpolate(profile.id, ageDays.toInt()) == null
         }
-        if (points.isEmpty()) {
+        if (hasUnavailableAge) {
             return unavailable(WeightReferenceUnavailableReason.ReferenceDataGap(profile.id, age.minimumDays..age.maximumDays))
+        }
+        val points = buildList {
+            addAll(endpointPoints)
+            profile.points.filterTo(this) { it.ageDays.toLong() in age.minimumDays..age.maximumDays }
         }
         val effectiveSourceId = if (provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) {
             points.firstOrNull { it.empirical && it.ageDays.toLong() in age.minimumDays..age.maximumDays }?.sourceId
@@ -285,14 +290,8 @@ class PetWeightReferenceResolver(
     }
 
     private fun ReferenceProfile.supports(age: AgeInterval): Boolean =
-        age.minimumDays >= points.first().ageDays && age.maximumDays <= supportedMaximumAgeDays()
-
-    private fun ReferenceProfile.supportedMaximumAgeDays(): Int = when (ageAvailability) {
-        ReferenceAgeAvailability.CARRY_FORWARD -> Int.MAX_VALUE
-        ReferenceAgeAvailability.DECLARED_RANGE_ONLY,
-        ReferenceAgeAvailability.EXACT_OBSERVATIONS,
-        -> snapshot.manifest.scopes.single { it.id == id }.maximumAgeDays
-    }
+        age.minimumDays >= points.first().ageDays &&
+            age.maximumDays <= (snapshot.metadataFor(id)?.supportedMaximumAgeDays ?: Int.MIN_VALUE)
 
     private fun categoryFor(weightKg: Double): DogAdultWeightCategory? = when {
         weightKg < 6.5 -> DogAdultWeightCategory.I
