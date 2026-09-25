@@ -1,16 +1,16 @@
 {
   "manifest": {
     "schemaVersion": 5,
-    "snapshotVersion": "2026-09-25.1",
+    "snapshotVersion": "2026-09-25.2",
     "snapshotDate": "2026-09-25",
-    "numericalDataSha256": "2ca3ce5ae0c4785093fc3278df990303729a5f5ae9dbab664c95aa1246fbabaa",
+    "numericalDataSha256": "861fcb4ff1b58c85d6e5a9bbd7cf5e32f7710e7a2debb2717495c14e8898291c",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
       "ageConversion": "ageDays = ageYears * 365.25; assign to nearest 7-day centre",
       "interpolation": "Linear interpolation is permitted only between adjacent weekly centres no more than 7 days apart; larger gaps are unavailable data",
       "quantiles": "25th, 50th and 75th percentiles using linear interpolation at (N - 1) * p; weights rounded to 0.001 kg",
-      "dogEligibility": "84-730 days; known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
+      "dogEligibility": "Observed data cover 84-730 days; the final observed category bounds are carried forward through 10958 days (30 years). Known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
       "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
@@ -471,7 +471,7 @@
         "weightCategory": "I",
         "maximumAdultWeightKg": 6.5,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
           "Source excludes dogs above 40 kg"
@@ -488,7 +488,7 @@
         "weightCategory": "I",
         "maximumAdultWeightKg": 6.5,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
           "Source excludes dogs above 40 kg"
@@ -506,7 +506,7 @@
         "minimumAdultWeightKg": 6.5,
         "maximumAdultWeightKg": 9.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
           "Source excludes dogs above 40 kg"
@@ -524,7 +524,7 @@
         "minimumAdultWeightKg": 6.5,
         "maximumAdultWeightKg": 9.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
           "Source excludes dogs above 40 kg"
@@ -542,7 +542,7 @@
         "minimumAdultWeightKg": 9.0,
         "maximumAdultWeightKg": 15.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
           "Source excludes dogs above 40 kg"
@@ -560,7 +560,7 @@
         "minimumAdultWeightKg": 9.0,
         "maximumAdultWeightKg": 15.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
           "Source excludes dogs above 40 kg"
@@ -578,7 +578,7 @@
         "minimumAdultWeightKg": 15.0,
         "maximumAdultWeightKg": 30.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
           "Source excludes dogs above 40 kg"
@@ -596,7 +596,7 @@
         "minimumAdultWeightKg": 15.0,
         "maximumAdultWeightKg": 30.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
           "Source excludes dogs above 40 kg"
@@ -614,7 +614,7 @@
         "minimumAdultWeightKg": 30.0,
         "maximumAdultWeightKg": 40.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
           "Source excludes dogs above 40 kg"
@@ -632,7 +632,7 @@
         "minimumAdultWeightKg": 30.0,
         "maximumAdultWeightKg": 40.0,
         "minimumAgeDays": 84,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
           "Source excludes dogs above 40 kg"

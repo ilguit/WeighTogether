@@ -39,7 +39,7 @@ class WeightReferenceSnapshotTest {
         assertEquals(setOf("I", "II", "III", "IV", "V"), dogScopes.mapNotNull { it.weightCategory }.toSet())
         assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), dogScopes.map { it.sex }.toSet())
         assertEquals(10, dogScopes.size)
-        assertTrue(dogScopes.all { it.minimumAgeDays == 84 && it.maximumAgeDays == 730 })
+        assertTrue(dogScopes.all { it.minimumAgeDays == 84 && it.maximumAgeDays == 10_958 })
         assertTrue(dogScopes.all { it.maximumAdultWeightKg!! <= 40.0 })
         assertTrue(dogScopes.all { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         assertEquals(10, snapshot.profiles.count { it.species == ReferenceSpecies.DOG })
@@ -47,6 +47,11 @@ class WeightReferenceSnapshotTest {
         assertTrue(dogScopes.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
         assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }
             .all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
+        assertEquals("2026-09-25.2", snapshot.manifest.snapshotVersion)
+
+        val last = snapshot.profiles.single { it.id == "dog-male-III" }.points.last()
+        assertEquals(last.copy(ageDays = 10_958), snapshot.interpolate("dog-male-III", 10_958))
+        assertNull(snapshot.interpolate("dog-male-III", 10_959))
     }
 
     @Test
@@ -182,7 +187,7 @@ class WeightReferenceSnapshotTest {
             "cat-siberian-male" to (4.5 to 8.0),
         )
         assertEquals(5, snapshot.manifest.schemaVersion)
-        assertEquals("2026-09-25.1", snapshot.manifest.snapshotVersion)
+        assertEquals("2026-09-25.2", snapshot.manifest.snapshotVersion)
         adultRanges.forEach { (id, range) ->
             val profile = snapshot.profiles.single { it.id == id }
             assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, profile.referenceKind)
