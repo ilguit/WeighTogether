@@ -283,7 +283,7 @@ class PetHistoryStateOwnerTest {
     )
 
     @Test
-    fun `initial range drives references while list and factual series keep full history`() = runBlocking {
+    fun `initial viewport stays selected while references cover scrollable factual history`() = runBlocking {
         val oldDate = LocalDate.of(2026, 1, 20)
         val recentDate = LocalDate.of(2026, 3, 20)
         val puppy = pet("puppy", "Бим").copy(
@@ -317,10 +317,25 @@ class PetHistoryStateOwnerTest {
         assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
         assertEquals(2, state.series.points.size)
         val reference = state.weightReference as PetHistoryWeightReference.Available
-        assertEquals(state.startDate, reference.segments.first().first().date)
+        assertEquals(oldDate, reference.segments.first().first().date)
         assertEquals(state.endDateInclusive, reference.segments.last().last().date)
-        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
+        assertEquals(oldDate, state.breedReferenceTimeline.first().date)
         assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
+        val displayed = petWeightDisplayedSeries(
+            state.series.points,
+            state.weightReference,
+            state.breedReferenceTimeline,
+            zone,
+        )
+        val oldTooltip = formatPetWeightDisplayedMarker(
+            history.value.first { it.id == "old" }.measuredAt.toEpochMilli(),
+            displayed,
+            zone,
+            Locale.US,
+        )
+        assertTrue(oldTooltip, oldTooltip.contains("Фактический вес: 4.00 кг"))
+        assertTrue(oldTooltip, oldTooltip.contains("Нижняя"))
+        assertTrue(oldTooltip, oldTooltip.contains("Верхняя"))
         scope.cancel()
     }
 

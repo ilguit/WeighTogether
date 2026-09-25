@@ -331,10 +331,13 @@ class PetHistoryStateOwner(
                         locale = locale,
                         includeAll = true,
                     )
-                    // References describe the selected chart viewport, not the extent of factual
-                    // history. In particular, an empty or one-point history must still receive a
-                    // complete reference overlay for the selected range.
-                    val referenceDates = referenceSampleDates(presentationRange)
+                    // The selected range controls only the initial viewport and the rows shown
+                    // below the chart. The chart remains horizontally scrollable across the full
+                    // factual history, so its reference overlays must cover that same model
+                    // domain instead of disappearing as soon as the user pans out of the initial
+                    // viewport.
+                    val referenceRange = presentationRange.coveringMeasurements(measurements, zoneId)
+                    val referenceDates = referenceSampleDates(referenceRange)
                     val (_, series) = petHistoryPresentation(
                         measurements = measurements,
                         range = measurements.allHistoryRange(LocalDate.now(clock), zoneId),
@@ -351,7 +354,7 @@ class PetHistoryStateOwner(
                         ),
                         content = content,
                         series = series,
-                        weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
+                        weightReference = referenceData.referencePresenter.present(observedPet, referenceRange),
                         breedReference = referenceData.breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
@@ -396,6 +399,22 @@ private fun List<PetMeasurement>.allHistoryRange(today: LocalDate, zoneId: ZoneI
     val first = dates.minOrNull() ?: today
     val last = dates.maxOrNull() ?: today
     return ChartDateRange(minOf(first, last.minusDays(MINIMUM_ALL_HISTORY_SPAN_DAYS)), last)
+}
+
+private fun ChartDateRange.coveringMeasurements(
+    measurements: List<PetMeasurement>,
+    zoneId: ZoneId,
+): ChartDateRange {
+    if (measurements.isEmpty()) return this
+    val dates = measurements.map { measurement ->
+        runCatching { measurement.measuredAt.atZone(zoneId).toLocalDate() }.getOrElse {
+            if (measurement.measuredAt.isBefore(java.time.Instant.EPOCH)) LocalDate.MIN else LocalDate.MAX
+        }
+    }
+    return ChartDateRange(
+        startDate = minOf(startDate, dates.minOrNull() ?: startDate),
+        endDateInclusive = maxOf(endDateInclusive, dates.maxOrNull() ?: endDateInclusive),
+    )
 }
 
 /** A one-day Vico domain collapses reference lines and bands into invisible vertical geometry. */
