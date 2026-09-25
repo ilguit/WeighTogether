@@ -348,14 +348,16 @@ class PetHistoryReferencePresenterTest {
                     point.medianLowerKg == point.medianUpperKg &&
                     point.medianUpperKg <= point.upperKg
             })
-            assertTrue(result.constraints.all { constraint ->
-                constraint.none { character -> character in 'A'..'Z' || character in 'a'..'z' }
-            })
+            assertTrue(
+                result.constraints.contains(
+                    "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91",
+                ),
+            )
         }
     }
 
     @Test
-    fun `modelled breed becomes unavailable immediately after its published age boundary`() {
+    fun `modelled breed becomes unavailable immediately after finite adult plateau`() {
         val birth = LocalDate.of(2024, 9, 6)
         val pet = Pet(
             id = PetId("adult-cat"), displayName = "Барсик", species = PetSpecies.CAT,
@@ -365,7 +367,7 @@ class PetHistoryReferencePresenterTest {
 
         val result = presenter.present(
             pet,
-            ChartDateRange(birth.plusDays(731), birth.plusDays(731)),
+            ChartDateRange(birth.plusDays(10_959), birth.plusDays(10_959)),
         ) as PetHistoryWeightReference.Unavailable
 
         assertTrue(result.reason is WeightReferenceUnavailableReason.AgeOutOfRange)
@@ -373,14 +375,14 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
-    fun `sampling across upper age boundary retains last available point without a tail`() {
+    fun `sampling across finite adult plateau retains last available point without a tail`() {
         val birth = LocalDate.of(2024, 9, 6)
         val pet = Pet(
             id = PetId("boundary-cat"), displayName = "Барсик", species = PetSpecies.CAT,
             createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
             birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100052"),
         )
-        val boundary = birth.plusDays(730)
+        val boundary = birth.plusDays(10_958)
 
         val result = presenter.present(
             pet,
