@@ -358,20 +358,50 @@ private fun String.localizedDisclosure(): String = when (this) {
     else -> this
 }
 
-internal fun localizedReferenceConstraint(constraint: String): String = when (constraint) {
-    "Domestic Shorthair only" -> "Только домашние короткошёрстные кошки"
-    "Sexually intact kittens from the USA" -> "Нестерилизованные котята из США"
-    "Age 8 to 78 weeks" -> "Возраст от 8 до 78 недель"
-    "Other-breed fallback; source population was Domestic Shorthair" ->
-        "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
-    "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
-        "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
-    "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
-        "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
-    "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
-        "18–22 фунта преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
-    else -> constraint
+private val adultPlateauConstraintPattern = Regex(
+    "^Evidence-backed/modelled values end at day (\\d+); " +
+        "the final adult product value is carried forward unchanged only through day (\\d+) \\(30 years\\)$",
+)
+private val dogCategoryPlateauConstraintPattern = Regex(
+    "^Evidence-backed values end at day (\\d+); " +
+        "the final adult category bounds are carried forward unchanged only through day (\\d+) \\(30 years\\)$",
+)
+
+internal fun localizedReferenceConstraint(constraint: String): String {
+    adultPlateauConstraintPattern.matchEntire(constraint)?.let { match ->
+        val (evidenceEndDay, productMaximumDay) = match.destructured
+        return "Подтверждённые и расчётные значения заканчиваются на ${formatReferenceDay(evidenceEndDay)}-м дне; " +
+            "последнее взрослое значение неизменно продлено только до " +
+            "${formatReferenceDay(productMaximumDay)}-го дня (30 лет)"
+    }
+    dogCategoryPlateauConstraintPattern.matchEntire(constraint)?.let { match ->
+        val (evidenceEndDay, productMaximumDay) = match.destructured
+        return "Подтверждённые значения заканчиваются на ${formatReferenceDay(evidenceEndDay)}-м дне; " +
+            "итоговые границы взрослой весовой категории неизменно продлены только до " +
+            "${formatReferenceDay(productMaximumDay)}-го дня (30 лет)"
+    }
+
+    return when (constraint) {
+        "Domestic Shorthair only" -> "Только домашние короткошёрстные кошки"
+        "Sexually intact kittens from the USA" -> "Нестерилизованные котята из США"
+        "Age 8 to 78 weeks" -> "Возраст от 8 до 78 недель"
+        "Other-breed fallback; source population was Domestic Shorthair" ->
+            "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
+        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
+            "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
+        "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+            "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+        "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
+            "18–22 фунта преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
+        else -> constraint
+    }
 }
+
+private fun formatReferenceDay(day: String): String = day
+    .reversed()
+    .chunked(3)
+    .joinToString(" ")
+    .reversed()
 
 fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): String? = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE ->

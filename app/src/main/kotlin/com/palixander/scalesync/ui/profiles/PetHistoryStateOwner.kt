@@ -331,10 +331,13 @@ class PetHistoryStateOwner(
                         locale = locale,
                         includeAll = true,
                     )
-                    val fullHistoryRange = measurements.allHistoryRange(LocalDate.now(clock), zoneId)
+                    // References describe the selected chart viewport, not the extent of factual
+                    // history. In particular, an empty or one-point history must still receive a
+                    // complete reference overlay for the selected range.
+                    val referenceDates = referenceSampleDates(presentationRange)
                     val (_, series) = petHistoryPresentation(
                         measurements = measurements,
-                        range = fullHistoryRange,
+                        range = measurements.allHistoryRange(LocalDate.now(clock), zoneId),
                         zoneId = zoneId,
                         locale = locale,
                         includeAll = true,
@@ -348,17 +351,15 @@ class PetHistoryStateOwner(
                         ),
                         content = content,
                         series = series,
-                        weightReference = referenceData.referencePresenter.present(observedPet, fullHistoryRange),
+                        weightReference = referenceData.referencePresenter.present(observedPet, presentationRange),
                         breedReference = referenceData.breedReferencePresenter.present(observedPet),
                         breedReferenceTimeline = referenceData.breedReferencePresenter.presentTimeline(
                             observedPet,
-                            series.points.mapNotNull { point ->
-                                point.xEpochMillis?.let { epochMillis ->
-                                    PetHistoryBreedReferenceTimelineMoment(
-                                        epochMillis,
-                                        java.time.Instant.ofEpochMilli(epochMillis).atZone(zoneId).toLocalDate(),
-                                    )
-                                }
+                            referenceDates.map { date ->
+                                PetHistoryBreedReferenceTimelineMoment(
+                                    date.atStartOfDay(zoneId).toInstant().toEpochMilli(),
+                                    date,
+                                )
                             },
                         ),
                         isLoading = false,
@@ -386,11 +387,16 @@ class PetHistoryStateOwner(
 }
 
 private fun List<PetMeasurement>.allHistoryRange(today: LocalDate, zoneId: ZoneId): ChartDateRange {
-    if (isEmpty()) return ChartDateRange(today, today)
+    if (isEmpty()) return ChartDateRange(today.minusDays(MINIMUM_ALL_HISTORY_SPAN_DAYS), today)
     val dates = map { measurement ->
         runCatching { measurement.measuredAt.atZone(zoneId).toLocalDate() }.getOrElse {
             if (measurement.measuredAt.isBefore(java.time.Instant.EPOCH)) LocalDate.MIN else LocalDate.MAX
         }
     }
-    return ChartDateRange(dates.minOrNull() ?: today, dates.maxOrNull() ?: today)
+    val first = dates.minOrNull() ?: today
+    val last = dates.maxOrNull() ?: today
+    return ChartDateRange(minOf(first, last.minusDays(MINIMUM_ALL_HISTORY_SPAN_DAYS)), last)
 }
+
+/** A one-day Vico domain collapses reference lines and bands into invisible vertical geometry. */
+private const val MINIMUM_ALL_HISTORY_SPAN_DAYS = 6L

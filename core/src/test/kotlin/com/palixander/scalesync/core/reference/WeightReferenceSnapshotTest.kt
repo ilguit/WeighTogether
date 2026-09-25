@@ -47,7 +47,12 @@ class WeightReferenceSnapshotTest {
         assertTrue(dogScopes.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
         assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }
             .all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
-        assertEquals("2026-09-25.2", snapshot.manifest.snapshotVersion)
+        assertTrue(snapshot.profiles.filter { it.basis == ReferenceBasis.WEIGHT_CATEGORY }.all { profile ->
+            profile.points.last().ageDays == 728 && profile.constraints.any {
+                "end at day 728;" in it && "day 10958" in it
+            }
+        })
+        assertEquals("2026-09-25.3", snapshot.manifest.snapshotVersion)
 
         val last = snapshot.profiles.single { it.id == "dog-male-III" }.points.last()
         assertEquals(last.copy(ageDays = 10_958), snapshot.interpolate("dog-male-III", 10_958))
@@ -74,7 +79,8 @@ class WeightReferenceSnapshotTest {
         assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), profiles.map { it.sex }.toSet())
         assertTrue(profiles.all { it.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES })
         assertTrue(profiles.all { it.minimumBinN == 0 && it.points.size == 71 })
-        assertTrue(profiles.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
+        assertTrue(profiles.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
+        assertTrue(profiles.all { snapshot.metadataFor(it.id)!!.supportedMaximumAgeDays == 10_958 })
         assertEquals(ReferencePoint(56, 0.636271, 0.890118, 1.228598), profiles.single { it.sex == ReferenceSex.FEMALE }.points.first())
         assertEquals(ReferencePoint(546, 2.517972, 3.351739, 4.621410), profiles.single { it.sex == ReferenceSex.FEMALE }.points.last())
         assertEquals(ReferencePoint(56, 0.567307, 0.861525, 1.265159), profiles.single { it.sex == ReferenceSex.MALE }.points.first())
@@ -155,9 +161,13 @@ class WeightReferenceSnapshotTest {
         val profile = root.getAsJsonArray("profiles")[0].asJsonObject
         val id = profile.get("id").asString
         val lastAge = profile.getAsJsonArray("points").last().asJsonObject.get("ageDays").asInt
+        val disclosure = "Evidence-backed values end at day $lastAge; the final value is carried forward only through day ${lastAge + 10}"
+        profile.add("constraints", com.google.gson.JsonArray().apply { add(disclosure) })
         root.getAsJsonObject("manifest").getAsJsonArray("scopes")
-            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
-            .addProperty("maximumAgeDays", lastAge + 10)
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject.apply {
+                addProperty("maximumAgeDays", lastAge + 10)
+                add("constraints", com.google.gson.JsonArray().apply { add(disclosure) })
+            }
         refreshChecksum(root)
         val snapshot = load(root)
 
@@ -187,13 +197,13 @@ class WeightReferenceSnapshotTest {
             "cat-siberian-male" to (4.5 to 8.0),
         )
         assertEquals(5, snapshot.manifest.schemaVersion)
-        assertEquals("2026-09-25.2", snapshot.manifest.snapshotVersion)
+        assertEquals("2026-09-25.3", snapshot.manifest.snapshotVersion)
         adultRanges.forEach { (id, range) ->
             val profile = snapshot.profiles.single { it.id == id }
             assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, profile.referenceKind)
             assertEquals(ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE, profile.boundsStatistic)
             assertEquals(ReferenceCenterStatistic.ARITHMETIC_MIDPOINT, profile.centerStatistic)
-            assertEquals(ReferenceAgeAvailability.DECLARED_RANGE_ONLY, profile.ageAvailability)
+            assertEquals(ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD, profile.ageAvailability)
             assertTrue(profile.constraints.any { "Модель" in it })
             val adult = profile.points.last()
             assertEquals(730, adult.ageDays)
@@ -225,7 +235,7 @@ class WeightReferenceSnapshotTest {
             listOf(profiles.map { it.sex }.toSet()).onEach { assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), it) }
         }.flatten().toSet())
         assertTrue(batch.all { it.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT })
-        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
+        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
         assertTrue(batch.all { it.points.first().ageDays == 56 && it.points.none(ReferencePoint::empirical) })
         batch.forEach { profile ->
             val adult = profile.points.last()

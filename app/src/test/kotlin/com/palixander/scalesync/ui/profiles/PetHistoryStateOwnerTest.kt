@@ -4,6 +4,7 @@ import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.domain.NewPet
+import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
 import com.palixander.scalesync.domain.PetId
@@ -47,6 +48,113 @@ class PetHistoryStateOwnerTest {
     private val zone = ZoneId.of("Europe/Berlin")
     private val clock = Clock.fixed(Instant.parse("2026-03-29T12:00:00Z"), zone)
     private val luna = pet("luna", "Луна")
+
+    @Test
+    fun `adult generic pets and Russian Blue expose bounds through state chart and tooltip for 30 days and all`() = runBlocking {
+        data class Scenario(
+            val name: String,
+            val species: PetSpecies,
+            val sex: PetSex,
+            val breedId: BreedId?,
+            val category: DogAdultWeightCategory? = null,
+            val expectedKinds: Set<PetWeightDisplayedSeriesKind>,
+        )
+
+        val categoryKinds = setOf(
+            PetWeightDisplayedSeriesKind.FACTUAL,
+            PetWeightDisplayedSeriesKind.CATEGORY_LOWER,
+            PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER,
+            PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER,
+            PetWeightDisplayedSeriesKind.CATEGORY_UPPER,
+        )
+        val breedKinds = setOf(
+            PetWeightDisplayedSeriesKind.FACTUAL,
+            PetWeightDisplayedSeriesKind.BREED_LOWER,
+            PetWeightDisplayedSeriesKind.BREED_CENTER,
+            PetWeightDisplayedSeriesKind.BREED_UPPER,
+        )
+        val scenarios = buildList {
+            for (breedId in listOf(
+                null,
+                BreedId("scalesync:dog:breed-unknown"),
+                BreedId("scalesync:dog:mixed-breed"),
+            )) add(Scenario("dog-${breedId?.value ?: "other"}", PetSpecies.DOG, PetSex.MALE, breedId, DogAdultWeightCategory.III, categoryKinds))
+            for (breedId in listOf(
+                null,
+                BreedId("scalesync:cat:breed-unknown"),
+                BreedId("scalesync:cat:mixed-breed"),
+            )) add(Scenario("cat-${breedId?.value ?: "other"}", PetSpecies.CAT, PetSex.FEMALE, breedId, expectedKinds = breedKinds))
+            for (sex in listOf(PetSex.FEMALE, PetSex.MALE)) {
+                add(Scenario("russian-blue-${sex.name}", PetSpecies.CAT, sex, BreedId("VBO:0100200"), expectedKinds = breedKinds))
+            }
+        }
+        val measuredAt = Instant.parse("2026-03-20T10:15:00Z")
+
+        for (scenario in scenarios) {
+            val testPet = pet(scenario.name, scenario.name).copy(
+                species = scenario.species,
+                sex = scenario.sex,
+                breedId = scenario.breedId,
+                birthDate = PartialBirthDate.Day(LocalDate.of(2020, 1, 1)),
+                dogAdultWeightCategory = scenario.category,
+            )
+            val scope = testScope()
+            val owner = PetHistoryStateOwner(
+                testPet.id,
+                FakeRepository(
+                    pets = mapOf(testPet.id to testPet),
+                    histories = mapOf(
+                        testPet.id to MutableStateFlow(
+                            listOf(measurement("daytime", testPet.id, measuredAt.toString(), 4.25)),
+                        ),
+                    ),
+                ),
+                scope,
+                clock,
+                zone,
+                Locale.US,
+            )
+            val collector = scope.launch { owner.uiState.collect() }
+            yield()
+
+            for (preset in listOf(ChartRangePreset.LAST_30_DAYS, ChartRangePreset.ALL)) {
+                owner.selectRangePreset(preset)
+                yield()
+                val state = owner.uiState.value
+                val displayed = petWeightDisplayedSeries(
+                    state.series.points,
+                    state.weightReference,
+                    state.breedReferenceTimeline,
+                    zone,
+                )
+                assertEquals("${scenario.name} $preset", scenario.expectedKinds, displayed.map { it.kind }.toSet())
+                assertEquals("${scenario.name} $preset", 1, displayed.count { it.kind == PetWeightDisplayedSeriesKind.FACTUAL })
+                val tooltip = formatPetWeightDisplayedMarker(measuredAt.toEpochMilli(), displayed, zone, Locale.US)
+                assertTrue("${scenario.name} $preset factual tooltip: $tooltip", tooltip.contains("Фактический вес: 4.25 кг"))
+                assertTrue("${scenario.name} $preset lower tooltip: $tooltip", tooltip.contains("Нижняя"))
+                assertTrue("${scenario.name} $preset upper tooltip: $tooltip", tooltip.contains("Верхняя"))
+                if (preset == ChartRangePreset.ALL) {
+                    assertEquals("${scenario.name} ALL renders a seven-day domain", 6L,
+                        java.time.temporal.ChronoUnit.DAYS.between(state.startDate, state.endDateInclusive))
+                    assertTrue("${scenario.name} ALL samples renderable reference geometry",
+                        (state.weightReference as PetHistoryWeightReference.Available).segments.any { it.size >= 2 })
+                }
+                if (scenario.species == PetSpecies.DOG && scenario.breedId?.value != "VBO:0200000") {
+                    assertTrue(
+                        "${scenario.name} $preset has a shaded resolved-reference band",
+                        populationWeightReferenceBands(
+                            state.weightReference as? PetHistoryWeightReference.Available,
+                            zone,
+                        ).isNotEmpty(),
+                    )
+                }
+            }
+
+            collector.cancelAndJoin()
+            owner.close()
+            scope.cancel()
+        }
+    }
 
     @Test
     fun `owner exposes initial loading before blocked reference dependencies complete`() = runBlocking {
@@ -175,7 +283,7 @@ class PetHistoryStateOwnerTest {
     )
 
     @Test
-    fun `initial range covers last 30 calendar days while list and series keep full history`() = runBlocking {
+    fun `initial range drives references while list and factual series keep full history`() = runBlocking {
         val oldDate = LocalDate.of(2026, 1, 20)
         val recentDate = LocalDate.of(2026, 3, 20)
         val puppy = pet("puppy", "Бим").copy(
@@ -209,8 +317,10 @@ class PetHistoryStateOwnerTest {
         assertEquals(listOf("recent", "old"), state.measurements.map { it.id })
         assertEquals(2, state.series.points.size)
         val reference = state.weightReference as PetHistoryWeightReference.Available
-        assertEquals(oldDate, reference.segments.first().first().date)
-        assertEquals(recentDate, reference.segments.last().last().date)
+        assertEquals(state.startDate, reference.segments.first().first().date)
+        assertEquals(state.endDateInclusive, reference.segments.last().last().date)
+        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
+        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
         scope.cancel()
     }
 
@@ -235,6 +345,9 @@ class PetHistoryStateOwnerTest {
         assertEquals(LocalDate.of(2026, 3, 29), state.endDateInclusive)
         assertTrue(state.content is PetHistoryContent.Empty)
         assertTrue(state.series.points.isEmpty())
+        assertEquals(30, state.breedReferenceTimeline.size)
+        assertEquals(state.startDate, state.breedReferenceTimeline.first().date)
+        assertEquals(state.endDateInclusive, state.breedReferenceTimeline.last().date)
         scope.cancel()
     }
 

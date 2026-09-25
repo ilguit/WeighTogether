@@ -1,16 +1,16 @@
 {
   "manifest": {
     "schemaVersion": 5,
-    "snapshotVersion": "2026-09-25.2",
+    "snapshotVersion": "2026-09-25.3",
     "snapshotDate": "2026-09-25",
-    "numericalDataSha256": "861fcb4ff1b58c85d6e5a9bbd7cf5e32f7710e7a2debb2717495c14e8898291c",
+    "numericalDataSha256": "58813aed8b0a24fb5e78f010f1d7807117dcb508db4ceab85b6a452c74a9cac5",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
       "ageConversion": "ageDays = ageYears * 365.25; assign to nearest 7-day centre",
       "interpolation": "Linear interpolation is permitted only between adjacent weekly centres no more than 7 days apart; larger gaps are unavailable data",
       "quantiles": "25th, 50th and 75th percentiles using linear interpolation at (N - 1) * p; weights rounded to 0.001 kg",
-      "dogEligibility": "Observed data cover 84-730 days; the final observed category bounds are carried forward through 10958 days (30 years). Known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
+      "dogEligibility": "Observed data cover 84-728 days; the final observed category bounds are carried forward through 10958 days (30 years). Known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
       "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
@@ -474,7 +474,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -491,7 +492,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -509,7 +511,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -527,7 +530,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -545,7 +549,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -563,7 +568,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -581,7 +587,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -599,7 +606,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -617,7 +625,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -635,7 +644,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -681,15 +691,16 @@
         "sex": "female",
         "basis": "population",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 546,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Other-breed fallback; source population was Domestic Shorthair",
           "Sexually intact kittens from the USA",
-          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91",
+          "Evidence-backed/modelled values end at day 546; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-population-male",
@@ -697,15 +708,16 @@
         "sex": "male",
         "basis": "population",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 546,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Other-breed fallback; source population was Domestic Shorthair",
           "Sexually intact kittens from the USA",
-          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+          "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91",
+          "Evidence-backed/modelled values end at day 546; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dsh-kitten-2022",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-british-shorthair-female",
@@ -714,14 +726,15 @@
         "basis": "breed",
         "breedId": "VBO:0100052",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии"
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-fr-british-shorthair-38446796",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-british-shorthair-male",
@@ -730,14 +743,15 @@
         "basis": "breed",
         "breedId": "VBO:0100052",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии"
+          "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-fr-british-shorthair-38446796",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-scottish-fold-female",
@@ -746,14 +760,15 @@
         "basis": "breed",
         "breedId": "VBO:0100209",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии"
+          "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-en-scottish-fold-1369070582",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-scottish-fold-male",
@@ -762,14 +777,15 @@
         "basis": "breed",
         "breedId": "VBO:0100209",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии"
+          "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-en-scottish-fold-1369070582",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-siamese-female",
@@ -778,14 +794,15 @@
         "basis": "breed",
         "breedId": "VBO:0100221",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии"
+          "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-de-siamkatze-269975201",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-siamese-male",
@@ -794,14 +811,15 @@
         "basis": "breed",
         "breedId": "VBO:0100221",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-          "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии"
+          "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-de-siamkatze-269975201",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-maine-coon-female",
@@ -810,15 +828,16 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 12–15 фунтов",
           "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
-          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-maine-coon-male",
@@ -827,15 +846,16 @@
         "basis": "breed",
         "breedId": "VBO:0100154",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 18–22 фунта",
           "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
-          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-en-maine-coon-1372828795",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-siberian-female",
@@ -844,14 +864,15 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 3–6 кг",
-          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-siberian-male",
@@ -860,14 +881,15 @@
         "basis": "breed",
         "breedId": "VBO:0100223",
         "minimumAgeDays": 0,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 4,5–8 кг",
-          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+          "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "wikipedia-de-sibirische-katze-269975535",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100000-female",
@@ -876,15 +898,16 @@
         "basis": "breed",
         "breedId": "VBO:0100000",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "page also gives narrower narrative averages; used displayed range fields"
+          "page also gives narrower narrative averages; used displayed range fields",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100000-male",
@@ -893,15 +916,16 @@
         "basis": "breed",
         "breedId": "VBO:0100000",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "page also gives narrower narrative averages; used displayed range fields"
+          "page also gives narrower narrative averages; used displayed range fields",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100018-female",
@@ -910,15 +934,16 @@
         "basis": "breed",
         "breedId": "VBO:0100018",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100018-male",
@@ -927,15 +952,16 @@
         "basis": "breed",
         "breedId": "VBO:0100018",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100036-female",
@@ -944,15 +970,16 @@
         "basis": "breed",
         "breedId": "VBO:0100036",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100036-male",
@@ -961,15 +988,16 @@
         "basis": "breed",
         "breedId": "VBO:0100036",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100040-female",
@@ -978,15 +1006,16 @@
         "basis": "breed",
         "breedId": "VBO:0100040",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "approximate ranges; no sample"
+          "approximate ranges; no sample",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100040-male",
@@ -995,15 +1024,16 @@
         "basis": "breed",
         "breedId": "VBO:0100040",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "approximate ranges; no sample"
+          "approximate ranges; no sample",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100045-female",
@@ -1012,15 +1042,16 @@
         "basis": "breed",
         "breedId": "VBO:0100045",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100045-male",
@@ -1029,15 +1060,16 @@
         "basis": "breed",
         "breedId": "VBO:0100045",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100053-female",
@@ -1046,15 +1078,16 @@
         "basis": "breed",
         "breedId": "VBO:0100053",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 548,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "care guidance; no sample"
+          "care guidance; no sample",
+          "Evidence-backed/modelled values end at day 548; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100053-male",
@@ -1063,15 +1096,16 @@
         "basis": "breed",
         "breedId": "VBO:0100053",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 548,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "care guidance; no sample"
+          "care guidance; no sample",
+          "Evidence-backed/modelled values end at day 548; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100056-female",
@@ -1080,15 +1114,16 @@
         "basis": "breed",
         "breedId": "VBO:0100056",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Both sexes given same 4-5 kg range; not peer reviewed"
+          "Both sexes given same 4-5 kg range; not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s05",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100056-male",
@@ -1097,15 +1132,16 @@
         "basis": "breed",
         "breedId": "VBO:0100056",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Both sexes given same 4-5 kg range; not peer reviewed"
+          "Both sexes given same 4-5 kg range; not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s05",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100077-female",
@@ -1114,15 +1150,16 @@
         "basis": "breed",
         "breedId": "VBO:0100077",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s07",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100077-male",
@@ -1131,15 +1168,16 @@
         "basis": "breed",
         "breedId": "VBO:0100077",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s07",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100084-female",
@@ -1148,15 +1186,16 @@
         "basis": "breed",
         "breedId": "VBO:0100084",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100084-male",
@@ -1165,15 +1204,16 @@
         "basis": "breed",
         "breedId": "VBO:0100084",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100090-female",
@@ -1182,15 +1222,16 @@
         "basis": "breed",
         "breedId": "VBO:0100090",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100090-male",
@@ -1199,15 +1240,16 @@
         "basis": "breed",
         "breedId": "VBO:0100090",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s10",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100169-female",
@@ -1216,15 +1258,16 @@
         "basis": "breed",
         "breedId": "VBO:0100169",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100169-male",
@@ -1233,15 +1276,16 @@
         "basis": "breed",
         "breedId": "VBO:0100169",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100170-female",
@@ -1250,15 +1294,16 @@
         "basis": "breed",
         "breedId": "VBO:0100170",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Coat variant; no sample/distribution"
+          "Coat variant; no sample/distribution",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-munchkin-longhair",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100170-male",
@@ -1267,15 +1312,16 @@
         "basis": "breed",
         "breedId": "VBO:0100170",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Coat variant; no sample/distribution"
+          "Coat variant; no sample/distribution",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-munchkin-longhair",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100173-female",
@@ -1284,15 +1330,16 @@
         "basis": "breed",
         "breedId": "VBO:0100173",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1095,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "No sample or distribution; says maturity at 3 years"
+          "No sample or distribution; says maturity at 3 years",
+          "Evidence-backed/modelled values end at day 1095; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-anicura-neva",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100173-male",
@@ -1301,15 +1348,16 @@
         "basis": "breed",
         "breedId": "VBO:0100173",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1095,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "No sample or distribution; says maturity at 3 years"
+          "No sample or distribution; says maturity at 3 years",
+          "Evidence-backed/modelled values end at day 1095; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-anicura-neva",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100178-female",
@@ -1318,15 +1366,16 @@
         "basis": "breed",
         "breedId": "VBO:0100178",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1825,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 1825; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100178-male",
@@ -1335,15 +1384,16 @@
         "basis": "breed",
         "breedId": "VBO:0100178",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1825,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 1825; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s09",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100183-female",
@@ -1352,15 +1402,16 @@
         "basis": "breed",
         "breedId": "VBO:0100183",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s16",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100183-male",
@@ -1369,15 +1420,16 @@
         "basis": "breed",
         "breedId": "VBO:0100183",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s16",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100184-female",
@@ -1386,15 +1438,16 @@
         "basis": "breed",
         "breedId": "VBO:0100184",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "approximate ranges; no sample"
+          "approximate ranges; no sample",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s03",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100184-male",
@@ -1403,15 +1456,16 @@
         "basis": "breed",
         "breedId": "VBO:0100184",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "approximate ranges; no sample"
+          "approximate ranges; no sample",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s03",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100188-female",
@@ -1420,15 +1474,16 @@
         "basis": "breed",
         "breedId": "VBO:0100188",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample/method exposed"
+          "no sample/method exposed",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100188-male",
@@ -1437,15 +1492,16 @@
         "basis": "breed",
         "breedId": "VBO:0100188",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample/method exposed"
+          "no sample/method exposed",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s06",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100189-female",
@@ -1454,15 +1510,16 @@
         "basis": "breed",
         "breedId": "VBO:0100189",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100189-male",
@@ -1471,15 +1528,16 @@
         "basis": "breed",
         "breedId": "VBO:0100189",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Descriptive range; not a population study"
+          "Descriptive range; not a population study",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s01",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100196-female",
@@ -1488,15 +1546,16 @@
         "basis": "breed",
         "breedId": "VBO:0100196",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1460,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 1460; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100196-male",
@@ -1505,15 +1564,16 @@
         "basis": "breed",
         "breedId": "VBO:0100196",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 1460,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 1460; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s11",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100200-female",
@@ -1522,15 +1582,16 @@
         "basis": "breed",
         "breedId": "VBO:0100200",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "explicitly a starting point; underlying sample not published"
+          "explicitly a starting point; underlying sample not published",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100200-male",
@@ -1539,15 +1600,16 @@
         "basis": "breed",
         "breedId": "VBO:0100200",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "explicitly a starting point; underlying sample not published"
+          "explicitly a starting point; underlying sample not published",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s08",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100216-female",
@@ -1556,15 +1618,16 @@
         "basis": "breed",
         "breedId": "VBO:0100216",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed; range provenance not stated"
+          "Not peer reviewed; range provenance not stated",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100216-male",
@@ -1573,15 +1636,16 @@
         "basis": "breed",
         "breedId": "VBO:0100216",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed; range provenance not stated"
+          "Not peer reviewed; range provenance not stated",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s02",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100230-female",
@@ -1590,15 +1654,16 @@
         "basis": "breed",
         "breedId": "VBO:0100230",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s13",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100230-male",
@@ -1607,15 +1672,16 @@
         "basis": "breed",
         "breedId": "VBO:0100230",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s13",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100235-female",
@@ -1624,15 +1690,16 @@
         "basis": "breed",
         "breedId": "VBO:0100235",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s14",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100235-male",
@@ -1641,15 +1708,16 @@
         "basis": "breed",
         "breedId": "VBO:0100235",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 365,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "no sample"
+          "no sample",
+          "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-a-s14",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100245-female",
@@ -1658,15 +1726,16 @@
         "basis": "breed",
         "breedId": "VBO:0100245",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "No sample/distribution"
+          "No sample/distribution",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-toyger",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100245-male",
@@ -1675,15 +1744,16 @@
         "basis": "breed",
         "breedId": "VBO:0100245",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "No sample/distribution"
+          "No sample/distribution",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-toyger",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100249-female",
@@ -1692,15 +1762,16 @@
         "basis": "breed",
         "breedId": "VBO:0100249",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100249-male",
@@ -1709,15 +1780,16 @@
         "basis": "breed",
         "breedId": "VBO:0100249",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "Not peer reviewed"
+          "Not peer reviewed",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-c-s04",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100303-female",
@@ -1726,15 +1798,16 @@
         "basis": "breed",
         "breedId": "VBO:0100303",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
+          "At-a-glance sex ranges differ from pooled narrative 5-9 lb",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-munchkin",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       },
       {
         "id": "cat-breed-0100303-male",
@@ -1743,15 +1816,16 @@
         "basis": "breed",
         "breedId": "VBO:0100303",
         "minimumAgeDays": 56,
-        "maximumAgeDays": 730,
+        "maximumAgeDays": 10958,
         "constraints": [
           "Arithmetic midpoint of the published adult range; not an observed median",
           "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-          "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
+          "At-a-glance sex ranges differ from pooled narrative 5-9 lb",
+          "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "cat-breed-b-tica-munchkin",
         "numericalAvailability": "available",
-        "ageAvailability": "declared_range_only"
+        "ageAvailability": "bounded_carry_forward"
       }
     ]
   },
@@ -2327,7 +2401,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight below 6.5 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -2904,7 +2979,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 6.5 to 9 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -3481,7 +3557,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 9 to 15 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -4058,7 +4135,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 15 to 30 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -4635,7 +4713,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 30 to 40 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -5212,7 +5291,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight below 6.5 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -5789,7 +5869,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 6.5 to 9 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -6366,7 +6447,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 9 to 15 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -6943,7 +7025,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 15 to 30 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -7520,7 +7603,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 30 to 40 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -8485,7 +8569,8 @@
       "constraints": [
         "Other-breed fallback; source population was Domestic Shorthair",
         "Sexually intact kittens from the USA",
-        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91",
+        "Evidence-backed/modelled values end at day 546; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
@@ -8919,7 +9004,7 @@
           "upperKg": 4.62141
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-population-male",
@@ -8930,7 +9015,8 @@
       "constraints": [
         "Other-breed fallback; source population was Domestic Shorthair",
         "Sexually intact kittens from the USA",
-        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91"
+        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91",
+        "Evidence-backed/modelled values end at day 546; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2022), Growth standard charts for monitoring bodyweight in intact domestic shorthair kittens from the USA, PLOS ONE 17(11): e0277531",
       "license": "CC BY 3.0",
@@ -9364,7 +9450,7 @@
           "upperKg": 5.717056
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-british-shorthair-female",
@@ -9375,7 +9461,8 @@
       "sourceId": "wikipedia-fr-british-shorthair-38446796",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии"
+        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии французской Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
       "license": "CC BY-SA 4.0",
@@ -9889,7 +9976,7 @@
           "sourceId": "wikipedia-fr-british-shorthair-38446796"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-british-shorthair-male",
@@ -9900,7 +9987,8 @@
       "sourceId": "wikipedia-fr-british-shorthair-38446796",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии"
+        "Взрослый диапазон 5–8 кг взят из закреплённой ревизии французской Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipédia contributors, British Shorthair, revision 38446796: femelle 3–4 kg; mâle 5–8 kg",
       "license": "CC BY-SA 4.0",
@@ -10414,7 +10502,7 @@
           "sourceId": "wikipedia-fr-british-shorthair-38446796"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-scottish-fold-female",
@@ -10425,7 +10513,8 @@
       "sourceId": "wikipedia-en-scottish-fold-1369070582",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии"
+        "Взрослый диапазон 2,7–4 кг взят из закреплённой ревизии английской Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
       "license": "CC BY-SA 4.0",
@@ -10939,7 +11028,7 @@
           "sourceId": "wikipedia-en-scottish-fold-1369070582"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-scottish-fold-male",
@@ -10950,7 +11039,8 @@
       "sourceId": "wikipedia-en-scottish-fold-1369070582",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии"
+        "Взрослый диапазон 4–6 кг взят из закреплённой ревизии английской Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipedia contributors, Scottish Fold, revision 1369070582: females 2.7–4 kg; males 4–6 kg",
       "license": "CC BY-SA 4.0",
@@ -11464,7 +11554,7 @@
           "sourceId": "wikipedia-en-scottish-fold-1369070582"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-siamese-female",
@@ -11475,7 +11565,8 @@
       "sourceId": "wikipedia-de-siamkatze-269975201",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии"
+        "Взрослый диапазон 3–4 кг взят из закреплённой ревизии немецкой Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
       "license": "CC BY-SA 4.0",
@@ -11989,7 +12080,7 @@
           "sourceId": "wikipedia-de-siamkatze-269975201"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-siamese-male",
@@ -12000,7 +12091,8 @@
       "sourceId": "wikipedia-de-siamkatze-269975201",
       "constraints": [
         "Модель, а не наблюдаемая породная кривая: форма роста взята из популяционной кривой кошек того же пола",
-        "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии"
+        "Взрослый диапазон 4–5 кг взят из закреплённой ревизии немецкой Википедии",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Wikipedia-Autoren, Siamkatze, Version 269975201: weiblich 3–4 kg; männlich 4–5 kg",
       "license": "CC BY-SA 4.0",
@@ -12514,7 +12606,7 @@
           "sourceId": "wikipedia-de-siamkatze-269975201"
         }
       ],
-      "ageAvailability": "declared_range_only"
+      "ageAvailability": "bounded_carry_forward"
     },
     {
       "id": "cat-maine-coon-female",
@@ -12526,9 +12618,10 @@
       "constraints": [
         "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 12–15 фунтов",
         "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
-        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
       "license": "CC BY-SA 4.0",
       "referenceKind": "modelled_breed_adult_range",
@@ -13060,9 +13153,10 @@
       "constraints": [
         "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 18–22 фунта",
         "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг",
-        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Wikipedia contributors, Maine Coon, revision 1372828795: females 12–15 lb; males 18–22 lb",
       "license": "CC BY-SA 4.0",
       "referenceKind": "modelled_breed_adult_range",
@@ -13593,9 +13687,10 @@
       "sourceId": "wikipedia-de-sibirische-katze-269975535",
       "constraints": [
         "Модель роста построена по нормализованной популяционной кривой кошек женского пола и взрослому диапазону 3–6 кг",
-        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
       "license": "CC BY-SA 4.0",
       "referenceKind": "modelled_breed_adult_range",
@@ -14126,9 +14221,10 @@
       "sourceId": "wikipedia-de-sibirische-katze-269975535",
       "constraints": [
         "Модель роста построена по нормализованной популяционной кривой кошек мужского пола и взрослому диапазону 4,5–8 кг",
-        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется"
+        "Точка рождения — отдельное прямое наблюдение; возраст 1–55 дней не моделируется",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Wikipedia-Autoren, Sibirische Katze, Version 269975535: weiblich 3–6 kg; männlich 4,5–8 kg",
       "license": "CC BY-SA 4.0",
       "referenceKind": "modelled_breed_adult_range",
@@ -14660,9 +14756,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "page also gives narrower narrative averages; used displayed range fields"
+        "page also gives narrower narrative averages; used displayed range fields",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Abyssinian: female 6-9 lb; male 7-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -15004,9 +15101,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "page also gives narrower narrative averages; used displayed range fields"
+        "page also gives narrower narrative averages; used displayed range fields",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Abyssinian: female 6-9 lb; male 7-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -15348,9 +15446,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "American Shorthair: Purina 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -15874,9 +15973,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "American Shorthair: Purina 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -16400,9 +16500,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Balinese: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -16926,9 +17027,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Balinese: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -17452,9 +17554,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "approximate ranges; no sample"
+        "approximate ranges; no sample",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Bengal: female 6-12 lb; male 9-15 lb; full size 2 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -17978,9 +18081,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "approximate ranges; no sample"
+        "approximate ranges; no sample",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Bengal: female 6-12 lb; male 9-15 lb; full size 2 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -18504,9 +18608,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Bombay: Purina 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -19030,9 +19135,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Bombay: Purina 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -19556,9 +19662,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "care guidance; no sample"
+        "care guidance; no sample",
+        "Evidence-backed/modelled values end at day 548; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Burmese: male 11-14 lb; female 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -20082,9 +20189,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "care guidance; no sample"
+        "care guidance; no sample",
+        "Evidence-backed/modelled values end at day 548; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Burmese: male 11-14 lb; female 6-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -20608,9 +20716,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Both sexes given same 4-5 kg range; not peer reviewed"
+        "Both sexes given same 4-5 kg range; not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Burmilla: Hill's professional breed guide 4-5 kg",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -21134,9 +21243,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Both sexes given same 4-5 kg range; not peer reviewed"
+        "Both sexes given same 4-5 kg range; not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Burmilla: Hill's professional breed guide 4-5 kg",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -21660,9 +21770,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Cornish Rex: female 5-7 lb; male 8-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22004,9 +22115,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Cornish Rex: female 5-7 lb; male 8-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22348,9 +22460,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Devon Rex: female 5-7 lb; male 7-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -22692,9 +22805,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Devon Rex: female 5-7 lb; male 7-9 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -23036,9 +23150,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Egyptian Mau: Purina 6-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -23562,9 +23677,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Egyptian Mau: Purina 6-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -24088,9 +24204,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -24614,9 +24731,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -25140,9 +25258,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Coat variant; no sample/distribution"
+        "Coat variant; no sample/distribution",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin Longhair: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -25666,9 +25785,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Coat variant; no sample/distribution"
+        "Coat variant; no sample/distribution",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin Longhair: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -26192,9 +26312,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "No sample or distribution; says maturity at 3 years"
+        "No sample or distribution; says maturity at 3 years",
+        "Evidence-backed/modelled values end at day 1095; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Neva Masquerade: Veterinary network breed page",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -26718,9 +26839,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "No sample or distribution; says maturity at 3 years"
+        "No sample or distribution; says maturity at 3 years",
+        "Evidence-backed/modelled values end at day 1095; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Neva Masquerade: Veterinary network breed page",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -27244,9 +27366,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 1825; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Norwegian Forest Cat: female 8-12 lb; male 12-18 lb; maturity up to 5 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -27770,9 +27893,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 1825; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Norwegian Forest Cat: female 8-12 lb; male 12-18 lb; maturity up to 5 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -28296,9 +28420,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Oriental Longhair: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -28822,9 +28947,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Oriental Longhair: TICA 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -29348,9 +29474,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "approximate ranges; no sample"
+        "approximate ranges; no sample",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Oriental Shorthair: female 5-8 lb; male 8-12 lb; maturity 18-24 months",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -29874,9 +30001,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "approximate ranges; no sample"
+        "approximate ranges; no sample",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Oriental Shorthair: female 5-8 lb; male 8-12 lb; maturity 18-24 months",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -30400,9 +30528,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample/method exposed"
+        "no sample/method exposed",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Persian: Persian males 9-14 lb; females 7-11 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -30744,9 +30873,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample/method exposed"
+        "no sample/method exposed",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Persian: Persian males 9-14 lb; females 7-11 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -31088,9 +31218,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Peterbald: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -31614,9 +31745,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Descriptive range; not a population study"
+        "Descriptive range; not a population study",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Peterbald: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -32140,9 +32272,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 1460; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Ragdoll: female 10-15 lb; male 15-20 lb; maturity up to 4 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -32666,9 +32799,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 1460; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Ragdoll: female 10-15 lb; male 15-20 lb; maturity up to 4 years",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33192,9 +33326,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "explicitly a starting point; underlying sample not published"
+        "explicitly a starting point; underlying sample not published",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Russian Blue: female 7-10 lb; male 10-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33536,9 +33671,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "explicitly a starting point; underlying sample not published"
+        "explicitly a starting point; underlying sample not published",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Russian Blue: female 7-10 lb; male 10-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -33880,9 +34016,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed; range provenance not stated"
+        "Not peer reviewed; range provenance not stated",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Selkirk Rex Longhair: Purina 6-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -34406,9 +34543,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed; range provenance not stated"
+        "Not peer reviewed; range provenance not stated",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Selkirk Rex Longhair: Purina 6-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -34932,9 +35070,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Sphynx: female 7-10 lb; male 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35276,9 +35415,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Sphynx: female 7-10 lb; male 8-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35620,9 +35760,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Thai: female 7-9 lb; male 9-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -35964,9 +36105,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "no sample"
+        "no sample",
+        "Evidence-backed/modelled values end at day 365; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Thai: female 7-9 lb; male 9-12 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -36308,9 +36450,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "No sample/distribution"
+        "No sample/distribution",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Toyger: TICA 7-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -36834,9 +36977,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "No sample/distribution"
+        "No sample/distribution",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Toyger: TICA 7-10 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -37360,9 +37504,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Turkish Angora: Purina 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -37886,9 +38031,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "Not peer reviewed"
+        "Not peer reviewed",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Turkish Angora: Purina 5-8 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -38412,9 +38558,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
+        "At-a-glance sex ranges differ from pooled narrative 5-9 lb",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin Short-Haired: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",
@@ -38938,9 +39085,10 @@
       "constraints": [
         "Arithmetic midpoint of the published adult range; not an observed median",
         "Sex-specific general cat P50 shape scaled to the breed adult range; not an observed breed growth curve",
-        "At-a-glance sex ranges differ from pooled narrative 5-9 lb"
+        "At-a-glance sex ranges differ from pooled narrative 5-9 lb",
+        "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)"
       ],
-      "ageAvailability": "declared_range_only",
+      "ageAvailability": "bounded_carry_forward",
       "citation": "Munchkin Short-Haired: TICA 5-7 lb",
       "license": "Source page terms",
       "referenceKind": "modelled_breed_adult_range",

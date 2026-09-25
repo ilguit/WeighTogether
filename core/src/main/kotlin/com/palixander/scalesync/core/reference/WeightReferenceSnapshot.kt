@@ -327,8 +327,19 @@ class WeightReferenceSnapshot private constructor(
         require(profile.points.last().ageDays <= scope.maximumAgeDays) {
             "Profile ${profile.id} ends after its declared maximum age"
         }
+        if (profile.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD &&
+            profile.points.last().ageDays < scope.maximumAgeDays
+        ) {
+            require(profile.constraints.any {
+                "end at day ${profile.points.last().ageDays};" in it &&
+                    "day ${scope.maximumAgeDays}" in it
+            }) { "Profile ${profile.id} must disclose its evidence endpoint and carry-forward boundary" }
+        }
         if (profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE) {
-            require(profile.points.last().ageDays == scope.maximumAgeDays) { "Profile ${profile.id} must end at declared maturity" }
+            require(
+                profile.points.last().ageDays == scope.maximumAgeDays ||
+                    profile.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD,
+            ) { "Profile ${profile.id} must end at declared maturity or explicitly carry its adult plateau forward" }
         }
     }
 }

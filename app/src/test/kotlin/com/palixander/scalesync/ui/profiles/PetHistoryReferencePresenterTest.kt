@@ -5,6 +5,7 @@ import com.google.gson.JsonArray
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.palixander.scalesync.core.reference.ReferenceBasis
+import com.palixander.scalesync.core.reference.ReferenceAgeAvailability
 import com.palixander.scalesync.core.reference.WeightReferenceSnapshot
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.BreedId
@@ -47,6 +48,51 @@ class PetHistoryReferencePresenterTest {
         assertTrue(result.license.isNotBlank())
         assertTrue(result.constraints.isNotEmpty())
         assertTrue(result.accessibilityLabel.contains(result.ageLabel))
+    }
+
+    @Test
+    fun `every bounded carry-forward profile and metadata presentation localizes its plateau disclosure`() {
+        val snapshot = WeightReferenceSnapshot.bundled()
+        val boundedProfiles = snapshot.profiles.filter {
+            it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD
+        }
+
+        assertTrue(boundedProfiles.isNotEmpty())
+        assertEquals(
+            setOf(365, 546, 548, 728, 730, 1_095, 1_460, 1_825),
+            boundedProfiles.map { it.points.last().ageDays }.toSet(),
+        )
+
+        boundedProfiles.forEach { profile ->
+            val metadata = checkNotNull(snapshot.metadataFor(profile.id))
+            val endpoint = profile.points.last().ageDays
+            assertEquals(10_958, metadata.supportedMaximumAgeDays)
+
+            listOf(
+                "profile ${profile.id}" to profile.constraints,
+                "metadata ${profile.id}" to metadata.constraints,
+            ).forEach { (presentation, constraints) ->
+                val localized = constraints.map(::localizedReferenceConstraint)
+                val plateau = localized.singleOrNull { it.startsWith("Подтверждённые") }
+
+                assertTrue("$presentation leaked an English plateau disclosure: $localized", localized.none {
+                    "Evidence-backed" in it
+                })
+                assertTrue(
+                    "$presentation omitted endpoint $endpoint: $localized",
+                    plateau?.replace(" ", "")?.contains(endpoint.toString()) == true,
+                )
+                assertTrue("$presentation omitted product maximum: $localized", plateau?.contains("10 958") == true)
+            }
+        }
+    }
+
+    @Test
+    fun `plateau localization requires the complete constraint pattern`() {
+        val unrelated =
+            "Evidence-backed/modelled values end at day 728; review this unrelated constraint separately"
+
+        assertEquals(unrelated, localizedReferenceConstraint(unrelated))
     }
 
     @Test
@@ -348,14 +394,15 @@ class PetHistoryReferencePresenterTest {
                     point.medianLowerKg == point.medianUpperKg &&
                     point.medianUpperKg <= point.upperKg
             })
+            assertTrue(result.constraints.any { it.contains("10 958-го дня (30 лет)") })
             assertTrue(result.constraints.all { constraint ->
-                constraint.none { character -> character in 'A'..'Z' || character in 'a'..'z' }
+                !constraint.contains("Evidence-backed")
             })
         }
     }
 
     @Test
-    fun `modelled breed becomes unavailable immediately after its published age boundary`() {
+    fun `modelled breed becomes unavailable immediately after finite adult plateau`() {
         val birth = LocalDate.of(2024, 9, 6)
         val pet = Pet(
             id = PetId("adult-cat"), displayName = "Барсик", species = PetSpecies.CAT,
@@ -365,7 +412,7 @@ class PetHistoryReferencePresenterTest {
 
         val result = presenter.present(
             pet,
-            ChartDateRange(birth.plusDays(731), birth.plusDays(731)),
+            ChartDateRange(birth.plusDays(10_959), birth.plusDays(10_959)),
         ) as PetHistoryWeightReference.Unavailable
 
         assertTrue(result.reason is WeightReferenceUnavailableReason.AgeOutOfRange)
@@ -373,14 +420,14 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
-    fun `sampling across upper age boundary retains last available point without a tail`() {
+    fun `sampling across finite adult plateau retains last available point without a tail`() {
         val birth = LocalDate.of(2024, 9, 6)
         val pet = Pet(
             id = PetId("boundary-cat"), displayName = "Барсик", species = PetSpecies.CAT,
             createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
             birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100052"),
         )
-        val boundary = birth.plusDays(730)
+        val boundary = birth.plusDays(10_958)
 
         val result = presenter.present(
             pet,
@@ -444,6 +491,15 @@ class PetHistoryReferencePresenterTest {
                 })
             }
         })
+        val lastAge = 83 + pointCount
+        val maximumAge = root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-III" }.asJsonObject
+            .get("maximumAgeDays").asInt
+        val carryForwardConstraint = "Test evidence rows end at day $lastAge; final values carry forward through day $maximumAge."
+        profile.getAsJsonArray("constraints").add(carryForwardConstraint)
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-III" }.asJsonObject
+            .getAsJsonArray("constraints").add(carryForwardConstraint)
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
         val canonicalPayload = root.toString().toByteArray()
         val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalPayload)
