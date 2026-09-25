@@ -327,9 +327,7 @@ class WeightReferenceSnapshot private constructor(
         require(profile.points.last().ageDays <= scope.maximumAgeDays) {
             "Profile ${profile.id} ends after its declared maximum age"
         }
-        if ((profile.basis == ReferenceBasis.POPULATION ||
-                profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE) &&
-            profile.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD &&
+        if (profile.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD &&
             profile.points.last().ageDays < scope.maximumAgeDays
         ) {
             require(profile.constraints.any {

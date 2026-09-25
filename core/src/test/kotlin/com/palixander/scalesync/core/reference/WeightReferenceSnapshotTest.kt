@@ -47,6 +47,11 @@ class WeightReferenceSnapshotTest {
         assertTrue(dogScopes.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
         assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }
             .all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
+        assertTrue(snapshot.profiles.filter { it.basis == ReferenceBasis.WEIGHT_CATEGORY }.all { profile ->
+            profile.points.last().ageDays == 728 && profile.constraints.any {
+                "end at day 728;" in it && "day 10958" in it
+            }
+        })
         assertEquals("2026-09-25.3", snapshot.manifest.snapshotVersion)
 
         val last = snapshot.profiles.single { it.id == "dog-male-III" }.points.last()
@@ -156,9 +161,13 @@ class WeightReferenceSnapshotTest {
         val profile = root.getAsJsonArray("profiles")[0].asJsonObject
         val id = profile.get("id").asString
         val lastAge = profile.getAsJsonArray("points").last().asJsonObject.get("ageDays").asInt
+        val disclosure = "Evidence-backed values end at day $lastAge; the final value is carried forward only through day ${lastAge + 10}"
+        profile.add("constraints", com.google.gson.JsonArray().apply { add(disclosure) })
         root.getAsJsonObject("manifest").getAsJsonArray("scopes")
-            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
-            .addProperty("maximumAgeDays", lastAge + 10)
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject.apply {
+                addProperty("maximumAgeDays", lastAge + 10)
+                add("constraints", com.google.gson.JsonArray().apply { add(disclosure) })
+            }
         refreshChecksum(root)
         val snapshot = load(root)
 

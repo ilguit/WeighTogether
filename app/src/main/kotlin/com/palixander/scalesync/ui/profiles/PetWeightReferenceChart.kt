@@ -406,6 +406,26 @@ internal fun hasDisplayableBreedReference(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): Boolean = timeline.any { !it.values.isNullOrEmpty() }
 
+internal enum class PetWeightPrimaryReference { LEGACY_BREED, RESOLVED_REFERENCE, NONE }
+
+/** One decision shared by line, band, range and legend presentation. */
+internal fun petWeightPrimaryReference(
+    reference: PetHistoryWeightReference,
+    timeline: List<PetHistoryBreedReferenceTimelinePoint>,
+): PetWeightPrimaryReference {
+    val available = reference as? PetHistoryWeightReference.Available
+    val legacyEligible = available?.provenance in setOf(
+        null,
+        WeightReferenceProvenance.POPULATION,
+        WeightReferenceProvenance.WEIGHT_CATEGORY,
+    )
+    return when {
+        legacyEligible && hasDisplayableBreedReference(timeline) -> PetWeightPrimaryReference.LEGACY_BREED
+        available != null -> PetWeightPrimaryReference.RESOLVED_REFERENCE
+        else -> PetWeightPrimaryReference.NONE
+    }
+}
+
 internal fun petWeightDisplayedSeries(
     factual: List<ChartPoint>,
     reference: PetHistoryWeightReference,
@@ -425,12 +445,10 @@ internal fun petWeightDisplayedSeries(
             ),
         )
     }
-    val useLegacyBreedTimeline = (reference as? PetHistoryWeightReference.Available)?.provenance in setOf(
-        null,
-        WeightReferenceProvenance.POPULATION,
-        WeightReferenceProvenance.WEIGHT_CATEGORY,
-    )
-    val breedSeries = if (useLegacyBreedTimeline) breedWeightReferenceChartSeries(breedReferenceTimeline) else emptyList()
+    val primaryReference = petWeightPrimaryReference(reference, breedReferenceTimeline)
+    val breedSeries = if (primaryReference == PetWeightPrimaryReference.LEGACY_BREED) {
+        breedWeightReferenceChartSeries(breedReferenceTimeline)
+    } else emptyList()
     if (breedSeries.isNotEmpty()) {
         val counters = mutableMapOf<BreedWeightReferenceSeriesKind, Int>()
         breedSeries.distinctBy { Triple(it.kind, it.xEpochMillis, it.points.map { point -> point.second }) }.forEach { series ->
@@ -465,7 +483,7 @@ internal fun petWeightDisplayedSeries(
             )
         }
     } else if (
-        (!useLegacyBreedTimeline || !hasDisplayableBreedReference(breedReferenceTimeline)) &&
+        primaryReference == PetWeightPrimaryReference.RESOLVED_REFERENCE &&
         reference is PetHistoryWeightReference.Available &&
         reference.provenance != WeightReferenceProvenance.BREED_EXACT_OBSERVATION
     ) {
@@ -763,6 +781,9 @@ internal fun PetWeightReferenceChartCard(
     val displayedSeries = remember(factual, reference, breedReferenceTimeline, zoneId) {
         petWeightDisplayedSeries(factual, reference, breedReferenceTimeline, zoneId)
     }
+    val primaryReference = remember(reference, breedReferenceTimeline) {
+        petWeightPrimaryReference(reference, breedReferenceTimeline)
+    }
     val available = reference as? PetHistoryWeightReference.Available
     val isPopulationReference = available?.isFittedPopulationPercentiles == true
     val exactObservationGlyphs = remember(available, zoneId) { exactObservationGlyphs(available, zoneId) }
@@ -822,7 +843,11 @@ internal fun PetWeightReferenceChartCard(
                         isPopulationReference -> populationWeightReferenceBands(available, zoneId)
                         available?.provenance == WeightReferenceProvenance.BREED_CURVE -> populationWeightReferenceBands(available, zoneId)
                         available?.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> emptyList()
-                        else -> breedWeightReferenceBands(breedReferenceTimeline)
+                        primaryReference == PetWeightPrimaryReference.LEGACY_BREED ->
+                            breedWeightReferenceBands(breedReferenceTimeline)
+                        primaryReference == PetWeightPrimaryReference.RESOLVED_REFERENCE && available != null ->
+                            populationWeightReferenceBands(available, zoneId)
+                        else -> emptyList()
                     },
                     exactObservationGlyphs = exactObservationGlyphs,
                     startDate = startDate,

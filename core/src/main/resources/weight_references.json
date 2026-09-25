@@ -3,14 +3,14 @@
     "schemaVersion": 5,
     "snapshotVersion": "2026-09-25.3",
     "snapshotDate": "2026-09-25",
-    "numericalDataSha256": "de74efb48a94e869a3ebbc3a64888a94d7362bfae58860178ec2c11bc2b927cf",
+    "numericalDataSha256": "58813aed8b0a24fb5e78f010f1d7807117dcb508db4ceab85b6a452c74a9cac5",
     "derivation": {
       "referenceKind": "empirical_observation_quartiles",
       "claim": "Deterministic fallback references derived from raw observations; not the published fitted GAMLSS growth standards",
       "ageConversion": "ageDays = ageYears * 365.25; assign to nearest 7-day centre",
       "interpolation": "Linear interpolation is permitted only between adjacent weekly centres no more than 7 days apart; larger gaps are unavailable data",
       "quantiles": "25th, 50th and 75th percentiles using linear interpolation at (N - 1) * p; weights rounded to 0.001 kg",
-      "dogEligibility": "Observed data cover 84-730 days; the final observed category bounds are carried forward through 10958 days (30 years). Known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
+      "dogEligibility": "Observed data cover 84-728 days; the final observed category bounds are carried forward through 10958 days (30 years). Known F/M sex; positive weight; AV_BREED_WEIGHT >0 and <=40 kg; PREVENTIVE_CARE_VISIT=Y or HEALTHY_PET_DIAGNOSIS=Y; minimum 100 observations per sex/category/week bin",
       "dogCategories": "I <6.5 kg; II >=6.5 and <9 kg; III >=9 and <15 kg; IV >=15 and <30 kg; V >=30 and <=40 kg, based on AV_BREED_WEIGHT",
       "kittenEligibility": "DataSet=Modelling; 56-546 days (8-78 weeks); known F/M sex; positive weight; minimum 30 observations per sex/week bin",
       "limitations": "Cross-sectional empirical quartiles may contain repeated animals and selection effects. Fitted cat BCCG curves describe the source population and are not clinical standards or breed-specific evidence. Dog rows are not mapped to VBO breeds.",
@@ -474,7 +474,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -491,7 +492,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight below 6.5 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -509,7 +511,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -527,7 +530,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 6.5 to 9 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -545,7 +549,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -563,7 +568,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 9 to 15 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -581,7 +587,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -599,7 +606,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 15 to 30 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -617,7 +625,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -635,7 +644,8 @@
         "maximumAgeDays": 10958,
         "constraints": [
           "Expected adult weight 30 to 40 kg",
-          "Source excludes dogs above 40 kg"
+          "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
         ],
         "sourceId": "salt-dog-2017-erratum-2024",
         "numericalAvailability": "available",
@@ -2391,7 +2401,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight below 6.5 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -2968,7 +2979,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 6.5 to 9 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -3545,7 +3557,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 9 to 15 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -4122,7 +4135,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 15 to 30 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -4699,7 +4713,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 30 to 40 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -5276,7 +5291,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight below 6.5 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -5853,7 +5869,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 6.5 to 9 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -6430,7 +6447,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 9 to 15 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -7007,7 +7025,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 15 to 30 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",
@@ -7584,7 +7603,8 @@
       "sourceId": "salt-dog-2017-erratum-2024",
       "constraints": [
         "Expected adult weight 30 to 40 kg",
-        "Source excludes dogs above 40 kg"
+        "Source excludes dogs above 40 kg",
+          "Evidence-backed values end at day 728; the final adult category bounds are carried forward unchanged only through day 10958 (30 years)"
       ],
       "citation": "Salt C et al. (2017), Growth standard charts for monitoring bodyweight in dogs of different sizes, PLOS ONE 12(9): e0182064; corrected 2024",
       "license": "CC BY 4.0",

@@ -387,11 +387,16 @@ class PetHistoryStateOwner(
 }
 
 private fun List<PetMeasurement>.allHistoryRange(today: LocalDate, zoneId: ZoneId): ChartDateRange {
-    if (isEmpty()) return ChartDateRange(today, today)
+    if (isEmpty()) return ChartDateRange(today.minusDays(MINIMUM_ALL_HISTORY_SPAN_DAYS), today)
     val dates = map { measurement ->
         runCatching { measurement.measuredAt.atZone(zoneId).toLocalDate() }.getOrElse {
             if (measurement.measuredAt.isBefore(java.time.Instant.EPOCH)) LocalDate.MIN else LocalDate.MAX
         }
     }
-    return ChartDateRange(dates.minOrNull() ?: today, dates.maxOrNull() ?: today)
+    val first = dates.minOrNull() ?: today
+    val last = dates.maxOrNull() ?: today
+    return ChartDateRange(minOf(first, last.minusDays(MINIMUM_ALL_HISTORY_SPAN_DAYS)), last)
 }
+
+/** A one-day Vico domain collapses reference lines and bands into invisible vertical geometry. */
+private const val MINIMUM_ALL_HISTORY_SPAN_DAYS = 6L

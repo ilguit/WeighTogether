@@ -133,6 +133,21 @@ class PetHistoryStateOwnerTest {
                 assertTrue("${scenario.name} $preset factual tooltip: $tooltip", tooltip.contains("Фактический вес: 4.25 кг"))
                 assertTrue("${scenario.name} $preset lower tooltip: $tooltip", tooltip.contains("Нижняя"))
                 assertTrue("${scenario.name} $preset upper tooltip: $tooltip", tooltip.contains("Верхняя"))
+                if (preset == ChartRangePreset.ALL) {
+                    assertEquals("${scenario.name} ALL renders a seven-day domain", 6L,
+                        java.time.temporal.ChronoUnit.DAYS.between(state.startDate, state.endDateInclusive))
+                    assertTrue("${scenario.name} ALL samples renderable reference geometry",
+                        (state.weightReference as PetHistoryWeightReference.Available).segments.any { it.size >= 2 })
+                }
+                if (scenario.species == PetSpecies.DOG && scenario.breedId?.value != "VBO:0200000") {
+                    assertTrue(
+                        "${scenario.name} $preset has a shaded resolved-reference band",
+                        populationWeightReferenceBands(
+                            state.weightReference as? PetHistoryWeightReference.Available,
+                            zone,
+                        ).isNotEmpty(),
+                    )
+                }
             }
 
             collector.cancelAndJoin()

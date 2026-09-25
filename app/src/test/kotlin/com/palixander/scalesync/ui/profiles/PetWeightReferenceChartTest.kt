@@ -498,6 +498,25 @@ class PetWeightReferenceChartTest {
             displayed.map(PetWeightDisplayedSeries::kind),
         )
         assertEquals(4, petWeightChartLegendEntries(displayed).size)
+        assertEquals(
+            PetWeightPrimaryReference.RESOLVED_REFERENCE,
+            petWeightPrimaryReference(
+                available(listOf(
+                    PetHistoryReferencePoint(date, 20.0, 25.0, 30.0, 40.0),
+                    PetHistoryReferencePoint(date.plusDays(1), 20.0, 25.0, 30.0, 40.0),
+                )),
+                listOf(PetHistoryBreedReferenceTimelinePoint(date, null)),
+            ),
+        )
+        assertTrue(
+            populationWeightReferenceBands(
+                available(listOf(
+                    PetHistoryReferencePoint(date, 20.0, 25.0, 30.0, 40.0),
+                    PetHistoryReferencePoint(date.plusDays(1), 20.0, 25.0, 30.0, 40.0),
+                )),
+                ZoneOffset.UTC,
+            ).isNotEmpty(),
+        )
     }
 
     @Test fun `Shiba official ranges display only breed boundaries and green band`() {
