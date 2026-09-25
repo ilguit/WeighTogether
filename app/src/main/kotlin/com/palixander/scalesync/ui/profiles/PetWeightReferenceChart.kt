@@ -549,6 +549,8 @@ internal fun petWeightDisplayedMarkerXs(
     displayedSeries: List<PetWeightDisplayedSeries>,
 ): List<Long> = displayedSeries.flatMap(PetWeightDisplayedSeries::x).distinct().sorted()
 
+internal fun petWeightMarkerLineCount(displayedSeriesCount: Int): Int = displayedSeriesCount + 1
+
 internal fun breedWeightReferenceChartSeries(
     timeline: List<PetHistoryBreedReferenceTimelinePoint>,
 ): List<BreedWeightReferenceChartSeries> {
@@ -941,7 +943,7 @@ private fun PetWeightVicoChart(
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
                 marker = rememberChartMarker(
                     markerFormatter,
-                    lineCount = displayedSeries.size,
+                    lineCount = petWeightMarkerLineCount(displayedSeries.size),
                 ),
                 decorations = listOf(bandDecoration, exactObservationDecoration),
             ),

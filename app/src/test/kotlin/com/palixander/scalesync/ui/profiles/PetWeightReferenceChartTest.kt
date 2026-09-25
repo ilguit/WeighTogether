@@ -607,6 +607,37 @@ class PetWeightReferenceChartTest {
         assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("22.50 кг"))
     }
 
+    @Test fun `tooltip capacity includes date and every displayed series`() {
+        val selectedX = LocalDate.of(2026, 9, 1)
+            .atStartOfDay(ZoneOffset.UTC)
+            .toInstant()
+            .toEpochMilli()
+        val series = listOf(
+            displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_LOWER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Нижняя граница"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_CENTER, PetWeightDisplayedSeriesStyle.BREED_CENTER, "Медиана"),
+            displayedSeries(PetWeightDisplayedSeriesKind.BREED_UPPER, PetWeightDisplayedSeriesStyle.BREED_BOUNDARY, "Верхняя граница"),
+        ).map { it.copy(x = listOf(selectedX)) }
+        val tooltipLines = formatPetWeightDisplayedMarker(
+            selectedX,
+            series,
+            ZoneOffset.UTC,
+            Locale.US,
+        ).lines()
+
+        assertEquals(
+            listOf(
+                "Дата: 01.09.2026",
+                "Фактический вес: 1.00 кг",
+                "Нижняя граница: 1.00 кг",
+                "Медиана: 1.00 кг",
+                "Верхняя граница: 1.00 кг",
+            ),
+            tooltipLines,
+        )
+        assertEquals(tooltipLines.size, petWeightMarkerLineCount(series.size))
+    }
+
     @Test fun `tooltip interpolates reference values between visible anchors`() {
         val zoneId = ZoneOffset.UTC
         val start = LocalDate.of(2026, 9, 1)
