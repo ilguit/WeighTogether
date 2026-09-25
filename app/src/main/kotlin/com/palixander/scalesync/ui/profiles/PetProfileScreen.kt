@@ -1,6 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
-import com.palixander.scalesync.ui.components.ManualOriginIndicator
+import com.palixander.scalesync.ui.components.HistoryMeasurementIndicators
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -273,35 +273,12 @@ internal fun PetProfileScreen(
                                 .focusable()
                                 .semantics { contentDescription = "${measurement.measuredAtText}, ${measurement.weightText}" },
                         ) {
-                            Row(
-                                Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text(measurement.measuredAtText)
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f, fill = false))
-                                        ManualOriginIndicator(measurement.origin, Modifier.testTag("pet-history-manual-origin-${measurement.id}"))
-                                    }
-                                }
-                                Row {
-                                    HuaweiIconButton(
-                                        icon = HuaweiIcons.Edit,
-                                        contentDescription = "Изменить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
-                                        onClick = { callbacks.editMeasurement(measurement.id) },
-                                        enabled = state.deleteConfirmation?.isDeleting != true,
-                                        modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
-                                    )
-                                    HuaweiIconButton(
-                                        icon = HuaweiIcons.Delete,
-                                        contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
-                                        onClick = { callbacks.requestDelete(measurement.id) },
-                                        enabled = state.deleteConfirmation?.isDeleting != true,
-                                        modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
-                                    )
-                                }
-                            }
+                            PetHistoryMeasurementDetails(
+                                measurement = measurement,
+                                actionsEnabled = state.deleteConfirmation?.isDeleting != true,
+                                onEdit = { callbacks.editMeasurement(measurement.id) },
+                                onDelete = { callbacks.requestDelete(measurement.id) },
+                            )
                         }
                     }
                     if (!showAllMeasurements && state.measurements.size > DEFAULT_VISIBLE_MEASUREMENT_COUNT) {
@@ -541,3 +518,41 @@ private fun ChartRangePreset.petTitle() = when (this) {
 }
 
 private val FallbackBreedCatalog by lazy(::PetBreedCatalog)
+
+@Composable
+internal fun PetHistoryMeasurementDetails(
+    measurement: PetHistoryMeasurementUi,
+    actionsEnabled: Boolean,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+) {
+    Row(
+        Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(measurement.measuredAtText)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(measurement.weightText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+                HistoryMeasurementIndicators(measurement.origin, measurement.isManuallyEdited, "pet-history-${measurement.id}")
+            }
+        }
+        Row {
+            HuaweiIconButton(
+                icon = HuaweiIcons.Edit,
+                contentDescription = "Изменить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                onClick = { onEdit() },
+                enabled = actionsEnabled,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
+            )
+            HuaweiIconButton(
+                icon = HuaweiIcons.Delete,
+                contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                onClick = { onDelete() },
+                enabled = actionsEnabled,
+                modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
+            )
+        }
+    }
+}

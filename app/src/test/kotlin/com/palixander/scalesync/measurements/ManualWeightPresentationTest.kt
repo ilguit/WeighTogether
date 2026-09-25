@@ -12,6 +12,27 @@ import org.junit.Test
 
 class ManualWeightPresentationTest {
     @Test
+    fun petHistoryPreservesOriginAndEditedFlagIndependently() {
+        for (origin in com.palixander.scalesync.domain.MeasurementOrigin.entries) {
+            for (edited in listOf(false, true)) {
+                val manual = origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL
+                val record = com.palixander.scalesync.domain.PetMeasurement(
+                    "record", com.palixander.scalesync.domain.PetId("pet"), java.time.Instant.EPOCH,
+                    if (manual) null else 70.0, if (manual) null else 74.0,
+                    4.0, origin, edited,
+                )
+                val day = java.time.LocalDate.of(1970, 1, 1)
+                val (content, _) = com.palixander.scalesync.ui.profiles.petHistoryPresentation(
+                    listOf(record), com.palixander.scalesync.charts.ChartDateRange(day, day), ZoneOffset.UTC, Locale.US,
+                )
+                val row = (content as com.palixander.scalesync.ui.profiles.PetHistoryContent.Single).measurement
+                assertEquals(origin, row.origin)
+                assertEquals(edited, row.isManuallyEdited)
+            }
+        }
+    }
+
+    @Test
     fun directPetWeightHasOriginAndChartPointWithoutSourceReadings() {
         val record = com.palixander.scalesync.domain.PetMeasurement(
             "manual", com.palixander.scalesync.domain.PetId("pet"), java.time.Instant.EPOCH,

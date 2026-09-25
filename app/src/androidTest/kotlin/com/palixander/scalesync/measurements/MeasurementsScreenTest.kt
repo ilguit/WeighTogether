@@ -83,10 +83,10 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("summary-manual-origin").assertIsDisplayed()
         captureManualWeightEvidence("manual-weight-summary")
         composeRule.runOnIdle { state = state.copy(destination = MeasurementsDestination.HISTORY) }
-        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsDisplayed().performClick()
-        composeRule.onNodeWithText("Введено вручную").assertIsDisplayed()
-        composeRule.onNodeWithTag("manual-origin-dismiss").performClick()
-        composeRule.onNodeWithTag("history-manual-origin-manual").assertIsFocused()
+        composeRule.onNodeWithTag("history-manual-indicators").assertIsDisplayed().performClick()
+        composeRule.onNodeWithText("Введено вручную. Изменено вручную").assertIsDisplayed()
+        composeRule.onNodeWithTag("history-manual-indicators-dismiss").performClick()
+        composeRule.onNodeWithTag("history-manual-indicators").assertIsFocused()
         captureManualWeightEvidence("manual-weight-history")
     }
 

@@ -55,6 +55,7 @@ data class PetHistoryMeasurementUi(
     val weightKg: Double,
     val weightText: String,
     val origin: MeasurementOrigin = MeasurementOrigin.LEGACY,
+    val isManuallyEdited: Boolean = false,
 )
 
 data class PetHistoryDeleteConfirmation(
@@ -598,6 +599,7 @@ internal fun petHistoryPresentation(
             }.getOrElse { measurement.measuredAt.toString() },
             weightKg = measurement.petWeightKg,
             origin = measurement.origin,
+            isManuallyEdited = measurement.isManuallyEdited,
             weightText = formatChartCurrentValue(measurement.petWeightKg, PetWeightChartMetric, locale),
         )
     }
