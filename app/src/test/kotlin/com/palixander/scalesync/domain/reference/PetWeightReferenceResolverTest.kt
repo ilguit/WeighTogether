@@ -280,10 +280,12 @@ class PetWeightReferenceResolverTest {
         val profile = root.getAsJsonArray("profiles")
             .first { it.asJsonObject.get("id").asString == "dog-male-I" }.asJsonObject
         val lastAge = profile.getAsJsonArray("points").last().asJsonObject.get("ageDays").asInt
-        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
-            .first { it.asJsonObject.get("id").asString == "dog-male-I" }.asJsonObject.apply {
-                addProperty("maximumAgeDays", lastAge + 10)
-            }
+        val scope = root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-I" }.asJsonObject
+        val carryForwardConstraint = "Test evidence rows end at day $lastAge; final values carry forward through day ${lastAge + 10}."
+        profile.getAsJsonArray("constraints").add(carryForwardConstraint)
+        scope.getAsJsonArray("constraints").add(carryForwardConstraint)
+        scope.addProperty("maximumAgeDays", lastAge + 10)
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
         val canonical = root.toString().toByteArray()
         root.getAsJsonObject("manifest").addProperty(

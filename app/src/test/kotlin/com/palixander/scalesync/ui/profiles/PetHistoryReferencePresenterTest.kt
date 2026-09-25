@@ -445,6 +445,15 @@ class PetHistoryReferencePresenterTest {
                 })
             }
         })
+        val lastAge = 83 + pointCount
+        val maximumAge = root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-III" }.asJsonObject
+            .get("maximumAgeDays").asInt
+        val carryForwardConstraint = "Test evidence rows end at day $lastAge; final values carry forward through day $maximumAge."
+        profile.getAsJsonArray("constraints").add(carryForwardConstraint)
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == "dog-male-III" }.asJsonObject
+            .getAsJsonArray("constraints").add(carryForwardConstraint)
         root.getAsJsonObject("manifest").addProperty("numericalDataSha256", "")
         val canonicalPayload = root.toString().toByteArray()
         val checksum = MessageDigest.getInstance("SHA-256").digest(canonicalPayload)
