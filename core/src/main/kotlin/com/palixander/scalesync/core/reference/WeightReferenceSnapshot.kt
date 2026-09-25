@@ -22,7 +22,7 @@ enum class ReferenceCenterStatistic { MEDIAN, MEAN, ARITHMETIC_MIDPOINT }
 enum class ReferenceBoundsStatistic { QUARTILES, ONE_STANDARD_DEVIATION, P9_P91, ADULT_TYPICAL_RANGE }
 enum class ReferenceSourceAuthorityClass { RESEARCH_PUBLICATION, OPEN_REFERENCE, OFFICIAL_BREED_ORGANIZATION, PROFESSIONAL_REFERENCE }
 enum class NumericalAvailability { AVAILABLE, NOT_REPRODUCIBLE_FROM_PUBLISHED_ARTIFACTS }
-enum class ReferenceAgeAvailability { CARRY_FORWARD, DECLARED_RANGE_ONLY, EXACT_OBSERVATIONS }
+enum class ReferenceAgeAvailability { BOUNDED_CARRY_FORWARD, DECLARED_RANGE_ONLY, EXACT_OBSERVATIONS }
 enum class NumericalUnavailabilityReason {
     UNSUPPORTED_STATISTIC,
     MIXED_BREED_GROUP,
@@ -69,7 +69,7 @@ data class ReferenceScope(
     val constraints: List<String>,
     val sourceId: String?,
     val numericalAvailability: NumericalAvailability,
-    val ageAvailability: ReferenceAgeAvailability = ReferenceAgeAvailability.CARRY_FORWARD,
+    val ageAvailability: ReferenceAgeAvailability,
     val unavailabilityReason: NumericalUnavailabilityReason? = null,
 )
 data class ReferenceProfile(
@@ -86,7 +86,7 @@ data class ReferenceProfile(
     val referenceKind: ReferenceKind,
     val minimumBinN: Int,
     val points: List<ReferencePoint>,
-    val ageAvailability: ReferenceAgeAvailability = ReferenceAgeAvailability.CARRY_FORWARD,
+    val ageAvailability: ReferenceAgeAvailability,
     val centerStatistic: ReferenceCenterStatistic = ReferenceCenterStatistic.MEDIAN,
     val boundsStatistic: ReferenceBoundsStatistic = ReferenceBoundsStatistic.QUARTILES,
 )
@@ -109,6 +109,8 @@ data class ReferenceProfileMetadata(
     val minimumBinN: Int,
     val centerStatistic: ReferenceCenterStatistic,
     val boundsStatistic: ReferenceBoundsStatistic,
+    val ageAvailability: ReferenceAgeAvailability,
+    val supportedMaximumAgeDays: Int,
 )
 
 class WeightReferenceSnapshot private constructor(
@@ -121,6 +123,7 @@ class WeightReferenceSnapshot private constructor(
      */
     fun metadataFor(profileId: String, effectiveSourceId: String? = null): ReferenceProfileMetadata? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
+        val scope = manifest.scopes.singleOrNull { it.id == profileId } ?: return null
         val source = manifest.sources.singleOrNull { it.id == (effectiveSourceId ?: profile.sourceId) } ?: return null
         return ReferenceProfileMetadata(
             profileId = profile.id,
@@ -131,16 +134,25 @@ class WeightReferenceSnapshot private constructor(
             minimumBinN = profile.minimumBinN,
             centerStatistic = profile.centerStatistic,
             boundsStatistic = profile.boundsStatistic,
+            ageAvailability = profile.ageAvailability,
+            supportedMaximumAgeDays = when (profile.ageAvailability) {
+                ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD -> scope.maximumAgeDays
+                ReferenceAgeAvailability.DECLARED_RANGE_ONLY,
+                ReferenceAgeAvailability.EXACT_OBSERVATIONS,
+                -> profile.points.last().ageDays
+            },
         )
     }
 
     /**
      * Returns no data before the first observation, linearly interpolates between every pair of
-     * observations. Legacy profiles carry the final observation forward; declared-range profiles
-     * stop at their final point, while exact-observation profiles resolve published ages only.
+     * observations. Bounded carry-forward profiles expose the final observation through their
+     * declared maximum age; declared-range profiles stop at their final point, while
+     * exact-observation profiles resolve published ages only.
      */
     fun interpolate(profileId: String, ageDays: Int): ReferencePoint? {
         val profile = profiles.singleOrNull { it.id == profileId } ?: return null
+        val scope = manifest.scopes.singleOrNull { it.id == profileId } ?: return null
         val points = profile.points
         if (profile.ageAvailability == ReferenceAgeAvailability.EXACT_OBSERVATIONS) {
             return points.singleOrNull { it.ageDays == ageDays }
@@ -151,7 +163,8 @@ class WeightReferenceSnapshot private constructor(
             points.firstOrNull()?.let { it.ageDays == 0 && it.empirical } == true && ageDays in 1 until 56
         ) return null
         if (ageDays < points.first().ageDays) return null
-        if (ageDays > points.last().ageDays && profile.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY) return null
+        if (ageDays > points.last().ageDays && profile.ageAvailability != ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD) return null
+        if (ageDays > scope.maximumAgeDays) return null
         if (ageDays >= points.last().ageDays) return points.last().copy(ageDays = ageDays)
         points.binarySearch { it.ageDays.compareTo(ageDays) }.let { index ->
             if (index >= 0) return points[index]
@@ -166,7 +179,7 @@ class WeightReferenceSnapshot private constructor(
 
     companion object {
         const val RESOURCE_PATH = "weight_references.json"
-        const val SUPPORTED_SCHEMA_VERSION = 4
+        const val SUPPORTED_SCHEMA_VERSION = 5
         private val sha256Pattern = Regex("[0-9a-f]{64}")
 
         fun bundled(breedCatalog: BreedCatalog = BreedCatalog.bundled()): WeightReferenceSnapshot = load(
@@ -311,6 +324,9 @@ class WeightReferenceSnapshot private constructor(
             if (point.empirical) require(point.sourceId != null) { "Empirical point in ${profile.id} requires provenance" }
             previousAge = point.ageDays
         }
+        require(profile.points.last().ageDays <= scope.maximumAgeDays) {
+            "Profile ${profile.id} ends after its declared maximum age"
+        }
         if (profile.referenceKind == ReferenceKind.MODELLED_BREED_ADULT_RANGE) {
             require(profile.points.last().ageDays == scope.maximumAgeDays) { "Profile ${profile.id} must end at declared maturity" }
         }
@@ -325,15 +341,17 @@ private data class SourceJson(val id: String, val citation: String, val publicat
     fun toModel() = ReferenceSource(id, citation, publicationDoi, dataDoi, dataUrl, upstreamArtifactSha256, license, licenseUrl, accessedDate, correctionDoi, derivedArtifact, derivedArtifactSha256, derivationSoftware, enumValue(authorityClass), disclosure)
 }
 private data class ScopeJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val minimumAdultWeightKg: Double?, val maximumAdultWeightKg: Double?, val minimumAgeDays: Int, val maximumAgeDays: Int, val constraints: List<String>, val sourceId: String?, val numericalAvailability: String, val ageAvailability: String?, val unavailabilityReason: String?) {
-    fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, unavailabilityReason?.let(::enumValue))
+    fun toModel() = ReferenceScope(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, minimumAdultWeightKg, maximumAdultWeightKg, minimumAgeDays, maximumAgeDays, constraints, sourceId, enumValue(numericalAvailability), requiredEnum(ageAvailability, "Scope $id requires ageAvailability"), unavailabilityReason?.let(::enumValue))
 }
 private data class ProfileJson(val id: String, val species: String, val sex: String, val basis: String, val weightCategory: String?, val breedId: String?, val sourceId: String, val citation: String, val license: String, val constraints: List<String>, val referenceKind: String, val minimumBinN: Int, val points: List<PointJson>, val ageAvailability: String?, val centerStatistic: String?, val boundsStatistic: String?) {
     fun toModel(): ReferenceProfile {
         val kind = enumValue<ReferenceKind>(referenceKind)
-        return ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, kind, minimumBinN, points.map(PointJson::toModel), ageAvailability?.let(::enumValue) ?: ReferenceAgeAvailability.CARRY_FORWARD, centerStatistic?.let(::enumValue) ?: ReferenceCenterStatistic.MEDIAN, boundsStatistic?.let(::enumValue) ?: if (kind == ReferenceKind.FITTED_BCCG_PERCENTILES) ReferenceBoundsStatistic.P9_P91 else ReferenceBoundsStatistic.QUARTILES)
+        return ReferenceProfile(id, enumValue(species), enumValue(sex), enumValue(basis), weightCategory, breedId, sourceId, citation, license, constraints, kind, minimumBinN, points.map(PointJson::toModel), requiredEnum(ageAvailability, "Profile $id requires ageAvailability"), centerStatistic?.let(::enumValue) ?: ReferenceCenterStatistic.MEDIAN, boundsStatistic?.let(::enumValue) ?: if (kind == ReferenceKind.FITTED_BCCG_PERCENTILES) ReferenceBoundsStatistic.P9_P91 else ReferenceBoundsStatistic.QUARTILES)
     }
 }
 private data class PointJson(val ageDays: Int, val lowerKg: Double, val medianKg: Double, val upperKg: Double, val sourceId: String?, val empirical: Boolean?) {
     fun toModel() = ReferencePoint(ageDays, lowerKg, medianKg, upperKg, sourceId, empirical ?: false)
 }
 private inline fun <reified T : Enum<T>> enumValue(value: String): T = enumValueOf(value.uppercase(Locale.ROOT))
+private inline fun <reified T : Enum<T>> requiredEnum(value: String?, message: String): T =
+    enumValue(value ?: throw IllegalArgumentException(message))
