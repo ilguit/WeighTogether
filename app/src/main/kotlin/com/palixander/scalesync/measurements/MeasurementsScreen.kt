@@ -1182,15 +1182,27 @@ internal fun MeasurementHistoryCard(
                         modifier = Modifier.weight(1f),
                         verticalArrangement = Arrangement.spacedBy(3.dp),
                     ) {
-                        Text(
-                            text = formatMeasurementDateTime(item.measuredAt),
-                            style = MaterialTheme.typography.titleSmall,
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                text = formatMeasurementDateTime(item.measuredAt),
+                                modifier = Modifier.testTag("history-header-date-${item.presentationKey}"),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            if (expanded && !item.isWeightOnly) {
+                                HistoryMeasurementIndicators(item.origin, item.isManuallyEdited, "history-${item.id}")
+                            }
+                        }
                         if (!expanded || item.isWeightOnly) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
                                 Text(
                                     text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
-                                    modifier = Modifier.weight(1f).testTag("history-header-weight-${item.presentationKey}"),
+                                    modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
                                 )
@@ -1258,19 +1270,13 @@ internal fun MeasurementHistoryCard(
                                     color = MaterialTheme.colorScheme.secondary,
                                     style = MaterialTheme.typography.bodyMedium,
                                 )
-                                if (!item.isWeightOnly) {
-                                    HistoryMeasurementIndicators(item.origin, true, "history-${item.id}")
-                                }
                             }
                         }
                     }
                     if (!item.isWeightOnly && !item.isManuallyEdited &&
                         item.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text("Введено вручную", modifier = Modifier.weight(1f))
-                            HistoryMeasurementIndicators(item.origin, false, "history-${item.id}")
-                        }
+                        Text("Введено вручную")
                     }
                     if (item.referenceMetrics.isNotEmpty() && !item.isPreliminary) {
                         MeasurementReferenceGroups(

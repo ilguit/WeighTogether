@@ -2,18 +2,15 @@ package com.palixander.scalesync.ui.components
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -25,7 +22,7 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 
-/** Fixed compact lane: provenance never changes the weight's available width or line height. */
+/** Compact provenance affordance placed immediately after the value it describes. */
 @Composable
 internal fun HistoryMeasurementIndicators(
     origin: MeasurementOrigin,
@@ -37,6 +34,7 @@ internal fun HistoryMeasurementIndicators(
         "Введено вручную".takeIf { manual },
         "Изменено вручную".takeIf { isManuallyEdited },
     ).joinToString(". ")
+    if (explanation.isEmpty()) return
     var explaining by remember { mutableStateOf(false) }
     var restoreFocus by remember { mutableStateOf(false) }
     val focusRequester = remember { FocusRequester() }
@@ -48,32 +46,27 @@ internal fun HistoryMeasurementIndicators(
         }
     }
     val dismiss = { explaining = false; restoreFocus = true }
-    Box(
-        Modifier.width(48.dp).height(24.dp).then(
-            if (explanation.isNotEmpty()) {
-                // Foundation expands the touch target to 48 dp without stretching the text row.
-                Modifier.focusRequester(focusRequester)
-                    .clickable(role = Role.Button) { explaining = true }
-                    .semantics { contentDescription = explanation }
-                    .testTag("$tagPrefix-indicators")
-            } else Modifier,
-        ),
-        contentAlignment = Alignment.Center,
+    Row(
+        Modifier.height(24.dp)
+            // Foundation expands the hit area to 48 dp without reserving that width in the row.
+            .focusRequester(focusRequester)
+            .clickable(role = Role.Button) { explaining = true }
+            .semantics { contentDescription = explanation }
+            .testTag("$tagPrefix-indicators"),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (manual) Icon(
-                HuaweiIcons.Keyboard,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp).testTag("$tagPrefix-manual-origin"),
-            )
-            if (isManuallyEdited) Icon(
-                HuaweiIcons.Edit,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp).testTag("$tagPrefix-manually-edited"),
-            )
-        }
+        if (manual) Icon(
+            HuaweiIcons.Keyboard,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp).testTag("$tagPrefix-manual-origin"),
+        )
+        if (isManuallyEdited) Icon(
+            HuaweiIcons.Edit,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(20.dp).testTag("$tagPrefix-manually-edited"),
+        )
     }
     if (explaining) AlertDialog(
         onDismissRequest = dismiss,

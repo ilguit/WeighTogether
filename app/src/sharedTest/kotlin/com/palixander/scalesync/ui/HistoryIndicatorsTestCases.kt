@@ -46,6 +46,27 @@ abstract class HistoryIndicatorsTestCases {
     }
 
     @Test
+    fun indicatorsFollowWeightOrExpandedDateWithoutAReservedLane() {
+        val expanded = mutableStateOf(false)
+        composeRule.setContent {
+            ScaleSyncTheme {
+                Column(Modifier.width(360.dp)) {
+                    MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), expanded.value,
+                        { expanded.value = it }, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
+                    HuaweiSurface {
+                        PetHistoryMeasurementDetails(pet(MeasurementOrigin.MANUAL, true), true, {}, {})
+                    }
+                }
+            }
+        }
+        assertAdjacent("history-header-weight-human", "history-human-indicators")
+        assertAdjacent("pet-history-weight-pet", "pet-history-pet-indicators")
+        composeRule.runOnIdle { expanded.value = true }
+        composeRule.onNodeWithTag("history-header-weight-human", true).assertDoesNotExist()
+        assertAdjacent("history-header-date-human", "history-human-indicators")
+    }
+
+    @Test
     fun originAndEditMatrixKeepsHumanAndPetGeometryAtNarrowWidthsAndLargeFont() {
         val origin = mutableStateOf(MeasurementOrigin.SCALE)
         val edited = mutableStateOf(false)
@@ -85,7 +106,7 @@ abstract class HistoryIndicatorsTestCases {
                         val expected = listOfNotNull("Введено вручную".takeIf { o == MeasurementOrigin.MANUAL }, "Изменено вручную".takeIf { e }).joinToString(". ")
                         button.assertContentDescriptionEquals(expected)
                         val bounds = button.getUnclippedBoundsInRoot()
-                        assertEquals(48.dp, bounds.right - bounds.left)
+                        assertEquals(if (o == MeasurementOrigin.MANUAL && e) 44.dp else 20.dp, bounds.right - bounds.left)
                         assertEquals(24.dp, bounds.bottom - bounds.top)
                     } else button.assertDoesNotExist()
                 }
@@ -132,6 +153,13 @@ abstract class HistoryIndicatorsTestCases {
         val button = petButton.getUnclippedBoundsInRoot()
         val edit = composeRule.onNodeWithTag("pet-history-edit-pet").getUnclippedBoundsInRoot()
         assertTrue(button.right <= edit.left)
+    }
+
+    private fun assertAdjacent(leadingTag: String, indicatorTag: String) {
+        val leading = composeRule.onNodeWithTag(leadingTag, true).getUnclippedBoundsInRoot()
+        val indicator = composeRule.onNodeWithTag(indicatorTag).getUnclippedBoundsInRoot()
+        assertEquals(4.dp, indicator.left - leading.right)
+        assertTrue(indicator.top < leading.bottom && indicator.bottom > leading.top)
     }
 
 }
