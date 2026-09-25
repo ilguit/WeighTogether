@@ -166,11 +166,11 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `dog category reference carries final point only through supported maximum`() {
+    fun `dog category reference carries final point through explicit thirty year maximum`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val last = snapshot.profiles.single { it.id == "dog-male-I" }.points.last()
 
-        for (ageDays in 728L..730L) {
+        for (ageDays in listOf(728L, 730L, 731L, 10_958L)) {
             val result = resolveDog(
                 birthDate = PartialBirthDate.Day(referenceDate.minusDays(ageDays)),
                 dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
@@ -184,11 +184,11 @@ class PetWeightReferenceResolverTest {
         }
 
         val afterBoundary = resolveDog(
-            birthDate = PartialBirthDate.Day(referenceDate.minusDays(731)),
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(10_959)),
             dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
         ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertEquals(730, afterBoundary.supportedMaximumDays)
-        assertEquals(731, afterBoundary.actualMinimumDays)
+        assertEquals(10_958, afterBoundary.supportedMaximumDays)
+        assertEquals(10_959, afterBoundary.actualMinimumDays)
 
         assertReason<WeightReferenceUnavailableReason.AgeOutOfRange>(
             resolveDog(
@@ -241,7 +241,7 @@ class PetWeightReferenceResolverTest {
     }
 
     @Test
-    fun `partial dog birth date may end exactly at declared upper boundary`() {
+    fun `partial dog birth dates retain category bounds across former day 730 boundary`() {
         val boundaryDate = LocalDate.of(2025, 1, 31)
         val result = resolver.resolve(
             PetSpecies.DOG,
@@ -258,10 +258,9 @@ class PetWeightReferenceResolverTest {
         val crossing = resolveDog(
             birthDate = PartialBirthDate.Month(YearMonth.of(2023, 1)),
             dogAdultWeight = DogAdultWeight.Category(DogAdultWeightCategory.I),
-        ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertEquals(715L, crossing.actualMinimumDays)
-        assertEquals(745L, crossing.actualMaximumDays)
-        assertEquals(730, crossing.supportedMaximumDays)
+        ).available()
+        assertEquals(715L..745L, crossing.ageDays)
+        assertTrue(crossing.approximate)
     }
 
     @Test
@@ -351,13 +350,13 @@ class PetWeightReferenceResolverTest {
             PetSpecies.DOG,
             PetSex.MALE,
             null,
-            PartialBirthDate.Month(YearMonth.of(2023, 1)),
+            PartialBirthDate.Month(YearMonth.of(1995, 1)),
             referenceDate,
             DogAdultWeight.Category(DogAdultWeightCategory.I),
         ).unavailable().reason as WeightReferenceUnavailableReason.AgeOutOfRange
-        assertEquals(715L, reason.actualMinimumDays)
-        assertEquals(745L, reason.actualMaximumDays)
-        assertEquals(730, reason.supportedMaximumDays)
+        assertEquals(10_942L, reason.actualMinimumDays)
+        assertEquals(10_972L, reason.actualMaximumDays)
+        assertEquals(10_958, reason.supportedMaximumDays)
     }
 
     @Test

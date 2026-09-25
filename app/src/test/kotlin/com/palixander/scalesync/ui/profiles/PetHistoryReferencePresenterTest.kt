@@ -50,6 +50,21 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `other breed dog keeps category reference after day 730`() {
+        val date = LocalDate.of(2026, 9, 25)
+        val pet = dog(PartialBirthDate.Day(date.minusDays(2_000))).copy(breedId = null)
+
+        val result = presenter.present(pet, ChartDateRange(date, date.plusDays(1)))
+            as PetHistoryWeightReference.Available
+
+        assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
+        assertEquals(WeightReferenceProvenance.WEIGHT_CATEGORY, result.provenance)
+        assertEquals(listOf(date, date.plusDays(1)), result.segments.single().map { it.date })
+        assertTrue(result.segments.single().all { it.lowerKg <= it.medianLowerKg })
+        assertTrue(result.segments.single().all { it.medianUpperKg <= it.upperKg })
+    }
+
+    @Test
     fun `selected dog breed without reference presents breed unavailable instead of category fallback`() {
         val date = LocalDate.of(2025, 1, 15)
         listOf("VBO:0200290", "VBO:0200470", "VBO:0200880").forEach { breedId ->

@@ -1,12 +1,20 @@
 package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.charts.ChartPoint
+import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.core.breedreference.BreedReferenceMeasure
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.domain.reference.BreedWeightValue
+import com.palixander.scalesync.domain.Pet
+import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.domain.PartialBirthDate
+import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
@@ -16,6 +24,42 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetWeightReferenceChartTest {
+    @Test fun `adult other breed dog tooltip includes factual weight and all category bounds`() {
+        val zoneId = ZoneOffset.UTC
+        val date = LocalDate.of(2026, 9, 25)
+        val pet = Pet(
+            id = PetId("other-dog"),
+            displayName = "Бим",
+            species = PetSpecies.DOG,
+            createdAt = Instant.EPOCH,
+            updatedAt = Instant.EPOCH,
+            sex = PetSex.MALE,
+            breedId = null,
+            birthDate = PartialBirthDate.Day(date.minusDays(2_000)),
+            dogAdultWeightCategory = DogAdultWeightCategory.III,
+        )
+        val reference = PetHistoryReferencePresenter().present(pet, ChartDateRange(date, date.plusDays(1)))
+        val measuredAt = date.atStartOfDay(zoneId).toEpochSecond()
+        val displayed = petWeightDisplayedSeries(
+            factual = listOf(ChartPoint(measuredAt, 12.25)),
+            reference = reference,
+            breedReferenceTimeline = emptyList(),
+            zoneId = zoneId,
+        )
+
+        assertEquals(
+            listOf(
+                "Дата: 25.09.2026",
+                "Фактический вес: 12.25 кг",
+                "Нижняя граница эталона: 8.85 кг",
+                "Нижняя медианная граница: 10.80 кг",
+                "Верхняя медианная граница: 10.80 кг",
+                "Верхняя граница эталона: 13.15 кг",
+            ),
+            formatPetWeightDisplayedMarker(measuredAt * 1_000, displayed, zoneId, Locale.US).lines(),
+        )
+    }
+
     @Test fun `maximum is one upper boundary and a domain-minimum fill without synthetic provenance`() {
         val date = LocalDate.of(2026, 9, 1)
         val timeline = listOf(
