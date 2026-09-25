@@ -91,13 +91,13 @@ class PetReferenceIntegrationTest {
     }
 
     @Test
-    fun `adult Russian Blue keeps adult reference available in chart presentation`() {
+    fun `Russian Blue keeps reference available through the published upper age boundary`() {
         val pet = NewPet(
             displayName = "Луна",
             species = PetSpecies.CAT,
             sex = PetSex.FEMALE,
             breedId = BreedId("VBO:0100200"),
-            birthDate = PartialBirthDate.Day(referenceDate.minusYears(2)),
+            birthDate = PartialBirthDate.Day(referenceDate.minusDays(365)),
         ).toPetEntity("adult-russian-blue", timestamp).toDomain()
         val reference = PetHistoryReferencePresenter().present(
             pet,

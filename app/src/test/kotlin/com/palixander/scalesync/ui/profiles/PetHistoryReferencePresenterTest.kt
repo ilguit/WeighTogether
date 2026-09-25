@@ -340,6 +340,42 @@ class PetHistoryReferencePresenterTest {
     }
 
     @Test
+    fun `modelled breed becomes unavailable immediately after its published age boundary`() {
+        val birth = LocalDate.of(2024, 9, 6)
+        val pet = Pet(
+            id = PetId("adult-cat"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100052"),
+        )
+
+        val result = presenter.present(
+            pet,
+            ChartDateRange(birth.plusDays(731), birth.plusDays(731)),
+        ) as PetHistoryWeightReference.Unavailable
+
+        assertTrue(result.reason is WeightReferenceUnavailableReason.AgeOutOfRange)
+        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.explanation)
+    }
+
+    @Test
+    fun `sampling across upper age boundary retains last available point without a tail`() {
+        val birth = LocalDate.of(2024, 9, 6)
+        val pet = Pet(
+            id = PetId("boundary-cat"), displayName = "Барсик", species = PetSpecies.CAT,
+            createdAt = Instant.EPOCH, updatedAt = Instant.EPOCH, sex = PetSex.MALE,
+            birthDate = PartialBirthDate.Day(birth), breedId = BreedId("VBO:0100052"),
+        )
+        val boundary = birth.plusDays(730)
+
+        val result = presenter.present(
+            pet,
+            ChartDateRange(boundary, boundary.plusDays(1)),
+        ) as PetHistoryWeightReference.Available
+
+        assertEquals(listOf(boundary), result.segments.flatten().map(PetHistoryReferencePoint::date))
+    }
+
+    @Test
     fun `presenter identifies DSH as a full breed curve`() {
         val date = LocalDate.of(2026, 9, 6)
         val breedId = BreedId("VBO:0100119")

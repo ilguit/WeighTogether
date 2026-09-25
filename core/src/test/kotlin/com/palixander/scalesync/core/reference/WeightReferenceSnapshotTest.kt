@@ -21,6 +21,11 @@ class WeightReferenceSnapshotTest {
         assertEquals(profile.id, metadata.profileId)
         assertEquals(profile.sourceId, metadata.source.id)
         assertEquals(profile.constraints, metadata.constraints)
+        assertEquals(profile.ageAvailability, metadata.ageAvailability)
+        assertEquals(
+            snapshot.manifest.scopes.single { it.id == profile.id }.maximumAgeDays,
+            metadata.supportedMaximumAgeDays,
+        )
         org.junit.Assert.assertThrows(UnsupportedOperationException::class.java) {
             (metadata.constraints as MutableList<String>).add("changed")
         }
@@ -39,6 +44,9 @@ class WeightReferenceSnapshotTest {
         assertTrue(dogScopes.all { it.numericalAvailability == NumericalAvailability.AVAILABLE })
         assertEquals(10, snapshot.profiles.count { it.species == ReferenceSpecies.DOG })
         assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }.all { it.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_QUARTILES })
+        assertTrue(dogScopes.all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
+        assertTrue(snapshot.profiles.filter { it.species == ReferenceSpecies.DOG }
+            .all { it.ageAvailability == ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD })
     }
 
     @Test
@@ -50,6 +58,7 @@ class WeightReferenceSnapshotTest {
         assertEquals(2, dsh.size)
         assertTrue(dsh.all { it.minimumAgeDays == 56 && it.maximumAgeDays == 546 })
         assertTrue(dsh.all { scope -> scope.constraints.any { "intact" in it.lowercase() } })
+        assertTrue(dsh.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
     }
 
     @Test
@@ -60,6 +69,7 @@ class WeightReferenceSnapshotTest {
         assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), profiles.map { it.sex }.toSet())
         assertTrue(profiles.all { it.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES })
         assertTrue(profiles.all { it.minimumBinN == 0 && it.points.size == 71 })
+        assertTrue(profiles.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
         assertEquals(ReferencePoint(56, 0.636271, 0.890118, 1.228598), profiles.single { it.sex == ReferenceSex.FEMALE }.points.first())
         assertEquals(ReferencePoint(546, 2.517972, 3.351739, 4.621410), profiles.single { it.sex == ReferenceSex.FEMALE }.points.last())
         assertEquals(ReferencePoint(56, 0.567307, 0.861525, 1.265159), profiles.single { it.sex == ReferenceSex.MALE }.points.first())
@@ -83,7 +93,7 @@ class WeightReferenceSnapshotTest {
     }
 
     @Test
-    fun `age lookup interpolates every internal interval and carries the last point forward`() {
+    fun `age lookup interpolates internal intervals and carries the last point to the inclusive boundary`() {
         val snapshot = WeightReferenceSnapshot.bundled()
         val profile = snapshot.profiles.first()
         val first = profile.points[0]
@@ -95,8 +105,9 @@ class WeightReferenceSnapshotTest {
         val fraction = (age - first.ageDays).toDouble() / (second.ageDays - first.ageDays)
         assertEquals(first.medianKg + (second.medianKg - first.medianKg) * fraction, interpolated.medianKg, 1e-12)
         assertNull(snapshot.interpolate(profile.id, first.ageDays - 1))
-        val carriedAge = profile.points.last().ageDays + 10_000
+        val carriedAge = snapshot.manifest.scopes.single { it.id == profile.id }.maximumAgeDays
         assertEquals(profile.points.last().copy(ageDays = carriedAge), snapshot.interpolate(profile.id, carriedAge))
+        assertNull(snapshot.interpolate(profile.id, carriedAge + 1))
 
         val sparseProfile = snapshot.profiles.single { it.id == "cat-dsh-female" }
         val sparsePair = sparseProfile.points.zipWithNext().maxBy { (lower, upper) -> upper.ageDays - lower.ageDays }
@@ -128,9 +139,31 @@ class WeightReferenceSnapshotTest {
         assertEquals(last, snapshot.interpolate(id, last.ageDays))
         assertNull(snapshot.interpolate(id, last.ageDays + 1))
         assertEquals(
-            ReferenceAgeAvailability.CARRY_FORWARD,
+            ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD,
             WeightReferenceSnapshot.bundled().profiles.single { it.id == id }.ageAvailability,
         )
+    }
+
+    @Test
+    fun `bounded carry forward stops after the declared finite maximum`() {
+        val root = bundledJson()
+        val profile = root.getAsJsonArray("profiles")[0].asJsonObject
+        val id = profile.get("id").asString
+        val lastAge = profile.getAsJsonArray("points").last().asJsonObject.get("ageDays").asInt
+        root.getAsJsonObject("manifest").getAsJsonArray("scopes")
+            .first { it.asJsonObject.get("id").asString == id }.asJsonObject
+            .addProperty("maximumAgeDays", lastAge + 10)
+        refreshChecksum(root)
+        val snapshot = load(root)
+
+        assertEquals(
+            snapshot.profiles.single { it.id == id }.points.last().copy(ageDays = lastAge + 10),
+            snapshot.interpolate(id, lastAge + 10),
+        )
+        assertNull(snapshot.interpolate(id, lastAge + 11))
+        val metadata = snapshot.metadataFor(id)!!
+        assertEquals(ReferenceAgeAvailability.BOUNDED_CARRY_FORWARD, metadata.ageAvailability)
+        assertEquals(lastAge + 10, metadata.supportedMaximumAgeDays)
     }
 
     @Test
@@ -148,12 +181,14 @@ class WeightReferenceSnapshotTest {
             "cat-siberian-female" to (3.0 to 6.0),
             "cat-siberian-male" to (4.5 to 8.0),
         )
-        assertEquals("2026-09-09.1", snapshot.manifest.snapshotVersion)
+        assertEquals(5, snapshot.manifest.schemaVersion)
+        assertEquals("2026-09-25.1", snapshot.manifest.snapshotVersion)
         adultRanges.forEach { (id, range) ->
             val profile = snapshot.profiles.single { it.id == id }
             assertEquals(ReferenceKind.MODELLED_BREED_ADULT_RANGE, profile.referenceKind)
             assertEquals(ReferenceBoundsStatistic.ADULT_TYPICAL_RANGE, profile.boundsStatistic)
             assertEquals(ReferenceCenterStatistic.ARITHMETIC_MIDPOINT, profile.centerStatistic)
+            assertEquals(ReferenceAgeAvailability.DECLARED_RANGE_ONLY, profile.ageAvailability)
             assertTrue(profile.constraints.any { "Модель" in it })
             val adult = profile.points.last()
             assertEquals(730, adult.ageDays)
@@ -185,11 +220,13 @@ class WeightReferenceSnapshotTest {
             listOf(profiles.map { it.sex }.toSet()).onEach { assertEquals(setOf(ReferenceSex.FEMALE, ReferenceSex.MALE), it) }
         }.flatten().toSet())
         assertTrue(batch.all { it.centerStatistic == ReferenceCenterStatistic.ARITHMETIC_MIDPOINT })
-        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.CARRY_FORWARD })
+        assertTrue(batch.all { it.ageAvailability == ReferenceAgeAvailability.DECLARED_RANGE_ONLY })
         assertTrue(batch.all { it.points.first().ageDays == 56 && it.points.none(ReferencePoint::empirical) })
         batch.forEach { profile ->
             val adult = profile.points.last()
-            assertEquals(adult.copy(ageDays = 10_000), snapshot.interpolate(profile.id, 10_000))
+            val maximumAge = snapshot.manifest.scopes.single { it.id == profile.id }.maximumAgeDays
+            assertEquals(adult.copy(ageDays = maximumAge), snapshot.interpolate(profile.id, maximumAge))
+            assertNull(snapshot.interpolate(profile.id, maximumAge + 1))
         }
         val russian = snapshot.metadataFor("cat-breed-0100200-female")!!
         assertEquals(ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE, russian.source.authorityClass)
@@ -289,6 +326,29 @@ class WeightReferenceSnapshotTest {
         assertFailsWith<IllegalArgumentException> {
             WeightReferenceSnapshot.load({ ByteArrayInputStream(Gson().toJson(root).toByteArray()) })
         }
+    }
+
+    @Test
+    fun `age availability is required for scopes and profiles`() {
+        val missingScopePolicy = bundledJson()
+        missingScopePolicy.getAsJsonObject("manifest").getAsJsonArray("scopes")[0].asJsonObject
+            .remove("ageAvailability")
+        refreshChecksum(missingScopePolicy)
+        assertFailsWith<IllegalArgumentException> { load(missingScopePolicy) }
+
+        val missingProfilePolicy = bundledJson()
+        missingProfilePolicy.getAsJsonArray("profiles")[0].asJsonObject.remove("ageAvailability")
+        refreshChecksum(missingProfilePolicy)
+        assertFailsWith<IllegalArgumentException> { load(missingProfilePolicy) }
+    }
+
+    @Test
+    fun `bounded carry forward policy must match between scope and profile`() {
+        val root = bundledJson()
+        root.getAsJsonArray("profiles")[0].asJsonObject.addProperty("ageAvailability", "declared_range_only")
+        refreshChecksum(root)
+
+        assertFailsWith<IllegalArgumentException> { load(root) }
     }
 
     @Test

@@ -804,6 +804,29 @@ class PetWeightReferenceChartTest {
         assertTrue(petWeightReferenceChartSeries(unavailable).isEmpty())
     }
 
+    @Test fun `unavailable reference keeps factual history without a reference series`() {
+        val measuredAt = LocalDate.of(2026, 9, 1)
+            .atTime(12, 0)
+            .toInstant(ZoneOffset.UTC)
+            .epochSecond
+        val factual = listOf(ChartPoint(measuredAt, 7.25))
+        val unavailable = PetHistoryWeightReference.Unavailable(
+            com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.AgeOutOfRange(
+                actualMinimumDays = 731,
+                actualMaximumDays = 731,
+                supportedMinimumDays = 56,
+                supportedMaximumDays = 730,
+            ),
+            "Для выбранного возраста опубликованные данные отсутствуют.",
+        )
+
+        val displayed = petWeightDisplayedSeries(factual, unavailable, emptyList(), ZoneOffset.UTC)
+
+        assertEquals(listOf(PetWeightDisplayedSeriesKind.FACTUAL), displayed.map(PetWeightDisplayedSeries::kind))
+        assertEquals(listOf(7.25), displayed.single().y)
+        assertTrue(petWeightReferenceChartSeries(unavailable).isEmpty())
+    }
+
     @Test fun `available breed suppresses only unavailable category explanation`() {
         val unavailable = PetHistoryWeightReference.Unavailable(
             com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingDogAdultWeight,
