@@ -348,11 +348,10 @@ class PetHistoryReferencePresenterTest {
                     point.medianLowerKg == point.medianUpperKg &&
                     point.medianUpperKg <= point.upperKg
             })
-            assertTrue(
-                result.constraints.contains(
-                    "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91",
-                ),
-            )
+            assertTrue(result.constraints.any { it.contains("10 958-го дня (30 лет)") })
+            assertTrue(result.constraints.all { constraint ->
+                !constraint.contains("Evidence-backed")
+            })
         }
     }
 

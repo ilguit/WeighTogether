@@ -366,6 +366,10 @@ internal fun localizedReferenceConstraint(constraint: String): String = when (co
         "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
     "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
         "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
+    "Evidence-backed/modelled values end at day 546; the final adult product value is carried forward unchanged only through day 10958 (30 years)" ->
+        "Подтверждённые и расчётные значения заканчиваются на 546-м дне; последнее взрослое значение неизменно продлено только до 10 958-го дня (30 лет)"
+    "Evidence-backed/modelled values end at day 730; the final adult product value is carried forward unchanged only through day 10958 (30 years)" ->
+        "Подтверждённые и расчётные значения заканчиваются на 730-м дне; последнее взрослое значение неизменно продлено только до 10 958-го дня (30 лет)"
     "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
         "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
     "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
