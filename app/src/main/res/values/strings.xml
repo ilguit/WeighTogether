@@ -369,4 +369,29 @@
     <string name="dog_weight_i">I — &lt; 6.5 kg</string><string name="dog_weight_ii">II — 6.5–9 kg</string><string name="dog_weight_iii">III — 9–15 kg</string><string name="dog_weight_iv">IV — 15–30 kg</string><string name="dog_weight_v">V — 30–40 kg</string>
     <string name="metric_weight">Weight</string><string name="metric_impedance">Impedance</string><string name="metric_bmi">BMI</string><string name="metric_body_fat">Body fat</string><string name="metric_body_fat_mass">Body fat mass</string><string name="metric_water">Water</string><string name="metric_water_mass">Water mass</string><string name="metric_muscle_mass">Muscle mass</string><string name="metric_skeletal_muscle_mass">Skeletal muscle</string><string name="metric_bone_mass">Bone mass</string><string name="metric_protein">Protein</string><string name="metric_protein_mass">Protein mass</string><string name="metric_visceral_fat_level">Visceral fat level</string><string name="metric_basal_metabolic_rate">Basal metabolic rate</string><string name="metric_metabolic_age">Metabolic age</string><string name="metric_lean_body_mass">Lean body mass</string>
     <string name="unit_kg">kg</string><string name="unit_ohm">ohm</string><string name="unit_kg_per_square_meter">kg/m²</string><string name="unit_percent">%</string><string name="unit_level">level</string><string name="unit_kcal_per_day">kcal/day</string><string name="unit_years">years</string>
+    <string name="message_pending_discarded">Measurement deleted</string>
+    <string name="action_undo">Undo</string>
+    <string name="error_scale_unavailable">Scale unavailable</string>
+    <string name="error_scale_refresh_detail">Could not refresh from scale: %1$s</string>
+    <string name="message_pending_restored">Measurement restored</string>
+    <string name="message_pending_already_restored">Measurement already restored</string>
+    <string name="message_pending_restore_finalized">Measurement has already been assigned and cannot be restored</string>
+    <string name="error_pending_restore_conflict">Could not restore measurement: the record already exists</string>
+    <string name="error_pending_restore_failure_detail">Could not restore measurement: %1$s</string>
+    <string name="message_profile_saved">Profile saved</string>
+    <string name="error_profile_format">Check height and birth date (YYYY-MM-DD)</string>
+    <string name="error_profile_age">Age used for calculations must be between 10 and 100 years</string>
+    <string name="sync_state_local_only">Local only</string>
+    <string name="sync_state_error">Sync error</string>
+    <string name="sync_state_pending">Pending</string>
+    <string name="sync_state_synced">Synced</string>
+    <string name="sync_message_send_failed">Could not send data</string>
+    <string name="sync_message_pending">Sending is pending</string>
+    <string name="sync_message_sent">Data sent</string>
+    <string name="health_connect_sync_unavailable">Health Connect is unavailable</string>
+    <string name="health_connect_sync_check_permissions">Checking Health Connect permissions</string>
+    <string name="health_connect_sync_write_permission_missing">Health Connect write permission is missing</string>
+    <string name="health_connect_sync_write">Writing to Health Connect</string>
+    <string name="health_connect_sync_rejected_detail">%1$s was rejected: %2$s</string>
+    <string name="health_connect_sync_retryable_detail">%1$s could not be completed temporarily: %2$s</string>
 </resources>

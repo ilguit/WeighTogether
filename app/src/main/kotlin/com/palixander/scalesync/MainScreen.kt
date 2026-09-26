@@ -189,8 +189,8 @@ internal fun MainUiEventHandler(
                     var resultReported = false
                     try {
                         val result = snackbarHostState.showSnackbar(
-                            message = event.message,
-                            actionLabel = event.actionLabel,
+                            message = event.message.resolve(resources),
+                            actionLabel = event.actionLabel.resolve(resources),
                             withDismissAction = true,
                             duration = SnackbarDuration.Long,
                         )

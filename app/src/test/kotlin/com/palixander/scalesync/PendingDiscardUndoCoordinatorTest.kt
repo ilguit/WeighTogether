@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.PendingDiscardUndoToken
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.RestorePendingResult
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -32,7 +33,7 @@ class PendingDiscardUndoCoordinatorTest {
         val secondEvent = emitter.events.first() as MainUiEvent.ShowPendingDiscardUndo
         assertEquals(firstToken.pendingId, firstEvent.pendingId)
         assertEquals(secondToken.pendingId, secondEvent.pendingId)
-        assertEquals(PENDING_DISCARDED_MESSAGE, firstEvent.message)
+        assertEquals(UiText.Resource(R.string.message_pending_discarded), firstEvent.message)
         assertEquals(PENDING_DISCARD_UNDO_ACTION, firstEvent.actionLabel)
         assertEquals(2, coordinator.activeSnackbarCount)
 
@@ -77,19 +78,19 @@ class PendingDiscardUndoCoordinatorTest {
         )
 
         assertEquals(
-            PENDING_RESTORED_MESSAGE,
+            UiText.Resource(R.string.message_pending_restored),
             RestorePendingResult.Restored(pending).undoResultMessage(),
         )
         assertEquals(
-            PENDING_ALREADY_RESTORED_MESSAGE,
+            UiText.Resource(R.string.message_pending_already_restored),
             RestorePendingResult.AlreadyRestored(pending).undoResultMessage(),
         )
         assertEquals(
-            PENDING_RESTORE_FINALIZED_MESSAGE,
+            UiText.Resource(R.string.message_pending_restore_finalized),
             RestorePendingResult.AlreadyFinalized(finalized).undoResultMessage(),
         )
         assertEquals(
-            PENDING_RESTORE_CONFLICT_MESSAGE,
+            UiText.Resource(R.string.error_pending_restore_conflict),
             RestorePendingResult.Conflict(pending).undoResultMessage(),
         )
     }
@@ -119,7 +120,7 @@ class PendingDiscardUndoCoordinatorTest {
         }
 
         assertEquals(1, restoreCalls)
-        assertEquals(PENDING_RESTORED_MESSAGE, message)
+        assertEquals(UiText.Resource(R.string.message_pending_restored), message)
     }
 
     @Test
@@ -128,11 +129,17 @@ class PendingDiscardUndoCoordinatorTest {
             val token = PendingDiscardUndoToken(pending("failure"))
 
             assertEquals(
-                "Хранилище недоступно",
+                UiText.Resource(
+                    R.string.error_pending_restore_failure_detail,
+                    listOf(UiText.Raw("Хранилище недоступно")),
+                ),
                 restorePendingForUndo(token) { error("Хранилище недоступно") },
             )
             assertEquals(
-                PENDING_RESTORE_FAILURE_MESSAGE,
+                UiText.Resource(
+                    R.string.error_pending_restore_failure_detail,
+                    listOf(UiText.Raw("IllegalStateException")),
+                ),
                 restorePendingForUndo(token) { throw IllegalStateException() },
             )
             assertThrows(kotlinx.coroutines.CancellationException::class.java) {

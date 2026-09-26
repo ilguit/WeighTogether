@@ -95,7 +95,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 internal const val SCALE_REFRESH_TIMEOUT_MILLIS = 7_000L
-internal const val SCALE_REFRESH_UNAVAILABLE_MESSAGE = "Весы недоступны"
 
 data class MainUiState(
     val settings: AppSettings = AppSettings(),
@@ -1027,13 +1026,21 @@ class MainViewModel @JvmOverloads constructor(
                     onResult = { result ->
                         onRefreshScanResult(operation, refresh.address, result)
                     },
-                    onError = { error -> scaleRefresh.fail(operation, error) },
+                    onError = { error ->
+                        scaleRefresh.fail(operation, uiText(R.string.error_scale_refresh_detail, UiText.Raw(error)))
+                    },
                 )
             },
             onFailure = { Result.failure(it) },
         )
         started.onFailure { error ->
-            scaleRefresh.fail(operation, error.message ?: localized(R.string.error_start_scanning))
+            scaleRefresh.fail(
+                operation,
+                uiText(
+                    R.string.error_scale_refresh_detail,
+                    UiText.Raw(error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName),
+                ),
+            )
         }.onSuccess {
             val timeoutJob = viewModelScope.launch {
                 delay(SCALE_REFRESH_TIMEOUT_MILLIS)

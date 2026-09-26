@@ -33,7 +33,7 @@ class MainSnackbarUiTest {
 
     @Test
     fun unavailableScaleRefreshFeedbackIsShownInSnackbar() {
-        assertSnackbarMessage(SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+        assertSnackbarMessage(composeRule.activity.getString(R.string.error_scale_unavailable))
     }
 
     @Test
@@ -62,7 +62,7 @@ class MainSnackbarUiTest {
         }
 
         composeRule.runOnIdle { channel.trySend(event).getOrThrow() }
-        composeRule.onNodeWithText(PENDING_DISCARDED_MESSAGE).assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.message_pending_discarded)).assertIsDisplayed()
         composeRule.onNodeWithText(PENDING_DISCARD_UNDO_ACTION).assertIsDisplayed().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { results.isNotEmpty() }
 

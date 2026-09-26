@@ -296,4 +296,29 @@
     <string name="dog_weight_i">I — &lt; 6,5 кг</string><string name="dog_weight_ii">II — 6,5–9 кг</string><string name="dog_weight_iii">III — 9–15 кг</string><string name="dog_weight_iv">IV — 15–30 кг</string><string name="dog_weight_v">V — 30–40 кг</string>
     <string name="metric_weight">Вес</string><string name="metric_impedance">Импеданс</string><string name="metric_bmi">ИМТ</string><string name="metric_body_fat">Жир</string><string name="metric_body_fat_mass">Масса жира</string><string name="metric_water">Вода</string><string name="metric_water_mass">Масса воды</string><string name="metric_muscle_mass">Мышечная масса</string><string name="metric_skeletal_muscle_mass">Скелетные мышцы</string><string name="metric_bone_mass">Костная масса</string><string name="metric_protein">Белок</string><string name="metric_protein_mass">Масса белка</string><string name="metric_visceral_fat_level">Уровень висцерального жира</string><string name="metric_basal_metabolic_rate">Базальный обмен</string><string name="metric_metabolic_age">Метаболический возраст</string><string name="metric_lean_body_mass">Безжировая масса</string>
     <string name="unit_kg">кг</string><string name="unit_ohm">Ом</string><string name="unit_kg_per_square_meter">кг/м²</string><string name="unit_percent">%</string><string name="unit_level">уровень</string><string name="unit_kcal_per_day">ккал/сут</string><string name="unit_years">лет</string>
+    <string name="message_pending_discarded">Измерение удалено</string>
+    <string name="action_undo">Отменить</string>
+    <string name="error_scale_unavailable">Весы недоступны</string>
+    <string name="error_scale_refresh_detail">Не удалось обновить данные с весов: %1$s</string>
+    <string name="message_pending_restored">Измерение восстановлено</string>
+    <string name="message_pending_already_restored">Измерение уже восстановлено</string>
+    <string name="message_pending_restore_finalized">Измерение уже назначено и не может быть восстановлено</string>
+    <string name="error_pending_restore_conflict">Не удалось восстановить измерение: запись уже существует</string>
+    <string name="error_pending_restore_failure_detail">Не удалось восстановить измерение: %1$s</string>
+    <string name="message_profile_saved">Профиль сохранён</string>
+    <string name="error_profile_format">Проверьте рост и дату рождения (ГГГГ-ММ-ДД)</string>
+    <string name="error_profile_age">Возраст для расчёта должен быть от 10 до 100 лет</string>
+    <string name="sync_state_local_only">Только на устройстве</string>
+    <string name="sync_state_error">Ошибка синхронизации</string>
+    <string name="sync_state_pending">Ожидает отправки</string>
+    <string name="sync_state_synced">Синхронизировано</string>
+    <string name="sync_message_send_failed">Не удалось отправить данные</string>
+    <string name="sync_message_pending">Отправка ожидается</string>
+    <string name="sync_message_sent">Данные отправлены</string>
+    <string name="health_connect_sync_unavailable">Health Connect недоступен</string>
+    <string name="health_connect_sync_check_permissions">Проверка разрешений Health Connect</string>
+    <string name="health_connect_sync_write_permission_missing">Нет разрешения записи Health Connect</string>
+    <string name="health_connect_sync_write">Запись Health Connect</string>
+    <string name="health_connect_sync_rejected_detail">%1$s отклонена: %2$s</string>
+    <string name="health_connect_sync_retryable_detail">%1$s временно не выполнена: %2$s</string>
 </resources>

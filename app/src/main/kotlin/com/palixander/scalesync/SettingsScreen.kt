@@ -1788,7 +1788,7 @@ internal fun ProfileEditorScreen(
                         color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
                     ) {
-                        Text(message, Modifier.padding(14.dp))
+                        Text(message.resolve(LocalContext.current.resources), Modifier.padding(14.dp))
                     }
                 }
             }

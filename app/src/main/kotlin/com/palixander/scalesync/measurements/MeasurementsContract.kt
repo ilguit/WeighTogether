@@ -1,5 +1,6 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.MeasurementOrigin
 
 import com.palixander.scalesync.domain.AccountId
@@ -191,27 +192,27 @@ data class MeasurementUiValues(
 }
 
 enum class MeasurementSyncDirection(
-    val label: String,
+    val label: UiText,
 ) {
-    HEALTH_CONNECT("Health Connect"),
+    HEALTH_CONNECT(UiText.Resource(R.string.health_connect_title)),
 }
 
 enum class MeasurementSyncPresentationState(
-    val label: String,
+    val label: UiText,
 ) {
-    LOCAL_ONLY(""),
-    ERROR("Sync error"),
-    PENDING("Pending"),
-    SYNCED("Synced"),
+    LOCAL_ONLY(UiText.Resource(R.string.sync_state_local_only)),
+    ERROR(UiText.Resource(R.string.sync_state_error)),
+    PENDING(UiText.Resource(R.string.sync_state_pending)),
+    SYNCED(UiText.Resource(R.string.sync_state_synced)),
 }
 
 data class MeasurementSyncDirectionPresentation(
     val direction: MeasurementSyncDirection,
     val state: MeasurementSyncPresentationState,
-    val message: String,
+    val message: UiText?,
     val canRetry: Boolean,
 ) {
-    val label: String
+    val label: UiText
         get() = direction.label
 }
 
@@ -220,7 +221,7 @@ data class MeasurementSyncPresentation(
     val directions: List<MeasurementSyncDirectionPresentation>,
     val canRetry: Boolean,
 ) {
-    val label: String
+    val label: UiText
         get() = state.label
 }
 
@@ -605,15 +606,17 @@ private fun syncDirectionPresentation(
         else -> MeasurementSyncPresentationState.ERROR
     }
     val message = when (state) {
-        MeasurementSyncPresentationState.LOCAL_ONLY -> ""
+        MeasurementSyncPresentationState.LOCAL_ONLY -> null
 
         MeasurementSyncPresentationState.ERROR ->
-            rawError?.takeIf(String::isNotBlank) ?: "Could not send data"
+            rawError?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                ?: UiText.Resource(R.string.sync_message_send_failed)
 
         MeasurementSyncPresentationState.PENDING ->
-            rawError?.takeIf(String::isNotBlank) ?: "Sending is pending"
+            rawError?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                ?: UiText.Resource(R.string.sync_message_pending)
 
-        MeasurementSyncPresentationState.SYNCED -> "Data sent"
+        MeasurementSyncPresentationState.SYNCED -> UiText.Resource(R.string.sync_message_sent)
     }
     return MeasurementSyncDirectionPresentation(
         direction = direction,

@@ -660,7 +660,7 @@ private fun MeasurementSummaryCard(
                         if (summary.latest.hasSyncPresentation) {
                             SummaryStatusAction(
                                 icon = summary.latest.sync.state.icon,
-                                contentDescription = summary.latest.sync.label,
+                                contentDescription = summary.latest.sync.label.resolve(LocalContext.current.resources),
                                 onClick = onSyncRequested,
                                 tone = summary.latest.sync.state.tone,
                                 enabled = summary.latest.canSync,
@@ -1250,7 +1250,7 @@ internal fun MeasurementHistoryCard(
                 if (item.hasSyncPresentation) {
                     HuaweiStatusAction(
                         icon = item.sync.state.icon,
-                        contentDescription = item.sync.label,
+                        contentDescription = item.sync.label.resolve(LocalContext.current.resources),
                         onClick = onSyncRequested,
                         tone = item.sync.state.tone,
                         enabled = item.canSync,
@@ -1419,7 +1419,7 @@ private fun MeasurementSyncSheet(
                         style = MaterialTheme.typography.titleLarge,
                     )
                     Text(
-                        text = item.sync.label,
+                        text = item.sync.label.resolve(LocalContext.current.resources),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -1471,20 +1471,21 @@ private fun SyncDirectionRow(direction: MeasurementSyncDirectionPresentation) {
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HuaweiRowIcon(icon = direction.state.icon, contentDescription = direction.state.label)
+        val resources = LocalContext.current.resources
+        HuaweiRowIcon(icon = direction.state.icon, contentDescription = direction.state.label.resolve(resources))
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(direction.label, style = MaterialTheme.typography.titleSmall)
+            Text(direction.label.resolve(resources), style = MaterialTheme.typography.titleSmall)
             Text(
-                direction.state.label,
+                direction.state.label.resolve(resources),
                 color = direction.state.contentColor,
                 style = MaterialTheme.typography.labelMedium,
             )
-            if (direction.message.isNotBlank()) {
+            direction.message?.let { message ->
                 Text(
-                    direction.message,
+                    message.resolve(resources),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )

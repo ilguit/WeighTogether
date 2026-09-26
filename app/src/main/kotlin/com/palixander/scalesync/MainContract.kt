@@ -22,8 +22,8 @@ sealed interface MainUiEvent {
     data class ShowPendingDiscardUndo(
         val snackbarId: Long,
         val pendingId: PendingMeasurementId,
-        val message: String = PENDING_DISCARDED_MESSAGE,
-        val actionLabel: String = PENDING_DISCARD_UNDO_ACTION,
+        val message: UiText = UiText.Resource(R.string.message_pending_discarded),
+        val actionLabel: UiText = UiText.Resource(R.string.action_undo),
     ) : MainUiEvent
 
     data class PendingResolutionCompleted(
@@ -68,12 +68,9 @@ internal class MainUiEventEmitter {
     }
 }
 
-internal const val SCALE_REFRESH_SCALE_REQUIRED_MESSAGE =
-    "Сначала выберите весы в настройках"
-
 internal sealed interface ScaleRefreshPreflightResult {
     data class Ready(val address: String) : ScaleRefreshPreflightResult
-    data class Rejected(val message: String) : ScaleRefreshPreflightResult
+    data class Rejected(val message: UiText) : ScaleRefreshPreflightResult
 }
 
 private val BLUETOOTH_DEVICE_ADDRESS =
@@ -81,7 +78,7 @@ private val BLUETOOTH_DEVICE_ADDRESS =
 
 internal fun scaleRefreshPreflight(address: String?): ScaleRefreshPreflightResult {
     val selectedAddress = address?.trim()?.takeIf(BLUETOOTH_DEVICE_ADDRESS::matches)
-        ?: return ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE)
+        ?: return ScaleRefreshPreflightResult.Rejected(UiText.Resource(R.string.error_scale_not_selected))
     return ScaleRefreshPreflightResult.Ready(selectedAddress)
 }
 
@@ -118,7 +115,7 @@ internal fun shouldProcessForegroundScaleReading(
 internal fun beginScaleRefresh(
     address: String?,
     coordinator: ScaleRefreshCoordinator,
-    showMessage: (String) -> Unit,
+    showMessage: (UiText) -> Unit,
 ): ScaleRefreshStart? = when (val preflight = scaleRefreshPreflight(address)) {
     is ScaleRefreshPreflightResult.Rejected -> {
         showMessage(preflight.message)
@@ -142,7 +139,7 @@ internal class ScaleRefreshCoordinator(
     private val setRefreshing: (Boolean) -> Unit,
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
-    private val showMessage: (String) -> Unit,
+    private val showMessage: (UiText) -> Unit,
 ) {
     private val lock = Any()
     private var nextOperationId = 0L
@@ -174,16 +171,16 @@ internal class ScaleRefreshCoordinator(
 
     fun complete(token: OperationToken) = finish(token)
 
-    fun fail(token: OperationToken, message: String) = finish(token, message)
+    fun fail(token: OperationToken, message: UiText) = finish(token, message)
 
-    fun timeout(token: OperationToken) = finish(token, SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+    fun timeout(token: OperationToken) = finish(token, UiText.Resource(R.string.error_scale_unavailable))
 
     fun clear() {
         val token = synchronized(lock) { operation?.token } ?: return
         finish(token)
     }
 
-    private fun finish(token: OperationToken, message: String? = null) {
+    private fun finish(token: OperationToken, message: UiText? = null) {
         val cancel = synchronized(lock) {
             val active = operation
             if (active?.token != token || active.phase != Phase.ACTIVE) return
@@ -247,22 +244,25 @@ internal class PendingDiscardUndoCoordinator(
         get() = synchronized(lock) { activeTokens.size }
 }
 
-internal fun RestorePendingResult.undoResultMessage(): String = when (this) {
-    is RestorePendingResult.Restored -> PENDING_RESTORED_MESSAGE
-    is RestorePendingResult.AlreadyRestored -> PENDING_ALREADY_RESTORED_MESSAGE
-    is RestorePendingResult.AlreadyFinalized -> PENDING_RESTORE_FINALIZED_MESSAGE
-    is RestorePendingResult.Conflict -> PENDING_RESTORE_CONFLICT_MESSAGE
+internal fun RestorePendingResult.undoResultMessage(): UiText = when (this) {
+    is RestorePendingResult.Restored -> UiText.Resource(R.string.message_pending_restored)
+    is RestorePendingResult.AlreadyRestored -> UiText.Resource(R.string.message_pending_already_restored)
+    is RestorePendingResult.AlreadyFinalized -> UiText.Resource(R.string.message_pending_restore_finalized)
+    is RestorePendingResult.Conflict -> UiText.Resource(R.string.error_pending_restore_conflict)
 }
 
 internal suspend fun restorePendingForUndo(
     undoToken: PendingDiscardUndoToken,
     restorePending: suspend (PendingDiscardUndoToken) -> RestorePendingResult,
-): String = try {
+): UiText = try {
     restorePending(undoToken).undoResultMessage()
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (error: Throwable) {
-    error.message?.takeIf(String::isNotBlank) ?: PENDING_RESTORE_FAILURE_MESSAGE
+    UiText.Resource(
+        R.string.error_pending_restore_failure_detail,
+        listOf(UiText.Raw(error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName)),
+    )
 }
 
 data class ProfileEditorUiState(
@@ -270,7 +270,7 @@ data class ProfileEditorUiState(
     val height: String = "",
     val birthDate: String = "",
     val sex: Sex = Sex.MALE,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
 )
 
 internal class ProfileEditorController(
@@ -312,7 +312,7 @@ internal class ProfileEditorController(
             is ProfileValidationResult.Valid -> {
                 saveProfile(result.profile)
                 close()
-                eventEmitter.showSnackbar(PROFILE_SAVED_MESSAGE)
+                eventEmitter.showSnackbar(UiText.Resource(R.string.message_profile_saved))
             }
         }
     }
@@ -329,7 +329,7 @@ internal class ProfileEditorController(
 
 internal sealed interface ProfileValidationResult {
     data class Valid(val profile: UserProfile) : ProfileValidationResult
-    data class Invalid(val message: String) : ProfileValidationResult
+    data class Invalid(val message: UiText) : ProfileValidationResult
 }
 
 internal fun validateProfile(
@@ -345,12 +345,12 @@ internal fun validateProfile(
             sex = sex,
         )
     }.getOrElse {
-        return ProfileValidationResult.Invalid(PROFILE_FORMAT_ERROR_MESSAGE)
+        return ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_format))
     }
     if (profile.birthDate.isAfter(today.minusYears(MINIMUM_PROFILE_AGE_YEARS)) ||
         profile.birthDate.isBefore(today.minusYears(MAXIMUM_PROFILE_AGE_YEARS))
     ) {
-        return ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE)
+        return ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_age))
     }
     return ProfileValidationResult.Valid(profile)
 }
@@ -444,19 +444,6 @@ internal fun shouldActivateHealthConnectAfterPermissionRefresh(
     explicitAuthorization: Boolean,
 ): Boolean = isConnected && explicitAuthorization
 
-internal const val PROFILE_FORMAT_ERROR_MESSAGE =
-    "Проверьте рост и дату рождения (ГГГГ-ММ-ДД)"
-internal const val PROFILE_AGE_ERROR_MESSAGE = "Возраст для расчёта должен быть от 10 до 100 лет"
-internal const val PROFILE_SAVED_MESSAGE = "Профиль сохранён"
-internal const val PENDING_DISCARDED_MESSAGE = "Измерение удалено"
-internal const val PENDING_DISCARD_UNDO_ACTION = "Отменить"
-internal const val PENDING_RESTORED_MESSAGE = "Измерение восстановлено"
-internal const val PENDING_ALREADY_RESTORED_MESSAGE = "Измерение уже восстановлено"
-internal const val PENDING_RESTORE_FINALIZED_MESSAGE =
-    "Измерение уже назначено и не может быть восстановлено"
-internal const val PENDING_RESTORE_CONFLICT_MESSAGE =
-    "Не удалось восстановить измерение: запись уже существует"
-internal const val PENDING_RESTORE_FAILURE_MESSAGE = "Не удалось восстановить измерение"
 internal const val MINIMUM_PROFILE_AGE_YEARS = 10L
 internal const val MAXIMUM_PROFILE_AGE_YEARS = 100L
 

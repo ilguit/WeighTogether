@@ -79,10 +79,10 @@ class MainContractTest {
         controller.save()
 
         assertTrue(controller.state.value.isOpen)
-        assertEquals(PROFILE_FORMAT_ERROR_MESSAGE, controller.state.value.errorMessage)
+        assertEquals(UiText.Resource(R.string.error_profile_format), controller.state.value.errorMessage)
         assertTrue(saved.isEmpty())
         assertEquals(
-            MainUiEvent.ShowSnackbar(UiText.Raw(PROFILE_FORMAT_ERROR_MESSAGE)),
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.error_profile_format)),
             emitter.events.first(),
         )
     }
@@ -106,7 +106,7 @@ class MainContractTest {
         assertFalse(controller.state.value.isOpen)
         assertNull(controller.state.value.errorMessage)
         assertEquals(
-            MainUiEvent.ShowSnackbar(UiText.Raw(PROFILE_SAVED_MESSAGE)),
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.message_profile_saved)),
             emitter.events.first(),
         )
     }
@@ -127,11 +127,11 @@ class MainContractTest {
         assertTrue(validateProfile("175", today.minusYears(10).toString(), Sex.MALE, today) is ProfileValidationResult.Valid)
         assertTrue(validateProfile("175", today.minusYears(100).toString(), Sex.MALE, today) is ProfileValidationResult.Valid)
         assertEquals(
-            ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE),
+            ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_age)),
             validateProfile("175", today.minusYears(10).plusDays(1).toString(), Sex.MALE, today),
         )
         assertEquals(
-            ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE),
+            ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_age)),
             validateProfile("175", today.minusYears(100).minusDays(1).toString(), Sex.MALE, today),
         )
     }
