@@ -138,7 +138,7 @@ internal fun formatHomeKgChartMarker(
         append(entry.label)
         append(": ")
         append(if (entry.key == HomeKgChartMetric.WEIGHT.key) formatWeight(entry.valueKg, locale) else number.format(entry.valueKg))
-        append(" кг")
+        append(" kg")
     }
 }
 
@@ -337,7 +337,7 @@ private fun HomeKgVicoChart(
         chart = rememberCartesianChart(
             rememberChartLineLayer(lines = lines, rangeProvider = rangeProvider),
             startAxis = rememberChartStartAxis(
-                CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
+                CartesianValueFormatter.decimal(decimalCount = 2, suffix = " kg"),
             ),
             bottomAxis = rememberChartBottomAxis(bottomFormatter),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),

@@ -10,6 +10,7 @@ import com.palixander.scalesync.domain.lifecycleAt
 import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 
 /** State-based destinations owned by the measurements feature. */
@@ -73,10 +74,10 @@ data class MeasurementsNavigationState(
 enum class MeasurementEditorGroup(
     val title: String,
 ) {
-    MAIN("Основное"),
-    BODY_COMPOSITION("Состав тела"),
-    MUSCLES_AND_BONES("Мышцы и кости"),
-    METABOLISM("Метаболизм"),
+    MAIN("Main"),
+    BODY_COMPOSITION("Body composition"),
+    MUSCLES_AND_BONES("Muscles and bones"),
+    METABOLISM("Metabolism"),
 }
 
 /**
@@ -91,33 +92,33 @@ enum class MeasurementField(
     internal val wholeNumber: Boolean = false,
     internal val maximum: Double? = null,
 ) {
-    WEIGHT_KG("Вес", "кг", 2, MeasurementEditorGroup.MAIN),
-    IMPEDANCE_OHM("Импеданс", "Ом", 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
-    BMI("Индекс массы тела", "", 1, MeasurementEditorGroup.MAIN),
-    BODY_FAT_PERCENT("Жир", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    BODY_FAT_MASS_KG("Масса жира", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    WATER_PERCENT("Вода", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    WATER_MASS_KG("Масса воды", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    MUSCLE_MASS_KG("Мышечная масса", "кг", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    WEIGHT_KG("Weight", "kg", 2, MeasurementEditorGroup.MAIN),
+    IMPEDANCE_OHM("Impedance", "Ω", 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
+    BMI("Body mass index", "", 1, MeasurementEditorGroup.MAIN),
+    BODY_FAT_PERCENT("Body fat", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    BODY_FAT_MASS_KG("Fat mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    WATER_PERCENT("Water", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    WATER_MASS_KG("Water mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    MUSCLE_MASS_KG("Muscle mass", "kg", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
     SKELETAL_MUSCLE_MASS_KG(
-        "Скелетная мышечная масса",
-        "кг",
+        "Skeletal muscle mass",
+        "kg",
         2,
         MeasurementEditorGroup.MUSCLES_AND_BONES,
     ),
-    BONE_MASS_KG("Костная масса", "кг", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
-    PROTEIN_PERCENT("Белок", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    PROTEIN_MASS_KG("Масса белка", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    VISCERAL_FAT_LEVEL("Уровень висцерального жира", "", 1, MeasurementEditorGroup.METABOLISM),
-    BASAL_METABOLIC_RATE_KCAL("Основной обмен", "ккал", 0, MeasurementEditorGroup.METABOLISM),
+    BONE_MASS_KG("Bone mass", "kg", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    PROTEIN_PERCENT("Protein", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    PROTEIN_MASS_KG("Protein mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    VISCERAL_FAT_LEVEL("Visceral fat level", "", 1, MeasurementEditorGroup.METABOLISM),
+    BASAL_METABOLIC_RATE_KCAL("Basal metabolic rate", "kcal", 0, MeasurementEditorGroup.METABOLISM),
     METABOLIC_AGE(
-        "Метаболический возраст",
-        "лет",
+        "Metabolic age",
+        "years",
         0,
         MeasurementEditorGroup.METABOLISM,
         wholeNumber = true,
     ),
-    LEAN_BODY_MASS_KG("Безжировая масса", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    LEAN_BODY_MASS_KG("Lean body mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
     ;
 
     val inputLabel: String
@@ -199,9 +200,9 @@ enum class MeasurementSyncPresentationState(
     val label: String,
 ) {
     LOCAL_ONLY(""),
-    ERROR("Ошибка синхронизации"),
-    PENDING("Ожидает отправки"),
-    SYNCED("Синхронизировано"),
+    ERROR("Sync error"),
+    PENDING("Pending"),
+    SYNCED("Synced"),
 }
 
 data class MeasurementSyncDirectionPresentation(
@@ -297,12 +298,12 @@ data class MeasurementUiItem(
 }
 
 internal const val MANUALLY_EDITED_HISTORY_MESSAGE =
-    "Измерение изменено вручную. Изменения хранятся только на этом устройстве " +
-        "и не отправляются во внешние сервисы."
+    "This measurement was edited manually. Changes are stored only on this device " +
+        "and are not sent to external services."
 
 internal const val PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE =
-    "Локальные показатели пересчитаны по обновлённому профилю. " +
-        "Ранее синхронизированные данные во внешних сервисах не изменились."
+    "Local metrics were recalculated for the updated profile. " +
+        "Previously synced data in external services was not changed."
 
 data class PendingMeasurementUiItem(
     val id: PendingMeasurementId,
@@ -471,7 +472,7 @@ data class MeasurementDeleteConfirmation(
 data class PendingClearConfirmation(
     val count: Int,
     val isClearing: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
 )
 
 val MeasurementDeleteConfirmation.measuredAt: Instant
@@ -509,7 +510,7 @@ sealed interface MeasurementsUiEvent {
         val result: com.palixander.scalesync.domain.ManualWeightResult.Saved,
     ) : MeasurementsUiEvent
     data class ShowSnackbar(
-        val message: String,
+        val message: UiText,
     ) : MeasurementsUiEvent
 }
 
@@ -607,12 +608,12 @@ private fun syncDirectionPresentation(
         MeasurementSyncPresentationState.LOCAL_ONLY -> ""
 
         MeasurementSyncPresentationState.ERROR ->
-            rawError?.takeIf(String::isNotBlank) ?: "Не удалось отправить данные"
+            rawError?.takeIf(String::isNotBlank) ?: "Could not send data"
 
         MeasurementSyncPresentationState.PENDING ->
-            rawError?.takeIf(String::isNotBlank) ?: "Отправка ожидает выполнения"
+            rawError?.takeIf(String::isNotBlank) ?: "Sending is pending"
 
-        MeasurementSyncPresentationState.SYNCED -> "Данные отправлены"
+        MeasurementSyncPresentationState.SYNCED -> "Data sent"
     }
     return MeasurementSyncDirectionPresentation(
         direction = direction,

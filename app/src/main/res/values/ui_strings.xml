@@ -113,4 +113,13 @@
     <string name="settings_about">About</string>
     <string name="settings_health_connect">Health Connect</string>
     <string name="settings_diagnostics">Diagnostics</string>
+    <string name="message_measurement_already_deleted">The measurement has already been deleted</string>
+    <string name="message_measurement_updated_locally">Local measurement updated</string>
+    <string name="error_check_entered_values">Check the entered values</string>
+    <string name="message_no_unassigned_measurements">There are no unassigned measurements left</string>
+    <string name="message_unassigned_measurements_deleted">Unassigned measurements deleted</string>
+    <string name="message_measurement_retry_queued">Retry queued</string>
+    <string name="error_clear_measurements">Could not clear measurements. Try again.</string>
+    <string name="message_measurement_deleted_locally">Local measurement deleted</string>
+    <string name="error_delete_measurement">Could not delete measurement</string>
 </resources>

@@ -327,8 +327,8 @@ class ChartsContractTest {
 
         assertEquals("72.40 кг", formatChartCurrentValue(72.4, weight, Locale.US))
         assertEquals("+0.40 кг", formatChartDelta(0.4, weight, Locale.US))
-        assertEquals("−0.2 п.п.", formatChartDelta(-0.2, fat, Locale.US))
-        assertEquals("0.0 п.п.", formatChartDelta(0.0, fat, Locale.US))
+        assertEquals("−0.2 pp", formatChartDelta(-0.2, fat, Locale.US))
+        assertEquals("0.0 pp", formatChartDelta(0.0, fat, Locale.US))
         assertEquals("—", formatChartCurrentValue(null, weight, Locale.US))
         assertEquals("—", formatChartDelta(null, weight, Locale.US))
     }

@@ -47,6 +47,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -79,6 +80,7 @@ import com.palixander.scalesync.ui.components.HuaweiSystemBarBackgrounds
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.profiles.PetProfileScreen
 import com.palixander.scalesync.ui.profiles.PetHistoryCallbacks
 import com.palixander.scalesync.ui.profiles.PetHistoryUiState
@@ -221,6 +223,7 @@ fun ScaleSyncApp(
     createBackup: () -> Unit,
     openBackup: (BackupImportMode) -> Unit,
 ) {
+    val resources = LocalContext.current.resources
     var currentSection by rememberSaveable { mutableStateOf(defaultAppSection) }
     var currentDestination by rememberSaveable { mutableStateOf(AppDestination.ROOT) }
     var settingsDestination by rememberSaveable { mutableStateOf(SettingsDestination.ROOT) }
@@ -265,7 +268,7 @@ fun ScaleSyncApp(
     LaunchedEffect(measurementsViewModel) {
         measurementsViewModel.events.collect { event ->
             when (event) {
-                is MeasurementsUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is MeasurementsUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message.resolve(resources))
                 is MeasurementsUiEvent.ManualWeightSaved -> {
                     currentSection = AppSection.MEASUREMENTS
                     currentDestination = AppDestination.ROOT

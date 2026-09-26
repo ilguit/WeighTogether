@@ -80,6 +80,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.res.pluralStringResource
 import com.palixander.scalesync.R
@@ -97,6 +98,7 @@ import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ReferencePalette
 import com.palixander.scalesync.ui.theme.ReferenceTone
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.reference.ExpandedMetricReference
 import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
@@ -111,7 +113,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val EditorWarning =
-    "Изменение сохранится в истории. Доступные направления синхронизации будут поставлены в очередь."
+    "The change will be saved in history. Available sync destinations will be queued."
 private const val MissingMeasurementValue = "—"
 
 private val historyAdditionalFields = MeasurementField.entries.filterNot { field ->
@@ -365,7 +367,7 @@ private fun ClearPendingDialog(
                 )
                 confirmation.errorMessage?.let { error ->
                     Text(
-                        text = error,
+                        text = error.resolve(LocalContext.current.resources),
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.testTag("pending-clear-error"),
                     )
@@ -421,13 +423,13 @@ private fun PendingMeasurementCard(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 PendingMeasurementValue(
-                    label = "Вес",
-                    value = "${formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg)} кг",
+                    label = "Weight",
+                    value = "${formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg)} kg",
                     modifier = Modifier.weight(1f),
                 )
                 PendingMeasurementValue(
-                    label = "Импеданс",
-                    value = pending.impedanceOhm?.let { "$it Ом" } ?: MissingMeasurementValue,
+                    label = "Impedance",
+                    value = pending.impedanceOhm?.let { "$it Ω" } ?: MissingMeasurementValue,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -738,7 +740,7 @@ private fun MeasurementSummaryCard(
                                 letterSpacing = (-1).sp,
                             )
                             Text(
-                                text = " кг",
+                                text = " kg",
                                 modifier = Modifier.align(Alignment.Bottom).padding(bottom = 4.dp),
                                 color = HuaweiColors.Secondary,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -786,7 +788,7 @@ private fun MeasurementSummaryCard(
                     .fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
                     .semantics {
-                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                        stateDescription = if (expanded) "Expanded" else "Collapsed"
                     }
                     .testTag("summary-expand-metrics"),
             ) {
@@ -1121,7 +1123,7 @@ private fun MeasurementHistoryScreen(
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { contentDescription = "Загрузка истории" },
+                        .semantics { contentDescription = "Loading history" },
                 )
             }
         }
@@ -1172,10 +1174,10 @@ internal fun MeasurementHistoryCard(
                         .heightIn(min = 72.dp)
                         .clickable(
                             role = Role.Button,
-                            onClickLabel = if (expanded) "Свернуть измерение" else "Развернуть измерение",
+                            onClickLabel = if (expanded) "Collapse measurement" else "Expand measurement",
                         ) { onExpandedChange(!expanded) }
                         .semantics {
-                            stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                            stateDescription = if (expanded) "Expanded" else "Collapsed"
                         }
                         .testTag("history-toggle-${item.id}")
                         .padding(start = 16.dp, top = 14.dp, bottom = 14.dp),
@@ -1205,7 +1207,7 @@ internal fun MeasurementHistoryCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
+                                    text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} kg",
                                     modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
@@ -1215,7 +1217,7 @@ internal fun MeasurementHistoryCard(
                         }
                         if (item.isWeightOnly) {
                             Text(
-                                text = "Только вес",
+                                text = "Weight only",
                                 modifier = Modifier.testTag("history-weight-only-label-${item.id}"),
                                 color = MaterialTheme.colorScheme.secondary,
                                 style = MaterialTheme.typography.labelMedium,
@@ -1420,7 +1422,7 @@ private fun MeasurementSyncSheet(
                 }
                 HuaweiIconButton(
                     icon = HuaweiIcons.Close,
-                    contentDescription = "Закрыть",
+                    contentDescription = "Close",
                     onClick = onDismiss,
                 )
             }
@@ -1728,7 +1730,7 @@ private fun NestedScreenHeader(
         )
         onAdd?.let { action ->
             TextButton(onClick = action, enabled = addEnabled, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .testTag("measurement-history-add").semantics { contentDescription = "Добавить вес" }) {
+                .testTag("measurement-history-add").semantics { contentDescription = "Add weight" }) {
                 Text("+", style = MaterialTheme.typography.headlineMedium)
             }
         }
@@ -1816,7 +1818,7 @@ private fun DeleteMeasurementDialog(
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     "${formatMeasurementDateTime(confirmation.measuredAt)} · " +
-                        "${formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg)} кг",
+                        "${formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg)} kg",
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
@@ -1879,15 +1881,15 @@ private fun historySubtitle(item: MeasurementUiItem): String = listOf(
     MeasurementMetricPresentation(
         MeasurementField.BODY_FAT_PERCENT,
         item.values.bodyFatPercent,
-    ).displayValue().let { "Жир $it" },
+    ).displayValue().let { "Fat $it" },
     MeasurementMetricPresentation(
         MeasurementField.MUSCLE_MASS_KG,
         item.values.muscleMassKg,
-    ).displayValue().let { "мышцы $it" },
+    ).displayValue().let { "muscle $it" },
     MeasurementMetricPresentation(
         MeasurementField.BMI,
         item.values.bmi,
-    ).displayValue().let { "ИМТ $it" },
+    ).displayValue().let { "BMI $it" },
 ).joinToString(" · ")
 
 private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
@@ -1902,12 +1904,12 @@ private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.g
 }
 
 private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault()): String = when {
-    delta == null -> "Первое измерение"
-    kotlin.math.abs(delta) < 0.000_001 -> "Без изменений"
+    delta == null -> "First measurement"
+    kotlin.math.abs(delta) < 0.000_001 -> "No change"
     else -> {
         val prefix = if (delta > 0) "+" else "−"
         val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        "$prefix$value кг"
+        "$prefix$value kg"
     }
 }
 

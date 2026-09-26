@@ -630,7 +630,9 @@ class MeasurementsScreenTest {
             state = state.copy(
                 pendingClearConfirmation = PendingClearConfirmation(
                     count = 1,
-                    errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
+                    errorMessage = com.palixander.scalesync.ui.text.uiText(
+                        com.palixander.scalesync.R.string.error_clear_measurements,
+                    ),
                 ),
             )
         }

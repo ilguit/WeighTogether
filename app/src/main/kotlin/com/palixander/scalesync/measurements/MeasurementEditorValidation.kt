@@ -77,22 +77,22 @@ class MeasurementEditorDraft private constructor(
 
 fun MeasurementField.validateInput(input: String): MeasurementFieldValidation {
     val trimmed = input.trim()
-    if (trimmed.isEmpty()) return MeasurementFieldValidation(error = "Обязательное поле")
+    if (trimmed.isEmpty()) return MeasurementFieldValidation(error = "Required field")
 
     val normalized = trimmed.replace(',', '.')
     val parsed = if (wholeNumber) {
         val integer = normalized.toIntOrNull()
-            ?: return MeasurementFieldValidation(error = "Введите целое число")
+            ?: return MeasurementFieldValidation(error = "Enter a whole number")
         integer.toDouble()
     } else {
         normalized.toDoubleOrNull()
-            ?: return MeasurementFieldValidation(error = "Введите число")
+            ?: return MeasurementFieldValidation(error = "Enter a number")
     }
 
-    if (!parsed.isFinite()) return MeasurementFieldValidation(error = "Введите конечное число")
-    if (parsed < 0.0) return MeasurementFieldValidation(error = "Значение не может быть отрицательным")
+    if (!parsed.isFinite()) return MeasurementFieldValidation(error = "Enter a finite number")
+    if (parsed < 0.0) return MeasurementFieldValidation(error = "Value cannot be negative")
     if (maximum != null && parsed > maximum) {
-        return MeasurementFieldValidation(error = "Допустимый диапазон: 0–${maximum.toInt()}")
+        return MeasurementFieldValidation(error = "Allowed range: 0–${maximum.toInt()}")
     }
     return MeasurementFieldValidation(parsedValue = parsed)
 }

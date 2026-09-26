@@ -222,7 +222,7 @@ class MeasurementsPresentationTest {
             healthConnectError = "permission denied",
         )
 
-        assertEquals("Ошибка синхронизации", presentation.label)
+        assertEquals("Sync error", presentation.label)
         assertEquals("Health Connect", presentation.directions.single().label)
         assertEquals("permission denied", presentation.directions.single().message)
     }

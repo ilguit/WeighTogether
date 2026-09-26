@@ -48,19 +48,19 @@ class MeasurementsViewModelTest {
                 ),
             ),
         )
-        val messages = mutableListOf<String>()
+        val messages = mutableListOf<com.palixander.scalesync.ui.text.UiText>()
 
         handlePendingClearFailure(interaction, messages::add)
 
         assertEquals(
             PendingClearConfirmation(
                 count = 3,
-                errorMessage = "Не удалось очистить измерения. Попробуйте ещё раз.",
+                errorMessage = com.palixander.scalesync.ui.text.uiText(R.string.error_clear_measurements),
             ),
             interaction.value.pendingClearConfirmation,
         )
         assertEquals(
-            listOf("Не удалось очистить измерения. Попробуйте ещё раз."),
+            listOf(com.palixander.scalesync.ui.text.uiText(R.string.error_clear_measurements)),
             messages,
         )
     }
@@ -375,7 +375,7 @@ class MeasurementsViewModelTest {
     @Test
     fun successfulDeleteUsesRequiredSnackbarMessage() {
         assertEquals(
-            "Локальное измерение удалено",
+            com.palixander.scalesync.ui.text.uiText(R.string.message_measurement_deleted_locally),
             measurementDeleteResultMessage(MeasurementMutationResult.Success),
         )
     }

@@ -55,4 +55,4 @@ private fun defaultChartMetrics(): Set<MeasurementMetric> = linkedSetOf(
 )
 
 private const val PercentUnit = "%"
-const val PercentagePointUnit = "п.п."
+const val PercentagePointUnit = "pp"

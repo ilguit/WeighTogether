@@ -761,27 +761,29 @@ internal fun MetricLineChart(
     )
 }
 
+@Composable
 private fun rangeLabel(
     preset: ChartRangePreset,
     startDate: LocalDate,
     endDateInclusive: LocalDate,
 ): String = when (preset) {
-    ChartRangePreset.ALL -> "Всё"
-    ChartRangePreset.LAST_7_DAYS -> "7 дней"
-    ChartRangePreset.LAST_30_DAYS -> "30 дней"
-    ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
-    ChartRangePreset.YEAR_TO_DATE -> "С начала года"
+    ChartRangePreset.ALL -> stringResource(R.string.chart_range_all)
+    ChartRangePreset.LAST_7_DAYS -> stringResource(R.string.chart_range_7_days)
+    ChartRangePreset.LAST_30_DAYS -> stringResource(R.string.chart_range_30_days)
+    ChartRangePreset.LAST_3_MONTHS -> stringResource(R.string.chart_range_3_months)
+    ChartRangePreset.YEAR_TO_DATE -> stringResource(R.string.chart_range_year_to_date)
     ChartRangePreset.CUSTOM ->
         "${DateFormatter.format(startDate)} — ${DateFormatter.format(endDateInclusive)}"
 }
 
+@Composable
 private fun ChartRangePreset.title(): String = when (this) {
-    ChartRangePreset.ALL -> "Всё"
-    ChartRangePreset.LAST_7_DAYS -> "7 дней"
-    ChartRangePreset.LAST_30_DAYS -> "30 дней"
-    ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
-    ChartRangePreset.YEAR_TO_DATE -> "С начала года"
-    ChartRangePreset.CUSTOM -> "Свои даты"
+    ChartRangePreset.ALL -> stringResource(R.string.chart_range_all)
+    ChartRangePreset.LAST_7_DAYS -> stringResource(R.string.chart_range_7_days)
+    ChartRangePreset.LAST_30_DAYS -> stringResource(R.string.chart_range_30_days)
+    ChartRangePreset.LAST_3_MONTHS -> stringResource(R.string.chart_range_3_months)
+    ChartRangePreset.YEAR_TO_DATE -> stringResource(R.string.chart_range_year_to_date)
+    ChartRangePreset.CUSTOM -> stringResource(R.string.chart_range_custom)
 }
 
 private fun ChartMetricOption.labelWithUnit(): String =

@@ -43,6 +43,8 @@ import com.palixander.scalesync.core.chronologicalAge
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.accounts.reconcileAccountSelection
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
 import com.palixander.scalesync.ui.reference.toReferenceContext
 import com.palixander.scalesync.ui.reference.toReferenceReadings
@@ -348,7 +350,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun openEditor(id: String, origin: MeasurementEditorOrigin) {
         val current = currentInteraction()
         val value = measurements.value.load.valuesOrEmpty().finalized.firstOrNull { it.id == id } ?: run {
-            showMessage("Измерение уже удалено")
+            showMessage(R.string.message_measurement_already_deleted)
             return
         }
         val nextEditor = MeasurementEditorState(
@@ -395,9 +397,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                     ?: MeasurementMutationResult.Invalid
             }
             val message = when (result) {
-                MeasurementMutationResult.Success -> "Локальное измерение изменено"
-                MeasurementMutationResult.NotFound -> "Измерение уже удалено"
-                MeasurementMutationResult.Invalid -> "Проверьте введённые значения"
+                MeasurementMutationResult.Success -> R.string.message_measurement_updated_locally
+                MeasurementMutationResult.NotFound -> R.string.message_measurement_already_deleted
+                MeasurementMutationResult.Invalid -> R.string.error_check_entered_values
             }
             if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { state ->
                     state.afterSaveCompletion(result)
@@ -416,7 +418,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         val owner = currentInteraction()
         val values = measurements.value.load.valuesOrEmpty().finalized
         if (values.none { it.id == id }) {
-            showMessage("Измерение уже удалено")
+            showMessage(R.string.message_measurement_already_deleted)
             return
         }
         val operation = operation(owner.selection, id)
@@ -429,7 +431,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 )
             ) {
                 MeasurementDeleteRequest.NotFound -> completeDeleteRequest(
-                    operation, null, "Измерение уже удалено",
+                    operation, null, uiText(R.string.message_measurement_already_deleted),
                 )
                 is MeasurementDeleteRequest.Confirm -> completeDeleteRequest(
                     operation, request.confirmation, null,
@@ -487,8 +489,8 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
                 val cleared = repository.clearUnassignedPending()
                 interaction.update { state -> state.copy(pendingClearConfirmation = null) }
                 showMessage(
-                    if (cleared == 0) "Неназначенных измерений уже нет"
-                    else "Неназначенные измерения удалены",
+                    if (cleared == 0) R.string.message_no_unassigned_measurements
+                    else R.string.message_unassigned_measurements_deleted,
                 )
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -510,11 +512,13 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
         if (measurements.value.load.valuesOrEmpty().finalized.none { it.id == id }) return
         viewModelScope.launch {
             repository.retry(id)
-            showMessage("Повторная отправка поставлена в очередь")
+            showMessage(R.string.message_measurement_retry_queued)
         }
     }
 
-    private fun showMessage(message: String) {
+    private fun showMessage(message: Int) = showMessage(uiText(message))
+
+    private fun showMessage(message: UiText) {
         eventChannel.trySend(MeasurementsUiEvent.ShowSnackbar(message))
     }
 
@@ -528,7 +532,7 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
     private fun completeDeleteRequest(
         operation: MeasurementOperationToken,
         confirmation: MeasurementDeleteConfirmation?,
-        message: String?,
+        message: UiText?,
     ) {
         if (interaction.acceptOperation(operation, container.accountSelection.selection.value) { current ->
                 current.copy(
@@ -545,9 +549,9 @@ class MeasurementsViewModel(application: Application) : AndroidViewModel(applica
 
 internal fun handlePendingClearFailure(
     interaction: MutableStateFlow<MeasurementsInteractionState>,
-    showMessage: (String) -> Unit,
+    showMessage: (UiText) -> Unit,
 ) {
-    val message = "Не удалось очистить измерения. Попробуйте ещё раз."
+    val message = uiText(R.string.error_clear_measurements)
     interaction.update { state ->
         state.copy(
             pendingClearConfirmation = state.pendingClearConfirmation?.copy(
@@ -661,10 +665,10 @@ internal fun measurementDeleteRequest(
     )
 }
 
-internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): String = when (result) {
-    MeasurementMutationResult.Success -> "Локальное измерение удалено"
-    MeasurementMutationResult.NotFound -> "Измерение уже удалено"
-    MeasurementMutationResult.Invalid -> "Не удалось удалить измерение"
+internal fun measurementDeleteResultMessage(result: MeasurementMutationResult): UiText = when (result) {
+    MeasurementMutationResult.Success -> uiText(R.string.message_measurement_deleted_locally)
+    MeasurementMutationResult.NotFound -> uiText(R.string.message_measurement_already_deleted)
+    MeasurementMutationResult.Invalid -> uiText(R.string.error_delete_measurement)
 }
 
 internal fun MeasurementEntity.toMeasurementUiItem(
