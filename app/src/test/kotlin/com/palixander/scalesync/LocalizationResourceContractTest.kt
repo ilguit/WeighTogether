@@ -3,6 +3,7 @@ package com.palixander.scalesync
 import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import org.w3c.dom.Element
 
@@ -25,6 +26,17 @@ class LocalizationResourceContractTest {
         }
     }
 
+    @Test
+    fun `default reference copy contains no placeholder prose`() {
+        val resources = readResources(File("src/main/res/values/reference_strings.xml"))
+
+        resources.forEach { (key, value) ->
+            value.texts.forEach { text ->
+                assertFalse("Placeholder prose remains in $key: $text", PLACEHOLDER_PROSE.containsMatchIn(text))
+            }
+        }
+    }
+
     private fun readResources(file: File): Map<String, ResourceContract> {
         val document = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(file)
         return (0 until document.documentElement.childNodes.length)
@@ -39,6 +51,7 @@ class LocalizationResourceContractTest {
                     type = element.tagName,
                     arguments = texts.flatMap { FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value) }.toSet(),
                     quantities = texts.mapNotNull { it.getAttribute("quantity").takeIf(String::isNotEmpty) }.toSet(),
+                    texts = texts.map { it.textContent.trim() },
                 )
             }
     }
@@ -47,9 +60,12 @@ class LocalizationResourceContractTest {
         val type: String,
         val arguments: Set<String>,
         val quantities: Set<String>,
+        val texts: List<String>,
     )
 
     private companion object {
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
+        val PLACEHOLDER_PROSE =
+            Regex("(?i)\\b(?:meaning|calculation|dependencies?|limitations?|warning|disclaimer|source)?\\s*information\\b")
     }
 }
