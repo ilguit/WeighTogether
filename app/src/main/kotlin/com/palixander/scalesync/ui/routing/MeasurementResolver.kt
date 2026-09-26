@@ -65,11 +65,11 @@ fun PendingResolverForegroundFallback(
             horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
             Text(
-                text = "Ожидают решения: ${state.pendingCount}",
+                text = stringResource(R.string.measurement_resolver_pending_count, state.pendingCount),
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            Button(onClick = onOpen) { Text("Открыть") }
+            Button(onClick = onOpen) { Text(stringResource(R.string.action_open)) }
         }
     }
 }
@@ -99,7 +99,7 @@ fun MeasurementResolverDialog(
                 ) {
                     Column(Modifier.padding(HuaweiDimensions.CompactContentPadding)) {
                         Text(
-                            "${formatLocalizedDecimal(state.pending.weightKg)} кг",
+                            stringResource(R.string.measurement_weight_kg, formatLocalizedDecimal(state.pending.weightKg)),
                             style = MaterialTheme.typography.titleLarge,
                         )
                         Text(
@@ -205,6 +205,7 @@ private fun ResolverAccountButton(
     onClick: () -> Unit,
 ) {
     val recommendation = stringResource(R.string.measurement_resolver_recommended)
+    val primary = stringResource(R.string.account_primary_profile)
     OutlinedButton(
         onClick = onClick,
         enabled = enabled,
@@ -215,7 +216,7 @@ private fun ResolverAccountButton(
                 contentDescription = buildString {
                     append(option.displayName)
                     if (recommended) append(". $recommendation")
-                    if (option.isPrimary) append(". Основной профиль")
+                    if (option.isPrimary) append(". $primary")
                 }
             },
     ) {

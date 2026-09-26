@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui.routing
 
+import com.palixander.scalesync.R
 import androidx.compose.runtime.Immutable
 import com.palixander.scalesync.core.BodyComposition
 import com.palixander.scalesync.core.BodyCompositionCalculator
@@ -16,6 +17,8 @@ import com.palixander.scalesync.domain.toRawScaleMeasurement
 import com.palixander.scalesync.measurements.MeasurementUiValues
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
 import com.palixander.scalesync.ui.accounts.parseLocalizedDecimal
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import com.palixander.scalesync.ui.reference.toReferenceReadings
 import java.time.LocalDate
 import java.time.ZoneId
@@ -46,9 +49,9 @@ data class UnsavedPreviewProfileDraft(
 
 @Immutable
 data class UnsavedPreviewProfileValidation(
-    val heightError: String? = null,
-    val birthDateError: String? = null,
-    val sexError: String? = null,
+    val heightError: UiText? = null,
+    val birthDateError: UiText? = null,
+    val sexError: UiText? = null,
     val profile: UserProfile? = null,
 ) {
     val isValid: Boolean
@@ -61,17 +64,17 @@ fun validateUnsavedPreviewProfile(
 ): UnsavedPreviewProfileValidation {
     val height = parseLocalizedDecimal(draft.heightCm)
     val heightError = if (height == null || height !in 100.0..230.0) {
-        "Допустимый рост: 100–230 см"
+        uiText(R.string.account_error_height)
     } else {
         null
     }
     val birthDate = draft.birthDate
     val birthDateError = if (birthDate == null || birthDate.isAfter(measurementDate)) {
-        "Дата рождения должна быть не позже измерения"
+        uiText(R.string.unsaved_preview_birth_date_error)
     } else {
         null
     }
-    val sexError = if (draft.sex == null) "Выберите пол" else null
+    val sexError = if (draft.sex == null) uiText(R.string.account_error_sex) else null
     val profile = if (heightError == null && birthDateError == null && sexError == null) {
         UserProfile(
             heightCm = requireNotNull(height),

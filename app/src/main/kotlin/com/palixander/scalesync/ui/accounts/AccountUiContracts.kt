@@ -3,6 +3,7 @@ package com.palixander.scalesync.ui.accounts
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.runtime.saveable.listSaver
+import com.palixander.scalesync.R
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.ACCOUNT_NAME_LENGTH
 import com.palixander.scalesync.domain.Account
@@ -12,6 +13,8 @@ import com.palixander.scalesync.domain.AccountUpdate
 import com.palixander.scalesync.domain.NewAccount
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
 import com.palixander.scalesync.domain.normalizeAccountName
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.LocalDate
 
 @Immutable
@@ -73,7 +76,7 @@ enum class AccountEditorField {
 
 @Immutable
 data class AccountEditorValidation(
-    val errors: Map<AccountEditorField, String> = emptyMap(),
+    val errors: Map<AccountEditorField, UiText> = emptyMap(),
     val normalizedName: String? = null,
     val heightCm: Double? = null,
     val birthDate: LocalDate? = null,
@@ -82,7 +85,7 @@ data class AccountEditorValidation(
     val isValid: Boolean
         get() = errors.isEmpty()
 
-    fun error(field: AccountEditorField): String? = errors[field]
+    fun error(field: AccountEditorField): UiText? = errors[field]
 }
 
 fun validateAccountEditor(
@@ -90,29 +93,29 @@ fun validateAccountEditor(
     accounts: List<Account>,
     today: LocalDate = LocalDate.now(),
 ): AccountEditorValidation {
-    val errors = linkedMapOf<AccountEditorField, String>()
+    val errors = linkedMapOf<AccountEditorField, UiText>()
     val displayName = draft.name.trim()
     val normalizedName = normalizeAccountName(displayName)
     if (displayName.length !in ACCOUNT_NAME_LENGTH) {
-        errors[AccountEditorField.NAME] = "Введите имя от 1 до 50 символов"
+        errors[AccountEditorField.NAME] = uiText(R.string.account_error_name_length)
     } else if (accounts.any {
             it.id != draft.editingAccountId && it.normalizedName == normalizedName
         }
     ) {
-        errors[AccountEditorField.NAME] = "Профиль с таким именем уже существует"
+        errors[AccountEditorField.NAME] = uiText(R.string.account_error_duplicate_name)
     }
 
     val height = parseLocalizedDecimal(draft.heightCm)
     if (height == null || height !in 100.0..230.0) {
-        errors[AccountEditorField.HEIGHT] = "Допустимый рост: 100–230 см"
+        errors[AccountEditorField.HEIGHT] = uiText(R.string.account_error_height)
     }
 
     val birthDate = draft.birthDate
     if (birthDate == null || birthDate.isAfter(today)) {
-        errors[AccountEditorField.BIRTH_DATE] = "Введите корректную дату рождения"
+        errors[AccountEditorField.BIRTH_DATE] = uiText(R.string.account_error_birth_date)
     }
     if (draft.sex == null) {
-        errors[AccountEditorField.SEX] = "Выберите пол"
+        errors[AccountEditorField.SEX] = uiText(R.string.account_error_sex)
     }
     return AccountEditorValidation(
         errors = errors,

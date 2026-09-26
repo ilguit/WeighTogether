@@ -20,12 +20,16 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 
@@ -45,6 +49,7 @@ fun WeightRecognitionSetting(
     modifier: Modifier = Modifier,
 ) {
     val focusManager = LocalFocusManager.current
+    val context = LocalContext.current
     var wasFocused by remember { mutableStateOf(false) }
     var completionSubmitted by remember { mutableStateOf(false) }
     LaunchedEffect(state.isSaving) {
@@ -62,11 +67,11 @@ fun WeightRecognitionSetting(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle("Распознавание измерений")
+        HuaweiSectionTitle(stringResource(R.string.weight_recognition_title))
         HuaweiSurface(Modifier.fillMaxWidth()) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text(
-                    "Больший допуск увеличивает вероятность автоматического назначения и неверного совпадения.",
+                    stringResource(R.string.weight_recognition_description),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -81,9 +86,9 @@ fun WeightRecognitionSetting(
                                 ),
                             )
                         },
-                        label = { Text("Допуск по весу, кг") },
+                        label = { Text(stringResource(R.string.weight_delta_label)) },
                         supportingText = state.error?.let { message ->
-                            { Text(message, Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
+                            { Text(message.resolve(context.resources), Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
                         },
                         isError = state.error != null,
                         enabled = !state.isSaving,
@@ -105,7 +110,7 @@ fun WeightRecognitionSetting(
                             .testTag(WeightDeltaEditorTestTags.Input)
                             .semantics {
                                 if (state.isSaving) {
-                                    contentDescription = "Сохранение допуска по весу"
+                                    contentDescription = context.getString(R.string.weight_delta_saving_cd)
                                 }
                             },
                     )
@@ -118,11 +123,11 @@ fun WeightRecognitionSetting(
                 ) {
                     Column(Modifier.weight(1f)) {
                         Text(
-                            "Игнорировать неизвестные показания",
+                            stringResource(R.string.weight_ignore_unknown),
                             style = MaterialTheme.typography.bodyMedium,
                         )
                         Text(
-                            "Только для новых измерений после включения",
+                            stringResource(R.string.weight_ignore_unknown_description),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )

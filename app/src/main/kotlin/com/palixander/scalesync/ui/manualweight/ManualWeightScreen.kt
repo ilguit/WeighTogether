@@ -8,6 +8,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
@@ -19,6 +20,9 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
 import java.time.LocalDate
 import java.time.LocalTime
@@ -61,24 +65,24 @@ fun ManualWeightScreen(
         Row {
             HuaweiIconButton(
                 icon = HuaweiIcons.Back,
-                contentDescription = "Назад к истории",
+                contentDescription = stringResource(R.string.manual_weight_back),
                 onClick = onBack,
                 modifier = Modifier.testTag(ManualWeightTags.Back),
             )
-            Text("Добавить вес", style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
+            Text(stringResource(R.string.manual_weight_title), style = MaterialTheme.typography.headlineSmall, modifier = Modifier.weight(1f))
         }
         Text(draft.ownerName, style = MaterialTheme.typography.titleMedium)
         if (!draft.ownerAvailable) {
-            FormError("Профиль недоступен. Вернитесь к истории")
+            FormError(stringResource(R.string.manual_weight_owner_unavailable))
         }
         OutlinedTextField(
             value = draft.weight,
             onValueChange = onWeightChanged,
-            label = { Text("Вес, кг") },
+            label = { Text(stringResource(R.string.manual_weight_label)) },
             singleLine = true,
             enabled = !draft.saving,
             isError = draft.weightError != null,
-            supportingText = draft.weightError?.let { message -> { FormError(message) } },
+            supportingText = draft.weightError?.let { message -> { FormError(message.resolve(context.resources)) } },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth().testTag(ManualWeightTags.Weight),
         )
@@ -86,8 +90,8 @@ fun ManualWeightScreen(
             onClick = { datePickerOpen = true },
             enabled = !draft.saving,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(ManualWeightTags.Date)
-                .semantics { contentDescription = "Дата измерения: $dateText" },
-        ) { Text("Дата: $dateText") }
+                .semantics { contentDescription = context.getString(R.string.manual_weight_date_cd, dateText) },
+        ) { Text(stringResource(R.string.manual_weight_date, dateText)) }
         OutlinedButton(
             onClick = {
                 TimePickerDialog(context, { _, hour, minute -> onTimeChanged(LocalTime.of(hour, minute)) },
@@ -95,20 +99,20 @@ fun ManualWeightScreen(
             },
             enabled = !draft.saving,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(ManualWeightTags.Time)
-                .semantics { contentDescription = "Время измерения: $timeText" },
-        ) { Text("Время: $timeText") }
-        draft.dateError?.let { FormError(it) }
-        draft.error?.let { FormError(it) }
+                .semantics { contentDescription = context.getString(R.string.manual_weight_time_cd, timeText) },
+        ) { Text(stringResource(R.string.manual_weight_time, timeText)) }
+        draft.dateError?.let { FormError(it.resolve(context.resources)) }
+        draft.error?.let { FormError(it.resolve(context.resources)) }
         Button(
             onClick = onSave,
             enabled = draft.canSave,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(ManualWeightTags.Save),
         ) {
             if (draft.saving) {
-                CircularProgressIndicator(Modifier.size(24.dp).semantics { contentDescription = "Сохранение веса" })
+                CircularProgressIndicator(Modifier.size(24.dp).semantics { contentDescription = context.getString(R.string.manual_weight_saving_cd) })
                 Spacer(Modifier.width(8.dp))
-                Text("Сохранение…")
-            } else Text("Сохранить")
+                Text(stringResource(R.string.state_saving))
+            } else Text(stringResource(R.string.action_save))
         }
     }
     if (datePickerOpen) {
@@ -128,21 +132,21 @@ fun ManualWeightScreen(
                 TextButton(onClick = {
                     picker.selectedDateMillis?.let { onDateChanged(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) }
                     datePickerOpen = false
-                }, enabled = picker.selectedDateMillis != null) { Text("Выбрать") }
+                }, enabled = picker.selectedDateMillis != null) { Text(stringResource(R.string.action_select)) }
             },
-            dismissButton = { TextButton(onClick = { datePickerOpen = false }) { Text("Отмена") } },
+            dismissButton = { TextButton(onClick = { datePickerOpen = false }) { Text(stringResource(R.string.action_cancel)) } },
         ) { DatePicker(picker, modifier = Modifier.verticalScroll(rememberScrollState())) }
     }
     if (draft.duplicate) {
         AlertDialog(
             modifier = Modifier.testTag(ManualWeightTags.Duplicate),
             onDismissRequest = onDismissDuplicate,
-            title = { Text("Похожее измерение") },
-            text = { Text("Похожее измерение уже есть: ${draft.weight} кг, $dateText $timeText. Добавить ещё одно?") },
+            title = { Text(stringResource(R.string.manual_weight_duplicate_title)) },
+            text = { Text(stringResource(R.string.manual_weight_duplicate_message, draft.weight, dateText, timeText)) },
             confirmButton = {
-                TextButton(onClick = onConfirmDuplicate, modifier = Modifier.testTag(ManualWeightTags.ConfirmDuplicate)) { Text("Добавить ещё") }
+                TextButton(onClick = onConfirmDuplicate, modifier = Modifier.testTag(ManualWeightTags.ConfirmDuplicate)) { Text(stringResource(R.string.manual_weight_add_another)) }
             },
-            dismissButton = { TextButton(onClick = onDismissDuplicate) { Text("Отмена") } },
+            dismissButton = { TextButton(onClick = onDismissDuplicate) { Text(stringResource(R.string.action_cancel)) } },
         )
     }
 }

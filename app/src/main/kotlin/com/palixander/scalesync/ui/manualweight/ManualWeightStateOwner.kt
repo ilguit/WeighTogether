@@ -1,9 +1,12 @@
 package com.palixander.scalesync.ui.manualweight
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.ManualWeightOwner
 import com.palixander.scalesync.domain.ManualWeightRequest
 import com.palixander.scalesync.domain.ManualWeightResult
 import com.palixander.scalesync.domain.parseManualWeight
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.Clock
 import java.time.LocalDate
 import java.time.LocalTime
@@ -26,12 +29,12 @@ data class ManualWeightDraft(
     val ownerAvailable: Boolean = true,
     val saving: Boolean = false,
     val duplicate: Boolean = false,
-    val error: String? = null,
-    val dateError: String? = null,
+    val error: UiText? = null,
+    val dateError: UiText? = null,
 ) {
-    val weightError: String?
+    val weightError: UiText?
         get() = if (weight.isNotEmpty() && parseManualWeight(weight) == null) {
-            "Введите положительный вес, не более трёх знаков после запятой"
+            uiText(R.string.manual_weight_invalid_weight)
         } else null
     val canSave: Boolean
         get() = ownerAvailable && !saving && parseManualWeight(weight) != null && dateError == null
@@ -76,8 +79,8 @@ class ManualWeightStateOwner(
         val local = value.date.atTime(value.time)
         val offsets = zoneId.rules.getValidOffsets(local)
         val error = when {
-            offsets.isEmpty() -> "Такого местного времени нет. Выберите другое время"
-            local.atZone(zoneId).toInstant().isAfter(clock.instant()) -> "Дата и время не могут быть в будущем"
+            offsets.isEmpty() -> uiText(R.string.manual_weight_invalid_local_time)
+            local.atZone(zoneId).toInstant().isAfter(clock.instant()) -> uiText(R.string.manual_weight_future_time)
             else -> null
         }
         return value.copy(dateError = error)
@@ -108,14 +111,14 @@ class ManualWeightStateOwner(
                     is ManualWeightResult.Duplicate -> mutableDraft.value = operation.copy(saving = false, duplicate = true)
                     ManualWeightResult.OwnerUnavailable -> mutableDraft.value = operation.copy(saving = false, ownerAvailable = false)
                     ManualWeightResult.Invalid -> mutableDraft.value = validate(operation.copy(saving = false)).let {
-                        if (it.dateError != null) it else it.copy(error = "Проверьте вес, дату и время")
+                        if (it.dateError != null) it else it.copy(error = uiText(R.string.manual_weight_check_fields))
                     }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
                 if (mutableDraft.value?.requestId == operation.requestId) {
-                    mutableDraft.value = operation.copy(saving = false, error = "Не удалось сохранить вес. Попробуйте ещё раз")
+                    mutableDraft.value = operation.copy(saving = false, error = uiText(R.string.manual_weight_save_failed))
                 }
             }
         }

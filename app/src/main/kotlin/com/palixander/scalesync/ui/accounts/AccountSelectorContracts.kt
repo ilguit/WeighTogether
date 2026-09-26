@@ -1,8 +1,11 @@
 package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.runtime.Immutable
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 
 enum class AccountSelectionFallback {
     NONE,
@@ -22,15 +25,15 @@ data class AccountSelectorUiState(
     val selectedAccount: Account?
         get() = accounts.firstOrNull { it.id == selectedAccountId }
 
-    val fallbackMessage: String?
+    val fallbackMessage: UiText?
         get() = when (fallback) {
             AccountSelectionFallback.NONE -> null
             AccountSelectionFallback.SELECTED_ACCOUNT_REMOVED ->
-                "Выбранный профиль удалён. Показан основной профиль."
+                uiText(R.string.account_selector_removed)
             AccountSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE ->
-                "Основной профиль недоступен. Выберите профиль."
+                uiText(R.string.account_selector_primary_unavailable)
             AccountSelectionFallback.NO_ACCOUNTS ->
-                "Создайте профиль, чтобы сохранять и просматривать измерения."
+                uiText(R.string.account_selector_no_accounts)
         }
 }
 

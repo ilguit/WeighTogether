@@ -749,7 +749,7 @@ class MainViewModel @JvmOverloads constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось сохранить настройку"))
+            showMessage(error.userFacingMessage(localized(R.string.error_save_setting)))
         }
     }
 
@@ -773,7 +773,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось открыть ожидающее измерение"))
+                showMessage(error.userFacingMessage(localized(R.string.error_open_pending_measurement)))
             }
         }
     }
@@ -822,7 +822,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось назначить измерение"))
+                showMessage(error.userFacingMessage(localized(R.string.error_assign_measurement)))
             } finally {
                 resolverOperationInProgress.value = false
             }
@@ -951,7 +951,7 @@ class MainViewModel @JvmOverloads constructor(
         if (container.profileStore.settings.value.scaleAddress == null) return
         showMessage(BackgroundScanRegistrar.register(getApplication()).fold(
             onSuccess = { "Фоновое BLE-сканирование включено" },
-            onFailure = { it.message ?: "Не удалось включить сканирование" },
+            onFailure = { it.message ?: localized(R.string.error_enable_scanning) },
         ))
     }
 
@@ -988,7 +988,7 @@ class MainViewModel @JvmOverloads constructor(
         }.onFailure {
             restoreAutomaticScanning()
             scaleAvailability.value = currentScaleAvailability()
-            val message = it.message ?: "Не удалось запустить сканирование"
+            val message = it.message ?: localized(R.string.error_start_scanning)
             if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = message
             showMessage(message)
         }
@@ -1022,7 +1022,7 @@ class MainViewModel @JvmOverloads constructor(
             onFailure = { Result.failure(it) },
         )
         started.onFailure { error ->
-            scaleRefresh.fail(operation, error.message ?: "Не удалось запустить сканирование")
+            scaleRefresh.fail(operation, error.message ?: localized(R.string.error_start_scanning))
         }.onSuccess {
             val timeoutJob = viewModelScope.launch {
                 delay(SCALE_REFRESH_TIMEOUT_MILLIS)
@@ -1104,7 +1104,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось выполнить действие"))
+                showMessage(error.userFacingMessage(localized(R.string.error_perform_action)))
             } finally {
                 destructiveActionInProgress.compareAndSet(action, null)
             }
@@ -1627,7 +1627,7 @@ class MainViewModel @JvmOverloads constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+            showMessage(error.userFacingMessage(localized(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1660,7 +1660,7 @@ class MainViewModel @JvmOverloads constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+            showMessage(error.userFacingMessage(localized(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1716,7 +1716,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                failAccountOperation(error.userFacingMessage("Не удалось изменить профиль"))
+                failAccountOperation(error.userFacingMessage(localized(R.string.error_change_profile)))
             } finally {
                 accountManagementDialog.value = accountManagementDialog.value.copy(
                     operationInProgress = false,
