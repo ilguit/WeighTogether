@@ -1,15 +1,15 @@
 <resources>
     <string name="app_name">Scale Sync</string>
-    <string name="measurement_resolver_title">Неназначенное измерение</string>
-    <string name="measurement_resolver_assignment_question">Кому назначить это измерение?</string>
-    <string name="measurement_resolver_recommended">Рекомендуется</string>
-    <string name="measurement_resolver_preview">Показать без сохранения</string>
-    <string name="measurement_resolver_create_profile">Создать новый профиль</string>
-    <string name="measurement_resolver_ignore_unknown">Всегда игнорировать неизвестные показания</string>
-    <string name="measurement_resolver_delete">Удалить</string>
-    <string name="measurement_resolver_later">Решить позже</string>
-    <string name="measurement_resolver_progress">Выполняется действие с измерением</string>
-    <string name="unsaved_preview_calculation_error">Не удалось рассчитать показатели. Проверьте данные и повторите.</string>
-    <string name="unsaved_preview_step">Шаг %1$d из 3</string>
-    <string name="unsaved_preview_warning">Результат не попадёт в историю и не будет отправлен во внешние сервисы. Временные параметры используются только для этого расчёта и не изменяют профиль.</string>
+    <string name="measurement_resolver_title">Unassigned measurement</string>
+    <string name="measurement_resolver_assignment_question">Who should this measurement be assigned to?</string>
+    <string name="measurement_resolver_recommended">Recommended</string>
+    <string name="measurement_resolver_preview">Preview without saving</string>
+    <string name="measurement_resolver_create_profile">Create a new profile</string>
+    <string name="measurement_resolver_ignore_unknown">Always ignore unknown readings</string>
+    <string name="measurement_resolver_delete">Delete</string>
+    <string name="measurement_resolver_later">Decide later</string>
+    <string name="measurement_resolver_progress">Processing measurement action</string>
+    <string name="unsaved_preview_calculation_error">Could not calculate metrics. Check the data and try again.</string>
+    <string name="unsaved_preview_step">Step %1$d of 3</string>
+    <string name="unsaved_preview_warning">The result will not be added to history or sent to external services. Temporary parameters are used only for this calculation and do not change the profile.</string>
 </resources>
