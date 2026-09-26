@@ -141,7 +141,7 @@ class Issue58ScreenshotMatrixTest {
             "pet-result-no-history" -> PetMeasurement(result(previous = null))
             "pet-saving" -> PetMeasurement(PetMeasurementUiState.Saving(PET, 71.8, 77.2))
             "pet-unavailable" -> PetMeasurement(
-                PetMeasurementUiState.ConnectionError(PET, 71.8, "Весы недоступны"),
+                PetMeasurementUiState.ConnectionError(PET, 71.8, com.palixander.scalesync.ui.text.UiText.Raw("Весы недоступны")),
             )
         }
     }

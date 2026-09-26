@@ -45,6 +45,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
@@ -54,6 +56,7 @@ import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.util.Locale
+import com.palixander.scalesync.ui.text.resolve
 
 internal object PetMeasurementTestTags {
     const val Dialog = "pet-measurement-dialog"
@@ -116,22 +119,17 @@ internal fun PetMeasurementDialog(
                 PetMeasurementUiState.SelectingPet -> PetSelection(pets, callbacks)
                 PetMeasurementUiState.CreatingPet -> PetCreation(pets, callbacks)
                 is PetMeasurementUiState.AwaitingFirstWeight -> Column {
-                    Text(
-                        "Выполните одно взвешивание с ${state.pet.displayName} на руках, " +
-                            "а другое — без питомца. Порядок не важен. Начните с любого " +
-                            "варианта и дождитесь стабильного значения.",
-                    )
+                    Text(stringResource(R.string.pet_measurement_first_instructions_named, state.pet.displayName))
                 }
                 is PetMeasurementUiState.AwaitingSecondWeight -> Column(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        "Первое значение принято: ${formatPetWeight(state.firstWeightKg)} кг",
+                        stringResource(R.string.pet_measurement_first_accepted, formatPetWeight(state.firstWeightKg)),
                         modifier = Modifier.testTag(PetMeasurementTestTags.FirstWeight),
                     )
                     Text(
-                        "Теперь выполните оставшееся взвешивание: с ${state.pet.displayName} " +
-                            "на руках или без питомца. Дождитесь стабильного значения.",
+                        stringResource(R.string.pet_measurement_second_instructions_named, state.pet.displayName),
                     )
                 }
                 is PetMeasurementUiState.Saving -> Row(
@@ -139,14 +137,14 @@ internal fun PetMeasurementDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     CircularProgressIndicator()
-                    Text("Сохраняем результат…")
+                    Text(stringResource(R.string.pet_measurement_saving))
                 }
                 is PetMeasurementUiState.Result -> Text(
-                    "Вес питомца — ${formatPetWeight(state.petWeightKg)} кг",
+                    stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg)),
                     modifier = Modifier.testTag(PetMeasurementTestTags.Result),
                 )
                 is PetMeasurementUiState.Error -> Text(
-                    state.message,
+                    state.message.resolve(LocalContext.current.resources),
                     color = MaterialTheme.colorScheme.error,
                 )
                 is PetMeasurementUiState.ConnectionError -> Unit
@@ -160,18 +158,18 @@ internal fun PetMeasurementDialog(
                 PetMeasurementUiState.SelectingPet -> TextButton(
                     onClick = callbacks.onShowCreate,
                     modifier = Modifier.testTag(PetMeasurementTestTags.CreateAction),
-                ) { Text("Новый питомец") }
+                ) { Text(stringResource(R.string.pet_measurement_new_pet)) }
                 is PetMeasurementUiState.Error -> TextButton(
                     onClick = callbacks.onOpen,
                     modifier = Modifier.testTag(PetMeasurementTestTags.BackToSelection),
                 ) {
-                    Text("Вернуться к выбору")
+                    Text(stringResource(R.string.pet_measurement_back_to_selection))
                 }
                 is PetMeasurementUiState.Result -> TextButton(
                     onClick = callbacks.onDone,
                     modifier = Modifier.testTag(PetMeasurementTestTags.Done),
                 ) {
-                    Text("Готово")
+                    Text(stringResource(R.string.action_done))
                 }
                 else -> Unit
             }
@@ -181,7 +179,7 @@ internal fun PetMeasurementDialog(
                 TextButton(
                     onClick = callbacks.onCancel,
                     modifier = Modifier.testTag(PetMeasurementTestTags.Cancel),
-                ) { Text(if (state is PetMeasurementUiState.Error) "Закрыть" else "Отмена") }
+                ) { Text(stringResource(if (state is PetMeasurementUiState.Error) R.string.action_close else R.string.action_cancel)) }
             }
         },
     )
@@ -213,7 +211,7 @@ private fun PetMeasurementFullScreen(
                     TopAppBar(
                         title = {
                             Text(
-                                text = "Взвешивание питомца",
+                                text = stringResource(R.string.pet_measurement_title),
                                 modifier = Modifier
                                     .focusRequester(titleFocus)
                                     .focusable()
@@ -224,7 +222,7 @@ private fun PetMeasurementFullScreen(
                         navigationIcon = {
                             HuaweiIconButton(
                                 icon = HuaweiIcons.Back,
-                                contentDescription = "Закрыть взвешивание питомца",
+                                contentDescription = stringResource(R.string.pet_measurement_close_a11y),
                                 onClick = callbacks.onCancel,
                                 enabled = !saving,
                             )
@@ -241,22 +239,22 @@ private fun PetMeasurementFullScreen(
                                 OutlinedButton(
                                     onClick = callbacks.onCancel,
                                     modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Cancel),
-                                ) { Text("Отмена") }
+                                ) { Text(stringResource(R.string.action_cancel)) }
                                 Button(
                                     onClick = callbacks.onDone,
                                     modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Done),
-                                ) { Text("Готово") }
+                                ) { Text(stringResource(R.string.action_done)) }
                             } else if (!saving) {
                                 if (state is PetMeasurementUiState.ConnectionError) {
                                     Button(
                                         onClick = callbacks.onRetry,
                                         modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Retry),
-                                    ) { Text("Повторить") }
+                                    ) { Text(stringResource(R.string.action_retry)) }
                                 }
                                 OutlinedButton(
                                     onClick = callbacks.onCancel,
                                     modifier = Modifier.weight(1f).testTag(PetMeasurementTestTags.Cancel),
-                                ) { Text("Отменить") }
+                                ) { Text(stringResource(R.string.action_cancel)) }
                             }
                         }
                     }
@@ -279,57 +277,56 @@ private fun PetMeasurementFullScreen(
                     Spacer(Modifier.height(16.dp))
                     when (state) {
                         is PetMeasurementUiState.AwaitingFirstWeight -> {
-                            Text("Первое взвешивание", style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.pet_measurement_first_title), style = MaterialTheme.typography.titleLarge)
                             Text(
-                                "Взвесьтесь с питомцем или без него и дождитесь стабильного показания.",
+                                stringResource(R.string.pet_measurement_first_instructions),
                                 modifier = Modifier.padding(vertical = 16.dp),
                             )
                             CircularProgressIndicator()
                             state.currentWeightKg?.let {
-                                Text("${formatPetWeight(it)} кг", style = MaterialTheme.typography.headlineMedium)
+                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it)), style = MaterialTheme.typography.headlineMedium)
                             }
-                            Text("Ожидаем стабильное значение")
+                            Text(stringResource(R.string.pet_measurement_waiting_stable))
                         }
                         is PetMeasurementUiState.AwaitingSecondWeight -> {
-                            Text("Второе взвешивание", style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.pet_measurement_second_title), style = MaterialTheme.typography.titleLarge)
                             Text(
-                                "Первое показание: ${formatPetWeight(state.firstWeightKg)} кг",
+                                stringResource(R.string.pet_measurement_first_reading, formatPetWeight(state.firstWeightKg)),
                                 modifier = Modifier.padding(vertical = 16.dp)
                                     .testTag(PetMeasurementTestTags.FirstWeight),
                             )
                             Text(
-                                "Повторите взвешивание в другом варианте: с питомцем, если первое было без него, " +
-                                    "или без питомца, если первое было с ним.",
+                                stringResource(R.string.pet_measurement_second_instructions),
                             )
                             CircularProgressIndicator(Modifier.padding(16.dp))
                             state.currentWeightKg?.let {
-                                Text("${formatPetWeight(it)} кг", style = MaterialTheme.typography.headlineMedium)
+                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it)), style = MaterialTheme.typography.headlineMedium)
                             }
                         }
                         is PetMeasurementUiState.Result -> {
                             Text("✓", style = MaterialTheme.typography.headlineLarge)
-                            Text("Готово", style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.action_done), style = MaterialTheme.typography.titleLarge)
                             Text(
-                                "Вес питомца — ${formatPetWeight(state.petWeightKg)} кг",
+                                stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg)),
                                 style = MaterialTheme.typography.headlineMedium,
                                 modifier = Modifier.padding(top = 16.dp).testTag(PetMeasurementTestTags.Result),
                             )
                             state.previousPetWeightKg?.let { previous ->
                                 val delta = state.petWeightKg - previous
                                 val prefix = if (delta > 0) "+" else ""
-                                Text("$prefix${formatPetWeight(delta)} кг с прошлого измерения")
+                                Text(stringResource(R.string.pet_measurement_delta, prefix, formatPetWeight(delta)))
                             }
                         }
                         is PetMeasurementUiState.Saving -> {
                             CircularProgressIndicator()
-                            Text("Сохраняем результат…", modifier = Modifier.padding(top = 16.dp))
+                            Text(stringResource(R.string.pet_measurement_saving), modifier = Modifier.padding(top = 16.dp))
                         }
                         is PetMeasurementUiState.ConnectionError -> {
-                            Text("Соединение прервано", style = MaterialTheme.typography.titleLarge)
+                            Text(stringResource(R.string.pet_measurement_connection_lost), style = MaterialTheme.typography.titleLarge)
                             state.firstWeightKg?.let {
-                                Text("Первое показание сохранено: ${formatPetWeight(it)} кг")
+                                Text(stringResource(R.string.pet_measurement_first_reading_saved, formatPetWeight(it)))
                             }
-                            Text(state.message, color = MaterialTheme.colorScheme.error)
+                            Text(state.message.resolve(LocalContext.current.resources), color = MaterialTheme.colorScheme.error)
                         }
                         else -> Unit
                     }
@@ -345,11 +342,15 @@ private fun PetSelection(
     callbacks: PetMeasurementCallbacks,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        if (pets.isEmpty()) Text("Питомцев пока нет. Создайте первого питомца.")
+        if (pets.isEmpty()) Text(stringResource(R.string.pet_measurement_no_pets))
         pets.forEach { item ->
             val detail = item.latestMeasurement?.let {
-                "Последний вес: ${formatPetWeight(it.petWeightKg)} кг · ${formatMeasurementDateTime(it.measuredAt)}"
-            } ?: "Измерений пока нет"
+                stringResource(
+                    R.string.pet_measurement_latest_weight,
+                    formatPetWeight(it.petWeightKg),
+                    formatMeasurementDateTime(it.measuredAt),
+                )
+            } ?: stringResource(R.string.pet_measurement_no_measurements)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -378,25 +379,25 @@ private fun PetCreation(
     val trimmed = name.trim()
     val error = when {
         !submitted -> null
-        trimmed.isEmpty() -> "Введите имя питомца"
-        trimmed.length !in PET_NAME_LENGTH -> "Имя должно содержать не больше 50 символов"
+        trimmed.isEmpty() -> stringResource(R.string.pet_editor_name_required)
+        trimmed.length !in PET_NAME_LENGTH -> stringResource(R.string.pet_editor_name_too_long)
         pets.any { normalizePetName(it.pet.displayName) == normalizePetName(trimmed) } ->
-            "Питомец с таким именем уже есть"
-        species == null -> "Выберите вид питомца"
+            stringResource(R.string.pet_editor_name_duplicate)
+        species == null -> stringResource(R.string.pet_editor_species_required)
         else -> null
     }
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
         OutlinedTextField(
             value = name,
             onValueChange = { name = it; submitted = false },
-            label = { Text("Имя питомца") },
+            label = { Text(stringResource(R.string.pet_editor_name)) },
             singleLine = true,
             isError = error != null,
             supportingText = error?.let { message -> { Text(message) } },
             modifier = Modifier.fillMaxWidth().testTag(PetMeasurementTestTags.NameField),
         )
         PetSpeciesSelector(species) { species = it; submitted = false }
-        error?.takeIf { it == "Выберите вид питомца" }?.let {
+        error?.takeIf { species == null && submitted }?.let {
             Text(it, color = MaterialTheme.colorScheme.error)
         }
         Button(
@@ -408,14 +409,17 @@ private fun PetCreation(
                 ) callbacks.onCreateAndStart(trimmed, requireNotNull(species))
             },
             modifier = Modifier.fillMaxWidth().testTag(PetMeasurementTestTags.CreateConfirm),
-        ) { Text("Создать и взвесить") }
+        ) { Text(stringResource(R.string.pet_measurement_create_and_weigh)) }
     }
 }
 
 @Composable
 internal fun PetSpeciesSelector(selected: PetSpecies?, onSelected: (PetSpecies) -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        listOf(PetSpecies.CAT to "Кошка", PetSpecies.DOG to "Собака").forEach { (value, label) ->
+        listOf(
+            PetSpecies.CAT to stringResource(R.string.pet_measurement_cat),
+            PetSpecies.DOG to stringResource(R.string.pet_measurement_dog),
+        ).forEach { (value, label) ->
             OutlinedButton(
                 onClick = { onSelected(value) },
                 modifier = Modifier.testTag(
@@ -427,15 +431,16 @@ internal fun PetSpeciesSelector(selected: PetSpecies?, onSelected: (PetSpecies) 
     }
 }
 
+@Composable
 private fun dialogTitle(state: PetMeasurementUiState): String = when (state) {
-    PetMeasurementUiState.SelectingPet -> "Выберите питомца"
-    PetMeasurementUiState.CreatingPet -> "Новый питомец"
-    is PetMeasurementUiState.AwaitingFirstWeight -> "Первое взвешивание"
-    is PetMeasurementUiState.AwaitingSecondWeight -> "Второе взвешивание"
-    is PetMeasurementUiState.Saving -> "Сохранение"
-    is PetMeasurementUiState.Result -> "Готово"
-    is PetMeasurementUiState.ConnectionError -> "Соединение прервано"
-    is PetMeasurementUiState.Error -> "Не удалось взвесить"
+    PetMeasurementUiState.SelectingPet -> stringResource(R.string.pet_measurement_choose_pet)
+    PetMeasurementUiState.CreatingPet -> stringResource(R.string.pet_measurement_new_pet)
+    is PetMeasurementUiState.AwaitingFirstWeight -> stringResource(R.string.pet_measurement_first_title)
+    is PetMeasurementUiState.AwaitingSecondWeight -> stringResource(R.string.pet_measurement_second_title)
+    is PetMeasurementUiState.Saving -> stringResource(R.string.pet_measurement_saving_title)
+    is PetMeasurementUiState.Result -> stringResource(R.string.action_done)
+    is PetMeasurementUiState.ConnectionError -> stringResource(R.string.pet_measurement_connection_lost)
+    is PetMeasurementUiState.Error -> stringResource(R.string.pet_measurement_failed_title)
     PetMeasurementUiState.Idle, PetMeasurementUiState.Cancelled -> ""
 }
 

@@ -6,11 +6,13 @@ import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
 import java.time.Instant
 import kotlin.math.abs
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 
 internal const val PET_MEASUREMENT_TIMEOUT_MILLIS = 30_000L
-internal const val PET_SCALE_REQUIRED_MESSAGE = "Сначала выберите весы в настройках"
-internal const val PET_BLUETOOTH_PERMISSION_MESSAGE = "Разрешите Bluetooth для взвешивания питомца"
-internal const val PET_MEASUREMENT_TIMEOUT_MESSAGE = "Весы не передали новое стабильное измерение"
+internal val PET_SCALE_REQUIRED_MESSAGE = uiText(R.string.pet_measurement_scale_required)
+internal val PET_BLUETOOTH_PERMISSION_MESSAGE = uiText(R.string.pet_measurement_bluetooth_permission)
+internal val PET_MEASUREMENT_TIMEOUT_MESSAGE = uiText(R.string.pet_measurement_timeout)
 
 internal enum class PetProfileMeasurementStartRoute {
     MANUAL_WEIGHT,
@@ -75,10 +77,10 @@ sealed interface PetMeasurementUiState {
     data class ConnectionError(
         val pet: Pet,
         val firstWeightKg: Double?,
-        val message: String,
+        val message: UiText,
     ) : PetMeasurementUiState
 
-    data class Error(val message: String) : PetMeasurementUiState
+    data class Error(val message: UiText) : PetMeasurementUiState
     data object Cancelled : PetMeasurementUiState
 }
 
@@ -200,7 +202,7 @@ internal class PetMeasurementCoordinator(
     private val setState: (PetMeasurementUiState) -> Unit,
     private val stopScanner: () -> Unit,
     private val restoreAutomaticScanning: () -> Unit,
-    private val showMessage: (String) -> Unit,
+    private val showMessage: (UiText) -> Unit,
     private val acquirePetSessionGate: suspend (String) -> PetIngestionSession = {
         PetIngestionSession(registerPetPacket = { _, _ -> }, release = {})
     },
@@ -382,7 +384,7 @@ internal class PetMeasurementCoordinator(
         token.ingestionSession.registerPetPacket(address, payload)
     }
 
-    fun pause(token: OperationToken, message: String) {
+    fun pause(token: OperationToken, message: UiText) {
         val errorState = synchronized(lock) {
             val active = operation?.takeIf { it.token == token && !it.saving } ?: return
             active.cancelTimeout?.invoke()
@@ -409,7 +411,7 @@ internal class PetMeasurementCoordinator(
         finish(token, PetMeasurementUiState.Idle)
     }
 
-    fun fail(token: OperationToken, message: String) =
+    fun fail(token: OperationToken, message: UiText) =
         finish(token, PetMeasurementUiState.Error(message), message)
 
     fun timeout(token: OperationToken) =
@@ -441,7 +443,7 @@ internal class PetMeasurementCoordinator(
     private fun finish(
         token: OperationToken,
         terminalState: PetMeasurementUiState,
-        message: String? = null,
+        message: UiText? = null,
     ) {
         val cleanup = synchronized(lock) {
             val active = operation?.takeIf { it.token == token } ?: return

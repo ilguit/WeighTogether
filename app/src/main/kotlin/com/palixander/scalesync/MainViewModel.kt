@@ -1219,7 +1219,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (error: Exception) {
                 if (!petMeasurementCreation.complete(creationToken)) return@launch
                 petMeasurement.value = PetMeasurementUiState.Error(
-                    error.message ?: getApplication<Application>().getString(R.string.error_create_pet),
+                    error.message?.let(UiText::Raw) ?: uiText(R.string.error_create_pet),
                 )
                 return@launch
             }
@@ -1324,7 +1324,7 @@ class MainViewModel @JvmOverloads constructor(
         val startupToken = petMeasurementStartup.begin()
         petMeasurementStartupJob = viewModelScope.launch {
             if (scanning.value || petMeasurementCoordinator.isActive) {
-                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                showMessage(uiText(R.string.pet_measurement_wait_for_ble_scan))
                 return@launch
             }
             if (refreshing.value) scaleRefresh.clear()
@@ -1351,12 +1351,12 @@ class MainViewModel @JvmOverloads constructor(
                 container.pets.getPet(petId)
             } ?: run {
                 if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
-                petMeasurement.value = PetMeasurementUiState.Error("Питомец не найден")
+                petMeasurement.value = PetMeasurementUiState.Error(uiText(R.string.pet_measurement_pet_not_found))
                 return@launch
             }
             if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
             if (scanning.value) {
-                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                showMessage(uiText(R.string.pet_measurement_wait_for_ble_scan))
                 return@launch
             }
             if (refreshing.value) scaleRefresh.clear()
@@ -1382,7 +1382,7 @@ class MainViewModel @JvmOverloads constructor(
                     petScanner.start(
                         address = address,
                         onResult = { onPetScanResult(token, address, it) },
-                        onError = { petMeasurementCoordinator.pause(token, it) },
+                        onError = { petMeasurementCoordinator.pause(token, UiText.Raw(it)) },
                     )
                 },
                 onFailure = { Result.failure(it) },
@@ -1390,7 +1390,7 @@ class MainViewModel @JvmOverloads constructor(
             started.onFailure {
                 petMeasurementCoordinator.fail(
                     token,
-                    it.message ?: "Не удалось запустить сканирование",
+                    it.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_start_failed),
                 )
             }.onSuccess {
                 attachPetMeasurementTimeout(token)
@@ -1420,7 +1420,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (error: Exception) {
                 petMeasurementCoordinator.fail(
                     request.token,
-                    error.message ?: "Не удалось сохранить вес питомца",
+                    error.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_save_failed),
                 )
             }
         }
@@ -1431,12 +1431,12 @@ class MainViewModel @JvmOverloads constructor(
         val started = petScanner.start(
             address = request.selectedAddress,
             onResult = { onPetScanResult(request.token, request.selectedAddress, it) },
-            onError = { petMeasurementCoordinator.pause(request.token, it) },
+            onError = { petMeasurementCoordinator.pause(request.token, UiText.Raw(it)) },
         )
         started.onFailure {
             petMeasurementCoordinator.pause(
                 request.token,
-                it.message ?: "Не удалось продолжить сканирование",
+                it.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_retry_failed),
             )
         }.onSuccess {
             attachPetMeasurementTimeout(request.token)
