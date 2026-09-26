@@ -12,6 +12,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
@@ -21,6 +22,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import com.palixander.scalesync.core.breedreference.BreedReferenceSex
+import com.palixander.scalesync.R
 import com.palixander.scalesync.core.breedreference.BreedReferenceSourceKind
 import com.palixander.scalesync.core.breedreference.BreedReferenceStatisticKind
 import com.palixander.scalesync.domain.Pet
@@ -158,8 +160,8 @@ class PetHistoryBreedReferencePresenter(
                 is BreedWeightReferenceResolution.Available -> resolution.reference.values.map {
                     it.chartValue(
                         resolution.reference.breedRussianName,
-                        resolution.reference.ageScope.label(),
-                        resolution.reference.source.kind.label(),
+                        resolution.reference.ageScope.label(locale),
+                        resolution.reference.source.kind.label(locale),
                         locale,
                         resolution.reference.source.id,
                     )
@@ -173,21 +175,21 @@ class PetHistoryBreedReferencePresenter(
     }
 
     private fun BreedWeightReference.toPresentation(): PetHistoryBreedReference.Available {
-        val age = ageScope.label()
+        val age = ageScope.label(locale)
         val values = values.map { it.label(locale) }
-        val kind = source.kind.label()
+        val kind = source.kind.label(locale)
         val partialDisclosure = ageDisclosure.possibleAgeDays?.takeIf { ageDisclosure.partial }?.let { possible ->
             "Дата рождения указана не полностью. Возможный возраст: ${possible.first.ageLabel()}–${possible.last.ageLabel()}. " +
                 "Показан ориентир ${age.prepositionForm()}."
         }
-        val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations)
+        val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations, locale)
         val companions = companionGroups.map { it.presentation(breedRussianName) }
         return PetHistoryBreedReference.Available(
             breedName = breedRussianName,
             ageLabel = age,
             valueLabels = values,
             sourceKindLabel = kind,
-            sexLabel = sex.label(),
+            sexLabel = sex.label(locale),
             partialDateDisclosure = partialDisclosure,
             accessibilityLabel = buildString {
                 append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
@@ -211,15 +213,15 @@ class PetHistoryBreedReferencePresenter(
     }
 
     private fun BreedWeightReferenceGroup.presentation(breedName: String): PetHistoryBreedCompanionReference {
-        val age = ageScope.label()
-        val kind = source.kind.label()
+        val age = ageScope.label(locale)
+        val kind = source.kind.label(locale)
         return PetHistoryBreedCompanionReference(
             ageLabel = age,
-            sexLabel = sex.label(),
+            sexLabel = sex.label(locale),
             valueLabels = values.map { it.label(locale) },
             sourceKindLabel = kind,
             chartValues = values.map { it.chartValue(breedName, age, kind, locale, source.id) },
-            source = source.presentation(sampleSize, sampleUnit, limitations),
+            source = source.presentation(sampleSize, sampleUnit, limitations, locale),
         )
     }
 
@@ -238,8 +240,8 @@ class PetHistoryBreedReferencePresenter(
         PetHistoryBreedReference.Unavailable(this, message, edit)
 
     private fun BreedWeightReferenceDetail.presentation() = PetHistoryBreedReferenceDetail(
-        ageLabel = ageScope.label(),
-        sexLabel = sex.label(),
+        ageLabel = ageScope.label(locale),
+        sexLabel = sex.label(locale),
         valueLabel = value?.label(locale) ?: "Числовое значение не опубликовано",
         sourceTitle = source?.title,
         documentedGap = documentedGap,
@@ -282,20 +284,20 @@ private fun BreedWeightValue.chartValue(
             upperKg = upper,
             centerKg = center,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(),
+            statisticLabel = statistic.label(locale),
             accessibilityLabel = description,
         )
         is BreedWeightValue.Single -> PetHistoryBreedChartValue.Single(
             valueKg = value,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(),
+            statisticLabel = statistic.label(locale),
             accessibilityLabel = description,
         )
         is BreedWeightValue.Boundary -> PetHistoryBreedChartValue.Boundary(
             valueKg = value,
             direction = direction,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(),
+            statisticLabel = statistic.label(locale),
             accessibilityLabel = description,
         )
     }
@@ -310,9 +312,11 @@ internal fun PetHistoryBreedReferenceCard(
     if (reference is PetHistoryBreedReference.Hidden) return
     var expanded by remember(reference) { mutableStateOf(false) }
     var sourceErrors by remember(reference) { mutableStateOf<Set<Int>>(emptySet()) }
+    val expandedState = stringResource(R.string.state_expanded)
+    val collapsedState = stringResource(R.string.state_collapsed)
     HuaweiSurface(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Card)) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-            Text("Ориентиры породы", style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Text(stringResource(R.string.pet_breed_reference_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             when (reference) {
                 PetHistoryBreedReference.Hidden -> Unit
                 is PetHistoryBreedReference.Unavailable -> {
@@ -324,27 +328,27 @@ internal fun PetHistoryBreedReferenceCard(
                     if (reference.showEditAction) TextButton(
                         onClick = onEdit,
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget).testTag(PetBreedReferenceTestTags.Edit),
-                    ) { Text("Изменить профиль") }
+                    ) { Text(stringResource(R.string.pet_breed_reference_edit_profile)) }
                 }
                 is PetHistoryBreedReference.Available -> {
                     Column(Modifier.semantics(mergeDescendants = true) { contentDescription = reference.accessibilityLabel }) {
-                        Text("Для возраста: ${reference.ageLabel}")
+                        Text(stringResource(R.string.pet_breed_reference_for_age, reference.ageLabel))
                         reference.valueLabels.forEach { value -> Text(value) }
-                        Text("Тип: ${reference.sourceKindLabel}")
+                        Text(stringResource(R.string.pet_breed_reference_type, reference.sourceKindLabel))
                         reference.companionReferences.forEach { companion ->
-                            Text("Дополнительный ориентир для ${companion.ageLabel}")
+                            Text(stringResource(R.string.pet_breed_reference_companion, companion.ageLabel))
                             companion.valueLabels.forEach { value -> Text(value) }
-                            Text("Тип: ${companion.sourceKindLabel}")
+                            Text(stringResource(R.string.pet_breed_reference_type, companion.sourceKindLabel))
                         }
                         reference.partialDateDisclosure?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     TextButton(
                         onClick = { expanded = !expanded },
                         modifier = Modifier.semantics {
-                            stateDescription = if (expanded) "Развернуто" else "Свернуто"
+                            stateDescription = if (expanded) expandedState else collapsedState
                         },
                     ) {
-                        Text("Источник и ограничения ${if (expanded) "▴" else "▾"}")
+                        Text(stringResource(R.string.reference_source_and_limits, if (expanded) "▴" else "▾"))
                     }
                     if (expanded) Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Details)) {
                         ReferenceSourceGroup(
@@ -371,12 +375,12 @@ internal fun PetHistoryBreedReferenceCard(
                             )
                         }
                         reference.details.forEach { detail ->
-                            Text(if (detail.youngerThanSelectedAge) "Более младшие данные: ${detail.ageLabel}" else "Дополнительные данные: ${detail.ageLabel}")
-                            Text("${detail.sexLabel}: ${detail.valueLabel}")
-                            detail.sourceTitle?.let { Text("Источник: $it") }
-                            detail.documentedGap?.let { Text("Документированный пропуск: $it") }
-                            detail.sampleLabel?.let { Text("Выборка: $it") }
-                            detail.limitations.forEach { Text("Ограничение: $it") }
+                            Text(stringResource(if (detail.youngerThanSelectedAge) R.string.pet_breed_reference_younger_data else R.string.pet_breed_reference_additional_data, detail.ageLabel))
+                            Text(stringResource(R.string.reference_labeled_value, detail.sexLabel, detail.valueLabel))
+                            detail.sourceTitle?.let { Text(stringResource(R.string.reference_source, it)) }
+                            detail.documentedGap?.let { Text(stringResource(R.string.reference_documented_gap, it)) }
+                            detail.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it)) }
+                            detail.limitations.forEach { Text(stringResource(R.string.reference_limitation, it)) }
                         }
                     }
                 }
@@ -398,17 +402,17 @@ private fun ReferenceSourceGroup(
 ) {
     Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.sourceGroup(index))) {
         SourceDetails(source)
-        Text("Возрастная область: $ageLabel")
-        Text("Пол: $sexLabel")
-        valueLabels.forEach { value -> Text("Значение: $value") }
+        Text(stringResource(R.string.reference_age_scope, ageLabel))
+        Text(stringResource(R.string.reference_sex, sexLabel))
+        valueLabels.forEach { value -> Text(stringResource(R.string.reference_value, value)) }
         TextButton(
             onClick = { onOpenResult(sourceLauncher.open(source.url)) },
             modifier = Modifier
                 .heightIn(min = HuaweiDimensions.TouchTarget)
                 .testTag(PetBreedReferenceTestTags.openSource(index)),
-        ) { Text("Открыть источник: ${source.title}") }
+        ) { Text(stringResource(R.string.reference_open_source_named, source.title)) }
         if (hasError) Text(
-            "Не удалось открыть источник «${source.title}».",
+            stringResource(R.string.reference_open_error, source.title),
             color = MaterialTheme.colorScheme.error,
             modifier = Modifier
                 .testTag(PetBreedReferenceTestTags.sourceError(index))
@@ -422,22 +426,22 @@ private fun Set<Int>.update(value: Int, present: Boolean): Set<Int> =
 
 @Composable
 private fun SourceDetails(source: PetHistoryBreedSource) {
-    Text("Организация или публикация: ${source.title}")
-    source.year?.let { Text("Год: $it") }
-    Text("Тип утверждения: ${source.kindLabel}")
-    source.sampleLabel?.let { Text("Выборка: $it") }
-    source.geography?.let { Text("География: $it") }
-    source.method?.let { Text("Метод: $it") }
-    source.pageOrTable?.let { Text("Страница или таблица: $it") }
-    source.limitations.forEach { Text("Ограничение: $it") }
+    Text(stringResource(R.string.reference_organization_or_publication, source.title))
+    source.year?.let { Text(stringResource(R.string.reference_year, it)) }
+    Text(stringResource(R.string.reference_statement_type, source.kindLabel))
+    source.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it)) }
+    source.geography?.let { Text(stringResource(R.string.reference_geography, it)) }
+    source.method?.let { Text(stringResource(R.string.reference_method, it)) }
+    source.pageOrTable?.let { Text(stringResource(R.string.reference_page_or_table, it)) }
+    source.limitations.forEach { Text(stringResource(R.string.reference_limitation, it)) }
 }
 
-private fun BreedWeightSourceMetadata.presentation(sampleSize: Int?, sampleUnit: String?, limitations: List<String>) =
-    PetHistoryBreedSource(title, url, year, kind.label(), geography, method, pageOrTable,
+private fun BreedWeightSourceMetadata.presentation(sampleSize: Int?, sampleUnit: String?, limitations: List<String>, locale: Locale) =
+    PetHistoryBreedSource(title, url, year, kind.label(locale), geography, method, pageOrTable,
         sampleSize?.let { "$it ${sampleUnit.orEmpty()}".trim() }, limitations)
 
-private fun BreedWeightAgeScope.label() = when (this) {
-    BreedWeightAgeScope.Adult -> "взрослой собаки"
+private fun BreedWeightAgeScope.label(locale: Locale) = when (this) {
+    BreedWeightAgeScope.Adult -> if (locale.language == "ru") "взрослой собаки" else "adult dog"
     is BreedWeightAgeScope.Age -> label
 }
 
@@ -450,7 +454,7 @@ private fun Long.ageLabel(): String {
 
 private fun BreedWeightValue.label(locale: Locale): String {
     val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 2 }
-    val statisticLabel = statistic.label()
+    val statisticLabel = statistic.label(locale)
     return when (this) {
         is BreedWeightValue.Interval -> "$statisticLabel: ${number.format(lower)}–${number.format(upper)} кг" +
             (center?.let { "; центр: ${number.format(it)} кг" } ?: "")
@@ -460,33 +464,36 @@ private fun BreedWeightValue.label(locale: Locale): String {
     }
 }
 
-private fun BreedReferenceStatisticKind.label() = when (this) {
-    BreedReferenceStatisticKind.RANGE -> "Диапазон"
-    BreedReferenceStatisticKind.QUANTILES -> "Квантили"
-    BreedReferenceStatisticKind.MEAN -> "Среднее"
-    BreedReferenceStatisticKind.MEDIAN -> "Медиана"
-    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> "Приблизительное среднее"
-    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> "Приблизительный диапазон"
-    BreedReferenceStatisticKind.MEAN_SD -> "Среднее и стандартное отклонение"
-    BreedReferenceStatisticKind.IDEAL -> "Идеальный вес"
-    BreedReferenceStatisticKind.IDEAL_RANGE -> "Идеальный диапазон веса"
-    BreedReferenceStatisticKind.STANDARD_POINT -> "Значение стандарта"
-    BreedReferenceStatisticKind.MINIMUM -> "Минимальный вес"
-    BreedReferenceStatisticKind.MAXIMUM -> "Максимальный вес"
-    BreedReferenceStatisticKind.DOCUMENTED_GAP -> "Документированный пропуск"
+private fun BreedReferenceStatisticKind.label(locale: Locale) = when (this) {
+    BreedReferenceStatisticKind.RANGE -> localized(locale, "Диапазон", "Range")
+    BreedReferenceStatisticKind.QUANTILES -> localized(locale, "Квантили", "Quantiles")
+    BreedReferenceStatisticKind.MEAN -> localized(locale, "Среднее", "Mean")
+    BreedReferenceStatisticKind.MEDIAN -> localized(locale, "Медиана", "Median")
+    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> localized(locale, "Приблизительное среднее", "Approximate mean")
+    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> localized(locale, "Приблизительный диапазон", "Approximate range")
+    BreedReferenceStatisticKind.MEAN_SD -> localized(locale, "Среднее и стандартное отклонение", "Mean and standard deviation")
+    BreedReferenceStatisticKind.IDEAL -> localized(locale, "Идеальный вес", "Ideal weight")
+    BreedReferenceStatisticKind.IDEAL_RANGE -> localized(locale, "Идеальный диапазон веса", "Ideal weight range")
+    BreedReferenceStatisticKind.STANDARD_POINT -> localized(locale, "Значение стандарта", "Standard value")
+    BreedReferenceStatisticKind.MINIMUM -> localized(locale, "Минимальный вес", "Minimum weight")
+    BreedReferenceStatisticKind.MAXIMUM -> localized(locale, "Максимальный вес", "Maximum weight")
+    BreedReferenceStatisticKind.DOCUMENTED_GAP -> localized(locale, "Документированный пропуск", "Documented gap")
 }
 
-private fun BreedReferenceSourceKind.label() = when (this) {
-    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> "официальный международный стандарт"
-    BreedReferenceSourceKind.NATIONAL_STANDARD -> "официальный национальный стандарт"
-    BreedReferenceSourceKind.BREED_CLUB -> "породная организация"
-    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> "профессиональный справочник"
-    BreedReferenceSourceKind.OBSERVATIONAL -> "наблюдаемая выборка"
-    BreedReferenceSourceKind.MODELLED -> "модельные данные"
+private fun BreedReferenceSourceKind.label(locale: Locale) = when (this) {
+    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> localized(locale, "официальный международный стандарт", "official international standard")
+    BreedReferenceSourceKind.NATIONAL_STANDARD -> localized(locale, "официальный национальный стандарт", "official national standard")
+    BreedReferenceSourceKind.BREED_CLUB -> localized(locale, "породная организация", "breed organization")
+    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> localized(locale, "профессиональный справочник", "professional reference")
+    BreedReferenceSourceKind.OBSERVATIONAL -> localized(locale, "наблюдаемая выборка", "observational sample")
+    BreedReferenceSourceKind.MODELLED -> localized(locale, "модельные данные", "modelled data")
 }
 
-private fun BreedReferenceSex.label() = when (this) {
-    BreedReferenceSex.MALE -> "Самец"
-    BreedReferenceSex.FEMALE -> "Самка"
-    BreedReferenceSex.COMBINED -> "Для обоих полов"
+private fun BreedReferenceSex.label(locale: Locale) = when (this) {
+    BreedReferenceSex.MALE -> localized(locale, "Самец", "Male")
+    BreedReferenceSex.FEMALE -> localized(locale, "Самка", "Female")
+    BreedReferenceSex.COMBINED -> localized(locale, "Для обоих полов", "Both sexes")
 }
+
+private fun localized(locale: Locale, russian: String, english: String) =
+    if (locale.language == "ru") russian else english

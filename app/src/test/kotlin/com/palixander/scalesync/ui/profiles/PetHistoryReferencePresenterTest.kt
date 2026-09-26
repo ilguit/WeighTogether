@@ -72,27 +72,25 @@ class PetHistoryReferencePresenterTest {
                 "profile ${profile.id}" to profile.constraints,
                 "metadata ${profile.id}" to metadata.constraints,
             ).forEach { (presentation, constraints) ->
-                val localized = constraints.map(::localizedReferenceConstraint)
-                val plateau = localized.singleOrNull { it.startsWith("Подтверждённые") }
-
-                assertTrue("$presentation leaked an English plateau disclosure: $localized", localized.none {
-                    "Evidence-backed" in it
-                })
+                val plateau = constraints.singleOrNull { it.startsWith("Evidence-backed") }
                 assertTrue(
-                    "$presentation omitted endpoint $endpoint: $localized",
-                    plateau?.replace(" ", "")?.contains(endpoint.toString()) == true,
+                    "$presentation omitted endpoint $endpoint: $constraints",
+                    plateau?.contains(endpoint.toString()) == true,
                 )
-                assertTrue("$presentation omitted product maximum: $localized", plateau?.contains("10 958") == true)
+                assertTrue("$presentation omitted product maximum: $constraints", plateau?.contains("10958") == true)
             }
         }
     }
 
     @Test
-    fun `plateau localization requires the complete constraint pattern`() {
-        val unrelated =
-            "Evidence-backed/modelled values end at day 728; review this unrelated constraint separately"
+    fun `presenter preserves source constraints verbatim`() {
+        val date = LocalDate.of(2026, 9, 25)
+        val reference = presenter.present(dog(PartialBirthDate.Day(date.minusDays(100))), ChartDateRange(date, date))
+            as PetHistoryWeightReference.Available
+        val metadata = checkNotNull(WeightReferenceSnapshot.bundled().metadataFor(reference.segments.first().profileId))
 
-        assertEquals(unrelated, localizedReferenceConstraint(unrelated))
+        assertEquals(metadata.constraints, reference.constraints)
+        assertEquals(metadata.source.disclosure, reference.sourceDisclosure)
     }
 
     @Test
@@ -394,10 +392,8 @@ class PetHistoryReferencePresenterTest {
                     point.medianLowerKg == point.medianUpperKg &&
                     point.medianUpperKg <= point.upperKg
             })
-            assertTrue(result.constraints.any { it.contains("10 958-го дня (30 лет)") })
-            assertTrue(result.constraints.all { constraint ->
-                !constraint.contains("Evidence-backed")
-            })
+            assertTrue(result.constraints.any { it.contains("day 10958 (30 years)") })
+            assertTrue(result.constraints.any { it.startsWith("Evidence-backed") })
         }
     }
 
@@ -455,9 +451,9 @@ class PetHistoryReferencePresenterTest {
         assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
         assertEquals(
             listOf(
-                "Только домашние короткошёрстные кошки",
-                "Нестерилизованные котята из США",
-                "Возраст от 8 до 78 недель",
+                "Domestic Shorthair only",
+                "Sexually intact kittens from the USA",
+                "Age 8 to 78 weeks",
             ),
             result.constraints,
         )

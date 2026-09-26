@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -35,6 +36,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.palixander.scalesync.R
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
@@ -890,10 +892,10 @@ internal fun PetWeightReferenceChartCard(
                 if (displayedSeries.isNotEmpty() || exactObservationGlyphs.isNotEmpty()) {
                     DisplayedSeriesLegend(legendEntries, factualColor, referenceColor)
                 } else if (factual.size < 2) {
-                    Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
+                    Text(stringResource(R.string.pet_chart_single_measurement))
                 }
             } else {
-                Text("Нет данных за выбранный период", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.pet_chart_no_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (showReferenceExplanation && !hasBreedTimeline) ReferenceExplanation(reference, sourceLauncher)
         }
@@ -1165,6 +1167,8 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
         is PetHistoryWeightReference.Available -> {
             var sourceExpanded by remember(reference) { mutableStateOf(false) }
             var sourceError by remember(reference.publicationUrl) { mutableStateOf(false) }
+            val expandedState = stringResource(R.string.state_expanded)
+            val collapsedState = stringResource(R.string.state_collapsed)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1183,47 +1187,47 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                     },
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-            Text(if (reference.isFittedPopulationPercentiles) "Как читать справочные данные" else "Как читать эталон", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_how_to_read_data else R.string.reference_how_to_read), style = MaterialTheme.typography.titleSmall)
             Text("${reference.basisLabel} · ${reference.ageLabel}")
             Text(
                 when {
                     reference.provenance == WeightReferenceProvenance.BREED_CURVE ->
-                        "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модельного диапазона. Модель построена по общему возрастному профилю кошек того же пола и взрослому диапазону породы. Она не является наблюдаемой кривой роста этой породы или медицинской нормой."
+                        stringResource(R.string.reference_breed_curve_explanation)
                     reference.isFittedPopulationPercentiles ->
-                        "Светло-зелёная зона показывает P9–P91, тонкая линия — P50."
+                        stringResource(R.string.reference_population_explanation)
                     reference.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
-                        "Вертикальный отрезок показывает среднее ± одно стандартное отклонение, точка — средний вес в дату рождения."
-                    else -> "Внешние линии показывают общий диапазон, две внутренние — медианный диапазон."
+                        stringResource(R.string.reference_observation_explanation)
+                    else -> stringResource(R.string.reference_bounds_explanation)
                 },
             )
             TextButton(
                 onClick = { sourceExpanded = !sourceExpanded },
                 modifier = Modifier.testTag(PetWeightChartTestTags.Disclosure).semantics {
-                    stateDescription = if (sourceExpanded) "Развернуто" else "Свернуто"
+                    stateDescription = if (sourceExpanded) expandedState else collapsedState
                 },
-            ) { Text("Источник и ограничения ${if (sourceExpanded) "▴" else "▾"}") }
+            ) { Text(stringResource(R.string.reference_source_and_limits, if (sourceExpanded) "▴" else "▾")) }
             if (sourceExpanded) Column(Modifier.fillMaxWidth()) {
                 reference.segments.distinctBy { it.sourceId }.forEach { segment ->
-                    Text("Источник: ${segment.citation}", style = MaterialTheme.typography.bodySmall)
-                    Text("Лицензия: ${segment.license}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.reference_source, segment.citation), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.reference_license, segment.license), style = MaterialTheme.typography.bodySmall)
                 }
-                reference.sourceAuthorityLabel?.let { Text("Тип источника: $it", style = MaterialTheme.typography.bodySmall) }
-                reference.sourceAccessedDate?.let { Text("Дата доступа: $it", style = MaterialTheme.typography.bodySmall) }
+                reference.sourceAuthorityLabel?.let { Text(stringResource(R.string.reference_source_type, it), style = MaterialTheme.typography.bodySmall) }
+                reference.sourceAccessedDate?.let { Text(stringResource(R.string.reference_accessed, it), style = MaterialTheme.typography.bodySmall) }
                 reference.sourceDisclosure?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 if (reference.provenance == WeightReferenceProvenance.BREED_CURVE) {
                     Text(
-                        "Расчёт центра: арифметическая середина опубликованного диапазона; это не наблюдаемая медиана.",
+                        stringResource(R.string.reference_center_calculation),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }
+                reference.constraints.forEach { Text(stringResource(R.string.reference_limitation, it), style = MaterialTheme.typography.bodySmall) }
                 if (reference.publicationUrl != null) {
                     TextButton(
                         onClick = { sourceError = !sourceLauncher.open(reference.publicationUrl) },
                         modifier = Modifier.testTag(PetWeightChartTestTags.Publication),
-                    ) { Text(if (reference.isFittedPopulationPercentiles) "Открыть основную публикацию" else "Открыть источник") }
+                    ) { Text(stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_open_publication else R.string.reference_open_source)) }
                     if (sourceError) Text(
-                        "Не удалось открыть источник «${reference.citation}».",
+                        stringResource(R.string.reference_open_error, reference.citation),
                         modifier = Modifier
                             .testTag(PetWeightChartTestTags.PublicationError)
                             .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Assertive },
@@ -1231,8 +1235,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                 }
             }
             Text(
-                if (reference.isFittedPopulationPercentiles) "Сведения справочные и не оценивают здоровье питомца. Обсудите изменения веса с ветеринаром."
-                else "Эталон помогает следить за динамикой, но не ставит диагноз. Обсудите заметные отклонения или изменения веса с ветеринаром.",
+                stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_population_disclaimer else R.string.reference_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
