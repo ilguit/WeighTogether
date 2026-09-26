@@ -623,7 +623,7 @@ class PetHistoryScreenUiTest {
         val screenState = state(PetHistoryContent.Empty).copy(
             weightReference = PetHistoryWeightReference.Unavailable(
                 WeightReferenceUnavailableReason.MissingDogAdultWeight,
-                explanation,
+                com.palixander.scalesync.ui.text.UiText.Raw(explanation),
             ),
             breedReference = availableBreedReference(),
         )
@@ -734,7 +734,7 @@ class PetHistoryScreenUiTest {
         val screenState = state(PetHistoryContent.Empty).copy(
             weightReference = PetHistoryWeightReference.Unavailable(
                 WeightReferenceUnavailableReason.MissingDogAdultWeight,
-                explanation,
+                com.palixander.scalesync.ui.text.UiText.Raw(explanation),
             ),
         )
         composeRule.setContent {
@@ -821,7 +821,7 @@ class PetHistoryScreenUiTest {
         setScreen(
             state(PetHistoryContent.Single(selected)).copy(
                 deleteConfirmation = PetHistoryDeleteConfirmation(PetId("pet-exact"), selected),
-                actionErrorMessage = "Не удалось сохранить изменения",
+                actionErrorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Не удалось сохранить изменения"),
             ),
             callbacks,
         )
@@ -833,7 +833,7 @@ class PetHistoryScreenUiTest {
 
         var errorDismissals = 0
         setScreen(
-            state(PetHistoryContent.Single(selected)).copy(actionErrorMessage = "Не удалось сохранить изменения"),
+            state(PetHistoryContent.Single(selected)).copy(actionErrorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Не удалось сохранить изменения")),
             callbacks(dismissActionError = { errorDismissals++ }),
         )
         composeRule.onNodeWithTag(PetProfileScreenTestTags.ActionError).assertIsDisplayed()
@@ -870,7 +870,7 @@ class PetHistoryScreenUiTest {
         val unavailableStates = listOf(
             state(PetHistoryContent.Empty).copy(pet = null, isLoading = true),
             state(PetHistoryContent.Empty).copy(pet = null, isNotFound = true),
-            state(PetHistoryContent.Empty).copy(pet = null, errorMessage = "Ошибка загрузки"),
+            state(PetHistoryContent.Empty).copy(pet = null, errorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Ошибка загрузки")),
         )
 
         unavailableStates.forEach { unavailable ->
@@ -940,13 +940,13 @@ class PetHistoryScreenUiTest {
             ),
         ),
         approximate = false,
-        ageLabel = "Возраст: 100–102 дн.",
-        basisLabel = basisLabel,
-        sourceLabel = "Источник: Test veterinary source",
+        ageLabel = com.palixander.scalesync.ui.text.UiText.Raw("Возраст: 100–102 дн."),
+        basisLabel = com.palixander.scalesync.ui.text.UiText.Raw(basisLabel),
+        sourceLabel = com.palixander.scalesync.ui.text.UiText.Raw("Источник: Test veterinary source"),
         citation = "Test veterinary source",
         license = "CC BY 4.0",
         constraints = listOf("Только здоровые животные"),
-        accessibilityLabel = "$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0.",
+        accessibilityLabel = com.palixander.scalesync.ui.text.UiText.Raw("$basisLabel. Возраст: 100–102 дн. Источник: Test veterinary source. Лицензия: CC BY 4.0."),
     )
 
     private fun referenceSegments(

@@ -25,6 +25,8 @@ import com.palixander.scalesync.domain.PetUpdate
 import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.domain.reference.DogBreedAdultWeightCategoryMappings
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.DateTimeException
 import java.time.LocalDate
 import java.time.Year
@@ -601,22 +603,22 @@ fun isDogAdultWeightCategoryApplicable(
     breed: PetBreedSelection?,
 ): Boolean = species == PetSpecies.DOG
 
-fun petSexLabel(sex: PetSex?): String = when (sex) {
-    PetSex.MALE -> "Самец"
-    PetSex.FEMALE -> "Самка"
-    null -> "Не указан"
+fun petSexLabel(sex: PetSex?): UiText = when (sex) {
+    PetSex.MALE -> uiText(R.string.pet_sex_male)
+    PetSex.FEMALE -> uiText(R.string.pet_sex_female)
+    null -> uiText(R.string.pet_sex_unspecified)
 }
 
-fun petBreedLabel(breed: PetBreedSelection?): String = when (breed) {
-    is PetBreedSelection.Available -> breed.option.displayName
-    is PetBreedSelection.Unavailable -> "Недоступна: ${breed.id.value}"
-    null -> "Другая порода"
+fun petBreedLabel(breed: PetBreedSelection?): UiText = when (breed) {
+    is PetBreedSelection.Available -> UiText.Raw(breed.option.displayName)
+    is PetBreedSelection.Unavailable -> uiText(R.string.pet_breed_unavailable, breed.id.value)
+    null -> uiText(R.string.pet_breed_other)
 }
 
-fun birthDatePrecisionLabel(precision: BirthDatePrecision): String = when (precision) {
-    BirthDatePrecision.YEAR -> "Год"
-    BirthDatePrecision.MONTH -> "Месяц"
-    BirthDatePrecision.DAY -> "День"
+fun birthDatePrecisionLabel(precision: BirthDatePrecision): UiText = when (precision) {
+    BirthDatePrecision.YEAR -> uiText(R.string.birth_precision_year)
+    BirthDatePrecision.MONTH -> uiText(R.string.birth_precision_month)
+    BirthDatePrecision.DAY -> uiText(R.string.birth_precision_day)
 }
 
 fun formatPartialBirthDate(birthDate: PartialBirthDate): String = when (birthDate) {
@@ -625,15 +627,18 @@ fun formatPartialBirthDate(birthDate: PartialBirthDate): String = when (birthDat
     is PartialBirthDate.Day -> birthDate.value.format(DayBirthDateFormatter)
 }
 
-fun partialBirthDateLabel(birthDate: PartialBirthDate): String =
-    "${formatPartialBirthDate(birthDate)} (${birthDatePrecisionLabel(birthDate.precision).lowercase()})"
+fun partialBirthDateLabel(birthDate: PartialBirthDate): UiText = uiText(
+    R.string.birth_date_with_precision,
+    formatPartialBirthDate(birthDate),
+    birthDatePrecisionLabel(birthDate.precision),
+)
 
-fun dogAdultWeightCategoryLabel(category: DogAdultWeightCategory): String = when (category) {
-    DogAdultWeightCategory.I -> "I — < 6,5 кг"
-    DogAdultWeightCategory.II -> "II — 6,5–9 кг"
-    DogAdultWeightCategory.III -> "III — 9–15 кг"
-    DogAdultWeightCategory.IV -> "IV — 15–30 кг"
-    DogAdultWeightCategory.V -> "V — 30–40 кг"
+fun dogAdultWeightCategoryLabel(category: DogAdultWeightCategory): UiText = when (category) {
+    DogAdultWeightCategory.I -> uiText(R.string.dog_weight_i)
+    DogAdultWeightCategory.II -> uiText(R.string.dog_weight_ii)
+    DogAdultWeightCategory.III -> uiText(R.string.dog_weight_iii)
+    DogAdultWeightCategory.IV -> uiText(R.string.dog_weight_iv)
+    DogAdultWeightCategory.V -> uiText(R.string.dog_weight_v)
 }
 
 private val MonthBirthDateFormatter = DateTimeFormatter.ofPattern("MM.yyyy")

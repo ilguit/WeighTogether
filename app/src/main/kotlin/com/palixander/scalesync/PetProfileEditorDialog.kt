@@ -53,6 +53,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -66,6 +68,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
@@ -167,6 +170,12 @@ internal fun PetProfileEditorDialog(
     val birthDateFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val speciesLabel = stringResource(R.string.pet_editor_species)
+    val sexLabel = stringResource(R.string.pet_editor_sex)
+    val clearSexLabel = stringResource(R.string.pet_editor_clear_sex)
+    val savingA11y = stringResource(R.string.pet_editor_saving_a11y)
+    val savingState = stringResource(R.string.state_saving)
     val photoStore = profilePhotoStore
     var photoError by remember(draft.mode) { mutableStateOf<String?>(null) }
     val newPhotoOwnerId = rememberSaveable(draft.mode) {
@@ -193,14 +202,14 @@ internal fun PetProfileEditorDialog(
                 deleteTransientPhoto(draft.photoPath)
                 dispatchPhoto(onAction, path, locked)
             },
-            onError = { error -> photoError = petPhotoErrorMessage(error) },
+            onError = { error -> photoError = context.getString(petPhotoErrorResource(error)) },
         )
     }
     val photoPicker = photoStore?.let { store ->
         photoPickerFactory(
             store,
             { photoCrop?.open(it) },
-            { error -> photoError = petPhotoErrorMessage(error) },
+            { error -> photoError = context.getString(petPhotoErrorResource(error)) },
         )
     }
 
@@ -254,8 +263,8 @@ internal fun PetProfileEditorDialog(
                 title = {
                     Text(
                         text = when (draft.mode) {
-                            PetProfileEditorMode.Create -> "Новый питомец"
-                            is PetProfileEditorMode.Edit -> "Изменить питомца"
+                            PetProfileEditorMode.Create -> stringResource(R.string.pet_editor_create_title)
+                            is PetProfileEditorMode.Edit -> stringResource(R.string.pet_editor_edit_title)
                         },
                         modifier = Modifier
                             .focusRequester(titleFocus)
@@ -267,7 +276,7 @@ internal fun PetProfileEditorDialog(
                 navigationIcon = {
                     HuaweiIconButton(
                         icon = HuaweiIcons.Back,
-                        contentDescription = "Вернуться к профилям",
+                        contentDescription = stringResource(R.string.action_back_to_profiles),
                         onClick = ::requestClose,
                         enabled = !locked,
                         modifier = Modifier.testTag(PetProfileEditorTestTags.Back),
@@ -296,7 +305,7 @@ internal fun PetProfileEditorDialog(
                         .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(PetProfileEditorTestTags.Save),
-                ) { Text(if (busy) "Сохранение…" else "Сохранить") }
+                ) { Text(stringResource(if (busy) R.string.state_saving else R.string.action_save)) }
             }
         },
     ) { contentPadding ->
@@ -320,7 +329,7 @@ internal fun PetProfileEditorDialog(
                         PetSpecies.DOG -> HuaweiIcons.Dog
                         else -> HuaweiIcons.Profile
                     },
-                    contentDescription = "Фото питомца",
+                    contentDescription = stringResource(R.string.pet_editor_photo),
                     store = photoStore,
                     size = 96.dp,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -336,13 +345,13 @@ internal fun PetProfileEditorDialog(
                         enabled = !locked && photoPicker != null,
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoGallery),
-                    ) { Text("Галерея") }
+                    ) { Text(stringResource(R.string.photo_gallery)) }
                     OutlinedButton(
                         onClick = { photoPicker?.takePhoto?.invoke() },
                         enabled = !locked && photoPicker != null,
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoCamera),
-                    ) { Text("Камера") }
+                    ) { Text(stringResource(R.string.photo_camera)) }
                     if (draft.photoPath != null) OutlinedButton(
                         onClick = {
                             deleteTransientPhoto(draft.photoPath)
@@ -351,7 +360,7 @@ internal fun PetProfileEditorDialog(
                         enabled = !locked,
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoRemove),
-                    ) { Text("Удалить фото") }
+                    ) { Text(stringResource(R.string.photo_remove)) }
                 }
                 photoError?.let { FieldError(it) }
                 OutlinedTextField(
@@ -359,10 +368,10 @@ internal fun PetProfileEditorDialog(
                     onValueChange = { dispatch(PetProfileAction.DisplayNameChanged(it)) },
                     enabled = !locked,
                     singleLine = true,
-                    label = { Text("Имя питомца") },
+                    label = { Text(stringResource(R.string.pet_editor_name)) },
                     isError = fieldErrors.displayName != null,
                     supportingText = fieldErrors.displayName?.let { error ->
-                        { FieldError(petNameErrorMessage(error)) }
+                        { FieldError(stringResource(petNameErrorResource(error))) }
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -370,7 +379,7 @@ internal fun PetProfileEditorDialog(
                         .testTag(PetProfileEditorTestTags.NameField),
                 )
 
-                EditorSection("Вид питомца") {
+                EditorSection(stringResource(R.string.pet_editor_species)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -378,13 +387,13 @@ internal fun PetProfileEditorDialog(
                             .focusable()
                             .testTag(PetProfileEditorTestTags.SpeciesGroup)
                             .semantics {
-                                contentDescription = "Вид питомца"
+                                contentDescription = speciesLabel
                                 selectableGroup()
                             },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         PrimarySelectionButton(
-                            label = "🐱 Кошка",
+                            label = stringResource(R.string.pet_editor_cat),
                             selected = draft.species == PetSpecies.CAT,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesCat,
@@ -394,7 +403,7 @@ internal fun PetProfileEditorDialog(
                             },
                         )
                         PrimarySelectionButton(
-                            label = "🐶 Собака",
+                            label = stringResource(R.string.pet_editor_dog),
                             selected = draft.species == PetSpecies.DOG,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SpeciesDog,
@@ -405,23 +414,23 @@ internal fun PetProfileEditorDialog(
                         )
                     }
                     fieldErrors.species?.let {
-                        FieldError("Выберите вид питомца")
+                        FieldError(stringResource(R.string.pet_editor_species_required))
                     }
                 }
 
-                EditorSection("Пол (необязательно)") {
+                EditorSection(stringResource(R.string.pet_editor_sex_optional)) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
                             .testTag(PetProfileEditorTestTags.SexGroup)
                             .semantics {
-                                contentDescription = "Пол питомца"
+                                contentDescription = sexLabel
                                 selectableGroup()
                             },
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
                         PrimarySelectionButton(
-                            label = "Самец",
+                            label = stringResource(R.string.pet_editor_male),
                             selected = draft.sex == PetSex.MALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexMale,
@@ -429,7 +438,7 @@ internal fun PetProfileEditorDialog(
                             onClick = { dispatch(PetProfileAction.SexChanged(PetSex.MALE)) },
                         )
                         PrimarySelectionButton(
-                            label = "Самка",
+                            label = stringResource(R.string.pet_editor_female),
                             selected = draft.sex == PetSex.FEMALE,
                             enabled = !locked,
                             tag = PetProfileEditorTestTags.SexFemale,
@@ -444,13 +453,15 @@ internal fun PetProfileEditorDialog(
                             modifier = Modifier
                                 .heightIn(min = 48.dp)
                                 .testTag(PetProfileEditorTestTags.SexClear)
-                                .semantics { contentDescription = "Очистить пол питомца" },
-                        ) { Text("Очистить") }
+                                .semantics { contentDescription = clearSexLabel },
+                        ) { Text(stringResource(R.string.action_clear)) }
                     }
                 }
 
                 if (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) {
-                    EditorSection("Порода") {
+                    EditorSection(stringResource(R.string.pet_editor_breed)) {
+                        val breedLabel = petBreedLabel(draft.breed).resolve(LocalContext.current.resources)
+                        val breedA11y = stringResource(R.string.pet_editor_choose_breed_a11y, breedLabel)
                         OutlinedButton(
                             onClick = { breedPickerOpen = true },
                             enabled = !locked,
@@ -460,16 +471,16 @@ internal fun PetProfileEditorDialog(
                                 .focusRequester(breedFocus)
                                 .testTag(PetProfileEditorTestTags.BreedField)
                                 .semantics {
-                                    contentDescription = "Выбрать породу. ${petBreedLabel(draft.breed)}"
+                                    contentDescription = breedA11y
                                 },
                         ) {
                             Text(
-                                text = petBreedLabel(draft.breed),
+                                text = breedLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }
                         fieldErrors.breed?.let {
-                            FieldError("Порода не соответствует выбранному виду питомца")
+                            FieldError(stringResource(R.string.pet_editor_breed_mismatch))
                         }
                     }
                 }
@@ -502,6 +513,7 @@ internal fun PetProfileEditorDialog(
                 }
 
                 repositoryError?.let { message ->
+                    val saveErrorA11y = stringResource(R.string.pet_editor_save_error_a11y, message)
                     Surface(
                         color = MaterialTheme.colorScheme.errorContainer,
                         contentColor = MaterialTheme.colorScheme.onErrorContainer,
@@ -510,7 +522,7 @@ internal fun PetProfileEditorDialog(
                             .fillMaxWidth()
                             .testTag(PetProfileEditorTestTags.SaveError)
                             .semantics {
-                                contentDescription = "Ошибка сохранения: $message"
+                                contentDescription = saveErrorA11y
                                 liveRegion = LiveRegionMode.Polite
                             },
                     ) {
@@ -523,8 +535,8 @@ internal fun PetProfileEditorDialog(
                         modifier = Modifier
                             .fillMaxWidth()
                             .semantics {
-                                contentDescription = "Сохранение профиля питомца"
-                                stateDescription = "Сохранение"
+                                contentDescription = savingA11y
+                                stateDescription = savingState
                             },
                         horizontalArrangement = Arrangement.Center,
                         verticalAlignment = Alignment.CenterVertically,
@@ -536,7 +548,7 @@ internal fun PetProfileEditorDialog(
                             strokeWidth = 2.dp,
                         )
                         Spacer(Modifier.width(12.dp))
-                        Text("Сохраняем…")
+                        Text(stringResource(R.string.state_saving))
                     }
                 }
             }
@@ -573,8 +585,8 @@ internal fun PetProfileEditorDialog(
         AlertDialog(
             onDismissRequest = { discardRequested = false },
             modifier = Modifier.testTag(PetProfileEditorTestTags.DiscardConfirmation),
-            title = { Text("Отменить изменения?") },
-            text = { Text("Несохранённые изменения профиля питомца будут потеряны.") },
+            title = { Text(stringResource(R.string.pet_editor_discard_title)) },
+            text = { Text(stringResource(R.string.pet_editor_discard_text)) },
             confirmButton = {
                 Button(
                     onClick = {
@@ -582,13 +594,13 @@ internal fun PetProfileEditorDialog(
                         onDismiss()
                     },
                     modifier = Modifier.testTag(PetProfileEditorTestTags.Discard),
-                ) { Text("Отменить изменения") }
+                ) { Text(stringResource(R.string.pet_editor_discard)) }
             },
             dismissButton = {
                 TextButton(
                     onClick = { discardRequested = false },
                     modifier = Modifier.testTag(PetProfileEditorTestTags.KeepEditing),
-                ) { Text("Продолжить редактирование") }
+                ) { Text(stringResource(R.string.pet_editor_keep_editing)) }
             },
         )
     }
@@ -598,10 +610,10 @@ private fun dispatchPhoto(onAction: (PetProfileAction) -> Unit, path: String, lo
     if (!locked) onAction(PetProfileAction.PhotoChanged(path))
 }
 
-private fun petPhotoErrorMessage(error: ProfilePhotoError): String = when (error) {
-    ProfilePhotoError.UNREADABLE_SOURCE -> "Не удалось прочитать изображение"
-    ProfilePhotoError.INVALID_IMAGE -> "Выбранный файл не является изображением"
-    ProfilePhotoError.PROCESSING_FAILED -> "Не удалось обработать изображение"
+private fun petPhotoErrorResource(error: ProfilePhotoError): Int = when (error) {
+    ProfilePhotoError.UNREADABLE_SOURCE -> R.string.photo_error_unreadable
+    ProfilePhotoError.INVALID_IMAGE -> R.string.photo_error_invalid
+    ProfilePhotoError.PROCESSING_FAILED -> R.string.photo_error_processing
 }
 
 @Composable
@@ -658,8 +670,8 @@ private fun BirthDateEditor(
     var activePart by rememberSaveable { mutableStateOf<PetBirthDatePart?>(null) }
     val today = LocalDate.now()
     LaunchedEffect(enabled) { if (!enabled) activePart = null }
-    EditorSection("Дата рождения (необязательно)", modifier) {
-        Text("Выберите год, затем при желании уточните месяц и день.")
+    EditorSection(stringResource(R.string.pet_editor_birth_date_optional), modifier) {
+        Text(stringResource(R.string.pet_editor_birth_date_help))
         PetBirthDatePart.entries.forEach { part ->
             if (petBirthDateOptions(value, part, today).isNotEmpty()) {
                 val selected = value.component(part)
@@ -668,10 +680,10 @@ private fun BirthDateEditor(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag(birthPartTag(part)),
-                ) { Text("${part.label}: ${selected?.let { petBirthDatePartLabel(part, it) } ?: "Выбрать"}") }
+                ) { Text(stringResource(R.string.pet_editor_birth_part_value, stringResource(petBirthPartResource(part)), selected?.let { petBirthDatePartLabel(part, it) } ?: stringResource(R.string.action_select))) }
             }
         }
-        error?.let { FieldError(birthDateErrorMessage(it)) }
+        error?.let { FieldError(stringResource(birthDateErrorResource(it))) }
     }
     activePart?.takeIf { enabled }?.let { part ->
         val options = petBirthDateOptions(value, part, today)
@@ -681,7 +693,7 @@ private fun BirthDateEditor(
         )
         AlertDialog(
             onDismissRequest = { activePart = null },
-            title = { Text("Дата рождения: ${part.label.lowercase()}") },
+            title = { Text(stringResource(R.string.pet_editor_birth_picker_title, stringResource(petBirthPartResource(part)).lowercase())) },
             text = {
                 LazyColumn(
                     state = listState,
@@ -703,7 +715,7 @@ private fun BirthDateEditor(
                 }
             },
             confirmButton = {
-                TextButton(onClick = { activePart = null }) { Text("Отмена") }
+                TextButton(onClick = { activePart = null }) { Text(stringResource(R.string.action_cancel)) }
             },
             dismissButton = {
                 TextButton(onClick = {
@@ -711,9 +723,9 @@ private fun BirthDateEditor(
                     activePart = null
                 }, modifier = Modifier.testTag("pet-birth-part-clear")) {
                     Text(when (part) {
-                        PetBirthDatePart.YEAR -> "Очистить дату"
-                        PetBirthDatePart.MONTH -> "Оставить только год"
-                        PetBirthDatePart.DAY -> "Оставить год и месяц"
+                        PetBirthDatePart.YEAR -> stringResource(R.string.pet_editor_clear_date)
+                        PetBirthDatePart.MONTH -> stringResource(R.string.pet_editor_keep_year)
+                        PetBirthDatePart.DAY -> stringResource(R.string.pet_editor_keep_year_month)
                     })
                 }
             },
@@ -736,16 +748,18 @@ private fun DogCategoryEditor(
     onChange: (DogAdultWeightCategory?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    EditorSection("Весовая категория взрослой собаки (необязательно)", modifier) {
+    val resources = LocalContext.current.resources
+    val clearCategoryA11y = stringResource(R.string.pet_editor_clear_category_a11y)
+    EditorSection(stringResource(R.string.pet_editor_dog_category_optional), modifier) {
         Text(
-            "Определяет категорийную центильную кривую Salt для возраста от 12 недель до 2 лет.",
+            stringResource(R.string.pet_editor_dog_category_help),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         if (showChoices) {
             DogAdultWeightCategory.entries.forEach { category ->
                 SelectionRow(
-                    label = dogAdultWeightCategoryLabel(category),
+                    label = dogAdultWeightCategoryLabel(category).resolve(resources),
                     selected = selected == category,
                     enabled = enabled,
                     tag = PetProfileEditorTestTags.category(category),
@@ -753,7 +767,7 @@ private fun DogCategoryEditor(
                 )
             }
         } else if (selected != null) {
-            Text("Сохранена категория: ${dogAdultWeightCategoryLabel(selected)}")
+            Text(stringResource(R.string.pet_editor_saved_category, dogAdultWeightCategoryLabel(selected).resolve(resources)))
         }
         if (selected != null) {
             TextButton(
@@ -762,11 +776,11 @@ private fun DogCategoryEditor(
                 modifier = Modifier
                     .heightIn(min = 48.dp)
                     .testTag(PetProfileEditorTestTags.CategoryClear)
-                    .semantics { contentDescription = "Очистить весовую категорию собаки" },
-            ) { Text("Очистить категорию") }
+                    .semantics { contentDescription = clearCategoryA11y },
+            ) { Text(stringResource(R.string.pet_editor_clear_category)) }
         }
         error?.let {
-            FieldError("Весовая категория недоступна для выбранной породы")
+            FieldError(stringResource(R.string.pet_editor_category_unavailable))
         }
     }
 }
@@ -785,7 +799,8 @@ private fun BreedPickerDialog(
     }
     val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase()
-    val showOther = normalizedQuery.isEmpty() || "другая порода".contains(normalizedQuery)
+    val otherBreedLabel = stringResource(R.string.pet_editor_other_breed)
+    val showOther = normalizedQuery.isEmpty() || otherBreedLabel.lowercase().contains(normalizedQuery)
     LaunchedEffect(normalizedQuery, selected?.id, options) {
         if (normalizedQuery.isEmpty()) {
             val selectedIndex = options.indexOfFirst { it.id == selected?.id }
@@ -797,7 +812,7 @@ private fun BreedPickerDialog(
         modifier = Modifier.testTag(PetProfileEditorTestTags.BreedPicker),
         title = {
             Text(
-                "Выберите породу",
+                stringResource(R.string.pet_editor_choose_breed),
                 modifier = Modifier.semantics { heading() },
             )
         },
@@ -806,7 +821,7 @@ private fun BreedPickerDialog(
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("Поиск породы") },
+                    label = { Text(stringResource(R.string.pet_editor_search_breed)) },
                     singleLine = true,
                     modifier = Modifier
                         .fillMaxWidth()
@@ -822,7 +837,7 @@ private fun BreedPickerDialog(
                     if (showOther) {
                         item(key = "other") {
                             SelectionRow(
-                                label = "Другая порода",
+                                label = otherBreedLabel,
                                 selected = selected == null,
                                 enabled = true,
                                 tag = PetProfileEditorTestTags.BreedOther,
@@ -833,7 +848,7 @@ private fun BreedPickerDialog(
                     if (options.isEmpty() && !showOther) {
                         item {
                             Text(
-                                "Поддерживаемые породы не найдены",
+                                stringResource(R.string.pet_editor_no_breeds),
                                 modifier = Modifier.testTag(PetProfileEditorTestTags.BreedNoResults),
                             )
                         }
@@ -857,7 +872,7 @@ private fun BreedPickerDialog(
         },
         confirmButton = {},
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Закрыть") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_close)) }
         },
     )
 }
@@ -924,34 +939,34 @@ private fun SpeciesChangeConfirmationDialog(
     onCancel: () -> Unit,
 ) {
     val clearedFields = buildList {
-        if (pending.clearBreed) add("порода")
-        if (pending.clearDogAdultWeightCategory) add("весовая категория")
-    }.joinToString(" и ")
+        if (pending.clearBreed) add(stringResource(R.string.pet_editor_breed).lowercase())
+        if (pending.clearDogAdultWeightCategory) add(stringResource(R.string.pet_editor_weight_category).lowercase())
+    }.joinToString(stringResource(R.string.list_and_separator))
     AlertDialog(
         onDismissRequest = { if (enabled) onCancel() },
         modifier = Modifier.testTag(PetProfileEditorTestTags.SpeciesConfirmation),
         title = {
             Text(
-                "Сменить вид питомца?",
+                stringResource(R.string.pet_editor_change_species_title),
                 modifier = Modifier.semantics { heading() },
             )
         },
         text = {
-            Text("При смене вида будут очищены: $clearedFields. Остальные данные сохранятся.")
+            Text(stringResource(R.string.pet_editor_change_species_text, clearedFields))
         },
         confirmButton = {
             Button(
                 onClick = onConfirm,
                 enabled = enabled,
                 modifier = Modifier.testTag(PetProfileEditorTestTags.SpeciesConfirm),
-            ) { Text("Сменить вид") }
+            ) { Text(stringResource(R.string.pet_editor_change_species)) }
         },
         dismissButton = {
             TextButton(
                 onClick = onCancel,
                 enabled = enabled,
                 modifier = Modifier.testTag(PetProfileEditorTestTags.SpeciesCancel),
-            ) { Text("Отмена") }
+            ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -966,14 +981,20 @@ private fun FieldError(message: String) {
     )
 }
 
-private fun petNameErrorMessage(error: PetNameValidationError): String = when (error) {
-    PetNameValidationError.REQUIRED -> "Введите имя питомца"
-    PetNameValidationError.TOO_LONG -> "Имя должно содержать не больше 50 символов"
-    PetNameValidationError.DUPLICATE -> "Питомец с таким именем уже есть"
+private fun petNameErrorResource(error: PetNameValidationError): Int = when (error) {
+    PetNameValidationError.REQUIRED -> R.string.pet_editor_name_required
+    PetNameValidationError.TOO_LONG -> R.string.pet_editor_name_too_long
+    PetNameValidationError.DUPLICATE -> R.string.pet_editor_name_duplicate
 }
 
-private fun birthDateErrorMessage(error: PetBirthDateValidationError): String = when (error) {
-    PetBirthDateValidationError.INCOMPLETE -> "Заполните все выбранные части даты"
-    PetBirthDateValidationError.INVALID -> "Введите существующую дату"
-    PetBirthDateValidationError.FUTURE -> "Дата рождения не может быть в будущем"
+private fun birthDateErrorResource(error: PetBirthDateValidationError): Int = when (error) {
+    PetBirthDateValidationError.INCOMPLETE -> R.string.pet_editor_birth_incomplete
+    PetBirthDateValidationError.INVALID -> R.string.pet_editor_birth_invalid
+    PetBirthDateValidationError.FUTURE -> R.string.pet_editor_birth_future
+}
+
+private fun petBirthPartResource(part: PetBirthDatePart): Int = when (part) {
+    PetBirthDatePart.YEAR -> R.string.date_part_year
+    PetBirthDatePart.MONTH -> R.string.date_part_month
+    PetBirthDatePart.DAY -> R.string.date_part_day
 }

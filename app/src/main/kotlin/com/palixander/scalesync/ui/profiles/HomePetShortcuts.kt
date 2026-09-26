@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
@@ -48,6 +50,12 @@ fun HomePetShortcuts(
 ) {
     var expanded by rememberSaveable { mutableStateOf(false) }
     val photoStore = currentProfilePhotoStore()
+    val petKind = stringResource(R.string.profile_kind_pet)
+    val addPetLabel = stringResource(R.string.home_pet_add)
+    val expandLabel = stringResource(R.string.home_pet_expand)
+    val collapseLabel = stringResource(R.string.home_pet_collapse)
+    val expandedState = stringResource(R.string.state_expanded)
+    val collapsedState = stringResource(R.string.state_collapsed)
     SubcomposeLayout(modifier.fillMaxWidth().testTag(HomePetShortcutsTestTags.Block)) { constraints ->
         val width = constraints.maxWidth
         val gap = 8.dp.roundToPx()
@@ -102,7 +110,7 @@ fun HomePetShortcuts(
                         } },
                         onClick = { onProfileSelected(pet.key) },
                         modifier = Modifier.testTag(HomePetShortcutsTestTags.pet(pet.key.petId.value))
-                            .semantics { contentDescription = "${pet.displayName}, питомец" },
+                            .semantics { contentDescription = "${pet.displayName}, $petKind" },
                     )
                 }.single().measure(Constraints.fixedWidth(targetWidth))
             }
@@ -111,19 +119,19 @@ fun HomePetShortcuts(
         val buttonsHeight = rowHeights.sum() + gap * (rowHeights.size - 1).coerceAtLeast(0)
         val add = if (expanded && pets.isEmpty()) subcompose("add") {
             HuaweiFilterButton(
-                text = "Добавить питомца",
+                text = addPetLabel,
                 onClick = onAddPet,
                 modifier = Modifier.testTag(HomePetShortcutsTestTags.Add),
             )
         }.single().measure(childConstraints) else null
         val control = subcompose("toggle") {
-            val label = if (expanded) "Свернуть список питомцев" else "Развернуть список питомцев"
+            val label = if (expanded) collapseLabel else expandLabel
             Box(
                 modifier = Modifier.fillMaxWidth().height(24.dp)
                     .testTag(HomePetShortcutsTestTags.Toggle)
                     .semantics {
                         contentDescription = label
-                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                        stateDescription = if (expanded) expandedState else collapsedState
                     }
                     .clickable(role = Role.Button, onClickLabel = label) { expanded = !expanded }
                     .pointerInput(Unit) {

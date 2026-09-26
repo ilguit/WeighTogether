@@ -8,6 +8,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 
@@ -26,18 +28,19 @@ fun ManualOriginIndicator(origin: MeasurementOrigin, modifier: Modifier = Modifi
         }
     }
     val dismiss = { explaining = false; restoreFocus = true }
+    val manualOrigin = stringResource(R.string.manual_origin)
     HuaweiIconButton(
         icon = HuaweiIcons.Keyboard,
-        contentDescription = "Введено вручную",
+        contentDescription = manualOrigin,
         onClick = { explaining = true },
         modifier = modifier.focusRequester(focusRequester),
     )
     if (explaining) AlertDialog(
         onDismissRequest = dismiss,
-        text = { Text("Введено вручную") },
+        text = { Text(manualOrigin) },
         confirmButton = {
             TextButton(onClick = dismiss, modifier = Modifier.testTag("manual-origin-dismiss")) {
-                Text("Понятно")
+                Text(stringResource(R.string.common_got_it))
             }
         },
     )

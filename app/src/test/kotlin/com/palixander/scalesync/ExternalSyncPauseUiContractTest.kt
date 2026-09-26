@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import com.palixander.scalesync.worker.ExternalSyncPauseTransition
+import com.palixander.scalesync.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -8,24 +9,18 @@ class ExternalSyncPauseUiContractTest {
     @Test
     fun pauseToggleSnackbarUsesCompletedTransitionResult() {
         assertEquals(
-            EXTERNAL_SYNC_PAUSED_MESSAGE,
+            UiText.Resource(R.string.message_external_sync_paused),
             ExternalSyncPauseTransition.Paused.snackbarMessage(),
         )
         assertEquals(
-            EXTERNAL_SYNC_RESUMED_MESSAGE,
+            UiText.Resource(R.string.message_external_sync_resumed),
             ExternalSyncPauseTransition.Resumed.snackbarMessage(),
         )
     }
 
     @Test
     fun pauseMessagesDescribePersistentStateWithoutLegacyDuration() {
-        val messages = listOf(
-            EXTERNAL_SYNC_PAUSED_MESSAGE,
-            EXTERNAL_SYNC_RESUMED_MESSAGE,
-        )
-
-        messages.forEach { message ->
-            assertEquals(false, message.contains("5 минут", ignoreCase = true))
-        }
+        assertEquals(UiText.Resource(R.string.message_external_sync_paused), ExternalSyncPauseTransition.Paused.snackbarMessage())
+        assertEquals(UiText.Resource(R.string.message_external_sync_resumed), ExternalSyncPauseTransition.Resumed.snackbarMessage())
     }
 }

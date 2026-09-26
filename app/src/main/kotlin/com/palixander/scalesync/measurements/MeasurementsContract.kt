@@ -1,5 +1,6 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.MeasurementOrigin
 
 import com.palixander.scalesync.domain.AccountId
@@ -10,6 +11,8 @@ import com.palixander.scalesync.domain.lifecycleAt
 import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.Instant
 
 /** State-based destinations owned by the measurements feature. */
@@ -71,12 +74,12 @@ data class MeasurementsNavigationState(
 }
 
 enum class MeasurementEditorGroup(
-    val title: String,
+    val title: UiText,
 ) {
-    MAIN("Основное"),
-    BODY_COMPOSITION("Состав тела"),
-    MUSCLES_AND_BONES("Мышцы и кости"),
-    METABOLISM("Метаболизм"),
+    MAIN(uiText(R.string.measurement_group_main)),
+    BODY_COMPOSITION(uiText(R.string.measurement_group_body_composition)),
+    MUSCLES_AND_BONES(uiText(R.string.measurement_group_muscles_bones)),
+    METABOLISM(uiText(R.string.measurement_group_metabolism)),
 }
 
 /**
@@ -84,51 +87,51 @@ enum class MeasurementEditorGroup(
  * keeping this package independent from Room and repository types.
  */
 enum class MeasurementField(
-    val label: String,
-    val unit: String,
+    val label: UiText,
+    val unit: UiText?,
     val decimalPlaces: Int,
     val editorGroup: MeasurementEditorGroup,
     internal val wholeNumber: Boolean = false,
     internal val maximum: Double? = null,
 ) {
-    WEIGHT_KG("Вес", "кг", 2, MeasurementEditorGroup.MAIN),
-    IMPEDANCE_OHM("Импеданс", "Ом", 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
-    BMI("Индекс массы тела", "", 1, MeasurementEditorGroup.MAIN),
-    BODY_FAT_PERCENT("Жир", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    BODY_FAT_MASS_KG("Масса жира", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    WATER_PERCENT("Вода", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    WATER_MASS_KG("Масса воды", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    MUSCLE_MASS_KG("Мышечная масса", "кг", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    WEIGHT_KG(uiText(R.string.metric_weight), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MAIN),
+    IMPEDANCE_OHM(uiText(R.string.metric_impedance), uiText(R.string.unit_ohm_symbol), 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
+    BMI(uiText(R.string.metric_bmi), null, 1, MeasurementEditorGroup.MAIN),
+    BODY_FAT_PERCENT(uiText(R.string.metric_body_fat), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    BODY_FAT_MASS_KG(uiText(R.string.metric_body_fat_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    WATER_PERCENT(uiText(R.string.metric_water), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    WATER_MASS_KG(uiText(R.string.metric_water_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    MUSCLE_MASS_KG(uiText(R.string.metric_muscle_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
     SKELETAL_MUSCLE_MASS_KG(
-        "Скелетная мышечная масса",
-        "кг",
+        uiText(R.string.metric_skeletal_muscle_mass),
+        uiText(R.string.unit_kg),
         2,
         MeasurementEditorGroup.MUSCLES_AND_BONES,
     ),
-    BONE_MASS_KG("Костная масса", "кг", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
-    PROTEIN_PERCENT("Белок", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    PROTEIN_MASS_KG("Масса белка", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    VISCERAL_FAT_LEVEL("Уровень висцерального жира", "", 1, MeasurementEditorGroup.METABOLISM),
-    BASAL_METABOLIC_RATE_KCAL("Основной обмен", "ккал", 0, MeasurementEditorGroup.METABOLISM),
+    BONE_MASS_KG(uiText(R.string.metric_bone_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    PROTEIN_PERCENT(uiText(R.string.metric_protein), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    PROTEIN_MASS_KG(uiText(R.string.metric_protein_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    VISCERAL_FAT_LEVEL(uiText(R.string.metric_visceral_fat_level), null, 1, MeasurementEditorGroup.METABOLISM),
+    BASAL_METABOLIC_RATE_KCAL(uiText(R.string.metric_basal_metabolic_rate), uiText(R.string.unit_kcal), 0, MeasurementEditorGroup.METABOLISM),
     METABOLIC_AGE(
-        "Метаболический возраст",
-        "лет",
+        uiText(R.string.metric_metabolic_age),
+        uiText(R.string.unit_years),
         0,
         MeasurementEditorGroup.METABOLISM,
         wholeNumber = true,
     ),
-    LEAN_BODY_MASS_KG("Безжировая масса", "кг", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    LEAN_BODY_MASS_KG(uiText(R.string.metric_lean_body_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
     ;
 
-    val inputLabel: String
-        get() = if (unit.isBlank()) label else "$label, $unit"
+    val inputLabel: UiText
+        get() = unit?.let { uiText(R.string.measurement_input_label_with_unit, label, it) } ?: label
 }
 
 data class MeasurementEditorSection(
     val group: MeasurementEditorGroup,
     val fields: List<MeasurementField>,
 ) {
-    val title: String
+    val title: UiText
         get() = group.title
 }
 
@@ -190,27 +193,27 @@ data class MeasurementUiValues(
 }
 
 enum class MeasurementSyncDirection(
-    val label: String,
+    val label: UiText,
 ) {
-    HEALTH_CONNECT("Health Connect"),
+    HEALTH_CONNECT(UiText.Resource(R.string.health_connect_title)),
 }
 
 enum class MeasurementSyncPresentationState(
-    val label: String,
+    val label: UiText,
 ) {
-    LOCAL_ONLY(""),
-    ERROR("Ошибка синхронизации"),
-    PENDING("Ожидает отправки"),
-    SYNCED("Синхронизировано"),
+    LOCAL_ONLY(UiText.Resource(R.string.sync_state_local_only)),
+    ERROR(UiText.Resource(R.string.sync_state_error)),
+    PENDING(UiText.Resource(R.string.sync_state_pending)),
+    SYNCED(UiText.Resource(R.string.sync_state_synced)),
 }
 
 data class MeasurementSyncDirectionPresentation(
     val direction: MeasurementSyncDirection,
     val state: MeasurementSyncPresentationState,
-    val message: String,
+    val message: UiText?,
     val canRetry: Boolean,
 ) {
-    val label: String
+    val label: UiText
         get() = direction.label
 }
 
@@ -219,7 +222,7 @@ data class MeasurementSyncPresentation(
     val directions: List<MeasurementSyncDirectionPresentation>,
     val canRetry: Boolean,
 ) {
-    val label: String
+    val label: UiText
         get() = state.label
 }
 
@@ -297,12 +300,12 @@ data class MeasurementUiItem(
 }
 
 internal const val MANUALLY_EDITED_HISTORY_MESSAGE =
-    "Измерение изменено вручную. Изменения хранятся только на этом устройстве " +
-        "и не отправляются во внешние сервисы."
+    "This measurement was edited manually. Changes are stored only on this device " +
+        "and are not sent to external services."
 
 internal const val PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE =
-    "Локальные показатели пересчитаны по обновлённому профилю. " +
-        "Ранее синхронизированные данные во внешних сервисах не изменились."
+    "Local metrics were recalculated for the updated profile. " +
+        "Previously synced data in external services was not changed."
 
 data class PendingMeasurementUiItem(
     val id: PendingMeasurementId,
@@ -406,10 +409,10 @@ data class MeasurementMetricPresentation(
     val field: MeasurementField,
     val value: Double?,
 ) {
-    val label: String
+    val label: UiText
         get() = this.field.label
 
-    val unit: String
+    val unit: UiText?
         get() = this.field.unit
 }
 
@@ -471,7 +474,7 @@ data class MeasurementDeleteConfirmation(
 data class PendingClearConfirmation(
     val count: Int,
     val isClearing: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
 )
 
 val MeasurementDeleteConfirmation.measuredAt: Instant
@@ -509,7 +512,7 @@ sealed interface MeasurementsUiEvent {
         val result: com.palixander.scalesync.domain.ManualWeightResult.Saved,
     ) : MeasurementsUiEvent
     data class ShowSnackbar(
-        val message: String,
+        val message: UiText,
     ) : MeasurementsUiEvent
 }
 
@@ -604,15 +607,17 @@ private fun syncDirectionPresentation(
         else -> MeasurementSyncPresentationState.ERROR
     }
     val message = when (state) {
-        MeasurementSyncPresentationState.LOCAL_ONLY -> ""
+        MeasurementSyncPresentationState.LOCAL_ONLY -> null
 
         MeasurementSyncPresentationState.ERROR ->
-            rawError?.takeIf(String::isNotBlank) ?: "Не удалось отправить данные"
+            rawError?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                ?: UiText.Resource(R.string.sync_message_send_failed)
 
         MeasurementSyncPresentationState.PENDING ->
-            rawError?.takeIf(String::isNotBlank) ?: "Отправка ожидает выполнения"
+            rawError?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                ?: UiText.Resource(R.string.sync_message_pending)
 
-        MeasurementSyncPresentationState.SYNCED -> "Данные отправлены"
+        MeasurementSyncPresentationState.SYNCED -> UiText.Resource(R.string.sync_message_sent)
     }
     return MeasurementSyncDirectionPresentation(
         direction = direction,

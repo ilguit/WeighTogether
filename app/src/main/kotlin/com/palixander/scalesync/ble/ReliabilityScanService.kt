@@ -26,7 +26,7 @@ class ReliabilityScanService : Service() {
             NotificationCompat.Builder(this, CHANNEL_ID)
                 .setSmallIcon(reliabilityScanNotificationSmallIcon())
                 .setContentTitle(getString(R.string.app_name))
-                .setContentText("Повышенная надёжность: весы ожидаются")
+                .setContentText(getString(R.string.notification_reliability_scan_text))
                 .setOngoing(true)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build(),
@@ -93,6 +93,7 @@ class ReliabilityScanService : Service() {
 
     private fun createChannel() {
         NotificationChannelRegistry.register(
+            this,
             getSystemService(NotificationManager::class.java),
             NotificationChannelRegistry.scaleScanning,
         )

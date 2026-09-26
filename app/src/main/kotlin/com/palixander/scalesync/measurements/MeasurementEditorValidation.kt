@@ -1,10 +1,13 @@
 package com.palixander.scalesync.measurements
 
 import java.math.BigDecimal
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 
 data class MeasurementFieldValidation(
     val parsedValue: Double? = null,
-    val error: String? = null,
+    val error: UiText? = null,
 ) {
     val isValid: Boolean
         get() = error == null && parsedValue != null
@@ -77,22 +80,22 @@ class MeasurementEditorDraft private constructor(
 
 fun MeasurementField.validateInput(input: String): MeasurementFieldValidation {
     val trimmed = input.trim()
-    if (trimmed.isEmpty()) return MeasurementFieldValidation(error = "Обязательное поле")
+    if (trimmed.isEmpty()) return MeasurementFieldValidation(error = uiText(R.string.validation_required_field))
 
     val normalized = trimmed.replace(',', '.')
     val parsed = if (wholeNumber) {
         val integer = normalized.toIntOrNull()
-            ?: return MeasurementFieldValidation(error = "Введите целое число")
+            ?: return MeasurementFieldValidation(error = uiText(R.string.validation_whole_number))
         integer.toDouble()
     } else {
         normalized.toDoubleOrNull()
-            ?: return MeasurementFieldValidation(error = "Введите число")
+            ?: return MeasurementFieldValidation(error = uiText(R.string.validation_number))
     }
 
-    if (!parsed.isFinite()) return MeasurementFieldValidation(error = "Введите конечное число")
-    if (parsed < 0.0) return MeasurementFieldValidation(error = "Значение не может быть отрицательным")
+    if (!parsed.isFinite()) return MeasurementFieldValidation(error = uiText(R.string.validation_finite_number))
+    if (parsed < 0.0) return MeasurementFieldValidation(error = uiText(R.string.validation_non_negative))
     if (maximum != null && parsed > maximum) {
-        return MeasurementFieldValidation(error = "Допустимый диапазон: 0–${maximum.toInt()}")
+        return MeasurementFieldValidation(error = uiText(R.string.validation_allowed_range, maximum.toInt()))
     }
     return MeasurementFieldValidation(parsedValue = parsed)
 }

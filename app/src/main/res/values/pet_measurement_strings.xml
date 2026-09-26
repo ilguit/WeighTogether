@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_measurement_title">Pet weighing</string>
+    <string name="pet_measurement_close_a11y">Close pet weighing</string>
+    <string name="pet_measurement_choose_pet">Choose a pet</string>
+    <string name="pet_measurement_new_pet">New pet</string>
+    <string name="pet_measurement_back_to_selection">Back to pet selection</string>
+    <string name="pet_measurement_first_title">First weighing</string>
+    <string name="pet_measurement_second_title">Second weighing</string>
+    <string name="pet_measurement_saving_title">Saving</string>
+    <string name="pet_measurement_failed_title">Could not weigh the pet</string>
+    <string name="pet_measurement_connection_lost">Connection interrupted</string>
+    <string name="pet_measurement_first_instructions_named">Take one measurement while holding %1$s and another without the pet. The order does not matter. Start with either option and wait for a stable reading.</string>
+    <string name="pet_measurement_first_accepted">First reading accepted: %1$s kg</string>
+    <string name="pet_measurement_second_instructions_named">Now take the remaining measurement while holding %1$s or without the pet. Wait for a stable reading.</string>
+    <string name="pet_measurement_first_instructions">Weigh yourself with or without the pet and wait for a stable reading.</string>
+    <string name="pet_measurement_second_instructions">Repeat the weighing the other way: with the pet if the first reading was without it, or without the pet if the first reading included it.</string>
+    <string name="pet_measurement_waiting_stable">Waiting for a stable reading</string>
+    <string name="pet_measurement_first_reading">First reading: %1$s kg</string>
+    <string name="pet_measurement_first_reading_saved">First reading saved: %1$s kg</string>
+    <string name="pet_measurement_saving">Saving result…</string>
+    <string name="pet_measurement_result_weight">Pet weight — %1$s kg</string>
+    <string name="pet_measurement_delta">%1$s%2$s kg since the previous measurement</string>
+    <string name="weight_kg_format">%1$s kg</string>
+    <string name="pet_measurement_no_pets">There are no pets yet. Create your first pet.</string>
+    <string name="pet_measurement_latest_weight">Latest weight: %1$s kg · %2$s</string>
+    <string name="pet_measurement_no_measurements">No measurements yet</string>
+    <string name="pet_measurement_create_and_weigh">Create and weigh</string>
+    <string name="pet_measurement_cat">Cat</string>
+    <string name="pet_measurement_dog">Dog</string>
+    <string name="pet_measurement_scale_required">Select a scale in Settings first</string>
+    <string name="pet_measurement_bluetooth_permission">Allow Bluetooth to weigh your pet</string>
+    <string name="pet_measurement_timeout">The scale did not send a new stable measurement</string>
+    <string name="pet_measurement_wait_for_ble_scan">Wait for the current Bluetooth scan to finish</string>
+    <string name="pet_measurement_pet_not_found">Pet not found</string>
+    <string name="pet_measurement_start_failed">Could not start scanning</string>
+    <string name="pet_measurement_save_failed">Could not save the pet weight</string>
+    <string name="pet_measurement_retry_failed">Could not resume scanning</string>
+</resources>

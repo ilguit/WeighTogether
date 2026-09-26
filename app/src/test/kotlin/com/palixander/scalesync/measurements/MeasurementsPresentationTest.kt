@@ -1,7 +1,9 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -211,7 +213,7 @@ class MeasurementsPresentationTest {
         assertTrue(personalPending.canRetry)
         assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, local.state)
         assertFalse(local.canRetry)
-        assertEquals("", local.label)
+        assertEquals(UiText.Resource(R.string.sync_state_local_only), local.label)
         assertTrue(local.directions.all { it.message.isEmpty() })
     }
 
@@ -222,9 +224,9 @@ class MeasurementsPresentationTest {
             healthConnectError = "permission denied",
         )
 
-        assertEquals("Ошибка синхронизации", presentation.label)
-        assertEquals("Health Connect", presentation.directions.single().label)
-        assertEquals("permission denied", presentation.directions.single().message)
+        assertEquals(UiText.Resource(R.string.sync_state_error), presentation.label)
+        assertEquals(UiText.Resource(R.string.health_connect_title), presentation.directions.single().label)
+        assertEquals(UiText.Raw("permission denied"), presentation.directions.single().message)
     }
 
     @Test

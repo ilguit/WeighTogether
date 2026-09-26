@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.text.UiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import org.junit.Assert.assertEquals
@@ -32,7 +33,7 @@ class MainSnackbarUiTest {
 
     @Test
     fun unavailableScaleRefreshFeedbackIsShownInSnackbar() {
-        assertSnackbarMessage(SCALE_REFRESH_UNAVAILABLE_MESSAGE)
+        assertSnackbarMessage(composeRule.activity.getString(R.string.error_scale_unavailable))
     }
 
     @Test
@@ -61,7 +62,7 @@ class MainSnackbarUiTest {
         }
 
         composeRule.runOnIdle { channel.trySend(event).getOrThrow() }
-        composeRule.onNodeWithText(PENDING_DISCARDED_MESSAGE).assertIsDisplayed()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.message_pending_discarded)).assertIsDisplayed()
         composeRule.onNodeWithText(PENDING_DISCARD_UNDO_ACTION).assertIsDisplayed().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { results.isNotEmpty() }
 
@@ -86,7 +87,7 @@ class MainSnackbarUiTest {
         }
 
         composeRule.runOnIdle {
-            channel.trySend(MainUiEvent.ShowSnackbar(message)).getOrThrow()
+            channel.trySend(MainUiEvent.ShowSnackbar(UiText.Raw(message))).getOrThrow()
         }
         composeRule.onNodeWithText(message).assertIsDisplayed()
     }

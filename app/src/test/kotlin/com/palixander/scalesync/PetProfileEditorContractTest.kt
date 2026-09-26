@@ -10,6 +10,8 @@ import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.Instant
 import java.time.LocalDate
 import java.time.Year
@@ -393,7 +395,7 @@ class PetProfileEditorContractTest {
 
         assertEquals(unknownId, selection.id)
         assertEquals(PetSpecies.DOG, selection.species)
-        assertTrue(petBreedLabel(selection).contains(unknownId.value))
+        assertEquals(uiText(R.string.pet_breed_unavailable, unknownId.value), petBreedLabel(selection))
         assertEquals(unknownId, validatePetProfileDraft(draft, today).petUpdate?.breedId)
     }
 
@@ -660,23 +662,23 @@ class PetProfileEditorContractTest {
     }
 
     @Test
-    fun presentationFunctionsExposeStableRussianLabelsAndCategoryRanges() {
-        assertEquals("Самец", petSexLabel(PetSex.MALE))
-        assertEquals("Самка", petSexLabel(PetSex.FEMALE))
-        assertEquals("Не указан", petSexLabel(null))
-        assertEquals("Лабрадор-ретривер", petBreedLabel(dogMixed))
-        assertEquals("Год", birthDatePrecisionLabel(BirthDatePrecision.YEAR))
-        assertEquals("Месяц", birthDatePrecisionLabel(BirthDatePrecision.MONTH))
-        assertEquals("День", birthDatePrecisionLabel(BirthDatePrecision.DAY))
+    fun presentationFunctionsExposeLocalizedTextContracts() {
+        assertEquals(uiText(R.string.pet_sex_male), petSexLabel(PetSex.MALE))
+        assertEquals(uiText(R.string.pet_sex_female), petSexLabel(PetSex.FEMALE))
+        assertEquals(uiText(R.string.pet_sex_unspecified), petSexLabel(null))
+        assertEquals(UiText.Raw("Лабрадор-ретривер"), petBreedLabel(dogMixed))
+        assertEquals(uiText(R.string.birth_precision_year), birthDatePrecisionLabel(BirthDatePrecision.YEAR))
+        assertEquals(uiText(R.string.birth_precision_month), birthDatePrecisionLabel(BirthDatePrecision.MONTH))
+        assertEquals(uiText(R.string.birth_precision_day), birthDatePrecisionLabel(BirthDatePrecision.DAY))
         assertEquals(
-            "02.2020 (месяц)",
+            uiText(R.string.birth_date_with_precision, "02.2020", uiText(R.string.birth_precision_month)),
             partialBirthDateLabel(PartialBirthDate.Month(YearMonth.of(2020, 2))),
         )
-        assertEquals("I — < 6,5 кг", dogAdultWeightCategoryLabel(DogAdultWeightCategory.I))
-        assertEquals("II — 6,5–9 кг", dogAdultWeightCategoryLabel(DogAdultWeightCategory.II))
-        assertEquals("III — 9–15 кг", dogAdultWeightCategoryLabel(DogAdultWeightCategory.III))
-        assertEquals("IV — 15–30 кг", dogAdultWeightCategoryLabel(DogAdultWeightCategory.IV))
-        assertEquals("V — 30–40 кг", dogAdultWeightCategoryLabel(DogAdultWeightCategory.V))
+        assertEquals(uiText(R.string.dog_weight_i), dogAdultWeightCategoryLabel(DogAdultWeightCategory.I))
+        assertEquals(uiText(R.string.dog_weight_ii), dogAdultWeightCategoryLabel(DogAdultWeightCategory.II))
+        assertEquals(uiText(R.string.dog_weight_iii), dogAdultWeightCategoryLabel(DogAdultWeightCategory.III))
+        assertEquals(uiText(R.string.dog_weight_iv), dogAdultWeightCategoryLabel(DogAdultWeightCategory.IV))
+        assertEquals(uiText(R.string.dog_weight_v), dogAdultWeightCategoryLabel(DogAdultWeightCategory.V))
     }
 
     private fun reduce(

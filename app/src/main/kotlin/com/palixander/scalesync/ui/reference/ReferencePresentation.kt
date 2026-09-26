@@ -3,6 +3,7 @@ package com.palixander.scalesync.ui.reference
 import com.palixander.scalesync.measurements.formatWeight
 
 import android.content.res.Resources
+import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyMetric
@@ -22,7 +23,6 @@ import java.math.RoundingMode
 import java.text.NumberFormat
 import java.time.LocalDate
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToLong
 
 data class ReferenceZonePresentation(
@@ -341,30 +341,19 @@ class ReferencePresentationFactory(
     )
 
     private fun spokenUnit(kind: ReferenceUnitKind, value: Double): String = when (kind) {
-        ReferenceUnitKind.KILOGRAM -> resources.getString(russianForm(value, R.string.reference_spoken_kg_one, R.string.reference_spoken_kg_few, R.string.reference_spoken_kg_many))
-        ReferenceUnitKind.OHM -> resources.getString(russianForm(value, R.string.reference_spoken_ohm_one, R.string.reference_spoken_ohm_few, R.string.reference_spoken_ohm_many))
-        ReferenceUnitKind.PERCENT -> resources.getString(russianForm(value, R.string.reference_spoken_percent_one, R.string.reference_spoken_percent_few, R.string.reference_spoken_percent_many))
-        ReferenceUnitKind.YEAR -> resources.getString(russianForm(value, R.string.reference_spoken_year_one, R.string.reference_spoken_year_few, R.string.reference_spoken_year_many))
+        ReferenceUnitKind.KILOGRAM -> resources.quantityLabel(R.plurals.reference_spoken_kg, value)
+        ReferenceUnitKind.OHM -> resources.quantityLabel(R.plurals.reference_spoken_ohm, value)
+        ReferenceUnitKind.PERCENT -> resources.quantityLabel(R.plurals.reference_spoken_percent, value)
+        ReferenceUnitKind.YEAR -> resources.quantityLabel(R.plurals.reference_spoken_year, value)
         ReferenceUnitKind.BMI -> resources.getString(R.string.reference_spoken_bmi)
         ReferenceUnitKind.LEVEL -> resources.getString(R.string.reference_spoken_level)
         ReferenceUnitKind.KCAL_PER_DAY -> resources.getString(R.string.reference_spoken_kcal_day)
     }
 
-    @StringRes
-    private fun russianForm(value: Double, one: Int, few: Int, many: Int): Int {
-        val rounded = value.roundToLong()
-        if (abs(value - rounded.toDouble()) > 0.000_001) return few
-        val absolute = abs(rounded)
-        val lastTwo = absolute % 100
-        val last = absolute % 10
-        return when {
-            lastTwo in 11..14 -> many
-            last == 1L -> one
-            last in 2..4 -> few
-            else -> many
-        }
-    }
 }
+
+private fun Resources.quantityLabel(@PluralsRes id: Int, value: Double): String =
+    getQuantityString(id, value.roundToLong().coerceIn(Int.MIN_VALUE.toLong(), Int.MAX_VALUE.toLong()).toInt())
 
 private fun Double.toPresentationScaleValue(basis: ZoneBasis, weightKg: Double?): Double? = when (basis) {
     ZoneBasis.SKELETAL_MUSCLE_PERCENT -> weightKg

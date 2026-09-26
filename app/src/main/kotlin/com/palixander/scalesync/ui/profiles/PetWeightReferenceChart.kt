@@ -24,6 +24,8 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -35,6 +37,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import com.palixander.scalesync.R
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartScrollOffset
 import com.palixander.scalesync.charts.ChartSeries
@@ -52,6 +55,9 @@ import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailable
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.uiText
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
@@ -106,8 +112,16 @@ internal data class BreedWeightReferenceChartSeries(
     val points: List<Pair<LocalDate, Double>>,
     val showsPointMarkers: Boolean = false,
     val xEpochMillis: List<Long>,
-    val statisticLabel: String? = null,
-)
+    val statisticLabel: UiText? = null,
+) {
+    constructor(
+        kind: BreedWeightReferenceSeriesKind,
+        points: List<Pair<LocalDate, Double>>,
+        showsPointMarkers: Boolean = false,
+        xEpochMillis: List<Long>,
+        statisticLabel: String,
+    ) : this(kind, points, showsPointMarkers, xEpochMillis, UiText.Raw(statisticLabel))
+}
 
 internal enum class BreedWeightReferenceSeriesKind {
     LOWER_BOUNDARY,
@@ -255,7 +269,7 @@ internal fun exactObservationGlyphs(
     }
 
 internal data class PetWeightChartLegendEntry(
-    val label: String,
+    val label: UiText,
     val style: PetWeightDisplayedSeriesStyle,
 )
 
@@ -263,16 +277,16 @@ internal fun petWeightChartLegendEntries(
     displayedSeries: List<PetWeightDisplayedSeries>,
 ): List<PetWeightChartLegendEntry> = buildList {
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-        add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+        add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
     }
     displayedSeries
         .filter { it.style == PetWeightDisplayedSeriesStyle.CATEGORY }
         .distinctBy(PetWeightDisplayedSeries::kind)
-        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.CATEGORY)) }
+        .forEach { add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_line, it.label), PetWeightDisplayedSeriesStyle.CATEGORY)) }
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
         add(
             PetWeightChartLegendEntry(
-                "▰ Светло-зелёная зона — породный диапазон",
+                uiText(R.string.pet_weight_chart_legend_breed_range),
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
             ),
         )
@@ -280,26 +294,26 @@ internal fun petWeightChartLegendEntries(
     displayedSeries
         .filter { it.style == PetWeightDisplayedSeriesStyle.BREED_CENTER }
         .distinctBy(PetWeightDisplayedSeries::label)
-        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.BREED_CENTER)) }
+        .forEach { add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_line, it.label), PetWeightDisplayedSeriesStyle.BREED_CENTER)) }
 }
 
 internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntry> = listOf(
-    PetWeightChartLegendEntry("▰ Типичный диапазон веса", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-    PetWeightChartLegendEntry("— P50", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+    PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_typical_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+    PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_p50), PetWeightDisplayedSeriesStyle.BREED_CENTER),
 )
 
 internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE -> listOf(
-        PetWeightChartLegendEntry("▰ Светло-зелёная зона — модельный породный диапазон", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Центр модельного диапазона", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_modelled_breed_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_modelled_center), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
-        PetWeightChartLegendEntry("↕ Диапазон наблюдения породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("● Средний вес породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_birth_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_birth_mean), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> listOf(
-        PetWeightChartLegendEntry("▰ Общий диапазон P9–P91 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Общая P50 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_general_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_general_p50), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION,
     WeightReferenceProvenance.WEIGHT_CATEGORY,
@@ -313,25 +327,26 @@ internal fun petWeightChartDescription(
     hasBreedTimeline: Boolean,
     isPopulationReference: Boolean,
     legendEntries: List<PetWeightChartLegendEntry>,
+    resolveText: (UiText) -> String = { it.toString() },
 ): String = buildString {
-    append("График веса питомца. ")
-    append(if (factualCount == 0) "Измерений нет. " else "Измерений: $factualCount. ")
+    append(resolveText(uiText(R.string.pet_weight_chart_title))).append(". ")
+    append(resolveText(if (factualCount == 0) uiText(R.string.pet_weight_chart_no_measurements) else uiText(R.string.pet_weight_chart_measurements, factualCount))).append(' ')
     val available = reference as? PetHistoryWeightReference.Available
     if (showReferenceExplanation && !hasBreedTimeline) {
-        append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
+        append(resolveText(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation))
         if (available != null) append(
-            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
-            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
-            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
-            else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
-            else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
+            " " + resolveText(uiText(when {
+                available.provenance == WeightReferenceProvenance.BREED_CURVE -> R.string.pet_weight_chart_description_breed_curve
+                available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> R.string.pet_weight_chart_description_population_fallback
+                available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> R.string.pet_weight_chart_description_birth_observation
+                isPopulationReference -> R.string.pet_weight_chart_description_population
+                else -> R.string.pet_weight_chart_description_boundaries
+            })),
         )
     }
-    if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
+    if (isPopulationReference) append(" ").append(resolveText(uiText(R.string.pet_weight_chart_reference_disclaimer)))
     if (legendEntries.isNotEmpty()) {
-        append(" Отображаются: ")
-        append(legendEntries.joinToString("; ") { it.label })
-        append('.')
+        append(" ").append(resolveText(uiText(R.string.pet_weight_chart_displayed, UiText.Joined(legendEntries.map { it.label }, "; "))))
     }
 }
 
@@ -389,11 +404,20 @@ internal fun petWeightRenderedModelSeries(
 internal data class PetWeightDisplayedSeries(
     val id: String,
     val kind: PetWeightDisplayedSeriesKind,
-    val label: String,
+    val label: UiText,
     val x: List<Long>,
     val y: List<Double>,
     val style: PetWeightDisplayedSeriesStyle,
 ) {
+    constructor(
+        id: String,
+        kind: PetWeightDisplayedSeriesKind,
+        label: String,
+        x: List<Long>,
+        y: List<Double>,
+        style: PetWeightDisplayedSeriesStyle,
+    ) : this(id, kind, UiText.Raw(label), x, y, style)
+
     init {
         require(x.size == y.size)
         require(x.isNotEmpty())
@@ -438,7 +462,7 @@ internal fun petWeightDisplayedSeries(
             PetWeightDisplayedSeries(
                 id = "factual",
                 kind = PetWeightDisplayedSeriesKind.FACTUAL,
-                label = "Фактический вес",
+                label = uiText(R.string.pet_weight_chart_actual),
                 x = factualPoints.map { requireNotNull(it.xEpochMillis) },
                 y = factualPoints.map(ChartPoint::value),
                 style = PetWeightDisplayedSeriesStyle.FACTUAL,
@@ -457,17 +481,17 @@ internal fun petWeightDisplayedSeries(
             val (kind, label, style) = when (series.kind) {
                 BreedWeightReferenceSeriesKind.LOWER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_LOWER,
-                    series.statisticLabel ?: "Нижняя граница",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_lower_boundary),
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.UPPER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_UPPER,
-                    series.statisticLabel ?: "Верхняя граница",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_upper_boundary),
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.CENTER -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_CENTER,
-                    series.statisticLabel ?: "Медиана или среднее",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_center),
                     PetWeightDisplayedSeriesStyle.BREED_CENTER,
                 )
             }
@@ -495,20 +519,20 @@ internal fun petWeightDisplayedSeries(
             if (useBreedPresentation && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
                 PetWeightReferenceSeriesKind.LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to when {
-                    isBreedModel -> "Нижняя граница модели"
-                    isFittedPopulation -> "Нижняя граница P9"
-                    else -> "Нижняя граница эталона"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_lower)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p9_lower)
+                    else -> uiText(R.string.pet_weight_chart_reference_lower)
                 }
                 PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to when {
-                    isBreedModel -> "Центр породной модели"
-                    isFittedPopulation -> "Медиана P50"
-                    else -> "Нижняя медианная граница"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_center)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p50_median)
+                    else -> uiText(R.string.pet_weight_chart_lower_median)
                 }
-                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Верхняя медианная граница"
+                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to uiText(R.string.pet_weight_chart_upper_median)
                 PetWeightReferenceSeriesKind.UPPER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to when {
-                    isBreedModel -> "Верхняя граница модели"
-                    isFittedPopulation -> "Верхняя граница P91"
-                    else -> "Верхняя граница эталона"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_upper)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p91_upper)
+                    else -> uiText(R.string.pet_weight_chart_reference_upper)
                 }
             }
             add(
@@ -533,6 +557,7 @@ internal fun formatPetWeightDisplayedMarker(
     displayedSeries: List<PetWeightDisplayedSeries>,
     zoneId: ZoneId,
     locale: Locale = Locale.getDefault(),
+    resolveText: (UiText) -> String = { it.toString() },
 ): String {
     val number = NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 2
@@ -556,12 +581,12 @@ internal fun formatPetWeightDisplayedMarker(
             else petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
         value?.let {
-            "${series.label}: ${number.format(it)} кг"
+            resolveText(uiText(R.string.pet_weight_chart_marker_value, series.label, number.format(it)))
         }
     }
     if (values.isEmpty()) return ""
     val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
-    return (listOf("Дата: $date") + values).joinToString("\n")
+    return (listOf(resolveText(uiText(R.string.pet_weight_chart_date, date))) + values).joinToString("\n")
 }
 
 private fun PetWeightChartModelSeries.valueAt(targetXEpochMillis: Long): Double? {
@@ -802,6 +827,7 @@ internal fun PetWeightReferenceChartCard(
     zoneId: ZoneId,
     sourceLauncher: ReferenceSourceLauncher,
 ) {
+    val resources = LocalContext.current.resources
     val factual = remember(series.points) {
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
@@ -818,7 +844,7 @@ internal fun PetWeightReferenceChartCard(
     val legendEntries = remember(displayedSeries, isPopulationReference, available?.provenance) {
         if (isPopulationReference) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else if (available?.provenance in setOf(
@@ -827,7 +853,7 @@ internal fun PetWeightReferenceChartCard(
             )
         ) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else petWeightChartLegendEntries(displayedSeries)
@@ -853,12 +879,13 @@ internal fun PetWeightReferenceChartCard(
         hasBreedTimeline = hasBreedTimeline,
         isPopulationReference = isPopulationReference,
         legendEntries = legendEntries,
+        resolveText = { it.resolve(resources) },
     )
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Text(
-                "Вес питомца",
+                stringResource(R.string.pet_history_weight_metric),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() },
             )
@@ -890,10 +917,10 @@ internal fun PetWeightReferenceChartCard(
                 if (displayedSeries.isNotEmpty() || exactObservationGlyphs.isNotEmpty()) {
                     DisplayedSeriesLegend(legendEntries, factualColor, referenceColor)
                 } else if (factual.size < 2) {
-                    Text("Для линии нужно минимум два измерения; отдельное измерение показано точкой.")
+                    Text(stringResource(R.string.pet_chart_single_measurement))
                 }
             } else {
-                Text("Нет данных за выбранный период", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.pet_chart_no_data), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             if (showReferenceExplanation && !hasBreedTimeline) ReferenceExplanation(reference, sourceLauncher)
         }
@@ -967,7 +994,7 @@ private fun PetWeightVicoChart(
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId)
+            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId, resolveText = { it.resolve(resources) })
         }
     }
     val zoomState = key(viewport.initialVisibleRange, zoneId) {
@@ -986,8 +1013,12 @@ private fun PetWeightVicoChart(
         return true
     }
     val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
-        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId) }
+        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId, resolveText = { text -> text.resolve(resources) }) }
         ?.takeIf(String::isNotEmpty)
+    val weightUnit = stringResource(R.string.pet_weight_unit_kg)
+    val noSelectablePoints = stringResource(R.string.pet_weight_chart_no_selectable_points)
+    val selectPrevious = stringResource(R.string.pet_weight_chart_select_previous)
+    val selectNext = stringResource(R.string.pet_weight_chart_select_next)
 
     LaunchedEffect(displayedSeries) {
         modelProducer.runTransaction {
@@ -1004,7 +1035,7 @@ private fun PetWeightVicoChart(
             chart = rememberCartesianChart(
                 rememberChartLineLayer(lines, rangeProvider),
                 startAxis = rememberChartStartAxis(
-                    CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
+                    CartesianValueFormatter.decimal(decimalCount = 2, suffix = " $weightUnit"),
                 ),
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
                 marker = rememberChartMarker(
@@ -1022,11 +1053,11 @@ private fun PetWeightVicoChart(
                     this.contentDescription = contentDescription
                     chartScrollOffset = scrollState.value
                     role = Role.Button
-                    stateDescription = accessibleMarker ?: "Нет доступных точек для выбора"
-                    onClick("Выбрать следующую точку") { selectRelative(1) }
+                    stateDescription = accessibleMarker ?: noSelectablePoints
+                    onClick(selectNext) { selectRelative(1) }
                     customActions = listOf(
-                        CustomAccessibilityAction("Выбрать предыдущую точку") { selectRelative(-1) },
-                        CustomAccessibilityAction("Выбрать следующую точку") { selectRelative(1) },
+                        CustomAccessibilityAction(selectPrevious) { selectRelative(-1) },
+                        CustomAccessibilityAction(selectNext) { selectRelative(1) },
                     )
                 },
             scrollState = scrollState,
@@ -1142,7 +1173,7 @@ private fun DisplayedSeriesLegend(
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> Color(0xFF43A047).copy(alpha = 0.36f)
                 PetWeightDisplayedSeriesStyle.BREED_CENTER -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
             }
-            ChartLegend(entry.label, color)
+            ChartLegend(entry.label.resolve(LocalContext.current.resources), color)
         }
     }
 }
@@ -1154,9 +1185,10 @@ private fun ChartLegend(text: String, color: Color) {
 
 @Composable
 private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLauncher: ReferenceSourceLauncher) {
+    val resources = LocalContext.current.resources
     when (reference) {
         is PetHistoryWeightReference.Unavailable -> Text(
-            reference.explanation,
+            reference.explanation.resolve(resources),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .testTag(PetWeightChartTestTags.Unavailable)
@@ -1165,65 +1197,72 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
         is PetHistoryWeightReference.Available -> {
             var sourceExpanded by remember(reference) { mutableStateOf(false) }
             var sourceError by remember(reference.publicationUrl) { mutableStateOf(false) }
+            val expandedState = stringResource(R.string.state_expanded)
+            val collapsedState = stringResource(R.string.state_collapsed)
+            val constraintDescriptions = reference.constraints.map {
+                stringResource(R.string.reference_limitation, it)
+            }
+            val referenceDisclaimer = stringResource(R.string.pet_weight_chart_reference_disclaimer)
+            val diagnosisDisclaimer = stringResource(R.string.pet_weight_chart_diagnosis_disclaimer)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag(PetWeightChartTestTags.ReferenceDetails)
                     .semantics(mergeDescendants = true) {
                         contentDescription = buildString {
-                            append("${reference.basisLabel}. ${reference.ageLabel}.")
+                            append("${reference.basisLabel.resolve(resources)}. ${reference.ageLabel.resolve(resources)}.")
                             if (sourceExpanded) {
-                                append(" ${reference.accessibilityLabel}")
-                                reference.constraints.forEach { append(" Ограничение: $it.") }
+                                append(" ${reference.accessibilityLabel.resolve(resources)}")
+                                constraintDescriptions.forEach { append(" $it.") }
                             }
                             if (reference.isFittedPopulationPercentiles) {
-                                append(" Сведения справочные и не оценивают здоровье питомца.")
-                            } else append(" Эталон не ставит диагноз.")
+                                append(" $referenceDisclaimer")
+                            } else append(" $diagnosisDisclaimer")
                         }
                     },
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-            Text(if (reference.isFittedPopulationPercentiles) "Как читать справочные данные" else "Как читать эталон", style = MaterialTheme.typography.titleSmall)
-            Text("${reference.basisLabel} · ${reference.ageLabel}")
+            Text(stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_how_to_read_data else R.string.reference_how_to_read), style = MaterialTheme.typography.titleSmall)
+            Text("${reference.basisLabel.resolve(resources)} · ${reference.ageLabel.resolve(resources)}")
             Text(
                 when {
                     reference.provenance == WeightReferenceProvenance.BREED_CURVE ->
-                        "Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модельного диапазона. Модель построена по общему возрастному профилю кошек того же пола и взрослому диапазону породы. Она не является наблюдаемой кривой роста этой породы или медицинской нормой."
+                        stringResource(R.string.reference_breed_curve_explanation)
                     reference.isFittedPopulationPercentiles ->
-                        "Светло-зелёная зона показывает P9–P91, тонкая линия — P50."
+                        stringResource(R.string.reference_population_explanation)
                     reference.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
-                        "Вертикальный отрезок показывает среднее ± одно стандартное отклонение, точка — средний вес в дату рождения."
-                    else -> "Внешние линии показывают общий диапазон, две внутренние — медианный диапазон."
+                        stringResource(R.string.reference_observation_explanation)
+                    else -> stringResource(R.string.reference_bounds_explanation)
                 },
             )
             TextButton(
                 onClick = { sourceExpanded = !sourceExpanded },
                 modifier = Modifier.testTag(PetWeightChartTestTags.Disclosure).semantics {
-                    stateDescription = if (sourceExpanded) "Развернуто" else "Свернуто"
+                    stateDescription = if (sourceExpanded) expandedState else collapsedState
                 },
-            ) { Text("Источник и ограничения ${if (sourceExpanded) "▴" else "▾"}") }
+            ) { Text(stringResource(R.string.reference_source_and_limits, if (sourceExpanded) "▴" else "▾")) }
             if (sourceExpanded) Column(Modifier.fillMaxWidth()) {
                 reference.segments.distinctBy { it.sourceId }.forEach { segment ->
-                    Text("Источник: ${segment.citation}", style = MaterialTheme.typography.bodySmall)
-                    Text("Лицензия: ${segment.license}", style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.reference_source, segment.citation), style = MaterialTheme.typography.bodySmall)
+                    Text(stringResource(R.string.reference_license, segment.license), style = MaterialTheme.typography.bodySmall)
                 }
-                reference.sourceAuthorityLabel?.let { Text("Тип источника: $it", style = MaterialTheme.typography.bodySmall) }
-                reference.sourceAccessedDate?.let { Text("Дата доступа: $it", style = MaterialTheme.typography.bodySmall) }
+                reference.sourceAuthorityLabel?.let { Text(stringResource(R.string.reference_source_type, it.resolve(resources)), style = MaterialTheme.typography.bodySmall) }
+                reference.sourceAccessedDate?.let { Text(stringResource(R.string.reference_accessed, it), style = MaterialTheme.typography.bodySmall) }
                 reference.sourceDisclosure?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 if (reference.provenance == WeightReferenceProvenance.BREED_CURVE) {
                     Text(
-                        "Расчёт центра: арифметическая середина опубликованного диапазона; это не наблюдаемая медиана.",
+                        stringResource(R.string.reference_center_calculation),
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                reference.constraints.forEach { Text("Ограничение: $it", style = MaterialTheme.typography.bodySmall) }
+                reference.constraints.forEach { Text(stringResource(R.string.reference_limitation, it), style = MaterialTheme.typography.bodySmall) }
                 if (reference.publicationUrl != null) {
                     TextButton(
                         onClick = { sourceError = !sourceLauncher.open(reference.publicationUrl) },
                         modifier = Modifier.testTag(PetWeightChartTestTags.Publication),
-                    ) { Text(if (reference.isFittedPopulationPercentiles) "Открыть основную публикацию" else "Открыть источник") }
+                    ) { Text(stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_open_publication else R.string.reference_open_source)) }
                     if (sourceError) Text(
-                        "Не удалось открыть источник «${reference.citation}».",
+                        stringResource(R.string.reference_open_error, reference.citation),
                         modifier = Modifier
                             .testTag(PetWeightChartTestTags.PublicationError)
                             .semantics { liveRegion = androidx.compose.ui.semantics.LiveRegionMode.Assertive },
@@ -1231,8 +1270,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                 }
             }
             Text(
-                if (reference.isFittedPopulationPercentiles) "Сведения справочные и не оценивают здоровье питомца. Обсудите изменения веса с ветеринаром."
-                else "Эталон помогает следить за динамикой, но не ставит диагноз. Обсудите заметные отклонения или изменения веса с ветеринаром.",
+                stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_population_disclaimer else R.string.reference_disclaimer),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

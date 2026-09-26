@@ -23,6 +23,7 @@ import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
+import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.AccountUpdate
@@ -134,7 +135,7 @@ class MultiAccountComponentsTest {
                             AccountEditorDraft.edit(account).copy(heightCm = "171"),
                         ),
                         operationInProgress = true,
-                        operationError = "Не удалось сохранить",
+                        operationError = UiText.Raw("Не удалось сохранить"),
                     ),
                     callbacks = AccountManagementCallbacks.None.copy(
                         onConfirmProfileUpdate = { modes += it },

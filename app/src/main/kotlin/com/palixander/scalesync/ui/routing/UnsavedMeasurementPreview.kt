@@ -55,6 +55,7 @@ import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import java.time.ZoneId
@@ -194,7 +195,7 @@ fun UnsavedMeasurementPreviewDialog(
                         .fillMaxWidth()
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Next),
-                ) { Text("Рассчитать показатели") }
+                ) { Text(stringResource(R.string.unsaved_preview_calculate_metrics)) }
                 UnsavedPreviewStep.PROFILE_EDITOR -> {
                     val measurementDate = state.pending.measuredAt.atZone(zoneId).toLocalDate()
                     val validation = validateUnsavedPreviewProfile(state.profileDraft, measurementDate)
@@ -216,7 +217,7 @@ fun UnsavedMeasurementPreviewDialog(
                                 strokeWidth = 2.dp,
                             )
                         }
-                        Text("Рассчитать")
+                        Text(stringResource(R.string.action_calculate))
                     }
                 }
                 UnsavedPreviewStep.RESULT -> Unit
@@ -230,7 +231,7 @@ fun UnsavedMeasurementPreviewDialog(
                     modifier = Modifier
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Close),
-                ) { Text("Закрыть") }
+                ) { Text(stringResource(R.string.action_close)) }
             } else {
                 TextButton(
                     onClick = requestBack,
@@ -238,7 +239,7 @@ fun UnsavedMeasurementPreviewDialog(
                     modifier = Modifier
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Back),
-                ) { Text("Назад") }
+                ) { Text(stringResource(R.string.action_back)) }
             }
         },
     )
@@ -277,7 +278,7 @@ internal fun UnsavedPreviewTitle(modifier: Modifier = Modifier) {
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Text(
-            "Просмотр измерения",
+            stringResource(R.string.unsaved_preview_title),
             modifier = Modifier.testTag(UnsavedPreviewTestTags.Title),
         )
         UnsavedBadge()
@@ -293,7 +294,7 @@ private fun UnsavedBadge() {
         modifier = Modifier.testTag(UnsavedPreviewTestTags.UnsavedBadge),
     ) {
         Text(
-            "Не сохранено",
+            stringResource(R.string.unsaved_preview_badge),
             style = MaterialTheme.typography.labelSmall,
             maxLines = 1,
             softWrap = false,
@@ -312,12 +313,12 @@ private fun RawUnsavedSummary(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            formatLocalizedDecimal(state.pending.weightKg) + " кг",
+            stringResource(R.string.measurement_weight_kg, formatLocalizedDecimal(state.pending.weightKg)),
             style = MaterialTheme.typography.headlineSmall,
         )
-        Text("Импеданс: ${state.pending.impedanceOhm} Ом")
+        Text(stringResource(R.string.unsaved_preview_impedance, state.pending.impedanceOhm))
         Text(
-            "Время: ${formatMeasurementDateTime(state.pending.measuredAt, zoneId)}",
+            stringResource(R.string.unsaved_preview_time, formatMeasurementDateTime(state.pending.measuredAt, zoneId)),
         )
     }
 }
@@ -341,7 +342,7 @@ private fun PreviewProfileEditor(
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text("Одноразовый профиль", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.unsaved_preview_one_time_profile), style = MaterialTheme.typography.titleMedium)
         OutlinedTextField(
             value = draft.heightCm,
             onValueChange = {
@@ -352,11 +353,11 @@ private fun PreviewProfileEditor(
                     ),
                 )
             },
-            label = { Text("Рост, см") },
+            label = { Text(stringResource(R.string.profile_height_label)) },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             singleLine = true,
             isError = validation.heightError != null,
-            supportingText = validation.heightError?.let { message -> { Text(message) } },
+            supportingText = validation.heightError?.let { message -> { Text(message.resolve(LocalContext.current.resources)) } },
             modifier = Modifier.fillMaxWidth(),
             enabled = !state.isCalculating,
         )
@@ -374,12 +375,12 @@ private fun PreviewProfileEditor(
             },
             selectionPolicy = BirthDateSelectionPolicy.forUnsavedPreview(measurementDate),
             isError = validation.birthDateError != null,
-            supportingText = validation.birthDateError,
+            supportingText = validation.birthDateError?.resolve(LocalContext.current.resources),
             modifier = Modifier.testTag(UnsavedPreviewTestTags.BirthDate),
             enabled = !state.isCalculating,
         )
         FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            PreviewSexChoice("Мужской", Sex.MALE, draft.sex, !state.isCalculating) {
+            PreviewSexChoice(stringResource(R.string.sex_male), Sex.MALE, draft.sex, !state.isCalculating) {
                 callbacks.onStateChange(
                     reduceUnsavedPreview(
                         state,
@@ -387,7 +388,7 @@ private fun PreviewProfileEditor(
                     ),
                 )
             }
-            PreviewSexChoice("Женский", Sex.FEMALE, draft.sex, !state.isCalculating) {
+            PreviewSexChoice(stringResource(R.string.sex_female), Sex.FEMALE, draft.sex, !state.isCalculating) {
                 callbacks.onStateChange(
                     reduceUnsavedPreview(
                         state,
@@ -397,7 +398,7 @@ private fun PreviewProfileEditor(
             }
         }
         validation.sexError?.let {
-            Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+            Text(it.resolve(LocalContext.current.resources), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
         }
         if (state.calculationError == UnsavedPreviewCalculationError.CALCULATION_FAILED) {
             Surface(
@@ -455,7 +456,7 @@ private fun UnsavedResult(
             .verticalScroll(scrollState),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Результат только для просмотра", style = MaterialTheme.typography.titleMedium)
+        Text(stringResource(R.string.unsaved_preview_result_only), style = MaterialTheme.typography.titleMedium)
         GroupedMetricReferences(
             groups = ReferencePresentationFactory(LocalContext.current.resources).group(presentations),
             onInfoClick = onInfoClick,

@@ -27,6 +27,8 @@ import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import java.time.Instant
 import java.time.LocalDate
@@ -51,6 +53,7 @@ fun BirthDateField(
     isError: Boolean = false,
     supportingText: String? = null,
 ) {
+    val openCalendarLabel = stringResource(R.string.birth_date_open_calendar)
     var isPickerOpen by rememberSaveable { mutableStateOf(false) }
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -66,15 +69,15 @@ fun BirthDateField(
             .fillMaxWidth()
             .semantics {
                 role = Role.Button
-                onClick(label = "Открыть календарь") {
+                onClick(label = openCalendarLabel) {
                     if (enabled) isPickerOpen = true
                     enabled
                 }
             },
         readOnly = true,
         enabled = enabled,
-        label = { Text("Дата рождения") },
-        placeholder = { Text("Выберите дату") },
+        label = { Text(stringResource(R.string.birth_date_label)) },
+        placeholder = { Text(stringResource(R.string.birth_date_choose)) },
         trailingIcon = {
             Icon(
                 imageVector = HuaweiIcons.Calendar,
@@ -124,18 +127,18 @@ fun BirthDateField(
                         isPickerOpen = false
                     },
                 ) {
-                    Text("Выбрать")
+                    Text(stringResource(R.string.action_select))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { isPickerOpen = false }) {
-                    Text("Отмена")
+                    Text(stringResource(R.string.action_cancel))
                 }
             },
         ) {
             DatePicker(
                 state = pickerState,
-                title = { Text("Дата рождения", Modifier.padding(start = 24.dp, top = 16.dp)) },
+                title = { Text(stringResource(R.string.birth_date_label), Modifier.padding(start = 24.dp, top = 16.dp)) },
                 // Calendar mode includes the month/year menu used for fast year selection.
                 showModeToggle = false,
             )
@@ -143,9 +146,8 @@ fun BirthDateField(
     }
 }
 
-private val BirthDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
-
-internal fun formatBirthDate(date: LocalDate): String = date.format(BirthDateFormatter)
+internal fun formatBirthDate(date: LocalDate): String =
+    date.format(DateTimeFormatter.ofLocalizedDate(java.time.format.FormatStyle.MEDIUM))
 
 internal fun initialBirthDatePickerDate(
     value: LocalDate?,

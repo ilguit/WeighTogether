@@ -109,7 +109,7 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     private val repository = container.repository
     private val profileStore = container.profileStore
     private val zoneId = ZoneId.systemDefault()
-    private val metricOptionList = chartMetricOptions()
+    private val metricOptionList = chartMetricOptions(application::getString)
     private val metricOptions = metricOptionList.associateBy { option ->
         MeasurementMetric.valueOf(option.key)
     }

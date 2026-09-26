@@ -28,8 +28,8 @@ class MeasurementMetricTest {
 
         assertEquals((1..16).map(Int::toDouble), MeasurementMetric.entries.map { it.valueOf(values) })
         assertEquals(16, MeasurementMetric.entries.size)
-        assertTrue(MeasurementMetric.entries.all { it.displayName.isNotBlank() })
-        assertTrue(MeasurementMetric.entries.all { it.unit.isNotBlank() })
+        assertTrue(MeasurementMetric.entries.all { it.displayNameRes != 0 })
+        assertTrue(MeasurementMetric.entries.all { it.unitRes != 0 })
         assertTrue(MeasurementMetric.entries.all { it.decimalPlaces >= 0 })
     }
 

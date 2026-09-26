@@ -48,6 +48,8 @@ import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.reconcileAccountManagement
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import com.palixander.scalesync.ui.routing.MeasurementResolverUiState
 import com.palixander.scalesync.ui.routing.PendingResolverCompletion
 import com.palixander.scalesync.ui.routing.PendingResolverSession
@@ -93,7 +95,6 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 internal const val SCALE_REFRESH_TIMEOUT_MILLIS = 7_000L
-internal const val SCALE_REFRESH_UNAVAILABLE_MESSAGE = "Весы недоступны"
 
 data class MainUiState(
     val settings: AppSettings = AppSettings(),
@@ -457,12 +458,12 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
                     container.backupExport.writeTo(it)
-                } ?: error("Не удалось открыть выбранный файл")
-                showMessage("Резервная копия сохранена")
+                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                showMessage(uiText(R.string.message_backup_saved))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                showMessage(error.userFacingMessage("Не удалось создать резервную копию"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_create)))
             } finally {
                 backup.value = BackupUiState()
             }
@@ -476,7 +477,7 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 val document = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
                     container.backupImport.read(it)
-                } ?: error("Не удалось открыть выбранный файл")
+                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
                 val preview = container.backupImport.preview(
                     document,
                     container.backupSnapshotSource.readSnapshot(),
@@ -489,7 +490,7 @@ class MainViewModel @JvmOverloads constructor(
                 throw cancelled
             } catch (error: Exception) {
                 backup.value = BackupUiState()
-                showMessage(error.userFacingMessage("Не удалось прочитать резервную копию"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_read)))
             }
         }
     }
@@ -514,7 +515,7 @@ class MainViewModel @JvmOverloads constructor(
                 val result = container.backupImportApplier.apply(preview)
                 if (result is com.palixander.scalesync.backup.BackupImportApplyResult.CompletedPendingRecovery) {
                     backup.value = BackupUiState()
-                    showMessage("Данные импортированы. Настройки будут восстановлены при следующем запуске")
+                    showMessage(uiText(R.string.message_backup_import_pending_recovery))
                     return@launch
                 }
                 if (preview.mode == BackupImportMode.REPLACE) {
@@ -526,19 +527,23 @@ class MainViewModel @JvmOverloads constructor(
                 }
                 backup.value = BackupUiState()
                 showMessage(
-                    "Импорт завершён: профилей ${result.counts.accountsAdded}, " +
-                        "измерений ${result.counts.measurementsAdded}, питомцев ${result.counts.petsAdded}, " +
-                        "измерений питомцев ${result.counts.petMeasurementsAdded}",
+                    uiText(
+                        R.string.message_backup_import_completed,
+                        result.counts.accountsAdded,
+                        result.counts.measurementsAdded,
+                        result.counts.petsAdded,
+                        result.counts.petMeasurementsAdded,
+                    ),
                 )
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
             } catch (stale: com.palixander.scalesync.backup.BackupPreviewStale) {
                 backup.value = BackupUiState(preview = stale.refreshedPreview)
-                showMessage("Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова")
+                showMessage(uiText(R.string.message_backup_preview_stale))
             } catch (error: Exception) {
                 backup.value = backup.value.copy(inProgress = false)
-                showMessage(error.userFacingMessage("Не удалось импортировать резервную копию"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_import)))
             }
         }
     }
@@ -637,7 +642,7 @@ class MainViewModel @JvmOverloads constructor(
             if (accountsSnapshot.value.settings.primaryAccountId == null) {
                 container.accountSelection.select(created.id)
             }
-            finishAccountOperation("Профиль «${created.displayName}» создан")
+            finishAccountOperation(uiText(R.string.message_account_created, created.displayName))
             return@runAccountOperation
         }
         val completion = requireNotNull(
@@ -654,18 +659,21 @@ class MainViewModel @JvmOverloads constructor(
                 container.accountSelection.select(result.account.id)
                 completePendingResolution(completion)
                 finishAccountOperation(
-                    "Профиль «${result.account.displayName}» создан, измерение назначено",
+                    uiText(
+                        R.string.message_account_created_assigned,
+                        result.account.displayName,
+                    ),
                 )
             }
             is CreateAccountAndAssignResult.NameConflict -> failAccountOperation(
-                "Профиль с таким именем уже существует",
+                uiText(R.string.message_account_name_conflict),
             )
             CreateAccountAndAssignResult.PendingNotFound,
             is CreateAccountAndAssignResult.AlreadyFinalized,
             -> {
                 pendingForNewAccount.value = null
                 completePendingResolution(completion)
-                finishAccountOperation("Измерение уже обработано")
+                finishAccountOperation(uiText(R.string.message_measurement_already_processed))
             }
         }
     }
@@ -673,7 +681,9 @@ class MainViewModel @JvmOverloads constructor(
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
         when (val result = container.accounts.attemptProfileUpdate(account)) {
             is ProfileUpdateAttemptResult.Saved ->
-                finishAccountOperation("Профиль «${result.account.displayName}» сохранён")
+                finishAccountOperation(
+                    uiText(R.string.message_account_saved, result.account.displayName),
+                )
             ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
@@ -692,14 +702,14 @@ class MainViewModel @JvmOverloads constructor(
 
     private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
         val updated = container.accounts.updateAccount(account, mode)
-        finishAccountOperation("Профиль «${updated.displayName}» сохранён")
+        finishAccountOperation(uiText(R.string.message_account_saved, updated.displayName))
     }
 
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
         runAccountOperation {
             container.accounts.setPrimaryAccount(accountId, mode)
             container.accountSelection.select(accountId)
-            finishAccountOperation("Основной профиль изменён")
+            finishAccountOperation(uiText(R.string.message_primary_account_changed))
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
@@ -708,7 +718,7 @@ class MainViewModel @JvmOverloads constructor(
         if (selection.accountId == accountId) {
             container.accountSelection.selectIfCurrent(selection, null)
         }
-        finishAccountOperation("Профиль и его локальная история удалены")
+        finishAccountOperation(uiText(R.string.message_account_deleted))
     }
 
     fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
@@ -718,7 +728,7 @@ class MainViewModel @JvmOverloads constructor(
             historySyncMode = request.historySyncMode,
         )
         container.accountSelection.select(request.replacementAccountId)
-        finishAccountOperation("Основной профиль и его локальная история удалены")
+        finishAccountOperation(uiText(R.string.message_primary_account_deleted))
     }
 
     fun updateWeightDeltaEditor(state: WeightDeltaEditorState) {
@@ -731,11 +741,14 @@ class MainViewModel @JvmOverloads constructor(
         runCatching { container.accounts.updateWeightDeltaKg(weightDeltaKg) }
             .onSuccess {
                 weightDeltaEditor.value = WeightDeltaEditorState.from(weightDeltaKg)
-                showMessage("Дельта распознавания сохранена")
+                showMessage(uiText(R.string.message_weight_delta_saved))
             }
             .onFailure {
                 weightDeltaEditor.value = weightDeltaEditor.value.copy(isSaving = false)
-                showMessage(it.userFacingMessage("Не удалось сохранить дельту"))
+                showMessage(
+                    it.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                        ?: uiText(R.string.error_save_weight_delta),
+                )
             }
     }
 
@@ -745,7 +758,7 @@ class MainViewModel @JvmOverloads constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось сохранить настройку"))
+            showMessage(error.userFacingMessage(uiText(R.string.error_save_setting)))
         }
     }
 
@@ -769,7 +782,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось открыть ожидающее измерение"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_open_pending_measurement)))
             }
         }
     }
@@ -805,20 +818,21 @@ class MainViewModel @JvmOverloads constructor(
                     }
                     is FinalizePendingResult.AlreadyFinalized -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение уже назначено")
+                        showMessage(uiText(R.string.message_measurement_already_assigned))
                     }
                     FinalizePendingResult.ProfileIncomplete ->
-                        showMessage("Сначала заполните выбранный профиль")
-                    FinalizePendingResult.AccountNotFound -> showMessage("Профиль уже удалён")
+                        showMessage(uiText(R.string.message_complete_selected_profile))
+                    FinalizePendingResult.AccountNotFound ->
+                        showMessage(uiText(R.string.message_account_already_deleted))
                     FinalizePendingResult.PendingNotFound -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение уже обработано")
+                        showMessage(uiText(R.string.message_measurement_already_processed))
                     }
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось назначить измерение"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_assign_measurement)))
             } finally {
                 resolverOperationInProgress.value = false
             }
@@ -946,21 +960,24 @@ class MainViewModel @JvmOverloads constructor(
     fun registerBackgroundScan() {
         if (container.profileStore.settings.value.scaleAddress == null) return
         showMessage(BackgroundScanRegistrar.register(getApplication()).fold(
-            onSuccess = { "Фоновое BLE-сканирование включено" },
-            onFailure = { it.message ?: "Не удалось включить сканирование" },
+            onSuccess = { uiText(R.string.message_ble_background_enabled) },
+            onFailure = {
+                it.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                    ?: uiText(R.string.error_enable_scanning)
+            },
         ))
     }
 
     fun toggleManualScan() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage("Сначала завершите взвешивание питомца")
+            showMessage(uiText(R.string.message_finish_pet_measurement_first))
             return
         }
         if (scanning.value) {
             scanner.stop()
             scanning.value = false
             restoreAutomaticScanning()
-            showMessage("Ручное сканирование остановлено")
+            showMessage(uiText(R.string.message_manual_scan_stopped))
             return
         }
         scaleAvailability.value = currentScaleAvailability()
@@ -975,17 +992,18 @@ class MainViewModel @JvmOverloads constructor(
                 scanning.value = false
                 restoreAutomaticScanning()
                 scaleScanError.value = error
-                showMessage(error)
+                showMessage(UiText.Raw(error))
             },
         )
         started.onSuccess {
             scanning.value = true
-            showMessage("Встаньте на весы и дождитесь финального измерения")
+            showMessage(uiText(R.string.message_step_on_scale))
         }.onFailure {
             restoreAutomaticScanning()
             scaleAvailability.value = currentScaleAvailability()
-            val message = it.message ?: "Не удалось запустить сканирование"
-            if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = message
+            val rawMessage = it.message?.takeIf(String::isNotBlank)
+            val message = rawMessage?.let(UiText::Raw) ?: uiText(R.string.error_start_scanning)
+            if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = rawMessage
             showMessage(message)
         }
     }
@@ -993,7 +1011,7 @@ class MainViewModel @JvmOverloads constructor(
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage("Сначала завершите взвешивание питомца")
+            showMessage(uiText(R.string.message_finish_pet_measurement_first))
             return
         }
         val refresh = beginScaleRefresh(
@@ -1012,13 +1030,21 @@ class MainViewModel @JvmOverloads constructor(
                     onResult = { result ->
                         onRefreshScanResult(operation, refresh.address, result)
                     },
-                    onError = { error -> scaleRefresh.fail(operation, error) },
+                    onError = { error ->
+                        scaleRefresh.fail(operation, uiText(R.string.error_scale_refresh_detail, UiText.Raw(error)))
+                    },
                 )
             },
             onFailure = { Result.failure(it) },
         )
         started.onFailure { error ->
-            scaleRefresh.fail(operation, error.message ?: "Не удалось запустить сканирование")
+            scaleRefresh.fail(
+                operation,
+                uiText(
+                    R.string.error_scale_refresh_detail,
+                    UiText.Raw(error.message?.takeIf(String::isNotBlank) ?: error.javaClass.simpleName),
+                ),
+            )
         }.onSuccess {
             val timeoutJob = viewModelScope.launch {
                 delay(SCALE_REFRESH_TIMEOUT_MILLIS)
@@ -1034,16 +1060,24 @@ class MainViewModel @JvmOverloads constructor(
 
     fun setReliabilityMode(enabled: Boolean) {
         if (!BleSupport.hasScanPermission(getApplication())) {
-            showMessage("Сначала разрешите Bluetooth-сканирование")
+            showMessage(uiText(R.string.message_bluetooth_scan_permission_required))
             return
         }
         if (enabled && container.profileStore.settings.value.scaleAddress == null) {
-            showMessage("Сначала выберите весы")
+            showMessage(uiText(R.string.error_scale_not_selected))
             return
         }
         container.profileStore.setReliabilityMode(enabled)
         ReliabilityScanService.setEnabled(getApplication(), enabled)
-        showMessage(if (enabled) "Режим повышенной надёжности включён" else "Режим выключен")
+        showMessage(
+            uiText(
+                if (enabled) {
+                    R.string.message_reliable_mode_enabled
+                } else {
+                    R.string.message_reliable_mode_disabled
+                },
+            ),
+        )
     }
 
     /** Stops every BLE producer before durably removing the selected scale. */
@@ -1071,19 +1105,19 @@ class MainViewModel @JvmOverloads constructor(
             packetGate = container.scalePacketProcessingGate,
             clearSettings = container.profileStore::forgetScale,
         ).forget()
-        showMessage("Весы забыты")
+        showMessage(uiText(R.string.message_scale_forgotten))
     }
 
     fun disableHealthConnect() = disableExternalIntegration(
         DestructiveSettingsAction.HEALTH_CONNECT,
         ExternalSyncDestination.HEALTH_CONNECT,
-        "Health Connect отключён в приложении. Разрешения можно отозвать в системных настройках.",
+        uiText(R.string.message_health_connect_disabled),
     )
 
     private fun disableExternalIntegration(
         action: DestructiveSettingsAction,
         destination: ExternalSyncDestination,
-        successMessage: String,
+        successMessage: UiText,
     ) = runDestructiveAction(action) {
         container.profileStore.setExternalSyncEnabled(destination, false)
         showMessage(successMessage)
@@ -1100,7 +1134,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage("Не удалось выполнить действие"))
+                showMessage(error.userFacingMessage(uiText(R.string.error_perform_action)))
             } finally {
                 destructiveActionInProgress.compareAndSet(action, null)
             }
@@ -1109,11 +1143,11 @@ class MainViewModel @JvmOverloads constructor(
 
     fun retry(id: String) = viewModelScope.launch {
         container.repository.retry(id)
-        showMessage("Повторная отправка поставлена в очередь")
+        showMessage(uiText(R.string.message_measurement_retry_queued))
     }
 
     fun setMessage(text: String) {
-        showMessage(text)
+        showMessage(UiText.Raw(text))
     }
 
     fun onBluetoothPermissionsReady() {
@@ -1162,7 +1196,7 @@ class MainViewModel @JvmOverloads constructor(
         notificationPermissionGranted.value =
             container.pendingMeasurementNotifications.areNotificationsAllowed()
         runCatching { MeasurementWorkSweep(container.repository).run() }
-            .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
+            .onFailure { showMessage(uiText(R.string.message_pending_check_failed)) }
         runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
     }
@@ -1179,7 +1213,7 @@ class MainViewModel @JvmOverloads constructor(
     fun openPetMeasurement() {
         invalidatePetMeasurementStartup()
         if (scanning.value || refreshing.value || petMeasurementCoordinator.isActive) {
-            showMessage("Дождитесь завершения текущего BLE-сканирования")
+            showMessage(uiText(R.string.message_wait_for_ble_scan))
             return
         }
         petMeasurementCoordinator.showSelection()
@@ -1204,7 +1238,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (error: Exception) {
                 if (!petMeasurementCreation.complete(creationToken)) return@launch
                 petMeasurement.value = PetMeasurementUiState.Error(
-                    error.message ?: "Не удалось создать питомца",
+                    error.message?.let(UiText::Raw) ?: uiText(R.string.error_create_pet),
                 )
                 return@launch
             }
@@ -1261,7 +1295,7 @@ class MainViewModel @JvmOverloads constructor(
                     state = petManagement.value,
                     request = request,
                     result = PetProfilePersistenceResult.Failure(
-                        error.message ?: "Не удалось сохранить питомца",
+                        error.message ?: getApplication<Application>().getString(R.string.error_save_pet),
                     ),
                 )
             }
@@ -1277,7 +1311,7 @@ class MainViewModel @JvmOverloads constructor(
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     petManagement.value = PetManagementUiState(error = error.message)
-                    showMessage("Не удалось подготовить удаление питомца")
+                    showMessage(uiText(R.string.error_prepare_delete_pet))
                 }
         }
     }
@@ -1294,7 +1328,7 @@ class MainViewModel @JvmOverloads constructor(
                     if (error is CancellationException) throw error
                     petManagement.value = snapshot.copy(
                         busy = false,
-                        error = error.message ?: "Не удалось удалить питомца",
+                        error = error.message ?: getApplication<Application>().getString(R.string.error_delete_pet),
                     )
                 }
         }
@@ -1309,7 +1343,7 @@ class MainViewModel @JvmOverloads constructor(
         val startupToken = petMeasurementStartup.begin()
         petMeasurementStartupJob = viewModelScope.launch {
             if (scanning.value || petMeasurementCoordinator.isActive) {
-                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                showMessage(uiText(R.string.pet_measurement_wait_for_ble_scan))
                 return@launch
             }
             if (refreshing.value) scaleRefresh.clear()
@@ -1336,12 +1370,12 @@ class MainViewModel @JvmOverloads constructor(
                 container.pets.getPet(petId)
             } ?: run {
                 if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
-                petMeasurement.value = PetMeasurementUiState.Error("Питомец не найден")
+                petMeasurement.value = PetMeasurementUiState.Error(uiText(R.string.pet_measurement_pet_not_found))
                 return@launch
             }
             if (!petMeasurementStartup.isCurrent(startupToken)) return@launch
             if (scanning.value) {
-                showMessage("Дождитесь завершения текущего BLE-сканирования")
+                showMessage(uiText(R.string.pet_measurement_wait_for_ble_scan))
                 return@launch
             }
             if (refreshing.value) scaleRefresh.clear()
@@ -1367,7 +1401,7 @@ class MainViewModel @JvmOverloads constructor(
                     petScanner.start(
                         address = address,
                         onResult = { onPetScanResult(token, address, it) },
-                        onError = { petMeasurementCoordinator.pause(token, it) },
+                        onError = { petMeasurementCoordinator.pause(token, UiText.Raw(it)) },
                     )
                 },
                 onFailure = { Result.failure(it) },
@@ -1375,7 +1409,7 @@ class MainViewModel @JvmOverloads constructor(
             started.onFailure {
                 petMeasurementCoordinator.fail(
                     token,
-                    it.message ?: "Не удалось запустить сканирование",
+                    it.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_start_failed),
                 )
             }.onSuccess {
                 attachPetMeasurementTimeout(token)
@@ -1405,7 +1439,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (error: Exception) {
                 petMeasurementCoordinator.fail(
                     request.token,
-                    error.message ?: "Не удалось сохранить вес питомца",
+                    error.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_save_failed),
                 )
             }
         }
@@ -1416,12 +1450,12 @@ class MainViewModel @JvmOverloads constructor(
         val started = petScanner.start(
             address = request.selectedAddress,
             onResult = { onPetScanResult(request.token, request.selectedAddress, it) },
-            onError = { petMeasurementCoordinator.pause(request.token, it) },
+            onError = { petMeasurementCoordinator.pause(request.token, UiText.Raw(it)) },
         )
         started.onFailure {
             petMeasurementCoordinator.pause(
                 request.token,
-                it.message ?: "Не удалось продолжить сканирование",
+                it.message?.let(UiText::Raw) ?: uiText(R.string.pet_measurement_retry_failed),
             )
         }.onSuccess {
             attachPetMeasurementTimeout(request.token)
@@ -1553,7 +1587,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = emptySet(),
             )
-            if (notifyResult) showMessage("Health Connect недоступен на этом устройстве")
+            if (notifyResult) showMessage(uiText(R.string.message_health_connect_unavailable))
             return
         }
 
@@ -1568,7 +1602,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = healthConnect.value.grantedPermissions,
             )
-            if (notifyResult) showMessage("Не удалось проверить разрешения Health Connect")
+            if (notifyResult) showMessage(uiText(R.string.message_health_connect_permission_check_failed))
             return
         }
         val snapshot = HealthConnectPermissionsUiState.snapshot(
@@ -1588,14 +1622,14 @@ class MainViewModel @JvmOverloads constructor(
             )
             container.repository.retryPendingHealthConnect()
             if (notifyResult) {
-                showMessage("Health Connect: разрешения выданы, очередь перезапущена")
+                showMessage(uiText(R.string.message_health_connect_queue_restarted))
             }
         } else if (notifyResult) {
-            showMessage("Health Connect: разрешены не все показатели")
+            showMessage(uiText(R.string.message_health_connect_permissions_incomplete))
         }
     }
 
-    private fun showMessage(message: String) {
+    private fun showMessage(message: UiText) {
         eventEmitter.showSnackbar(message)
     }
 
@@ -1614,13 +1648,13 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingResult.PendingNotFound,
                 -> {
                     completion?.let(::completePendingResolution)
-                    showMessage("Измерение уже обработано")
+                    showMessage(uiText(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+            showMessage(error.userFacingMessage(uiText(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1647,13 +1681,13 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound,
                 -> {
                     completePendingResolution(completion)
-                    showMessage("Измерение уже обработано")
+                    showMessage(uiText(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage("Не удалось удалить измерение"))
+            showMessage(error.userFacingMessage(uiText(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1709,7 +1743,14 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                failAccountOperation(error.userFacingMessage("Не удалось изменить профиль"))
+                failAccountOperation(
+                    when (error) {
+                        is AccountNameConflictException ->
+                            uiText(R.string.message_account_name_conflict)
+                        else -> error.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                            ?: uiText(R.string.error_change_profile)
+                    },
+                )
             } finally {
                 accountManagementDialog.value = accountManagementDialog.value.copy(
                     operationInProgress = false,
@@ -1718,12 +1759,12 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun finishAccountOperation(message: String) {
+    private fun finishAccountOperation(message: UiText) {
         accountManagementDialog.value = AccountManagementUiState()
         showMessage(message)
     }
 
-    private fun failAccountOperation(message: String) {
+    private fun failAccountOperation(message: UiText) {
         accountManagementDialog.value = accountManagementDialog.value.copy(
             operationInProgress = false,
             operationError = message,
@@ -1792,13 +1833,9 @@ class MainViewModel @JvmOverloads constructor(
 
 }
 
-internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =
-    "Внешняя синхронизация приостановлена"
-internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "Внешняя синхронизация возобновлена"
-
-internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
-    is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
-    ExternalSyncPauseTransition.Resumed -> EXTERNAL_SYNC_RESUMED_MESSAGE
+internal fun ExternalSyncPauseTransition.snackbarMessage(): UiText = when (this) {
+    is ExternalSyncPauseTransition.Paused -> uiText(R.string.message_external_sync_paused)
+    ExternalSyncPauseTransition.Resumed -> uiText(R.string.message_external_sync_resumed)
 }
 
 internal fun resolverIgnoreUnknownPolicySelection(
@@ -1824,7 +1861,9 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
     RoutingDecision.NoMatch -> emptyList()
 }
 
-private fun Throwable.userFacingMessage(fallback: String): String = when (this) {
-    is AccountNameConflictException -> "Профиль с таким именем уже существует"
-    else -> message?.takeIf(String::isNotBlank) ?: fallback
+private class UserFacingUiTextException(val uiText: UiText) : Exception()
+
+private fun Throwable.userFacingMessage(fallback: UiText): UiText = when (this) {
+    is UserFacingUiTextException -> uiText
+    else -> message?.takeIf(String::isNotBlank)?.let(UiText::Raw) ?: fallback
 }

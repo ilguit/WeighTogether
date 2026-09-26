@@ -4,6 +4,8 @@ import com.palixander.scalesync.domain.NewPet
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetDeletionPreview
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.LocalDate
 
 data class PetManagementUiState(
@@ -151,10 +153,10 @@ private val ValidatedPetProfile.mode: PetProfileEditorMode
         is ValidatedPetProfile.Edit -> PetProfileEditorMode.Edit(pet.id)
     }
 
-internal fun petSpeciesLabel(species: PetSpecies): String = when (species) {
-    PetSpecies.CAT -> "Кошка"
-    PetSpecies.DOG -> "Собака"
-    PetSpecies.UNSPECIFIED -> "Вид не указан"
+internal fun petSpeciesLabel(species: PetSpecies): UiText = when (species) {
+    PetSpecies.CAT -> uiText(R.string.pet_species_cat)
+    PetSpecies.DOG -> uiText(R.string.pet_species_dog)
+    PetSpecies.UNSPECIFIED -> uiText(R.string.pet_species_unspecified)
 }
 
 /** Keeps the measurement-first creation path intentionally limited to name and species. */

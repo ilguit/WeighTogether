@@ -1,5 +1,6 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Clock
 import java.time.LocalDate
 import java.time.ZoneId
@@ -24,61 +25,55 @@ enum class HomeKgChartColorToken(
  */
 enum class HomeKgChartMetric(
     val key: String,
-    val label: String,
     val color: HomeKgChartColorToken,
     internal val measurementField: MeasurementField,
 ) {
     WEIGHT(
         key = "weight_kg",
-        label = "Вес",
         color = HomeKgChartColorToken.BLUE,
         measurementField = MeasurementField.WEIGHT_KG,
     ),
     BODY_FAT_MASS(
         key = "body_fat_mass_kg",
-        label = "Масса жира",
         color = HomeKgChartColorToken.RED,
         measurementField = MeasurementField.BODY_FAT_MASS_KG,
     ),
     WATER_MASS(
         key = "water_mass_kg",
-        label = "Масса воды",
         color = HomeKgChartColorToken.CYAN,
         measurementField = MeasurementField.WATER_MASS_KG,
     ),
     MUSCLE_MASS(
         key = "muscle_mass_kg",
-        label = "Мышечная масса",
         color = HomeKgChartColorToken.GREEN,
         measurementField = MeasurementField.MUSCLE_MASS_KG,
     ),
     SKELETAL_MUSCLE_MASS(
         key = "skeletal_muscle_mass_kg",
-        label = "Скелетные мышцы",
         color = HomeKgChartColorToken.PURPLE,
         measurementField = MeasurementField.SKELETAL_MUSCLE_MASS_KG,
     ),
     BONE_MASS(
         key = "bone_mass_kg",
-        label = "Костная масса",
         color = HomeKgChartColorToken.ORANGE,
         measurementField = MeasurementField.BONE_MASS_KG,
     ),
     PROTEIN_MASS(
         key = "protein_mass_kg",
-        label = "Масса белка",
         color = HomeKgChartColorToken.MAGENTA,
         measurementField = MeasurementField.PROTEIN_MASS_KG,
     ),
     LEAN_BODY_MASS(
         key = "lean_body_mass_kg",
-        label = "Безжировая масса",
         color = HomeKgChartColorToken.TEAL,
         measurementField = MeasurementField.LEAN_BODY_MASS_KG,
     ),
     ;
 
-    val unit: String
+    val label: UiText
+        get() = measurementField.label
+
+    val unit: UiText?
         get() = measurementField.unit
 
     val decimalPlaces: Int
@@ -108,8 +103,8 @@ data class HomeKgChartPoint(
 
 data class HomeKgChartSeries(
     val key: String,
-    val label: String,
-    val unit: String,
+    val label: UiText,
+    val unit: UiText?,
     val decimalPlaces: Int,
     val color: HomeKgChartColorToken,
     val points: List<HomeKgChartPoint>,

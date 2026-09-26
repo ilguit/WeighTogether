@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -18,7 +20,7 @@ class MeasurementEditorValidationTest {
     @Test
     fun editorGroupsContainAllSixteenFieldsExactlyOnce() {
         assertEquals(
-            listOf("Основное", "Состав тела", "Мышцы и кости", "Метаболизм"),
+            listOf("Main", "Body composition", "Muscles and bones", "Metabolism"),
             measurementEditorSections.map(MeasurementEditorSection::title),
         )
         assertEquals(listOf(3, 7, 3, 3), measurementEditorSections.map { it.fields.size })
@@ -40,7 +42,7 @@ class MeasurementEditorValidationTest {
 
     @Test
     fun validationRejectsBlankNegativeNonFiniteAndMalformedValues() {
-        assertEquals("Обязательное поле", MeasurementField.WEIGHT_KG.validateInput(" ").error)
+        assertEquals(UiText.Resource(R.string.validation_required_field), MeasurementField.WEIGHT_KG.validateInput(" ").error)
         assertNotNull(MeasurementField.WEIGHT_KG.validateInput("-1").error)
         assertNotNull(MeasurementField.WEIGHT_KG.validateInput("NaN").error)
         assertNotNull(MeasurementField.WEIGHT_KG.validateInput("1,2.3").error)

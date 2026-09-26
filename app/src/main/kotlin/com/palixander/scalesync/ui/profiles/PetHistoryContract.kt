@@ -1,6 +1,9 @@
 package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.domain.MeasurementOrigin
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
+import com.palixander.scalesync.R
 
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartMetricOption
@@ -37,9 +40,11 @@ import java.util.Locale
 
 val PetWeightChartMetric = ChartMetricOption(
     key = "petWeightKg",
-    displayName = "Вес питомца",
-    unit = "кг",
+    displayName = "",
+    unit = "",
     decimalPlaces = 2,
+    displayNameRes = R.string.pet_history_weight_metric,
+    unitRes = R.string.pet_weight_unit_kg,
 )
 
 sealed interface PetHistoryContent {
@@ -75,15 +80,15 @@ data class PetHistoryUiState(
     val series: ChartSeries = ChartSeries(PetWeightChartMetric, emptyList()),
     val weightReference: PetHistoryWeightReference = PetHistoryWeightReference.Unavailable(
         WeightReferenceUnavailableReason.UnsupportedSpecies,
-        "Эталон недоступен: вид питомца не указан.",
+        uiText(R.string.pet_reference_unavailable_species),
     ),
     val breedReference: PetHistoryBreedReference = PetHistoryBreedReference.Hidden,
     val breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
-    val actionErrorMessage: String? = null,
+    val actionErrorMessage: UiText? = null,
     val scrollToMeasurementId: String? = null,
     val weightEditor: PetWeightEditorState? = null,
 ) {
@@ -121,20 +126,20 @@ sealed interface PetHistoryWeightReference {
         val provenance: WeightReferenceProvenance = WeightReferenceProvenance.POPULATION,
         val selectedBreedId: com.palixander.scalesync.domain.BreedId? = null,
         /** Russian user-facing clarification when the selected breed cannot supply a full curve. */
-        val provenanceExplanation: String? = null,
+        val provenanceExplanation: UiText? = null,
         /** Separate segments must be drawn separately; gaps must never be connected. */
         val segments: List<PetHistoryReferenceSegment>,
         val approximate: Boolean,
-        val ageLabel: String,
-        val basisLabel: String,
-        val sourceLabel: String,
+        val ageLabel: UiText,
+        val basisLabel: UiText,
+        val sourceLabel: UiText,
         val citation: String,
         val license: String,
         val constraints: List<String>,
-        val sourceAuthorityLabel: String? = null,
+        val sourceAuthorityLabel: UiText? = null,
         val sourceDisclosure: String? = null,
         val sourceAccessedDate: String? = null,
-        val accessibilityLabel: String,
+        val accessibilityLabel: UiText,
         val publicationUrl: String? = null,
         val isFittedPopulationPercentiles: Boolean = false,
         val centerStatistic: ReferenceCenterStatistic = ReferenceCenterStatistic.MEDIAN,
@@ -143,7 +148,7 @@ sealed interface PetHistoryWeightReference {
 
     data class Unavailable(
         val reason: WeightReferenceUnavailableReason,
-        val explanation: String,
+        val explanation: UiText,
     ) : PetHistoryWeightReference
 }
 
@@ -305,17 +310,20 @@ class PetHistoryReferencePresenter(
         provenance: WeightReferenceProvenance,
         selectedBreedId: com.palixander.scalesync.domain.BreedId?,
     ): PetHistoryWeightReference.Available {
-        val age = if (minAge == maxAge) "$minAge дн." else "$minAge–$maxAge дн."
-        val ageLabel = "Возраст: ${if (approximate) "примерно " else ""}$age"
+        val age = if (minAge == maxAge) "$minAge" else "$minAge–$maxAge"
+        val ageLabel = uiText(
+            if (approximate) R.string.pet_reference_age_days_approximate else R.string.pet_reference_age_days,
+            age,
+        )
         val isExactBreedObservation = provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION
         val basisLabel = if (metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES) {
-            "Справочные данные о весе"
+            uiText(R.string.pet_reference_weight_data)
         } else if (isExactBreedObservation || metadata.referenceKind == ReferenceKind.EMPIRICAL_OBSERVATION_MEAN_SD) {
-            "Наблюдение по породе: среднее ± одно стандартное отклонение"
+            uiText(R.string.pet_reference_breed_observation)
         } else when (metadata.basis) {
-            ReferenceBasis.BREED -> "Эталон по породе"
-            ReferenceBasis.WEIGHT_CATEGORY -> "Эталон по весовой категории"
-            ReferenceBasis.POPULATION -> "Справочные данные о весе"
+            ReferenceBasis.BREED -> uiText(R.string.pet_reference_breed_basis)
+            ReferenceBasis.WEIGHT_CATEGORY -> uiText(R.string.pet_reference_weight_category_basis)
+            ReferenceBasis.POPULATION -> uiText(R.string.pet_reference_weight_data)
         }
         return PetHistoryWeightReference.Available(
             metadata.basis,
@@ -326,14 +334,14 @@ class PetHistoryReferencePresenter(
             approximate,
             ageLabel,
             basisLabel,
-            "Источник: ${metadata.source.citation}",
+            uiText(R.string.pet_reference_source, metadata.source.citation),
             metadata.source.citation,
             metadata.source.license,
-            metadata.constraints.map(::localizedReferenceConstraint),
+            metadata.constraints,
             metadata.source.authorityClass.localizedLabel(),
-            metadata.source.disclosure.localizedDisclosure(),
+            metadata.source.disclosure,
             metadata.source.accessedDate,
-            "$basisLabel. $ageLabel. Источник: ${metadata.source.citation}. Лицензия: ${metadata.source.license}.",
+            uiText(R.string.pet_reference_accessibility, basisLabel, ageLabel, metadata.source.citation, metadata.source.license),
             metadata.source.publicationDoi.takeIf(String::isNotBlank)?.let { "https://doi.org/$it" }
                 ?: metadata.source.dataUrl,
             metadata.referenceKind == ReferenceKind.FITTED_BCCG_PERCENTILES,
@@ -343,73 +351,20 @@ class PetHistoryReferencePresenter(
     }
 }
 
-private fun ReferenceSourceAuthorityClass.localizedLabel(): String = when (this) {
-    ReferenceSourceAuthorityClass.OFFICIAL_BREED_ORGANIZATION -> "официальная породная организация"
-    ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE -> "профессиональный справочник"
-    ReferenceSourceAuthorityClass.RESEARCH_PUBLICATION -> "научная публикация"
-    ReferenceSourceAuthorityClass.OPEN_REFERENCE -> "открытый справочник"
+private fun ReferenceSourceAuthorityClass.localizedLabel(): UiText = when (this) {
+    ReferenceSourceAuthorityClass.OFFICIAL_BREED_ORGANIZATION -> uiText(R.string.pet_reference_authority_breed)
+    ReferenceSourceAuthorityClass.PROFESSIONAL_REFERENCE -> uiText(R.string.pet_reference_authority_professional)
+    ReferenceSourceAuthorityClass.RESEARCH_PUBLICATION -> uiText(R.string.pet_reference_authority_research)
+    ReferenceSourceAuthorityClass.OPEN_REFERENCE -> uiText(R.string.pet_reference_authority_open)
 }
 
-private fun String.localizedDisclosure(): String = when (this) {
-    "Official feline or breed organization" -> "Официальная фелинологическая или породная организация"
-    "Professional reference; not an official breed organization" ->
-        "Профессиональный справочник; не официальная породная организация"
-    "Open reference source" -> "Открытый справочный источник"
-    else -> this
-}
-
-private val adultPlateauConstraintPattern = Regex(
-    "^Evidence-backed/modelled values end at day (\\d+); " +
-        "the final adult product value is carried forward unchanged only through day (\\d+) \\(30 years\\)$",
-)
-private val dogCategoryPlateauConstraintPattern = Regex(
-    "^Evidence-backed values end at day (\\d+); " +
-        "the final adult category bounds are carried forward unchanged only through day (\\d+) \\(30 years\\)$",
-)
-
-internal fun localizedReferenceConstraint(constraint: String): String {
-    adultPlateauConstraintPattern.matchEntire(constraint)?.let { match ->
-        val (evidenceEndDay, productMaximumDay) = match.destructured
-        return "Подтверждённые и расчётные значения заканчиваются на ${formatReferenceDay(evidenceEndDay)}-м дне; " +
-            "последнее взрослое значение неизменно продлено только до " +
-            "${formatReferenceDay(productMaximumDay)}-го дня (30 лет)"
-    }
-    dogCategoryPlateauConstraintPattern.matchEntire(constraint)?.let { match ->
-        val (evidenceEndDay, productMaximumDay) = match.destructured
-        return "Подтверждённые значения заканчиваются на ${formatReferenceDay(evidenceEndDay)}-м дне; " +
-            "итоговые границы взрослой весовой категории неизменно продлены только до " +
-            "${formatReferenceDay(productMaximumDay)}-го дня (30 лет)"
-    }
-
-    return when (constraint) {
-        "Domestic Shorthair only" -> "Только домашние короткошёрстные кошки"
-        "Sexually intact kittens from the USA" -> "Нестерилизованные котята из США"
-        "Age 8 to 78 weeks" -> "Возраст от 8 до 78 недель"
-        "Other-breed fallback; source population was Domestic Shorthair" ->
-            "Общий диапазон вместо породного; исходная популяция — домашние короткошёрстные кошки"
-        "Age 8 to 78 weeks; runtime points are fitted P9/P50/P91" ->
-            "Возраст от 8 до 78 недель; показаны расчётные P9, P50 и P91"
-        "12–15 фунтов преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
-            "12–15 фунтов преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
-        "18–22 фунта преобразованы точно по коэффициенту 1 lb = 0,45359237 кг" ->
-            "18–22 фунта преобразованы точно по коэффициенту 1 фунт = 0,45359237 кг"
-        else -> constraint
-    }
-}
-
-private fun formatReferenceDay(day: String): String = day
-    .reversed()
-    .chunked(3)
-    .joinToString(" ")
-    .reversed()
-
-fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): String? = when (provenance) {
+fun weightReferenceProvenanceExplanation(provenance: WeightReferenceProvenance): UiText? = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE ->
-        "Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая."
+        uiText(R.string.pet_reference_provenance_model)
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION ->
-        "Для выбранной породы опубликовано только точечное наблюдение веса при рождении."
+        uiText(R.string.pet_reference_provenance_birth)
     WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED ->
-        "Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек."
+        uiText(R.string.pet_reference_provenance_population)
     WeightReferenceProvenance.POPULATION,
     WeightReferenceProvenance.WEIGHT_CATEGORY,
     -> null
@@ -514,44 +469,44 @@ private fun List<LocalDate>.takeBoundedPreservingSemantic(semantic: Set<LocalDat
     return (semantic + retained).sorted()
 }
 
-fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReason): String = when (reason) {
-    WeightReferenceUnavailableReason.MissingSex -> "Эталон недоступен: укажите пол питомца."
-    WeightReferenceUnavailableReason.MissingBirthDate -> "Эталон недоступен: укажите дату рождения питомца."
-    WeightReferenceUnavailableReason.MissingBreed -> "Эталон недоступен: укажите породу кошки."
-    WeightReferenceUnavailableReason.MissingDogAdultWeight -> "Эталон недоступен: укажите ожидаемую весовую категорию взрослой собаки."
-    WeightReferenceUnavailableReason.UnsupportedSpecies -> "Эталон недоступен: вид питомца не указан."
-    is WeightReferenceUnavailableReason.UnknownBreed -> "Эталон недоступен: порода ${reason.breedId} не найдена."
-    is WeightReferenceUnavailableReason.BreedSpeciesMismatch -> "Эталон недоступен: порода ${reason.breedId} не соответствует виду питомца."
-    is WeightReferenceUnavailableReason.UnsupportedBreed -> "Для выбранной породы ориентиры сейчас недоступны."
-    WeightReferenceUnavailableReason.DshIntactStatusUnknown -> "Эталон недоступен: для домашней короткошёрстной кошки нужны подтверждённые данные о стерилизации."
-    WeightReferenceUnavailableReason.DshNotIntact -> "Эталон недоступен: опубликованные данные относятся только к нестерилизованным животным."
-    WeightReferenceUnavailableReason.InvalidBirthDate -> "Эталон недоступен: дата рождения позже выбранного периода."
-    is WeightReferenceUnavailableReason.ProfileUnavailable -> "Эталон недоступен: профиль ${reason.profileId} не содержит воспроизводимых числовых данных."
-    is WeightReferenceUnavailableReason.ReferenceDataGap -> "Эталон недоступен: в опубликованных данных профиля ${reason.profileId} есть пробел для этого возраста."
-    is WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum -> "Эталон недоступен: вес ${reason.weightKg} кг выше поддерживаемого источником максимума."
-    is WeightReferenceUnavailableReason.AgeOutOfRange -> "Эталон недоступен: возраст вне опубликованного диапазона ${reason.supportedMinimumDays}–${reason.supportedMaximumDays} дней."
+fun weightReferenceUnavailableExplanation(reason: WeightReferenceUnavailableReason): UiText = when (reason) {
+    WeightReferenceUnavailableReason.MissingSex -> uiText(R.string.pet_reference_unavailable_sex)
+    WeightReferenceUnavailableReason.MissingBirthDate -> uiText(R.string.pet_reference_unavailable_birth_date)
+    WeightReferenceUnavailableReason.MissingBreed -> uiText(R.string.pet_reference_unavailable_breed)
+    WeightReferenceUnavailableReason.MissingDogAdultWeight -> uiText(R.string.pet_reference_unavailable_dog_weight)
+    WeightReferenceUnavailableReason.UnsupportedSpecies -> uiText(R.string.pet_reference_unavailable_species)
+    is WeightReferenceUnavailableReason.UnknownBreed -> uiText(R.string.pet_reference_unavailable_unknown_breed, reason.breedId)
+    is WeightReferenceUnavailableReason.BreedSpeciesMismatch -> uiText(R.string.pet_reference_unavailable_breed_mismatch, reason.breedId)
+    is WeightReferenceUnavailableReason.UnsupportedBreed -> uiText(R.string.pet_reference_unavailable_unsupported_breed)
+    WeightReferenceUnavailableReason.DshIntactStatusUnknown -> uiText(R.string.pet_reference_unavailable_intact_unknown)
+    WeightReferenceUnavailableReason.DshNotIntact -> uiText(R.string.pet_reference_unavailable_not_intact)
+    WeightReferenceUnavailableReason.InvalidBirthDate -> uiText(R.string.pet_reference_unavailable_invalid_birth)
+    is WeightReferenceUnavailableReason.ProfileUnavailable -> uiText(R.string.pet_reference_unavailable_profile, reason.profileId)
+    is WeightReferenceUnavailableReason.ReferenceDataGap -> uiText(R.string.pet_reference_unavailable_gap, reason.profileId)
+    is WeightReferenceUnavailableReason.AdultWeightAboveSupportedMaximum -> uiText(R.string.pet_reference_unavailable_weight_max, reason.weightKg)
+    is WeightReferenceUnavailableReason.AgeOutOfRange -> uiText(R.string.pet_reference_unavailable_age_range, reason.supportedMinimumDays, reason.supportedMaximumDays)
 }
 
 private fun weightReferenceUnavailableExplanation(
     reason: WeightReferenceUnavailableReason,
     species: com.palixander.scalesync.domain.PetSpecies,
-): String = if (species == com.palixander.scalesync.domain.PetSpecies.CAT) {
+): UiText = if (species == com.palixander.scalesync.domain.PetSpecies.CAT) {
     when (reason) {
         WeightReferenceUnavailableReason.MissingSex ->
-            "Укажите пол питомца, чтобы показать породный ориентир."
+            uiText(R.string.pet_breed_reference_prompt_sex)
         WeightReferenceUnavailableReason.MissingBirthDate ->
-            "Укажите дату рождения, чтобы показать ориентир для возраста."
+            uiText(R.string.pet_breed_reference_prompt_birth)
         WeightReferenceUnavailableReason.InvalidBirthDate ->
-            "Исправьте дату рождения, чтобы показать ориентир для возраста."
+            uiText(R.string.pet_breed_reference_fix_birth)
         is WeightReferenceUnavailableReason.UnsupportedBreed,
         is WeightReferenceUnavailableReason.UnknownBreed,
         is WeightReferenceUnavailableReason.BreedSpeciesMismatch,
-        -> "Для выбранной породы ориентиры сейчас недоступны."
+        -> uiText(R.string.pet_breed_reference_unavailable)
         is WeightReferenceUnavailableReason.AgeOutOfRange,
         is WeightReferenceUnavailableReason.ReferenceDataGap,
-        -> "Для выбранного возраста опубликованные данные отсутствуют."
+        -> uiText(R.string.pet_breed_reference_age_gap)
         is WeightReferenceUnavailableReason.ProfileUnavailable ->
-            "Ориентиры породы временно недоступны."
+            uiText(R.string.pet_breed_reference_temporary)
         else -> weightReferenceUnavailableExplanation(reason)
     }
 } else {
@@ -580,7 +535,7 @@ data class PetWeightEditorState(
     val originalWeightKg: Double,
     val weightInput: String,
     val isSaving: Boolean = false,
-    val saveError: String? = null,
+    val saveError: UiText? = null,
     val isUnavailable: Boolean = false,
 ) {
     val parsedWeightKg: Double?

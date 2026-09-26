@@ -20,34 +20,34 @@ class NotificationChannelRegistryTest {
 
     @Test
     fun `existing channel metadata remains stable`() {
-        assertEquals("Сканирование весов", NotificationChannelRegistry.scaleScanning.name)
+        assertEquals(R.string.notification_channel_scale_scanning, NotificationChannelRegistry.scaleScanning.nameRes)
         assertEquals(
             NotificationManager.IMPORTANCE_LOW,
             NotificationChannelRegistry.scaleScanning.importance,
         )
-        assertNull(NotificationChannelRegistry.scaleScanning.description)
+        assertNull(NotificationChannelRegistry.scaleScanning.descriptionRes)
 
         assertEquals(
-            "Нераспознанные измерения",
-            NotificationChannelRegistry.pendingMeasurementRouting.name,
+            R.string.notification_channel_pending_measurements,
+            NotificationChannelRegistry.pendingMeasurementRouting.nameRes,
         )
         assertEquals(
             NotificationManager.IMPORTANCE_DEFAULT,
             NotificationChannelRegistry.pendingMeasurementRouting.importance,
         )
-        assertNull(NotificationChannelRegistry.pendingMeasurementRouting.description)
+        assertNull(NotificationChannelRegistry.pendingMeasurementRouting.descriptionRes)
 
         assertEquals(
-            "Сохранённые измерения",
-            NotificationChannelRegistry.successfulMeasurementSaves.name,
+            R.string.notification_channel_saved_measurements,
+            NotificationChannelRegistry.successfulMeasurementSaves.nameRes,
         )
         assertEquals(
             NotificationManager.IMPORTANCE_DEFAULT,
             NotificationChannelRegistry.successfulMeasurementSaves.importance,
         )
         assertEquals(
-            "Подтверждения об успешном сохранении измерений",
-            NotificationChannelRegistry.successfulMeasurementSaves.description,
+            R.string.notification_channel_saved_measurements_description,
+            NotificationChannelRegistry.successfulMeasurementSaves.descriptionRes,
         )
     }
 }

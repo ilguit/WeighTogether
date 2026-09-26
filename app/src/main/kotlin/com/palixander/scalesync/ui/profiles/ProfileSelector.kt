@@ -16,6 +16,8 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
@@ -37,14 +39,15 @@ fun ProfileSelector(
     modifier: Modifier = Modifier,
 ) {
     val photoStore = currentProfilePhotoStore()
+    val selectorDescription = stringResource(R.string.profile_selector_description)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag(ProfileSelectorTestTags.Selector)
-            .semantics { contentDescription = "Выбор профиля" },
+            .semantics { contentDescription = selectorDescription },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
-        Text("Профиль", style = MaterialTheme.typography.labelLarge)
+        Text(stringResource(R.string.profile_selector_title), style = MaterialTheme.typography.labelLarge)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -52,7 +55,7 @@ fun ProfileSelector(
             horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
             state.profiles.forEach { profile ->
-                val kind = if (profile is ProfilePresentation.Human) "человек" else "питомец"
+                val kind = stringResource(if (profile is ProfilePresentation.Human) R.string.profile_kind_human else R.string.profile_kind_pet)
                 val tag = when (val key = profile.key) {
                     is ProfileKey.Human -> ProfileSelectorTestTags.human(key.accountId.value)
                     is ProfileKey.Pet -> ProfileSelectorTestTags.pet(key.petId.value)
@@ -78,9 +81,9 @@ fun ProfileSelector(
                 )
             }
         }
-        profileFallbackMessage(state)?.let { message ->
+        profileFallbackMessageRes(state)?.let { message ->
             Text(
-                text = message,
+                text = stringResource(message),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.testTag(ProfileSelectorTestTags.Fallback),
@@ -103,14 +106,13 @@ internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {
     }
 }
 
-internal fun profileFallbackMessage(state: ProfileSelectionUiState): String? = when (state.fallback) {
+internal fun profileFallbackMessageRes(state: ProfileSelectionUiState): Int? = when (state.fallback) {
     ProfileSelectionFallback.NONE -> null
     ProfileSelectionFallback.SELECTED_PROFILE_UNAVAILABLE -> if (state.selectedKey is ProfileKey.Human) {
-        "Выбранный профиль удалён. Показан основной профиль."
+        R.string.profile_fallback_selected_removed
     } else {
-        "Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль."
+        R.string.profile_fallback_selected_removed_primary_unavailable
     }
-    ProfileSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE ->
-        "Основной профиль недоступен. Выберите профиль."
-    ProfileSelectionFallback.NO_PROFILES -> "Создайте профиль в настройках."
+    ProfileSelectionFallback.PRIMARY_ACCOUNT_UNAVAILABLE -> R.string.profile_fallback_primary_unavailable
+    ProfileSelectionFallback.NO_PROFILES -> R.string.profile_fallback_no_profiles
 }

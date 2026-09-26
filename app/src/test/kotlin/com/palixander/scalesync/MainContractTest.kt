@@ -4,6 +4,7 @@ import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -21,11 +22,14 @@ class MainContractTest {
     fun `events queued before collection are delivered in order and only once`() = runBlocking {
         val emitter = MainUiEventEmitter()
 
-        emitter.showSnackbar("Первое")
-        emitter.showSnackbar("Второе")
+        emitter.showSnackbar(UiText.Resource(R.string.message_backup_saved))
+        emitter.showSnackbar(UiText.Raw("external detail"))
 
-        assertEquals(MainUiEvent.ShowSnackbar("Первое"), emitter.events.first())
-        assertEquals(MainUiEvent.ShowSnackbar("Второе"), emitter.events.first())
+        assertEquals(
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.message_backup_saved)),
+            emitter.events.first(),
+        )
+        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("external detail")), emitter.events.first())
         assertNull(withTimeoutOrNull(50) { emitter.events.first() })
     }
 
@@ -78,10 +82,10 @@ class MainContractTest {
         controller.save()
 
         assertTrue(controller.state.value.isOpen)
-        assertEquals(PROFILE_FORMAT_ERROR_MESSAGE, controller.state.value.errorMessage)
+        assertEquals(UiText.Resource(R.string.error_profile_format), controller.state.value.errorMessage)
         assertTrue(saved.isEmpty())
         assertEquals(
-            MainUiEvent.ShowSnackbar(PROFILE_FORMAT_ERROR_MESSAGE),
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.error_profile_format)),
             emitter.events.first(),
         )
     }
@@ -104,7 +108,10 @@ class MainContractTest {
         )
         assertFalse(controller.state.value.isOpen)
         assertNull(controller.state.value.errorMessage)
-        assertEquals(MainUiEvent.ShowSnackbar(PROFILE_SAVED_MESSAGE), emitter.events.first())
+        assertEquals(
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.message_profile_saved)),
+            emitter.events.first(),
+        )
     }
 
     @Test
@@ -123,11 +130,11 @@ class MainContractTest {
         assertTrue(validateProfile("175", today.minusYears(10).toString(), Sex.MALE, today) is ProfileValidationResult.Valid)
         assertTrue(validateProfile("175", today.minusYears(100).toString(), Sex.MALE, today) is ProfileValidationResult.Valid)
         assertEquals(
-            ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE),
+            ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_age)),
             validateProfile("175", today.minusYears(10).plusDays(1).toString(), Sex.MALE, today),
         )
         assertEquals(
-            ProfileValidationResult.Invalid(PROFILE_AGE_ERROR_MESSAGE),
+            ProfileValidationResult.Invalid(UiText.Resource(R.string.error_profile_age)),
             validateProfile("175", today.minusYears(100).minusDays(1).toString(), Sex.MALE, today),
         )
     }

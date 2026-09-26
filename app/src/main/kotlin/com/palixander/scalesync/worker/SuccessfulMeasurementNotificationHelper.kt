@@ -45,9 +45,6 @@ object SuccessfulMeasurementNotificationContract {
         channelEnabled: Boolean,
     ): Boolean = runtimePermissionGranted && applicationNotificationsEnabled && channelEnabled
 
-    fun contentText(accountDisplayName: String): String =
-        "Измерение успешно сохранено для $accountDisplayName"
-
     private fun encodePathSegment(value: String): String = buildString {
         value.toByteArray(StandardCharsets.UTF_8).forEach { byte ->
             val unsigned = byte.toInt() and 0xff
@@ -123,10 +120,8 @@ class SuccessfulMeasurementNotificationHelper(
             identity.notificationId,
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle("Измерение сохранено")
-                .setContentText(
-                    SuccessfulMeasurementNotificationContract.contentText(accountDisplayName),
-                )
+                .setContentTitle(context.getString(R.string.notification_measurement_saved_title))
+                .setContentText(context.getString(R.string.notification_measurement_saved_text, accountDisplayName))
                 .setContentIntent(contentIntent)
                 .setAutoCancel(true)
                 .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -137,6 +132,7 @@ class SuccessfulMeasurementNotificationHelper(
     private fun createChannel() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         NotificationChannelRegistry.register(
+            context,
             notificationManager,
             NotificationChannelRegistry.successfulMeasurementSaves,
         )

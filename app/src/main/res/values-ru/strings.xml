@@ -1,0 +1,325 @@
+<resources>
+    <string name="app_name">Scale Sync</string>
+    <string name="measurement_resolver_title">Неназначенное измерение</string>
+    <string name="measurement_resolver_assignment_question">Кому назначить это измерение?</string>
+    <string name="measurement_resolver_recommended">Рекомендуется</string>
+    <string name="measurement_resolver_preview">Показать без сохранения</string>
+    <string name="measurement_resolver_create_profile">Создать новый профиль</string>
+    <string name="measurement_resolver_ignore_unknown">Всегда игнорировать неизвестные показания</string>
+    <string name="measurement_resolver_delete">Удалить</string>
+    <string name="measurement_resolver_later">Решить позже</string>
+    <string name="measurement_resolver_progress">Выполняется действие с измерением</string>
+    <string name="unsaved_preview_calculation_error">Не удалось рассчитать показатели. Проверьте данные и повторите.</string>
+    <string name="unsaved_preview_step">Шаг %1$d из 3</string>
+    <string name="unsaved_preview_warning">Результат не попадёт в историю и не будет отправлен во внешние сервисы. Временные параметры используются только для этого расчёта и не изменяют профиль.</string>
+    <string name="notification_channel_scale_scanning">Сканирование весов</string>
+    <string name="notification_channel_pending_measurements">Нераспознанные измерения</string>
+    <string name="notification_channel_saved_measurements">Сохранённые измерения</string>
+    <string name="notification_channel_saved_measurements_description">Подтверждения об успешном сохранении измерений</string>
+    <plurals name="notification_pending_measurements">
+        <item quantity="one">Ожидает назначения профиля: %1$d измерение</item>
+        <item quantity="few">Ожидают назначения профиля: %1$d измерения</item>
+        <item quantity="many">Ожидают назначения профиля: %1$d измерений</item>
+        <item quantity="other">Ожидают назначения профиля: %1$d измерения</item>
+    </plurals>
+    <string name="notification_measurement_saved_title">Измерение сохранено</string>
+    <string name="notification_measurement_saved_text">Измерение успешно сохранено для %1$s</string>
+    <string name="notification_reliability_scan_text">Повышенная надёжность: весы ожидаются</string>
+    <string name="message_bluetooth_permission_denied">Без разрешения Bluetooth автоматический приём невозможен</string>
+    <string name="message_notification_permission_denied">Уведомления запрещены: ожидающие измерения будут показаны в приложении</string>
+    <string name="message_health_connect_unavailable">Health Connect недоступен на этом устройстве</string>
+    <string name="message_health_connect_management_failed">Не удалось открыть управление доступом Health Connect</string>
+    <string name="error_open_selected_file">Не удалось открыть выбранный файл</string>
+    <string name="message_backup_saved">Резервная копия сохранена</string>
+    <string name="error_backup_create">Не удалось создать резервную копию</string>
+    <string name="error_backup_read">Не удалось прочитать резервную копию</string>
+    <string name="message_backup_import_pending_recovery">Данные импортированы. Настройки будут восстановлены при следующем запуске</string>
+    <string name="message_backup_import_completed">Импорт завершён: профилей %1$d, измерений %2$d, питомцев %3$d, измерений питомцев %4$d</string>
+    <string name="message_backup_preview_stale">Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова</string>
+    <string name="error_backup_import">Не удалось импортировать резервную копию</string>
+    <string name="error_bluetooth_scan_permission">Нет разрешения Bluetooth Scan</string>
+    <string name="error_scale_not_selected">Сначала выберите весы</string>
+    <string name="error_bluetooth_disabled">Bluetooth выключен</string>
+    <string name="error_bluetooth_scan_start">Не удалось включить BLE-сканирование: %1$d</string>
+    <string name="error_bluetooth_scan">Ошибка BLE-сканирования: %1$d</string>
+    <string name="settings_hc_row_cd">Настройки Health Connect</string>
+    <string name="settings_hc_connect_cd">Подключить Health Connect</string>
+    <string name="settings_hc_open_cd">Открыть Health Connect</string>
+    <string name="settings_profile_not_configured">Профиль не настроен</string>
+    <string name="settings_profile_summary">%1$s см · %2$s · %3$s</string>
+    <string name="settings_sex_male_lower">мужской</string><string name="settings_sex_female_lower">женский</string>
+    <string name="settings_add_first_profile">Добавьте первый профиль</string><string name="settings_profiles_summary">%1$d человек · %2$d питомцев</string>
+    <string name="settings_device_not_selected">Устройство не выбрано</string><string name="settings_today">сегодня</string><string name="settings_yesterday">вчера</string>
+    <string name="settings_pet_weight_summary">%1$s кг · %2$s, %3$s</string>
+    <string name="settings_backup_replace_warning">Все локальные профили, измерения людей, ожидающие измерения, питомцы и измерения питомцев будут заменены. Это действие нельзя отменить.</string>
+    <string name="settings_hc_checking">Проверка разрешений…</string><string name="settings_connect">Подключить</string><string name="settings_hc_unsupported">Недоступно: устройство не поддерживает Health Connect</string><string name="settings_hc_update_required">Недоступно: установите или обновите Health Connect</string><string name="settings_hc_check_failed">Не удалось проверить разрешения</string><string name="settings_hc_disabled">Отключено в приложении</string><string name="settings_connect_again">Подключить снова</string><string name="settings_hc_connected">Подключено · все разрешения выданы</string><string name="settings_open">Открыть</string><string name="settings_hc_permissions_count">Разрешено %1$d из %2$d</string><string name="settings_hc_manual_fallback">%1$s · управляйте доступом вручную в Health Connect</string>
+    <string name="settings_scales_title">Весы</string><string name="settings_device">Устройство</string><string name="settings_system_integration">Системная интеграция</string><string name="settings_state">Состояние</string><string name="settings_status">Статус</string>
+    <string name="settings_save_data">Сохранить данные</string><string name="settings_export_backup">Экспортировать резервную копию</string><string name="settings_backup_contents">Профили, питомцы, измерения и настройки</string><string name="settings_backup_processing">Обработка резервной копии…</string><string name="settings_restore_data">Восстановить данные</string><string name="settings_import_merge">Импортировать и объединить</string><string name="settings_keep_existing_data">Сохранить существующие данные</string><string name="settings_replace_all_data">Полностью заменить данные</string><string name="settings_replace_data_supporting">Текущие данные будут удалены после подтверждения</string>
+    <string name="settings_background_work">Работа в фоне</string><string name="settings_battery_settings">Настройки батареи</string><string name="settings_allow_background">Разрешить фоновую работу</string><string name="settings_system_app_settings">Системные настройки приложения</string><string name="settings_permissions_notifications">Разрешения и уведомления</string><string name="settings_reliability_mode">Режим надёжности</string><string name="settings_reliability_mode_supporting">Поддерживать поиск весов в фоне</string>
+    <string name="settings_disconnect_hc">Отключить Health Connect</string><string name="settings_forget_scale">Забыть выбранные весы</string><string name="settings_management">Управление</string>
+    <string name="settings_connections_heading">Весы и синхронизация</string><string name="settings_support_heading">Данные и приложение</string><string name="settings_backup_root_supporting">Экспорт и восстановление данных</string><string name="settings_diagnostics_root_supporting">Проверка и системные параметры</string><string name="settings_version_history">История версий</string><string name="settings_version_history_supporting">Что изменилось в приложении</string>
+    <string name="settings_changelog">История изменений</string><string name="settings_changelog_supporting">Что нового в версиях приложения</string><string name="settings_open_changelog">Открыть историю изменений</string>
+    <string name="settings_confirm_replace">Подтвердите замену</string><string name="settings_import_preview">Проверка импорта</string><string name="settings_import_counts">Профили: +%1$d, пропущено %2$d, заменено %3$d. Измерения: +%4$d, пропущено %5$d, заменено %6$d. Питомцы: +%7$d, пропущено %8$d, заменено %9$d. Измерения питомцев: +%10$d, пропущено %11$d, заменено %12$d.</string><string name="settings_replace_data">Заменить данные</string><string name="settings_import">Импортировать</string><string name="settings_cancel">Отмена</string>
+    <string name="settings_danger_explanation">Эти действия прекращают будущую синхронизацию или удаляют привязку устройства.</string><string name="settings_disconnect_hc_question">Отключить Health Connect?</string><string name="settings_disconnect_hc_explanation">Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Системные разрешения отзываются отдельно.</string><string name="settings_forget_scale_question">Забыть выбранные весы?</string><string name="settings_forget_scale_explanation">Фоновое сканирование будет остановлено, а привязку весов потребуется настроить заново. Измерения не удалятся.</string><string name="settings_in_progress">Выполняется…</string><string name="settings_confirm">Подтвердить</string>
+    <string name="settings_delete_pet_question">Удалить %1$s?</string><string name="settings_delete_pet_explanation">Будет удалено измерений: %1$d. Это действие нельзя отменить.</string><string name="settings_delete">Удалить</string><string name="settings_backup_intro">Сохраните данные в JSON или импортируйте копию с предварительной проверкой.</string><string name="settings_export">Экспортировать</string><string name="settings_import_replace">Импортировать с заменой</string>
+    <string name="settings_primary_not_selected">Основной профиль не выбран</string><string name="settings_complete_profile">%1$s · заполните профиль</string><string name="settings_primary_profile">Основной: %1$s</string>
+    <string name="settings_expanded">Развёрнуто</string><string name="settings_collapsed">Свёрнуто</string><string name="settings_collapse_section">Свернуть %1$s</string><string name="settings_expand_section">Развернуть %1$s</string>
+    <string name="settings_enhanced_reliability">Повышенная надёжность</string><string name="settings_enhanced_reliability_supporting">Постоянное ожидание весов в фоне</string><string name="settings_background_help">Для фоновой работы на некоторых устройствах разрешите автозапуск, работу от батареи и уведомления.</string><string name="settings_battery">Батарея</string><string name="settings_app_settings">Настройки приложения</string>
+    <string name="settings_profile_editor_intro">Данные используются для расчёта состава тела.</string><string name="settings_height_label">Рост, см</string><string name="settings_birth_date_label">Дата рождения, ГГГГ-ММ-ДД</string><string name="settings_sex">Пол</string><string name="settings_sex_male">Мужской</string><string name="settings_sex_female">Женский</string><string name="settings_save_profile">Сохранить профиль</string>
+    <string name="settings_raw_value">%1$s</string>
+    <string name="settings_scale_permission_missing">Нет разрешения на поиск Bluetooth-устройств</string><string name="settings_bluetooth_off">Bluetooth выключен</string><string name="settings_open_settings">Открыть настройки</string><string name="settings_scale_searching">Идёт поиск весов…</string><string name="settings_searching">Поиск…</string><string name="settings_retry">Повторить</string><string name="settings_scale_not_chosen">Весы ещё не выбраны</string><string name="settings_find_scale">Найти весы</string><string name="settings_scale_identity">%1$s · %2$s</string><string name="settings_choose_another">Выбрать другие</string>
+    <string name="settings_combined_status">%1$s · %2$s</string>
+    <string name="settings_no_value">—</string>
+    <plurals name="settings_people_count"><item quantity="one">%1$d человек</item><item quantity="few">%1$d человека</item><item quantity="many">%1$d человек</item><item quantity="other">%1$d человека</item></plurals>
+    <plurals name="settings_pet_count"><item quantity="one">%1$d питомец</item><item quantity="few">%1$d питомца</item><item quantity="many">%1$d питомцев</item><item quantity="other">%1$d питомца</item></plurals>
+    <string name="settings_default_scale_name">Mi Body Composition Scale 2</string>
+    <string name="profile_selector_title">Профиль</string>
+    <string name="profile_selector_description">Выбор профиля</string>
+    <string name="profile_kind_human">человек</string>
+    <string name="profile_kind_pet">питомец</string>
+    <string name="profile_fallback_selected_removed">Выбранный профиль удалён. Показан основной профиль.</string>
+    <string name="profile_fallback_selected_removed_primary_unavailable">Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль.</string>
+    <string name="profile_fallback_primary_unavailable">Основной профиль недоступен. Выберите профиль.</string>
+    <string name="profile_fallback_no_profiles">Создайте профиль в настройках.</string>
+    <string name="home_pet_add">Добавить питомца</string>
+    <string name="home_pet_expand">Развернуть список питомцев</string>
+    <string name="home_pet_collapse">Свернуть список питомцев</string>
+    <string name="state_expanded">Развёрнуто</string>
+    <string name="state_collapsed">Свёрнуто</string>
+    <string name="pet_profile_history_a11y">История измерений питомца %1$s</string>
+    <string name="pet_profile_weigh">Взвесить питомца</string>
+    <string name="pet_profile_weigh_a11y">Взвесить питомца %1$s</string>
+    <string name="pet_profile_not_found">Питомец не найден</string>
+    <string name="pet_profile_measurements">Измерения</string>
+    <string name="pet_profile_add_weight_a11y">Добавить вес питомца</string>
+    <string name="pet_profile_no_measurements">Нет измерений за выбранный период</string>
+    <string name="pet_profile_show_remaining">Показать остальные</string>
+    <string name="pet_profile_show_remaining_a11y">Показать остальные измерения</string>
+    <string name="pet_weight_editor_a11y">Изменить вес питомца %1$s</string>
+    <string name="pet_weight_editor_back_a11y">Вернуться к измерениям</string>
+    <string name="pet_weight_editor_title">Изменить вес</string>
+    <string name="pet_weight_label">Вес, кг</string>
+    <string name="pet_weight_validation">Введите положительный вес от 0,001 кг, максимум 3 знака после запятой</string>
+    <string name="pet_weight_date_a11y">Дата и время измерения: %1$s. Не изменяется</string>
+    <string name="pet_weight_date">Дата и время</string>
+    <string name="pet_weight_date_unchanged">Дата и время измерения не изменяются</string>
+    <string name="pet_weight_unavailable">Измерение недоступно. Вернитесь к измерениям</string>
+    <string name="pet_weight_save_error">Не удалось сохранить изменения. Попробуйте ещё раз</string>
+    <string name="pet_measurement_delete_error">Не удалось удалить измерение</string>
+    <string name="pet_history_load_error">Не удалось загрузить историю</string>
+    <string name="pet_profile_summary_title">Данные питомца</string>
+    <string name="pet_profile_summary_empty">Дополнительные данные не заполнены</string>
+    <string name="pet_profile_summary_a11y">Данные питомца. %1$s</string>
+    <string name="pet_profile_summary_item_a11y">%1$s: %2$s</string>
+    <string name="pet_profile_edit_a11y">Изменить данные питомца %1$s</string>
+    <string name="pet_profile_photo_a11y">Фото питомца %1$s</string>
+    <string name="pet_profile_sex">Пол</string>
+    <string name="pet_profile_sex_male">Самец</string>
+    <string name="pet_profile_sex_female">Самка</string>
+    <string name="pet_profile_breed">Порода</string>
+    <string name="pet_profile_birth_date">Дата рождения</string>
+    <string name="pet_profile_age">Возраст</string>
+    <string name="pet_profile_weight_category">Весовая категория</string>
+    <string name="pet_profile_age_exact">%1$d %2$s</string>
+    <string name="pet_profile_age_range">%1$d–%2$d %3$s</string>
+    <plurals name="pet_profile_age_days"><item quantity="one">день</item><item quantity="few">дня</item><item quantity="many">дней</item><item quantity="other">дня</item></plurals>
+    <plurals name="pet_profile_age_weeks"><item quantity="one">неделя</item><item quantity="few">недели</item><item quantity="many">недель</item><item quantity="other">недели</item></plurals>
+    <plurals name="pet_profile_age_months"><item quantity="one">месяц</item><item quantity="few">месяца</item><item quantity="many">месяцев</item><item quantity="other">месяца</item></plurals>
+    <plurals name="pet_profile_age_years"><item quantity="one">год</item><item quantity="few">года</item><item quantity="many">лет</item><item quantity="other">года</item></plurals>
+    <string name="pet_measurement_delete_title">Удалить измерение питомца?</string>
+    <string name="pet_measurement_delete_message">Измерение будет удалено без возможности восстановления.</string>
+    <string name="pet_measurement_edit_a11y">Изменить измерение %1$s, %2$s</string>
+    <string name="pet_measurement_delete_a11y">Удалить измерение %1$s, %2$s</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_edit">Изменить</string>
+    <string name="action_retry">Повторить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="state_saving">Сохранение</string>
+    <string name="state_saving_ellipsis">Сохранение…</string>
+    <string name="state_deleting">Удаление выполняется</string>
+    <string name="state_deleting_ellipsis">Удаление…</string>
+    <string name="chart_range_all">Всё</string>
+    <string name="chart_range_7_days">7 дней</string>
+    <string name="chart_range_30_days">30 дней</string>
+    <string name="chart_range_3_months">3 месяца</string>
+    <string name="chart_range_year">Год</string>
+    <string name="chart_range_dates">Даты</string>
+    <string name="pet_breed_reference_title">Ориентиры породы</string>
+    <string name="pet_breed_reference_edit_profile">Изменить профиль</string>
+    <string name="pet_breed_reference_for_age">Для возраста: %1$s</string>
+    <string name="pet_breed_reference_type">Тип: %1$s</string>
+    <string name="pet_breed_reference_companion">Дополнительный ориентир для %1$s</string>
+    <string name="pet_breed_reference_younger_data">Более младшие данные: %1$s</string>
+    <string name="pet_breed_reference_additional_data">Дополнительные данные: %1$s</string>
+    <string name="reference_source_and_limits">Источник и ограничения %1$s</string>
+    <string name="reference_labeled_value">%1$s: %2$s</string>
+    <string name="reference_source">Источник: %1$s</string>
+    <string name="reference_documented_gap">Документированный пропуск: %1$s</string>
+    <string name="reference_sample">Выборка: %1$s</string>
+    <string name="reference_limitation">Ограничение: %1$s</string>
+    <string name="reference_age_scope">Возрастная область: %1$s</string>
+    <string name="reference_sex">Пол: %1$s</string>
+    <string name="reference_value">Значение: %1$s</string>
+    <string name="reference_open_source_named">Открыть источник: %1$s</string>
+    <string name="reference_open_error">Не удалось открыть источник «%1$s».</string>
+    <string name="reference_organization_or_publication">Организация или публикация: %1$s</string>
+    <string name="reference_year">Год: %1$d</string>
+    <string name="reference_statement_type">Тип утверждения: %1$s</string>
+    <string name="reference_geography">География: %1$s</string>
+    <string name="reference_method">Метод: %1$s</string>
+    <string name="reference_page_or_table">Страница или таблица: %1$s</string>
+    <string name="reference_how_to_read_data">Как читать справочные данные</string>
+    <string name="reference_how_to_read">Как читать эталон</string>
+    <string name="reference_license">Лицензия: %1$s</string>
+    <string name="reference_source_type">Тип источника: %1$s</string>
+    <string name="reference_accessed">Дата доступа: %1$s</string>
+    <string name="reference_open_publication">Открыть основную публикацию</string>
+    <string name="reference_open_source">Открыть источник</string>
+    <string name="reference_center_calculation">Расчёт центра: арифметическая середина опубликованного диапазона; это не наблюдаемая медиана.</string>
+    <string name="reference_population_explanation">Светло-зелёная зона показывает P9–P91, тонкая линия — P50.</string>
+    <string name="reference_breed_curve_explanation">Светло-зелёная зона показывает модельный породный диапазон, тонкая линия — центр модельного диапазона. Модель построена по общему возрастному профилю кошек того же пола и взрослому диапазону породы. Она не является наблюдаемой кривой роста этой породы или медицинской нормой.</string>
+    <string name="reference_observation_explanation">Вертикальный отрезок показывает среднее ± одно стандартное отклонение, точка — средний вес в дату рождения.</string>
+    <string name="reference_bounds_explanation">Внешние линии показывают общий диапазон, две внутренние — медианный диапазон.</string>
+    <string name="reference_population_disclaimer">Сведения справочные и не оценивают здоровье питомца. Обсудите изменения веса с ветеринаром.</string>
+    <string name="reference_disclaimer">Эталон помогает следить за динамикой, но не ставит диагноз. Обсудите заметные отклонения или изменения веса с ветеринаром.</string>
+    <string name="pet_chart_single_measurement">Для линии нужно минимум два измерения; отдельное измерение показано точкой.</string>
+    <string name="pet_chart_no_data">Нет данных за выбранный период</string>
+    <string name="pet_reference_age_days">Возраст: %1$s дн.</string>
+    <string name="pet_reference_age_days_approximate">Возраст: примерно %1$s дн.</string>
+    <string name="pet_reference_weight_data">Справочные данные о весе</string>
+    <string name="pet_reference_breed_observation">Наблюдение по породе: среднее ± одно стандартное отклонение</string>
+    <string name="pet_reference_breed_basis">Эталон по породе</string>
+    <string name="pet_reference_weight_category_basis">Эталон по весовой категории</string>
+    <string name="pet_reference_source">Источник: %1$s</string>
+    <string name="pet_reference_accessibility">%1$s. %2$s. Источник: %3$s. Лицензия: %4$s.</string>
+    <string name="pet_reference_authority_breed">официальная породная организация</string>
+    <string name="pet_reference_authority_professional">профессиональный справочник</string>
+    <string name="pet_reference_authority_research">научная публикация</string>
+    <string name="pet_reference_authority_open">открытый справочник</string>
+    <string name="pet_reference_provenance_model">Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая.</string>
+    <string name="pet_reference_provenance_birth">Для выбранной породы опубликовано только точечное наблюдение веса при рождении.</string>
+    <string name="pet_reference_provenance_population">Для выбранной породы нет полноценного возрастного диапазона; показан общий диапазон для кошек.</string>
+    <string name="pet_reference_unavailable_sex">Эталон недоступен: укажите пол питомца.</string>
+    <string name="pet_reference_unavailable_birth_date">Эталон недоступен: укажите дату рождения питомца.</string>
+    <string name="pet_reference_unavailable_breed">Эталон недоступен: укажите породу кошки.</string>
+    <string name="pet_reference_unavailable_dog_weight">Эталон недоступен: укажите ожидаемую весовую категорию взрослой собаки.</string>
+    <string name="pet_reference_unavailable_species">Эталон недоступен: вид питомца не указан.</string>
+    <string name="pet_reference_unavailable_unknown_breed">Эталон недоступен: порода %1$s не найдена.</string>
+    <string name="pet_reference_unavailable_breed_mismatch">Эталон недоступен: порода %1$s не соответствует виду питомца.</string>
+    <string name="pet_reference_unavailable_unsupported_breed">Для выбранной породы ориентиры сейчас недоступны.</string>
+    <string name="pet_reference_unavailable_intact_unknown">Эталон недоступен: для домашней короткошёрстной кошки нужны подтверждённые данные о стерилизации.</string>
+    <string name="pet_reference_unavailable_not_intact">Эталон недоступен: опубликованные данные относятся только к нестерилизованным животным.</string>
+    <string name="pet_reference_unavailable_invalid_birth">Эталон недоступен: дата рождения позже выбранного периода.</string>
+    <string name="pet_reference_unavailable_profile">Эталон недоступен: профиль %1$s не содержит воспроизводимых числовых данных.</string>
+    <string name="pet_reference_unavailable_gap">Эталон недоступен: в опубликованных данных профиля %1$s есть пробел для этого возраста.</string>
+    <string name="pet_reference_unavailable_weight_max">Эталон недоступен: вес %1$s кг выше поддерживаемого источником максимума.</string>
+    <string name="pet_reference_unavailable_age_range">Эталон недоступен: возраст вне опубликованного диапазона %1$s–%2$s дней.</string>
+    <string name="pet_breed_reference_prompt_sex">Укажите пол питомца, чтобы показать породный ориентир.</string>
+    <string name="pet_breed_reference_prompt_birth">Укажите дату рождения, чтобы показать ориентир для возраста.</string>
+    <string name="pet_breed_reference_fix_birth">Исправьте дату рождения, чтобы показать ориентир для возраста.</string>
+    <string name="pet_breed_reference_unavailable">Для выбранной породы ориентиры сейчас недоступны.</string>
+    <string name="pet_breed_reference_age_gap">Для выбранного возраста опубликованные данные отсутствуют.</string>
+    <string name="pet_breed_reference_temporary">Ориентиры породы временно недоступны.</string>
+    <string name="pet_history_weight_metric">Вес питомца</string>
+    <string name="pet_weight_unit_kg">кг</string>
+    <string name="pet_weight_chart_title">График веса питомца</string>
+    <string name="pet_weight_chart_actual">Фактический вес</string>
+    <string name="pet_weight_chart_no_measurements">Измерений нет.</string>
+    <string name="pet_weight_chart_measurements">Измерений: %1$d.</string>
+    <string name="pet_weight_chart_date">Дата: %1$s</string>
+    <string name="pet_weight_chart_no_selectable_points">Нет доступных точек для выбора</string>
+    <string name="pet_weight_chart_select_previous">Выбрать предыдущую точку</string>
+    <string name="pet_weight_chart_select_next">Выбрать следующую точку</string>
+    <string name="pet_weight_chart_reference_disclaimer">Сведения справочные и не оценивают здоровье питомца.</string>
+    <string name="pet_weight_chart_diagnosis_disclaimer">Эталон не ставит диагноз.</string>
+    <string name="pet_breed_reference_no_numeric_value">Числовое значение не опубликовано</string>
+    <string name="pet_breed_reference_other_breed">Для другой породы ориентиров пока нет.</string>
+    <string name="pet_breed_reference_no_applicable_value">Для выбранной породы нет применимого ориентира веса.</string>
+    <string name="pet_weight_chart_legend_actual">● Фактический вес</string>
+    <string name="pet_weight_chart_legend_line">— %1$s</string>
+    <string name="pet_weight_chart_legend_breed_range">▰ Светло-зелёная зона — диапазон породы</string>
+    <string name="pet_weight_chart_legend_typical_range">▰ Типичный диапазон веса</string>
+    <string name="pet_weight_chart_legend_p50">— P50</string>
+    <string name="pet_weight_chart_legend_modelled_breed_range">▰ Светло-зелёная зона — модельный диапазон породы</string>
+    <string name="pet_weight_chart_legend_modelled_center">— Центр модельного диапазона</string>
+    <string name="pet_weight_chart_legend_birth_range">↕ Диапазон наблюдения породы на дату рождения</string>
+    <string name="pet_weight_chart_legend_birth_mean">● Средний вес породы на дату рождения</string>
+    <string name="pet_weight_chart_legend_general_range">▰ Общий диапазон P9–P91 (не для конкретной породы)</string>
+    <string name="pet_weight_chart_legend_general_p50">— Общая P50 (не для конкретной породы)</string>
+    <string name="pet_weight_chart_description_breed_curve">Фактический вес отмечен кругами; модельный породный диапазон показан светло-зелёной зоной, а его центр — линией.</string>
+    <string name="pet_weight_chart_description_population_fallback">Фактический вес отмечен кругами; общий диапазон не для конкретной породы показан зоной P9–P91 и линией P50.</string>
+    <string name="pet_weight_chart_description_birth_observation">Наблюдение породы на дату рождения показано вертикальным интервалом и точкой среднего веса.</string>
+    <string name="pet_weight_chart_description_population">Фактический вес отмечен кругами; типичный диапазон показан зоной P9–P91 и линией P50.</string>
+    <string name="pet_weight_chart_description_boundaries">Фактический вес отмечен кругами; ориентир показан четырьмя граничными линиями.</string>
+    <string name="pet_weight_chart_displayed">Показано: %1$s.</string>
+    <string name="pet_weight_chart_lower_boundary">Нижняя граница</string>
+    <string name="pet_weight_chart_upper_boundary">Верхняя граница</string>
+    <string name="pet_weight_chart_center">Медиана или среднее</string>
+    <string name="pet_weight_chart_model_lower">Нижняя граница модели</string>
+    <string name="pet_weight_chart_p9_lower">Нижняя граница P9</string>
+    <string name="pet_weight_chart_reference_lower">Нижняя граница ориентира</string>
+    <string name="pet_weight_chart_model_center">Центр модели породы</string>
+    <string name="pet_weight_chart_p50_median">Медиана P50</string>
+    <string name="pet_weight_chart_lower_median">Нижняя медианная граница</string>
+    <string name="pet_weight_chart_upper_median">Верхняя медианная граница</string>
+    <string name="pet_weight_chart_model_upper">Верхняя граница модели</string>
+    <string name="pet_weight_chart_p91_upper">Верхняя граница P91</string>
+    <string name="pet_weight_chart_reference_upper">Верхняя граница ориентира</string>
+    <string name="pet_weight_chart_marker_value">%1$s: %2$s кг</string>
+    <string name="pet_breed_reference_partial_date">Дата рождения указана неполно. Возможный возраст: %1$s–%2$s. Показан ориентир для %3$s.</string>
+    <string name="pet_breed_reference_accessibility">Ориентиры породы %1$s. Возраст: %2$s. %3$s. Тип источника: %4$s. Это не медицинская норма. %5$s</string>
+    <string name="pet_breed_reference_accessibility_companion">Дополнительный ориентир для %1$s: %2$s. Тип источника: %3$s.</string>
+    <string name="pet_breed_reference_chart_accessibility">%1$s. Возраст источника: %2$s. %3$s. Тип источника: %4$s.</string>
+    <string name="pet_breed_reference_sample_value">%1$d %2$s</string>
+    <string name="pet_breed_reference_adult_dog">взрослая собака</string>
+    <string name="pet_breed_reference_age_months">%1$d мес.</string><string name="pet_breed_reference_age_days">%1$d дн.</string>
+    <string name="pet_breed_reference_value_interval">%1$s: %2$s–%3$s кг; центр: %4$s кг</string><string name="pet_breed_reference_value_single">%1$s: %2$s кг ± %3$s кг</string><string name="pet_breed_reference_value_boundary">%1$s: %2$s кг</string>
+    <string name="pet_breed_stat_range">Диапазон</string><string name="pet_breed_stat_quantiles">Квантили</string><string name="pet_breed_stat_mean">Среднее</string><string name="pet_breed_stat_median">Медиана</string>
+    <string name="pet_breed_stat_approximate_mean">Приблизительное среднее</string><string name="pet_breed_stat_approximate_range">Приблизительный диапазон</string><string name="pet_breed_stat_mean_sd">Среднее и стандартное отклонение</string>
+    <string name="pet_breed_stat_ideal">Идеальный вес</string><string name="pet_breed_stat_ideal_range">Диапазон идеального веса</string><string name="pet_breed_stat_standard">Стандартное значение</string>
+    <string name="pet_breed_stat_minimum">Минимальный вес</string><string name="pet_breed_stat_maximum">Максимальный вес</string><string name="pet_breed_stat_gap">Документированный пропуск</string>
+    <string name="pet_breed_source_international">официальный международный стандарт</string><string name="pet_breed_source_national">официальный национальный стандарт</string><string name="pet_breed_source_club">породная организация</string>
+    <string name="pet_breed_source_professional">профессиональный справочник</string><string name="pet_breed_source_observational">наблюдаемая выборка</string><string name="pet_breed_source_modelled">модельные данные</string>
+    <string name="pet_breed_sex_male">Самец</string><string name="pet_breed_sex_female">Самка</string><string name="pet_breed_sex_combined">Оба пола</string>
+    <string name="common_got_it">Понятно</string>
+    <string name="summary_profiles_loading">Загрузка профилей…</string><string name="summary_choose_profile">Выберите профиль</string><string name="summary_profile_a11y">Выбор профиля: %1$s</string>
+    <string name="manual_origin">Введено вручную</string><string name="manually_edited">Изменено вручную</string>
+    <string name="changelog_latest">Последние изменения (%1$d)</string><string name="changelog_previous">Предыдущие версии</string><string name="changelog_expand_previous">Развернуть предыдущие версии</string><string name="changelog_collapse_previous">Свернуть предыдущие версии</string><string name="changelog_version">Версия %1$s</string><string name="changelog_issue">Задача #%1$d</string>
+    <string name="photo_crop_title">Настройка фото</string><string name="photo_crop_hint">Перетащите фото и измените масштаб</string><string name="photo_crop_error">Не удалось открыть фото</string><string name="photo_crop_viewport">Область кадрирования. Перетаскивайте фото двумя пальцами или одним пальцем</string><string name="photo_crop_state">Масштаб %1$d процентов; позиция %2$d, %3$d</string><string name="photo_crop_zoom">Масштаб %1$d%%</string><string name="photo_crop_zoom_out">Уменьшить фото</string><string name="photo_crop_zoom_control">Масштаб фото</string><string name="photo_crop_zoom_in">Увеличить фото</string><string name="photo_crop_cancel">Отмена</string><string name="photo_crop_saving">Сохранение…</string><string name="photo_crop_done">Готово</string>
+    <string name="a11y_loading_history">Загрузка истории</string><string name="a11y_expand_measurement">Развернуть измерение</string><string name="a11y_collapse_measurement">Свернуть измерение</string><string name="a11y_close">Закрыть</string><string name="a11y_add_weight">Добавить вес</string>
+    <string name="pet_species_cat">Кошка</string><string name="pet_species_dog">Собака</string><string name="pet_species_unspecified">Вид не указан</string>
+    <string name="pet_sex_male">Самец</string><string name="pet_sex_female">Самка</string><string name="pet_sex_unspecified">Не указан</string><string name="pet_breed_unavailable">Недоступна: %1$s</string><string name="pet_breed_other">Другая порода</string>
+    <string name="birth_precision_year">Год</string><string name="birth_precision_month">Месяц</string><string name="birth_precision_day">День</string>
+    <string name="birth_date_with_precision">%1$s (%2$s)</string>
+    <string name="dog_weight_i">I — &lt; 6,5 кг</string><string name="dog_weight_ii">II — 6,5–9 кг</string><string name="dog_weight_iii">III — 9–15 кг</string><string name="dog_weight_iv">IV — 15–30 кг</string><string name="dog_weight_v">V — 30–40 кг</string>
+    <string name="metric_weight">Вес</string><string name="metric_impedance">Импеданс</string><string name="metric_bmi">ИМТ</string><string name="metric_body_fat">Жир</string><string name="metric_body_fat_mass">Масса жира</string><string name="metric_water">Вода</string><string name="metric_water_mass">Масса воды</string><string name="metric_muscle_mass">Мышечная масса</string><string name="metric_skeletal_muscle_mass">Скелетные мышцы</string><string name="metric_bone_mass">Костная масса</string><string name="metric_protein">Белок</string><string name="metric_protein_mass">Масса белка</string><string name="metric_visceral_fat_level">Уровень висцерального жира</string><string name="metric_basal_metabolic_rate">Базальный обмен</string><string name="metric_metabolic_age">Метаболический возраст</string><string name="metric_lean_body_mass">Безжировая масса</string>
+    <string name="unit_kg">кг</string><string name="unit_ohm">Ом</string><string name="unit_kg_per_square_meter">кг/м²</string><string name="unit_percent">%</string><string name="unit_level">уровень</string><string name="unit_kcal_per_day">ккал/сут</string><string name="unit_years">лет</string>
+    <string name="unit_percentage_point">п.п.</string>
+    <string name="message_pending_discarded">Измерение удалено</string>
+    <string name="action_undo">Отменить</string>
+    <string name="error_scale_unavailable">Весы недоступны</string>
+    <string name="error_scale_refresh_detail">Не удалось обновить данные с весов: %1$s</string>
+    <string name="message_pending_restored">Измерение восстановлено</string>
+    <string name="message_pending_already_restored">Измерение уже восстановлено</string>
+    <string name="message_pending_restore_finalized">Измерение уже назначено и не может быть восстановлено</string>
+    <string name="error_pending_restore_conflict">Не удалось восстановить измерение: запись уже существует</string>
+    <string name="error_pending_restore_failure_detail">Не удалось восстановить измерение: %1$s</string>
+    <string name="message_profile_saved">Профиль сохранён</string>
+    <string name="error_profile_format">Проверьте рост и дату рождения (ГГГГ-ММ-ДД)</string>
+    <string name="error_profile_age">Возраст для расчёта должен быть от 10 до 100 лет</string>
+    <string name="sync_state_local_only">Только на устройстве</string>
+    <string name="sync_state_error">Ошибка синхронизации</string>
+    <string name="sync_state_pending">Ожидает отправки</string>
+    <string name="sync_state_synced">Синхронизировано</string>
+    <string name="sync_message_send_failed">Не удалось отправить данные</string>
+    <string name="sync_message_pending">Отправка ожидается</string>
+    <string name="sync_message_sent">Данные отправлены</string>
+    <string name="health_connect_sync_unavailable">Health Connect недоступен</string>
+    <string name="health_connect_sync_check_permissions">Проверка разрешений Health Connect</string>
+    <string name="health_connect_sync_write_permission_missing">Нет разрешения записи Health Connect</string>
+    <string name="health_connect_sync_write">Запись Health Connect</string>
+    <string name="health_connect_sync_rejected_detail">%1$s отклонена: %2$s</string>
+    <string name="health_connect_sync_retryable_detail">%1$s временно не выполнена: %2$s</string>
+</resources>

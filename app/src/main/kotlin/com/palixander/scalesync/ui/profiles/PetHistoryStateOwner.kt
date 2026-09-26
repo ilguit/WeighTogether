@@ -1,5 +1,9 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
+
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
@@ -71,7 +75,7 @@ internal data class PetHistorySelection(
 private data class PetHistoryInteraction(
     val petId: PetId,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
-    val actionErrorMessage: String? = null,
+    val actionErrorMessage: UiText? = null,
     val scrollToMeasurementId: String? = null,
     val weightEditor: PetWeightEditorState? = null,
 )
@@ -194,7 +198,7 @@ class PetHistoryStateOwner(
                                 isSaving = false,
                                 isUnavailable = error is PetMeasurementNotFoundException,
                                 saveError = if (error is PetMeasurementNotFoundException) null
-                                else "Не удалось сохранить изменения. Попробуйте ещё раз",
+                                else uiText(R.string.pet_weight_save_error),
                             ),
                         )
                     }
@@ -265,7 +269,8 @@ class PetHistoryStateOwner(
                     if (current.petId == operation.petId && current.deleteConfirmation == operation) {
                         current.copy(
                             deleteConfirmation = operation.copy(isDeleting = false),
-                            actionErrorMessage = error.message ?: "Не удалось удалить измерение",
+                            actionErrorMessage = error.message?.let(UiText::Raw)
+                                ?: uiText(R.string.pet_measurement_delete_error),
                         )
                     } else {
                         current
@@ -382,7 +387,10 @@ class PetHistoryStateOwner(
             },
         )
     }.catch { error ->
-        emit(current.baseState().copy(isLoading = false, errorMessage = error.message ?: "Не удалось загрузить историю"))
+        emit(current.baseState().copy(
+            isLoading = false,
+            errorMessage = error.message?.let(UiText::Raw) ?: uiText(R.string.pet_history_load_error),
+        ))
     }
 
     private fun PetHistorySelection.baseState(displayRange: ChartDateRange = range) = PetHistoryUiState(

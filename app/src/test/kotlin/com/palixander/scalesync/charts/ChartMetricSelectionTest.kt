@@ -12,13 +12,13 @@ import org.junit.Test
 class ChartMetricSelectionTest {
     @Test
     fun `all sixteen metrics expose stable metadata`() {
-        val options = chartMetricOptions()
+        val options = chartMetricOptions(::testMetricString)
 
         assertEquals(16, options.size)
         assertEquals(16, options.map(ChartMetricOption::key).distinct().size)
         assertEquals(MeasurementMetric.entries.map(MeasurementMetric::name), options.map(ChartMetricOption::key))
         assertTrue(options.all { it.displayName.isNotBlank() && it.decimalPlaces >= 0 })
-        assertTrue(options.filter { it.unit == "%" }.all { it.deltaUnit == PercentagePointUnit })
+        assertTrue(options.filter { it.unit == "%" }.all { it.deltaUnit == "percentage-points" })
         assertTrue(options.filter { it.unit != "%" }.all { it.deltaUnit == it.unit })
     }
 
@@ -115,6 +115,12 @@ class ChartMetricSelectionTest {
         assertEquals(listOf(100_000L, 200_000L), weightPoints.map(ChartPoint::xEpochMillis))
         assertEquals(listOf(20.0), fatPoints.map(ChartPoint::value))
     }
+}
+
+private fun testMetricString(id: Int): String = when (id) {
+    com.palixander.scalesync.R.string.unit_percent -> "%"
+    com.palixander.scalesync.R.string.unit_percentage_point -> "percentage-points"
+    else -> "resource-$id"
 }
 
 private fun chartMeasurement(id: String, measuredAt: Long) = MeasurementEntity(

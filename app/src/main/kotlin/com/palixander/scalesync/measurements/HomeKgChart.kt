@@ -34,6 +34,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartViewport
@@ -48,6 +50,8 @@ import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
@@ -70,7 +74,8 @@ import kotlin.math.abs
 
 internal data class HomeKgChartMarkerEntry(
     val key: String,
-    val label: String,
+    val label: UiText,
+    val unit: UiText,
     val valueKg: Double,
     val decimalPlaces: Int,
     val colorArgb: Int,
@@ -105,6 +110,7 @@ internal fun homeKgChartMarkerSelection(
             HomeKgChartMarkerEntry(
                 key = series.key,
                 label = series.label,
+                unit = requireNotNull(series.unit),
                 valueKg = point.valueKg,
                 decimalPlaces = series.decimalPlaces,
                 colorArgb = series.color.argb,
@@ -121,6 +127,7 @@ internal fun formatHomeKgChartMarker(
     selection: HomeKgChartMarkerSelection,
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
+    resolveText: (UiText) -> String,
 ): String = buildString {
     append(
         HomeMarkerDateTimeFormatter.format(
@@ -134,10 +141,11 @@ internal fun formatHomeKgChartMarker(
             isGroupingUsed = false
         }
         append('\n')
-        append(entry.label)
+        append(resolveText(entry.label))
         append(": ")
         append(if (entry.key == HomeKgChartMetric.WEIGHT.key) formatWeight(entry.valueKg, locale) else number.format(entry.valueKg))
-        append(" кг")
+        append(' ')
+        append(resolveText(entry.unit))
     }
 }
 
@@ -160,9 +168,9 @@ internal fun HomeKgChart(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Динамика состава тела", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(com.palixander.scalesync.R.string.chart_body_composition_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Последние 14 дней · кг",
+                    stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -170,17 +178,17 @@ internal fun HomeKgChart(
 
             when {
                 !hasHistoryData -> HomeChartMessage(
-                    text = "Нет данных для графика.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_no_data),
                     tag = "home-kg-chart-no-data",
                 )
 
                 state.activeSeriesKeys.isEmpty() -> HomeChartMessage(
-                    text = "Выберите показатели в списке, чтобы показать график.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_select_metrics_hint),
                     tag = "home-kg-chart-no-active",
                 )
 
                 plottedSeries.isEmpty() -> HomeChartMessage(
-                    text = "Для выбранных показателей пока нет данных.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_selected_no_data),
                     tag = "home-kg-chart-selected-no-data",
                 )
 
@@ -188,15 +196,23 @@ internal fun HomeKgChart(
             }
 
             var expanded by rememberSaveable { mutableStateOf(false) }
+            val expansionStateDescription = stringResource(
+                if (expanded) com.palixander.scalesync.R.string.state_expanded
+                else com.palixander.scalesync.R.string.state_collapsed,
+            )
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
-                    .semantics { stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто" }
+                    .semantics { stateDescription = expansionStateDescription }
                     .testTag("home-kg-series-toggle"),
             ) {
                 Text(
-                    "Показатели · ${state.series.count { it.key in state.activeSeriesKeys }} из ${state.series.size}",
+                    stringResource(
+                        com.palixander.scalesync.R.string.chart_metrics_count,
+                        state.series.count { it.key in state.activeSeriesKeys },
+                        state.series.size,
+                    ),
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
@@ -254,7 +270,7 @@ private fun HomeKgSeriesItem(
     ) {
         Checkbox(checked = selected, onCheckedChange = null)
         Box(Modifier.size(10.dp).background(Color(series.color.argb), CircleShape))
-        Text(series.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(series.label.resolve(LocalContext.current.resources), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -264,6 +280,10 @@ private fun HomeKgVicoChart(
     plottedSeries: List<HomeKgChartSeries>,
     zoneId: ZoneId,
 ) {
+    val chartContentDescription = stringResource(
+        com.palixander.scalesync.R.string.chart_home_content_description,
+    )
+    val resources = LocalContext.current.resources
     val modelProducer = remember { CartesianChartModelProducer() }
     val points = remember(plottedSeries) {
         plottedSeries.flatMap { series ->
@@ -298,7 +318,7 @@ private fun HomeKgVicoChart(
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             homeKgChartMarkerSelection(state, target.x.toLong())
-                ?.let { formatHomeKgChartMarker(it, zoneId) }
+                ?.let { formatHomeKgChartMarker(it, zoneId, resolveText = { text -> text.resolve(resources) }) }
                 .orEmpty()
         }
     }
@@ -325,7 +345,10 @@ private fun HomeKgVicoChart(
         chart = rememberCartesianChart(
             rememberChartLineLayer(lines = lines, rangeProvider = rangeProvider),
             startAxis = rememberChartStartAxis(
-                CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
+                CartesianValueFormatter.decimal(
+                    decimalCount = 2,
+                    suffix = " ${com.palixander.scalesync.ui.text.uiText(com.palixander.scalesync.R.string.unit_kg).resolve(resources)}",
+                ),
             ),
             bottomAxis = rememberChartBottomAxis(bottomFormatter),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),
@@ -335,7 +358,7 @@ private fun HomeKgVicoChart(
             .fillMaxWidth()
             .height(230.dp)
             .semantics {
-                contentDescription = "График динамики состава тела за последние 14 дней"
+                contentDescription = chartContentDescription
                 chartScrollOffset = scrollState.value
             }
             .testTag("home-kg-vico-chart"),

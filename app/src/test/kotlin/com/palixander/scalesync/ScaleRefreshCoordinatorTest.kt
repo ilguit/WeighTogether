@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -9,7 +10,7 @@ class ScaleRefreshCoordinatorTest {
     private val refreshingStates = mutableListOf<Boolean>()
     private var scannerStops = 0
     private var automaticScanRestores = 0
-    private val messages = mutableListOf<String>()
+    private val messages = mutableListOf<UiText>()
     private var timeoutCancellations = 0
     private val coordinator = ScaleRefreshCoordinator(
         setRefreshing = refreshingStates::add,
@@ -56,7 +57,7 @@ class ScaleRefreshCoordinatorTest {
         assertEquals("AA:BB:CC:DD:EE:FF", start.address)
         assertTrue(start.address.isNotEmpty())
         assertEquals(listOf(true), refreshingStates)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
 
         coordinator.complete(start.operation)
     }
@@ -90,7 +91,7 @@ class ScaleRefreshCoordinatorTest {
         assertEquals(listOf(true), refreshingStates)
         assertEquals(0, scannerStops)
         assertEquals(0, automaticScanRestores)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
     }
 
     @Test
@@ -102,7 +103,7 @@ class ScaleRefreshCoordinatorTest {
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
     }
 
     @Test
@@ -110,11 +111,11 @@ class ScaleRefreshCoordinatorTest {
         val operation = start()
         coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
-        coordinator.fail(operation, "Ошибка BLE-сканирования: 2")
+        coordinator.fail(operation, UiText.Raw("Ошибка BLE-сканирования: 2"))
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(listOf("Ошибка BLE-сканирования: 2"), messages)
+        assertEquals(listOf(UiText.Raw("Ошибка BLE-сканирования: 2")), messages)
     }
 
     @Test
@@ -126,7 +127,7 @@ class ScaleRefreshCoordinatorTest {
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(listOf(SCALE_REFRESH_UNAVAILABLE_MESSAGE), messages)
+        assertEquals(listOf(UiText.Resource(R.string.error_scale_unavailable)), messages)
     }
 
     @Test
@@ -138,19 +139,19 @@ class ScaleRefreshCoordinatorTest {
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
     }
 
     @Test
     fun `start error finishes before timer and late attachment is cancelled`() {
         val operation = start()
-        coordinator.fail(operation, "Bluetooth выключен")
+        coordinator.fail(operation, UiText.Raw("Bluetooth выключен"))
 
         coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(listOf("Bluetooth выключен"), messages)
+        assertEquals(listOf(UiText.Raw("Bluetooth выключен")), messages)
     }
 
     @Test
@@ -159,12 +160,12 @@ class ScaleRefreshCoordinatorTest {
         coordinator.attachTimeout(operation) { timeoutCancellations++ }
 
         coordinator.complete(operation)
-        coordinator.fail(operation, "late error")
+        coordinator.fail(operation, UiText.Raw("late error"))
         coordinator.timeout(operation)
 
         assertFinished()
         assertEquals(1, timeoutCancellations)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
     }
 
     @Test
@@ -174,14 +175,14 @@ class ScaleRefreshCoordinatorTest {
         val replacement = start()
 
         coordinator.attachTimeout(prior) { timeoutCancellations++ }
-        coordinator.fail(prior, "stale error")
+        coordinator.fail(prior, UiText.Raw("stale error"))
         coordinator.timeout(prior)
 
         assertEquals(listOf(true, false, true), refreshingStates)
         assertEquals(1, scannerStops)
         assertEquals(1, automaticScanRestores)
         assertEquals(1, timeoutCancellations)
-        assertEquals(emptyList<String>(), messages)
+        assertEquals(emptyList<UiText>(), messages)
 
         coordinator.complete(replacement)
 
@@ -196,7 +197,7 @@ class ScaleRefreshCoordinatorTest {
     private fun assertRejectedWithoutSideEffects(address: String?) {
         val initialMessageCount = messages.size
         assertEquals(
-            ScaleRefreshPreflightResult.Rejected(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE),
+            ScaleRefreshPreflightResult.Rejected(UiText.Resource(R.string.error_scale_not_selected)),
             scaleRefreshPreflight(address),
         )
         var timeoutCreations = 0
@@ -212,8 +213,7 @@ class ScaleRefreshCoordinatorTest {
 
         assertNull(start)
         assertEquals(initialMessageCount + 1, messages.size)
-        assertEquals(SCALE_REFRESH_SCALE_REQUIRED_MESSAGE, messages.last())
-        assertEquals("Сначала выберите весы в настройках", messages.last())
+        assertEquals(UiText.Resource(R.string.error_scale_not_selected), messages.last())
         assertEquals(emptyList<Boolean>(), refreshingStates)
         assertEquals(0, timeoutCreations)
         assertEquals(0, scannerStops)

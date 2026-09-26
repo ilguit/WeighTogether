@@ -14,6 +14,7 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -157,9 +158,9 @@ class PetWeightReferenceChartTest {
         )
         val reference = PetHistoryWeightReference.Available(
             basis = ReferenceBasis.BREED, provenance = WeightReferenceProvenance.BREED_CURVE,
-            segments = listOf(exact, model), approximate = false, ageLabel = "Возраст",
-            basisLabel = "Эталон", sourceLabel = "Источник", citation = model.citation,
-            license = model.license, constraints = emptyList(), accessibilityLabel = "Эталон",
+            segments = listOf(exact, model), approximate = false, ageLabel = UiText.Raw("Возраст"),
+            basisLabel = UiText.Raw("Эталон"), sourceLabel = UiText.Raw("Источник"), citation = model.citation,
+            license = model.license, constraints = emptyList(), accessibilityLabel = UiText.Raw("Эталон"),
         )
 
         assertEquals(1, exactObservationGlyphs(reference, ZoneOffset.UTC).size)
@@ -339,13 +340,13 @@ class PetWeightReferenceChartTest {
                 },
             ),
             approximate = false,
-            ageLabel = "Возраст",
-            basisLabel = "Популяция",
-            sourceLabel = "Источник",
+            ageLabel = UiText.Raw("Возраст"),
+            basisLabel = UiText.Raw("Популяция"),
+            sourceLabel = UiText.Raw("Источник"),
             citation = "test",
             license = "CC",
             constraints = emptyList(),
-            accessibilityLabel = "test population reference",
+            accessibilityLabel = UiText.Raw("test population reference"),
             isFittedPopulationPercentiles = true,
         )
         val expectedX = dates.map { it.atStartOfDay(zoneId).toInstant().toEpochMilli() }
@@ -444,7 +445,7 @@ class PetWeightReferenceChartTest {
 
     @Test fun `chart description announces displayed corgi timeline without adult companion`() {
         val reference = available(emptyList()).copy(
-            accessibilityLabel = "Ориентир щенка корги. Дополнительный ориентир: взрослая собака 9–12 кг",
+            accessibilityLabel = UiText.Raw("Ориентир щенка корги. Дополнительный ориентир: взрослая собака 9–12 кг"),
         )
         val displayed = listOf(
             displayedSeries(PetWeightDisplayedSeriesKind.FACTUAL, PetWeightDisplayedSeriesStyle.FACTUAL, "Фактический вес"),
@@ -1000,7 +1001,7 @@ class PetWeightReferenceChartTest {
                 emptyList(),
                 PetHistoryWeightReference.Unavailable(
                     com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingDogAdultWeight,
-                    "missing",
+                    UiText.Raw("missing"),
                 ),
                 breed,
             ),
@@ -1356,13 +1357,13 @@ class PetWeightReferenceChartTest {
             )
         },
         approximate = false,
-        ageLabel = "Возраст: 1 год",
-        basisLabel = "Эталон по породе",
-        sourceLabel = "Источник: test",
+        ageLabel = UiText.Raw("Возраст: 1 год"),
+        basisLabel = UiText.Raw("Эталон по породе"),
+        sourceLabel = UiText.Raw("Источник: test"),
         citation = "test",
         license = "CC",
         constraints = listOf("test constraint"),
-        accessibilityLabel = "test reference",
+        accessibilityLabel = UiText.Raw("test reference"),
         isFittedPopulationPercentiles = fittedPercentiles,
     )
 

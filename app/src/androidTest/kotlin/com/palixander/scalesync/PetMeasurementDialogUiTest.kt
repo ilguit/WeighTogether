@@ -27,6 +27,8 @@ import com.palixander.scalesync.domain.PetMeasurement
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
 import org.junit.Assert.assertEquals
 import org.junit.Rule
@@ -155,12 +157,16 @@ class PetMeasurementDialogUiTest {
         composeRule.runOnIdle {
             state.value = PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE)
         }
-        composeRule.onNodeWithText(PET_MEASUREMENT_TIMEOUT_MESSAGE).assertIsDisplayed()
+        composeRule.onNodeWithText(
+            PET_MEASUREMENT_TIMEOUT_MESSAGE.resolve(
+                InstrumentationRegistry.getInstrumentation().targetContext.resources,
+            ),
+        ).assertIsDisplayed()
         composeRule.onNodeWithTag(PetMeasurementTestTags.BackToSelection).performClick()
         composeRule.runOnIdle { assertEquals(1, reopened) }
         composeRule.onNodeWithText("Выберите питомца").assertIsDisplayed()
 
-        composeRule.runOnIdle { state.value = PetMeasurementUiState.Error("Весы недоступны") }
+        composeRule.runOnIdle { state.value = PetMeasurementUiState.Error(UiText.Raw("Весы недоступны")) }
         composeRule.onNodeWithTag(PetMeasurementTestTags.Cancel).performClick()
         composeRule.runOnIdle { assertEquals(2, cancelled) }
 

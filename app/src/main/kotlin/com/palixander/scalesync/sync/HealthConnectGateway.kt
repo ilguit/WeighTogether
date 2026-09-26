@@ -16,6 +16,7 @@ import androidx.health.connect.client.units.Mass
 import androidx.health.connect.client.units.Percentage
 import androidx.health.connect.client.units.Power
 import com.palixander.scalesync.HealthConnectAvailability
+import com.palixander.scalesync.R
 import java.time.Instant
 import java.time.ZoneId
 
@@ -34,28 +35,32 @@ class HealthConnectGateway(private val context: Context) {
     suspend fun hasPermissions(): Boolean = getGrantedPermissions().containsAll(permissions)
 
     suspend fun write(payload: MeasurementSyncPayload): SyncResult {
-        if (!isAvailable()) return SyncResult.Blocked("Health Connect недоступен")
+        if (!isAvailable()) return SyncResult.Blocked(context.getString(R.string.health_connect_sync_unavailable))
         val permissionsGranted = runCatching {
             getGrantedPermissions().containsAll(requiredHealthConnectPermissions(payload))
         }.getOrElse {
-            return it.toSyncFailure("Проверка разрешений Health Connect")
+            return it.toSyncFailure(R.string.health_connect_sync_check_permissions)
         }
-        if (!permissionsGranted) return SyncResult.Blocked("Нет разрешения записи Health Connect")
+        if (!permissionsGranted) return SyncResult.Blocked(context.getString(R.string.health_connect_sync_write_permission_missing))
         return try {
             client().insertRecords(buildHealthConnectRecords(payload))
             SyncResult.Success
         } catch (error: Throwable) {
-            error.toSyncFailure("Запись Health Connect")
+            error.toSyncFailure(R.string.health_connect_sync_write)
         }
     }
 
     private fun client(): HealthConnectClient = HealthConnectClient.getOrCreate(context)
 
-    private fun Throwable.toSyncFailure(operation: String): SyncResult = when (this) {
+    private fun Throwable.toSyncFailure(operationRes: Int): SyncResult {
+        val detail = message?.takeIf(String::isNotBlank) ?: javaClass.simpleName
+        val operation = context.getString(operationRes)
+        return when (this) {
         is SecurityException,
         is IllegalArgumentException,
-        -> SyncResult.Blocked("$operation отклонена: ${message ?: javaClass.simpleName}")
-        else -> SyncResult.Retryable("$operation временно не выполнена: ${message ?: javaClass.simpleName}")
+        -> SyncResult.Blocked(context.getString(R.string.health_connect_sync_rejected_detail, operation, detail))
+        else -> SyncResult.Retryable(context.getString(R.string.health_connect_sync_retryable_detail, operation, detail))
+        }
     }
 }
 

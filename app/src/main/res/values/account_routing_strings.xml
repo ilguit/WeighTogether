@@ -1,0 +1,99 @@
+<resources>
+    <string name="manual_weight_back">Back to history</string>
+    <string name="manual_weight_title">Add weight</string>
+    <string name="manual_weight_owner_unavailable">Profile unavailable. Return to history</string>
+    <string name="manual_weight_label">Weight, kg</string>
+    <string name="manual_weight_date">Date: %1$s</string>
+    <string name="manual_weight_date_cd">Measurement date: %1$s</string>
+    <string name="manual_weight_time">Time: %1$s</string>
+    <string name="manual_weight_time_cd">Measurement time: %1$s</string>
+    <string name="manual_weight_saving_cd">Saving weight</string>
+    <string name="manual_weight_duplicate_title">Similar measurement</string>
+    <string name="manual_weight_duplicate_message">A similar measurement already exists: %1$s kg, %2$s %3$s. Add another?</string>
+    <string name="manual_weight_add_another">Add another</string>
+    <string name="manual_weight_invalid_weight">Enter a positive weight with no more than three decimal places</string>
+    <string name="manual_weight_invalid_local_time">This local time does not exist. Choose another time</string>
+    <string name="manual_weight_future_time">Date and time cannot be in the future</string>
+    <string name="manual_weight_check_fields">Check the weight, date, and time</string>
+    <string name="manual_weight_save_failed">Could not save weight. Try again</string>
+    <string name="action_select">Select</string>
+    <string name="account_selector_label">Profile</string>
+    <string name="account_selector_cd">Select a profile for the data</string>
+    <string name="account_selector_primary_suffix"> · primary</string>
+    <string name="account_selector_removed">The selected profile was deleted. The primary profile is shown.</string>
+    <string name="account_selector_primary_unavailable">The primary profile is unavailable. Select a profile.</string>
+    <string name="account_selector_no_accounts">Create a profile to save and view measurements.</string>
+    <string name="weight_recognition_title">Measurement recognition</string>
+    <string name="weight_recognition_description">A larger tolerance increases the chance of automatic assignment and an incorrect match.</string>
+    <string name="weight_delta_label">Weight tolerance, kg</string>
+    <string name="weight_delta_saving_cd">Saving weight tolerance</string>
+    <string name="weight_ignore_unknown">Ignore unknown readings</string>
+    <string name="weight_ignore_unknown_description">Only for new measurements after enabling</string>
+    <string name="weight_delta_required">Enter a weight delta</string>
+    <string name="weight_delta_number">Enter a number using a decimal point or comma</string>
+    <string name="weight_delta_range">Allowed value: 0.1–50.0 kg</string>
+    <string name="measurement_resolver_pending_count">Awaiting a decision: %1$d</string>
+    <string name="action_open">Open</string>
+    <string name="measurement_weight_kg">%1$s kg</string>
+    <string name="account_primary_profile">Primary profile</string>
+    <string name="unsaved_preview_calculate_metrics">Calculate metrics</string>
+    <string name="action_calculate">Calculate</string>
+    <string name="unsaved_preview_title">Measurement preview</string>
+    <string name="unsaved_preview_badge">Not saved</string>
+    <string name="unsaved_preview_impedance">Impedance: %1$d ohm</string>
+    <string name="unsaved_preview_time">Time: %1$s</string>
+    <string name="unsaved_preview_one_time_profile">One-time profile</string>
+    <string name="profile_height_label">Height, cm</string>
+    <string name="sex_male">Male</string>
+    <string name="sex_female">Female</string>
+    <string name="unsaved_preview_result_only">Result for preview only</string>
+    <string name="account_error_name_length">Enter a name from 1 to 50 characters</string>
+    <string name="account_error_duplicate_name">A profile with this name already exists</string>
+    <string name="account_error_height">Allowed height: 100–230 cm</string>
+    <string name="account_error_birth_date">Enter a valid date of birth</string>
+    <string name="account_error_sex">Select sex</string>
+    <string name="account_profiles_title">Profiles</string><string name="account_profiles_empty">No profiles yet.</string><string name="account_add_profile">Add profile</string>
+    <string name="account_pets_title">Pets</string><string name="account_pets_empty">No pets yet.</string><string name="account_add_pet">Add pet</string><string name="account_pet">Pet</string>
+    <string name="account_recalculate_title">Recalculate history?</string><string name="account_recalculate_message">New profile data may change body composition in previous measurements for “%1$s”.</string>
+    <string name="account_save_recalculate">Save and recalculate</string><string name="account_save_without_recalculate">Save without recalculating</string>
+    <string name="account_man">Man</string><string name="account_woman">Woman</string><string name="account_profile">Profile</string><string name="account_make_primary">Make primary</string><string name="account_primary">Primary</string>
+    <string name="account_new_profile">New profile</string><string name="account_edit_profile">Edit profile</string><string name="account_gallery">Gallery</string><string name="account_camera">Camera</string><string name="account_remove_photo">Remove photo</string><string name="account_name">Name</string><string name="account_sex">Sex</string>
+    <string name="account_male_choice">♂ Man</string><string name="account_female_choice">♀ Woman</string>
+    <string name="account_discard_title">Discard changes?</string><string name="account_discard_message">Unsaved profile changes will be lost.</string><string name="account_discard">Discard changes</string><string name="account_continue_editing">Continue editing</string>
+    <string name="account_photo_unreadable">Could not read the image</string><string name="account_photo_invalid">The selected file is not an image</string><string name="account_photo_processing_failed">Could not process the image</string>
+    <string name="unsaved_preview_birth_date_error">Date of birth must not be later than the measurement</string>
+    <string name="error_save_setting">Could not save the setting</string><string name="error_open_pending_measurement">Could not open the pending measurement</string><string name="error_assign_measurement">Could not assign the measurement</string><string name="error_enable_scanning">Could not enable scanning</string><string name="error_start_scanning">Could not start scanning</string><string name="error_perform_action">Could not perform the action</string><string name="error_change_profile">Could not change the profile</string>
+    <string name="account_save_error_cd">Save error: %1$s</string>
+    <string name="account_save_recalculate_cd">Save and recalculate history</string>
+    <string name="account_save_without_recalculate_cd">Save without recalculating history</string>
+    <string name="account_cancel_update_cd">Cancel profile update</string>
+    <string name="account_more_actions">More actions for %1$s</string>
+    <string name="account_back_to_profiles">Back to profiles</string>
+    <string name="account_profile_photo">Profile photo</string>
+    <string name="account_make_primary_title">Make primary</string>
+    <string name="account_primary_sync_message">External synchronization will only be available for “%1$s”.</string>
+    <string name="account_primary_existing_data_message">Data already sent for the previous primary profile will not be deleted.</string>
+    <string name="action_continue">Continue</string>
+    <string name="account_delete_title">Delete profile “%1$s”?</string>
+    <string name="account_delete_message">The profile’s local history will be permanently deleted. Records in external services will remain.</string>
+    <string name="account_replacement_title">New primary profile</string>
+    <string name="account_delete_last_primary_message">After deleting the last profile, there will be no primary profile.</string>
+    <string name="account_primary_history_title">New primary profile history</string>
+    <string name="account_sync_future_only">New measurements only</string>
+    <string name="account_sync_eligible_history">Synchronize eligible history</string>
+    <string name="account_profile_summary">%1$s cm · %2$s · %3$s</string>
+    <string name="account_profile_incomplete">Complete the profile</string>
+    <string name="message_account_created">Profile “%1$s” created</string>
+    <string name="message_account_created_assigned">Profile “%1$s” created and measurement assigned</string>
+    <string name="message_account_name_conflict">A profile with this name already exists</string>
+    <string name="message_measurement_already_processed">The measurement has already been processed</string>
+    <string name="message_measurement_already_assigned">The measurement has already been assigned</string>
+    <string name="message_account_saved">Profile “%1$s” saved</string>
+    <string name="message_primary_account_changed">Primary profile changed</string>
+    <string name="message_account_deleted">Profile and its local history deleted</string>
+    <string name="message_primary_account_deleted">Primary profile and its local history deleted</string>
+    <string name="message_weight_delta_saved">Recognition tolerance saved</string>
+    <string name="error_save_weight_delta">Could not save the recognition tolerance</string>
+    <string name="message_complete_selected_profile">Complete the selected profile first</string>
+    <string name="message_account_already_deleted">The profile has already been deleted</string>
+</resources>

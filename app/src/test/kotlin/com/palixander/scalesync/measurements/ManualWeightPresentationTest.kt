@@ -4,7 +4,9 @@ import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartMetricOptions
 import com.palixander.scalesync.charts.formatChartCurrentValue
 import com.palixander.scalesync.charts.formatChartMarkerText
+import com.palixander.scalesync.charts.resolveStrings
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
+import com.palixander.scalesync.ui.text.UiText
 import java.time.ZoneOffset
 import java.util.Locale
 import org.junit.Assert.*
@@ -52,19 +54,20 @@ class ManualWeightPresentationTest {
 
     @Test
     fun gramPrecisionIsVisibleInHumanPetAndHomeChartMarkers() {
-        val human = chartMetricOptions().first { it.key == "WEIGHT_KG" }
+        val human = chartMetricOptions(::testMetricString).first { it.key == "WEIGHT_KG" }
+        val pet = PetWeightChartMetric.resolveStrings(::testMetricString)
         for (weight in listOf(4.121, 4.124, 4.125)) {
             val expected = weight.toString().replace('.', ',')
             assertEquals(expected, formatWeight(weight, Locale.forLanguageTag("ru")))
-            for (metric in listOf(human, PetWeightChartMetric)) {
+            for (metric in listOf(human, pet)) {
                 assertEquals("$expected кг", formatChartCurrentValue(weight, metric, Locale.forLanguageTag("ru")))
                 assertTrue(formatChartMarkerText(ChartPoint(0, weight), metric, ZoneOffset.UTC, Locale.forLanguageTag("ru")).endsWith("$expected кг"))
             }
             val selection = HomeKgChartMarkerSelection(0, listOf(
-                HomeKgChartMarkerEntry(HomeKgChartMetric.WEIGHT.key, "Вес", weight, 2, 0),
-                HomeKgChartMarkerEntry(HomeKgChartMetric.BODY_FAT_MASS.key, "Жир", 1.2, 2, 0),
+                HomeKgChartMarkerEntry(HomeKgChartMetric.WEIGHT.key, UiText.Raw("Вес"), UiText.Raw("кг"), weight, 2, 0),
+                HomeKgChartMarkerEntry(HomeKgChartMetric.BODY_FAT_MASS.key, UiText.Raw("Жир"), UiText.Raw("кг"), 1.2, 2, 0),
             ))
-            val text = formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US)
+            val text = formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US) { (it as UiText.Raw).value }
             assertTrue(text.contains("Вес: $weight кг"))
             assertTrue(text.contains("Жир: 1.20 кг"))
         }
@@ -76,7 +79,15 @@ class ManualWeightPresentationTest {
         assertEquals("4.12", formatWeight(4.120, Locale.US))
         assertEquals("0.001", formatWeight(0.001, Locale.US))
         assertEquals("—", formatChartCurrentValue(null, PetWeightChartMetric, Locale.US))
-        val fat = chartMetricOptions().first { it.key == "BODY_FAT_PERCENT" }
+        val fat = chartMetricOptions(::testMetricString).first { it.key == "BODY_FAT_PERCENT" }
         assertEquals("1.2 %", formatChartCurrentValue(1.2, fat, Locale.US))
     }
+}
+
+private fun testMetricString(id: Int): String = when (id) {
+    com.palixander.scalesync.R.string.unit_kg -> "кг"
+    com.palixander.scalesync.R.string.pet_weight_unit_kg -> "кг"
+    com.palixander.scalesync.R.string.pet_history_weight_metric -> "Вес питомца"
+    com.palixander.scalesync.R.string.unit_percent -> "%"
+    else -> "resource-$id"
 }

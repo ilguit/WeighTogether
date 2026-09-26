@@ -80,7 +80,9 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -96,6 +98,8 @@ import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ReferencePalette
 import com.palixander.scalesync.ui.theme.ReferenceTone
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.reference.ExpandedMetricReference
 import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
@@ -110,7 +114,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 private const val EditorWarning =
-    "Изменение сохранится в истории. Доступные направления синхронизации будут поставлены в очередь."
+    "The change will be saved in history. Available sync destinations will be queued."
 private const val MissingMeasurementValue = "—"
 
 private val historyAdditionalFields = MeasurementField.entries.filterNot { field ->
@@ -306,8 +310,8 @@ private fun PendingQueueDestination(
     ) {
         item {
             NestedScreenHeader(
-                title = "Не назначено",
-                backContentDescription = "Назад к последнему измерению",
+                title = stringResource(R.string.measurement_unassigned),
+                backContentDescription = stringResource(R.string.measurement_back_to_latest),
                 onBack = onBack,
             )
         }
@@ -323,7 +327,7 @@ private fun PendingQueueDestination(
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag("pending-clear-all"),
                 ) {
-                    Text("Очистить всё")
+                    Text(stringResource(R.string.action_clear_all))
                 }
             }
             items(
@@ -352,16 +356,19 @@ private fun ClearPendingDialog(
         modifier = Modifier.testTag("pending-clear-dialog"),
         onDismissRequest = { if (!confirmation.isClearing) onDismiss() },
         icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
-        title = { Text("Очистить неназначенные измерения?") },
+        title = { Text(stringResource(R.string.measurement_clear_pending_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "Будут удалены все неназначенные измерения (${confirmation.count}) без " +
-                        "возможности восстановления.",
+                    pluralStringResource(
+                        R.plurals.measurement_clear_pending_message,
+                        confirmation.count,
+                        confirmation.count,
+                    ),
                 )
                 confirmation.errorMessage?.let { error ->
                     Text(
-                        text = error,
+                        text = error.resolve(LocalContext.current.resources),
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier.testTag("pending-clear-error"),
                     )
@@ -380,15 +387,16 @@ private fun ClearPendingDialog(
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (confirmation.isClearing) "Очистка…" else "Очистить")
+                Text(if (confirmation.isClearing) stringResource(R.string.state_clearing) else stringResource(R.string.action_clear))
             }
         },
         dismissButton = {
+            val summaryExpansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
             TextButton(
                 onClick = onDismiss,
                 enabled = !confirmation.isClearing,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text("Отмена") }
+            ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -417,13 +425,15 @@ private fun PendingMeasurementCard(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 PendingMeasurementValue(
-                    label = "Вес",
-                    value = "${formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg)} кг",
+                    label = stringResource(R.string.metric_weight),
+                    value = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg), stringResource(R.string.unit_kg)),
                     modifier = Modifier.weight(1f),
                 )
                 PendingMeasurementValue(
-                    label = "Импеданс",
-                    value = pending.impedanceOhm?.let { "$it Ом" } ?: MissingMeasurementValue,
+                    label = stringResource(R.string.metric_impedance),
+                    value = pending.impedanceOhm?.let {
+                        stringResource(R.string.measurement_value_with_unit, it, stringResource(R.string.unit_ohm_symbol))
+                    } ?: MissingMeasurementValue,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -441,7 +451,7 @@ private fun PendingMeasurementCard(
                         .testTag("pending-assign-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Text("Назначить")
+                    Text(stringResource(R.string.action_assign))
                 }
                 OutlinedButton(
                     onClick = onPreview,
@@ -452,7 +462,7 @@ private fun PendingMeasurementCard(
                         .testTag("pending-preview-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Text("Показать без сохранения")
+                    Text(stringResource(R.string.action_preview_without_saving))
                 }
                 TextButton(
                     onClick = onDelete,
@@ -470,7 +480,7 @@ private fun PendingMeasurementCard(
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
-                    Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                    Text(stringResource(R.string.action_delete), modifier = Modifier.padding(start = 5.dp))
                 }
             }
         }
@@ -485,7 +495,7 @@ private fun ProcessingStatus(modifier: Modifier = Modifier) {
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(
-            text = "Обрабатывается",
+            text = stringResource(R.string.state_processing),
             color = MaterialTheme.colorScheme.secondary,
             fontWeight = FontWeight.Medium,
             style = MaterialTheme.typography.labelLarge,
@@ -525,9 +535,9 @@ private fun EmptyPendingQueueCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle("Нет неназначенных измерений")
+            HuaweiSectionTitle(stringResource(R.string.measurement_no_pending))
             Text(
-                "Все измерения обработаны.",
+                stringResource(R.string.measurement_all_processed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -559,7 +569,7 @@ private fun MeasurementSummaryScreen(
             item(key = "summary-header") { summaryHeader() }
             when {
                 state.isLoading && state.summary == null -> item {
-                    LoadingState("Загрузка последнего измерения")
+                    LoadingState(stringResource(R.string.measurement_loading_latest))
                 }
                 state.hasNoLatestMeasurement -> item { NoLatestMeasurementState() }
                 state.summary != null -> {
@@ -646,14 +656,14 @@ private fun MeasurementSummaryCard(
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
                             .testTag("summary-history"),
                         colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
-                    ) { Text("История →") }
+                    ) { Text(stringResource(R.string.measurement_history_action)) }
                 },
                 actions = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         if (summary.latest.hasSyncPresentation) {
                             SummaryStatusAction(
                                 icon = summary.latest.sync.state.icon,
-                                contentDescription = summary.latest.sync.label,
+                                contentDescription = summary.latest.sync.label.resolve(LocalContext.current.resources),
                                 onClick = onSyncRequested,
                                 tone = summary.latest.sync.state.tone,
                                 enabled = summary.latest.canSync,
@@ -663,7 +673,7 @@ private fun MeasurementSummaryCard(
                         if (summary.latest.hasFinalActions) Box {
                             HuaweiIconButton(
                                 icon = HuaweiIcons.More,
-                                contentDescription = "Действия с последним измерением",
+                                contentDescription = stringResource(R.string.measurement_latest_actions),
                                 onClick = { menuExpanded = true },
                                 enabled = summary.latest.canEdit || summary.latest.canDelete,
                                 modifier = Modifier.testTag("summary-more-actions"),
@@ -675,7 +685,7 @@ private fun MeasurementSummaryCard(
                                 shape = MaterialTheme.shapes.medium,
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Изменить") },
+                                    text = { Text(stringResource(R.string.action_edit)) },
                                     leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
@@ -684,7 +694,7 @@ private fun MeasurementSummaryCard(
                                     enabled = summary.latest.canEdit,
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                                    text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
                                     modifier = Modifier.testTag("summary-delete-measurement"),
                                     leadingIcon = {
                                         Icon(
@@ -734,7 +744,7 @@ private fun MeasurementSummaryCard(
                                 letterSpacing = (-1).sp,
                             )
                             Text(
-                                text = " кг",
+                                text = stringResource(R.string.measurement_prefixed_unit, stringResource(R.string.unit_kg)),
                                 modifier = Modifier.align(Alignment.Bottom).padding(bottom = 4.dp),
                                 color = HuaweiColors.Secondary,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -746,7 +756,7 @@ private fun MeasurementSummaryCard(
             }
             if (summary.latest.isWeightOnly) {
                 Text(
-                    text = "Только вес",
+                    text = stringResource(R.string.measurement_weight_only),
                     modifier = Modifier.testTag("summary-weight-only-label"),
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.labelLarge,
@@ -782,11 +792,11 @@ private fun MeasurementSummaryCard(
                     .fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
                     .semantics {
-                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                        stateDescription = summaryExpansionState
                     }
                     .testTag("summary-expand-metrics"),
             ) {
-                Text(if (expanded) "Скрыть показатели" else "Все показатели")
+                Text(if (expanded) stringResource(R.string.action_hide_metrics) else stringResource(R.string.action_all_metrics))
                 Icon(
                     imageVector = HuaweiIcons.ChevronDown,
                     contentDescription = null,
@@ -859,7 +869,7 @@ private fun MetricDetail(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = metric.label,
+            text = metric.label.resolve(LocalContext.current.resources),
             color = HuaweiColors.Secondary,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -949,7 +959,7 @@ private fun CompactSummaryReferenceMetric(
             )
             if (presentation.visualNumber != null) {
                 Text(
-                    text = " ${presentation.visibleUnit}",
+                    text = stringResource(R.string.measurement_prefixed_unit, presentation.visibleUnit),
                     modifier = Modifier
                         .align(Alignment.Bottom)
                         .then(if (primary) Modifier.padding(bottom = 5.dp) else Modifier)
@@ -1105,19 +1115,20 @@ private fun MeasurementHistoryScreen(
     ) {
         item {
             NestedScreenHeader(
-                title = "История",
+                title = stringResource(R.string.measurement_history),
                 onAdd = callbacks.onAddWeightRequested,
                 addEnabled = state.accountSelector.selectedAccountId != null,
-                backContentDescription = "Назад к последнему измерению",
+                backContentDescription = stringResource(R.string.measurement_back_to_latest),
                 onBack = callbacks.onBackRequested,
             )
         }
         if (state.isLoading) {
             item {
+                val loadingHistoryDescription = stringResource(R.string.a11y_loading_history)
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { contentDescription = "Загрузка истории" },
+                        .semantics { contentDescription = loadingHistoryDescription },
                 )
             }
         }
@@ -1150,6 +1161,8 @@ internal fun MeasurementHistoryCard(
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
+    val toggleLabel = stringResource(if (expanded) R.string.a11y_collapse_measurement else R.string.a11y_expand_measurement)
+    val expansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1168,10 +1181,10 @@ internal fun MeasurementHistoryCard(
                         .heightIn(min = 72.dp)
                         .clickable(
                             role = Role.Button,
-                            onClickLabel = if (expanded) "Свернуть измерение" else "Развернуть измерение",
+                            onClickLabel = toggleLabel,
                         ) { onExpandedChange(!expanded) }
                         .semantics {
-                            stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                            stateDescription = expansionState
                         }
                         .testTag("history-toggle-${item.id}")
                         .padding(start = 16.dp, top = 14.dp, bottom = 14.dp),
@@ -1201,7 +1214,7 @@ internal fun MeasurementHistoryCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} кг",
+                                    text = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg), stringResource(R.string.unit_kg)),
                                     modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
@@ -1211,7 +1224,7 @@ internal fun MeasurementHistoryCard(
                         }
                         if (item.isWeightOnly) {
                             Text(
-                                text = "Только вес",
+                                text = stringResource(R.string.measurement_weight_only),
                                 modifier = Modifier.testTag("history-weight-only-label-${item.id}"),
                                 color = MaterialTheme.colorScheme.secondary,
                                 style = MaterialTheme.typography.labelMedium,
@@ -1240,7 +1253,7 @@ internal fun MeasurementHistoryCard(
                 if (item.hasSyncPresentation) {
                     HuaweiStatusAction(
                         icon = item.sync.state.icon,
-                        contentDescription = item.sync.label,
+                        contentDescription = item.sync.label.resolve(LocalContext.current.resources),
                         onClick = onSyncRequested,
                         tone = item.sync.state.tone,
                         enabled = item.canSync,
@@ -1276,7 +1289,7 @@ internal fun MeasurementHistoryCard(
                     if (!item.isWeightOnly && !item.isManuallyEdited &&
                         item.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL
                     ) {
-                        Text("Введено вручную")
+                            Text(stringResource(R.string.measurement_entered_manually))
                     }
                     if (item.referenceMetrics.isNotEmpty() && !item.isPreliminary) {
                         MeasurementReferenceGroups(
@@ -1322,7 +1335,7 @@ internal fun MeasurementHistoryCard(
                             modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
                         ) {
                             Icon(HuaweiIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Изменить", modifier = Modifier.padding(start = 5.dp))
+                            Text(stringResource(R.string.action_edit), modifier = Modifier.padding(start = 5.dp))
                         }
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
@@ -1333,7 +1346,7 @@ internal fun MeasurementHistoryCard(
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {
                             Icon(HuaweiIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                            Text(stringResource(R.string.action_delete), modifier = Modifier.padding(start = 5.dp))
                         }
                     }
                     if (item.canRetry) {
@@ -1346,7 +1359,7 @@ internal fun MeasurementHistoryCard(
                             shape = MaterialTheme.shapes.medium,
                         ) {
                             Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Повторить отправку", modifier = Modifier.padding(start = 7.dp))
+                            Text(stringResource(R.string.action_retry_sync), modifier = Modifier.padding(start = 7.dp))
                         }
                     }
                 }
@@ -1366,9 +1379,9 @@ private fun EmptyHistoryCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle("Пока нет измерений")
+            HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
             Text(
-                "Стабильные измерения с весов появятся здесь.",
+                stringResource(R.string.measurement_empty_history_help),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -1404,19 +1417,19 @@ private fun MeasurementSyncSheet(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "Синхронизация",
+                        text = stringResource(R.string.measurement_sync),
                         modifier = Modifier.semantics { heading() },
                         style = MaterialTheme.typography.titleLarge,
                     )
                     Text(
-                        text = item.sync.label,
+                        text = item.sync.label.resolve(LocalContext.current.resources),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
                 HuaweiIconButton(
                     icon = HuaweiIcons.Close,
-                    contentDescription = "Закрыть",
+                    contentDescription = stringResource(R.string.a11y_close),
                     onClick = onDismiss,
                 )
             }
@@ -1426,7 +1439,7 @@ private fun MeasurementSyncSheet(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     containerColor = HuaweiColors.SurfaceInfo,
                 ) {
-                    Text("Внешние сервисы для этой сборки отключены.")
+                    Text(stringResource(R.string.measurement_external_disabled))
                 }
             } else {
                 item.sync.directions.forEach { direction ->
@@ -1447,7 +1460,7 @@ private fun MeasurementSyncSheet(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Повторить", modifier = Modifier.padding(start = 7.dp))
+                    Text(stringResource(R.string.action_retry), modifier = Modifier.padding(start = 7.dp))
                 }
             }
         }
@@ -1461,20 +1474,21 @@ private fun SyncDirectionRow(direction: MeasurementSyncDirectionPresentation) {
         verticalAlignment = Alignment.Top,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        HuaweiRowIcon(icon = direction.state.icon, contentDescription = direction.state.label)
+        val resources = LocalContext.current.resources
+        HuaweiRowIcon(icon = direction.state.icon, contentDescription = direction.state.label.resolve(resources))
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            Text(direction.label, style = MaterialTheme.typography.titleSmall)
+            Text(direction.label.resolve(resources), style = MaterialTheme.typography.titleSmall)
             Text(
-                direction.state.label,
+                direction.state.label.resolve(resources),
                 color = direction.state.contentColor,
                 style = MaterialTheme.typography.labelMedium,
             )
-            if (direction.message.isNotBlank()) {
+            direction.message?.let { message ->
                 Text(
-                    direction.message,
+                    message.resolve(resources),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -1520,9 +1534,9 @@ private fun MeasurementEditorScreen(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
-                        Text("Сохранение…", modifier = Modifier.padding(start = 8.dp))
+                        Text(stringResource(R.string.state_saving), modifier = Modifier.padding(start = 8.dp))
                     } else {
-                        Text("Сохранить изменения")
+                        Text(stringResource(R.string.action_save_changes))
                     }
                 }
             }
@@ -1542,8 +1556,8 @@ private fun MeasurementEditorScreen(
         ) {
             item {
                 NestedScreenHeader(
-                    title = "Изменить измерение",
-                    backContentDescription = "Отменить редактирование",
+                    title = stringResource(R.string.measurement_edit_title),
+                    backContentDescription = stringResource(R.string.measurement_cancel_edit),
                     onBack = callbacks.onEditorDismissed,
                     enabled = !editor.isSaving,
                 )
@@ -1556,15 +1570,14 @@ private fun MeasurementEditorScreen(
                     )
                     if (editor.isWeightOnly) {
                         Text(
-                            text = "Только вес",
+                            text = stringResource(R.string.measurement_weight_only),
                             modifier = Modifier.testTag("editor-weight-only-label"),
                             color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
                     Text(
-                        "Дата, устройство и исходные данные не изменяются. " +
-                            "Производные значения не пересчитываются.",
+                        stringResource(R.string.measurement_immutable_fields_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1606,7 +1619,7 @@ private fun EditorSection(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Column {
-            HuaweiSectionTitle(section.title, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
+            HuaweiSectionTitle(section.title.resolve(LocalContext.current.resources), modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
             section.fields.forEachIndexed { index, field ->
                 if (index > 0) HorizontalDivider()
                 EditorFieldRow(
@@ -1625,7 +1638,7 @@ private fun EditorSection(
 private fun EditorFieldRow(
     field: MeasurementField,
     value: String,
-    error: String?,
+    error: UiText?,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
@@ -1634,7 +1647,7 @@ private fun EditorFieldRow(
     ) {
         if (maxWidth < 300.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(field.label, style = MaterialTheme.typography.bodyMedium)
+                Text(field.label.resolve(LocalContext.current.resources), style = MaterialTheme.typography.bodyMedium)
                 EditorFieldInput(
                     field = field,
                     value = value,
@@ -1651,7 +1664,7 @@ private fun EditorFieldRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    field.label,
+                    field.label.resolve(LocalContext.current.resources),
                     modifier = Modifier.weight(1f).padding(top = 14.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -1672,24 +1685,25 @@ private fun EditorFieldRow(
 private fun EditorFieldInput(
     field: MeasurementField,
     value: String,
-    error: String?,
+    error: UiText?,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .semantics { contentDescription = field.inputLabel }
+            .semantics { contentDescription = field.inputLabel.resolve(resources) }
             .testTag("editor-field-${field.name}"),
         enabled = enabled,
         isError = error != null,
         supportingText = error?.let { validationError ->
-            { Text(validationError) }
+            { Text(validationError.resolve(resources)) }
         },
-        suffix = field.unit.takeIf(String::isNotBlank)?.let { unit ->
-            { Text(unit, style = MaterialTheme.typography.bodySmall) }
+        suffix = field.unit?.let { unit ->
+            { Text(unit.resolve(resources), style = MaterialTheme.typography.bodySmall) }
         },
         singleLine = true,
         shape = MaterialTheme.shapes.small,
@@ -1724,8 +1738,9 @@ private fun NestedScreenHeader(
             style = MaterialTheme.typography.titleLarge,
         )
         onAdd?.let { action ->
+            val addWeightDescription = stringResource(R.string.a11y_add_weight)
             TextButton(onClick = action, enabled = addEnabled, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .testTag("measurement-history-add").semantics { contentDescription = "Добавить вес" }) {
+                .testTag("measurement-history-add").semantics { contentDescription = addWeightDescription }) {
                 Text("+", style = MaterialTheme.typography.headlineMedium)
             }
         }
@@ -1751,9 +1766,9 @@ private fun NoLatestMeasurementState() {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     HuaweiRowIcon(icon = HuaweiIcons.Scale, contentDescription = null)
-                    HuaweiSectionTitle("Пока нет измерений")
+                    HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
                     Text(
-                        "Последнее стабильное измерение с весов появится здесь.",
+                        stringResource(R.string.measurement_empty_latest_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -1770,9 +1785,9 @@ private fun MissingEditorState(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Измерение недоступно", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.measurement_unavailable), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onBack, modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)) {
-                Text("Назад")
+                Text(stringResource(R.string.action_back))
             }
         }
     }
@@ -1808,17 +1823,20 @@ private fun DeleteMeasurementDialog(
         modifier = Modifier.testTag("delete-measurement-dialog"),
         onDismissRequest = { if (!confirmation.isDeleting) onDismiss() },
         icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
-        title = { Text("Удалить измерение?") },
+        title = { Text(stringResource(R.string.measurement_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "${formatMeasurementDateTime(confirmation.measuredAt)} · " +
-                        "${formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg)} кг",
+                    stringResource(
+                        R.string.measurement_delete_summary,
+                        formatMeasurementDateTime(confirmation.measuredAt),
+                        formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg),
+                        stringResource(R.string.unit_kg),
+                    ),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    "Измерение будет удалено без возможности восстановления. " +
-                        "Данные в Health Connect останутся без изменений.",
+                    stringResource(R.string.measurement_delete_warning),
                 )
             }
         },
@@ -1834,7 +1852,7 @@ private fun DeleteMeasurementDialog(
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (confirmation.isDeleting) "Удаление…" else "Удалить")
+                Text(if (confirmation.isDeleting) stringResource(R.string.state_deleting) else stringResource(R.string.action_delete))
             }
         },
         dismissButton = {
@@ -1843,7 +1861,7 @@ private fun DeleteMeasurementDialog(
                 enabled = !confirmation.isDeleting,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
             ) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         },
     )
@@ -1873,39 +1891,39 @@ private val MeasurementSyncPresentationState.contentColor: Color
         MeasurementSyncPresentationState.SYNCED -> MaterialTheme.colorScheme.primary
     }
 
+@Composable
 private fun historySubtitle(item: MeasurementUiItem): String = listOf(
     MeasurementMetricPresentation(
         MeasurementField.BODY_FAT_PERCENT,
         item.values.bodyFatPercent,
-    ).displayValue().let { "Жир $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_fat, it) },
     MeasurementMetricPresentation(
         MeasurementField.MUSCLE_MASS_KG,
         item.values.muscleMassKg,
-    ).displayValue().let { "мышцы $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_muscle, it) },
     MeasurementMetricPresentation(
         MeasurementField.BMI,
         item.values.bmi,
-    ).displayValue().let { "ИМТ $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_bmi, it) },
 ).joinToString(" · ")
 
+@Composable
 private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
     if (value == null) return MissingMeasurementValue
     if (field == MeasurementField.WEIGHT_KG) return formatWeight(value, locale)
     val formatted = formatDisplayValue(field, value, locale)
-    return when (unit) {
-        "" -> formatted
-        "%" -> "$formatted%"
-        else -> "$formatted $unit"
-    }
+    val resolvedUnit = unit?.resolve(LocalContext.current.resources) ?: return formatted
+    return stringResource(R.string.measurement_value_with_unit, formatted, resolvedUnit)
 }
 
+@Composable
 private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault()): String = when {
-    delta == null -> "Первое измерение"
-    kotlin.math.abs(delta) < 0.000_001 -> "Без изменений"
+    delta == null -> stringResource(R.string.measurement_first_measurement)
+    kotlin.math.abs(delta) < 0.000_001 -> stringResource(R.string.measurement_weight_no_change)
     else -> {
         val prefix = if (delta > 0) "+" else "−"
         val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        "$prefix$value кг"
+        stringResource(R.string.measurement_value_with_unit, "$prefix$value", stringResource(R.string.unit_kg))
     }
 }
 

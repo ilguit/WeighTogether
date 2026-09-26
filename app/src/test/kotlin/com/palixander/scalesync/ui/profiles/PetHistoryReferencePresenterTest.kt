@@ -19,6 +19,8 @@ import com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReaso
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.core.reference.ReferenceBoundsStatistic
 import com.palixander.scalesync.core.reference.ReferenceCenterStatistic
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
 import java.io.ByteArrayInputStream
 import java.security.MessageDigest
 import java.time.Instant
@@ -43,11 +45,11 @@ class PetHistoryReferencePresenterTest {
         assertEquals(ReferenceBasis.WEIGHT_CATEGORY, result.basis)
         assertEquals(listOf(start, start.plusDays(1), start.plusDays(2)), result.segments.single().map { it.date })
         assertFalse(result.approximate)
-        assertTrue(result.sourceLabel.startsWith("Источник:"))
+        assertEquals(R.string.pet_reference_source, result.sourceLabel.resourceId())
         assertTrue(result.citation.isNotBlank())
         assertTrue(result.license.isNotBlank())
         assertTrue(result.constraints.isNotEmpty())
-        assertTrue(result.accessibilityLabel.contains(result.ageLabel))
+        assertEquals(R.string.pet_reference_accessibility, result.accessibilityLabel.resourceId())
     }
 
     @Test
@@ -72,27 +74,25 @@ class PetHistoryReferencePresenterTest {
                 "profile ${profile.id}" to profile.constraints,
                 "metadata ${profile.id}" to metadata.constraints,
             ).forEach { (presentation, constraints) ->
-                val localized = constraints.map(::localizedReferenceConstraint)
-                val plateau = localized.singleOrNull { it.startsWith("Подтверждённые") }
-
-                assertTrue("$presentation leaked an English plateau disclosure: $localized", localized.none {
-                    "Evidence-backed" in it
-                })
+                val plateau = constraints.singleOrNull { it.startsWith("Evidence-backed") }
                 assertTrue(
-                    "$presentation omitted endpoint $endpoint: $localized",
-                    plateau?.replace(" ", "")?.contains(endpoint.toString()) == true,
+                    "$presentation omitted endpoint $endpoint: $constraints",
+                    plateau?.contains(endpoint.toString()) == true,
                 )
-                assertTrue("$presentation omitted product maximum: $localized", plateau?.contains("10 958") == true)
+                assertTrue("$presentation omitted product maximum: $constraints", plateau?.contains("10958") == true)
             }
         }
     }
 
     @Test
-    fun `plateau localization requires the complete constraint pattern`() {
-        val unrelated =
-            "Evidence-backed/modelled values end at day 728; review this unrelated constraint separately"
+    fun `presenter preserves source constraints verbatim`() {
+        val date = LocalDate.of(2026, 9, 25)
+        val reference = presenter.present(dog(PartialBirthDate.Day(date.minusDays(100))), ChartDateRange(date, date))
+            as PetHistoryWeightReference.Available
+        val metadata = checkNotNull(WeightReferenceSnapshot.bundled().metadataFor(reference.segments.first().profileId))
 
-        assertEquals(unrelated, localizedReferenceConstraint(unrelated))
+        assertEquals(metadata.constraints, reference.constraints)
+        assertEquals(metadata.source.disclosure, reference.sourceDisclosure)
     }
 
     @Test
@@ -120,7 +120,7 @@ class PetHistoryReferencePresenterTest {
             ) as PetHistoryWeightReference.Unavailable
 
             assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(breedId), result.reason)
-            assertEquals("Для выбранной породы ориентиры сейчас недоступны.", result.explanation)
+            assertEquals(R.string.pet_breed_reference_unavailable, result.explanation.resourceId())
         }
     }
 
@@ -133,7 +133,7 @@ class PetHistoryReferencePresenterTest {
         ) as PetHistoryWeightReference.Available
 
         assertTrue(result.approximate)
-        assertTrue(result.ageLabel.contains("примерно"))
+        assertEquals(R.string.pet_reference_age_days_approximate, result.ageLabel.resourceId())
         assertTrue(result.segments.single().single().medianLowerKg <= result.segments.single().single().medianUpperKg)
     }
 
@@ -245,7 +245,7 @@ class PetHistoryReferencePresenterTest {
         ) as PetHistoryWeightReference.Unavailable
 
         assertEquals(WeightReferenceUnavailableReason.ProfileUnavailable("dog-male-III"), result.reason)
-        assertTrue(result.explanation.contains("dog-male-III"))
+        assertTrue((result.explanation as UiText.Resource).arguments.contains("dog-male-III"))
     }
 
     @Test
@@ -257,7 +257,7 @@ class PetHistoryReferencePresenterTest {
             as PetHistoryWeightReference.Unavailable
 
         assertEquals(WeightReferenceUnavailableReason.MissingSex, result.reason)
-        assertEquals("Эталон недоступен: укажите пол питомца.", result.explanation)
+        assertEquals(R.string.pet_reference_unavailable_sex, result.explanation.resourceId())
     }
 
     @Test
@@ -281,7 +281,7 @@ class PetHistoryReferencePresenterTest {
         )
 
         reasons.forEach { reason ->
-            assertTrue(weightReferenceUnavailableExplanation(reason).isNotBlank())
+            assertTrue(weightReferenceUnavailableExplanation(reason) is UiText.Resource)
         }
     }
 
@@ -297,25 +297,22 @@ class PetHistoryReferencePresenterTest {
         fun explanation(pet: Pet) = (presenter.present(pet, ChartDateRange(date, date))
             as PetHistoryWeightReference.Unavailable).explanation
 
+        assertEquals(R.string.pet_breed_reference_prompt_sex, explanation(base.copy(sex = null)).resourceId())
         assertEquals(
-            "Укажите пол питомца, чтобы показать породный ориентир.",
-            explanation(base.copy(sex = null)),
+            R.string.pet_breed_reference_prompt_birth,
+            explanation(base.copy(birthDate = null)).resourceId(),
         )
         assertEquals(
-            "Укажите дату рождения, чтобы показать ориентир для возраста.",
-            explanation(base.copy(birthDate = null)),
+            R.string.pet_breed_reference_unavailable,
+            explanation(base.copy(breedId = BreedId("VBO:0100091"))).resourceId(),
         )
         assertEquals(
-            "Для выбранной породы ориентиры сейчас недоступны.",
-            explanation(base.copy(breedId = BreedId("VBO:0100091"))),
+            R.string.pet_breed_reference_age_gap,
+            explanation(base.copy(birthDate = PartialBirthDate.Day(date.minusDays(55)))).resourceId(),
         )
         assertEquals(
-            "Для выбранного возраста опубликованные данные отсутствуют.",
-            explanation(base.copy(birthDate = PartialBirthDate.Day(date.minusDays(55)))),
-        )
-        assertEquals(
-            "Исправьте дату рождения, чтобы показать ориентир для возраста.",
-            explanation(base.copy(birthDate = PartialBirthDate.Day(date.plusDays(1)))),
+            R.string.pet_breed_reference_fix_birth,
+            explanation(base.copy(birthDate = PartialBirthDate.Day(date.plusDays(1)))).resourceId(),
         )
     }
 
@@ -333,7 +330,7 @@ class PetHistoryReferencePresenterTest {
             .present(pet, ChartDateRange(date, date)) as PetHistoryWeightReference.Unavailable
 
         assertEquals(WeightReferenceUnavailableReason.ProfileUnavailable("bundled-snapshot"), result.reason)
-        assertEquals("Ориентиры породы временно недоступны.", result.explanation)
+        assertEquals(R.string.pet_breed_reference_temporary, result.explanation.resourceId())
     }
 
     @Test
@@ -356,11 +353,10 @@ class PetHistoryReferencePresenterTest {
 
             assertEquals(ReferenceCenterStatistic.MEAN, result.centerStatistic)
             assertEquals(ReferenceBoundsStatistic.ONE_STANDARD_DEVIATION, result.boundsStatistic)
-            assertTrue(result.basisLabel.contains("среднее ± одно стандартное отклонение"))
-            assertFalse(result.basisLabel.contains("медиан", ignoreCase = true))
+            assertEquals(R.string.pet_reference_breed_observation, result.basisLabel.resourceId())
             assertEquals(WeightReferenceProvenance.BREED_EXACT_OBSERVATION, result.provenance)
             assertEquals(pet.breedId, result.selectedBreedId)
-            assertTrue(result.provenanceExplanation!!.contains("только точечное наблюдение"))
+            assertEquals(R.string.pet_reference_provenance_birth, result.provenanceExplanation!!.resourceId())
         }
     }
 
@@ -386,7 +382,7 @@ class PetHistoryReferencePresenterTest {
 
             assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
             assertEquals(breedId, result.selectedBreedId)
-            assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+            assertEquals(R.string.pet_reference_provenance_model, result.provenanceExplanation!!.resourceId())
             assertEquals(date, result.segments.last().first().date)
             assertEquals(date.plusDays(674), result.segments.last().last().date)
             assertTrue(result.segments.last().all { point ->
@@ -394,10 +390,8 @@ class PetHistoryReferencePresenterTest {
                     point.medianLowerKg == point.medianUpperKg &&
                     point.medianUpperKg <= point.upperKg
             })
-            assertTrue(result.constraints.any { it.contains("10 958-го дня (30 лет)") })
-            assertTrue(result.constraints.all { constraint ->
-                !constraint.contains("Evidence-backed")
-            })
+            assertTrue(result.constraints.any { it.contains("day 10958 (30 years)") })
+            assertTrue(result.constraints.any { it.startsWith("Evidence-backed") })
         }
     }
 
@@ -416,7 +410,7 @@ class PetHistoryReferencePresenterTest {
         ) as PetHistoryWeightReference.Unavailable
 
         assertTrue(result.reason is WeightReferenceUnavailableReason.AgeOutOfRange)
-        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.explanation)
+        assertEquals(R.string.pet_breed_reference_age_gap, result.explanation.resourceId())
     }
 
     @Test
@@ -452,12 +446,12 @@ class PetHistoryReferencePresenterTest {
 
         assertEquals(WeightReferenceProvenance.BREED_CURVE, result.provenance)
         assertEquals(breedId, result.selectedBreedId)
-        assertTrue(result.provenanceExplanation!!.contains("модельный возрастной диапазон"))
+        assertEquals(R.string.pet_reference_provenance_model, result.provenanceExplanation!!.resourceId())
         assertEquals(
             listOf(
-                "Только домашние короткошёрстные кошки",
-                "Нестерилизованные котята из США",
-                "Возраст от 8 до 78 недель",
+                "Domestic Shorthair only",
+                "Sexually intact kittens from the USA",
+                "Age 8 to 78 weeks",
             ),
             result.constraints,
         )
@@ -510,3 +504,5 @@ class PetHistoryReferencePresenterTest {
         })
     }
 }
+
+private fun UiText.resourceId(): Int = (this as UiText.Resource).id

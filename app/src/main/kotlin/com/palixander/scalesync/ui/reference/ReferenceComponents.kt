@@ -84,7 +84,7 @@ fun CompactMetricStatus(
             )
             if (presentation.visualNumber != null) {
                 Text(
-                    text = " ${presentation.visibleUnit}",
+                    text = stringResource(R.string.measurement_prefixed_unit, presentation.visibleUnit),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -151,7 +151,7 @@ fun ExpandedMetricReference(
                         )
                         if (presentation.visualNumber != null) {
                             Text(
-                                text = " ${presentation.visibleUnit}",
+                                text = stringResource(R.string.measurement_prefixed_unit, presentation.visibleUnit),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.bodySmall,
                             )

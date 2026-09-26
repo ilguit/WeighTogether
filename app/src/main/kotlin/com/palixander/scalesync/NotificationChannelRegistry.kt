@@ -3,30 +3,31 @@ package com.palixander.scalesync
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import androidx.annotation.StringRes
 
 data class AppNotificationChannel(
     val id: String,
-    val name: String,
+    @param:StringRes val nameRes: Int,
     val importance: Int,
-    val description: String? = null,
+    @param:StringRes val descriptionRes: Int? = null,
 )
 
 object NotificationChannelRegistry {
     val scaleScanning = AppNotificationChannel(
         id = "scale_scanning",
-        name = "Сканирование весов",
+        nameRes = R.string.notification_channel_scale_scanning,
         importance = NotificationManager.IMPORTANCE_LOW,
     )
     val pendingMeasurementRouting = AppNotificationChannel(
         id = "pending_measurement_routing",
-        name = "Нераспознанные измерения",
+        nameRes = R.string.notification_channel_pending_measurements,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
     )
     val successfulMeasurementSaves = AppNotificationChannel(
         id = "successful_measurement_saves",
-        name = "Сохранённые измерения",
+        nameRes = R.string.notification_channel_saved_measurements,
         importance = NotificationManager.IMPORTANCE_DEFAULT,
-        description = "Подтверждения об успешном сохранении измерений",
+        descriptionRes = R.string.notification_channel_saved_measurements_description,
     )
 
     val all: List<AppNotificationChannel> = listOf(
@@ -37,17 +38,21 @@ object NotificationChannelRegistry {
 
     fun registerAll(context: Context) {
         val manager = context.getSystemService(NotificationManager::class.java)
-        all.forEach { channel -> register(manager, channel) }
+        all.forEach { channel -> register(context, manager, channel) }
     }
 
-    fun register(manager: NotificationManager, channel: AppNotificationChannel) {
-        manager.create(channel)
+    fun register(context: Context, manager: NotificationManager, channel: AppNotificationChannel) {
+        manager.create(context, channel)
     }
 
-    private fun NotificationManager.create(channel: AppNotificationChannel) {
+    private fun NotificationManager.create(context: Context, channel: AppNotificationChannel) {
         createNotificationChannel(
-            NotificationChannel(channel.id, channel.name, channel.importance).apply {
-                description = channel.description
+            NotificationChannel(
+                channel.id,
+                context.getString(channel.nameRes),
+                channel.importance,
+            ).apply {
+                description = channel.descriptionRes?.let(context::getString)
             },
         )
     }

@@ -5,6 +5,7 @@ import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetMeasurement
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import java.util.Collections
 import java.util.concurrent.CountDownLatch
@@ -28,7 +29,7 @@ class PetMeasurementCoordinatorTest {
     private val operationStartedAt = Instant.parse("2026-08-26T10:00:00Z")
     private val operationStartedAtNanos = 10_000L
     private val states = mutableListOf<PetMeasurementUiState>()
-    private val messages = mutableListOf<String>()
+    private val messages = mutableListOf<UiText>()
     private var scannerStops = 0
     private var automaticRestores = 0
     private var timeoutCancellations = 0
@@ -734,8 +735,8 @@ class PetMeasurementCoordinatorTest {
         val token = start()
         acceptAfterTransient(token, reading(70.0, second = 1, raw = "first"))
 
-        coordinator.pause(token, "Связь потеряна")
-        assertEquals(PetMeasurementUiState.ConnectionError(pet, 70.0, "Связь потеряна"), states.last())
+        coordinator.pause(token, UiText.Raw("Связь потеряна"))
+        assertEquals(PetMeasurementUiState.ConnectionError(pet, 70.0, UiText.Raw("Связь потеряна")), states.last())
         val retry = requireNotNull(coordinator.retry())
         assertEquals(token, retry.token)
         assertEquals(PetMeasurementUiState.AwaitingSecondWeight(pet, 70.0), states.last())
@@ -778,7 +779,7 @@ class PetMeasurementCoordinatorTest {
         coordinator.attachTimeout(timeoutToken) { timeoutCancellations++ }
         coordinator.timeout(timeoutToken)
         coordinator.timeout(timeoutToken)
-        coordinator.fail(timeoutToken, "late error")
+        coordinator.fail(timeoutToken, UiText.Raw("late error"))
         coordinator.cancel(timeoutToken)
 
         assertEquals(PetMeasurementUiState.Error(PET_MEASUREMENT_TIMEOUT_MESSAGE), states.last())
@@ -792,7 +793,7 @@ class PetMeasurementCoordinatorTest {
         coordinator.cancel(cancelledToken)
         coordinator.cancel(cancelledToken)
         coordinator.timeout(cancelledToken)
-        coordinator.fail(cancelledToken, "late error")
+        coordinator.fail(cancelledToken, UiText.Raw("late error"))
 
         assertEquals(PetMeasurementUiState.Cancelled, states.last())
         assertEquals(2, scannerStops)
@@ -809,7 +810,7 @@ class PetMeasurementCoordinatorTest {
 
         assertNull(coordinator.accept(oldToken, reading(70.0)))
         coordinator.timeout(oldToken)
-        coordinator.fail(oldToken, "stale error")
+        coordinator.fail(oldToken, UiText.Raw("stale error"))
         coordinator.saved(
             oldToken,
             PetMeasurement(
@@ -833,7 +834,7 @@ class PetMeasurementCoordinatorTest {
         val oldToken = start()
         acceptAfterTransient(oldToken, reading(70.0, second = 1, raw = "old-first"))
         requireNotNull(acceptAfterTransient(oldToken, reading(72.0, second = 2, raw = "old-second")))
-        coordinator.fail(oldToken, "save failed")
+        coordinator.fail(oldToken, UiText.Raw("save failed"))
         val newToken = start()
 
         coordinator.cancel(oldToken)

@@ -1,6 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.domain.AccountId
+import com.palixander.scalesync.R
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -11,12 +12,12 @@ class ProfileSelectorContractTest {
         val noSelection = state(null)
 
         assertEquals(
-            "Выбранный профиль удалён. Показан основной профиль.",
-            profileFallbackMessage(selectedPrimary),
+            R.string.profile_fallback_selected_removed,
+            profileFallbackMessageRes(selectedPrimary),
         )
         assertEquals(
-            "Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль.",
-            profileFallbackMessage(noSelection),
+            R.string.profile_fallback_selected_removed_primary_unavailable,
+            profileFallbackMessageRes(noSelection),
         )
     }
 
