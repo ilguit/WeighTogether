@@ -4,6 +4,7 @@ import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
@@ -24,8 +25,8 @@ class MainContractTest {
         emitter.showSnackbar("Первое")
         emitter.showSnackbar("Второе")
 
-        assertEquals(MainUiEvent.ShowSnackbar("Первое"), emitter.events.first())
-        assertEquals(MainUiEvent.ShowSnackbar("Второе"), emitter.events.first())
+        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("Первое")), emitter.events.first())
+        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("Второе")), emitter.events.first())
         assertNull(withTimeoutOrNull(50) { emitter.events.first() })
     }
 
@@ -81,7 +82,7 @@ class MainContractTest {
         assertEquals(PROFILE_FORMAT_ERROR_MESSAGE, controller.state.value.errorMessage)
         assertTrue(saved.isEmpty())
         assertEquals(
-            MainUiEvent.ShowSnackbar(PROFILE_FORMAT_ERROR_MESSAGE),
+            MainUiEvent.ShowSnackbar(UiText.Raw(PROFILE_FORMAT_ERROR_MESSAGE)),
             emitter.events.first(),
         )
     }
@@ -104,7 +105,10 @@ class MainContractTest {
         )
         assertFalse(controller.state.value.isOpen)
         assertNull(controller.state.value.errorMessage)
-        assertEquals(MainUiEvent.ShowSnackbar(PROFILE_SAVED_MESSAGE), emitter.events.first())
+        assertEquals(
+            MainUiEvent.ShowSnackbar(UiText.Raw(PROFILE_SAVED_MESSAGE)),
+            emitter.events.first(),
+        )
     }
 
     @Test

@@ -5,6 +5,8 @@ import androidx.annotation.PluralsRes
 import androidx.annotation.StringRes
 
 sealed interface UiText {
+    data class Raw(val value: String) : UiText
+
     data class Resource(
         @param:StringRes val id: Int,
         val arguments: List<Any> = emptyList(),
@@ -23,6 +25,7 @@ sealed interface UiText {
 }
 
 fun UiText.resolve(resources: Resources): String = when (this) {
+    is UiText.Raw -> value
     is UiText.Resource -> resources.getString(id, *arguments.resolve(resources))
     is UiText.Plural -> resources.getQuantityString(id, quantity, *arguments.resolve(resources))
     is UiText.Joined -> values.joinToString(separator) { it.resolve(resources) }

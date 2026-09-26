@@ -10,6 +10,7 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
+import com.palixander.scalesync.ui.text.UiText
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.receiveAsFlow
 import org.junit.Assert.assertEquals
@@ -86,7 +87,7 @@ class MainSnackbarUiTest {
         }
 
         composeRule.runOnIdle {
-            channel.trySend(MainUiEvent.ShowSnackbar(message)).getOrThrow()
+            channel.trySend(MainUiEvent.ShowSnackbar(UiText.Raw(message))).getOrThrow()
         }
         composeRule.onNodeWithText(message).assertIsDisplayed()
     }

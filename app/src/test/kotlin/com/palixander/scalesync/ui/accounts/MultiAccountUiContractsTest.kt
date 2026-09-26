@@ -6,6 +6,7 @@ import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import java.time.LocalDate
 import org.junit.Assert.assertEquals
@@ -66,12 +67,12 @@ class MultiAccountUiContractsTest {
             accounts = listOf(account),
             profileUpdateConfirmation = ProfileUpdateConfirmation(update, draft),
             operationInProgress = true,
-            operationError = "Ошибка",
+            operationError = UiText.Raw("Ошибка"),
         )
 
         assertEquals(busy, reduceAccountManagement(busy, AccountManagementAction.ProfileUpdateConfirmationCancelled))
         assertEquals(update, busy.profileUpdateConfirmation?.update)
-        assertEquals("Ошибка", busy.operationError)
+        assertEquals(UiText.Raw("Ошибка"), busy.operationError)
     }
     @Test
     fun `localized decimal accepts dot and comma but not mixed input`() {

@@ -48,6 +48,8 @@ import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.reconcileAccountManagement
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import com.palixander.scalesync.ui.routing.MeasurementResolverUiState
 import com.palixander.scalesync.ui.routing.PendingResolverCompletion
 import com.palixander.scalesync.ui.routing.PendingResolverSession
@@ -641,7 +643,7 @@ class MainViewModel @JvmOverloads constructor(
             if (accountsSnapshot.value.settings.primaryAccountId == null) {
                 container.accountSelection.select(created.id)
             }
-            finishAccountOperation("Профиль «${created.displayName}» создан")
+            finishAccountOperation(uiText(R.string.message_account_created, created.displayName))
             return@runAccountOperation
         }
         val completion = requireNotNull(
@@ -658,18 +660,21 @@ class MainViewModel @JvmOverloads constructor(
                 container.accountSelection.select(result.account.id)
                 completePendingResolution(completion)
                 finishAccountOperation(
-                    "Профиль «${result.account.displayName}» создан, измерение назначено",
+                    uiText(
+                        R.string.message_account_created_assigned,
+                        result.account.displayName,
+                    ),
                 )
             }
             is CreateAccountAndAssignResult.NameConflict -> failAccountOperation(
-                "Профиль с таким именем уже существует",
+                uiText(R.string.message_account_name_conflict),
             )
             CreateAccountAndAssignResult.PendingNotFound,
             is CreateAccountAndAssignResult.AlreadyFinalized,
             -> {
                 pendingForNewAccount.value = null
                 completePendingResolution(completion)
-                finishAccountOperation("Измерение уже обработано")
+                finishAccountOperation(uiText(R.string.message_measurement_already_processed))
             }
         }
     }
@@ -677,7 +682,9 @@ class MainViewModel @JvmOverloads constructor(
     fun updateAccount(account: AccountUpdate) = runAccountOperation {
         when (val result = container.accounts.attemptProfileUpdate(account)) {
             is ProfileUpdateAttemptResult.Saved ->
-                finishAccountOperation("Профиль «${result.account.displayName}» сохранён")
+                finishAccountOperation(
+                    uiText(R.string.message_account_saved, result.account.displayName),
+                )
             ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
@@ -696,14 +703,14 @@ class MainViewModel @JvmOverloads constructor(
 
     private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
         val updated = container.accounts.updateAccount(account, mode)
-        finishAccountOperation("Профиль «${updated.displayName}» сохранён")
+        finishAccountOperation(uiText(R.string.message_account_saved, updated.displayName))
     }
 
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
         runAccountOperation {
             container.accounts.setPrimaryAccount(accountId, mode)
             container.accountSelection.select(accountId)
-            finishAccountOperation("Основной профиль изменён")
+            finishAccountOperation(uiText(R.string.message_primary_account_changed))
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
@@ -712,7 +719,7 @@ class MainViewModel @JvmOverloads constructor(
         if (selection.accountId == accountId) {
             container.accountSelection.selectIfCurrent(selection, null)
         }
-        finishAccountOperation("Профиль и его локальная история удалены")
+        finishAccountOperation(uiText(R.string.message_account_deleted))
     }
 
     fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
@@ -722,7 +729,7 @@ class MainViewModel @JvmOverloads constructor(
             historySyncMode = request.historySyncMode,
         )
         container.accountSelection.select(request.replacementAccountId)
-        finishAccountOperation("Основной профиль и его локальная история удалены")
+        finishAccountOperation(uiText(R.string.message_primary_account_deleted))
     }
 
     fun updateWeightDeltaEditor(state: WeightDeltaEditorState) {
@@ -735,11 +742,14 @@ class MainViewModel @JvmOverloads constructor(
         runCatching { container.accounts.updateWeightDeltaKg(weightDeltaKg) }
             .onSuccess {
                 weightDeltaEditor.value = WeightDeltaEditorState.from(weightDeltaKg)
-                showMessage("Дельта распознавания сохранена")
+                showMessage(uiText(R.string.message_weight_delta_saved))
             }
             .onFailure {
                 weightDeltaEditor.value = weightDeltaEditor.value.copy(isSaving = false)
-                showMessage(it.userFacingMessage("Не удалось сохранить дельту"))
+                showMessage(
+                    it.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                        ?: uiText(R.string.error_save_weight_delta),
+                )
             }
     }
 
@@ -809,14 +819,15 @@ class MainViewModel @JvmOverloads constructor(
                     }
                     is FinalizePendingResult.AlreadyFinalized -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение уже назначено")
+                        showMessage(uiText(R.string.message_measurement_already_assigned))
                     }
                     FinalizePendingResult.ProfileIncomplete ->
-                        showMessage("Сначала заполните выбранный профиль")
-                    FinalizePendingResult.AccountNotFound -> showMessage("Профиль уже удалён")
+                        showMessage(uiText(R.string.message_complete_selected_profile))
+                    FinalizePendingResult.AccountNotFound ->
+                        showMessage(uiText(R.string.message_account_already_deleted))
                     FinalizePendingResult.PendingNotFound -> {
                         completePendingResolution(completion)
-                        showMessage("Измерение уже обработано")
+                        showMessage(uiText(R.string.message_measurement_already_processed))
                     }
                 }
             } catch (cancelled: CancellationException) {
@@ -1603,6 +1614,10 @@ class MainViewModel @JvmOverloads constructor(
         eventEmitter.showSnackbar(message)
     }
 
+    private fun showMessage(message: UiText) {
+        eventEmitter.showSnackbar(message)
+    }
+
     private fun localized(id: Int, vararg arguments: Any): String =
         getApplication<Application>().getString(id, *arguments)
 
@@ -1716,7 +1731,14 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                failAccountOperation(error.userFacingMessage(localized(R.string.error_change_profile)))
+                failAccountOperation(
+                    when (error) {
+                        is AccountNameConflictException ->
+                            uiText(R.string.message_account_name_conflict)
+                        else -> error.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                            ?: uiText(R.string.error_change_profile)
+                    },
+                )
             } finally {
                 accountManagementDialog.value = accountManagementDialog.value.copy(
                     operationInProgress = false,
@@ -1725,12 +1747,12 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    private fun finishAccountOperation(message: String) {
+    private fun finishAccountOperation(message: UiText) {
         accountManagementDialog.value = AccountManagementUiState()
         showMessage(message)
     }
 
-    private fun failAccountOperation(message: String) {
+    private fun failAccountOperation(message: UiText) {
         accountManagementDialog.value = accountManagementDialog.value.copy(
             operationInProgress = false,
             operationError = message,
@@ -1831,7 +1853,5 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
     RoutingDecision.NoMatch -> emptyList()
 }
 
-private fun Throwable.userFacingMessage(fallback: String): String = when (this) {
-    is AccountNameConflictException -> "Профиль с таким именем уже существует"
-    else -> message?.takeIf(String::isNotBlank) ?: fallback
-}
+private fun Throwable.userFacingMessage(fallback: String): String =
+    message?.takeIf(String::isNotBlank) ?: fallback

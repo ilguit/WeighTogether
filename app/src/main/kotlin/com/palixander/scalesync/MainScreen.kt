@@ -176,12 +176,15 @@ internal fun MainUiEventHandler(
     onPendingResolutionCompleted: (MainUiEvent.PendingResolutionCompleted) -> Unit,
     onPendingDiscardSnackbarResult: (snackbarId: Long, undoRequested: Boolean) -> Unit,
 ) {
+    val resources = LocalContext.current.resources
     val currentResolutionHandler by rememberUpdatedState(onPendingResolutionCompleted)
     val currentDiscardResultHandler by rememberUpdatedState(onPendingDiscardSnackbarResult)
     LaunchedEffect(events, snackbarHostState) {
         events.collect { event ->
             when (event) {
-                is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(event.message)
+                is MainUiEvent.ShowSnackbar -> snackbarHostState.showSnackbar(
+                    event.message.resolve(resources),
+                )
                 is MainUiEvent.ShowPendingDiscardUndo -> {
                     var resultReported = false
                     try {

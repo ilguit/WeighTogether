@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.PendingDiscardUndoToken
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.RestorePendingResult
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
+import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.channels.Channel
@@ -17,7 +18,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 sealed interface MainUiEvent {
-    data class ShowSnackbar(val message: String) : MainUiEvent
+    data class ShowSnackbar(val message: UiText) : MainUiEvent
     data class ShowPendingDiscardUndo(
         val snackbarId: Long,
         val pendingId: PendingMeasurementId,
@@ -36,11 +37,13 @@ internal class MainUiEventEmitter {
 
     val events: Flow<MainUiEvent> = channel.receiveAsFlow()
 
-    fun showSnackbar(message: String) {
+    fun showSnackbar(message: UiText) {
         check(channel.trySend(MainUiEvent.ShowSnackbar(message)).isSuccess) {
             "Main UI event channel is closed"
         }
     }
+
+    fun showSnackbar(message: String) = showSnackbar(UiText.Raw(message))
 
     fun showPendingDiscardUndo(snackbarId: Long, pendingId: PendingMeasurementId) {
         check(

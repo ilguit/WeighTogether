@@ -64,4 +64,39 @@
     <string name="account_photo_unreadable">Не удалось прочитать изображение</string><string name="account_photo_invalid">Выбранный файл не является изображением</string><string name="account_photo_processing_failed">Не удалось обработать изображение</string>
     <string name="unsaved_preview_birth_date_error">Дата рождения должна быть не позже измерения</string>
     <string name="error_save_setting">Не удалось сохранить настройку</string><string name="error_open_pending_measurement">Не удалось открыть ожидающее измерение</string><string name="error_assign_measurement">Не удалось назначить измерение</string><string name="error_enable_scanning">Не удалось включить сканирование</string><string name="error_start_scanning">Не удалось запустить сканирование</string><string name="error_perform_action">Не удалось выполнить действие</string><string name="error_delete_measurement">Не удалось удалить измерение</string><string name="error_change_profile">Не удалось изменить профиль</string>
+    <string name="account_save_error_cd">Ошибка сохранения: %1$s</string>
+    <string name="account_save_recalculate_cd">Сохранить и пересчитать историю</string>
+    <string name="account_save_without_recalculate_cd">Сохранить без пересчёта истории</string>
+    <string name="account_cancel_update_cd">Отменить изменение профиля</string>
+    <string name="account_more_actions">Дополнительные действия для %1$s</string>
+    <string name="account_back_to_profiles">Вернуться к профилям</string>
+    <string name="account_profile_photo">Фото профиля</string>
+    <string name="account_make_primary_title">Сделать основным</string>
+    <string name="account_primary_sync_message">Внешняя синхронизация будет доступна только для «%1$s».</string>
+    <string name="account_primary_existing_data_message">Уже отправленные данные прежнего основного профиля не удаляются.</string>
+    <string name="action_continue">Продолжить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="action_delete">Удалить</string>
+    <string name="account_delete_title">Удалить профиль «%1$s»?</string>
+    <string name="account_delete_message">Локальная история профиля будет удалена безвозвратно. Записи во внешних сервисах останутся.</string>
+    <string name="account_replacement_title">Новый основной профиль</string>
+    <string name="account_delete_last_primary_message">После удаления последнего профиля основного профиля не будет.</string>
+    <string name="account_primary_history_title">История нового основного</string>
+    <string name="account_sync_future_only">Только новые измерения</string>
+    <string name="account_sync_eligible_history">Синхронизировать подходящую историю</string>
+    <string name="account_profile_summary">%1$s см · %2$s · %3$s</string>
+    <string name="account_profile_incomplete">Профиль нужно заполнить</string>
+    <string name="message_account_created">Профиль «%1$s» создан</string>
+    <string name="message_account_created_assigned">Профиль «%1$s» создан, измерение назначено</string>
+    <string name="message_account_name_conflict">Профиль с таким именем уже существует</string>
+    <string name="message_measurement_already_processed">Измерение уже обработано</string>
+    <string name="message_measurement_already_assigned">Измерение уже назначено</string>
+    <string name="message_account_saved">Профиль «%1$s» сохранён</string>
+    <string name="message_primary_account_changed">Основной профиль изменён</string>
+    <string name="message_account_deleted">Профиль и его локальная история удалены</string>
+    <string name="message_primary_account_deleted">Основной профиль и его локальная история удалены</string>
+    <string name="message_weight_delta_saved">Дельта распознавания сохранена</string>
+    <string name="error_save_weight_delta">Не удалось сохранить дельту</string>
+    <string name="message_complete_selected_profile">Сначала заполните выбранный профиль</string>
+    <string name="message_account_already_deleted">Профиль уже удалён</string>
 </resources>

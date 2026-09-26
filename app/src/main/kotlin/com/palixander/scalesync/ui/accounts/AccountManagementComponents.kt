@@ -98,6 +98,7 @@ import com.palixander.scalesync.profile.rememberProfilePhotoPicker
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
@@ -306,11 +307,12 @@ fun AccountManagementSection(
 private fun ProfileUpdateConfirmationDialog(
     request: ProfileUpdateConfirmation,
     operationInProgress: Boolean,
-    error: String?,
+    error: UiText?,
     onRecalculate: () -> Unit,
     onKeepExisting: () -> Unit,
     onCancel: () -> Unit,
 ) {
+    val context = LocalContext.current
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.ProfileUpdatePrompt),
         onDismissRequest = { if (!operationInProgress) onCancel() },
@@ -320,13 +322,19 @@ private fun ProfileUpdateConfirmationDialog(
                 Text(
                     stringResource(R.string.account_recalculate_message, request.update.displayName),
                 )
-                error?.let {
+                error?.let { message ->
+                    val resolvedError = message.resolve(context.resources)
                     Text(
-                        text = it,
+                        text = resolvedError,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier
                             .testTag(AccountManagementTestTags.OperationError)
-                            .semantics { contentDescription = "Ошибка сохранения: $it" },
+                            .semantics {
+                                contentDescription = context.getString(
+                                    R.string.account_save_error_cd,
+                                    resolvedError,
+                                )
+                            },
                     )
                 }
             }
@@ -343,7 +351,9 @@ private fun ProfileUpdateConfirmationDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(AccountManagementTestTags.ProfileUpdateRecalculate)
-                        .semantics { contentDescription = "Сохранить и пересчитать историю" },
+                        .semantics {
+                            contentDescription = context.getString(R.string.account_save_recalculate_cd)
+                        },
                 ) {
                     Text(stringResource(if (operationInProgress) R.string.state_saving else R.string.account_save_recalculate))
                 }
@@ -353,14 +363,18 @@ private fun ProfileUpdateConfirmationDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
-                        .semantics { contentDescription = "Сохранить без пересчёта истории" },
+                        .semantics {
+                            contentDescription = context.getString(R.string.account_save_without_recalculate_cd)
+                        },
                 ) { Text(stringResource(R.string.account_save_without_recalculate)) }
                 TextButton(
                     onClick = onCancel,
                     enabled = !operationInProgress,
                     modifier = Modifier
                         .testTag(AccountManagementTestTags.ProfileUpdateCancel)
-                        .semantics { contentDescription = "Отменить изменение профиля" },
+                        .semantics {
+                            contentDescription = context.getString(R.string.account_cancel_update_cd)
+                        },
                 ) { Text(stringResource(R.string.action_cancel)) }
             }
         },
@@ -412,7 +426,7 @@ private fun AccountRow(
         }
         HuaweiIconButton(
             icon = HuaweiIcons.More,
-            contentDescription = "Дополнительные действия для ${account.displayName}",
+            contentDescription = stringResource(R.string.account_more_actions, account.displayName),
             onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
         )
@@ -470,7 +484,7 @@ private fun PetProfileRow(
         }
         HuaweiIconButton(
             icon = HuaweiIcons.More,
-            contentDescription = "Дополнительные действия для ${pet.pet.displayName}",
+            contentDescription = stringResource(R.string.account_more_actions, pet.pet.displayName),
             onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
         )
@@ -516,13 +530,14 @@ private fun sortedAccounts(accounts: List<Account>, primaryAccountId: AccountId?
 
 @Composable
 private fun PrimaryBadge(accountId: AccountId) {
+    val primaryDescription = stringResource(R.string.account_primary_profile)
     Surface(
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier
             .testTag(AccountManagementTestTags.primaryBadge(accountId))
-            .semantics { contentDescription = "Основной профиль" },
+            .semantics { contentDescription = primaryDescription },
     ) {
         Text(
             text = stringResource(R.string.account_primary),
@@ -538,7 +553,7 @@ fun AccountEditorScreen(
     draft: AccountEditorDraft,
     accounts: List<Account>,
     operationInProgress: Boolean,
-    error: String? = null,
+    error: UiText? = null,
     onDraftChanged: (AccountEditorDraft) -> Unit,
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
@@ -633,7 +648,7 @@ fun AccountEditorScreen(
                 navigationIcon = {
                     HuaweiIconButton(
                         icon = HuaweiIcons.Back,
-                        contentDescription = "Вернуться к профилям",
+                        contentDescription = stringResource(R.string.account_back_to_profiles),
                         onClick = requestClose,
                         enabled = !operationInProgress,
                         modifier = Modifier.testTag(AccountManagementTestTags.EditorBack),
@@ -685,7 +700,7 @@ fun AccountEditorScreen(
                 ProfileAvatar(
                     photoPath = draft.photoPath,
                     fallbackIcon = HuaweiIcons.Profile,
-                    contentDescription = "Фото профиля",
+                    contentDescription = stringResource(R.string.account_profile_photo),
                     store = photoStore,
                     size = 96.dp,
                     modifier = Modifier.align(Alignment.CenterHorizontally)
@@ -739,7 +754,7 @@ fun AccountEditorScreen(
                         .height(IntrinsicSize.Min)
                         .testTag(AccountManagementTestTags.EditorSexGroup)
                         .semantics {
-                            contentDescription = "Пол"
+                            contentDescription = context.getString(R.string.account_sex)
                             selectableGroup()
                         },
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -790,13 +805,19 @@ fun AccountEditorScreen(
                     modifier = Modifier.fillMaxWidth().focusRequester(heightFocus)
                         .testTag(AccountManagementTestTags.EditorHeight),
                 )
-                error?.let {
+                error?.let { message ->
+                    val resolvedError = message.resolve(context.resources)
                     Text(
-                        text = it,
+                        text = resolvedError,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier
                             .testTag(AccountManagementTestTags.OperationError)
-                            .semantics { contentDescription = "Ошибка сохранения: $it" },
+                            .semantics {
+                                contentDescription = context.getString(
+                                    R.string.account_save_error_cd,
+                                    resolvedError,
+                                )
+                            },
                     )
                 }
             }
@@ -869,13 +890,18 @@ private fun PrimaryAccountChangeDialog(
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.PrimaryChange),
         onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text("Сделать основным") },
+        title = { Text(stringResource(R.string.account_make_primary_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                Text("Внешняя синхронизация будет доступна только для «${account?.displayName.orEmpty()}».")
+                Text(
+                    stringResource(
+                        R.string.account_primary_sync_message,
+                        account?.displayName.orEmpty(),
+                    ),
+                )
                 SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 Text(
-                    "Уже отправленные данные прежнего основного профиля не удаляются.",
+                    stringResource(R.string.account_primary_existing_data_message),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -883,11 +909,13 @@ private fun PrimaryAccountChangeDialog(
         },
         confirmButton = {
             Button(onClick = onConfirm, enabled = account != null && !operationInProgress) {
-                Text("Продолжить")
+                Text(stringResource(R.string.action_continue))
             }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+            TextButton(onClick = onDismiss, enabled = !operationInProgress) {
+                Text(stringResource(R.string.action_cancel))
+            }
         },
     )
 }
@@ -909,7 +937,9 @@ private fun AccountDeletionDialog(
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.DeleteWarning),
         onDismissRequest = { if (!operationInProgress) onDismiss() },
-        title = { Text("Удалить профиль «${account?.displayName.orEmpty()}»?") },
+        title = {
+            Text(stringResource(R.string.account_delete_title, account?.displayName.orEmpty()))
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
@@ -921,12 +951,15 @@ private fun AccountDeletionDialog(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Text(
-                        "Локальная история профиля будет удалена безвозвратно. Записи во внешних сервисах останутся.",
+                        stringResource(R.string.account_delete_message),
                         modifier = Modifier.padding(12.dp),
                     )
                 }
                 if (requiresReplacement) {
-                    Text("Новый основной профиль", style = MaterialTheme.typography.labelLarge)
+                    Text(
+                        stringResource(R.string.account_replacement_title),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
                     replacements.forEach { replacement ->
                         SelectionRow(
                             label = replacement.displayName,
@@ -940,7 +973,7 @@ private fun AccountDeletionDialog(
                     }
                     SyncModeChoices(request.historySyncMode, onModeChanged, !operationInProgress)
                 } else if (request.wasPrimary) {
-                    Text("После удаления последнего профиля основного профиля не будет.")
+                    Text(stringResource(R.string.account_delete_last_primary_message))
                 }
             }
         },
@@ -950,10 +983,12 @@ private fun AccountDeletionDialog(
                 enabled = account != null && !operationInProgress &&
                     (!requiresReplacement || replacementIsValid),
                 modifier = Modifier.testTag(AccountManagementTestTags.DeleteConfirm),
-            ) { Text("Удалить") }
+            ) { Text(stringResource(R.string.action_delete)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss, enabled = !operationInProgress) { Text("Отмена") }
+            TextButton(onClick = onDismiss, enabled = !operationInProgress) {
+                Text(stringResource(R.string.action_cancel))
+            }
         },
     )
 }
@@ -964,15 +999,18 @@ private fun SyncModeChoices(
     onModeChanged: (PrimaryHistorySyncMode) -> Unit,
     enabled: Boolean,
 ) {
-    Text("История нового основного", style = MaterialTheme.typography.labelLarge)
+    Text(
+        stringResource(R.string.account_primary_history_title),
+        style = MaterialTheme.typography.labelLarge,
+    )
     SelectionRow(
-        label = "Только новые измерения",
+        label = stringResource(R.string.account_sync_future_only),
         selected = selectedMode == PrimaryHistorySyncMode.FUTURE_ONLY,
         enabled = enabled,
         onClick = { onModeChanged(PrimaryHistorySyncMode.FUTURE_ONLY) },
     )
     SelectionRow(
-        label = "Синхронизировать подходящую историю",
+        label = stringResource(R.string.account_sync_eligible_history),
         selected = selectedMode == PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY,
         enabled = enabled,
         onClick = { onModeChanged(PrimaryHistorySyncMode.INCLUDE_ELIGIBLE_HISTORY) },
@@ -1013,10 +1051,18 @@ private fun SelectionRow(
 
 private val AccountDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
+@Composable
 private fun formatAccountProfile(profile: AccountProfile): String = when (profile) {
     is AccountProfile.Complete -> {
-        val sex = if (profile.sex == Sex.MALE) "мужской" else "женский"
-        "${formatLocalizedDecimal(profile.heightCm)} см · ${profile.birthDate.format(AccountDateFormatter)} · $sex"
+        val sex = stringResource(
+            if (profile.sex == Sex.MALE) R.string.sex_male else R.string.sex_female,
+        )
+        stringResource(
+            R.string.account_profile_summary,
+            formatLocalizedDecimal(profile.heightCm),
+            profile.birthDate.format(AccountDateFormatter),
+            sex,
+        )
     }
-    is AccountProfile.IncompleteRecovery -> "Профиль нужно заполнить"
+    is AccountProfile.IncompleteRecovery -> stringResource(R.string.account_profile_incomplete)
 }

@@ -202,7 +202,7 @@ data class AccountManagementUiState(
     val deletion: AccountDeletionRequest? = null,
     val profileUpdateConfirmation: ProfileUpdateConfirmation? = null,
     val operationInProgress: Boolean = false,
-    val operationError: String? = null,
+    val operationError: UiText? = null,
 ) {
     init {
         require(accounts.distinctBy(Account::id).size == accounts.size)
