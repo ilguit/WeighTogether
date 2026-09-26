@@ -1219,7 +1219,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (error: Exception) {
                 if (!petMeasurementCreation.complete(creationToken)) return@launch
                 petMeasurement.value = PetMeasurementUiState.Error(
-                    error.message ?: "Не удалось создать питомца",
+                    error.message ?: getApplication<Application>().getString(R.string.error_create_pet),
                 )
                 return@launch
             }
@@ -1276,7 +1276,7 @@ class MainViewModel @JvmOverloads constructor(
                     state = petManagement.value,
                     request = request,
                     result = PetProfilePersistenceResult.Failure(
-                        error.message ?: "Не удалось сохранить питомца",
+                        error.message ?: getApplication<Application>().getString(R.string.error_save_pet),
                     ),
                 )
             }
@@ -1292,7 +1292,7 @@ class MainViewModel @JvmOverloads constructor(
                 .onFailure { error ->
                     if (error is CancellationException) throw error
                     petManagement.value = PetManagementUiState(error = error.message)
-                    showMessage("Не удалось подготовить удаление питомца")
+                    showMessage(uiText(R.string.error_prepare_delete_pet))
                 }
         }
     }
@@ -1309,7 +1309,7 @@ class MainViewModel @JvmOverloads constructor(
                     if (error is CancellationException) throw error
                     petManagement.value = snapshot.copy(
                         busy = false,
-                        error = error.message ?: "Не удалось удалить питомца",
+                        error = error.message ?: getApplication<Application>().getString(R.string.error_delete_pet),
                     )
                 }
         }

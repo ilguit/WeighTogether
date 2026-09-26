@@ -63,13 +63,15 @@ class PetBirthDatePickerTest {
             "Январь", "Февраль", "Март", "Апрель", "Май", "Июнь",
             "Июль", "Август", "Сентябрь", "Октябрь", "Ноябрь", "Декабрь",
         )
-        assertEquals(names, (1..12).map { petBirthDatePartLabel(PetBirthDatePart.MONTH, it) })
+        val russian = java.util.Locale.forLanguageTag("ru")
+        assertEquals(names, (1..12).map { petBirthDatePartLabel(PetBirthDatePart.MONTH, it, russian) })
         assertEquals("2020", petBirthDatePartLabel(PetBirthDatePart.YEAR, 2020))
         assertEquals("29", petBirthDatePartLabel(PetBirthDatePart.DAY, 29))
         val restored = PetBirthDateInput.Day("2020", "02", "09")
         assertEquals("Февраль", petBirthDatePartLabel(
-            PetBirthDatePart.MONTH, requireNotNull(restored.component(PetBirthDatePart.MONTH)),
+            PetBirthDatePart.MONTH, requireNotNull(restored.component(PetBirthDatePart.MONTH)), russian,
         ))
+        assertEquals("January", petBirthDatePartLabel(PetBirthDatePart.MONTH, 1, java.util.Locale.ENGLISH))
     }
 
     private fun select(input: PetBirthDateInput, part: PetBirthDatePart, value: Int?) =
