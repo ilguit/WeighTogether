@@ -5,6 +5,7 @@ import com.palixander.scalesync.charts.chartMetricOptions
 import com.palixander.scalesync.charts.formatChartCurrentValue
 import com.palixander.scalesync.charts.formatChartMarkerText
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
+import com.palixander.scalesync.ui.text.UiText
 import java.time.ZoneOffset
 import java.util.Locale
 import org.junit.Assert.*
@@ -61,10 +62,10 @@ class ManualWeightPresentationTest {
                 assertTrue(formatChartMarkerText(ChartPoint(0, weight), metric, ZoneOffset.UTC, Locale.forLanguageTag("ru")).endsWith("$expected кг"))
             }
             val selection = HomeKgChartMarkerSelection(0, listOf(
-                HomeKgChartMarkerEntry(HomeKgChartMetric.WEIGHT.key, "Вес", weight, 2, 0),
-                HomeKgChartMarkerEntry(HomeKgChartMetric.BODY_FAT_MASS.key, "Жир", 1.2, 2, 0),
+                HomeKgChartMarkerEntry(HomeKgChartMetric.WEIGHT.key, UiText.Raw("Вес"), UiText.Raw("кг"), weight, 2, 0),
+                HomeKgChartMarkerEntry(HomeKgChartMetric.BODY_FAT_MASS.key, UiText.Raw("Жир"), UiText.Raw("кг"), 1.2, 2, 0),
             ))
-            val text = formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US)
+            val text = formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US) { (it as UiText.Raw).value }
             assertTrue(text.contains("Вес: $weight кг"))
             assertTrue(text.contains("Жир: 1.20 кг"))
         }

@@ -12,6 +12,7 @@ import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.Instant
 
 /** State-based destinations owned by the measurements feature. */
@@ -73,12 +74,12 @@ data class MeasurementsNavigationState(
 }
 
 enum class MeasurementEditorGroup(
-    val title: String,
+    val title: UiText,
 ) {
-    MAIN("Main"),
-    BODY_COMPOSITION("Body composition"),
-    MUSCLES_AND_BONES("Muscles and bones"),
-    METABOLISM("Metabolism"),
+    MAIN(uiText(R.string.measurement_group_main)),
+    BODY_COMPOSITION(uiText(R.string.measurement_group_body_composition)),
+    MUSCLES_AND_BONES(uiText(R.string.measurement_group_muscles_bones)),
+    METABOLISM(uiText(R.string.measurement_group_metabolism)),
 }
 
 /**
@@ -86,51 +87,51 @@ enum class MeasurementEditorGroup(
  * keeping this package independent from Room and repository types.
  */
 enum class MeasurementField(
-    val label: String,
-    val unit: String,
+    val label: UiText,
+    val unit: UiText?,
     val decimalPlaces: Int,
     val editorGroup: MeasurementEditorGroup,
     internal val wholeNumber: Boolean = false,
     internal val maximum: Double? = null,
 ) {
-    WEIGHT_KG("Weight", "kg", 2, MeasurementEditorGroup.MAIN),
-    IMPEDANCE_OHM("Impedance", "Ω", 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
-    BMI("Body mass index", "", 1, MeasurementEditorGroup.MAIN),
-    BODY_FAT_PERCENT("Body fat", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    BODY_FAT_MASS_KG("Fat mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    WATER_PERCENT("Water", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    WATER_MASS_KG("Water mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    MUSCLE_MASS_KG("Muscle mass", "kg", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    WEIGHT_KG(uiText(R.string.metric_weight), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MAIN),
+    IMPEDANCE_OHM(uiText(R.string.metric_impedance), uiText(R.string.unit_ohm_symbol), 0, MeasurementEditorGroup.MAIN, wholeNumber = true),
+    BMI(uiText(R.string.metric_bmi), null, 1, MeasurementEditorGroup.MAIN),
+    BODY_FAT_PERCENT(uiText(R.string.metric_body_fat), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    BODY_FAT_MASS_KG(uiText(R.string.metric_body_fat_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    WATER_PERCENT(uiText(R.string.metric_water), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    WATER_MASS_KG(uiText(R.string.metric_water_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    MUSCLE_MASS_KG(uiText(R.string.metric_muscle_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
     SKELETAL_MUSCLE_MASS_KG(
-        "Skeletal muscle mass",
-        "kg",
+        uiText(R.string.metric_skeletal_muscle_mass),
+        uiText(R.string.unit_kg),
         2,
         MeasurementEditorGroup.MUSCLES_AND_BONES,
     ),
-    BONE_MASS_KG("Bone mass", "kg", 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
-    PROTEIN_PERCENT("Protein", "%", 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
-    PROTEIN_MASS_KG("Protein mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
-    VISCERAL_FAT_LEVEL("Visceral fat level", "", 1, MeasurementEditorGroup.METABOLISM),
-    BASAL_METABOLIC_RATE_KCAL("Basal metabolic rate", "kcal", 0, MeasurementEditorGroup.METABOLISM),
+    BONE_MASS_KG(uiText(R.string.metric_bone_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.MUSCLES_AND_BONES),
+    PROTEIN_PERCENT(uiText(R.string.metric_protein), uiText(R.string.unit_percent), 1, MeasurementEditorGroup.BODY_COMPOSITION, maximum = 100.0),
+    PROTEIN_MASS_KG(uiText(R.string.metric_protein_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    VISCERAL_FAT_LEVEL(uiText(R.string.metric_visceral_fat_level), null, 1, MeasurementEditorGroup.METABOLISM),
+    BASAL_METABOLIC_RATE_KCAL(uiText(R.string.metric_basal_metabolic_rate), uiText(R.string.unit_kcal), 0, MeasurementEditorGroup.METABOLISM),
     METABOLIC_AGE(
-        "Metabolic age",
-        "years",
+        uiText(R.string.metric_metabolic_age),
+        uiText(R.string.unit_years),
         0,
         MeasurementEditorGroup.METABOLISM,
         wholeNumber = true,
     ),
-    LEAN_BODY_MASS_KG("Lean body mass", "kg", 2, MeasurementEditorGroup.BODY_COMPOSITION),
+    LEAN_BODY_MASS_KG(uiText(R.string.metric_lean_body_mass), uiText(R.string.unit_kg), 2, MeasurementEditorGroup.BODY_COMPOSITION),
     ;
 
-    val inputLabel: String
-        get() = if (unit.isBlank()) label else "$label, $unit"
+    val inputLabel: UiText
+        get() = unit?.let { uiText(R.string.measurement_input_label_with_unit, label, it) } ?: label
 }
 
 data class MeasurementEditorSection(
     val group: MeasurementEditorGroup,
     val fields: List<MeasurementField>,
 ) {
-    val title: String
+    val title: UiText
         get() = group.title
 }
 
@@ -408,10 +409,10 @@ data class MeasurementMetricPresentation(
     val field: MeasurementField,
     val value: Double?,
 ) {
-    val label: String
+    val label: UiText
         get() = this.field.label
 
-    val unit: String
+    val unit: UiText?
         get() = this.field.unit
 }
 

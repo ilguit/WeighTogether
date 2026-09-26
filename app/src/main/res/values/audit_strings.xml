@@ -16,4 +16,25 @@
     <string name="message_health_connect_permissions_incomplete">Health Connect: not all data types are allowed</string>
     <string name="message_external_sync_paused">External sync paused</string>
     <string name="message_external_sync_resumed">External sync resumed</string>
+    <string name="measurement_group_main">Main</string>
+    <string name="measurement_group_body_composition">Body composition</string>
+    <string name="measurement_group_muscles_bones">Muscles and bones</string>
+    <string name="measurement_group_metabolism">Metabolism</string>
+    <string name="measurement_input_label_with_unit">%1$s, %2$s</string>
+    <string name="unit_ohm_symbol">Ω</string>
+    <string name="unit_kcal">kcal</string>
+    <string name="validation_required_field">Required field</string>
+    <string name="validation_whole_number">Enter a whole number</string>
+    <string name="validation_number">Enter a number</string>
+    <string name="validation_finite_number">Enter a finite number</string>
+    <string name="validation_non_negative">Value cannot be negative</string>
+    <string name="validation_allowed_range">Allowed range: 0–%1$d</string>
+    <string name="measurement_value_with_unit">%1$s %2$s</string>
+    <string name="measurement_prefixed_unit">\u0020%1$s</string>
+    <string name="measurement_delete_summary">%1$s · %2$s %3$s</string>
+    <string name="measurement_history_fat">Fat %1$s</string>
+    <string name="measurement_history_muscle">muscle %1$s</string>
+    <string name="measurement_history_bmi">BMI %1$s</string>
+    <string name="measurement_first_measurement">First measurement</string>
+    <string name="measurement_weight_no_change">No change</string>
 </resources>

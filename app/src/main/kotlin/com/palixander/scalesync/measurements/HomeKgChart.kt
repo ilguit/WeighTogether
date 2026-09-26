@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
@@ -49,6 +50,8 @@ import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
@@ -71,7 +74,8 @@ import kotlin.math.abs
 
 internal data class HomeKgChartMarkerEntry(
     val key: String,
-    val label: String,
+    val label: UiText,
+    val unit: UiText,
     val valueKg: Double,
     val decimalPlaces: Int,
     val colorArgb: Int,
@@ -106,6 +110,7 @@ internal fun homeKgChartMarkerSelection(
             HomeKgChartMarkerEntry(
                 key = series.key,
                 label = series.label,
+                unit = requireNotNull(series.unit),
                 valueKg = point.valueKg,
                 decimalPlaces = series.decimalPlaces,
                 colorArgb = series.color.argb,
@@ -122,6 +127,7 @@ internal fun formatHomeKgChartMarker(
     selection: HomeKgChartMarkerSelection,
     zoneId: ZoneId = ZoneId.systemDefault(),
     locale: Locale = Locale.getDefault(),
+    resolveText: (UiText) -> String,
 ): String = buildString {
     append(
         HomeMarkerDateTimeFormatter.format(
@@ -135,10 +141,11 @@ internal fun formatHomeKgChartMarker(
             isGroupingUsed = false
         }
         append('\n')
-        append(entry.label)
+        append(resolveText(entry.label))
         append(": ")
         append(if (entry.key == HomeKgChartMetric.WEIGHT.key) formatWeight(entry.valueKg, locale) else number.format(entry.valueKg))
-        append(" kg")
+        append(' ')
+        append(resolveText(entry.unit))
     }
 }
 
@@ -263,7 +270,7 @@ private fun HomeKgSeriesItem(
     ) {
         Checkbox(checked = selected, onCheckedChange = null)
         Box(Modifier.size(10.dp).background(Color(series.color.argb), CircleShape))
-        Text(series.label, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
+        Text(series.label.resolve(LocalContext.current.resources), modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
     }
 }
 
@@ -276,6 +283,7 @@ private fun HomeKgVicoChart(
     val chartContentDescription = stringResource(
         com.palixander.scalesync.R.string.chart_home_content_description,
     )
+    val resources = LocalContext.current.resources
     val modelProducer = remember { CartesianChartModelProducer() }
     val points = remember(plottedSeries) {
         plottedSeries.flatMap { series ->
@@ -310,7 +318,7 @@ private fun HomeKgVicoChart(
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             homeKgChartMarkerSelection(state, target.x.toLong())
-                ?.let { formatHomeKgChartMarker(it, zoneId) }
+                ?.let { formatHomeKgChartMarker(it, zoneId, resolveText = { text -> text.resolve(resources) }) }
                 .orEmpty()
         }
     }
@@ -337,7 +345,10 @@ private fun HomeKgVicoChart(
         chart = rememberCartesianChart(
             rememberChartLineLayer(lines = lines, rangeProvider = rangeProvider),
             startAxis = rememberChartStartAxis(
-                CartesianValueFormatter.decimal(decimalCount = 2, suffix = " kg"),
+                CartesianValueFormatter.decimal(
+                    decimalCount = 2,
+                    suffix = " ${com.palixander.scalesync.ui.text.uiText(com.palixander.scalesync.R.string.unit_kg).resolve(resources)}",
+                ),
             ),
             bottomAxis = rememberChartBottomAxis(bottomFormatter),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),

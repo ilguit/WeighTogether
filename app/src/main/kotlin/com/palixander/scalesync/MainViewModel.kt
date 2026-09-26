@@ -1828,12 +1828,9 @@ class MainViewModel @JvmOverloads constructor(
 
 }
 
-internal const val EXTERNAL_SYNC_PAUSED_MESSAGE = "External sync paused"
-internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "External sync resumed"
-
-internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
-    is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
-    ExternalSyncPauseTransition.Resumed -> EXTERNAL_SYNC_RESUMED_MESSAGE
+internal fun ExternalSyncPauseTransition.snackbarMessage(): UiText = when (this) {
+    is ExternalSyncPauseTransition.Paused -> uiText(R.string.message_external_sync_paused)
+    ExternalSyncPauseTransition.Resumed -> uiText(R.string.message_external_sync_resumed)
 }
 
 internal fun resolverIgnoreUnknownPolicySelection(

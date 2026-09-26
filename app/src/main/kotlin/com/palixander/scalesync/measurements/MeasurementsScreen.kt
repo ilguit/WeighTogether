@@ -99,6 +99,7 @@ import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ReferencePalette
 import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.reference.ExpandedMetricReference
 import com.palixander.scalesync.ui.reference.MetricHelpDialog
 import com.palixander.scalesync.ui.reference.ReferenceGroupPresentation
@@ -424,13 +425,15 @@ private fun PendingMeasurementCard(
                 horizontalArrangement = Arrangement.spacedBy(20.dp),
             ) {
                 PendingMeasurementValue(
-                    label = "Weight",
-                    value = "${formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg)} kg",
+                    label = stringResource(R.string.metric_weight),
+                    value = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg), stringResource(R.string.unit_kg)),
                     modifier = Modifier.weight(1f),
                 )
                 PendingMeasurementValue(
-                    label = "Impedance",
-                    value = pending.impedanceOhm?.let { "$it Ω" } ?: MissingMeasurementValue,
+                    label = stringResource(R.string.metric_impedance),
+                    value = pending.impedanceOhm?.let {
+                        stringResource(R.string.measurement_value_with_unit, it, stringResource(R.string.unit_ohm_symbol))
+                    } ?: MissingMeasurementValue,
                     modifier = Modifier.weight(1f),
                 )
             }
@@ -741,7 +744,7 @@ private fun MeasurementSummaryCard(
                                 letterSpacing = (-1).sp,
                             )
                             Text(
-                                text = " kg",
+                                text = stringResource(R.string.measurement_prefixed_unit, stringResource(R.string.unit_kg)),
                                 modifier = Modifier.align(Alignment.Bottom).padding(bottom = 4.dp),
                                 color = HuaweiColors.Secondary,
                                 style = MaterialTheme.typography.bodyLarge,
@@ -866,7 +869,7 @@ private fun MetricDetail(
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = metric.label,
+            text = metric.label.resolve(LocalContext.current.resources),
             color = HuaweiColors.Secondary,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -956,7 +959,7 @@ private fun CompactSummaryReferenceMetric(
             )
             if (presentation.visualNumber != null) {
                 Text(
-                    text = " ${presentation.visibleUnit}",
+                    text = stringResource(R.string.measurement_prefixed_unit, presentation.visibleUnit),
                     modifier = Modifier
                         .align(Alignment.Bottom)
                         .then(if (primary) Modifier.padding(bottom = 5.dp) else Modifier)
@@ -1211,7 +1214,7 @@ internal fun MeasurementHistoryCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = "${formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg)} kg",
+                                    text = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg), stringResource(R.string.unit_kg)),
                                     modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
@@ -1221,7 +1224,7 @@ internal fun MeasurementHistoryCard(
                         }
                         if (item.isWeightOnly) {
                             Text(
-                                text = "Weight only",
+                                text = stringResource(R.string.measurement_weight_only),
                                 modifier = Modifier.testTag("history-weight-only-label-${item.id}"),
                                 color = MaterialTheme.colorScheme.secondary,
                                 style = MaterialTheme.typography.labelMedium,
@@ -1616,7 +1619,7 @@ private fun EditorSection(
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Column {
-            HuaweiSectionTitle(section.title, modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
+            HuaweiSectionTitle(section.title.resolve(LocalContext.current.resources), modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
             section.fields.forEachIndexed { index, field ->
                 if (index > 0) HorizontalDivider()
                 EditorFieldRow(
@@ -1635,7 +1638,7 @@ private fun EditorSection(
 private fun EditorFieldRow(
     field: MeasurementField,
     value: String,
-    error: String?,
+    error: UiText?,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
 ) {
@@ -1644,7 +1647,7 @@ private fun EditorFieldRow(
     ) {
         if (maxWidth < 300.dp) {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(field.label, style = MaterialTheme.typography.bodyMedium)
+                Text(field.label.resolve(LocalContext.current.resources), style = MaterialTheme.typography.bodyMedium)
                 EditorFieldInput(
                     field = field,
                     value = value,
@@ -1661,7 +1664,7 @@ private fun EditorFieldRow(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    field.label,
+                    field.label.resolve(LocalContext.current.resources),
                     modifier = Modifier.weight(1f).padding(top = 14.dp),
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -1682,24 +1685,25 @@ private fun EditorFieldRow(
 private fun EditorFieldInput(
     field: MeasurementField,
     value: String,
-    error: String?,
+    error: UiText?,
     enabled: Boolean,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
         modifier = modifier
-            .semantics { contentDescription = field.inputLabel }
+            .semantics { contentDescription = field.inputLabel.resolve(resources) }
             .testTag("editor-field-${field.name}"),
         enabled = enabled,
         isError = error != null,
         supportingText = error?.let { validationError ->
-            { Text(validationError) }
+            { Text(validationError.resolve(resources)) }
         },
-        suffix = field.unit.takeIf(String::isNotBlank)?.let { unit ->
-            { Text(unit, style = MaterialTheme.typography.bodySmall) }
+        suffix = field.unit?.let { unit ->
+            { Text(unit.resolve(resources), style = MaterialTheme.typography.bodySmall) }
         },
         singleLine = true,
         shape = MaterialTheme.shapes.small,
@@ -1823,8 +1827,12 @@ private fun DeleteMeasurementDialog(
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "${formatMeasurementDateTime(confirmation.measuredAt)} · " +
-                        "${formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg)} kg",
+                    stringResource(
+                        R.string.measurement_delete_summary,
+                        formatMeasurementDateTime(confirmation.measuredAt),
+                        formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg),
+                        stringResource(R.string.unit_kg),
+                    ),
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
@@ -1883,39 +1891,39 @@ private val MeasurementSyncPresentationState.contentColor: Color
         MeasurementSyncPresentationState.SYNCED -> MaterialTheme.colorScheme.primary
     }
 
+@Composable
 private fun historySubtitle(item: MeasurementUiItem): String = listOf(
     MeasurementMetricPresentation(
         MeasurementField.BODY_FAT_PERCENT,
         item.values.bodyFatPercent,
-    ).displayValue().let { "Fat $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_fat, it) },
     MeasurementMetricPresentation(
         MeasurementField.MUSCLE_MASS_KG,
         item.values.muscleMassKg,
-    ).displayValue().let { "muscle $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_muscle, it) },
     MeasurementMetricPresentation(
         MeasurementField.BMI,
         item.values.bmi,
-    ).displayValue().let { "BMI $it" },
+    ).displayValue().let { stringResource(R.string.measurement_history_bmi, it) },
 ).joinToString(" · ")
 
+@Composable
 private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
     if (value == null) return MissingMeasurementValue
     if (field == MeasurementField.WEIGHT_KG) return formatWeight(value, locale)
     val formatted = formatDisplayValue(field, value, locale)
-    return when (unit) {
-        "" -> formatted
-        "%" -> "$formatted%"
-        else -> "$formatted $unit"
-    }
+    val resolvedUnit = unit?.resolve(LocalContext.current.resources) ?: return formatted
+    return stringResource(R.string.measurement_value_with_unit, formatted, resolvedUnit)
 }
 
+@Composable
 private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault()): String = when {
-    delta == null -> "First measurement"
-    kotlin.math.abs(delta) < 0.000_001 -> "No change"
+    delta == null -> stringResource(R.string.measurement_first_measurement)
+    kotlin.math.abs(delta) < 0.000_001 -> stringResource(R.string.measurement_weight_no_change)
     else -> {
         val prefix = if (delta > 0) "+" else "−"
         val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        "$prefix$value kg"
+        stringResource(R.string.measurement_value_with_unit, "$prefix$value", stringResource(R.string.unit_kg))
     }
 }
 

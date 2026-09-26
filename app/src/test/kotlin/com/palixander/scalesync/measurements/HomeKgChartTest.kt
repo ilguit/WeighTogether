@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import java.time.ZoneOffset
 import java.util.Locale
@@ -46,7 +48,14 @@ class HomeKgChartTest {
 
         assertEquals(
             "24.08.2025 01:46\nWeight: 72.4 kg\nFat mass: 13.55 kg",
-            formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US),
+            formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US) { text ->
+                when (text) {
+                    UiText.Resource(R.string.metric_weight) -> "Weight"
+                    UiText.Resource(R.string.metric_body_fat_mass) -> "Fat mass"
+                    UiText.Resource(R.string.unit_kg) -> "kg"
+                    else -> error("Unexpected chart label: $text")
+                }
+            },
         )
     }
 
