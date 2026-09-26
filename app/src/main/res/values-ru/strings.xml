@@ -12,4 +12,34 @@
     <string name="unsaved_preview_calculation_error">Не удалось рассчитать показатели. Проверьте данные и повторите.</string>
     <string name="unsaved_preview_step">Шаг %1$d из 3</string>
     <string name="unsaved_preview_warning">Результат не попадёт в историю и не будет отправлен во внешние сервисы. Временные параметры используются только для этого расчёта и не изменяют профиль.</string>
+    <string name="notification_channel_scale_scanning">Сканирование весов</string>
+    <string name="notification_channel_pending_measurements">Нераспознанные измерения</string>
+    <string name="notification_channel_saved_measurements">Сохранённые измерения</string>
+    <string name="notification_channel_saved_measurements_description">Подтверждения об успешном сохранении измерений</string>
+    <plurals name="notification_pending_measurements">
+        <item quantity="one">Ожидает назначения профиля: %1$d измерение</item>
+        <item quantity="few">Ожидают назначения профиля: %1$d измерения</item>
+        <item quantity="many">Ожидают назначения профиля: %1$d измерений</item>
+        <item quantity="other">Ожидают назначения профиля: %1$d измерения</item>
+    </plurals>
+    <string name="notification_measurement_saved_title">Измерение сохранено</string>
+    <string name="notification_measurement_saved_text">Измерение успешно сохранено для %1$s</string>
+    <string name="notification_reliability_scan_text">Повышенная надёжность: весы ожидаются</string>
+    <string name="message_bluetooth_permission_denied">Без разрешения Bluetooth автоматический приём невозможен</string>
+    <string name="message_notification_permission_denied">Уведомления запрещены: ожидающие измерения будут показаны в приложении</string>
+    <string name="message_health_connect_unavailable">Health Connect недоступен на этом устройстве</string>
+    <string name="message_health_connect_management_failed">Не удалось открыть управление доступом Health Connect</string>
+    <string name="error_open_selected_file">Не удалось открыть выбранный файл</string>
+    <string name="message_backup_saved">Резервная копия сохранена</string>
+    <string name="error_backup_create">Не удалось создать резервную копию</string>
+    <string name="error_backup_read">Не удалось прочитать резервную копию</string>
+    <string name="message_backup_import_pending_recovery">Данные импортированы. Настройки будут восстановлены при следующем запуске</string>
+    <string name="message_backup_import_completed">Импорт завершён: профилей %1$d, измерений %2$d, питомцев %3$d, измерений питомцев %4$d</string>
+    <string name="message_backup_preview_stale">Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова</string>
+    <string name="error_backup_import">Не удалось импортировать резервную копию</string>
+    <string name="error_bluetooth_scan_permission">Нет разрешения Bluetooth Scan</string>
+    <string name="error_scale_not_selected">Сначала выберите весы</string>
+    <string name="error_bluetooth_disabled">Bluetooth выключен</string>
+    <string name="error_bluetooth_scan_start">Не удалось включить BLE-сканирование: %1$d</string>
+    <string name="error_bluetooth_scan">Ошибка BLE-сканирования: %1$d</string>
 </resources>

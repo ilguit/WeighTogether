@@ -5,23 +5,30 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.palixander.scalesync.R
 import com.palixander.scalesync.data.ProfileStore
 
 object BackgroundScanRegistrar {
     @SuppressLint("MissingPermission")
     fun register(context: Context): Result<Unit> = runCatching {
-        check(BleSupport.hasScanPermission(context)) { "Нет разрешения Bluetooth Scan" }
-        val address = checkNotNull(ProfileStore(context).settings.value.scaleAddress) {
-            "Сначала выберите весы"
+        check(BleSupport.hasScanPermission(context)) {
+            context.getString(R.string.error_bluetooth_scan_permission)
         }
-        val scanner = checkNotNull(BleSupport.scanner(context)) { "Bluetooth выключен" }
+        val address = checkNotNull(ProfileStore(context).settings.value.scaleAddress) {
+            context.getString(R.string.error_scale_not_selected)
+        }
+        val scanner = checkNotNull(BleSupport.scanner(context)) {
+            context.getString(R.string.error_bluetooth_disabled)
+        }
         runCatching { scanner.stopScan(pendingIntent(context)) }
         val resultCode = scanner.startScan(
             listOf(BleSupport.scanFilter(address)),
             BleSupport.balancedSettings(),
             pendingIntent(context),
         )
-        check(resultCode == 0) { "Не удалось включить BLE-сканирование: $resultCode" }
+        check(resultCode == 0) {
+            context.getString(R.string.error_bluetooth_scan_start, resultCode)
+        }
     }
 
     @SuppressLint("MissingPermission")

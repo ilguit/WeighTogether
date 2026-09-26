@@ -12,4 +12,32 @@
     <string name="unsaved_preview_calculation_error">Could not calculate metrics. Check the data and try again.</string>
     <string name="unsaved_preview_step">Step %1$d of 3</string>
     <string name="unsaved_preview_warning">The result will not be added to history or sent to external services. Temporary parameters are used only for this calculation and do not change the profile.</string>
+    <string name="notification_channel_scale_scanning">Scale scanning</string>
+    <string name="notification_channel_pending_measurements">Unassigned measurements</string>
+    <string name="notification_channel_saved_measurements">Saved measurements</string>
+    <string name="notification_channel_saved_measurements_description">Confirmations that measurements were saved successfully</string>
+    <plurals name="notification_pending_measurements">
+        <item quantity="one">Waiting for profile assignment: %1$d measurement</item>
+        <item quantity="other">Waiting for profile assignment: %1$d measurements</item>
+    </plurals>
+    <string name="notification_measurement_saved_title">Measurement saved</string>
+    <string name="notification_measurement_saved_text">Measurement successfully saved for %1$s</string>
+    <string name="notification_reliability_scan_text">Enhanced reliability: waiting for the scale</string>
+    <string name="message_bluetooth_permission_denied">Automatic reception is unavailable without Bluetooth permission</string>
+    <string name="message_notification_permission_denied">Notifications are disabled: pending measurements will be shown in the app</string>
+    <string name="message_health_connect_unavailable">Health Connect is unavailable on this device</string>
+    <string name="message_health_connect_management_failed">Could not open Health Connect access management</string>
+    <string name="error_open_selected_file">Could not open the selected file</string>
+    <string name="message_backup_saved">Backup saved</string>
+    <string name="error_backup_create">Could not create a backup</string>
+    <string name="error_backup_read">Could not read the backup</string>
+    <string name="message_backup_import_pending_recovery">Data imported. Settings will be restored the next time the app starts</string>
+    <string name="message_backup_import_completed">Import complete: %1$d profiles, %2$d measurements, %3$d pets, %4$d pet measurements</string>
+    <string name="message_backup_preview_stale">The data has changed. Review the updated preview and confirm the import again</string>
+    <string name="error_backup_import">Could not import the backup</string>
+    <string name="error_bluetooth_scan_permission">Bluetooth Scan permission is missing</string>
+    <string name="error_scale_not_selected">Select a scale first</string>
+    <string name="error_bluetooth_disabled">Bluetooth is turned off</string>
+    <string name="error_bluetooth_scan_start">Could not start BLE scanning: %1$d</string>
+    <string name="error_bluetooth_scan">BLE scan error: %1$d</string>
 </resources>

@@ -40,7 +40,7 @@ class MainActivity : ComponentActivity() {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { grants ->
         if (grants.values.all { it }) viewModel.onBluetoothPermissionsReady()
-        else viewModel.setMessage("Без разрешения Bluetooth автоматический приём невозможен")
+        else viewModel.setMessage(getString(R.string.message_bluetooth_permission_denied))
         requestNotificationPermission()
     }
 
@@ -51,7 +51,7 @@ class MainActivity : ComponentActivity() {
         viewModel.setNotificationPermissionGranted(granted)
         if (!granted) {
             viewModel.setMessage(
-                "Уведомления запрещены: ожидающие измерения будут показаны в приложении",
+                getString(R.string.message_notification_permission_denied),
             )
         }
     }
@@ -82,7 +82,7 @@ class MainActivity : ComponentActivity() {
                     if (viewModel.healthConnectAvailable) {
                         healthPermissions.launch(viewModel.healthConnectPermissions)
                     } else {
-                        viewModel.setMessage("Health Connect недоступен на этом устройстве")
+                        viewModel.setMessage(getString(R.string.message_health_connect_unavailable))
                     }
                 },
                 openHealthConnectAccessManagement = ::openHealthConnectAccessManagement,
@@ -156,7 +156,7 @@ class MainActivity : ComponentActivity() {
             launch = ::startActivity,
         )
         healthConnectSystemManagementAvailable = opened
-        if (!opened) viewModel.setMessage("Не удалось открыть управление доступом Health Connect")
+        if (!opened) viewModel.setMessage(getString(R.string.message_health_connect_management_failed))
     }
 
     private fun refreshHealthConnectSystemManagementAvailability() {

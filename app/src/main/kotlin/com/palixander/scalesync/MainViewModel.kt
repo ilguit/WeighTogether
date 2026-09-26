@@ -457,12 +457,12 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
                     container.backupExport.writeTo(it)
-                } ?: error("Не удалось открыть выбранный файл")
-                showMessage("Резервная копия сохранена")
+                } ?: error(localized(R.string.error_open_selected_file))
+                showMessage(localized(R.string.message_backup_saved))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                showMessage(error.userFacingMessage("Не удалось создать резервную копию"))
+                showMessage(error.userFacingMessage(localized(R.string.error_backup_create)))
             } finally {
                 backup.value = BackupUiState()
             }
@@ -476,7 +476,7 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 val document = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
                     container.backupImport.read(it)
-                } ?: error("Не удалось открыть выбранный файл")
+                } ?: error(localized(R.string.error_open_selected_file))
                 val preview = container.backupImport.preview(
                     document,
                     container.backupSnapshotSource.readSnapshot(),
@@ -489,7 +489,7 @@ class MainViewModel @JvmOverloads constructor(
                 throw cancelled
             } catch (error: Exception) {
                 backup.value = BackupUiState()
-                showMessage(error.userFacingMessage("Не удалось прочитать резервную копию"))
+                showMessage(error.userFacingMessage(localized(R.string.error_backup_read)))
             }
         }
     }
@@ -514,7 +514,7 @@ class MainViewModel @JvmOverloads constructor(
                 val result = container.backupImportApplier.apply(preview)
                 if (result is com.palixander.scalesync.backup.BackupImportApplyResult.CompletedPendingRecovery) {
                     backup.value = BackupUiState()
-                    showMessage("Данные импортированы. Настройки будут восстановлены при следующем запуске")
+                    showMessage(localized(R.string.message_backup_import_pending_recovery))
                     return@launch
                 }
                 if (preview.mode == BackupImportMode.REPLACE) {
@@ -526,19 +526,23 @@ class MainViewModel @JvmOverloads constructor(
                 }
                 backup.value = BackupUiState()
                 showMessage(
-                    "Импорт завершён: профилей ${result.counts.accountsAdded}, " +
-                        "измерений ${result.counts.measurementsAdded}, питомцев ${result.counts.petsAdded}, " +
-                        "измерений питомцев ${result.counts.petMeasurementsAdded}",
+                    localized(
+                        R.string.message_backup_import_completed,
+                        result.counts.accountsAdded,
+                        result.counts.measurementsAdded,
+                        result.counts.petsAdded,
+                        result.counts.petMeasurementsAdded,
+                    ),
                 )
             } catch (cancelled: CancellationException) {
                 backup.value = BackupUiState()
                 throw cancelled
             } catch (stale: com.palixander.scalesync.backup.BackupPreviewStale) {
                 backup.value = BackupUiState(preview = stale.refreshedPreview)
-                showMessage("Данные изменились. Проверьте обновлённый предварительный итог и подтвердите импорт снова")
+                showMessage(localized(R.string.message_backup_preview_stale))
             } catch (error: Exception) {
                 backup.value = backup.value.copy(inProgress = false)
-                showMessage(error.userFacingMessage("Не удалось импортировать резервную копию"))
+                showMessage(error.userFacingMessage(localized(R.string.error_backup_import)))
             }
         }
     }
@@ -1598,6 +1602,9 @@ class MainViewModel @JvmOverloads constructor(
     private fun showMessage(message: String) {
         eventEmitter.showSnackbar(message)
     }
+
+    private fun localized(id: Int, vararg arguments: Any): String =
+        getApplication<Application>().getString(id, *arguments)
 
     private suspend fun discardPending(
         pendingId: PendingMeasurementId,

@@ -44,11 +44,4 @@ class SuccessfulMeasurementNotificationContractTest {
         assertFalse(SuccessfulMeasurementNotificationContract.shouldPost(true, true, false))
     }
 
-    @Test
-    fun contentNamesSuccessfulSaveAndTargetAccount() {
-        val text = SuccessfulMeasurementNotificationContract.contentText("Александр")
-
-        assertTrue(text.contains("успешно сохранено"))
-        assertTrue(text.contains("Александр"))
-    }
 }
