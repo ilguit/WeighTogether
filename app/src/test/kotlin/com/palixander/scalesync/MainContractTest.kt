@@ -22,11 +22,14 @@ class MainContractTest {
     fun `events queued before collection are delivered in order and only once`() = runBlocking {
         val emitter = MainUiEventEmitter()
 
-        emitter.showSnackbar("Первое")
-        emitter.showSnackbar("Второе")
+        emitter.showSnackbar(UiText.Resource(R.string.message_backup_saved))
+        emitter.showSnackbar(UiText.Raw("external detail"))
 
-        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("Первое")), emitter.events.first())
-        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("Второе")), emitter.events.first())
+        assertEquals(
+            MainUiEvent.ShowSnackbar(UiText.Resource(R.string.message_backup_saved)),
+            emitter.events.first(),
+        )
+        assertEquals(MainUiEvent.ShowSnackbar(UiText.Raw("external detail")), emitter.events.first())
         assertNull(withTimeoutOrNull(50) { emitter.events.first() })
     }
 

@@ -458,12 +458,12 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
                     container.backupExport.writeTo(it)
-                } ?: error(localized(R.string.error_open_selected_file))
-                showMessage(localized(R.string.message_backup_saved))
+                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
+                showMessage(uiText(R.string.message_backup_saved))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
-                showMessage(error.userFacingMessage(localized(R.string.error_backup_create)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_create)))
             } finally {
                 backup.value = BackupUiState()
             }
@@ -477,7 +477,7 @@ class MainViewModel @JvmOverloads constructor(
             try {
                 val document = getApplication<Application>().contentResolver.openInputStream(uri)?.use {
                     container.backupImport.read(it)
-                } ?: error(localized(R.string.error_open_selected_file))
+                } ?: throw UserFacingUiTextException(uiText(R.string.error_open_selected_file))
                 val preview = container.backupImport.preview(
                     document,
                     container.backupSnapshotSource.readSnapshot(),
@@ -490,7 +490,7 @@ class MainViewModel @JvmOverloads constructor(
                 throw cancelled
             } catch (error: Exception) {
                 backup.value = BackupUiState()
-                showMessage(error.userFacingMessage(localized(R.string.error_backup_read)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_read)))
             }
         }
     }
@@ -515,7 +515,7 @@ class MainViewModel @JvmOverloads constructor(
                 val result = container.backupImportApplier.apply(preview)
                 if (result is com.palixander.scalesync.backup.BackupImportApplyResult.CompletedPendingRecovery) {
                     backup.value = BackupUiState()
-                    showMessage(localized(R.string.message_backup_import_pending_recovery))
+                    showMessage(uiText(R.string.message_backup_import_pending_recovery))
                     return@launch
                 }
                 if (preview.mode == BackupImportMode.REPLACE) {
@@ -527,7 +527,7 @@ class MainViewModel @JvmOverloads constructor(
                 }
                 backup.value = BackupUiState()
                 showMessage(
-                    localized(
+                    uiText(
                         R.string.message_backup_import_completed,
                         result.counts.accountsAdded,
                         result.counts.measurementsAdded,
@@ -540,10 +540,10 @@ class MainViewModel @JvmOverloads constructor(
                 throw cancelled
             } catch (stale: com.palixander.scalesync.backup.BackupPreviewStale) {
                 backup.value = BackupUiState(preview = stale.refreshedPreview)
-                showMessage(localized(R.string.message_backup_preview_stale))
+                showMessage(uiText(R.string.message_backup_preview_stale))
             } catch (error: Exception) {
                 backup.value = backup.value.copy(inProgress = false)
-                showMessage(error.userFacingMessage(localized(R.string.error_backup_import)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_backup_import)))
             }
         }
     }
@@ -758,7 +758,7 @@ class MainViewModel @JvmOverloads constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage(localized(R.string.error_save_setting)))
+            showMessage(error.userFacingMessage(uiText(R.string.error_save_setting)))
         }
     }
 
@@ -782,7 +782,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage(localized(R.string.error_open_pending_measurement)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_open_pending_measurement)))
             }
         }
     }
@@ -832,7 +832,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage(localized(R.string.error_assign_measurement)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_assign_measurement)))
             } finally {
                 resolverOperationInProgress.value = false
             }
@@ -960,21 +960,24 @@ class MainViewModel @JvmOverloads constructor(
     fun registerBackgroundScan() {
         if (container.profileStore.settings.value.scaleAddress == null) return
         showMessage(BackgroundScanRegistrar.register(getApplication()).fold(
-            onSuccess = { localized(R.string.message_ble_background_enabled) },
-            onFailure = { it.message ?: localized(R.string.error_enable_scanning) },
+            onSuccess = { uiText(R.string.message_ble_background_enabled) },
+            onFailure = {
+                it.message?.takeIf(String::isNotBlank)?.let(UiText::Raw)
+                    ?: uiText(R.string.error_enable_scanning)
+            },
         ))
     }
 
     fun toggleManualScan() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage(localized(R.string.message_finish_pet_measurement_first))
+            showMessage(uiText(R.string.message_finish_pet_measurement_first))
             return
         }
         if (scanning.value) {
             scanner.stop()
             scanning.value = false
             restoreAutomaticScanning()
-            showMessage(localized(R.string.message_manual_scan_stopped))
+            showMessage(uiText(R.string.message_manual_scan_stopped))
             return
         }
         scaleAvailability.value = currentScaleAvailability()
@@ -989,17 +992,18 @@ class MainViewModel @JvmOverloads constructor(
                 scanning.value = false
                 restoreAutomaticScanning()
                 scaleScanError.value = error
-                showMessage(error)
+                showMessage(UiText.Raw(error))
             },
         )
         started.onSuccess {
             scanning.value = true
-            showMessage(localized(R.string.message_step_on_scale))
+            showMessage(uiText(R.string.message_step_on_scale))
         }.onFailure {
             restoreAutomaticScanning()
             scaleAvailability.value = currentScaleAvailability()
-            val message = it.message ?: localized(R.string.error_start_scanning)
-            if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = message
+            val rawMessage = it.message?.takeIf(String::isNotBlank)
+            val message = rawMessage?.let(UiText::Raw) ?: uiText(R.string.error_start_scanning)
+            if (scaleAvailability.value == ScaleAvailability.AVAILABLE) scaleScanError.value = rawMessage
             showMessage(message)
         }
     }
@@ -1007,7 +1011,7 @@ class MainViewModel @JvmOverloads constructor(
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage(localized(R.string.message_finish_pet_measurement_first))
+            showMessage(uiText(R.string.message_finish_pet_measurement_first))
             return
         }
         val refresh = beginScaleRefresh(
@@ -1056,16 +1060,24 @@ class MainViewModel @JvmOverloads constructor(
 
     fun setReliabilityMode(enabled: Boolean) {
         if (!BleSupport.hasScanPermission(getApplication())) {
-            showMessage(localized(R.string.message_bluetooth_scan_permission_required))
+            showMessage(uiText(R.string.message_bluetooth_scan_permission_required))
             return
         }
         if (enabled && container.profileStore.settings.value.scaleAddress == null) {
-            showMessage(localized(R.string.error_scale_not_selected))
+            showMessage(uiText(R.string.error_scale_not_selected))
             return
         }
         container.profileStore.setReliabilityMode(enabled)
         ReliabilityScanService.setEnabled(getApplication(), enabled)
-        showMessage(localized(if (enabled) R.string.message_reliable_mode_enabled else R.string.message_reliable_mode_disabled))
+        showMessage(
+            uiText(
+                if (enabled) {
+                    R.string.message_reliable_mode_enabled
+                } else {
+                    R.string.message_reliable_mode_disabled
+                },
+            ),
+        )
     }
 
     /** Stops every BLE producer before durably removing the selected scale. */
@@ -1093,19 +1105,19 @@ class MainViewModel @JvmOverloads constructor(
             packetGate = container.scalePacketProcessingGate,
             clearSettings = container.profileStore::forgetScale,
         ).forget()
-        showMessage(localized(R.string.message_scale_forgotten))
+        showMessage(uiText(R.string.message_scale_forgotten))
     }
 
     fun disableHealthConnect() = disableExternalIntegration(
         DestructiveSettingsAction.HEALTH_CONNECT,
         ExternalSyncDestination.HEALTH_CONNECT,
-        localized(R.string.message_health_connect_disabled),
+        uiText(R.string.message_health_connect_disabled),
     )
 
     private fun disableExternalIntegration(
         action: DestructiveSettingsAction,
         destination: ExternalSyncDestination,
-        successMessage: String,
+        successMessage: UiText,
     ) = runDestructiveAction(action) {
         container.profileStore.setExternalSyncEnabled(destination, false)
         showMessage(successMessage)
@@ -1122,7 +1134,7 @@ class MainViewModel @JvmOverloads constructor(
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
-                showMessage(error.userFacingMessage(localized(R.string.error_perform_action)))
+                showMessage(error.userFacingMessage(uiText(R.string.error_perform_action)))
             } finally {
                 destructiveActionInProgress.compareAndSet(action, null)
             }
@@ -1131,11 +1143,11 @@ class MainViewModel @JvmOverloads constructor(
 
     fun retry(id: String) = viewModelScope.launch {
         container.repository.retry(id)
-        showMessage(localized(R.string.message_measurement_retry_queued))
+        showMessage(uiText(R.string.message_measurement_retry_queued))
     }
 
     fun setMessage(text: String) {
-        showMessage(text)
+        showMessage(UiText.Raw(text))
     }
 
     fun onBluetoothPermissionsReady() {
@@ -1184,7 +1196,7 @@ class MainViewModel @JvmOverloads constructor(
         notificationPermissionGranted.value =
             container.pendingMeasurementNotifications.areNotificationsAllowed()
         runCatching { MeasurementWorkSweep(container.repository).run() }
-            .onFailure { showMessage(localized(R.string.message_pending_check_failed)) }
+            .onFailure { showMessage(uiText(R.string.message_pending_check_failed)) }
         runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
     }
@@ -1201,7 +1213,7 @@ class MainViewModel @JvmOverloads constructor(
     fun openPetMeasurement() {
         invalidatePetMeasurementStartup()
         if (scanning.value || refreshing.value || petMeasurementCoordinator.isActive) {
-            showMessage(localized(R.string.message_wait_for_ble_scan))
+            showMessage(uiText(R.string.message_wait_for_ble_scan))
             return
         }
         petMeasurementCoordinator.showSelection()
@@ -1575,7 +1587,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = emptySet(),
             )
-            if (notifyResult) showMessage(localized(R.string.message_health_connect_unavailable))
+            if (notifyResult) showMessage(uiText(R.string.message_health_connect_unavailable))
             return
         }
 
@@ -1590,7 +1602,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = healthConnect.value.grantedPermissions,
             )
-            if (notifyResult) showMessage(localized(R.string.message_health_connect_permission_check_failed))
+            if (notifyResult) showMessage(uiText(R.string.message_health_connect_permission_check_failed))
             return
         }
         val snapshot = HealthConnectPermissionsUiState.snapshot(
@@ -1610,23 +1622,16 @@ class MainViewModel @JvmOverloads constructor(
             )
             container.repository.retryPendingHealthConnect()
             if (notifyResult) {
-                showMessage(localized(R.string.message_health_connect_queue_restarted))
+                showMessage(uiText(R.string.message_health_connect_queue_restarted))
             }
         } else if (notifyResult) {
-            showMessage(localized(R.string.message_health_connect_permissions_incomplete))
+            showMessage(uiText(R.string.message_health_connect_permissions_incomplete))
         }
-    }
-
-    private fun showMessage(message: String) {
-        eventEmitter.showSnackbar(message)
     }
 
     private fun showMessage(message: UiText) {
         eventEmitter.showSnackbar(message)
     }
-
-    private fun localized(id: Int, vararg arguments: Any): String =
-        getApplication<Application>().getString(id, *arguments)
 
     private suspend fun discardPending(
         pendingId: PendingMeasurementId,
@@ -1643,13 +1648,13 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingResult.PendingNotFound,
                 -> {
                     completion?.let(::completePendingResolution)
-                    showMessage(localized(R.string.message_measurement_already_processed))
+                    showMessage(uiText(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage(localized(R.string.error_delete_measurement)))
+            showMessage(error.userFacingMessage(uiText(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1676,13 +1681,13 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound,
                 -> {
                     completePendingResolution(completion)
-                    showMessage(localized(R.string.message_measurement_already_processed))
+                    showMessage(uiText(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
-            showMessage(error.userFacingMessage(localized(R.string.error_delete_measurement)))
+            showMessage(error.userFacingMessage(uiText(R.string.error_delete_measurement)))
         } finally {
             pendingDiscardsInProgress.remove(pendingId)
         }
@@ -1856,5 +1861,9 @@ private fun RoutingDecision.routingCandidates(): List<RoutingCandidate> = when (
     RoutingDecision.NoMatch -> emptyList()
 }
 
-private fun Throwable.userFacingMessage(fallback: String): String =
-    message?.takeIf(String::isNotBlank) ?: fallback
+private class UserFacingUiTextException(val uiText: UiText) : Exception()
+
+private fun Throwable.userFacingMessage(fallback: UiText): UiText = when (this) {
+    is UserFacingUiTextException -> uiText
+    else -> message?.takeIf(String::isNotBlank)?.let(UiText::Raw) ?: fallback
+}

@@ -10,7 +10,7 @@ import org.w3c.dom.Element
 class LocalizationResourceContractTest {
     @Test
     fun `default and Russian resources expose matching keys formats and plurals`() {
-        listOf("strings.xml", "reference_strings.xml").forEach { fileName ->
+        LOCALIZABLE_RESOURCE_FILES.forEach { fileName ->
             val default = readResources(File("src/main/res/values/$fileName"))
             val russian = readResources(File("src/main/res/values-ru/$fileName"))
 
@@ -64,6 +64,15 @@ class LocalizationResourceContractTest {
     )
 
     private companion object {
+        val LOCALIZABLE_RESOURCE_FILES = listOf(
+            "account_routing_strings.xml",
+            "audit_strings.xml",
+            "pet_editor_strings.xml",
+            "pet_measurement_strings.xml",
+            "reference_strings.xml",
+            "strings.xml",
+            "ui_strings.xml",
+        )
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =
             Regex("(?i)\\b(?:meaning|calculation|dependencies?|limitations?|warning|disclaimer|source)?\\s*information\\b")

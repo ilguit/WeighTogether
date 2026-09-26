@@ -55,12 +55,25 @@ class MainViewModelPendingResolutionContractTest {
             "    fun startCreateAccountForPending(",
         )
 
-        assertTrue(choosePendingAccount.contains("showMessage(\"Измерение уже назначено\")"))
         assertTrue(
             choosePendingAccount.contains(
-                "showMessage(error.userFacingMessage(\"Не удалось назначить измерение\"))",
+                "showMessage(uiText(R.string.message_measurement_already_assigned))",
             ),
         )
+        assertTrue(
+            choosePendingAccount.contains(
+                "showMessage(error.userFacingMessage(uiText(R.string.error_assign_measurement)))",
+            ),
+        )
+    }
+
+    @Test
+    fun `snackbar resources remain deferred until presentation`() {
+        assertFalse(source.contains("private fun localized("))
+        assertFalse(source.contains("private fun showMessage(message: String)"))
+        assertFalse(source.contains("getString(id, *arguments)"))
+        assertTrue(source.contains("showMessage(uiText(R.string.message_backup_saved))"))
+        assertTrue(source.contains("message?.takeIf(String::isNotBlank)?.let(UiText::Raw) ?: fallback"))
     }
 
     @Test

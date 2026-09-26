@@ -43,8 +43,6 @@ internal class MainUiEventEmitter {
         }
     }
 
-    fun showSnackbar(message: String) = showSnackbar(UiText.Raw(message))
-
     fun showPendingDiscardUndo(snackbarId: Long, pendingId: PendingMeasurementId) {
         check(
             channel.trySend(
