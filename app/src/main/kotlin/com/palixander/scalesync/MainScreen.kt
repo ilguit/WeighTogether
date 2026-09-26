@@ -47,6 +47,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.SemanticsPropertyKey
 import androidx.compose.ui.semantics.SemanticsPropertyReceiver
@@ -96,12 +98,12 @@ import com.palixander.scalesync.ui.profiles.reconcileProfileSelection
 import kotlinx.coroutines.flow.Flow
 
 internal enum class AppSection(
-    val title: String,
+    val titleRes: Int,
     val icon: ImageVector,
 ) {
-    MEASUREMENTS("Измерения", HuaweiIcons.Scale),
-    CHARTS("Графики", HuaweiIcons.Charts),
-    SETTINGS("Настройки", HuaweiIcons.Settings),
+    MEASUREMENTS(R.string.nav_measurements, HuaweiIcons.Scale),
+    CHARTS(R.string.nav_charts, HuaweiIcons.Charts),
+    SETTINGS(R.string.nav_settings, HuaweiIcons.Settings),
 }
 
 internal val defaultAppSection = AppSection.MEASUREMENTS
@@ -606,13 +608,13 @@ internal fun ScaleSyncScaffold(
                     if (showTopBar) {
                         HuaweiTopBar(
                             title = when {
-                                profileEditorOpen -> "Профиль"
-                                changelogOpen -> "История изменений"
-                                settingsDetailOpen -> settingsDestination.title
+                                profileEditorOpen -> stringResource(R.string.title_profile)
+                                changelogOpen -> stringResource(R.string.title_changelog)
+                                settingsDetailOpen -> stringResource(settingsDestination.titleRes)
                                 petDestination != null -> petHistoryState?.pet?.displayName
                                     ?: petProfile?.pet?.displayName
-                                    ?: "Питомец"
-                                else -> currentSection.title
+                                    ?: stringResource(R.string.title_pet)
+                                else -> stringResource(currentSection.titleRes)
                             },
                             showBack = profileEditorOpen || changelogOpen || petDestination != null || settingsDetailOpen,
                             onBack = if (petDestination != null) {
@@ -826,15 +828,16 @@ internal fun ScaleSyncScaffold(
     }
 }
 
+@Composable
 internal fun mainBackContentDescription(
     changelogOpen: Boolean,
     petProfileOpen: Boolean,
     settingsDetailOpen: Boolean = false,
 ): String = when {
-    changelogOpen -> "Вернуться к настройкам"
-    settingsDetailOpen -> "Вернуться к настройкам"
-    petProfileOpen -> "Вернуться к профилям"
-    else -> "Закрыть редактор профиля"
+    changelogOpen -> stringResource(R.string.action_back_to_settings)
+    settingsDetailOpen -> stringResource(R.string.action_back_to_settings)
+    petProfileOpen -> stringResource(R.string.action_back_to_profiles)
+    else -> stringResource(R.string.action_close_profile_editor)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -855,6 +858,11 @@ private fun HuaweiTopBar(
     onToggleExternalSyncPause: () -> Unit,
 ) {
     if (showMeasurementActions) {
+        val externalSyncStateDescription = if (isExternalSyncPaused) {
+            stringResource(R.string.state_paused)
+        } else {
+            stringResource(R.string.state_enabled)
+        }
         SummaryTopBar(
             profileSelection = profileSelection,
             onProfileSelected = onProfileSelected,
@@ -862,16 +870,16 @@ private fun HuaweiTopBar(
             HuaweiIconButton(
                 icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
                 contentDescription = if (isExternalSyncPaused) {
-                    "Возобновить внешнюю синхронизацию"
+                    stringResource(R.string.action_resume_external_sync)
                 } else {
-                    "Приостановить внешнюю синхронизацию"
+                    stringResource(R.string.action_pause_external_sync)
                 },
                 onClick = onToggleExternalSyncPause,
                 modifier = Modifier
                     .testTag(MainScreenTestTags.ExternalSyncAction)
                     .semantics {
                         externalSyncPaused = isExternalSyncPaused
-                        stateDescription = if (isExternalSyncPaused) "Приостановлена" else "Включена"
+                        stateDescription = externalSyncStateDescription
                     },
                 colors = if (isExternalSyncPaused) {
                     IconButtonDefaults.iconButtonColors(
@@ -883,7 +891,7 @@ private fun HuaweiTopBar(
             )
             HuaweiIconButton(
                 icon = HuaweiIcons.Cat,
-                contentDescription = "Взвесить питомца",
+                contentDescription = stringResource(R.string.action_weigh_pet),
                 onClick = onPetMeasurementRequested,
                 modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
             )
@@ -927,9 +935,9 @@ private fun PendingQueueAction(
         HuaweiIconButton(
             icon = HuaweiIcons.Pending,
             contentDescription = if (pendingCount == 0) {
-                "Открыть неназначенные измерения. Очередь пуста"
+                stringResource(R.string.pending_queue_empty_description)
             } else {
-                "Открыть неназначенные измерения. Ожидают назначения: $pendingCount"
+                pluralStringResource(R.plurals.pending_queue_count_description, pendingCount, pendingCount)
             },
             onClick = onClick,
             modifier = Modifier.testTag(MainScreenTestTags.PendingQueueAction),
@@ -975,10 +983,10 @@ private fun HuaweiBottomNavigation(
                 icon = {
                     Icon(
                         imageVector = section.icon,
-                        contentDescription = section.title,
+                        contentDescription = stringResource(section.titleRes),
                     )
                 },
-                label = { Text(section.title) },
+                label = { Text(stringResource(section.titleRes)) },
             )
         }
     }

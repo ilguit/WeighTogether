@@ -43,6 +43,8 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
@@ -82,6 +84,7 @@ fun ChartsScreen(
     zoneId: ZoneId = ZoneId.systemDefault(),
     showAccountSelector: Boolean = true,
 ) {
+    val loadingDescription = stringResource(R.string.chart_loading)
     if (state.isCustomDatePickerOpen) {
         InclusiveDateRangeDialog(
             startDate = state.startDate,
@@ -153,7 +156,7 @@ fun ChartsScreen(
                     contentAlignment = Alignment.Center,
                 ) {
                     CircularProgressIndicator(
-                        modifier = Modifier.semantics { contentDescription = "Загрузка графиков" },
+                        modifier = Modifier.semantics { contentDescription = loadingDescription },
                     )
                 }
             }
@@ -186,6 +189,8 @@ private fun ChartFilterRow(
     onOpenRangeFilter: () -> Unit,
     onOpenMetricFilter: () -> Unit,
 ) {
+    val periodDescription = stringResource(R.string.chart_period_description, rangeText)
+    val metricsDescription = stringResource(R.string.chart_metrics_description, selectedCount, metricCount)
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
@@ -195,16 +200,16 @@ private fun ChartFilterRow(
             onClick = onOpenRangeFilter,
             icon = HuaweiIcons.Calendar,
             modifier = Modifier.semantics {
-                contentDescription = "Период: $rangeText"
+                contentDescription = periodDescription
             },
         )
         HuaweiFilterButton(
-            text = "$selectedCount из $metricCount",
+            text = "$selectedCount / $metricCount",
             onClick = onOpenMetricFilter,
             icon = HuaweiIcons.Tune,
             selected = selectedCount != 0,
             modifier = Modifier.semantics {
-                contentDescription = "Показатели: $selectedCount из $metricCount"
+                contentDescription = metricsDescription
             },
         )
     }
@@ -229,7 +234,7 @@ private fun RangeFilterSheet(
                 .padding(bottom = 24.dp),
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
-            SheetHeader(title = "Период", onDismiss = onDismiss)
+            SheetHeader(title = stringResource(R.string.chart_period), onDismiss = onDismiss)
             RangePresetRow(
                 first = ChartRangePreset.LAST_7_DAYS,
                 second = ChartRangePreset.LAST_30_DAYS,
@@ -340,17 +345,17 @@ private fun MetricSelectionSheet(
                 .fillMaxHeight(0.9f)
                 .padding(horizontal = HuaweiDimensions.ContentPadding),
         ) {
-            SheetHeader(title = "Показатели", onDismiss = onDismiss)
+            SheetHeader(title = stringResource(R.string.chart_metrics), onDismiss = onDismiss)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
-                TextButton(onClick = onSelectAll) { Text("Выбрать все") }
-                TextButton(onClick = onClearSelection) { Text("Очистить") }
+                TextButton(onClick = onSelectAll) { Text(stringResource(R.string.action_select_all)) }
+                TextButton(onClick = onClearSelection) { Text(stringResource(R.string.action_clear)) }
                 Text(
-                    text = "Выбрано: ${selectedMetricKeys.size}",
+                    text = stringResource(R.string.chart_selected_count, selectedMetricKeys.size),
                     modifier = Modifier.align(Alignment.CenterVertically),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
@@ -377,7 +382,7 @@ private fun MetricSelectionSheet(
                     .heightIn(min = HuaweiDimensions.TouchTarget),
                 shape = MaterialTheme.shapes.medium,
             ) {
-                Text("Готово")
+                Text(stringResource(R.string.action_done))
             }
             Spacer(Modifier.height(24.dp))
         }
@@ -424,7 +429,7 @@ private fun SheetHeader(title: String, onDismiss: () -> Unit) {
         )
         HuaweiIconButton(
             icon = HuaweiIcons.Close,
-            contentDescription = "Закрыть",
+            contentDescription = stringResource(R.string.action_close),
             onClick = onDismiss,
         )
     }
@@ -455,14 +460,14 @@ private fun InclusiveDateRangeDialog(
                         datePickerUtcMillisToLocalDate(endMillis),
                     )
                 },
-            ) { Text("Применить") }
+            ) { Text(stringResource(R.string.action_apply)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Отмена") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) } },
     ) {
         DateRangePicker(
             state = state,
             modifier = Modifier.fillMaxWidth().height(520.dp),
-            title = { Text("Диапазон дат", Modifier.padding(16.dp)) },
+            title = { Text(stringResource(R.string.chart_date_range), Modifier.padding(16.dp)) },
             headline = null,
             showModeToggle = false,
         )
@@ -471,10 +476,11 @@ private fun InclusiveDateRangeDialog(
 
 @Composable
 private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
+    val noMetricsDescription = stringResource(R.string.chart_no_metrics)
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
-            .semantics { contentDescription = "Показатели не выбраны" },
+            .semantics { contentDescription = noMetricsDescription },
         contentPadding = androidx.compose.foundation.layout.PaddingValues(24.dp),
     ) {
         Column(
@@ -482,18 +488,18 @@ private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
         ) {
             Text(
-                text = "Показатели не выбраны",
+                text = stringResource(R.string.chart_no_metrics),
                 style = MaterialTheme.typography.titleMedium,
                 textAlign = TextAlign.Center,
             )
             Text(
-                text = "Выберите один или несколько показателей, чтобы построить графики.",
+                text = stringResource(R.string.chart_no_metrics_help),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )
             HuaweiFilterButton(
-                text = "Выбрать показатели",
+                text = stringResource(R.string.action_select_metrics),
                 onClick = onChooseMetrics,
                 icon = HuaweiIcons.Tune,
             )
@@ -530,6 +536,12 @@ internal fun MetricChartCard(
     val average = remember(statistics?.average, series.metric) {
         formatChartStatistic(statistics?.average, series.metric)
     }
+    val chartDescription = stringResource(
+        R.string.chart_accessibility_summary,
+        series.metric.displayName,
+        currentValue,
+        delta,
+    )
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -553,7 +565,7 @@ internal fun MetricChartCard(
                         textAlign = TextAlign.End,
                     )
                     Text(
-                        text = "К предыдущему: $delta",
+                        text = stringResource(R.string.chart_previous_delta, delta),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                         textAlign = TextAlign.End,
@@ -565,17 +577,17 @@ internal fun MetricChartCard(
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 ChartStatistic(
-                    label = "Минимум",
+                    label = stringResource(R.string.chart_minimum),
                     value = minimum,
                     modifier = Modifier.weight(1f),
                 )
                 ChartStatistic(
-                    label = "Максимум",
+                    label = stringResource(R.string.chart_maximum),
                     value = maximum,
                     modifier = Modifier.weight(1f),
                 )
                 ChartStatistic(
-                    label = "Среднее",
+                    label = stringResource(R.string.chart_average),
                     value = average,
                     modifier = Modifier.weight(1f),
                 )
@@ -583,7 +595,7 @@ internal fun MetricChartCard(
             Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
                     when {
                         points.isEmpty() -> Text(
-                            text = "Нет данных для графика",
+                            text = stringResource(R.string.chart_no_data),
                             modifier = Modifier.padding(vertical = 28.dp),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
@@ -591,7 +603,7 @@ internal fun MetricChartCard(
                         )
 
                         !isChartRenderable(points) -> Text(
-                            text = "Недостаточно данных для графика: нужно минимум два измерения в разное время",
+                            text = stringResource(R.string.chart_insufficient_data),
                             modifier = Modifier.testTag(MetricChartTestTags.InsufficientInterval),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
@@ -604,11 +616,7 @@ internal fun MetricChartCard(
                             startDate = startDate,
                             endDateInclusive = endDateInclusive,
                             zoneId = zoneId,
-                            contentDescription = buildString {
-                                append("График: ${series.metric.displayName}. ")
-                                append("Последнее значение: $currentValue. ")
-                                append("Изменение к предыдущему: $delta")
-                            },
+                            contentDescription = chartDescription,
                             modifier = Modifier.testTag(MetricChartTestTags.ChartHost),
                         )
                     }
@@ -629,8 +637,9 @@ private fun ChartStatistic(
     value: String,
     modifier: Modifier = Modifier,
 ) {
+    val description = stringResource(R.string.chart_stat_description, label, value)
     Column(
-        modifier = modifier.semantics { contentDescription = "$label: $value" },
+        modifier = modifier.semantics { contentDescription = description },
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(

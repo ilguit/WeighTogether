@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartViewport
@@ -160,9 +161,9 @@ internal fun HomeKgChart(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text("Динамика состава тела", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(com.palixander.scalesync.R.string.chart_body_composition_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "Последние 14 дней · кг",
+                    stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -170,17 +171,17 @@ internal fun HomeKgChart(
 
             when {
                 !hasHistoryData -> HomeChartMessage(
-                    text = "Нет данных для графика.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_no_data),
                     tag = "home-kg-chart-no-data",
                 )
 
                 state.activeSeriesKeys.isEmpty() -> HomeChartMessage(
-                    text = "Выберите показатели в списке, чтобы показать график.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_select_metrics_hint),
                     tag = "home-kg-chart-no-active",
                 )
 
                 plottedSeries.isEmpty() -> HomeChartMessage(
-                    text = "Для выбранных показателей пока нет данных.",
+                    text = stringResource(com.palixander.scalesync.R.string.chart_selected_no_data),
                     tag = "home-kg-chart-selected-no-data",
                 )
 
@@ -188,15 +189,23 @@ internal fun HomeKgChart(
             }
 
             var expanded by rememberSaveable { mutableStateOf(false) }
+            val expansionStateDescription = stringResource(
+                if (expanded) com.palixander.scalesync.R.string.state_expanded
+                else com.palixander.scalesync.R.string.state_collapsed,
+            )
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
-                    .semantics { stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто" }
+                    .semantics { stateDescription = expansionStateDescription }
                     .testTag("home-kg-series-toggle"),
             ) {
                 Text(
-                    "Показатели · ${state.series.count { it.key in state.activeSeriesKeys }} из ${state.series.size}",
+                    stringResource(
+                        com.palixander.scalesync.R.string.chart_metrics_count,
+                        state.series.count { it.key in state.activeSeriesKeys },
+                        state.series.size,
+                    ),
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
@@ -264,6 +273,9 @@ private fun HomeKgVicoChart(
     plottedSeries: List<HomeKgChartSeries>,
     zoneId: ZoneId,
 ) {
+    val chartContentDescription = stringResource(
+        com.palixander.scalesync.R.string.chart_home_content_description,
+    )
     val modelProducer = remember { CartesianChartModelProducer() }
     val points = remember(plottedSeries) {
         plottedSeries.flatMap { series ->
@@ -335,7 +347,7 @@ private fun HomeKgVicoChart(
             .fillMaxWidth()
             .height(230.dp)
             .semantics {
-                contentDescription = "График динамики состава тела за последние 14 дней"
+                contentDescription = chartContentDescription
                 chartScrollOffset = scrollState.value
             }
             .testTag("home-kg-vico-chart"),

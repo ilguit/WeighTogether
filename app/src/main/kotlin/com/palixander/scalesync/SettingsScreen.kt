@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
@@ -128,22 +129,22 @@ internal enum class SettingsSectionExpansion {
     }
 }
 
-internal enum class SettingsSectionKey(val title: String) {
-    ACCOUNTS("Профили"),
-    INTEGRATIONS("Интеграции"),
-    SCALE("Весы"),
-    BACKUP("Резервная копия"),
-    ADDITIONAL("Дополнительно"),
-    ABOUT("О приложении"),
+internal enum class SettingsSectionKey(val titleRes: Int) {
+    ACCOUNTS(R.string.settings_profiles),
+    INTEGRATIONS(R.string.settings_integrations),
+    SCALE(R.string.settings_scales),
+    BACKUP(R.string.settings_backup),
+    ADDITIONAL(R.string.settings_additional),
+    ABOUT(R.string.settings_about),
 }
 
-internal enum class SettingsDestination(val title: String) {
-    ROOT("Настройки"),
-    PROFILES("Профили"),
-    SCALE("Весы"),
-    HEALTH_CONNECT("Health Connect"),
-    BACKUP("Резервная копия"),
-    DIAGNOSTICS("Диагностика"),
+internal enum class SettingsDestination(val titleRes: Int) {
+    ROOT(R.string.nav_settings),
+    PROFILES(R.string.settings_profiles),
+    SCALE(R.string.settings_scales),
+    HEALTH_CONNECT(R.string.settings_health_connect),
+    BACKUP(R.string.settings_backup),
+    DIAGNOSTICS(R.string.settings_diagnostics),
 }
 
 internal fun settingsRootDestinations(): List<SettingsDestination> = buildList {
@@ -1086,7 +1087,7 @@ private fun SettingsNavigationRow(
 ) {
     SettingsGroupRow(
         leadingIcon = leadingIcon,
-        title = destination.title,
+        title = stringResource(destination.titleRes),
         supportingText = supportingText,
         modifier = Modifier
             .testTag(testTag)
@@ -1130,7 +1131,7 @@ private fun SettingsDetailPlaceholder(
         modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
         contentAlignment = Alignment.Center,
     ) {
-        Text(destination.title, style = MaterialTheme.typography.titleLarge)
+        Text(stringResource(destination.titleRes), style = MaterialTheme.typography.titleLarge)
     }
 }
 

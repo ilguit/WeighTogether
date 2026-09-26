@@ -81,6 +81,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.domain.PendingMeasurementId
@@ -306,8 +307,8 @@ private fun PendingQueueDestination(
     ) {
         item {
             NestedScreenHeader(
-                title = "Не назначено",
-                backContentDescription = "Назад к последнему измерению",
+                title = stringResource(R.string.measurement_unassigned),
+                backContentDescription = stringResource(R.string.measurement_back_to_latest),
                 onBack = onBack,
             )
         }
@@ -323,7 +324,7 @@ private fun PendingQueueDestination(
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag("pending-clear-all"),
                 ) {
-                    Text("Очистить всё")
+                    Text(stringResource(R.string.action_clear_all))
                 }
             }
             items(
@@ -352,12 +353,15 @@ private fun ClearPendingDialog(
         modifier = Modifier.testTag("pending-clear-dialog"),
         onDismissRequest = { if (!confirmation.isClearing) onDismiss() },
         icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
-        title = { Text("Очистить неназначенные измерения?") },
+        title = { Text(stringResource(R.string.measurement_clear_pending_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    "Будут удалены все неназначенные измерения (${confirmation.count}) без " +
-                        "возможности восстановления.",
+                    pluralStringResource(
+                        R.plurals.measurement_clear_pending_message,
+                        confirmation.count,
+                        confirmation.count,
+                    ),
                 )
                 confirmation.errorMessage?.let { error ->
                     Text(
@@ -380,7 +384,7 @@ private fun ClearPendingDialog(
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (confirmation.isClearing) "Очистка…" else "Очистить")
+                Text(if (confirmation.isClearing) stringResource(R.string.state_clearing) else stringResource(R.string.action_clear))
             }
         },
         dismissButton = {
@@ -388,7 +392,7 @@ private fun ClearPendingDialog(
                 onClick = onDismiss,
                 enabled = !confirmation.isClearing,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text("Отмена") }
+            ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
@@ -441,7 +445,7 @@ private fun PendingMeasurementCard(
                         .testTag("pending-assign-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Text("Назначить")
+                    Text(stringResource(R.string.action_assign))
                 }
                 OutlinedButton(
                     onClick = onPreview,
@@ -452,7 +456,7 @@ private fun PendingMeasurementCard(
                         .testTag("pending-preview-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Text("Показать без сохранения")
+                    Text(stringResource(R.string.action_preview_without_saving))
                 }
                 TextButton(
                     onClick = onDelete,
@@ -470,7 +474,7 @@ private fun PendingMeasurementCard(
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
-                    Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                    Text(stringResource(R.string.action_delete), modifier = Modifier.padding(start = 5.dp))
                 }
             }
         }
@@ -485,7 +489,7 @@ private fun ProcessingStatus(modifier: Modifier = Modifier) {
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(
-            text = "Обрабатывается",
+            text = stringResource(R.string.state_processing),
             color = MaterialTheme.colorScheme.secondary,
             fontWeight = FontWeight.Medium,
             style = MaterialTheme.typography.labelLarge,
@@ -525,9 +529,9 @@ private fun EmptyPendingQueueCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle("Нет неназначенных измерений")
+            HuaweiSectionTitle(stringResource(R.string.measurement_no_pending))
             Text(
-                "Все измерения обработаны.",
+                stringResource(R.string.measurement_all_processed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -559,7 +563,7 @@ private fun MeasurementSummaryScreen(
             item(key = "summary-header") { summaryHeader() }
             when {
                 state.isLoading && state.summary == null -> item {
-                    LoadingState("Загрузка последнего измерения")
+                    LoadingState(stringResource(R.string.measurement_loading_latest))
                 }
                 state.hasNoLatestMeasurement -> item { NoLatestMeasurementState() }
                 state.summary != null -> {
@@ -646,7 +650,7 @@ private fun MeasurementSummaryCard(
                         modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
                             .testTag("summary-history"),
                         colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
-                    ) { Text("История →") }
+                    ) { Text(stringResource(R.string.measurement_history_action)) }
                 },
                 actions = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -663,7 +667,7 @@ private fun MeasurementSummaryCard(
                         if (summary.latest.hasFinalActions) Box {
                             HuaweiIconButton(
                                 icon = HuaweiIcons.More,
-                                contentDescription = "Действия с последним измерением",
+                                contentDescription = stringResource(R.string.measurement_latest_actions),
                                 onClick = { menuExpanded = true },
                                 enabled = summary.latest.canEdit || summary.latest.canDelete,
                                 modifier = Modifier.testTag("summary-more-actions"),
@@ -675,7 +679,7 @@ private fun MeasurementSummaryCard(
                                 shape = MaterialTheme.shapes.medium,
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Изменить") },
+                                    text = { Text(stringResource(R.string.action_edit)) },
                                     leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
@@ -684,7 +688,7 @@ private fun MeasurementSummaryCard(
                                     enabled = summary.latest.canEdit,
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Удалить", color = MaterialTheme.colorScheme.error) },
+                                    text = { Text(stringResource(R.string.action_delete), color = MaterialTheme.colorScheme.error) },
                                     modifier = Modifier.testTag("summary-delete-measurement"),
                                     leadingIcon = {
                                         Icon(
@@ -746,7 +750,7 @@ private fun MeasurementSummaryCard(
             }
             if (summary.latest.isWeightOnly) {
                 Text(
-                    text = "Только вес",
+                    text = stringResource(R.string.measurement_weight_only),
                     modifier = Modifier.testTag("summary-weight-only-label"),
                     color = MaterialTheme.colorScheme.secondary,
                     style = MaterialTheme.typography.labelLarge,
@@ -786,7 +790,7 @@ private fun MeasurementSummaryCard(
                     }
                     .testTag("summary-expand-metrics"),
             ) {
-                Text(if (expanded) "Скрыть показатели" else "Все показатели")
+                Text(if (expanded) stringResource(R.string.action_hide_metrics) else stringResource(R.string.action_all_metrics))
                 Icon(
                     imageVector = HuaweiIcons.ChevronDown,
                     contentDescription = null,
@@ -1105,10 +1109,10 @@ private fun MeasurementHistoryScreen(
     ) {
         item {
             NestedScreenHeader(
-                title = "История",
+                title = stringResource(R.string.measurement_history),
                 onAdd = callbacks.onAddWeightRequested,
                 addEnabled = state.accountSelector.selectedAccountId != null,
-                backContentDescription = "Назад к последнему измерению",
+                backContentDescription = stringResource(R.string.measurement_back_to_latest),
                 onBack = callbacks.onBackRequested,
             )
         }
@@ -1276,7 +1280,7 @@ internal fun MeasurementHistoryCard(
                     if (!item.isWeightOnly && !item.isManuallyEdited &&
                         item.origin == com.palixander.scalesync.domain.MeasurementOrigin.MANUAL
                     ) {
-                        Text("Введено вручную")
+                            Text(stringResource(R.string.measurement_entered_manually))
                     }
                     if (item.referenceMetrics.isNotEmpty() && !item.isPreliminary) {
                         MeasurementReferenceGroups(
@@ -1322,7 +1326,7 @@ internal fun MeasurementHistoryCard(
                             modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
                         ) {
                             Icon(HuaweiIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Изменить", modifier = Modifier.padding(start = 5.dp))
+                            Text(stringResource(R.string.action_edit), modifier = Modifier.padding(start = 5.dp))
                         }
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
@@ -1333,7 +1337,7 @@ internal fun MeasurementHistoryCard(
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {
                             Icon(HuaweiIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Удалить", modifier = Modifier.padding(start = 5.dp))
+                            Text(stringResource(R.string.action_delete), modifier = Modifier.padding(start = 5.dp))
                         }
                     }
                     if (item.canRetry) {
@@ -1346,7 +1350,7 @@ internal fun MeasurementHistoryCard(
                             shape = MaterialTheme.shapes.medium,
                         ) {
                             Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                            Text("Повторить отправку", modifier = Modifier.padding(start = 7.dp))
+                            Text(stringResource(R.string.action_retry_sync), modifier = Modifier.padding(start = 7.dp))
                         }
                     }
                 }
@@ -1366,9 +1370,9 @@ private fun EmptyHistoryCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle("Пока нет измерений")
+            HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
             Text(
-                "Стабильные измерения с весов появятся здесь.",
+                stringResource(R.string.measurement_empty_history_help),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -1404,7 +1408,7 @@ private fun MeasurementSyncSheet(
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        text = "Синхронизация",
+                        text = stringResource(R.string.measurement_sync),
                         modifier = Modifier.semantics { heading() },
                         style = MaterialTheme.typography.titleLarge,
                     )
@@ -1426,7 +1430,7 @@ private fun MeasurementSyncSheet(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
                     containerColor = HuaweiColors.SurfaceInfo,
                 ) {
-                    Text("Внешние сервисы для этой сборки отключены.")
+                    Text(stringResource(R.string.measurement_external_disabled))
                 }
             } else {
                 item.sync.directions.forEach { direction ->
@@ -1447,7 +1451,7 @@ private fun MeasurementSyncSheet(
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Повторить", modifier = Modifier.padding(start = 7.dp))
+                    Text(stringResource(R.string.action_retry), modifier = Modifier.padding(start = 7.dp))
                 }
             }
         }
@@ -1520,9 +1524,9 @@ private fun MeasurementEditorScreen(
                             strokeWidth = 2.dp,
                             color = MaterialTheme.colorScheme.onPrimary,
                         )
-                        Text("Сохранение…", modifier = Modifier.padding(start = 8.dp))
+                        Text(stringResource(R.string.state_saving), modifier = Modifier.padding(start = 8.dp))
                     } else {
-                        Text("Сохранить изменения")
+                        Text(stringResource(R.string.action_save_changes))
                     }
                 }
             }
@@ -1542,8 +1546,8 @@ private fun MeasurementEditorScreen(
         ) {
             item {
                 NestedScreenHeader(
-                    title = "Изменить измерение",
-                    backContentDescription = "Отменить редактирование",
+                    title = stringResource(R.string.measurement_edit_title),
+                    backContentDescription = stringResource(R.string.measurement_cancel_edit),
                     onBack = callbacks.onEditorDismissed,
                     enabled = !editor.isSaving,
                 )
@@ -1556,15 +1560,14 @@ private fun MeasurementEditorScreen(
                     )
                     if (editor.isWeightOnly) {
                         Text(
-                            text = "Только вес",
+                            text = stringResource(R.string.measurement_weight_only),
                             modifier = Modifier.testTag("editor-weight-only-label"),
                             color = MaterialTheme.colorScheme.secondary,
                             style = MaterialTheme.typography.labelLarge,
                         )
                     }
                     Text(
-                        "Дата, устройство и исходные данные не изменяются. " +
-                            "Производные значения не пересчитываются.",
+                        stringResource(R.string.measurement_immutable_fields_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )
@@ -1751,9 +1754,9 @@ private fun NoLatestMeasurementState() {
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     HuaweiRowIcon(icon = HuaweiIcons.Scale, contentDescription = null)
-                    HuaweiSectionTitle("Пока нет измерений")
+                    HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
                     Text(
-                        "Последнее стабильное измерение с весов появится здесь.",
+                        stringResource(R.string.measurement_empty_latest_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -1770,9 +1773,9 @@ private fun MissingEditorState(onBack: () -> Unit) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Измерение недоступно", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.measurement_unavailable), style = MaterialTheme.typography.titleMedium)
             TextButton(onClick = onBack, modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)) {
-                Text("Назад")
+                Text(stringResource(R.string.action_back))
             }
         }
     }
@@ -1808,7 +1811,7 @@ private fun DeleteMeasurementDialog(
         modifier = Modifier.testTag("delete-measurement-dialog"),
         onDismissRequest = { if (!confirmation.isDeleting) onDismiss() },
         icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
-        title = { Text("Удалить измерение?") },
+        title = { Text(stringResource(R.string.measurement_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
@@ -1817,8 +1820,7 @@ private fun DeleteMeasurementDialog(
                     style = MaterialTheme.typography.titleSmall,
                 )
                 Text(
-                    "Измерение будет удалено без возможности восстановления. " +
-                        "Данные в Health Connect останутся без изменений.",
+                    stringResource(R.string.measurement_delete_warning),
                 )
             }
         },
@@ -1834,7 +1836,7 @@ private fun DeleteMeasurementDialog(
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (confirmation.isDeleting) "Удаление…" else "Удалить")
+                Text(if (confirmation.isDeleting) stringResource(R.string.state_deleting) else stringResource(R.string.action_delete))
             }
         },
         dismissButton = {
@@ -1843,7 +1845,7 @@ private fun DeleteMeasurementDialog(
                 enabled = !confirmation.isDeleting,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
             ) {
-                Text("Отмена")
+                Text(stringResource(R.string.action_cancel))
             }
         },
     )

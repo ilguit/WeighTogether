@@ -159,9 +159,9 @@ class SettingsScreenContractTest {
     }
 
     @Test
-    fun `settings destinations expose detail chrome titles`() {
-        assertEquals("Профили", SettingsDestination.PROFILES.title)
-        assertEquals("Резервная копия", SettingsDestination.BACKUP.title)
+    fun `settings destinations expose localized detail chrome title resources`() {
+        assertEquals(R.string.settings_profiles, SettingsDestination.PROFILES.titleRes)
+        assertEquals(R.string.settings_backup, SettingsDestination.BACKUP.titleRes)
     }
 
     @Test
