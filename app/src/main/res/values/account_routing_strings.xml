@@ -16,7 +16,6 @@
     <string name="manual_weight_future_time">Date and time cannot be in the future</string>
     <string name="manual_weight_check_fields">Check the weight, date, and time</string>
     <string name="manual_weight_save_failed">Could not save weight. Try again</string>
-    <string name="action_save">Save</string>
     <string name="action_select">Select</string>
     <string name="account_selector_label">Profile</string>
     <string name="account_selector_cd">Select a profile for the data</string>
@@ -63,7 +62,7 @@
     <string name="account_discard_title">Discard changes?</string><string name="account_discard_message">Unsaved profile changes will be lost.</string><string name="account_discard">Discard changes</string><string name="account_continue_editing">Continue editing</string>
     <string name="account_photo_unreadable">Could not read the image</string><string name="account_photo_invalid">The selected file is not an image</string><string name="account_photo_processing_failed">Could not process the image</string>
     <string name="unsaved_preview_birth_date_error">Date of birth must not be later than the measurement</string>
-    <string name="error_save_setting">Could not save the setting</string><string name="error_open_pending_measurement">Could not open the pending measurement</string><string name="error_assign_measurement">Could not assign the measurement</string><string name="error_enable_scanning">Could not enable scanning</string><string name="error_start_scanning">Could not start scanning</string><string name="error_perform_action">Could not perform the action</string><string name="error_delete_measurement">Could not delete the measurement</string><string name="error_change_profile">Could not change the profile</string>
+    <string name="error_save_setting">Could not save the setting</string><string name="error_open_pending_measurement">Could not open the pending measurement</string><string name="error_assign_measurement">Could not assign the measurement</string><string name="error_enable_scanning">Could not enable scanning</string><string name="error_start_scanning">Could not start scanning</string><string name="error_perform_action">Could not perform the action</string><string name="error_change_profile">Could not change the profile</string>
     <string name="account_save_error_cd">Save error: %1$s</string>
     <string name="account_save_recalculate_cd">Save and recalculate history</string>
     <string name="account_save_without_recalculate_cd">Save without recalculating history</string>
@@ -75,8 +74,6 @@
     <string name="account_primary_sync_message">External synchronization will only be available for “%1$s”.</string>
     <string name="account_primary_existing_data_message">Data already sent for the previous primary profile will not be deleted.</string>
     <string name="action_continue">Continue</string>
-    <string name="action_cancel">Cancel</string>
-    <string name="action_delete">Delete</string>
     <string name="account_delete_title">Delete profile “%1$s”?</string>
     <string name="account_delete_message">The profile’s local history will be permanently deleted. Records in external services will remain.</string>
     <string name="account_replacement_title">New primary profile</string>

@@ -24,8 +24,6 @@
     <string name="chart_no_data">No chart data.</string>
     <string name="chart_select_metrics_hint">Select metrics in the list to show the chart.</string>
     <string name="chart_selected_no_data">There is no data for the selected metrics yet.</string>
-    <string name="state_expanded">Expanded</string>
-    <string name="state_collapsed">Collapsed</string>
     <string name="chart_metrics_count">Metrics · %1$d of %2$d</string>
     <string name="chart_home_content_description">Body composition trend chart for the last 14 days</string>
     <string name="chart_loading">Loading charts</string>
@@ -37,9 +35,7 @@
     <string name="action_clear">Clear</string>
     <string name="chart_selected_count">Selected: %1$d</string>
     <string name="action_done">Done</string>
-    <string name="action_close">Close</string>
     <string name="action_apply">Apply</string>
-    <string name="action_cancel">Cancel</string>
     <string name="chart_date_range">Date range</string>
     <string name="chart_no_metrics">No metrics selected</string>
     <string name="chart_no_metrics_help">Select one or more metrics to build charts.</string>
@@ -51,10 +47,6 @@
     <string name="chart_insufficient_data">Not enough chart data: at least two measurements at different times are required</string>
     <string name="chart_accessibility_summary">Chart: %1$s. Latest value: %2$s. Change from previous: %3$s</string>
     <string name="chart_stat_description">%1$s: %2$s</string>
-    <string name="chart_range_all">All</string>
-    <string name="chart_range_7_days">7 days</string>
-    <string name="chart_range_30_days">30 days</string>
-    <string name="chart_range_3_months">3 months</string>
     <string name="chart_range_year_to_date">Year to date</string>
     <string name="chart_range_custom">Custom dates</string>
 
@@ -69,14 +61,12 @@
     <string name="state_clearing">Clearing…</string>
     <string name="action_assign">Assign</string>
     <string name="action_preview_without_saving">Preview without saving</string>
-    <string name="action_delete">Delete</string>
     <string name="state_processing">Processing</string>
     <string name="measurement_no_pending">No unassigned measurements</string>
     <string name="measurement_all_processed">All measurements have been processed.</string>
     <string name="measurement_loading_latest">Loading latest measurement</string>
     <string name="measurement_history_action">History →</string>
     <string name="measurement_latest_actions">Actions for latest measurement</string>
-    <string name="action_edit">Edit</string>
     <string name="measurement_weight_only">Weight only</string>
     <string name="action_hide_metrics">Hide metrics</string>
     <string name="action_all_metrics">All metrics</string>
@@ -90,8 +80,6 @@
     <string name="measurement_empty_history_help">Stable scale measurements will appear here.</string>
     <string name="measurement_sync">Sync</string>
     <string name="measurement_external_disabled">External services are disabled for this build.</string>
-    <string name="action_retry">Retry</string>
-    <string name="state_saving">Saving…</string>
     <string name="action_save_changes">Save changes</string>
     <string name="measurement_edit_title">Edit measurement</string>
     <string name="measurement_cancel_edit">Cancel editing</string>
@@ -101,7 +89,6 @@
     <string name="action_back">Back</string>
     <string name="measurement_delete_title">Delete measurement?</string>
     <string name="measurement_delete_warning">The measurement will be permanently deleted. Health Connect data will remain unchanged.</string>
-    <string name="state_deleting">Deleting…</string>
     <string name="measurement_first">First measurement</string>
     <string name="measurement_no_change">No change</string>
 
@@ -121,5 +108,4 @@
     <string name="message_measurement_retry_queued">Retry queued</string>
     <string name="error_clear_measurements">Could not clear measurements. Try again.</string>
     <string name="message_measurement_deleted_locally">Local measurement deleted</string>
-    <string name="error_delete_measurement">Could not delete measurement</string>
 </resources>

@@ -15,6 +15,6 @@
     <string name="pet_editor_change_species_title">Сменить вид питомца?</string><string name="pet_editor_change_species_text">При смене вида будут очищены: %1$s. Остальные данные сохранятся.</string><string name="pet_editor_change_species">Сменить вид</string><string name="list_and_separator"> и </string>
     <string name="pet_editor_name_required">Введите имя питомца</string><string name="pet_editor_name_too_long">Имя должно содержать не больше 50 символов</string><string name="pet_editor_name_duplicate">Питомец с таким именем уже есть</string>
     <string name="pet_editor_birth_incomplete">Заполните все выбранные части даты</string><string name="pet_editor_birth_invalid">Введите существующую дату</string><string name="pet_editor_birth_future">Дата рождения не может быть в будущем</string>
-    <string name="birth_date_open_calendar">Открыть календарь</string><string name="birth_date_label">Дата рождения</string><string name="birth_date_choose">Выберите дату</string><string name="action_select">Выбрать</string>
+    <string name="birth_date_open_calendar">Открыть календарь</string><string name="birth_date_label">Дата рождения</string><string name="birth_date_choose">Выберите дату</string>
     <string name="error_create_pet">Не удалось создать питомца</string><string name="error_save_pet">Не удалось сохранить питомца</string><string name="error_prepare_delete_pet">Не удалось подготовить удаление питомца</string><string name="error_delete_pet">Не удалось удалить питомца</string>
 </resources>
