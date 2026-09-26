@@ -156,4 +156,64 @@
     <string name="home_pet_collapse">Collapse pet list</string>
     <string name="state_expanded">Expanded</string>
     <string name="state_collapsed">Collapsed</string>
+    <string name="pet_profile_history_a11y">Measurement history for pet %1$s</string>
+    <string name="pet_profile_weigh">Weigh pet</string>
+    <string name="pet_profile_weigh_a11y">Weigh pet %1$s</string>
+    <string name="pet_profile_not_found">Pet not found</string>
+    <string name="pet_profile_measurements">Measurements</string>
+    <string name="pet_profile_add_weight_a11y">Add pet weight</string>
+    <string name="pet_profile_no_measurements">No measurements in the selected period</string>
+    <string name="pet_profile_show_remaining">Show remaining</string>
+    <string name="pet_profile_show_remaining_a11y">Show remaining measurements</string>
+    <string name="pet_weight_editor_a11y">Edit weight for pet %1$s</string>
+    <string name="pet_weight_editor_back_a11y">Return to measurements</string>
+    <string name="pet_weight_editor_title">Edit weight</string>
+    <string name="pet_weight_label">Weight, kg</string>
+    <string name="pet_weight_validation">Enter a positive weight of at least 0.001 kg, with up to 3 decimal places</string>
+    <string name="pet_weight_date_a11y">Measurement date and time: %1$s. Cannot be changed</string>
+    <string name="pet_weight_date">Date and time</string>
+    <string name="pet_weight_date_unchanged">The measurement date and time cannot be changed</string>
+    <string name="pet_weight_unavailable">Measurement unavailable. Return to measurements</string>
+    <string name="pet_weight_save_error">Could not save changes. Try again</string>
+    <string name="pet_measurement_delete_error">Could not delete measurement</string>
+    <string name="pet_history_load_error">Could not load history</string>
+    <string name="pet_profile_summary_title">Pet details</string>
+    <string name="pet_profile_summary_empty">Additional details have not been provided</string>
+    <string name="pet_profile_summary_a11y">Pet details. %1$s</string>
+    <string name="pet_profile_summary_item_a11y">%1$s: %2$s</string>
+    <string name="pet_profile_edit_a11y">Edit details for pet %1$s</string>
+    <string name="pet_profile_photo_a11y">Photo of pet %1$s</string>
+    <string name="pet_profile_sex">Sex</string>
+    <string name="pet_profile_sex_male">Male</string>
+    <string name="pet_profile_sex_female">Female</string>
+    <string name="pet_profile_breed">Breed</string>
+    <string name="pet_profile_birth_date">Date of birth</string>
+    <string name="pet_profile_age">Age</string>
+    <string name="pet_profile_weight_category">Weight category</string>
+    <string name="pet_profile_age_exact">%1$d %2$s</string>
+    <string name="pet_profile_age_range">%1$d–%2$d %3$s</string>
+    <plurals name="pet_profile_age_days"><item quantity="one">day</item><item quantity="other">days</item></plurals>
+    <plurals name="pet_profile_age_weeks"><item quantity="one">week</item><item quantity="other">weeks</item></plurals>
+    <plurals name="pet_profile_age_months"><item quantity="one">month</item><item quantity="other">months</item></plurals>
+    <plurals name="pet_profile_age_years"><item quantity="one">year</item><item quantity="other">years</item></plurals>
+    <string name="pet_measurement_delete_title">Delete pet measurement?</string>
+    <string name="pet_measurement_delete_message">The measurement will be permanently deleted.</string>
+    <string name="pet_measurement_edit_a11y">Edit measurement %1$s, %2$s</string>
+    <string name="pet_measurement_delete_a11y">Delete measurement %1$s, %2$s</string>
+    <string name="action_close">Close</string>
+    <string name="action_save">Save</string>
+    <string name="action_edit">Edit</string>
+    <string name="action_retry">Retry</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="state_saving">Saving</string>
+    <string name="state_saving_ellipsis">Saving…</string>
+    <string name="state_deleting">Deletion in progress</string>
+    <string name="state_deleting_ellipsis">Deleting…</string>
+    <string name="chart_range_all">All</string>
+    <string name="chart_range_7_days">7 days</string>
+    <string name="chart_range_30_days">30 days</string>
+    <string name="chart_range_3_months">3 months</string>
+    <string name="chart_range_year">Year</string>
+    <string name="chart_range_dates">Dates</string>
 </resources>

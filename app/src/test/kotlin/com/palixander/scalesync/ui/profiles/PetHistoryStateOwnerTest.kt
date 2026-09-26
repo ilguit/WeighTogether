@@ -269,7 +269,7 @@ class PetHistoryStateOwnerTest {
         yield()
 
         assertFalse(owner.uiState.value.isLoading)
-        assertEquals("reference unavailable", owner.uiState.value.errorMessage)
+        assertEquals(com.palixander.scalesync.ui.text.UiText.Raw("reference unavailable"), owner.uiState.value.errorMessage)
         assertNull(owner.uiState.value.pet)
         collector.cancelAndJoin()
         owner.close()
@@ -576,7 +576,7 @@ class PetHistoryStateOwnerTest {
         releaseSave.complete(Unit)
         yield()
         assertEquals("4,125", owner.uiState.value.weightEditor?.weightInput)
-        assertEquals("Не удалось сохранить изменения. Попробуйте ещё раз", owner.uiState.value.weightEditor?.saveError)
+        assertEquals(com.palixander.scalesync.ui.text.UiText.Resource(com.palixander.scalesync.R.string.pet_weight_save_error), owner.uiState.value.weightEditor?.saveError)
 
         fail = false
         owner.saveEditedWeight()
@@ -798,7 +798,7 @@ class PetHistoryStateOwnerTest {
         )
         scope.launch { failing.uiState.collect() }
         yield()
-        assertEquals("database unavailable", failing.uiState.value.errorMessage)
+        assertEquals(com.palixander.scalesync.ui.text.UiText.Raw("database unavailable"), failing.uiState.value.errorMessage)
         assertFalse(failing.uiState.value.isLoading)
         assertNull(failing.uiState.value.pet)
         scope.cancel()
@@ -1008,7 +1008,7 @@ class PetHistoryStateOwnerTest {
         owner.requestDelete("one")
         owner.confirmDelete()
         yield()
-        assertEquals("write failed", owner.uiState.value.actionErrorMessage)
+        assertEquals(com.palixander.scalesync.ui.text.UiText.Raw("write failed"), owner.uiState.value.actionErrorMessage)
         assertFalse(owner.uiState.value.deleteConfirmation!!.isDeleting)
         assertEquals(listOf("one"), owner.uiState.value.measurements.map { it.id })
 

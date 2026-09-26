@@ -86,4 +86,64 @@
     <string name="home_pet_collapse">Свернуть список питомцев</string>
     <string name="state_expanded">Развёрнуто</string>
     <string name="state_collapsed">Свёрнуто</string>
+    <string name="pet_profile_history_a11y">История измерений питомца %1$s</string>
+    <string name="pet_profile_weigh">Взвесить питомца</string>
+    <string name="pet_profile_weigh_a11y">Взвесить питомца %1$s</string>
+    <string name="pet_profile_not_found">Питомец не найден</string>
+    <string name="pet_profile_measurements">Измерения</string>
+    <string name="pet_profile_add_weight_a11y">Добавить вес питомца</string>
+    <string name="pet_profile_no_measurements">Нет измерений за выбранный период</string>
+    <string name="pet_profile_show_remaining">Показать остальные</string>
+    <string name="pet_profile_show_remaining_a11y">Показать остальные измерения</string>
+    <string name="pet_weight_editor_a11y">Изменить вес питомца %1$s</string>
+    <string name="pet_weight_editor_back_a11y">Вернуться к измерениям</string>
+    <string name="pet_weight_editor_title">Изменить вес</string>
+    <string name="pet_weight_label">Вес, кг</string>
+    <string name="pet_weight_validation">Введите положительный вес от 0,001 кг, максимум 3 знака после запятой</string>
+    <string name="pet_weight_date_a11y">Дата и время измерения: %1$s. Не изменяется</string>
+    <string name="pet_weight_date">Дата и время</string>
+    <string name="pet_weight_date_unchanged">Дата и время измерения не изменяются</string>
+    <string name="pet_weight_unavailable">Измерение недоступно. Вернитесь к измерениям</string>
+    <string name="pet_weight_save_error">Не удалось сохранить изменения. Попробуйте ещё раз</string>
+    <string name="pet_measurement_delete_error">Не удалось удалить измерение</string>
+    <string name="pet_history_load_error">Не удалось загрузить историю</string>
+    <string name="pet_profile_summary_title">Данные питомца</string>
+    <string name="pet_profile_summary_empty">Дополнительные данные не заполнены</string>
+    <string name="pet_profile_summary_a11y">Данные питомца. %1$s</string>
+    <string name="pet_profile_summary_item_a11y">%1$s: %2$s</string>
+    <string name="pet_profile_edit_a11y">Изменить данные питомца %1$s</string>
+    <string name="pet_profile_photo_a11y">Фото питомца %1$s</string>
+    <string name="pet_profile_sex">Пол</string>
+    <string name="pet_profile_sex_male">Самец</string>
+    <string name="pet_profile_sex_female">Самка</string>
+    <string name="pet_profile_breed">Порода</string>
+    <string name="pet_profile_birth_date">Дата рождения</string>
+    <string name="pet_profile_age">Возраст</string>
+    <string name="pet_profile_weight_category">Весовая категория</string>
+    <string name="pet_profile_age_exact">%1$d %2$s</string>
+    <string name="pet_profile_age_range">%1$d–%2$d %3$s</string>
+    <plurals name="pet_profile_age_days"><item quantity="one">день</item><item quantity="few">дня</item><item quantity="many">дней</item><item quantity="other">дня</item></plurals>
+    <plurals name="pet_profile_age_weeks"><item quantity="one">неделя</item><item quantity="few">недели</item><item quantity="many">недель</item><item quantity="other">недели</item></plurals>
+    <plurals name="pet_profile_age_months"><item quantity="one">месяц</item><item quantity="few">месяца</item><item quantity="many">месяцев</item><item quantity="other">месяца</item></plurals>
+    <plurals name="pet_profile_age_years"><item quantity="one">год</item><item quantity="few">года</item><item quantity="many">лет</item><item quantity="other">года</item></plurals>
+    <string name="pet_measurement_delete_title">Удалить измерение питомца?</string>
+    <string name="pet_measurement_delete_message">Измерение будет удалено без возможности восстановления.</string>
+    <string name="pet_measurement_edit_a11y">Изменить измерение %1$s, %2$s</string>
+    <string name="pet_measurement_delete_a11y">Удалить измерение %1$s, %2$s</string>
+    <string name="action_close">Закрыть</string>
+    <string name="action_save">Сохранить</string>
+    <string name="action_edit">Изменить</string>
+    <string name="action_retry">Повторить</string>
+    <string name="action_delete">Удалить</string>
+    <string name="action_cancel">Отмена</string>
+    <string name="state_saving">Сохранение</string>
+    <string name="state_saving_ellipsis">Сохранение…</string>
+    <string name="state_deleting">Удаление выполняется</string>
+    <string name="state_deleting_ellipsis">Удаление…</string>
+    <string name="chart_range_all">Всё</string>
+    <string name="chart_range_7_days">7 дней</string>
+    <string name="chart_range_30_days">30 дней</string>
+    <string name="chart_range_3_months">3 месяца</string>
+    <string name="chart_range_year">Год</string>
+    <string name="chart_range_dates">Даты</string>
 </resources>

@@ -1,6 +1,7 @@
 package com.palixander.scalesync.ui.profiles
 
 import com.palixander.scalesync.domain.MeasurementOrigin
+import com.palixander.scalesync.ui.text.UiText
 
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartMetricOption
@@ -81,9 +82,9 @@ data class PetHistoryUiState(
     val breedReferenceTimeline: List<PetHistoryBreedReferenceTimelinePoint> = emptyList(),
     val isLoading: Boolean = true,
     val isNotFound: Boolean = false,
-    val errorMessage: String? = null,
+    val errorMessage: UiText? = null,
     val deleteConfirmation: PetHistoryDeleteConfirmation? = null,
-    val actionErrorMessage: String? = null,
+    val actionErrorMessage: UiText? = null,
     val scrollToMeasurementId: String? = null,
     val weightEditor: PetWeightEditorState? = null,
 ) {
@@ -580,7 +581,7 @@ data class PetWeightEditorState(
     val originalWeightKg: Double,
     val weightInput: String,
     val isSaving: Boolean = false,
-    val saveError: String? = null,
+    val saveError: UiText? = null,
     val isUnavailable: Boolean = false,
 ) {
     val parsedWeightKg: Double?

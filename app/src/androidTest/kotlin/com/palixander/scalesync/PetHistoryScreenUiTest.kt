@@ -821,7 +821,7 @@ class PetHistoryScreenUiTest {
         setScreen(
             state(PetHistoryContent.Single(selected)).copy(
                 deleteConfirmation = PetHistoryDeleteConfirmation(PetId("pet-exact"), selected),
-                actionErrorMessage = "Не удалось сохранить изменения",
+                actionErrorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Не удалось сохранить изменения"),
             ),
             callbacks,
         )
@@ -833,7 +833,7 @@ class PetHistoryScreenUiTest {
 
         var errorDismissals = 0
         setScreen(
-            state(PetHistoryContent.Single(selected)).copy(actionErrorMessage = "Не удалось сохранить изменения"),
+            state(PetHistoryContent.Single(selected)).copy(actionErrorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Не удалось сохранить изменения")),
             callbacks(dismissActionError = { errorDismissals++ }),
         )
         composeRule.onNodeWithTag(PetProfileScreenTestTags.ActionError).assertIsDisplayed()
@@ -870,7 +870,7 @@ class PetHistoryScreenUiTest {
         val unavailableStates = listOf(
             state(PetHistoryContent.Empty).copy(pet = null, isLoading = true),
             state(PetHistoryContent.Empty).copy(pet = null, isNotFound = true),
-            state(PetHistoryContent.Empty).copy(pet = null, errorMessage = "Ошибка загрузки"),
+            state(PetHistoryContent.Empty).copy(pet = null, errorMessage = com.palixander.scalesync.ui.text.UiText.Raw("Ошибка загрузки")),
         )
 
         unavailableStates.forEach { unavailable ->

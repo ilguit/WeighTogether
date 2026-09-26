@@ -74,7 +74,7 @@ class PetReferenceIntegrationTest {
         assertTrue(validated.isValid)
         val reloaded = requireNotNull(validated.newPet).toPetEntity("russian-blue", timestamp).toDomain()
         assertEquals(BreedId("VBO:0100200"), reloaded.breedId)
-        assertTrue(petProfileSummary(reloaded, catalog).items.any { it.value == "Русская голубая" })
+        assertTrue(petProfileSummary(reloaded, catalog).items.any { it.value == com.palixander.scalesync.ui.text.UiText.Raw("Русская голубая") })
         val reference = PetHistoryReferencePresenter().present(
             reloaded,
             ChartDateRange(referenceDate.minusDays(2), referenceDate),
@@ -208,7 +208,7 @@ class PetReferenceIntegrationTest {
 
         val unknownPet = restoredUnknown.toDomain()
         assertEquals(unknownBreedId, unknownPet.breedId)
-        assertTrue(petProfileSummary(unknownPet, catalog).items.any { it.label == "Порода" })
+        assertTrue(petProfileSummary(unknownPet, catalog).items.any { it.label == com.palixander.scalesync.ui.text.UiText.Resource(R.string.pet_profile_breed) })
         val unavailable = PetHistoryReferencePresenter().present(
             unknownPet,
             ChartDateRange(referenceDate, referenceDate),

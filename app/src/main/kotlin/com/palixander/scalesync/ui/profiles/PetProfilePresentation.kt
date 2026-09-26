@@ -5,17 +5,20 @@ import com.palixander.scalesync.dogAdultWeightCategoryLabel
 import com.palixander.scalesync.isDogAdultWeightCategoryApplicable
 import com.palixander.scalesync.formatPartialBirthDate
 import com.palixander.scalesync.petBreedLabel
-import com.palixander.scalesync.petSexLabel
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.ageAt
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.pluralUiText
+import com.palixander.scalesync.ui.text.uiText
 import java.time.LocalDate
 
-const val EmptyPetProfileSummary = "Дополнительные данные не заполнены"
+val EmptyPetProfileSummary: UiText = uiText(R.string.pet_profile_summary_empty)
 
 data class PetProfileSummaryItem(
-    val label: String,
-    val value: String,
+    val label: UiText,
+    val value: UiText,
 )
 
 data class PetProfileSummary(
@@ -24,12 +27,6 @@ data class PetProfileSummary(
     val isEmpty: Boolean
         get() = items.isEmpty()
 
-    val contentDescription: String
-        get() = if (isEmpty) {
-            EmptyPetProfileSummary
-        } else {
-            items.joinToString(separator = ". ") { item -> "${item.label}: ${item.value}" }
-        }
 }
 
 fun petProfileSummary(
@@ -40,19 +37,21 @@ fun petProfileSummary(
     val resolvedBreed = pet.breedId?.let { breedCatalog.resolve(it, pet.species) }
     return PetProfileSummary(
         buildList {
-            pet.sex?.let { add(PetProfileSummaryItem("Пол", petSexLabel(it))) }
-            resolvedBreed?.let { add(PetProfileSummaryItem("Порода", petBreedLabel(it))) }
+            pet.sex?.let {
+                add(PetProfileSummaryItem(uiText(R.string.pet_profile_sex), uiText(if (it == com.palixander.scalesync.domain.PetSex.MALE) R.string.pet_profile_sex_male else R.string.pet_profile_sex_female)))
+            }
+            resolvedBreed?.let { add(PetProfileSummaryItem(uiText(R.string.pet_profile_breed), UiText.Raw(petBreedLabel(it)))) }
             pet.birthDate?.let {
-                add(PetProfileSummaryItem("Дата рождения", formatPartialBirthDate(it)))
-                add(PetProfileSummaryItem("Возраст", petAgeLabel(it, referenceDate)))
+                add(PetProfileSummaryItem(uiText(R.string.pet_profile_birth_date), UiText.Raw(formatPartialBirthDate(it))))
+                add(PetProfileSummaryItem(uiText(R.string.pet_profile_age), petAgeLabel(it, referenceDate)))
             }
             pet.dogAdultWeightCategory
                 ?.takeIf { isDogAdultWeightCategoryApplicable(pet.species, resolvedBreed) }
                 ?.let {
                     add(
                         PetProfileSummaryItem(
-                            "Весовая категория",
-                            dogAdultWeightCategoryLabel(it),
+                            uiText(R.string.pet_profile_weight_category),
+                            UiText.Raw(dogAdultWeightCategoryLabel(it)),
                         ),
                     )
                 }
@@ -63,7 +62,7 @@ fun petProfileSummary(
 internal fun petAgeLabel(
     birthDate: PartialBirthDate,
     referenceDate: LocalDate,
-): String {
+): UiText {
     val age = birthDate.ageAt(referenceDate)
     val (minimum, maximum, unit) = when (birthDate) {
         is PartialBirthDate.Year -> Triple(age.minimumYears, age.maximumYears, AgeUnit.YEAR)
@@ -75,11 +74,10 @@ internal fun petAgeLabel(
             else -> Triple(age.minimumYears, age.maximumYears, AgeUnit.YEAR)
         }
     }
-    return if (minimum == maximum) {
-        "$minimum ${unit.label(minimum)}"
-    } else {
-        "$minimum–$maximum ${unit.label(maximum)}"
-    }
+    val plural = unit.plural
+    val unitText = pluralUiText(plural, maximum.toInt())
+    return if (minimum == maximum) uiText(R.string.pet_profile_age_exact, minimum, unitText)
+    else uiText(R.string.pet_profile_age_range, minimum, maximum, unitText)
 }
 
 private enum class AgeUnit {
@@ -89,27 +87,11 @@ private enum class AgeUnit {
     YEAR,
     ;
 
-    fun label(value: Long): String {
-        val mod100 = value % 100
-        val mod10 = value % 10
-        return when (this) {
-            DAY -> russianUnit(mod100, mod10, "день", "дня", "дней")
-            WEEK -> russianUnit(mod100, mod10, "неделя", "недели", "недель")
-            MONTH -> russianUnit(mod100, mod10, "месяц", "месяца", "месяцев")
-            YEAR -> russianUnit(mod100, mod10, "год", "года", "лет")
+    val plural: Int
+        get() = when (this) {
+            DAY -> R.plurals.pet_profile_age_days
+            WEEK -> R.plurals.pet_profile_age_weeks
+            MONTH -> R.plurals.pet_profile_age_months
+            YEAR -> R.plurals.pet_profile_age_years
         }
-    }
-}
-
-private fun russianUnit(
-    mod100: Long,
-    mod10: Long,
-    one: String,
-    few: String,
-    many: String,
-): String = when {
-    mod100 in 11..14 -> many
-    mod10 == 1L -> one
-    mod10 in 2..4 -> few
-    else -> many
 }

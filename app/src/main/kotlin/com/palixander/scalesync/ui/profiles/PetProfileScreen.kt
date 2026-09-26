@@ -58,6 +58,9 @@ import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.resolve
 
 object PetProfileScreenTestTags {
     const val Shell = "pet-profile-shell"
@@ -101,6 +104,7 @@ internal fun PetProfileScreen(
     onEditPet: (Pet) -> Unit = {},
     sourceLauncher: ReferenceSourceLauncher = AndroidReferenceSourceLauncher(LocalContext.current),
 ) {
+    val resources = LocalContext.current.resources
     state.weightEditor?.let { editor ->
         androidx.activity.compose.BackHandler(enabled = !editor.isSaving, onBack = callbacks.dismissWeightEditor)
         PetWeightEditorScreen(editor, callbacks, contentPadding)
@@ -142,7 +146,7 @@ internal fun PetProfileScreen(
         modifier = Modifier.fillMaxSize().padding(contentPadding)
             .padding(horizontal = HuaweiDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.shell(state.petId.value))
-            .semantics { contentDescription = "История измерений питомца ${state.pet?.displayName.orEmpty()}" },
+            .semantics { contentDescription = resources.getString(R.string.pet_profile_history_a11y, state.pet?.displayName.orEmpty()) },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         contentPadding = petProfileListContentPadding(),
     ) {
@@ -151,8 +155,8 @@ internal fun PetProfileScreen(
                 onClick = onStartMeasurement,
                 enabled = state.pet != null && !state.isNotFound,
                 modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.StartMeasurement)
-                    .semantics { contentDescription = "Взвесить питомца ${state.pet?.displayName.orEmpty()}" },
-            ) { Text("Взвесить питомца") }
+                    .semantics { contentDescription = resources.getString(R.string.pet_profile_weigh_a11y, state.pet?.displayName.orEmpty()) },
+            ) { Text(stringResource(R.string.pet_profile_weigh)) }
         }
         state.pet?.takeUnless { state.isNotFound }?.let { pet ->
             item {
@@ -193,9 +197,9 @@ internal fun PetProfileScreen(
                 ) { CircularProgressIndicator() }
             }
             state.isNotFound -> item {
-                Text("Питомец не найден", modifier = Modifier.testTag(PetProfileScreenTestTags.NotFound))
+                Text(stringResource(R.string.pet_profile_not_found), modifier = Modifier.testTag(PetProfileScreenTestTags.NotFound))
             }
-            state.errorMessage != null -> item { Text(state.errorMessage, color = MaterialTheme.colorScheme.error) }
+            state.errorMessage != null -> item { Text(state.errorMessage.resolve(resources), color = MaterialTheme.colorScheme.error) }
             else -> {
                 state.actionErrorMessage?.takeIf { state.deleteConfirmation == null }?.let { message ->
                     item {
@@ -209,14 +213,14 @@ internal fun PetProfileScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Text(
-                                    message,
+                                    message.resolve(resources),
                                     color = MaterialTheme.colorScheme.onErrorContainer,
                                     modifier = Modifier.weight(1f),
                                 )
                                 TextButton(
                                     onClick = callbacks.dismissActionError,
                                     modifier = Modifier.testTag(PetProfileScreenTestTags.ActionErrorDismiss),
-                                ) { Text("Закрыть") }
+                                ) { Text(stringResource(R.string.action_close)) }
                             }
                         }
                     }
@@ -244,16 +248,16 @@ internal fun PetProfileScreen(
                 }
                 item {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                        Text("Измерения", style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
+                        Text(stringResource(R.string.pet_profile_measurements), style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
                         TextButton(onClick = callbacks.onAddWeightRequested,
                             enabled = state.pet != null && !state.isNotFound,
                             modifier = Modifier.heightIn(min = 48.dp).testTag(PetProfileScreenTestTags.AddWeight)
-                                .semantics { contentDescription = "Добавить вес питомца" },
+                                .semantics { contentDescription = resources.getString(R.string.pet_profile_add_weight_a11y) },
                         ) { Text("+", style = MaterialTheme.typography.headlineMedium) }
                     }
                 }
                 if (state.measurements.isEmpty()) item {
-                    Text("Нет измерений за выбранный период", modifier = Modifier.testTag(PetProfileScreenTestTags.Empty))
+                    Text(stringResource(R.string.pet_profile_no_measurements), modifier = Modifier.testTag(PetProfileScreenTestTags.Empty))
                 } else {
                     val visibleMeasurements = if (showAllMeasurements) {
                         state.measurements
@@ -287,8 +291,8 @@ internal fun PetProfileScreen(
                                 onClick = { showAllMeasurements = true },
                                 modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                                     .testTag(PetProfileScreenTestTags.ShowRemaining)
-                                    .semantics { contentDescription = "Показать остальные измерения" },
-                            ) { Text("Показать остальные") }
+                                    .semantics { contentDescription = resources.getString(R.string.pet_profile_show_remaining_a11y) },
+                            ) { Text(stringResource(R.string.pet_profile_show_remaining)) }
                         }
                     }
                 }
@@ -305,11 +309,12 @@ private fun PetWeightEditorScreen(
     callbacks: PetHistoryCallbacks,
     contentPadding: PaddingValues,
 ) {
+    val resources = LocalContext.current.resources
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(contentPadding).imePadding()
             .padding(horizontal = HuaweiDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.WeightEditor)
-            .semantics { contentDescription = "Изменить вес питомца ${editor.petName}" },
+            .semantics { contentDescription = resources.getString(R.string.pet_weight_editor_a11y, editor.petName) },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
         contentPadding = PaddingValues(vertical = HuaweiDimensions.ContentPadding),
     ) {
@@ -317,12 +322,12 @@ private fun PetWeightEditorScreen(
             Row(verticalAlignment = Alignment.CenterVertically) {
                 HuaweiIconButton(
                     icon = HuaweiIcons.Back,
-                    contentDescription = "Вернуться к измерениям",
+                    contentDescription = stringResource(R.string.pet_weight_editor_back_a11y),
                     onClick = callbacks.dismissWeightEditor,
                     enabled = !editor.isSaving,
                     modifier = Modifier.testTag(PetProfileScreenTestTags.WeightBack),
                 )
-                Text("Изменить вес", style = MaterialTheme.typography.headlineSmall,
+                Text(stringResource(R.string.pet_weight_editor_title), style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.semantics { heading() })
             }
         }
@@ -333,13 +338,13 @@ private fun PetWeightEditorScreen(
                 onValueChange = callbacks.changeEditedWeight,
                 enabled = !editor.isSaving && !editor.isUnavailable,
                 singleLine = true,
-                label = { Text("Вес, кг") },
+                label = { Text(stringResource(R.string.pet_weight_label)) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                 isError = editor.parsedWeightKg == null,
                 supportingText = if (editor.parsedWeightKg == null) {
                     {
                         Text(
-                            "Введите положительный вес от 0,001 кг, максимум 3 знака после запятой",
+                            stringResource(R.string.pet_weight_validation),
                             modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                         )
                     }
@@ -349,23 +354,23 @@ private fun PetWeightEditorScreen(
         }
         item {
             Column(Modifier.semantics {
-                contentDescription = "Дата и время измерения: ${editor.measuredAtText}. Не изменяется"
+                contentDescription = resources.getString(R.string.pet_weight_date_a11y, editor.measuredAtText)
             }) {
-                Text("Дата и время", style = MaterialTheme.typography.labelLarge)
+                Text(stringResource(R.string.pet_weight_date), style = MaterialTheme.typography.labelLarge)
                 Text(editor.measuredAtText)
-                Text("Дата и время измерения не изменяются", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.pet_weight_date_unchanged), color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (editor.isUnavailable) item {
             Text(
-                "Измерение недоступно. Вернитесь к измерениям",
+                stringResource(R.string.pet_weight_unavailable),
                 color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.WeightUnavailable)
                     .semantics { liveRegion = LiveRegionMode.Polite },
             )
         }
         editor.saveError?.let { error -> item {
-            Text(error, color = MaterialTheme.colorScheme.error,
+            Text(error.resolve(resources), color = MaterialTheme.colorScheme.error,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.WeightError)
                     .semantics { liveRegion = LiveRegionMode.Polite })
         } }
@@ -375,8 +380,8 @@ private fun PetWeightEditorScreen(
                 enabled = editor.canSave,
                 modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
                     .testTag(PetProfileScreenTestTags.WeightSave)
-                    .semantics { if (editor.isSaving) stateDescription = "Сохранение" },
-            ) { Text(if (editor.isSaving) "Сохранение…" else "Сохранить") }
+                    .semantics { if (editor.isSaving) stateDescription = resources.getString(R.string.state_saving) },
+            ) { Text(stringResource(if (editor.isSaving) R.string.state_saving_ellipsis else R.string.action_save)) }
         }
     }
 }
@@ -388,12 +393,20 @@ private fun PetProfileSummaryCard(
     onEdit: () -> Unit,
 ) {
     val photoStore = currentProfilePhotoStore()
+    val resources = LocalContext.current.resources
+    val summaryDescription = if (summary.isEmpty) {
+        EmptyPetProfileSummary.resolve(resources)
+    } else {
+        summary.items.joinToString(separator = ". ") { item ->
+            resources.getString(R.string.pet_profile_summary_item_a11y, item.label.resolve(resources), item.value.resolve(resources))
+        }
+    }
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(PetProfileScreenTestTags.Summary)
             .semantics(mergeDescendants = true) {
-                contentDescription = "Данные питомца. ${summary.contentDescription}"
+                contentDescription = resources.getString(R.string.pet_profile_summary_a11y, summaryDescription)
             },
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
@@ -403,7 +416,7 @@ private fun PetProfileSummaryCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    text = "Данные питомца",
+                    text = stringResource(R.string.pet_profile_summary_title),
                     modifier = Modifier.weight(1f).semantics { heading() },
                     style = MaterialTheme.typography.titleMedium,
                 )
@@ -413,9 +426,9 @@ private fun PetProfileSummaryCard(
                         .heightIn(min = HuaweiDimensions.TouchTarget)
                         .testTag(PetProfileScreenTestTags.Edit)
                         .semantics {
-                            contentDescription = "Изменить данные питомца ${pet.displayName}"
+                            contentDescription = resources.getString(R.string.pet_profile_edit_a11y, pet.displayName)
                         },
-                ) { Text("Изменить") }
+                ) { Text(stringResource(R.string.action_edit)) }
             }
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -428,18 +441,18 @@ private fun PetProfileSummaryCard(
                 ) {
                     if (summary.isEmpty) {
                         Text(
-                            text = EmptyPetProfileSummary,
+                            text = EmptyPetProfileSummary.resolve(resources),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodyMedium,
                         )
                     } else summary.items.forEach { item ->
                         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                             Text(
-                                text = item.label,
+                                text = item.label.resolve(resources),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 style = MaterialTheme.typography.labelMedium,
                             )
-                            Text(text = item.value, style = MaterialTheme.typography.bodyLarge)
+                            Text(text = item.value.resolve(resources), style = MaterialTheme.typography.bodyLarge)
                         }
                     }
                 }
@@ -450,7 +463,7 @@ private fun PetProfileSummaryCard(
                         com.palixander.scalesync.domain.PetSpecies.DOG -> HuaweiIcons.Dog
                         com.palixander.scalesync.domain.PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
                     },
-                    contentDescription = "Фото питомца ${pet.displayName}",
+                    contentDescription = resources.getString(R.string.pet_profile_photo_a11y, pet.displayName),
                     store = photoStore,
                     size = 72.dp,
                 )
@@ -462,24 +475,25 @@ private fun PetProfileSummaryCard(
 @Composable
 private fun PetHistoryDeleteDialog(
     confirmation: PetHistoryDeleteConfirmation,
-    actionErrorMessage: String?,
+    actionErrorMessage: com.palixander.scalesync.ui.text.UiText?,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val resources = LocalContext.current.resources
     AlertDialog(
         modifier = Modifier.testTag(PetProfileScreenTestTags.DeleteDialog),
         onDismissRequest = { if (!confirmation.isDeleting) onDismiss() },
         icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
-        title = { Text("Удалить измерение питомца?") },
+        title = { Text(stringResource(R.string.pet_measurement_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     "${confirmation.measurement.measuredAtText} · ${confirmation.measurement.weightText}",
                     style = MaterialTheme.typography.titleSmall,
                 )
-                Text("Измерение будет удалено без возможности восстановления.")
+                Text(stringResource(R.string.pet_measurement_delete_message))
                 actionErrorMessage?.let {
-                    Text(it, color = MaterialTheme.colorScheme.error)
+                    Text(it.resolve(resources), color = MaterialTheme.colorScheme.error)
                 }
             }
         },
@@ -488,14 +502,14 @@ private fun PetHistoryDeleteDialog(
                 onClick = onConfirm,
                 enabled = !confirmation.isDeleting,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.DeleteConfirm).semantics {
-                    if (confirmation.isDeleting) stateDescription = "Удаление выполняется"
+                    if (confirmation.isDeleting) stateDescription = resources.getString(R.string.state_deleting)
                 },
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
                     contentColor = MaterialTheme.colorScheme.onError,
                 ),
             ) {
-                Text(if (confirmation.isDeleting) "Удаление…" else if (actionErrorMessage != null) "Повторить" else "Удалить")
+                Text(stringResource(if (confirmation.isDeleting) R.string.state_deleting_ellipsis else if (actionErrorMessage != null) R.string.action_retry else R.string.action_delete))
             }
         },
         dismissButton = {
@@ -503,19 +517,20 @@ private fun PetHistoryDeleteDialog(
                 onClick = onDismiss,
                 enabled = !confirmation.isDeleting,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.DeleteCancel),
-            ) { Text("Отмена") }
+            ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
 
-private fun ChartRangePreset.petTitle() = when (this) {
-    ChartRangePreset.ALL -> "Всё"
-    ChartRangePreset.LAST_7_DAYS -> "7 дней"
-    ChartRangePreset.LAST_30_DAYS -> "30 дней"
-    ChartRangePreset.LAST_3_MONTHS -> "3 месяца"
-    ChartRangePreset.YEAR_TO_DATE -> "Год"
-    ChartRangePreset.CUSTOM -> "Даты"
-}
+@Composable
+private fun ChartRangePreset.petTitle() = stringResource(when (this) {
+    ChartRangePreset.ALL -> R.string.chart_range_all
+    ChartRangePreset.LAST_7_DAYS -> R.string.chart_range_7_days
+    ChartRangePreset.LAST_30_DAYS -> R.string.chart_range_30_days
+    ChartRangePreset.LAST_3_MONTHS -> R.string.chart_range_3_months
+    ChartRangePreset.YEAR_TO_DATE -> R.string.chart_range_year
+    ChartRangePreset.CUSTOM -> R.string.chart_range_dates
+})
 
 private val FallbackBreedCatalog by lazy(::PetBreedCatalog)
 
@@ -526,6 +541,7 @@ internal fun PetHistoryMeasurementDetails(
     onEdit: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val resources = LocalContext.current.resources
     Row(
         Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -548,14 +564,14 @@ internal fun PetHistoryMeasurementDetails(
         Row {
             HuaweiIconButton(
                 icon = HuaweiIcons.Edit,
-                contentDescription = "Изменить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                contentDescription = resources.getString(R.string.pet_measurement_edit_a11y, measurement.measuredAtText, measurement.weightText),
                 onClick = { onEdit() },
                 enabled = actionsEnabled,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
             )
             HuaweiIconButton(
                 icon = HuaweiIcons.Delete,
-                contentDescription = "Удалить измерение ${measurement.measuredAtText}, ${measurement.weightText}",
+                contentDescription = resources.getString(R.string.pet_measurement_delete_a11y, measurement.measuredAtText, measurement.weightText),
                 onClick = { onDelete() },
                 enabled = actionsEnabled,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.deleteMeasurement(measurement.id)),
