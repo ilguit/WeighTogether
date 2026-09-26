@@ -14,6 +14,8 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.*
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import com.palixander.scalesync.BuildConfig
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -86,7 +88,7 @@ private fun LatestChangesCard(changes: List<ReleaseChange>, modifier: Modifier =
     HuaweiSurface(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Text(
-                "Последние изменения (${BuildConfig.VERSION_CODE})",
+                stringResource(R.string.changelog_latest, BuildConfig.VERSION_CODE),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() }
                     .testTag(ChangelogScreenTestTags.LatestChangesHeading),
@@ -119,24 +121,26 @@ private fun PreviousReleasesCard(
     onExpandedChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val expandLabel = stringResource(if (expanded) R.string.changelog_collapse_previous else R.string.changelog_expand_previous)
+    val expandedState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
     HuaweiSurface(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
                     .clickable(
                         role = Role.Button,
-                        onClickLabel = if (expanded) "Свернуть предыдущие версии" else "Развернуть предыдущие версии",
+                        onClickLabel = expandLabel,
                     ) { onExpandedChange(!expanded) }
                     .semantics {
                         heading()
-                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                        stateDescription = expandedState
                     }
                     .testTag(ChangelogScreenTestTags.PreviousReleasesToggle),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    "Предыдущие версии",
+                    stringResource(R.string.changelog_previous),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f).padding(end = HuaweiDimensions.CompactItemSpacing)
                         .testTag(ChangelogScreenTestTags.PreviousReleasesTitle),
@@ -172,7 +176,7 @@ private fun PreviousReleasesCard(
 @Composable
 private fun ReleaseHeading(version: String) {
     Text(
-        "Версия $version",
+        stringResource(R.string.changelog_version, version),
         style = MaterialTheme.typography.titleMedium,
         modifier = Modifier.semantics { heading() },
     )
@@ -198,7 +202,7 @@ private fun ReleaseChanges(changes: List<ReleaseChange>, modifier: Modifier = Mo
                 Column(modifier = Modifier.weight(1f)) {
                     Text(change.description, style = MaterialTheme.typography.bodyMedium)
                     Text(
-                        "Задача #${change.issueNumber}",
+                        stringResource(R.string.changelog_issue, change.issueNumber),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         style = MaterialTheme.typography.bodySmall,
                     )

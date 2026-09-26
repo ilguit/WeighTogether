@@ -28,6 +28,7 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -76,7 +77,9 @@ private fun HumanProfileDropdown(
     val humans = selection?.profiles?.filterIsInstance<ProfilePresentation.Human>().orEmpty()
     val selectedHuman = selection?.selectedProfile as? ProfilePresentation.Human
     val name = selectedHuman?.displayName
-        ?: if (selection == null) "Загрузка профилей…" else "Выберите профиль"
+        ?: stringResource(if (selection == null) R.string.summary_profiles_loading else R.string.summary_choose_profile)
+    val profileDescription = stringResource(R.string.summary_profile_a11y, name)
+    val expandedDescription = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
     val photoStore = currentProfilePhotoStore()
     Box(modifier) {
         FilledTonalButton(
@@ -85,8 +88,8 @@ private fun HumanProfileDropdown(
             modifier = Modifier.heightIn(min = 48.dp)
                 .testTag(SummaryTopBarTestTags.Profile)
                 .semantics {
-                    contentDescription = "Выбор профиля: $name"
-                    stateDescription = if (expanded) "Развёрнут" else "Свёрнут"
+                    contentDescription = profileDescription
+                    stateDescription = expandedDescription
                 },
         ) {
             ProfileAvatar(

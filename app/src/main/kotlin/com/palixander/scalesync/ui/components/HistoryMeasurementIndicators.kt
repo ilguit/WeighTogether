@@ -17,6 +17,8 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -37,9 +39,11 @@ internal fun HistoryMeasurementIndicators(
     tagPrefix: String,
 ) {
     val manual = origin == MeasurementOrigin.MANUAL
+    val manualDescription = stringResource(R.string.manual_origin)
+    val editedDescription = stringResource(R.string.manually_edited)
     val explanation = listOfNotNull(
-        "Введено вручную".takeIf { manual },
-        "Изменено вручную".takeIf { isManuallyEdited },
+        manualDescription.takeIf { manual },
+        editedDescription.takeIf { isManuallyEdited },
     ).joinToString(". ")
     if (explanation.isEmpty()) return
     var explaining by remember { mutableStateOf(false) }
@@ -82,7 +86,7 @@ internal fun HistoryMeasurementIndicators(
         text = { Text(explanation) },
         confirmButton = {
             TextButton(onClick = dismiss, modifier = Modifier.testTag("$tagPrefix-indicators-dismiss")) {
-                Text("Понятно")
+                Text(stringResource(R.string.common_got_it))
             }
         },
     )

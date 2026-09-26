@@ -390,6 +390,7 @@ private fun ClearPendingDialog(
             }
         },
         dismissButton = {
+            val summaryExpansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
             TextButton(
                 onClick = onDismiss,
                 enabled = !confirmation.isClearing,
@@ -788,7 +789,7 @@ private fun MeasurementSummaryCard(
                     .fillMaxWidth()
                     .heightIn(min = HuaweiDimensions.TouchTarget)
                     .semantics {
-                        stateDescription = if (expanded) "Expanded" else "Collapsed"
+                        stateDescription = summaryExpansionState
                     }
                     .testTag("summary-expand-metrics"),
             ) {
@@ -1120,10 +1121,11 @@ private fun MeasurementHistoryScreen(
         }
         if (state.isLoading) {
             item {
+                val loadingHistoryDescription = stringResource(R.string.a11y_loading_history)
                 LinearProgressIndicator(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .semantics { contentDescription = "Loading history" },
+                        .semantics { contentDescription = loadingHistoryDescription },
                 )
             }
         }
@@ -1156,6 +1158,8 @@ internal fun MeasurementHistoryCard(
     onReferenceInfoClick: (MeasurementUiItem, ReferenceMetricPresentation) -> Unit,
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
+    val toggleLabel = stringResource(if (expanded) R.string.a11y_collapse_measurement else R.string.a11y_expand_measurement)
+    val expansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
     HuaweiSurface(
         modifier = Modifier
             .fillMaxWidth()
@@ -1174,10 +1178,10 @@ internal fun MeasurementHistoryCard(
                         .heightIn(min = 72.dp)
                         .clickable(
                             role = Role.Button,
-                            onClickLabel = if (expanded) "Collapse measurement" else "Expand measurement",
+                            onClickLabel = toggleLabel,
                         ) { onExpandedChange(!expanded) }
                         .semantics {
-                            stateDescription = if (expanded) "Expanded" else "Collapsed"
+                            stateDescription = expansionState
                         }
                         .testTag("history-toggle-${item.id}")
                         .padding(start = 16.dp, top = 14.dp, bottom = 14.dp),
@@ -1422,7 +1426,7 @@ private fun MeasurementSyncSheet(
                 }
                 HuaweiIconButton(
                     icon = HuaweiIcons.Close,
-                    contentDescription = "Close",
+                    contentDescription = stringResource(R.string.a11y_close),
                     onClick = onDismiss,
                 )
             }
@@ -1729,8 +1733,9 @@ private fun NestedScreenHeader(
             style = MaterialTheme.typography.titleLarge,
         )
         onAdd?.let { action ->
+            val addWeightDescription = stringResource(R.string.a11y_add_weight)
             TextButton(onClick = action, enabled = addEnabled, modifier = Modifier.sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                .testTag("measurement-history-add").semantics { contentDescription = "Add weight" }) {
+                .testTag("measurement-history-add").semantics { contentDescription = addWeightDescription }) {
                 Text("+", style = MaterialTheme.typography.headlineMedium)
             }
         }

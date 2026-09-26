@@ -47,6 +47,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.palixander.scalesync.R
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
@@ -358,19 +360,21 @@ internal fun ProfilePhotoCropEditor(
                 verticalArrangement = Arrangement.SpaceBetween,
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Настройка фото", style = MaterialTheme.typography.headlineSmall)
-                    Text("Перетащите фото и измените масштаб", style = MaterialTheme.typography.bodyMedium)
+                    Text(stringResource(R.string.photo_crop_title), style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(R.string.photo_crop_hint), style = MaterialTheme.typography.bodyMedium)
                 }
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxWidth().weight(1f)) {
                     if (!imageLoad.second) CircularProgressIndicator(Modifier.testTag(ProfilePhotoCropTestTags.Progress))
                     if (imageLoad.second && bitmap == null) {
                         Text(
-                            "Не удалось открыть фото",
+                            stringResource(R.string.photo_crop_error),
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.testTag(ProfilePhotoCropTestTags.Error),
                         )
                     }
                     bitmap?.let { image ->
+                        val viewportDescription = stringResource(R.string.photo_crop_viewport)
+                        val viewportState = stringResource(R.string.photo_crop_state, (constrained.zoom * 100).toInt(), (constrained.panX * 100).toInt(), (constrained.panY * 100).toInt())
                         Canvas(
                             Modifier.sizeIn(maxWidth = 420.dp, maxHeight = 420.dp)
                                 .fillMaxWidth().aspectRatio(1f).padding(16.dp).onSizeChanged { viewportPx = minOf(it.width, it.height).toFloat() }
@@ -407,9 +411,8 @@ internal fun ProfilePhotoCropEditor(
                                         } while (event.changes.any { it.pressed })
                                     }
                                 }.semantics {
-                                    contentDescription = "Область кадрирования. Перетаскивайте фото двумя пальцами или одним пальцем"
-                                    stateDescription = "Масштаб ${(constrained.zoom * 100).toInt()} процентов; " +
-                                        "позиция ${(constrained.panX * 100).toInt()}, ${(constrained.panY * 100).toInt()}"
+                                    contentDescription = viewportDescription
+                                    stateDescription = viewportState
                                 }.testTag(ProfilePhotoCropTestTags.Viewport),
                         ) {
                             val diameter = minOf(size.width, size.height)
@@ -431,35 +434,38 @@ internal fun ProfilePhotoCropEditor(
                     }
                 }
                 Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("Масштаб ${(constrained.zoom * 100).toInt()}%")
+                    val zoomOutDescription = stringResource(R.string.photo_crop_zoom_out)
+                    val zoomDescription = stringResource(R.string.photo_crop_zoom_control)
+                    val zoomInDescription = stringResource(R.string.photo_crop_zoom_in)
+                    Text(stringResource(R.string.photo_crop_zoom, (constrained.zoom * 100).toInt()))
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         TextButton(
                             onClick = { onTransformChanged(constrained.copy(zoom = constrained.zoom - .25f).constrained()) },
                             enabled = !saving && constrained.zoom > 1f,
-                            modifier = Modifier.size(48.dp).testTag(ProfilePhotoCropTestTags.ZoomOut).semantics { contentDescription = "Уменьшить фото" },
+                            modifier = Modifier.size(48.dp).testTag(ProfilePhotoCropTestTags.ZoomOut).semantics { contentDescription = zoomOutDescription },
                         ) { Text("−", style = MaterialTheme.typography.headlineSmall) }
                         Slider(
                             value = constrained.zoom,
                             onValueChange = { onTransformChanged(constrained.copy(zoom = it).constrained()) },
                             valueRange = 1f..ProfilePhotoCropTransform.DEFAULT_MAX_ZOOM,
                             enabled = !saving,
-                            modifier = Modifier.weight(1f).testTag(ProfilePhotoCropTestTags.Zoom).semantics { contentDescription = "Масштаб фото" },
+                            modifier = Modifier.weight(1f).testTag(ProfilePhotoCropTestTags.Zoom).semantics { contentDescription = zoomDescription },
                         )
                         TextButton(
                             onClick = { onTransformChanged(constrained.copy(zoom = constrained.zoom + .25f).constrained()) },
                             enabled = !saving && constrained.zoom < ProfilePhotoCropTransform.DEFAULT_MAX_ZOOM,
-                            modifier = Modifier.size(48.dp).testTag(ProfilePhotoCropTestTags.ZoomIn).semantics { contentDescription = "Увеличить фото" },
+                            modifier = Modifier.size(48.dp).testTag(ProfilePhotoCropTestTags.ZoomIn).semantics { contentDescription = zoomInDescription },
                         ) { Text("+", style = MaterialTheme.typography.headlineSmall) }
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)) {
-                        TextButton(onClick = onCancel, enabled = !saving, modifier = Modifier.heightIn(min = 48.dp).testTag(ProfilePhotoCropTestTags.Cancel)) { Text("Отмена") }
+                        TextButton(onClick = onCancel, enabled = !saving, modifier = Modifier.heightIn(min = 48.dp).testTag(ProfilePhotoCropTestTags.Cancel)) { Text(stringResource(R.string.photo_crop_cancel)) }
                         Button(
                             onClick = {
                                 onConfirm(constrained)
                             },
                             enabled = bitmap != null && !saving,
                             modifier = Modifier.heightIn(min = 48.dp).testTag(ProfilePhotoCropTestTags.Done),
-                        ) { Text(if (saving) "Сохранение…" else "Готово") }
+                        ) { Text(stringResource(if (saving) R.string.photo_crop_saving else R.string.photo_crop_done)) }
                     }
                 }
             }
