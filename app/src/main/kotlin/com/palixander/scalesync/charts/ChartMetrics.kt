@@ -15,7 +15,9 @@ fun chartMetricOptions(resolveString: (Int) -> String): List<ChartMetricOption> 
         displayName = resolveString(metric.displayNameRes),
         unit = resolveString(metric.unitRes),
         decimalPlaces = metric.decimalPlaces,
-        deltaUnit = if (metric.unitRes == R.string.unit_percent) PercentagePointUnit else resolveString(metric.unitRes),
+        deltaUnit = resolveString(
+            if (metric.unitRes == R.string.unit_percent) R.string.unit_percentage_point else metric.unitRes,
+        ),
     )
 }
 
@@ -54,5 +56,3 @@ private fun defaultChartMetrics(): Set<MeasurementMetric> = linkedSetOf(
     MeasurementMetric.WEIGHT_KG,
     MeasurementMetric.BODY_FAT_PERCENT,
 )
-
-const val PercentagePointUnit = "pp"

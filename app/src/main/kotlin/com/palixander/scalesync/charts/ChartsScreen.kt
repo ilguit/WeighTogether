@@ -514,31 +514,32 @@ internal fun MetricChartCard(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
 ) {
+    val metric = series.metric.resolveStrings()
     val points = remember(series.points) { orderedChartPoints(series.points) }
     val selectedRange = remember(startDate, endDateInclusive, zoneId) { chartXRange(startDate, endDateInclusive, zoneId) }
     val selectedPoints = remember(points, selectedRange) {
         points.filter { it.xEpochMillis?.toDouble()?.let { x -> x >= selectedRange.minX && x < selectedRange.maxX } == true }
     }
     val summary = remember(selectedPoints) { chartValueSummary(selectedPoints) }
-    val currentValue = remember(summary.current, series.metric) {
-        formatChartCurrentValue(summary.current?.value, series.metric)
+    val currentValue = remember(summary.current, metric) {
+        formatChartCurrentValue(summary.current?.value, metric)
     }
-    val delta = remember(summary.delta, series.metric) {
-        formatChartDelta(summary.delta, series.metric)
+    val delta = remember(summary.delta, metric) {
+        formatChartDelta(summary.delta, metric)
     }
     val statistics = remember(selectedPoints) { chartStatistics(selectedPoints) }
-    val minimum = remember(statistics?.minimum, series.metric) {
-        formatChartStatistic(statistics?.minimum, series.metric)
+    val minimum = remember(statistics?.minimum, metric) {
+        formatChartStatistic(statistics?.minimum, metric)
     }
-    val maximum = remember(statistics?.maximum, series.metric) {
-        formatChartStatistic(statistics?.maximum, series.metric)
+    val maximum = remember(statistics?.maximum, metric) {
+        formatChartStatistic(statistics?.maximum, metric)
     }
-    val average = remember(statistics?.average, series.metric) {
-        formatChartStatistic(statistics?.average, series.metric)
+    val average = remember(statistics?.average, metric) {
+        formatChartStatistic(statistics?.average, metric)
     }
     val chartDescription = stringResource(
         R.string.chart_accessibility_summary,
-        series.metric.displayName,
+        metric.displayName,
         currentValue,
         delta,
     )
@@ -554,7 +555,7 @@ internal fun MetricChartCard(
                 verticalAlignment = Alignment.Top,
             ) {
                 Text(
-                    text = series.metric.displayName,
+                    text = metric.displayName,
                     modifier = Modifier.weight(1f).semantics { heading() },
                     style = MaterialTheme.typography.titleMedium,
                 )
@@ -611,7 +612,7 @@ internal fun MetricChartCard(
                         )
 
                         else -> MetricLineChart(
-                            metric = series.metric,
+                            metric = metric,
                             points = points,
                             startDate = startDate,
                             endDateInclusive = endDateInclusive,
@@ -624,6 +625,13 @@ internal fun MetricChartCard(
         }
     }
 }
+
+@Composable
+private fun ChartMetricOption.resolveStrings(): ChartMetricOption = copy(
+    displayName = displayNameRes?.let { stringResource(it) } ?: displayName,
+    unit = unitRes?.let { stringResource(it) } ?: unit,
+    deltaUnit = deltaUnitRes?.let { stringResource(it) } ?: deltaUnit,
+)
 
 object MetricChartTestTags {
     const val Card = "metric-chart-card"

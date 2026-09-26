@@ -4,6 +4,7 @@ import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.chartMetricOptions
 import com.palixander.scalesync.charts.formatChartCurrentValue
 import com.palixander.scalesync.charts.formatChartMarkerText
+import com.palixander.scalesync.charts.resolveStrings
 import com.palixander.scalesync.ui.profiles.PetWeightChartMetric
 import com.palixander.scalesync.ui.text.UiText
 import java.time.ZoneOffset
@@ -54,10 +55,11 @@ class ManualWeightPresentationTest {
     @Test
     fun gramPrecisionIsVisibleInHumanPetAndHomeChartMarkers() {
         val human = chartMetricOptions(::testMetricString).first { it.key == "WEIGHT_KG" }
+        val pet = PetWeightChartMetric.resolveStrings(::testMetricString)
         for (weight in listOf(4.121, 4.124, 4.125)) {
             val expected = weight.toString().replace('.', ',')
             assertEquals(expected, formatWeight(weight, Locale.forLanguageTag("ru")))
-            for (metric in listOf(human, PetWeightChartMetric)) {
+            for (metric in listOf(human, pet)) {
                 assertEquals("$expected кг", formatChartCurrentValue(weight, metric, Locale.forLanguageTag("ru")))
                 assertTrue(formatChartMarkerText(ChartPoint(0, weight), metric, ZoneOffset.UTC, Locale.forLanguageTag("ru")).endsWith("$expected кг"))
             }
@@ -84,6 +86,8 @@ class ManualWeightPresentationTest {
 
 private fun testMetricString(id: Int): String = when (id) {
     com.palixander.scalesync.R.string.unit_kg -> "кг"
+    com.palixander.scalesync.R.string.pet_weight_unit_kg -> "кг"
+    com.palixander.scalesync.R.string.pet_history_weight_metric -> "Вес питомца"
     com.palixander.scalesync.R.string.unit_percent -> "%"
     else -> "resource-$id"
 }

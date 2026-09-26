@@ -18,7 +18,7 @@ class ChartMetricSelectionTest {
         assertEquals(16, options.map(ChartMetricOption::key).distinct().size)
         assertEquals(MeasurementMetric.entries.map(MeasurementMetric::name), options.map(ChartMetricOption::key))
         assertTrue(options.all { it.displayName.isNotBlank() && it.decimalPlaces >= 0 })
-        assertTrue(options.filter { it.unit == "%" }.all { it.deltaUnit == PercentagePointUnit })
+        assertTrue(options.filter { it.unit == "%" }.all { it.deltaUnit == "percentage-points" })
         assertTrue(options.filter { it.unit != "%" }.all { it.deltaUnit == it.unit })
     }
 
@@ -119,6 +119,7 @@ class ChartMetricSelectionTest {
 
 private fun testMetricString(id: Int): String = when (id) {
     com.palixander.scalesync.R.string.unit_percent -> "%"
+    com.palixander.scalesync.R.string.unit_percentage_point -> "percentage-points"
     else -> "resource-$id"
 }
 

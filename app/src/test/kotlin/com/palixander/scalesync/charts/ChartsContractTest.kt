@@ -23,7 +23,7 @@ class ChartsContractTest {
     @Test
     fun `initial range contains seven days and uses supplied metric defaults`() {
         val weight = ChartMetricOption("weightKg", "Вес", "кг", 2)
-        val fat = ChartMetricOption("fatPercent", "Жир", "%", 1, PercentagePointUnit)
+        val fat = ChartMetricOption("fatPercent", "Жир", "%", 1, "п.п.")
         val today = LocalDate.of(2026, 8, 14)
 
         val state = ChartsUiState.initial(
@@ -323,7 +323,7 @@ class ChartsContractTest {
     @Test
     fun `current and delta formatting use metric units and percentage points`() {
         val weight = ChartMetricOption("weight", "Вес", "кг", 2)
-        val fat = ChartMetricOption("fat", "Жир", "%", 1, PercentagePointUnit)
+        val fat = ChartMetricOption("fat", "Жир", "%", 1, "pp")
 
         assertEquals("72.40 кг", formatChartCurrentValue(72.4, weight, Locale.US))
         assertEquals("+0.40 кг", formatChartDelta(0.4, weight, Locale.US))

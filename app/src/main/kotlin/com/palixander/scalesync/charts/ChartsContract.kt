@@ -3,6 +3,7 @@ package com.palixander.scalesync.charts
 import com.palixander.scalesync.measurements.formatWeight
 
 import androidx.compose.runtime.Immutable
+import androidx.annotation.StringRes
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
@@ -23,6 +24,15 @@ data class ChartMetricOption(
     val unit: String,
     val decimalPlaces: Int,
     val deltaUnit: String = unit,
+    @StringRes val displayNameRes: Int? = null,
+    @StringRes val unitRes: Int? = null,
+    @StringRes val deltaUnitRes: Int? = unitRes,
+)
+
+fun ChartMetricOption.resolveStrings(resolveString: (Int) -> String): ChartMetricOption = copy(
+    displayName = displayNameRes?.let(resolveString) ?: displayName,
+    unit = unitRes?.let(resolveString) ?: unit,
+    deltaUnit = deltaUnitRes?.let(resolveString) ?: deltaUnit,
 )
 
 private val ChartMetricOption.isWeight: Boolean

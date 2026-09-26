@@ -40,9 +40,11 @@ import java.util.Locale
 
 val PetWeightChartMetric = ChartMetricOption(
     key = "petWeightKg",
-    displayName = "Pet weight",
-    unit = "kg",
+    displayName = "",
+    unit = "",
     decimalPlaces = 2,
+    displayNameRes = R.string.pet_history_weight_metric,
+    unitRes = R.string.pet_weight_unit_kg,
 )
 
 sealed interface PetHistoryContent {
