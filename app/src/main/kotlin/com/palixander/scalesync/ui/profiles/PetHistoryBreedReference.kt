@@ -179,8 +179,8 @@ class PetHistoryBreedReferencePresenter(
         val values = values.map { it.label(locale) }
         val kind = source.kind.label(locale)
         val partialDisclosure = ageDisclosure.possibleAgeDays?.takeIf { ageDisclosure.partial }?.let { possible ->
-            "Дата рождения указана не полностью. Возможный возраст: ${possible.first.ageLabel()}–${possible.last.ageLabel()}. " +
-                "Показан ориентир ${age.prepositionForm()}."
+            "The birth date is incomplete. Possible age: ${possible.first.ageLabel()}–${possible.last.ageLabel()}. " +
+                "The reference for $age is shown."
         }
         val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations, locale)
         val companions = companionGroups.map { it.presentation(breedRussianName) }
@@ -192,16 +192,16 @@ class PetHistoryBreedReferencePresenter(
             sexLabel = sex.label(locale),
             partialDateDisclosure = partialDisclosure,
             accessibilityLabel = buildString {
-                append("Ориентиры породы $breedRussianName. Для возраста: $age. ")
+                append("Breed references for $breedRussianName. Age: $age. ")
                 append(values.joinToString(". "))
-                append(". Тип источника: $kind.")
-                sourcePresentation.method?.let { append(" Метод источника: $it.") }
-                sourcePresentation.limitations.forEach { append(" Ограничение: $it.") }
-                append(" Не является медицинской нормой.")
+                append(". Source type: $kind.")
+                sourcePresentation.method?.let { append(" Source method: $it.") }
+                sourcePresentation.limitations.forEach { append(" Limitation: $it.") }
+                append(" This is not a medical norm.")
                 companions.forEach { companion ->
-                    append(" Дополнительный ориентир ${companion.ageLabel}: ")
+                    append(" Additional reference for ${companion.ageLabel}: ")
                     append(companion.valueLabels.joinToString(". "))
-                    append(". Тип источника: ${companion.sourceKindLabel}.")
+                    append(". Source type: ${companion.sourceKindLabel}.")
                 }
             },
             chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale, source.id) } +
@@ -227,13 +227,13 @@ class PetHistoryBreedReferencePresenter(
 
     private fun BreedWeightReferenceUnavailableReason.toPresentation(): PetHistoryBreedReference = when (this) {
         BreedWeightReferenceUnavailableReason.UnsupportedSpecies -> PetHistoryBreedReference.Hidden
-        BreedWeightReferenceUnavailableReason.OtherBreed -> unavailable("Для другой породы ориентиров пока нет.", false)
-        is BreedWeightReferenceUnavailableReason.RemovedOrUnsupportedBreed -> unavailable("Для выбранной породы ориентиры сейчас недоступны.", false)
-        BreedWeightReferenceUnavailableReason.MissingSex -> unavailable("Укажите пол питомца, чтобы показать ориентиры породы.", true)
-        BreedWeightReferenceUnavailableReason.InvalidBirthDate -> unavailable("Исправьте дату рождения, чтобы показать ориентир для возраста.", true)
-        is BreedWeightReferenceUnavailableReason.SnapshotUnavailable -> unavailable("Ориентиры породы временно недоступны.", false)
-        BreedWeightReferenceUnavailableReason.NoApplicableValue -> unavailable("Для выбранной породы нет применимого ориентира веса.", false)
-        is BreedWeightReferenceUnavailableReason.DocumentedGap -> unavailable("Для выбранного возраста опубликованные данные отсутствуют.", false)
+        BreedWeightReferenceUnavailableReason.OtherBreed -> unavailable("No reference is available for this breed yet.", false)
+        is BreedWeightReferenceUnavailableReason.RemovedOrUnsupportedBreed -> unavailable("References are currently unavailable for the selected breed.", false)
+        BreedWeightReferenceUnavailableReason.MissingSex -> unavailable("Specify the pet's sex to show breed references.", true)
+        BreedWeightReferenceUnavailableReason.InvalidBirthDate -> unavailable("Correct the birth date to show an age reference.", true)
+        is BreedWeightReferenceUnavailableReason.SnapshotUnavailable -> unavailable("Breed references are temporarily unavailable.", false)
+        BreedWeightReferenceUnavailableReason.NoApplicableValue -> unavailable("No applicable weight reference exists for the selected breed.", false)
+        is BreedWeightReferenceUnavailableReason.DocumentedGap -> unavailable("No published data exists for the selected age.", false)
     }
 
     private fun BreedWeightReferenceUnavailableReason.unavailable(message: String, edit: Boolean) =
@@ -242,7 +242,7 @@ class PetHistoryBreedReferencePresenter(
     private fun BreedWeightReferenceDetail.presentation() = PetHistoryBreedReferenceDetail(
         ageLabel = ageScope.label(locale),
         sexLabel = sex.label(locale),
-        valueLabel = value?.label(locale) ?: "Числовое значение не опубликовано",
+        valueLabel = value?.label(locale) ?: "No numeric value was published",
         sourceTitle = source?.title,
         documentedGap = documentedGap,
         youngerThanSelectedAge = youngerThanSelectedAge,
@@ -277,7 +277,7 @@ private fun BreedWeightValue.chartValue(
     sourceId: String,
 ): PetHistoryBreedChartValue {
     val valueLabel = label(locale)
-    val description = "$breedName. Возраст источника: $ageLabel. $valueLabel. Тип источника: $sourceKind."
+    val description = "$breedName. Source age: $ageLabel. $valueLabel. Source type: $sourceKind."
     return when (this) {
         is BreedWeightValue.Interval -> PetHistoryBreedChartValue.Interval(
             lowerKg = lower,
@@ -441,59 +441,54 @@ private fun BreedWeightSourceMetadata.presentation(sampleSize: Int?, sampleUnit:
         sampleSize?.let { "$it ${sampleUnit.orEmpty()}".trim() }, limitations)
 
 private fun BreedWeightAgeScope.label(locale: Locale) = when (this) {
-    BreedWeightAgeScope.Adult -> if (locale.language == "ru") "взрослой собаки" else "adult dog"
+    BreedWeightAgeScope.Adult -> "adult dog"
     is BreedWeightAgeScope.Age -> label
 }
 
-private fun String.prepositionForm() = if (startsWith("для ")) this else "для $this"
-
 private fun Long.ageLabel(): String {
     val months = this / 30
-    return if (months > 0) "$months мес." else "$this дн."
+    return if (months > 0) "$months mo" else "$this days"
 }
 
 private fun BreedWeightValue.label(locale: Locale): String {
     val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 2 }
     val statisticLabel = statistic.label(locale)
     return when (this) {
-        is BreedWeightValue.Interval -> "$statisticLabel: ${number.format(lower)}–${number.format(upper)} кг" +
-            (center?.let { "; центр: ${number.format(it)} кг" } ?: "")
-        is BreedWeightValue.Single -> "$statisticLabel: ${number.format(value)} кг" +
-            (spread?.let { " ± ${number.format(it)} кг" } ?: "")
-        is BreedWeightValue.Boundary -> "$statisticLabel: ${number.format(value)} кг"
+        is BreedWeightValue.Interval -> "$statisticLabel: ${number.format(lower)}–${number.format(upper)} kg" +
+            (center?.let { "; center: ${number.format(it)} kg" } ?: "")
+        is BreedWeightValue.Single -> "$statisticLabel: ${number.format(value)} kg" +
+            (spread?.let { " ± ${number.format(it)} kg" } ?: "")
+        is BreedWeightValue.Boundary -> "$statisticLabel: ${number.format(value)} kg"
     }
 }
 
 private fun BreedReferenceStatisticKind.label(locale: Locale) = when (this) {
-    BreedReferenceStatisticKind.RANGE -> localized(locale, "Диапазон", "Range")
-    BreedReferenceStatisticKind.QUANTILES -> localized(locale, "Квантили", "Quantiles")
-    BreedReferenceStatisticKind.MEAN -> localized(locale, "Среднее", "Mean")
-    BreedReferenceStatisticKind.MEDIAN -> localized(locale, "Медиана", "Median")
-    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> localized(locale, "Приблизительное среднее", "Approximate mean")
-    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> localized(locale, "Приблизительный диапазон", "Approximate range")
-    BreedReferenceStatisticKind.MEAN_SD -> localized(locale, "Среднее и стандартное отклонение", "Mean and standard deviation")
-    BreedReferenceStatisticKind.IDEAL -> localized(locale, "Идеальный вес", "Ideal weight")
-    BreedReferenceStatisticKind.IDEAL_RANGE -> localized(locale, "Идеальный диапазон веса", "Ideal weight range")
-    BreedReferenceStatisticKind.STANDARD_POINT -> localized(locale, "Значение стандарта", "Standard value")
-    BreedReferenceStatisticKind.MINIMUM -> localized(locale, "Минимальный вес", "Minimum weight")
-    BreedReferenceStatisticKind.MAXIMUM -> localized(locale, "Максимальный вес", "Maximum weight")
-    BreedReferenceStatisticKind.DOCUMENTED_GAP -> localized(locale, "Документированный пропуск", "Documented gap")
+    BreedReferenceStatisticKind.RANGE -> "Range"
+    BreedReferenceStatisticKind.QUANTILES -> "Quantiles"
+    BreedReferenceStatisticKind.MEAN -> "Mean"
+    BreedReferenceStatisticKind.MEDIAN -> "Median"
+    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> "Approximate mean"
+    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> "Approximate range"
+    BreedReferenceStatisticKind.MEAN_SD -> "Mean and standard deviation"
+    BreedReferenceStatisticKind.IDEAL -> "Ideal weight"
+    BreedReferenceStatisticKind.IDEAL_RANGE -> "Ideal weight range"
+    BreedReferenceStatisticKind.STANDARD_POINT -> "Standard value"
+    BreedReferenceStatisticKind.MINIMUM -> "Minimum weight"
+    BreedReferenceStatisticKind.MAXIMUM -> "Maximum weight"
+    BreedReferenceStatisticKind.DOCUMENTED_GAP -> "Documented gap"
 }
 
 private fun BreedReferenceSourceKind.label(locale: Locale) = when (this) {
-    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> localized(locale, "официальный международный стандарт", "official international standard")
-    BreedReferenceSourceKind.NATIONAL_STANDARD -> localized(locale, "официальный национальный стандарт", "official national standard")
-    BreedReferenceSourceKind.BREED_CLUB -> localized(locale, "породная организация", "breed organization")
-    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> localized(locale, "профессиональный справочник", "professional reference")
-    BreedReferenceSourceKind.OBSERVATIONAL -> localized(locale, "наблюдаемая выборка", "observational sample")
-    BreedReferenceSourceKind.MODELLED -> localized(locale, "модельные данные", "modelled data")
+    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> "official international standard"
+    BreedReferenceSourceKind.NATIONAL_STANDARD -> "official national standard"
+    BreedReferenceSourceKind.BREED_CLUB -> "breed organization"
+    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> "professional reference"
+    BreedReferenceSourceKind.OBSERVATIONAL -> "observational sample"
+    BreedReferenceSourceKind.MODELLED -> "modelled data"
 }
 
 private fun BreedReferenceSex.label(locale: Locale) = when (this) {
-    BreedReferenceSex.MALE -> localized(locale, "Самец", "Male")
-    BreedReferenceSex.FEMALE -> localized(locale, "Самка", "Female")
-    BreedReferenceSex.COMBINED -> localized(locale, "Для обоих полов", "Both sexes")
+    BreedReferenceSex.MALE -> "Male"
+    BreedReferenceSex.FEMALE -> "Female"
+    BreedReferenceSex.COMBINED -> "Both sexes"
 }
-
-private fun localized(locale: Locale, russian: String, english: String) =
-    if (locale.language == "ru") russian else english

@@ -40,8 +40,8 @@ import java.util.Locale
 
 val PetWeightChartMetric = ChartMetricOption(
     key = "petWeightKg",
-    displayName = "Вес питомца",
-    unit = "кг",
+    displayName = "Pet weight",
+    unit = "kg",
     decimalPlaces = 2,
 )
 

@@ -292,4 +292,19 @@
     <string name="pet_breed_reference_unavailable">References are currently unavailable for the selected breed.</string>
     <string name="pet_breed_reference_age_gap">Published data is unavailable for the selected age.</string>
     <string name="pet_breed_reference_temporary">Breed references are temporarily unavailable.</string>
+    <string name="pet_history_weight_metric">Pet weight</string>
+    <string name="pet_weight_unit_kg">kg</string>
+    <string name="pet_weight_chart_title">Pet weight chart</string>
+    <string name="pet_weight_chart_actual">Actual weight</string>
+    <string name="pet_weight_chart_no_measurements">No measurements.</string>
+    <string name="pet_weight_chart_measurements">Measurements: %1$d.</string>
+    <string name="pet_weight_chart_date">Date: %1$s</string>
+    <string name="pet_weight_chart_no_selectable_points">No points available for selection</string>
+    <string name="pet_weight_chart_select_previous">Select previous point</string>
+    <string name="pet_weight_chart_select_next">Select next point</string>
+    <string name="pet_weight_chart_reference_disclaimer">This information is for reference and does not assess the pet’s health.</string>
+    <string name="pet_weight_chart_diagnosis_disclaimer">The reference does not provide a diagnosis.</string>
+    <string name="pet_breed_reference_no_numeric_value">No numeric value was published</string>
+    <string name="pet_breed_reference_other_breed">No reference is available for this breed yet.</string>
+    <string name="pet_breed_reference_no_applicable_value">No applicable weight reference exists for the selected breed.</string>
 </resources>

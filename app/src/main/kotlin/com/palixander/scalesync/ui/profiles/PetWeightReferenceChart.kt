@@ -268,7 +268,7 @@ internal fun petWeightChartLegendEntries(
     displayedSeries: List<PetWeightDisplayedSeries>,
 ): List<PetWeightChartLegendEntry> = buildList {
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-        add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+        add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
     }
     displayedSeries
         .filter { it.style == PetWeightDisplayedSeriesStyle.CATEGORY }
@@ -277,7 +277,7 @@ internal fun petWeightChartLegendEntries(
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
         add(
             PetWeightChartLegendEntry(
-                "▰ Светло-зелёная зона — породный диапазон",
+                "▰ Light green area — breed range",
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
             ),
         )
@@ -289,22 +289,22 @@ internal fun petWeightChartLegendEntries(
 }
 
 internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntry> = listOf(
-    PetWeightChartLegendEntry("▰ Типичный диапазон веса", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+    PetWeightChartLegendEntry("▰ Typical weight range", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
     PetWeightChartLegendEntry("— P50", PetWeightDisplayedSeriesStyle.BREED_CENTER),
 )
 
 internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE -> listOf(
-        PetWeightChartLegendEntry("▰ Светло-зелёная зона — модельный породный диапазон", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Центр модельного диапазона", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry("▰ Light green area — modelled breed range", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("— Center of modelled range", PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
-        PetWeightChartLegendEntry("↕ Диапазон наблюдения породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("● Средний вес породы в дату рождения", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry("↕ Breed observation range at birth date", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("● Mean breed weight at birth date", PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> listOf(
-        PetWeightChartLegendEntry("▰ Общий диапазон P9–P91 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Общая P50 (не по породе)", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry("▰ General P9–P91 range (not breed-specific)", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry("— General P50 (not breed-specific)", PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION,
     WeightReferenceProvenance.WEIGHT_CATEGORY,
@@ -320,22 +320,22 @@ internal fun petWeightChartDescription(
     legendEntries: List<PetWeightChartLegendEntry>,
     resolveText: (UiText) -> String = { it.toString() },
 ): String = buildString {
-    append("График веса питомца. ")
-    append(if (factualCount == 0) "Измерений нет. " else "Измерений: $factualCount. ")
+    append("Pet weight chart. ")
+    append(if (factualCount == 0) "No measurements. " else "Measurements: $factualCount. ")
     val available = reference as? PetHistoryWeightReference.Available
     if (showReferenceExplanation && !hasBreedTimeline) {
         append(resolveText(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation))
         if (available != null) append(
-            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
-            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
-            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " Породное наблюдение в дату рождения показано вертикальным интервалом и точкой среднего веса."
-            else if (isPopulationReference) " Фактический вес отмечен кругами; типичный диапазон веса — зоной P9–P91 и линией P50."
-            else " Фактический вес отмечен кругами; эталон — четырьмя линиями границ.",
+            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Actual weight is marked with circles; the modelled breed range is a light green area with its center shown as a line."
+            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Actual weight is marked with circles; the general non-breed range is shown as a P9–P91 area and P50 line."
+            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " The breed observation at birth date is shown as a vertical interval and a mean-weight point."
+            else if (isPopulationReference) " Actual weight is marked with circles; the typical range is shown as a P9–P91 area and P50 line."
+            else " Actual weight is marked with circles; the reference is shown as four boundary lines.",
         )
     }
-    if (isPopulationReference) append(" Сведения справочные и не оценивают здоровье питомца.")
+    if (isPopulationReference) append(" This information is for reference and does not assess the pet's health.")
     if (legendEntries.isNotEmpty()) {
-        append(" Отображаются: ")
+        append(" Displayed: ")
         append(legendEntries.joinToString("; ") { it.label })
         append('.')
     }
@@ -444,7 +444,7 @@ internal fun petWeightDisplayedSeries(
             PetWeightDisplayedSeries(
                 id = "factual",
                 kind = PetWeightDisplayedSeriesKind.FACTUAL,
-                label = "Фактический вес",
+                label = "Actual weight",
                 x = factualPoints.map { requireNotNull(it.xEpochMillis) },
                 y = factualPoints.map(ChartPoint::value),
                 style = PetWeightDisplayedSeriesStyle.FACTUAL,
@@ -463,17 +463,17 @@ internal fun petWeightDisplayedSeries(
             val (kind, label, style) = when (series.kind) {
                 BreedWeightReferenceSeriesKind.LOWER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_LOWER,
-                    series.statisticLabel ?: "Нижняя граница",
+                    series.statisticLabel ?: "Lower boundary",
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.UPPER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_UPPER,
-                    series.statisticLabel ?: "Верхняя граница",
+                    series.statisticLabel ?: "Upper boundary",
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.CENTER -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_CENTER,
-                    series.statisticLabel ?: "Медиана или среднее",
+                    series.statisticLabel ?: "Median or mean",
                     PetWeightDisplayedSeriesStyle.BREED_CENTER,
                 )
             }
@@ -501,20 +501,20 @@ internal fun petWeightDisplayedSeries(
             if (useBreedPresentation && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
                 PetWeightReferenceSeriesKind.LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to when {
-                    isBreedModel -> "Нижняя граница модели"
-                    isFittedPopulation -> "Нижняя граница P9"
-                    else -> "Нижняя граница эталона"
+                    isBreedModel -> "Model lower boundary"
+                    isFittedPopulation -> "P9 lower boundary"
+                    else -> "Reference lower boundary"
                 }
                 PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to when {
-                    isBreedModel -> "Центр породной модели"
-                    isFittedPopulation -> "Медиана P50"
-                    else -> "Нижняя медианная граница"
+                    isBreedModel -> "Breed model center"
+                    isFittedPopulation -> "P50 median"
+                    else -> "Lower median boundary"
                 }
-                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Верхняя медианная граница"
+                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Upper median boundary"
                 PetWeightReferenceSeriesKind.UPPER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to when {
-                    isBreedModel -> "Верхняя граница модели"
-                    isFittedPopulation -> "Верхняя граница P91"
-                    else -> "Верхняя граница эталона"
+                    isBreedModel -> "Model upper boundary"
+                    isFittedPopulation -> "P91 upper boundary"
+                    else -> "Reference upper boundary"
                 }
             }
             add(
@@ -562,12 +562,12 @@ internal fun formatPetWeightDisplayedMarker(
             else petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
         value?.let {
-            "${series.label}: ${number.format(it)} кг"
+            "${series.label}: ${number.format(it)} kg"
         }
     }
     if (values.isEmpty()) return ""
     val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
-    return (listOf("Дата: $date") + values).joinToString("\n")
+    return (listOf("Date: $date") + values).joinToString("\n")
 }
 
 private fun PetWeightChartModelSeries.valueAt(targetXEpochMillis: Long): Double? {
@@ -825,7 +825,7 @@ internal fun PetWeightReferenceChartCard(
     val legendEntries = remember(displayedSeries, isPopulationReference, available?.provenance) {
         if (isPopulationReference) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else if (available?.provenance in setOf(
@@ -834,7 +834,7 @@ internal fun PetWeightReferenceChartCard(
             )
         ) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Фактический вес", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else petWeightChartLegendEntries(displayedSeries)
@@ -866,7 +866,7 @@ internal fun PetWeightReferenceChartCard(
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
         Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
             Text(
-                "Вес питомца",
+                stringResource(R.string.pet_history_weight_metric),
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.semantics { heading() },
             )
@@ -996,6 +996,10 @@ private fun PetWeightVicoChart(
     val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
         ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId) }
         ?.takeIf(String::isNotEmpty)
+    val weightUnit = stringResource(R.string.pet_weight_unit_kg)
+    val noSelectablePoints = stringResource(R.string.pet_weight_chart_no_selectable_points)
+    val selectPrevious = stringResource(R.string.pet_weight_chart_select_previous)
+    val selectNext = stringResource(R.string.pet_weight_chart_select_next)
 
     LaunchedEffect(displayedSeries) {
         modelProducer.runTransaction {
@@ -1012,7 +1016,7 @@ private fun PetWeightVicoChart(
             chart = rememberCartesianChart(
                 rememberChartLineLayer(lines, rangeProvider),
                 startAxis = rememberChartStartAxis(
-                    CartesianValueFormatter.decimal(decimalCount = 2, suffix = " кг"),
+                    CartesianValueFormatter.decimal(decimalCount = 2, suffix = " $weightUnit"),
                 ),
                 bottomAxis = rememberChartBottomAxis(bottomFormatter),
                 marker = rememberChartMarker(
@@ -1030,11 +1034,11 @@ private fun PetWeightVicoChart(
                     this.contentDescription = contentDescription
                     chartScrollOffset = scrollState.value
                     role = Role.Button
-                    stateDescription = accessibleMarker ?: "Нет доступных точек для выбора"
-                    onClick("Выбрать следующую точку") { selectRelative(1) }
+                    stateDescription = accessibleMarker ?: noSelectablePoints
+                    onClick(selectNext) { selectRelative(1) }
                     customActions = listOf(
-                        CustomAccessibilityAction("Выбрать предыдущую точку") { selectRelative(-1) },
-                        CustomAccessibilityAction("Выбрать следующую точку") { selectRelative(1) },
+                        CustomAccessibilityAction(selectPrevious) { selectRelative(-1) },
+                        CustomAccessibilityAction(selectNext) { selectRelative(1) },
                     )
                 },
             scrollState = scrollState,
@@ -1176,6 +1180,11 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
             var sourceError by remember(reference.publicationUrl) { mutableStateOf(false) }
             val expandedState = stringResource(R.string.state_expanded)
             val collapsedState = stringResource(R.string.state_collapsed)
+            val constraintDescriptions = reference.constraints.map {
+                stringResource(R.string.reference_limitation, it)
+            }
+            val referenceDisclaimer = stringResource(R.string.pet_weight_chart_reference_disclaimer)
+            val diagnosisDisclaimer = stringResource(R.string.pet_weight_chart_diagnosis_disclaimer)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1185,11 +1194,11 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                             append("${reference.basisLabel.resolve(resources)}. ${reference.ageLabel.resolve(resources)}.")
                             if (sourceExpanded) {
                                 append(" ${reference.accessibilityLabel.resolve(resources)}")
-                                reference.constraints.forEach { append(" Ограничение: $it.") }
+                                constraintDescriptions.forEach { append(" $it.") }
                             }
                             if (reference.isFittedPopulationPercentiles) {
-                                append(" Сведения справочные и не оценивают здоровье питомца.")
-                            } else append(" Эталон не ставит диагноз.")
+                                append(" $referenceDisclaimer")
+                            } else append(" $diagnosisDisclaimer")
                         }
                     },
                 verticalArrangement = Arrangement.spacedBy(4.dp),

@@ -222,4 +222,19 @@
     <string name="pet_breed_reference_unavailable">Для выбранной породы ориентиры сейчас недоступны.</string>
     <string name="pet_breed_reference_age_gap">Для выбранного возраста опубликованные данные отсутствуют.</string>
     <string name="pet_breed_reference_temporary">Ориентиры породы временно недоступны.</string>
+    <string name="pet_history_weight_metric">Вес питомца</string>
+    <string name="pet_weight_unit_kg">кг</string>
+    <string name="pet_weight_chart_title">График веса питомца</string>
+    <string name="pet_weight_chart_actual">Фактический вес</string>
+    <string name="pet_weight_chart_no_measurements">Измерений нет.</string>
+    <string name="pet_weight_chart_measurements">Измерений: %1$d.</string>
+    <string name="pet_weight_chart_date">Дата: %1$s</string>
+    <string name="pet_weight_chart_no_selectable_points">Нет доступных точек для выбора</string>
+    <string name="pet_weight_chart_select_previous">Выбрать предыдущую точку</string>
+    <string name="pet_weight_chart_select_next">Выбрать следующую точку</string>
+    <string name="pet_weight_chart_reference_disclaimer">Сведения справочные и не оценивают здоровье питомца.</string>
+    <string name="pet_weight_chart_diagnosis_disclaimer">Эталон не ставит диагноз.</string>
+    <string name="pet_breed_reference_no_numeric_value">Числовое значение не опубликовано</string>
+    <string name="pet_breed_reference_other_breed">Для другой породы ориентиров пока нет.</string>
+    <string name="pet_breed_reference_no_applicable_value">Для выбранной породы нет применимого ориентира веса.</string>
 </resources>
