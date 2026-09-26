@@ -143,4 +143,17 @@
     <plurals name="settings_people_count"><item quantity="one">%1$d person</item><item quantity="other">%1$d people</item></plurals>
     <plurals name="settings_pet_count"><item quantity="one">%1$d pet</item><item quantity="other">%1$d pets</item></plurals>
     <string name="settings_default_scale_name">Mi Body Composition Scale 2</string>
+    <string name="profile_selector_title">Profile</string>
+    <string name="profile_selector_description">Profile selection</string>
+    <string name="profile_kind_human">person</string>
+    <string name="profile_kind_pet">pet</string>
+    <string name="profile_fallback_selected_removed">The selected profile was deleted. The primary profile is shown.</string>
+    <string name="profile_fallback_selected_removed_primary_unavailable">The selected profile was deleted. The primary profile is unavailable. Select a profile.</string>
+    <string name="profile_fallback_primary_unavailable">The primary profile is unavailable. Select a profile.</string>
+    <string name="profile_fallback_no_profiles">Create a profile in settings.</string>
+    <string name="home_pet_add">Add pet</string>
+    <string name="home_pet_expand">Expand pet list</string>
+    <string name="home_pet_collapse">Collapse pet list</string>
+    <string name="state_expanded">Expanded</string>
+    <string name="state_collapsed">Collapsed</string>
 </resources>

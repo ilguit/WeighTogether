@@ -73,4 +73,17 @@
     <plurals name="settings_people_count"><item quantity="one">%1$d человек</item><item quantity="few">%1$d человека</item><item quantity="many">%1$d человек</item><item quantity="other">%1$d человека</item></plurals>
     <plurals name="settings_pet_count"><item quantity="one">%1$d питомец</item><item quantity="few">%1$d питомца</item><item quantity="many">%1$d питомцев</item><item quantity="other">%1$d питомца</item></plurals>
     <string name="settings_default_scale_name">Mi Body Composition Scale 2</string>
+    <string name="profile_selector_title">Профиль</string>
+    <string name="profile_selector_description">Выбор профиля</string>
+    <string name="profile_kind_human">человек</string>
+    <string name="profile_kind_pet">питомец</string>
+    <string name="profile_fallback_selected_removed">Выбранный профиль удалён. Показан основной профиль.</string>
+    <string name="profile_fallback_selected_removed_primary_unavailable">Выбранный профиль удалён. Основной профиль недоступен. Выберите профиль.</string>
+    <string name="profile_fallback_primary_unavailable">Основной профиль недоступен. Выберите профиль.</string>
+    <string name="profile_fallback_no_profiles">Создайте профиль в настройках.</string>
+    <string name="home_pet_add">Добавить питомца</string>
+    <string name="home_pet_expand">Развернуть список питомцев</string>
+    <string name="home_pet_collapse">Свернуть список питомцев</string>
+    <string name="state_expanded">Развёрнуто</string>
+    <string name="state_collapsed">Свёрнуто</string>
 </resources>

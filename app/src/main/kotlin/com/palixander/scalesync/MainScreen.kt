@@ -91,7 +91,7 @@ import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
 import com.palixander.scalesync.ui.profiles.HomePetShortcuts
 import com.palixander.scalesync.ui.profiles.ProfilePresentation
 import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
-import com.palixander.scalesync.ui.profiles.profileFallbackMessage
+import com.palixander.scalesync.ui.profiles.profileFallbackMessageRes
 import com.palixander.scalesync.ui.profiles.ProfileSelector
 import com.palixander.scalesync.ui.profiles.buildProfilePresentations
 import com.palixander.scalesync.ui.profiles.humanAccountIdForMeasurements
@@ -746,9 +746,9 @@ internal fun ScaleSyncScaffold(
                                 if (state.profilesLoaded) {
                                     Column {
                                         profileSelection?.let { selection ->
-                                            profileFallbackMessage(selection)?.let { message ->
+                                            profileFallbackMessageRes(selection)?.let { message ->
                                                 Text(
-                                                    text = message,
+                                                    text = stringResource(message),
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                                     modifier = Modifier.testTag(ProfileSelectorTestTags.Fallback),
