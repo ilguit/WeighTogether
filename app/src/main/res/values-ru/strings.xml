@@ -237,4 +237,50 @@
     <string name="pet_breed_reference_no_numeric_value">Числовое значение не опубликовано</string>
     <string name="pet_breed_reference_other_breed">Для другой породы ориентиров пока нет.</string>
     <string name="pet_breed_reference_no_applicable_value">Для выбранной породы нет применимого ориентира веса.</string>
+    <string name="pet_weight_chart_legend_actual">● Фактический вес</string>
+    <string name="pet_weight_chart_legend_line">— %1$s</string>
+    <string name="pet_weight_chart_legend_breed_range">▰ Светло-зелёная зона — диапазон породы</string>
+    <string name="pet_weight_chart_legend_typical_range">▰ Типичный диапазон веса</string>
+    <string name="pet_weight_chart_legend_p50">— P50</string>
+    <string name="pet_weight_chart_legend_modelled_breed_range">▰ Светло-зелёная зона — модельный диапазон породы</string>
+    <string name="pet_weight_chart_legend_modelled_center">— Центр модельного диапазона</string>
+    <string name="pet_weight_chart_legend_birth_range">↕ Диапазон наблюдения породы на дату рождения</string>
+    <string name="pet_weight_chart_legend_birth_mean">● Средний вес породы на дату рождения</string>
+    <string name="pet_weight_chart_legend_general_range">▰ Общий диапазон P9–P91 (не для конкретной породы)</string>
+    <string name="pet_weight_chart_legend_general_p50">— Общая P50 (не для конкретной породы)</string>
+    <string name="pet_weight_chart_description_breed_curve">Фактический вес отмечен кругами; модельный породный диапазон показан светло-зелёной зоной, а его центр — линией.</string>
+    <string name="pet_weight_chart_description_population_fallback">Фактический вес отмечен кругами; общий диапазон не для конкретной породы показан зоной P9–P91 и линией P50.</string>
+    <string name="pet_weight_chart_description_birth_observation">Наблюдение породы на дату рождения показано вертикальным интервалом и точкой среднего веса.</string>
+    <string name="pet_weight_chart_description_population">Фактический вес отмечен кругами; типичный диапазон показан зоной P9–P91 и линией P50.</string>
+    <string name="pet_weight_chart_description_boundaries">Фактический вес отмечен кругами; ориентир показан четырьмя граничными линиями.</string>
+    <string name="pet_weight_chart_displayed">Показано: %1$s.</string>
+    <string name="pet_weight_chart_lower_boundary">Нижняя граница</string>
+    <string name="pet_weight_chart_upper_boundary">Верхняя граница</string>
+    <string name="pet_weight_chart_center">Медиана или среднее</string>
+    <string name="pet_weight_chart_model_lower">Нижняя граница модели</string>
+    <string name="pet_weight_chart_p9_lower">Нижняя граница P9</string>
+    <string name="pet_weight_chart_reference_lower">Нижняя граница ориентира</string>
+    <string name="pet_weight_chart_model_center">Центр модели породы</string>
+    <string name="pet_weight_chart_p50_median">Медиана P50</string>
+    <string name="pet_weight_chart_lower_median">Нижняя медианная граница</string>
+    <string name="pet_weight_chart_upper_median">Верхняя медианная граница</string>
+    <string name="pet_weight_chart_model_upper">Верхняя граница модели</string>
+    <string name="pet_weight_chart_p91_upper">Верхняя граница P91</string>
+    <string name="pet_weight_chart_reference_upper">Верхняя граница ориентира</string>
+    <string name="pet_weight_chart_marker_value">%1$s: %2$s кг</string>
+    <string name="pet_breed_reference_partial_date">Дата рождения указана неполно. Возможный возраст: %1$s–%2$s. Показан ориентир для %3$s.</string>
+    <string name="pet_breed_reference_accessibility">Ориентиры породы %1$s. Возраст: %2$s. %3$s. Тип источника: %4$s. Это не медицинская норма. %5$s</string>
+    <string name="pet_breed_reference_accessibility_companion">Дополнительный ориентир для %1$s: %2$s. Тип источника: %3$s.</string>
+    <string name="pet_breed_reference_chart_accessibility">%1$s. Возраст источника: %2$s. %3$s. Тип источника: %4$s.</string>
+    <string name="pet_breed_reference_sample_value">%1$d %2$s</string>
+    <string name="pet_breed_reference_adult_dog">взрослая собака</string>
+    <string name="pet_breed_reference_age_months">%1$d мес.</string><string name="pet_breed_reference_age_days">%1$d дн.</string>
+    <string name="pet_breed_reference_value_interval">%1$s: %2$s–%3$s кг; центр: %4$s кг</string><string name="pet_breed_reference_value_single">%1$s: %2$s кг ± %3$s кг</string><string name="pet_breed_reference_value_boundary">%1$s: %2$s кг</string>
+    <string name="pet_breed_stat_range">Диапазон</string><string name="pet_breed_stat_quantiles">Квантили</string><string name="pet_breed_stat_mean">Среднее</string><string name="pet_breed_stat_median">Медиана</string>
+    <string name="pet_breed_stat_approximate_mean">Приблизительное среднее</string><string name="pet_breed_stat_approximate_range">Приблизительный диапазон</string><string name="pet_breed_stat_mean_sd">Среднее и стандартное отклонение</string>
+    <string name="pet_breed_stat_ideal">Идеальный вес</string><string name="pet_breed_stat_ideal_range">Диапазон идеального веса</string><string name="pet_breed_stat_standard">Стандартное значение</string>
+    <string name="pet_breed_stat_minimum">Минимальный вес</string><string name="pet_breed_stat_maximum">Максимальный вес</string><string name="pet_breed_stat_gap">Документированный пропуск</string>
+    <string name="pet_breed_source_international">официальный международный стандарт</string><string name="pet_breed_source_national">официальный национальный стандарт</string><string name="pet_breed_source_club">породная организация</string>
+    <string name="pet_breed_source_professional">профессиональный справочник</string><string name="pet_breed_source_observational">наблюдаемая выборка</string><string name="pet_breed_source_modelled">модельные данные</string>
+    <string name="pet_breed_sex_male">Самец</string><string name="pet_breed_sex_female">Самка</string><string name="pet_breed_sex_combined">Оба пола</string>
 </resources>

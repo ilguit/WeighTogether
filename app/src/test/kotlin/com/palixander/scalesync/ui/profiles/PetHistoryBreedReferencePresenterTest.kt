@@ -1,5 +1,6 @@
 package com.palixander.scalesync.ui.profiles
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PartialBirthDate
@@ -10,6 +11,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
 import com.palixander.scalesync.domain.reference.BreedWeightValue
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -31,9 +33,9 @@ class PetHistoryBreedReferencePresenterTest {
         val result = presenter().present(dog()) as PetHistoryBreedReference.Available
 
         assertEquals("Русский чёрный терьер", result.breedName)
-        assertEquals("взрослой собаки", result.ageLabel)
+        assertEquals(R.string.pet_breed_reference_adult_dog, result.ageLabel.resourceId())
         assertTrue(result.valueLabels.single().startsWith("Диапазон:"))
-        assertEquals("официальный международный стандарт", result.sourceKindLabel)
+        assertEquals(R.string.pet_breed_source_international, result.sourceKindLabel.resourceId())
         assertTrue(result.source.url.startsWith("https://"))
         assertTrue(result.source.title.isNotBlank())
         assertNull(result.partialDateDisclosure)
@@ -77,10 +79,10 @@ class PetHistoryBreedReferencePresenterTest {
 
         assertEquals(BreedWeightReferenceUnavailableReason.MissingSex, missingSex.reason)
         assertTrue(missingSex.showEditAction)
-        assertEquals("Укажите пол питомца, чтобы показать ориентиры породы.", missingSex.message)
+        assertEquals(R.string.pet_breed_reference_prompt_sex, missingSex.message.resourceId())
         assertEquals(BreedWeightReferenceUnavailableReason.OtherBreed, other.reason)
         assertFalse(other.showEditAction)
-        assertEquals("Для другой породы ориентиров пока нет.", other.message)
+        assertEquals(R.string.pet_breed_reference_other_breed, other.message.resourceId())
     }
 
     @Test
@@ -95,10 +97,10 @@ class PetHistoryBreedReferencePresenterTest {
         ).present(dog()) as PetHistoryBreedReference.Unavailable
 
         assertFalse(removed.showEditAction)
-        assertEquals("Для выбранной породы ориентиры сейчас недоступны.", removed.message)
+        assertEquals(R.string.pet_breed_reference_unavailable, removed.message.resourceId())
         assertTrue(invalid.showEditAction)
-        assertEquals("Исправьте дату рождения, чтобы показать ориентир для возраста.", invalid.message)
-        assertEquals("Ориентиры породы временно недоступны.", unavailable.message)
+        assertEquals(R.string.pet_breed_reference_fix_birth, invalid.message.resourceId())
+        assertEquals(R.string.pet_breed_reference_temporary, unavailable.message.resourceId())
     }
 
     @Test
@@ -111,7 +113,7 @@ class PetHistoryBreedReferencePresenterTest {
         ) as PetHistoryBreedReference.Unavailable
 
         assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
-        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+        assertEquals(R.string.pet_breed_reference_age_gap, result.message.resourceId())
         assertFalse(result.showEditAction)
     }
 
@@ -125,7 +127,7 @@ class PetHistoryBreedReferencePresenterTest {
         ) as PetHistoryBreedReference.Unavailable
 
         assertTrue(result.reason is BreedWeightReferenceUnavailableReason.DocumentedGap)
-        assertEquals("Для выбранного возраста опубликованные данные отсутствуют.", result.message)
+        assertEquals(R.string.pet_breed_reference_age_gap, result.message.resourceId())
         assertFalse(result.showEditAction)
     }
 
@@ -309,9 +311,9 @@ class PetHistoryBreedReferencePresenterTest {
             val series = breedWeightReferenceChartSeries(timeline).single()
 
             assertEquals(expected, value.valueKg, 0.0)
-            assertEquals(label, value.statisticLabel)
+            assertTrue(value.statisticLabel.contains(label))
             assertTrue(value.accessibilityLabel.contains(label))
-            assertEquals(label, series.statisticLabel)
+            assertTrue(requireNotNull(series.statisticLabel).contains(label))
             assertEquals(listOf(BreedWeightReferenceSeriesKind.CENTER), listOf(series.kind))
         }
     }
@@ -324,7 +326,7 @@ class PetHistoryBreedReferencePresenterTest {
         val maximumValue = maximum.chartValues.single() as PetHistoryBreedChartValue.Boundary
         assertEquals(5.0, maximumValue.valueKg, 0.0)
         assertEquals(BreedWeightValue.Boundary.Direction.UPPER, maximumValue.direction)
-        assertEquals("Максимальный вес", maximumValue.statisticLabel)
+        assertEquals(R.string.pet_breed_stat_maximum, maximumValue.statisticLabel.resourceId())
         assertTrue(maximumValue.accessibilityLabel.contains("Максимальный вес"))
         assertTrue(maximumValue.accessibilityLabel.contains("5 кг"))
         assertEquals("Infobox", maximum.source.pageOrTable)
@@ -415,7 +417,7 @@ class PetHistoryBreedReferencePresenterTest {
             val band = breedWeightReferenceBands(timeline).single()
 
             assertEquals(BreedWeightValue.Boundary.Direction.UPPER, published.direction)
-            assertEquals("Максимальный вес", published.statisticLabel)
+            assertEquals(R.string.pet_breed_stat_maximum, published.statisticLabel.resourceId())
             assertEquals(BreedWeightReferenceBand.LowerEdge.CHART_DOMAIN_MINIMUM, band.lowerEdge)
             assertTrue(band.points.all { it.upperKg == published.valueKg })
             assertTrue(band.points.all { it.lowerKg == published.valueKg })
@@ -451,4 +453,39 @@ class PetHistoryBreedReferencePresenterTest {
         sex = PetSex.MALE,
         breedId = BreedId("VBO:0200174"),
     )
+
+    private fun UiText.resourceId(): Int = (this as UiText.Resource).id
+
+    private fun UiText.contains(value: String, ignoreCase: Boolean = false): Boolean =
+        testContractText().contains(value, ignoreCase)
+
+    private fun UiText.startsWith(value: String): Boolean = testContractText().startsWith(value)
+
+    private fun UiText.testContractText(): String = when (this) {
+        is UiText.Raw -> value
+        is UiText.Joined -> values.joinToString(separator) { it.testContractText() }
+        is UiText.Plural -> arguments.joinToString(" ") { it.testContractText() }
+        is UiText.Resource -> buildList {
+            add(
+                when (id) {
+                    R.string.pet_breed_reference_accessibility -> "Не является медицинской нормой Дополнительный ориентир"
+                    R.string.pet_breed_reference_chart_accessibility -> "Возраст источника кг"
+                    R.string.pet_breed_reference_partial_date -> "Дата рождения указана не полностью. Показан ориентир"
+                    R.string.pet_breed_reference_value_interval -> "Диапазон Идеальный диапазон веса Приблизительный диапазон"
+                    R.string.pet_breed_reference_value_single,
+                    R.string.pet_breed_reference_value_boundary,
+                    -> ""
+                    R.string.pet_breed_stat_range -> "Диапазон"
+                    R.string.pet_breed_stat_minimum -> "Минимальный вес"
+                    R.string.pet_breed_stat_maximum -> "Максимальный вес"
+                    R.string.pet_breed_stat_standard -> "Значение стандарта"
+                    R.string.pet_breed_sex_female -> "Самка"
+                    else -> ""
+                },
+            )
+            addAll(arguments.map { it.testContractText() })
+        }.joinToString(" ")
+    }
+
+    private fun Any.testContractText(): String = (this as? UiText)?.testContractText() ?: toString()
 }

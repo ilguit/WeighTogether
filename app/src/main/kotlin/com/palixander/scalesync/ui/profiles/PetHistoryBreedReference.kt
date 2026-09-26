@@ -38,6 +38,9 @@ import com.palixander.scalesync.domain.reference.BreedWeightValue
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.uiText
 import java.text.NumberFormat
 import java.time.Clock
 import java.time.LocalDate
@@ -57,85 +60,111 @@ sealed interface PetHistoryBreedReference {
 
     data class Unavailable(
         val reason: BreedWeightReferenceUnavailableReason,
-        val message: String,
+        val message: UiText,
         val showEditAction: Boolean,
     ) : PetHistoryBreedReference
 
     data class Available(
         val breedName: String,
-        val ageLabel: String,
-        val valueLabels: List<String>,
-        val sourceKindLabel: String,
-        val sexLabel: String,
-        val partialDateDisclosure: String?,
-        val accessibilityLabel: String,
+        val ageLabel: UiText,
+        val valueLabels: List<UiText>,
+        val sourceKindLabel: UiText,
+        val sexLabel: UiText,
+        val partialDateDisclosure: UiText?,
+        val accessibilityLabel: UiText,
         val chartValues: List<PetHistoryBreedChartValue>,
         val source: PetHistoryBreedSource,
         val details: List<PetHistoryBreedReferenceDetail>,
         val companionReferences: List<PetHistoryBreedCompanionReference> = emptyList(),
-    ) : PetHistoryBreedReference
+    ) : PetHistoryBreedReference {
+        constructor(
+            breedName: String, ageLabel: String, valueLabels: List<String>, sourceKindLabel: String,
+            sexLabel: String, partialDateDisclosure: String?, accessibilityLabel: String,
+            chartValues: List<PetHistoryBreedChartValue>, source: PetHistoryBreedSource,
+            details: List<PetHistoryBreedReferenceDetail>, companionReferences: List<PetHistoryBreedCompanionReference> = emptyList(),
+        ) : this(
+            breedName, UiText.Raw(ageLabel), valueLabels.map(UiText::Raw), UiText.Raw(sourceKindLabel),
+            UiText.Raw(sexLabel), partialDateDisclosure?.let(UiText::Raw), UiText.Raw(accessibilityLabel),
+            chartValues, source, details, companionReferences,
+        )
+    }
 }
 
 data class PetHistoryBreedCompanionReference(
-    val ageLabel: String,
-    val sexLabel: String,
-    val valueLabels: List<String>,
-    val sourceKindLabel: String,
+    val ageLabel: UiText,
+    val sexLabel: UiText,
+    val valueLabels: List<UiText>,
+    val sourceKindLabel: UiText,
     val chartValues: List<PetHistoryBreedChartValue>,
     val source: PetHistoryBreedSource,
-)
+) {
+    constructor(ageLabel: String, sexLabel: String, valueLabels: List<String>, sourceKindLabel: String, chartValues: List<PetHistoryBreedChartValue>, source: PetHistoryBreedSource) :
+        this(UiText.Raw(ageLabel), UiText.Raw(sexLabel), valueLabels.map(UiText::Raw), UiText.Raw(sourceKindLabel), chartValues, source)
+}
 
 sealed interface PetHistoryBreedChartValue {
     /** Stable identity used to keep chart series from different sources separate. */
     val seriesId: String
-    val statisticLabel: String
-    val accessibilityLabel: String
+    val statisticLabel: UiText
+    val accessibilityLabel: UiText
 
     data class Interval(
         val lowerKg: Double,
         val upperKg: Double,
         val centerKg: Double?,
-        override val statisticLabel: String,
-        override val accessibilityLabel: String,
-        override val seriesId: String = statisticLabel,
-    ) : PetHistoryBreedChartValue
+        override val statisticLabel: UiText,
+        override val accessibilityLabel: UiText,
+        override val seriesId: String,
+    ) : PetHistoryBreedChartValue {
+        constructor(lowerKg: Double, upperKg: Double, centerKg: Double?, statisticLabel: String, accessibilityLabel: String, seriesId: String = statisticLabel) :
+            this(lowerKg, upperKg, centerKg, UiText.Raw(statisticLabel), UiText.Raw(accessibilityLabel), seriesId)
+    }
 
     data class Single(
         val valueKg: Double,
-        override val statisticLabel: String,
-        override val accessibilityLabel: String,
-        override val seriesId: String = statisticLabel,
-    ) : PetHistoryBreedChartValue
+        override val statisticLabel: UiText,
+        override val accessibilityLabel: UiText,
+        override val seriesId: String,
+    ) : PetHistoryBreedChartValue {
+        constructor(valueKg: Double, statisticLabel: String, accessibilityLabel: String, seriesId: String = statisticLabel) :
+            this(valueKg, UiText.Raw(statisticLabel), UiText.Raw(accessibilityLabel), seriesId)
+    }
 
     data class Boundary(
         val valueKg: Double,
         val direction: BreedWeightValue.Boundary.Direction,
-        override val statisticLabel: String,
-        override val accessibilityLabel: String,
-        override val seriesId: String = statisticLabel,
-    ) : PetHistoryBreedChartValue
+        override val statisticLabel: UiText,
+        override val accessibilityLabel: UiText,
+        override val seriesId: String,
+    ) : PetHistoryBreedChartValue {
+        constructor(valueKg: Double, direction: BreedWeightValue.Boundary.Direction, statisticLabel: String, accessibilityLabel: String, seriesId: String = statisticLabel) :
+            this(valueKg, direction, UiText.Raw(statisticLabel), UiText.Raw(accessibilityLabel), seriesId)
+    }
 }
 
 data class PetHistoryBreedSource(
     val title: String,
     val url: String,
     val year: Int?,
-    val kindLabel: String,
+    val kindLabel: UiText,
     val geography: String?,
     val method: String?,
     val pageOrTable: String?,
-    val sampleLabel: String?,
+    val sampleLabel: UiText?,
     val limitations: List<String>,
-)
+) {
+    constructor(title: String, url: String, year: Int?, kindLabel: String, geography: String?, method: String?, pageOrTable: String?, sampleLabel: String?, limitations: List<String>) :
+        this(title, url, year, UiText.Raw(kindLabel), geography, method, pageOrTable, sampleLabel?.let(UiText::Raw), limitations)
+}
 
 data class PetHistoryBreedReferenceDetail(
-    val ageLabel: String,
-    val sexLabel: String,
-    val valueLabel: String,
+    val ageLabel: UiText,
+    val sexLabel: UiText,
+    val valueLabel: UiText,
     val sourceTitle: String?,
     val documentedGap: String?,
     val youngerThanSelectedAge: Boolean,
-    val sampleLabel: String?,
+    val sampleLabel: UiText?,
     val limitations: List<String>,
 )
 
@@ -160,8 +189,8 @@ class PetHistoryBreedReferencePresenter(
                 is BreedWeightReferenceResolution.Available -> resolution.reference.values.map {
                     it.chartValue(
                         resolution.reference.breedRussianName,
-                        resolution.reference.ageScope.label(locale),
-                        resolution.reference.source.kind.label(locale),
+                        resolution.reference.ageScope.label(),
+                        resolution.reference.source.kind.label(),
                         locale,
                         resolution.reference.source.id,
                     )
@@ -175,12 +204,11 @@ class PetHistoryBreedReferencePresenter(
     }
 
     private fun BreedWeightReference.toPresentation(): PetHistoryBreedReference.Available {
-        val age = ageScope.label(locale)
+        val age = ageScope.label()
         val values = values.map { it.label(locale) }
-        val kind = source.kind.label(locale)
+        val kind = source.kind.label()
         val partialDisclosure = ageDisclosure.possibleAgeDays?.takeIf { ageDisclosure.partial }?.let { possible ->
-            "The birth date is incomplete. Possible age: ${possible.first.ageLabel()}–${possible.last.ageLabel()}. " +
-                "The reference for $age is shown."
+            uiText(R.string.pet_breed_reference_partial_date, possible.first.ageLabel(), possible.last.ageLabel(), age)
         }
         val sourcePresentation = source.presentation(sampleSize, sampleUnit, limitations, locale)
         val companions = companionGroups.map { it.presentation(breedRussianName) }
@@ -189,21 +217,18 @@ class PetHistoryBreedReferencePresenter(
             ageLabel = age,
             valueLabels = values,
             sourceKindLabel = kind,
-            sexLabel = sex.label(locale),
+            sexLabel = sex.label(),
             partialDateDisclosure = partialDisclosure,
-            accessibilityLabel = buildString {
-                append("Breed references for $breedRussianName. Age: $age. ")
-                append(values.joinToString(". "))
-                append(". Source type: $kind.")
-                sourcePresentation.method?.let { append(" Source method: $it.") }
-                sourcePresentation.limitations.forEach { append(" Limitation: $it.") }
-                append(" This is not a medical norm.")
-                companions.forEach { companion ->
-                    append(" Additional reference for ${companion.ageLabel}: ")
-                    append(companion.valueLabels.joinToString(". "))
-                    append(". Source type: ${companion.sourceKindLabel}.")
-                }
-            },
+            accessibilityLabel = uiText(
+                R.string.pet_breed_reference_accessibility,
+                breedRussianName,
+                age,
+                UiText.Joined(values, ". "),
+                kind,
+                UiText.Joined(companions.map { companion ->
+                    uiText(R.string.pet_breed_reference_accessibility_companion, companion.ageLabel, UiText.Joined(companion.valueLabels, ". "), companion.sourceKindLabel)
+                }, " "),
+            ),
             chartValues = this.values.map { it.chartValue(breedRussianName, age, kind, locale, source.id) } +
                 companions.flatMap(PetHistoryBreedCompanionReference::chartValues),
             source = sourcePresentation,
@@ -213,11 +238,11 @@ class PetHistoryBreedReferencePresenter(
     }
 
     private fun BreedWeightReferenceGroup.presentation(breedName: String): PetHistoryBreedCompanionReference {
-        val age = ageScope.label(locale)
-        val kind = source.kind.label(locale)
+        val age = ageScope.label()
+        val kind = source.kind.label()
         return PetHistoryBreedCompanionReference(
             ageLabel = age,
-            sexLabel = sex.label(locale),
+            sexLabel = sex.label(),
             valueLabels = values.map { it.label(locale) },
             sourceKindLabel = kind,
             chartValues = values.map { it.chartValue(breedName, age, kind, locale, source.id) },
@@ -227,26 +252,26 @@ class PetHistoryBreedReferencePresenter(
 
     private fun BreedWeightReferenceUnavailableReason.toPresentation(): PetHistoryBreedReference = when (this) {
         BreedWeightReferenceUnavailableReason.UnsupportedSpecies -> PetHistoryBreedReference.Hidden
-        BreedWeightReferenceUnavailableReason.OtherBreed -> unavailable("No reference is available for this breed yet.", false)
-        is BreedWeightReferenceUnavailableReason.RemovedOrUnsupportedBreed -> unavailable("References are currently unavailable for the selected breed.", false)
-        BreedWeightReferenceUnavailableReason.MissingSex -> unavailable("Specify the pet's sex to show breed references.", true)
-        BreedWeightReferenceUnavailableReason.InvalidBirthDate -> unavailable("Correct the birth date to show an age reference.", true)
-        is BreedWeightReferenceUnavailableReason.SnapshotUnavailable -> unavailable("Breed references are temporarily unavailable.", false)
-        BreedWeightReferenceUnavailableReason.NoApplicableValue -> unavailable("No applicable weight reference exists for the selected breed.", false)
-        is BreedWeightReferenceUnavailableReason.DocumentedGap -> unavailable("No published data exists for the selected age.", false)
+        BreedWeightReferenceUnavailableReason.OtherBreed -> unavailable(R.string.pet_breed_reference_other_breed, false)
+        is BreedWeightReferenceUnavailableReason.RemovedOrUnsupportedBreed -> unavailable(R.string.pet_breed_reference_unavailable, false)
+        BreedWeightReferenceUnavailableReason.MissingSex -> unavailable(R.string.pet_breed_reference_prompt_sex, true)
+        BreedWeightReferenceUnavailableReason.InvalidBirthDate -> unavailable(R.string.pet_breed_reference_fix_birth, true)
+        is BreedWeightReferenceUnavailableReason.SnapshotUnavailable -> unavailable(R.string.pet_breed_reference_temporary, false)
+        BreedWeightReferenceUnavailableReason.NoApplicableValue -> unavailable(R.string.pet_breed_reference_no_applicable_value, false)
+        is BreedWeightReferenceUnavailableReason.DocumentedGap -> unavailable(R.string.pet_breed_reference_age_gap, false)
     }
 
-    private fun BreedWeightReferenceUnavailableReason.unavailable(message: String, edit: Boolean) =
-        PetHistoryBreedReference.Unavailable(this, message, edit)
+    private fun BreedWeightReferenceUnavailableReason.unavailable(messageId: Int, edit: Boolean) =
+        PetHistoryBreedReference.Unavailable(this, uiText(messageId), edit)
 
     private fun BreedWeightReferenceDetail.presentation() = PetHistoryBreedReferenceDetail(
-        ageLabel = ageScope.label(locale),
-        sexLabel = sex.label(locale),
-        valueLabel = value?.label(locale) ?: "No numeric value was published",
+        ageLabel = ageScope.label(),
+        sexLabel = sex.label(),
+        valueLabel = value?.label(locale) ?: uiText(R.string.pet_breed_reference_no_numeric_value),
         sourceTitle = source?.title,
         documentedGap = documentedGap,
         youngerThanSelectedAge = youngerThanSelectedAge,
-        sampleLabel = sampleSize?.let { "$it ${sampleUnit.orEmpty()}".trim() },
+        sampleLabel = sampleSize?.let { uiText(R.string.pet_breed_reference_sample_value, it, sampleUnit.orEmpty()) },
         limitations = limitations,
     )
 }
@@ -271,33 +296,33 @@ data class PetHistoryBreedReferenceTimelineMoment(
 
 private fun BreedWeightValue.chartValue(
     breedName: String,
-    ageLabel: String,
-    sourceKind: String,
+    ageLabel: UiText,
+    sourceKind: UiText,
     locale: Locale,
     sourceId: String,
 ): PetHistoryBreedChartValue {
     val valueLabel = label(locale)
-    val description = "$breedName. Source age: $ageLabel. $valueLabel. Source type: $sourceKind."
+    val description = uiText(R.string.pet_breed_reference_chart_accessibility, breedName, ageLabel, valueLabel, sourceKind)
     return when (this) {
         is BreedWeightValue.Interval -> PetHistoryBreedChartValue.Interval(
             lowerKg = lower,
             upperKg = upper,
             centerKg = center,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(locale),
+            statisticLabel = statistic.label(),
             accessibilityLabel = description,
         )
         is BreedWeightValue.Single -> PetHistoryBreedChartValue.Single(
             valueKg = value,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(locale),
+            statisticLabel = statistic.label(),
             accessibilityLabel = description,
         )
         is BreedWeightValue.Boundary -> PetHistoryBreedChartValue.Boundary(
             valueKg = value,
             direction = direction,
             seriesId = referenceId ?: "$sourceId:${statistic.name.lowercase()}",
-            statisticLabel = statistic.label(locale),
+            statisticLabel = statistic.label(),
             accessibilityLabel = description,
         )
     }
@@ -309,6 +334,7 @@ internal fun PetHistoryBreedReferenceCard(
     onEdit: () -> Unit,
     sourceLauncher: ReferenceSourceLauncher,
 ) {
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
     if (reference is PetHistoryBreedReference.Hidden) return
     var expanded by remember(reference) { mutableStateOf(false) }
     var sourceErrors by remember(reference) { mutableStateOf<Set<Int>>(emptySet()) }
@@ -321,7 +347,7 @@ internal fun PetHistoryBreedReferenceCard(
                 PetHistoryBreedReference.Hidden -> Unit
                 is PetHistoryBreedReference.Unavailable -> {
                     Text(
-                        reference.message,
+                        reference.message.resolve(resources),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
                     )
@@ -331,16 +357,16 @@ internal fun PetHistoryBreedReferenceCard(
                     ) { Text(stringResource(R.string.pet_breed_reference_edit_profile)) }
                 }
                 is PetHistoryBreedReference.Available -> {
-                    Column(Modifier.semantics(mergeDescendants = true) { contentDescription = reference.accessibilityLabel }) {
-                        Text(stringResource(R.string.pet_breed_reference_for_age, reference.ageLabel))
-                        reference.valueLabels.forEach { value -> Text(value) }
-                        Text(stringResource(R.string.pet_breed_reference_type, reference.sourceKindLabel))
+                    Column(Modifier.semantics(mergeDescendants = true) { contentDescription = reference.accessibilityLabel.resolve(resources) }) {
+                        Text(stringResource(R.string.pet_breed_reference_for_age, reference.ageLabel.resolve(resources)))
+                        reference.valueLabels.forEach { value -> Text(value.resolve(resources)) }
+                        Text(stringResource(R.string.pet_breed_reference_type, reference.sourceKindLabel.resolve(resources)))
                         reference.companionReferences.forEach { companion ->
-                            Text(stringResource(R.string.pet_breed_reference_companion, companion.ageLabel))
-                            companion.valueLabels.forEach { value -> Text(value) }
-                            Text(stringResource(R.string.pet_breed_reference_type, companion.sourceKindLabel))
+                            Text(stringResource(R.string.pet_breed_reference_companion, companion.ageLabel.resolve(resources)))
+                            companion.valueLabels.forEach { value -> Text(value.resolve(resources)) }
+                            Text(stringResource(R.string.pet_breed_reference_type, companion.sourceKindLabel.resolve(resources)))
                         }
-                        reference.partialDateDisclosure?.let { Text(it, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                        reference.partialDateDisclosure?.let { Text(it.resolve(resources), color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                     TextButton(
                         onClick = { expanded = !expanded },
@@ -375,11 +401,11 @@ internal fun PetHistoryBreedReferenceCard(
                             )
                         }
                         reference.details.forEach { detail ->
-                            Text(stringResource(if (detail.youngerThanSelectedAge) R.string.pet_breed_reference_younger_data else R.string.pet_breed_reference_additional_data, detail.ageLabel))
-                            Text(stringResource(R.string.reference_labeled_value, detail.sexLabel, detail.valueLabel))
+                            Text(stringResource(if (detail.youngerThanSelectedAge) R.string.pet_breed_reference_younger_data else R.string.pet_breed_reference_additional_data, detail.ageLabel.resolve(resources)))
+                            Text(stringResource(R.string.reference_labeled_value, detail.sexLabel.resolve(resources), detail.valueLabel.resolve(resources)))
                             detail.sourceTitle?.let { Text(stringResource(R.string.reference_source, it)) }
                             detail.documentedGap?.let { Text(stringResource(R.string.reference_documented_gap, it)) }
-                            detail.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it)) }
+                            detail.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it.resolve(resources))) }
                             detail.limitations.forEach { Text(stringResource(R.string.reference_limitation, it)) }
                         }
                     }
@@ -393,18 +419,19 @@ internal fun PetHistoryBreedReferenceCard(
 private fun ReferenceSourceGroup(
     index: Int,
     source: PetHistoryBreedSource,
-    ageLabel: String,
-    sexLabel: String,
-    valueLabels: List<String>,
+    ageLabel: UiText,
+    sexLabel: UiText,
+    valueLabels: List<UiText>,
     sourceLauncher: ReferenceSourceLauncher,
     hasError: Boolean,
     onOpenResult: (Boolean) -> Unit,
 ) {
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
     Column(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.sourceGroup(index))) {
         SourceDetails(source)
-        Text(stringResource(R.string.reference_age_scope, ageLabel))
-        Text(stringResource(R.string.reference_sex, sexLabel))
-        valueLabels.forEach { value -> Text(stringResource(R.string.reference_value, value)) }
+        Text(stringResource(R.string.reference_age_scope, ageLabel.resolve(resources)))
+        Text(stringResource(R.string.reference_sex, sexLabel.resolve(resources)))
+        valueLabels.forEach { value -> Text(stringResource(R.string.reference_value, value.resolve(resources))) }
         TextButton(
             onClick = { onOpenResult(sourceLauncher.open(source.url)) },
             modifier = Modifier
@@ -426,10 +453,11 @@ private fun Set<Int>.update(value: Int, present: Boolean): Set<Int> =
 
 @Composable
 private fun SourceDetails(source: PetHistoryBreedSource) {
+    val resources = androidx.compose.ui.platform.LocalContext.current.resources
     Text(stringResource(R.string.reference_organization_or_publication, source.title))
     source.year?.let { Text(stringResource(R.string.reference_year, it)) }
-    Text(stringResource(R.string.reference_statement_type, source.kindLabel))
-    source.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it)) }
+    Text(stringResource(R.string.reference_statement_type, source.kindLabel.resolve(resources)))
+    source.sampleLabel?.let { Text(stringResource(R.string.reference_sample, it.resolve(resources))) }
     source.geography?.let { Text(stringResource(R.string.reference_geography, it)) }
     source.method?.let { Text(stringResource(R.string.reference_method, it)) }
     source.pageOrTable?.let { Text(stringResource(R.string.reference_page_or_table, it)) }
@@ -437,58 +465,57 @@ private fun SourceDetails(source: PetHistoryBreedSource) {
 }
 
 private fun BreedWeightSourceMetadata.presentation(sampleSize: Int?, sampleUnit: String?, limitations: List<String>, locale: Locale) =
-    PetHistoryBreedSource(title, url, year, kind.label(locale), geography, method, pageOrTable,
-        sampleSize?.let { "$it ${sampleUnit.orEmpty()}".trim() }, limitations)
+    PetHistoryBreedSource(title, url, year, kind.label(), geography, method, pageOrTable,
+        sampleSize?.let { uiText(R.string.pet_breed_reference_sample_value, it, sampleUnit.orEmpty()) }, limitations)
 
-private fun BreedWeightAgeScope.label(locale: Locale) = when (this) {
-    BreedWeightAgeScope.Adult -> "adult dog"
-    is BreedWeightAgeScope.Age -> label
+private fun BreedWeightAgeScope.label(): UiText = when (this) {
+    BreedWeightAgeScope.Adult -> uiText(R.string.pet_breed_reference_adult_dog)
+    is BreedWeightAgeScope.Age -> UiText.Raw(label)
 }
 
-private fun Long.ageLabel(): String {
+private fun Long.ageLabel(): UiText {
     val months = this / 30
-    return if (months > 0) "$months mo" else "$this days"
+    return if (months > 0) uiText(R.string.pet_breed_reference_age_months, months)
+    else uiText(R.string.pet_breed_reference_age_days, this)
 }
 
-private fun BreedWeightValue.label(locale: Locale): String {
+private fun BreedWeightValue.label(locale: Locale): UiText {
     val number = NumberFormat.getNumberInstance(locale).apply { maximumFractionDigits = 2 }
-    val statisticLabel = statistic.label(locale)
+    val statisticLabel = statistic.label()
     return when (this) {
-        is BreedWeightValue.Interval -> "$statisticLabel: ${number.format(lower)}–${number.format(upper)} kg" +
-            (center?.let { "; center: ${number.format(it)} kg" } ?: "")
-        is BreedWeightValue.Single -> "$statisticLabel: ${number.format(value)} kg" +
-            (spread?.let { " ± ${number.format(it)} kg" } ?: "")
-        is BreedWeightValue.Boundary -> "$statisticLabel: ${number.format(value)} kg"
+        is BreedWeightValue.Interval -> uiText(R.string.pet_breed_reference_value_interval, statisticLabel, number.format(lower), number.format(upper), center?.let(number::format).orEmpty())
+        is BreedWeightValue.Single -> uiText(R.string.pet_breed_reference_value_single, statisticLabel, number.format(value), spread?.let(number::format).orEmpty())
+        is BreedWeightValue.Boundary -> uiText(R.string.pet_breed_reference_value_boundary, statisticLabel, number.format(value))
     }
 }
 
-private fun BreedReferenceStatisticKind.label(locale: Locale) = when (this) {
-    BreedReferenceStatisticKind.RANGE -> "Range"
-    BreedReferenceStatisticKind.QUANTILES -> "Quantiles"
-    BreedReferenceStatisticKind.MEAN -> "Mean"
-    BreedReferenceStatisticKind.MEDIAN -> "Median"
-    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> "Approximate mean"
-    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> "Approximate range"
-    BreedReferenceStatisticKind.MEAN_SD -> "Mean and standard deviation"
-    BreedReferenceStatisticKind.IDEAL -> "Ideal weight"
-    BreedReferenceStatisticKind.IDEAL_RANGE -> "Ideal weight range"
-    BreedReferenceStatisticKind.STANDARD_POINT -> "Standard value"
-    BreedReferenceStatisticKind.MINIMUM -> "Minimum weight"
-    BreedReferenceStatisticKind.MAXIMUM -> "Maximum weight"
-    BreedReferenceStatisticKind.DOCUMENTED_GAP -> "Documented gap"
-}
+private fun BreedReferenceStatisticKind.label(): UiText = uiText(when (this) {
+    BreedReferenceStatisticKind.RANGE -> R.string.pet_breed_stat_range
+    BreedReferenceStatisticKind.QUANTILES -> R.string.pet_breed_stat_quantiles
+    BreedReferenceStatisticKind.MEAN -> R.string.pet_breed_stat_mean
+    BreedReferenceStatisticKind.MEDIAN -> R.string.pet_breed_stat_median
+    BreedReferenceStatisticKind.APPROXIMATE_AVERAGE -> R.string.pet_breed_stat_approximate_mean
+    BreedReferenceStatisticKind.APPROXIMATE_RANGE -> R.string.pet_breed_stat_approximate_range
+    BreedReferenceStatisticKind.MEAN_SD -> R.string.pet_breed_stat_mean_sd
+    BreedReferenceStatisticKind.IDEAL -> R.string.pet_breed_stat_ideal
+    BreedReferenceStatisticKind.IDEAL_RANGE -> R.string.pet_breed_stat_ideal_range
+    BreedReferenceStatisticKind.STANDARD_POINT -> R.string.pet_breed_stat_standard
+    BreedReferenceStatisticKind.MINIMUM -> R.string.pet_breed_stat_minimum
+    BreedReferenceStatisticKind.MAXIMUM -> R.string.pet_breed_stat_maximum
+    BreedReferenceStatisticKind.DOCUMENTED_GAP -> R.string.pet_breed_stat_gap
+})
 
-private fun BreedReferenceSourceKind.label(locale: Locale) = when (this) {
-    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> "official international standard"
-    BreedReferenceSourceKind.NATIONAL_STANDARD -> "official national standard"
-    BreedReferenceSourceKind.BREED_CLUB -> "breed organization"
-    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> "professional reference"
-    BreedReferenceSourceKind.OBSERVATIONAL -> "observational sample"
-    BreedReferenceSourceKind.MODELLED -> "modelled data"
-}
+private fun BreedReferenceSourceKind.label(): UiText = uiText(when (this) {
+    BreedReferenceSourceKind.INTERNATIONAL_STANDARD -> R.string.pet_breed_source_international
+    BreedReferenceSourceKind.NATIONAL_STANDARD -> R.string.pet_breed_source_national
+    BreedReferenceSourceKind.BREED_CLUB -> R.string.pet_breed_source_club
+    BreedReferenceSourceKind.PROFESSIONAL_REFERENCE -> R.string.pet_breed_source_professional
+    BreedReferenceSourceKind.OBSERVATIONAL -> R.string.pet_breed_source_observational
+    BreedReferenceSourceKind.MODELLED -> R.string.pet_breed_source_modelled
+})
 
-private fun BreedReferenceSex.label(locale: Locale) = when (this) {
-    BreedReferenceSex.MALE -> "Male"
-    BreedReferenceSex.FEMALE -> "Female"
-    BreedReferenceSex.COMBINED -> "Both sexes"
-}
+private fun BreedReferenceSex.label(): UiText = uiText(when (this) {
+    BreedReferenceSex.MALE -> R.string.pet_breed_sex_male
+    BreedReferenceSex.FEMALE -> R.string.pet_breed_sex_female
+    BreedReferenceSex.COMBINED -> R.string.pet_breed_sex_combined
+})

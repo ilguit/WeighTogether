@@ -307,4 +307,53 @@
     <string name="pet_breed_reference_no_numeric_value">No numeric value was published</string>
     <string name="pet_breed_reference_other_breed">No reference is available for this breed yet.</string>
     <string name="pet_breed_reference_no_applicable_value">No applicable weight reference exists for the selected breed.</string>
+    <string name="pet_weight_chart_legend_actual">● Actual weight</string>
+    <string name="pet_weight_chart_legend_line">— %1$s</string>
+    <string name="pet_weight_chart_legend_breed_range">▰ Light green area — breed range</string>
+    <string name="pet_weight_chart_legend_typical_range">▰ Typical weight range</string>
+    <string name="pet_weight_chart_legend_p50">— P50</string>
+    <string name="pet_weight_chart_legend_modelled_breed_range">▰ Light green area — modelled breed range</string>
+    <string name="pet_weight_chart_legend_modelled_center">— Center of modelled range</string>
+    <string name="pet_weight_chart_legend_birth_range">↕ Breed observation range at birth date</string>
+    <string name="pet_weight_chart_legend_birth_mean">● Mean breed weight at birth date</string>
+    <string name="pet_weight_chart_legend_general_range">▰ General P9–P91 range (not breed-specific)</string>
+    <string name="pet_weight_chart_legend_general_p50">— General P50 (not breed-specific)</string>
+    <string name="pet_weight_chart_description_breed_curve">Actual weight is marked with circles; the modelled breed range is a light green area with its center shown as a line.</string>
+    <string name="pet_weight_chart_description_population_fallback">Actual weight is marked with circles; the general non-breed range is shown as a P9–P91 area and P50 line.</string>
+    <string name="pet_weight_chart_description_birth_observation">The breed observation at birth date is shown as a vertical interval and a mean-weight point.</string>
+    <string name="pet_weight_chart_description_population">Actual weight is marked with circles; the typical range is shown as a P9–P91 area and P50 line.</string>
+    <string name="pet_weight_chart_description_boundaries">Actual weight is marked with circles; the reference is shown as four boundary lines.</string>
+    <string name="pet_weight_chart_displayed">Displayed: %1$s.</string>
+    <string name="pet_weight_chart_lower_boundary">Lower boundary</string>
+    <string name="pet_weight_chart_upper_boundary">Upper boundary</string>
+    <string name="pet_weight_chart_center">Median or mean</string>
+    <string name="pet_weight_chart_model_lower">Model lower boundary</string>
+    <string name="pet_weight_chart_p9_lower">P9 lower boundary</string>
+    <string name="pet_weight_chart_reference_lower">Reference lower boundary</string>
+    <string name="pet_weight_chart_model_center">Breed model center</string>
+    <string name="pet_weight_chart_p50_median">P50 median</string>
+    <string name="pet_weight_chart_lower_median">Lower median boundary</string>
+    <string name="pet_weight_chart_upper_median">Upper median boundary</string>
+    <string name="pet_weight_chart_model_upper">Model upper boundary</string>
+    <string name="pet_weight_chart_p91_upper">P91 upper boundary</string>
+    <string name="pet_weight_chart_reference_upper">Reference upper boundary</string>
+    <string name="pet_weight_chart_marker_value">%1$s: %2$s kg</string>
+    <string name="pet_breed_reference_partial_date">The birth date is incomplete. Possible age: %1$s–%2$s. The reference for %3$s is shown.</string>
+    <string name="pet_breed_reference_accessibility">Breed references for %1$s. Age: %2$s. %3$s. Source type: %4$s. This is not a medical norm. %5$s</string>
+    <string name="pet_breed_reference_accessibility_companion">Additional reference for %1$s: %2$s. Source type: %3$s.</string>
+    <string name="pet_breed_reference_chart_accessibility">%1$s. Source age: %2$s. %3$s. Source type: %4$s.</string>
+    <string name="pet_breed_reference_sample_value">%1$d %2$s</string>
+    <string name="pet_breed_reference_adult_dog">adult dog</string>
+    <string name="pet_breed_reference_age_months">%1$d mo</string>
+    <string name="pet_breed_reference_age_days">%1$d days</string>
+    <string name="pet_breed_reference_value_interval">%1$s: %2$s–%3$s kg; center: %4$s kg</string>
+    <string name="pet_breed_reference_value_single">%1$s: %2$s kg ± %3$s kg</string>
+    <string name="pet_breed_reference_value_boundary">%1$s: %2$s kg</string>
+    <string name="pet_breed_stat_range">Range</string><string name="pet_breed_stat_quantiles">Quantiles</string><string name="pet_breed_stat_mean">Mean</string><string name="pet_breed_stat_median">Median</string>
+    <string name="pet_breed_stat_approximate_mean">Approximate mean</string><string name="pet_breed_stat_approximate_range">Approximate range</string><string name="pet_breed_stat_mean_sd">Mean and standard deviation</string>
+    <string name="pet_breed_stat_ideal">Ideal weight</string><string name="pet_breed_stat_ideal_range">Ideal weight range</string><string name="pet_breed_stat_standard">Standard value</string>
+    <string name="pet_breed_stat_minimum">Minimum weight</string><string name="pet_breed_stat_maximum">Maximum weight</string><string name="pet_breed_stat_gap">Documented gap</string>
+    <string name="pet_breed_source_international">official international standard</string><string name="pet_breed_source_national">official national standard</string><string name="pet_breed_source_club">breed organization</string>
+    <string name="pet_breed_source_professional">professional reference</string><string name="pet_breed_source_observational">observational sample</string><string name="pet_breed_source_modelled">modelled data</string>
+    <string name="pet_breed_sex_male">Male</string><string name="pet_breed_sex_female">Female</string><string name="pet_breed_sex_combined">Both sexes</string>
 </resources>

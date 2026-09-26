@@ -57,6 +57,7 @@ import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.uiText
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
@@ -111,8 +112,16 @@ internal data class BreedWeightReferenceChartSeries(
     val points: List<Pair<LocalDate, Double>>,
     val showsPointMarkers: Boolean = false,
     val xEpochMillis: List<Long>,
-    val statisticLabel: String? = null,
-)
+    val statisticLabel: UiText? = null,
+) {
+    constructor(
+        kind: BreedWeightReferenceSeriesKind,
+        points: List<Pair<LocalDate, Double>>,
+        showsPointMarkers: Boolean = false,
+        xEpochMillis: List<Long>,
+        statisticLabel: String,
+    ) : this(kind, points, showsPointMarkers, xEpochMillis, UiText.Raw(statisticLabel))
+}
 
 internal enum class BreedWeightReferenceSeriesKind {
     LOWER_BOUNDARY,
@@ -260,7 +269,7 @@ internal fun exactObservationGlyphs(
     }
 
 internal data class PetWeightChartLegendEntry(
-    val label: String,
+    val label: UiText,
     val style: PetWeightDisplayedSeriesStyle,
 )
 
@@ -268,16 +277,16 @@ internal fun petWeightChartLegendEntries(
     displayedSeries: List<PetWeightDisplayedSeries>,
 ): List<PetWeightChartLegendEntry> = buildList {
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-        add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
+        add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
     }
     displayedSeries
         .filter { it.style == PetWeightDisplayedSeriesStyle.CATEGORY }
         .distinctBy(PetWeightDisplayedSeries::kind)
-        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.CATEGORY)) }
+        .forEach { add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_line, it.label), PetWeightDisplayedSeriesStyle.CATEGORY)) }
     if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.BREED_BOUNDARY }) {
         add(
             PetWeightChartLegendEntry(
-                "▰ Light green area — breed range",
+                uiText(R.string.pet_weight_chart_legend_breed_range),
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
             ),
         )
@@ -285,26 +294,26 @@ internal fun petWeightChartLegendEntries(
     displayedSeries
         .filter { it.style == PetWeightDisplayedSeriesStyle.BREED_CENTER }
         .distinctBy(PetWeightDisplayedSeries::label)
-        .forEach { add(PetWeightChartLegendEntry("— ${it.label}", PetWeightDisplayedSeriesStyle.BREED_CENTER)) }
+        .forEach { add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_line, it.label), PetWeightDisplayedSeriesStyle.BREED_CENTER)) }
 }
 
 internal fun populationWeightChartLegendEntries(): List<PetWeightChartLegendEntry> = listOf(
-    PetWeightChartLegendEntry("▰ Typical weight range", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-    PetWeightChartLegendEntry("— P50", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+    PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_typical_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+    PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_p50), PetWeightDisplayedSeriesStyle.BREED_CENTER),
 )
 
 internal fun referenceWeightChartLegendEntries(provenance: WeightReferenceProvenance): List<PetWeightChartLegendEntry> = when (provenance) {
     WeightReferenceProvenance.BREED_CURVE -> listOf(
-        PetWeightChartLegendEntry("▰ Light green area — modelled breed range", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— Center of modelled range", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_modelled_breed_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_modelled_center), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> listOf(
-        PetWeightChartLegendEntry("↕ Breed observation range at birth date", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("● Mean breed weight at birth date", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_birth_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_birth_mean), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> listOf(
-        PetWeightChartLegendEntry("▰ General P9–P91 range (not breed-specific)", PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
-        PetWeightChartLegendEntry("— General P50 (not breed-specific)", PetWeightDisplayedSeriesStyle.BREED_CENTER),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_general_range), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
+        PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_general_p50), PetWeightDisplayedSeriesStyle.BREED_CENTER),
     )
     WeightReferenceProvenance.POPULATION,
     WeightReferenceProvenance.WEIGHT_CATEGORY,
@@ -320,24 +329,24 @@ internal fun petWeightChartDescription(
     legendEntries: List<PetWeightChartLegendEntry>,
     resolveText: (UiText) -> String = { it.toString() },
 ): String = buildString {
-    append("Pet weight chart. ")
-    append(if (factualCount == 0) "No measurements. " else "Measurements: $factualCount. ")
+    append(resolveText(uiText(R.string.pet_weight_chart_title))).append(". ")
+    append(resolveText(if (factualCount == 0) uiText(R.string.pet_weight_chart_no_measurements) else uiText(R.string.pet_weight_chart_measurements, factualCount))).append(' ')
     val available = reference as? PetHistoryWeightReference.Available
     if (showReferenceExplanation && !hasBreedTimeline) {
         append(resolveText(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation))
         if (available != null) append(
-            if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Actual weight is marked with circles; the modelled breed range is a light green area with its center shown as a line."
-            else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Actual weight is marked with circles; the general non-breed range is shown as a P9–P91 area and P50 line."
-            else if (available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION) " The breed observation at birth date is shown as a vertical interval and a mean-weight point."
-            else if (isPopulationReference) " Actual weight is marked with circles; the typical range is shown as a P9–P91 area and P50 line."
-            else " Actual weight is marked with circles; the reference is shown as four boundary lines.",
+            " " + resolveText(uiText(when {
+                available.provenance == WeightReferenceProvenance.BREED_CURVE -> R.string.pet_weight_chart_description_breed_curve
+                available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED -> R.string.pet_weight_chart_description_population_fallback
+                available.provenance == WeightReferenceProvenance.BREED_EXACT_OBSERVATION -> R.string.pet_weight_chart_description_birth_observation
+                isPopulationReference -> R.string.pet_weight_chart_description_population
+                else -> R.string.pet_weight_chart_description_boundaries
+            })),
         )
     }
-    if (isPopulationReference) append(" This information is for reference and does not assess the pet's health.")
+    if (isPopulationReference) append(" ").append(resolveText(uiText(R.string.pet_weight_chart_reference_disclaimer)))
     if (legendEntries.isNotEmpty()) {
-        append(" Displayed: ")
-        append(legendEntries.joinToString("; ") { it.label })
-        append('.')
+        append(" ").append(resolveText(uiText(R.string.pet_weight_chart_displayed, UiText.Joined(legendEntries.map { it.label }, "; "))))
     }
 }
 
@@ -395,11 +404,20 @@ internal fun petWeightRenderedModelSeries(
 internal data class PetWeightDisplayedSeries(
     val id: String,
     val kind: PetWeightDisplayedSeriesKind,
-    val label: String,
+    val label: UiText,
     val x: List<Long>,
     val y: List<Double>,
     val style: PetWeightDisplayedSeriesStyle,
 ) {
+    constructor(
+        id: String,
+        kind: PetWeightDisplayedSeriesKind,
+        label: String,
+        x: List<Long>,
+        y: List<Double>,
+        style: PetWeightDisplayedSeriesStyle,
+    ) : this(id, kind, UiText.Raw(label), x, y, style)
+
     init {
         require(x.size == y.size)
         require(x.isNotEmpty())
@@ -444,7 +462,7 @@ internal fun petWeightDisplayedSeries(
             PetWeightDisplayedSeries(
                 id = "factual",
                 kind = PetWeightDisplayedSeriesKind.FACTUAL,
-                label = "Actual weight",
+                label = uiText(R.string.pet_weight_chart_actual),
                 x = factualPoints.map { requireNotNull(it.xEpochMillis) },
                 y = factualPoints.map(ChartPoint::value),
                 style = PetWeightDisplayedSeriesStyle.FACTUAL,
@@ -463,17 +481,17 @@ internal fun petWeightDisplayedSeries(
             val (kind, label, style) = when (series.kind) {
                 BreedWeightReferenceSeriesKind.LOWER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_LOWER,
-                    series.statisticLabel ?: "Lower boundary",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_lower_boundary),
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.UPPER_BOUNDARY -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_UPPER,
-                    series.statisticLabel ?: "Upper boundary",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_upper_boundary),
                     PetWeightDisplayedSeriesStyle.BREED_BOUNDARY,
                 )
                 BreedWeightReferenceSeriesKind.CENTER -> Triple(
                     PetWeightDisplayedSeriesKind.BREED_CENTER,
-                    series.statisticLabel ?: "Median or mean",
+                    series.statisticLabel ?: uiText(R.string.pet_weight_chart_center),
                     PetWeightDisplayedSeriesStyle.BREED_CENTER,
                 )
             }
@@ -501,20 +519,20 @@ internal fun petWeightDisplayedSeries(
             if (useBreedPresentation && series.kind == PetWeightReferenceSeriesKind.MEDIAN_UPPER) return@forEachIndexed
             val (kind, label) = when (series.kind) {
                 PetWeightReferenceSeriesKind.LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_LOWER else PetWeightDisplayedSeriesKind.CATEGORY_LOWER) to when {
-                    isBreedModel -> "Model lower boundary"
-                    isFittedPopulation -> "P9 lower boundary"
-                    else -> "Reference lower boundary"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_lower)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p9_lower)
+                    else -> uiText(R.string.pet_weight_chart_reference_lower)
                 }
                 PetWeightReferenceSeriesKind.MEDIAN_LOWER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_CENTER else PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_LOWER) to when {
-                    isBreedModel -> "Breed model center"
-                    isFittedPopulation -> "P50 median"
-                    else -> "Lower median boundary"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_center)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p50_median)
+                    else -> uiText(R.string.pet_weight_chart_lower_median)
                 }
-                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to "Upper median boundary"
+                PetWeightReferenceSeriesKind.MEDIAN_UPPER -> PetWeightDisplayedSeriesKind.CATEGORY_MEDIAN_UPPER to uiText(R.string.pet_weight_chart_upper_median)
                 PetWeightReferenceSeriesKind.UPPER -> (if (useBreedPresentation) PetWeightDisplayedSeriesKind.BREED_UPPER else PetWeightDisplayedSeriesKind.CATEGORY_UPPER) to when {
-                    isBreedModel -> "Model upper boundary"
-                    isFittedPopulation -> "P91 upper boundary"
-                    else -> "Reference upper boundary"
+                    isBreedModel -> uiText(R.string.pet_weight_chart_model_upper)
+                    isFittedPopulation -> uiText(R.string.pet_weight_chart_p91_upper)
+                    else -> uiText(R.string.pet_weight_chart_reference_upper)
                 }
             }
             add(
@@ -539,6 +557,7 @@ internal fun formatPetWeightDisplayedMarker(
     displayedSeries: List<PetWeightDisplayedSeries>,
     zoneId: ZoneId,
     locale: Locale = Locale.getDefault(),
+    resolveText: (UiText) -> String = { it.toString() },
 ): String {
     val number = NumberFormat.getNumberInstance(locale).apply {
         minimumFractionDigits = 2
@@ -562,12 +581,12 @@ internal fun formatPetWeightDisplayedMarker(
             else petWeightRenderedModelSeries(series).valueAt(targetXEpochMillis)
         }
         value?.let {
-            "${series.label}: ${number.format(it)} kg"
+            resolveText(uiText(R.string.pet_weight_chart_marker_value, series.label, number.format(it)))
         }
     }
     if (values.isEmpty()) return ""
     val date = DateTimeFormatter.ofPattern("dd.MM.yyyy", locale).format(targetDate)
-    return (listOf("Date: $date") + values).joinToString("\n")
+    return (listOf(resolveText(uiText(R.string.pet_weight_chart_date, date))) + values).joinToString("\n")
 }
 
 private fun PetWeightChartModelSeries.valueAt(targetXEpochMillis: Long): Double? {
@@ -825,7 +844,7 @@ internal fun PetWeightReferenceChartCard(
     val legendEntries = remember(displayedSeries, isPopulationReference, available?.provenance) {
         if (isPopulationReference) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else if (available?.provenance in setOf(
@@ -834,7 +853,7 @@ internal fun PetWeightReferenceChartCard(
             )
         ) buildList {
             if (displayedSeries.any { it.style == PetWeightDisplayedSeriesStyle.FACTUAL }) {
-                add(PetWeightChartLegendEntry("● Actual weight", PetWeightDisplayedSeriesStyle.FACTUAL))
+                add(PetWeightChartLegendEntry(uiText(R.string.pet_weight_chart_legend_actual), PetWeightDisplayedSeriesStyle.FACTUAL))
             }
             addAll(referenceWeightChartLegendEntries(requireNotNull(available).provenance))
         } else petWeightChartLegendEntries(displayedSeries)
@@ -975,7 +994,7 @@ private fun PetWeightVicoChart(
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId)
+            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId, resolveText = { it.resolve(resources) })
         }
     }
     val zoomState = key(viewport.initialVisibleRange, zoneId) {
@@ -994,7 +1013,7 @@ private fun PetWeightVicoChart(
         return true
     }
     val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
-        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId) }
+        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId, resolveText = { text -> text.resolve(resources) }) }
         ?.takeIf(String::isNotEmpty)
     val weightUnit = stringResource(R.string.pet_weight_unit_kg)
     val noSelectablePoints = stringResource(R.string.pet_weight_chart_no_selectable_points)
@@ -1154,7 +1173,7 @@ private fun DisplayedSeriesLegend(
                 PetWeightDisplayedSeriesStyle.BREED_BOUNDARY -> Color(0xFF43A047).copy(alpha = 0.36f)
                 PetWeightDisplayedSeriesStyle.BREED_CENTER -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
             }
-            ChartLegend(entry.label, color)
+            ChartLegend(entry.label.resolve(LocalContext.current.resources), color)
         }
     }
 }
