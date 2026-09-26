@@ -1,5 +1,6 @@
 package com.palixander.scalesync.charts
 
+import com.palixander.scalesync.R
 import com.palixander.scalesync.data.MeasurementEntity
 import com.palixander.scalesync.data.MeasurementMetric
 
@@ -8,13 +9,13 @@ val DefaultChartMetricKeys: Set<String> = linkedSetOf(
     MeasurementMetric.BODY_FAT_PERCENT.name,
 )
 
-fun chartMetricOptions(): List<ChartMetricOption> = MeasurementMetric.entries.map { metric ->
+fun chartMetricOptions(resolveString: (Int) -> String): List<ChartMetricOption> = MeasurementMetric.entries.map { metric ->
     ChartMetricOption(
         key = metric.name,
-        displayName = metric.displayName,
-        unit = metric.unit,
+        displayName = resolveString(metric.displayNameRes),
+        unit = resolveString(metric.unitRes),
         decimalPlaces = metric.decimalPlaces,
-        deltaUnit = if (metric.unit == PercentUnit) PercentagePointUnit else metric.unit,
+        deltaUnit = if (metric.unitRes == R.string.unit_percent) PercentagePointUnit else resolveString(metric.unitRes),
     )
 }
 
@@ -54,5 +55,4 @@ private fun defaultChartMetrics(): Set<MeasurementMetric> = linkedSetOf(
     MeasurementMetric.BODY_FAT_PERCENT,
 )
 
-private const val PercentUnit = "%"
 const val PercentagePointUnit = "pp"

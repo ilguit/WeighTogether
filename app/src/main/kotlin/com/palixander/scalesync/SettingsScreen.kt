@@ -927,7 +927,7 @@ private fun SettingsProfilesContent(
                     onAddPet = callbacks.onCreatePet,
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
-                    petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
+                    petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
                     petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
                 )
             }
@@ -1212,7 +1212,7 @@ private fun LegacySettingsScreen(
                             onAddPet = callbacks.onCreatePet,
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
-                            petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
+                            petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
                             petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
                         )
                         WeightRecognitionSetting(

@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeLeft
+import androidx.test.platform.app.InstrumentationRegistry
 import com.palixander.scalesync.AppSection
 import com.palixander.scalesync.ScaleSyncScaffold
 import com.palixander.scalesync.MainUiState
@@ -103,7 +104,7 @@ class ChartsScreenTest {
 
     @Test
     fun metricCardShowsMinimumMaximumAndAverageStatistics() {
-        val metric = chartMetricOptions().first()
+        val metric = chartMetricOptions(::resolveMetricString).first()
         val state = chartsState().copy(
             selectedMetricKeys = setOf(metric.key),
             series = listOf(
@@ -131,7 +132,7 @@ class ChartsScreenTest {
 
     @Test
     fun horizontalDragScrollsMetricChartWithoutMovingParentList() {
-        val metric = chartMetricOptions().first()
+        val metric = chartMetricOptions(::resolveMetricString).first()
         val state = chartsState().copy(
             startDate = LocalDate.of(2026, 7, 20),
             selectedMetricKeys = setOf(metric.key),
@@ -379,7 +380,7 @@ class ChartsScreenTest {
         startDate = LocalDate.of(2026, 8, 9),
         endDateInclusive = FixedToday,
         currentDate = FixedToday,
-        metricOptions = chartMetricOptions(),
+        metricOptions = chartMetricOptions(::resolveMetricString),
         selectedMetricKeys = selectedMetricKeys,
         series = emptyList(),
     )
@@ -388,3 +389,6 @@ class ChartsScreenTest {
         val FixedToday: LocalDate = LocalDate.of(2026, 8, 15)
     }
 }
+
+private fun resolveMetricString(id: Int): String =
+    InstrumentationRegistry.getInstrumentation().targetContext.getString(id)

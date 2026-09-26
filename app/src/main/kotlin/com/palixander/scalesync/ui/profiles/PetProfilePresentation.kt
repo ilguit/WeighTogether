@@ -40,7 +40,7 @@ fun petProfileSummary(
             pet.sex?.let {
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_sex), uiText(if (it == com.palixander.scalesync.domain.PetSex.MALE) R.string.pet_profile_sex_male else R.string.pet_profile_sex_female)))
             }
-            resolvedBreed?.let { add(PetProfileSummaryItem(uiText(R.string.pet_profile_breed), UiText.Raw(petBreedLabel(it)))) }
+            resolvedBreed?.let { add(PetProfileSummaryItem(uiText(R.string.pet_profile_breed), petBreedLabel(it))) }
             pet.birthDate?.let {
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_birth_date), UiText.Raw(formatPartialBirthDate(it))))
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_age), petAgeLabel(it, referenceDate)))
@@ -51,7 +51,7 @@ fun petProfileSummary(
                     add(
                         PetProfileSummaryItem(
                             uiText(R.string.pet_profile_weight_category),
-                            UiText.Raw(dogAdultWeightCategoryLabel(it)),
+                            dogAdultWeightCategoryLabel(it),
                         ),
                     )
                 }

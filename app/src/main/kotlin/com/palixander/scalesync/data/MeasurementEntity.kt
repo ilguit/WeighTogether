@@ -6,6 +6,8 @@ import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import androidx.room.ColumnInfo
+import androidx.annotation.StringRes
+import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyComposition
 import com.palixander.scalesync.core.RawScaleMeasurement
 import com.palixander.scalesync.core.measurementFingerprint
@@ -182,42 +184,42 @@ fun MeasurementValues.toCalculatedValuesSnapshot(
 }
 
 enum class MeasurementMetric(
-    val displayName: String,
-    val unit: String,
+    @param:StringRes val displayNameRes: Int,
+    @param:StringRes val unitRes: Int,
     val decimalPlaces: Int,
     private val extract: (MeasurementValues) -> Number,
 ) {
-    WEIGHT_KG("Вес", "кг", 2, MeasurementValues::weightKg),
-    IMPEDANCE_OHM("Импеданс", "Ом", 0, MeasurementValues::impedanceOhm),
-    BMI("ИМТ", "кг/м²", 1, MeasurementValues::bmi),
-    BODY_FAT_PERCENT("Жир", "%", 1, MeasurementValues::bodyFatPercent),
-    BODY_FAT_MASS_KG("Масса жира", "кг", 2, MeasurementValues::bodyFatMassKg),
-    WATER_PERCENT("Вода", "%", 1, MeasurementValues::waterPercent),
-    WATER_MASS_KG("Масса воды", "кг", 2, MeasurementValues::waterMassKg),
-    MUSCLE_MASS_KG("Мышечная масса", "кг", 2, MeasurementValues::muscleMassKg),
+    WEIGHT_KG(R.string.metric_weight, R.string.unit_kg, 2, MeasurementValues::weightKg),
+    IMPEDANCE_OHM(R.string.metric_impedance, R.string.unit_ohm, 0, MeasurementValues::impedanceOhm),
+    BMI(R.string.metric_bmi, R.string.unit_kg_per_square_meter, 1, MeasurementValues::bmi),
+    BODY_FAT_PERCENT(R.string.metric_body_fat, R.string.unit_percent, 1, MeasurementValues::bodyFatPercent),
+    BODY_FAT_MASS_KG(R.string.metric_body_fat_mass, R.string.unit_kg, 2, MeasurementValues::bodyFatMassKg),
+    WATER_PERCENT(R.string.metric_water, R.string.unit_percent, 1, MeasurementValues::waterPercent),
+    WATER_MASS_KG(R.string.metric_water_mass, R.string.unit_kg, 2, MeasurementValues::waterMassKg),
+    MUSCLE_MASS_KG(R.string.metric_muscle_mass, R.string.unit_kg, 2, MeasurementValues::muscleMassKg),
     SKELETAL_MUSCLE_MASS_KG(
-        "Скелетные мышцы",
-        "кг",
+        R.string.metric_skeletal_muscle_mass,
+        R.string.unit_kg,
         2,
         MeasurementValues::skeletalMuscleMassKg,
     ),
-    BONE_MASS_KG("Костная масса", "кг", 2, MeasurementValues::boneMassKg),
-    PROTEIN_PERCENT("Белок", "%", 1, MeasurementValues::proteinPercent),
-    PROTEIN_MASS_KG("Масса белка", "кг", 2, MeasurementValues::proteinMassKg),
+    BONE_MASS_KG(R.string.metric_bone_mass, R.string.unit_kg, 2, MeasurementValues::boneMassKg),
+    PROTEIN_PERCENT(R.string.metric_protein, R.string.unit_percent, 1, MeasurementValues::proteinPercent),
+    PROTEIN_MASS_KG(R.string.metric_protein_mass, R.string.unit_kg, 2, MeasurementValues::proteinMassKg),
     VISCERAL_FAT_LEVEL(
-        "Уровень висцерального жира",
-        "уровень",
+        R.string.metric_visceral_fat_level,
+        R.string.unit_level,
         1,
         MeasurementValues::visceralFatLevel,
     ),
     BASAL_METABOLIC_RATE_KCAL(
-        "Базальный обмен",
-        "ккал/сут",
+        R.string.metric_basal_metabolic_rate,
+        R.string.unit_kcal_per_day,
         0,
         MeasurementValues::basalMetabolicRateKcal,
     ),
-    METABOLIC_AGE("Метаболический возраст", "лет", 0, MeasurementValues::metabolicAge),
-    LEAN_BODY_MASS_KG("Безжировая масса", "кг", 2, MeasurementValues::leanBodyMassKg),
+    METABOLIC_AGE(R.string.metric_metabolic_age, R.string.unit_years, 0, MeasurementValues::metabolicAge),
+    LEAN_BODY_MASS_KG(R.string.metric_lean_body_mass, R.string.unit_kg, 2, MeasurementValues::leanBodyMassKg),
     ;
 
     fun valueOf(values: MeasurementValues): Double = extract(values).toDouble()

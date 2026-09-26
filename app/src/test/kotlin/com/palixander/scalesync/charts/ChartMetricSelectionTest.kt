@@ -12,7 +12,7 @@ import org.junit.Test
 class ChartMetricSelectionTest {
     @Test
     fun `all sixteen metrics expose stable metadata`() {
-        val options = chartMetricOptions()
+        val options = chartMetricOptions(::testMetricString)
 
         assertEquals(16, options.size)
         assertEquals(16, options.map(ChartMetricOption::key).distinct().size)
@@ -115,6 +115,11 @@ class ChartMetricSelectionTest {
         assertEquals(listOf(100_000L, 200_000L), weightPoints.map(ChartPoint::xEpochMillis))
         assertEquals(listOf(20.0), fatPoints.map(ChartPoint::value))
     }
+}
+
+private fun testMetricString(id: Int): String = when (id) {
+    com.palixander.scalesync.R.string.unit_percent -> "%"
+    else -> "resource-$id"
 }
 
 private fun chartMeasurement(id: String, measuredAt: Long) = MeasurementEntity(

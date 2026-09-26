@@ -52,7 +52,7 @@ class ManualWeightPresentationTest {
 
     @Test
     fun gramPrecisionIsVisibleInHumanPetAndHomeChartMarkers() {
-        val human = chartMetricOptions().first { it.key == "WEIGHT_KG" }
+        val human = chartMetricOptions(::testMetricString).first { it.key == "WEIGHT_KG" }
         for (weight in listOf(4.121, 4.124, 4.125)) {
             val expected = weight.toString().replace('.', ',')
             assertEquals(expected, formatWeight(weight, Locale.forLanguageTag("ru")))
@@ -76,7 +76,13 @@ class ManualWeightPresentationTest {
         assertEquals("4.12", formatWeight(4.120, Locale.US))
         assertEquals("0.001", formatWeight(0.001, Locale.US))
         assertEquals("—", formatChartCurrentValue(null, PetWeightChartMetric, Locale.US))
-        val fat = chartMetricOptions().first { it.key == "BODY_FAT_PERCENT" }
+        val fat = chartMetricOptions(::testMetricString).first { it.key == "BODY_FAT_PERCENT" }
         assertEquals("1.2 %", formatChartCurrentValue(1.2, fat, Locale.US))
     }
+}
+
+private fun testMetricString(id: Int): String = when (id) {
+    com.palixander.scalesync.R.string.unit_kg -> "кг"
+    com.palixander.scalesync.R.string.unit_percent -> "%"
+    else -> "resource-$id"
 }

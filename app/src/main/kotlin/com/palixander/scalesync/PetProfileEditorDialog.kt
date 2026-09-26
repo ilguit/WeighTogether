@@ -68,6 +68,7 @@ import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
@@ -459,7 +460,8 @@ internal fun PetProfileEditorDialog(
 
                 if (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) {
                     EditorSection(stringResource(R.string.pet_editor_breed)) {
-                        val breedA11y = stringResource(R.string.pet_editor_choose_breed_a11y, petBreedLabel(draft.breed))
+                        val breedLabel = petBreedLabel(draft.breed).resolve(LocalContext.current.resources)
+                        val breedA11y = stringResource(R.string.pet_editor_choose_breed_a11y, breedLabel)
                         OutlinedButton(
                             onClick = { breedPickerOpen = true },
                             enabled = !locked,
@@ -473,7 +475,7 @@ internal fun PetProfileEditorDialog(
                                 },
                         ) {
                             Text(
-                                text = petBreedLabel(draft.breed),
+                                text = breedLabel,
                                 modifier = Modifier.weight(1f),
                             )
                         }
@@ -746,6 +748,7 @@ private fun DogCategoryEditor(
     onChange: (DogAdultWeightCategory?) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     val clearCategoryA11y = stringResource(R.string.pet_editor_clear_category_a11y)
     EditorSection(stringResource(R.string.pet_editor_dog_category_optional), modifier) {
         Text(
@@ -756,7 +759,7 @@ private fun DogCategoryEditor(
         if (showChoices) {
             DogAdultWeightCategory.entries.forEach { category ->
                 SelectionRow(
-                    label = dogAdultWeightCategoryLabel(category),
+                    label = dogAdultWeightCategoryLabel(category).resolve(resources),
                     selected = selected == category,
                     enabled = enabled,
                     tag = PetProfileEditorTestTags.category(category),
@@ -764,7 +767,7 @@ private fun DogCategoryEditor(
                 )
             }
         } else if (selected != null) {
-            Text(stringResource(R.string.pet_editor_saved_category, dogAdultWeightCategoryLabel(selected)))
+            Text(stringResource(R.string.pet_editor_saved_category, dogAdultWeightCategoryLabel(selected).resolve(resources)))
         }
         if (selected != null) {
             TextButton(

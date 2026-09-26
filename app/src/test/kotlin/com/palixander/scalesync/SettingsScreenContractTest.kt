@@ -70,9 +70,9 @@ class SettingsScreenContractTest {
 
     @Test
     fun `legacy unspecified species has a readable label`() {
-        assertEquals("Кошка", petSpeciesLabel(PetSpecies.CAT))
-        assertEquals("Собака", petSpeciesLabel(PetSpecies.DOG))
-        assertEquals("Вид не указан", petSpeciesLabel(PetSpecies.UNSPECIFIED))
+        assertEquals(uiText(R.string.pet_species_cat), petSpeciesLabel(PetSpecies.CAT))
+        assertEquals(uiText(R.string.pet_species_dog), petSpeciesLabel(PetSpecies.DOG))
+        assertEquals(uiText(R.string.pet_species_unspecified), petSpeciesLabel(PetSpecies.UNSPECIFIED))
     }
 
     @Test
