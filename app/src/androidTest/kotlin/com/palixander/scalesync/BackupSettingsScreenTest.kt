@@ -20,6 +20,8 @@ import com.palixander.scalesync.data.AppStateEntity
 import com.palixander.scalesync.data.PortableProfileSettings
 import org.junit.Rule
 import org.junit.Test
+import androidx.test.platform.app.InstrumentationRegistry
+import com.palixander.scalesync.ui.text.resolve
 
 class BackupSettingsScreenTest {
     @get:Rule val compose = createComposeRule()
@@ -78,7 +80,9 @@ class BackupSettingsScreenTest {
         }
 
         compose.onNodeWithTag(SettingsScreenTestTags.BackupDialog).assertExists()
-        compose.onNodeWithText(BACKUP_REPLACE_WARNING).assertExists()
+        compose.onNodeWithText(
+            BACKUP_REPLACE_WARNING.resolve(InstrumentationRegistry.getInstrumentation().targetContext.resources),
+        ).assertExists()
     }
 
     private fun replacePreview(): BackupImportPreview {

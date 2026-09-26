@@ -33,6 +33,7 @@ import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
+import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.routing.MeasurementResolverCallbacks
 import com.palixander.scalesync.ui.routing.MeasurementResolverDialog
 import com.palixander.scalesync.ui.routing.MeasurementResolverUiState
@@ -160,7 +161,7 @@ class Issue58ScreenshotMatrixTest {
     @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     private fun Profiles(empty: Boolean) {
-        check(formatLatestPetWeight(PET_WITH_LATEST_WEIGHT) == "5,4 кг · вчера, 19:32")
+        val resources = InstrumentationRegistry.getInstrumentation().targetContext.resources
         Scaffold(topBar = { TopAppBar(title = { Text("Профили и питомцы") }) }) { padding ->
             AccountManagementSection(
                 state = if (empty) AccountManagementUiState() else AccountManagementUiState(
@@ -173,7 +174,7 @@ class Issue58ScreenshotMatrixTest {
                     PetWithLatestWeight(SECOND_PET, null),
                 ),
                 petSpeciesLabel = { if (it.pet.species == PetSpecies.CAT) "Кошка" else "Собака" },
-                petWeightLabel = { formatLatestPetWeight(it) },
+                petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         }

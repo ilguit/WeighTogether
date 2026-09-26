@@ -1,5 +1,8 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.uiText
+
 enum class ScaleAvailability {
     AVAILABLE,
     PERMISSION_REQUIRED,
@@ -12,9 +15,9 @@ internal enum class ScaleSettingsAction { SEARCH, OPEN_APP_SETTINGS, RETRY }
 
 internal data class ScaleSettingsPresentation(
     val status: ScaleSettingsStatus,
-    val supportingText: String,
+    val supportingText: UiText,
     val action: ScaleSettingsAction?,
-    val actionLabel: String?,
+    val actionLabel: UiText?,
     val actionEnabled: Boolean,
     val showProgress: Boolean,
     val allowForget: Boolean,
@@ -32,12 +35,12 @@ internal fun scaleSettingsPresentation(
         return ScaleSettingsPresentation(
             status = ScaleSettingsStatus.UNAVAILABLE,
             supportingText = if (permissionMissing) {
-                "Нет разрешения на поиск Bluetooth-устройств"
+                uiText(R.string.settings_scale_permission_missing)
             } else {
-                "Bluetooth выключен"
+                uiText(R.string.settings_bluetooth_off)
             },
             action = ScaleSettingsAction.OPEN_APP_SETTINGS.takeIf { permissionMissing },
-            actionLabel = "Открыть настройки".takeIf { permissionMissing },
+            actionLabel = uiText(R.string.settings_open_settings).takeIf { permissionMissing },
             actionEnabled = permissionMissing,
             showProgress = false,
             allowForget = false,
@@ -45,36 +48,41 @@ internal fun scaleSettingsPresentation(
     }
     if (scanning) return ScaleSettingsPresentation(
         status = ScaleSettingsStatus.CHECKING,
-        supportingText = "Идёт поиск весов…",
+        supportingText = uiText(R.string.settings_scale_searching),
         action = null,
-        actionLabel = "Поиск…",
+        actionLabel = uiText(R.string.settings_searching),
         actionEnabled = false,
         showProgress = true,
         allowForget = false,
     )
     if (scanError != null) return ScaleSettingsPresentation(
         status = ScaleSettingsStatus.ERROR,
-        supportingText = scanError,
+        supportingText = uiText(R.string.settings_raw_value, scanError),
         action = ScaleSettingsAction.RETRY,
-        actionLabel = "Повторить",
+        actionLabel = uiText(R.string.settings_retry),
         actionEnabled = true,
         showProgress = false,
         allowForget = false,
     )
     if (selectedAddress == null) return ScaleSettingsPresentation(
         status = ScaleSettingsStatus.EMPTY,
-        supportingText = "Весы ещё не выбраны",
+        supportingText = uiText(R.string.settings_scale_not_chosen),
         action = ScaleSettingsAction.SEARCH,
-        actionLabel = "Найти весы",
+        actionLabel = uiText(R.string.settings_find_scale),
         actionEnabled = true,
         showProgress = false,
         allowForget = false,
     )
     return ScaleSettingsPresentation(
         status = ScaleSettingsStatus.READY,
-        supportingText = "${selectedName ?: "Mi Body Composition Scale 2"} · $selectedAddress",
+        supportingText = uiText(
+            R.string.settings_scale_identity,
+            selectedName?.let { uiText(R.string.settings_raw_value, it) }
+                ?: uiText(R.string.settings_default_scale_name),
+            selectedAddress,
+        ),
         action = ScaleSettingsAction.SEARCH,
-        actionLabel = "Выбрать другие",
+        actionLabel = uiText(R.string.settings_choose_another),
         actionEnabled = true,
         showProgress = false,
         allowForget = true,
@@ -85,8 +93,9 @@ internal fun scaleSettingsPresentation(
 internal fun scaleRootSupportingText(
     presentation: ScaleSettingsPresentation,
     selectedName: String?,
-): String = if (presentation.status == ScaleSettingsStatus.READY) {
-    selectedName ?: "Mi Body Composition Scale 2"
+): UiText = if (presentation.status == ScaleSettingsStatus.READY) {
+    selectedName?.let { uiText(R.string.settings_raw_value, it) }
+        ?: uiText(R.string.settings_default_scale_name)
 } else {
     presentation.supportingText
 }

@@ -52,6 +52,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
@@ -84,6 +85,10 @@ import com.palixander.scalesync.ui.settings.SettingsGroupRow
 import com.palixander.scalesync.ui.settings.SettingsStatusMark
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.uiText
+import com.palixander.scalesync.ui.text.pluralUiText
 import java.text.NumberFormat
 import java.time.Instant
 import java.time.ZoneId
@@ -187,8 +192,8 @@ internal fun settingsDetailDestructiveAction(
 }
 
 internal data class IntegrationPresentation(
-    val supportingText: String,
-    val actionLabel: String? = null,
+    val supportingText: UiText,
+    val actionLabel: UiText? = null,
     val actionEnabled: Boolean = true,
     val actionOpensManagement: Boolean = false,
     val actionRetriesCheck: Boolean = false,
@@ -273,31 +278,35 @@ internal object SettingsScreenTestTags {
     const val HealthConnectStatusMark = "settings-health-connect-status-mark"
 }
 
-internal object SettingsScreenContentDescriptions {
-    const val HealthConnectRow = "Настройки Health Connect"
-    const val HealthConnectConnectAction = "Подключить Health Connect"
-    const val HealthConnectOpenAction = "Открыть Health Connect"
-}
-
 private val ProfileSummaryDateFormatter = DateTimeFormatter.ofPattern("dd.MM.yyyy")
 
-internal fun formatProfileSummary(profile: UserProfile?): String {
-    if (profile == null) return "Профиль не настроен"
-    val height = if (profile.heightCm % 1.0 == 0.0) {
-        profile.heightCm.toInt().toString()
-    } else {
-        String.format(Locale.US, "%.1f", profile.heightCm).replace('.', ',')
+internal fun formatProfileSummary(profile: UserProfile?, locale: Locale = Locale.getDefault()): UiText {
+    if (profile == null) return uiText(R.string.settings_profile_not_configured)
+    val height = NumberFormat.getNumberInstance(locale).run {
+        minimumFractionDigits = 0
+        maximumFractionDigits = 1
+        format(profile.heightCm)
     }
-    val sex = if (profile.sex == Sex.MALE) "мужской" else "женский"
-    return "$height см · ${profile.birthDate.format(ProfileSummaryDateFormatter)} · $sex"
+    val sex = if (profile.sex == Sex.MALE) R.string.settings_sex_male_lower else R.string.settings_sex_female_lower
+    return uiText(
+        R.string.settings_profile_summary,
+        height,
+        profile.birthDate.format(ProfileSummaryDateFormatter),
+        uiText(sex),
+    )
 }
 
-internal fun profilesRootSummary(peopleCount: Int, petCount: Int): String {
+internal fun profilesRootSummary(peopleCount: Int, petCount: Int): UiText {
     require(peopleCount >= 0)
     require(petCount >= 0)
-    if (peopleCount == 0 && petCount == 0) return "Добавьте первый профиль"
-    return "${russianCount(peopleCount, "человек", "человека", "человек")} · " +
-        russianCount(petCount, "питомец", "питомца", "питомцев")
+    if (peopleCount == 0 && petCount == 0) return uiText(R.string.settings_add_first_profile)
+    return UiText.Joined(
+        listOf(
+            pluralUiText(R.plurals.settings_people_count, peopleCount, peopleCount),
+            pluralUiText(R.plurals.settings_pet_count, petCount, petCount),
+        ),
+        separator = " · ",
+    )
 }
 
 internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? = when (destination) {
@@ -311,27 +320,16 @@ internal fun settingsRootGroupItemIndex(destination: SettingsDestination): Int? 
     SettingsDestination.ROOT -> null
 }
 
-internal fun scaleDetailIdentity(settings: AppSettings): String {
-    val address = settings.scaleAddress ?: return "Устройство не выбрано"
-    return listOfNotNull(settings.scaleName, address).joinToString(" · ")
-}
-
-private fun russianCount(count: Int, one: String, few: String, many: String): String {
-    val word = when {
-        count % 100 in 11..14 -> many
-        count % 10 == 1 -> one
-        count % 10 in 2..4 -> few
-        else -> many
-    }
-    return "$count $word"
-}
+internal fun scaleDetailIdentity(settings: AppSettings): UiText = settings.scaleAddress?.let { address ->
+    uiText(R.string.settings_raw_value, listOfNotNull(settings.scaleName, address).joinToString(" · "))
+} ?: uiText(R.string.settings_device_not_selected)
 
 internal fun formatLatestPetWeight(
     pet: PetWithLatestWeight,
     locale: Locale = Locale.getDefault(),
     now: Instant = Instant.now(),
     zoneId: ZoneId = ZoneId.systemDefault(),
-): String = pet.latestPetWeightKg?.let {
+): UiText = pet.latestPetWeightKg?.let {
     val formatted = NumberFormat.getNumberInstance(locale).run {
         minimumFractionDigits = 0
         maximumFractionDigits = 2
@@ -340,53 +338,51 @@ internal fun formatLatestPetWeight(
     val measuredAt = requireNotNull(pet.latestMeasuredAt).atZone(zoneId)
     val today = now.atZone(zoneId).toLocalDate()
     val dateLabel = when (measuredAt.toLocalDate()) {
-        today -> "сегодня"
-        today.minusDays(1) -> "вчера"
-        else -> measuredAt.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", locale))
+        today -> uiText(R.string.settings_today)
+        today.minusDays(1) -> uiText(R.string.settings_yesterday)
+        else -> uiText(R.string.settings_raw_value, measuredAt.format(DateTimeFormatter.ofPattern("dd.MM.yyyy", locale)))
     }
     val timeLabel = measuredAt.format(DateTimeFormatter.ofPattern("HH:mm", locale))
-    "$formatted кг · $dateLabel, $timeLabel"
-} ?: "—"
+    uiText(R.string.settings_pet_weight_summary, formatted, dateLabel, timeLabel)
+} ?: uiText(R.string.settings_no_value)
 
-internal const val BACKUP_REPLACE_WARNING =
-    "Все локальные профили, измерения людей, ожидающие измерения, питомцы и измерения питомцев " +
-        "будут заменены. Это действие нельзя отменить."
+internal val BACKUP_REPLACE_WARNING = uiText(R.string.settings_backup_replace_warning)
 
 internal fun healthConnectPresentation(
     state: HealthConnectPermissionsUiState,
     locallyEnabled: Boolean = true,
 ): IntegrationPresentation = when (state.availability) {
     HealthConnectAvailability.CHECKING -> IntegrationPresentation(
-        supportingText = "Проверка разрешений…",
-        actionLabel = "Подключить",
+        supportingText = uiText(R.string.settings_hc_checking),
+        actionLabel = uiText(R.string.settings_connect),
         actionEnabled = false,
     )
     HealthConnectAvailability.UNAVAILABLE -> IntegrationPresentation(
-        supportingText = "Недоступно: устройство не поддерживает Health Connect",
+        supportingText = uiText(R.string.settings_hc_unsupported),
     )
     HealthConnectAvailability.PROVIDER_UPDATE_REQUIRED -> IntegrationPresentation(
-        supportingText = "Недоступно: установите или обновите Health Connect",
+        supportingText = uiText(R.string.settings_hc_update_required),
     )
     HealthConnectAvailability.CHECK_FAILED -> IntegrationPresentation(
-        supportingText = "Не удалось проверить разрешения",
-        actionLabel = "Подключить",
+        supportingText = uiText(R.string.settings_hc_check_failed),
+        actionLabel = uiText(R.string.settings_connect),
     )
     HealthConnectAvailability.AVAILABLE -> if (!locallyEnabled) {
         IntegrationPresentation(
-            supportingText = "Отключено в приложении",
-            actionLabel = "Подключить снова",
+            supportingText = uiText(R.string.settings_hc_disabled),
+            actionLabel = uiText(R.string.settings_connect_again),
         )
     } else if (state.isConnected) {
         IntegrationPresentation(
-            supportingText = "Подключено · все разрешения выданы",
-            actionLabel = "Открыть",
+            supportingText = uiText(R.string.settings_hc_connected),
+            actionLabel = uiText(R.string.settings_open),
             actionOpensManagement = true,
         )
     } else {
         val grantedCount = state.permissionStates.count { it.value }
         IntegrationPresentation(
-            supportingText = "Разрешено $grantedCount из ${state.requiredPermissions.size}",
-            actionLabel = "Подключить",
+            supportingText = uiText(R.string.settings_hc_permissions_count, grantedCount, state.requiredPermissions.size),
+            actionLabel = uiText(R.string.settings_connect),
         )
     }
 }
@@ -396,7 +392,7 @@ internal fun IntegrationPresentation.withHealthConnectManagementFallback(
     systemManagementAvailable: Boolean,
 ): IntegrationPresentation = if (actionOpensManagement && !systemManagementAvailable) {
     copy(
-        supportingText = "$supportingText · управляйте доступом вручную в Health Connect",
+        supportingText = uiText(R.string.settings_hc_manual_fallback, supportingText),
         actionLabel = null,
     )
 } else {
@@ -510,6 +506,7 @@ private fun SettingsScaleDetail(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     SettingsActionDetail(
         state = state,
         contentPadding = contentPadding,
@@ -520,12 +517,12 @@ private fun SettingsScaleDetail(
     ) {
         val presentation = scalePresentation(state)
         ConnectionDetailContent(
-            title = "Весы",
+            title = stringResource(R.string.settings_scales_title),
             icon = HuaweiIcons.Bluetooth,
-            status = presentation.supportingText,
-            identityLabel = "Устройство",
-            identity = scaleDetailIdentity(state.settings),
-            actionLabel = presentation.actionLabel,
+            status = presentation.supportingText.resolve(resources),
+            identityLabel = stringResource(R.string.settings_device),
+            identity = scaleDetailIdentity(state.settings).resolve(resources),
+            actionLabel = presentation.actionLabel?.resolve(resources),
             actionEnabled = presentation.actionEnabled,
             actionTag = SettingsScreenTestTags.ScaleAction,
             progress = presentation.showProgress,
@@ -546,6 +543,7 @@ private fun SettingsHealthConnectDetail(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     val presentation = healthConnectPresentation(
         state.healthConnect,
         state.settings.healthConnectSyncEnabled,
@@ -559,18 +557,18 @@ private fun SettingsHealthConnectDetail(
         modifier = modifier,
     ) {
         ConnectionDetailContent(
-            title = "Health Connect",
+            title = stringResource(R.string.settings_health_connect),
             icon = HuaweiIcons.HealthConnect,
-            status = presentation.supportingText,
-            identityLabel = "Устройство",
-            identity = "Системная интеграция",
-            actionLabel = presentation.actionLabel,
+            status = presentation.supportingText.resolve(resources),
+            identityLabel = stringResource(R.string.settings_device),
+            identity = stringResource(R.string.settings_system_integration),
+            actionLabel = presentation.actionLabel?.resolve(resources),
             actionEnabled = presentation.actionEnabled,
             actionTag = SettingsScreenTestTags.HealthConnectAction,
             actionContentDescription = if (presentation.actionOpensManagement) {
-                SettingsScreenContentDescriptions.HealthConnectOpenAction
+                stringResource(R.string.settings_hc_open_cd)
             } else {
-                SettingsScreenContentDescriptions.HealthConnectConnectAction
+                stringResource(R.string.settings_hc_connect_cd)
             },
             onAction = if (presentation.actionOpensManagement) {
                 callbacks.onHealthConnectAccessManagement
@@ -702,12 +700,12 @@ private fun ConnectionDetailContent(
                 }
             }
         }
-        DetailSectionTitle("Состояние")
+        DetailSectionTitle(stringResource(R.string.settings_state))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DetailStatusGroup)) {
             DetailInfoRow(identityLabel, identity)
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DetailStatusDivider))
             DetailInfoRow(
-                label = "Статус",
+                label = stringResource(R.string.settings_status),
                 value = status,
                 modifier = Modifier.testTag(statusTag)
                     .semantics { stateDescription = status },
@@ -742,12 +740,12 @@ private fun DetailSectionTitle(title: String) {
 @Composable
 private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: SettingsCallbacks) {
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-        DetailSectionTitle("Сохранить данные")
+        DetailSectionTitle(stringResource(R.string.settings_save_data))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupSaveGroup)) {
             DetailActionRow(
                 icon = HuaweiIcons.Archive,
-                title = "Экспортировать резервную копию",
-                supportingText = "Профили, питомцы, измерения и настройки",
+                title = stringResource(R.string.settings_export_backup),
+                supportingText = stringResource(R.string.settings_backup_contents),
                 enabled = !state.inProgress,
                 tag = SettingsScreenTestTags.BackupExport,
                 onClick = callbacks.onExportBackup,
@@ -759,14 +757,14 @@ private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: Setting
             modifier = Modifier.padding(horizontal = 8.dp),
         ) {
             CircularProgressIndicator(Modifier.size(24.dp))
-            Text("Обработка резервной копии…")
+            Text(stringResource(R.string.settings_backup_processing))
         }
-        DetailSectionTitle("Восстановить данные")
+        DetailSectionTitle(stringResource(R.string.settings_restore_data))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupRestoreGroup)) {
             DetailActionRow(
                 icon = HuaweiIcons.Refresh,
-                title = "Импортировать и объединить",
-                supportingText = "Сохранить существующие данные",
+                title = stringResource(R.string.settings_import_merge),
+                supportingText = stringResource(R.string.settings_keep_existing_data),
                 enabled = !state.inProgress,
                 tag = SettingsScreenTestTags.BackupMerge,
                 onClick = { callbacks.onImportBackup(BackupImportMode.MERGE) },
@@ -774,8 +772,8 @@ private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: Setting
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.BackupRestoreDivider))
             DetailActionRow(
                 icon = HuaweiIcons.Warning,
-                title = "Полностью заменить данные",
-                supportingText = "Текущие данные будут удалены после подтверждения",
+                title = stringResource(R.string.settings_replace_all_data),
+                supportingText = stringResource(R.string.settings_replace_data_supporting),
                 enabled = !state.inProgress,
                 tag = SettingsScreenTestTags.BackupReplace,
                 onClick = { callbacks.onImportBackup(BackupImportMode.REPLACE) },
@@ -810,22 +808,22 @@ private fun SettingsDiagnosticsContent(
     callbacks: SettingsCallbacks,
 ) {
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-        DetailSectionTitle("Работа в фоне")
+        DetailSectionTitle(stringResource(R.string.settings_background_work))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup)) {
             DiagnosticsSwitchRow(state, callbacks)
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider))
             DetailActionRow(
                 icon = HuaweiIcons.Settings,
-                title = "Настройки батареи",
-                supportingText = "Разрешить фоновую работу",
+                title = stringResource(R.string.settings_battery_settings),
+                supportingText = stringResource(R.string.settings_allow_background),
                 tag = "settings-diagnostics-battery",
                 onClick = callbacks.openBatterySettings,
             )
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider))
             DetailActionRow(
                 icon = HuaweiIcons.Tune,
-                title = "Системные настройки приложения",
-                supportingText = "Разрешения и уведомления",
+                title = stringResource(R.string.settings_system_app_settings),
+                supportingText = stringResource(R.string.settings_permissions_notifications),
                 tag = "settings-diagnostics-application",
                 onClick = callbacks.openApplicationSettings,
             )
@@ -835,6 +833,7 @@ private fun SettingsDiagnosticsContent(
 
 @Composable
 private fun DiagnosticsSwitchRow(state: MainUiState, callbacks: SettingsCallbacks) {
+    val resources = LocalContext.current.resources
     Row(
         modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
             .clickable(role = Role.Switch) {
@@ -844,9 +843,9 @@ private fun DiagnosticsSwitchRow(state: MainUiState, callbacks: SettingsCallback
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text("Режим надёжности", style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.settings_reliability_mode), style = MaterialTheme.typography.titleSmall)
             Text(
-                "Поддерживать поиск весов в фоне",
+                stringResource(R.string.settings_reliability_mode_supporting),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -854,7 +853,7 @@ private fun DiagnosticsSwitchRow(state: MainUiState, callbacks: SettingsCallback
         Switch(
             checked = state.settings.reliabilityMode,
             onCheckedChange = callbacks.onReliabilityMode,
-            modifier = Modifier.semantics { contentDescription = "Режим надёжности" },
+            modifier = Modifier.semantics { contentDescription = resources.getString(R.string.settings_reliability_mode) },
         )
     }
 }
@@ -866,11 +865,11 @@ private fun DetailDestructiveAction(
     onClick: () -> Unit,
 ) {
     val (label, tag) = when (action) {
-        DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect" to SettingsScreenTestTags.DisableHealthConnect
-        DestructiveSettingsAction.SCALE -> "Забыть выбранные весы" to SettingsScreenTestTags.ForgetScale
+        DestructiveSettingsAction.HEALTH_CONNECT -> stringResource(R.string.settings_disconnect_hc) to SettingsScreenTestTags.DisableHealthConnect
+        DestructiveSettingsAction.SCALE -> stringResource(R.string.settings_forget_scale) to SettingsScreenTestTags.ForgetScale
     }
     Column(Modifier.testTag(SettingsScreenTestTags.DetailDangerZone)) {
-        DetailSectionTitle("Управление")
+        DetailSectionTitle(stringResource(R.string.settings_management))
         OutlinedButton(
             onClick = onClick,
             enabled = enabled,
@@ -887,6 +886,7 @@ private fun SettingsProfilesContent(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     state.accountManagement.editor?.let { draft ->
         AccountEditorScreen(
             draft = draft,
@@ -928,7 +928,7 @@ private fun SettingsProfilesContent(
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
                     petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                    petWeightLabel = { formatLatestPetWeight(it) },
+                    petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
                 )
             }
             item {
@@ -988,7 +988,7 @@ private fun SettingsRootScreen(
             }
             item {
                 Text(
-                    "Весы и синхронизация",
+                    stringResource(R.string.settings_connections_heading),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier
@@ -1031,7 +1031,7 @@ private fun SettingsRootScreen(
             }
             item {
                 Text(
-                    "Данные и приложение",
+                    stringResource(R.string.settings_support_heading),
                     style = MaterialTheme.typography.titleSmall,
                     color = MaterialTheme.colorScheme.secondary,
                     modifier = Modifier
@@ -1045,7 +1045,7 @@ private fun SettingsRootScreen(
                     SettingsNavigationRow(
                         SettingsDestination.BACKUP,
                         settingsRootIcon(SettingsDestination.BACKUP),
-                        "Экспорт и восстановление данных",
+                        uiText(R.string.settings_backup_root_supporting),
                         SettingsScreenTestTags.BackupRow,
                         onDestinationChanged,
                         focusRequesters[SettingsDestination.BACKUP],
@@ -1054,7 +1054,7 @@ private fun SettingsRootScreen(
                     SettingsNavigationRow(
                         SettingsDestination.DIAGNOSTICS,
                         settingsRootIcon(SettingsDestination.DIAGNOSTICS),
-                        "Проверка и системные параметры",
+                        uiText(R.string.settings_diagnostics_root_supporting),
                         SettingsScreenTestTags.DiagnosticsRow,
                         onDestinationChanged,
                         focusRequesters[SettingsDestination.DIAGNOSTICS],
@@ -1062,8 +1062,8 @@ private fun SettingsRootScreen(
                     SettingsRootDivider(SettingsScreenTestTags.SupportSecondDivider)
                     SettingsGroupRow(
                         leadingIcon = HuaweiIcons.History,
-                        title = "История версий",
-                        supportingText = "Что изменилось в приложении",
+                        title = stringResource(R.string.settings_version_history),
+                        supportingText = stringResource(R.string.settings_version_history_supporting),
                         modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
                         onClick = callbacks.onOpenChangelog,
                         leadingIconTag = SettingsScreenTestTags.ChangelogRow + SettingsScreenTestTags.LeadingIconSuffix,
@@ -1079,23 +1079,25 @@ private fun SettingsRootScreen(
 private fun SettingsNavigationRow(
     destination: SettingsDestination,
     leadingIcon: androidx.compose.ui.graphics.vector.ImageVector,
-    supportingText: String,
+    supportingText: UiText,
     testTag: String,
     onDestinationChanged: (SettingsDestination) -> Unit,
     focusRequester: FocusRequester?,
     status: (@Composable () -> Unit)? = null,
 ) {
+    val resources = LocalContext.current.resources
+    val resolvedSupportingText = supportingText.resolve(resources)
     SettingsGroupRow(
         leadingIcon = leadingIcon,
         title = stringResource(destination.titleRes),
-        supportingText = supportingText,
+        supportingText = resolvedSupportingText,
         modifier = Modifier
             .testTag(testTag)
             .then(if (focusRequester == null) Modifier else Modifier.focusRequester(focusRequester))
             .semantics {
-                stateDescription = supportingText
+                stateDescription = resolvedSupportingText
                 if (destination == SettingsDestination.HEALTH_CONNECT) {
-                    contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                    contentDescription = resources.getString(R.string.settings_hc_row_cd)
                 }
             },
         onClick = { onDestinationChanged(destination) },
@@ -1142,6 +1144,7 @@ private fun LegacySettingsScreen(
     contentPadding: PaddingValues,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     state.accountManagement.editor?.let { draft ->
         AccountEditorScreen(
             draft = draft,
@@ -1195,7 +1198,7 @@ private fun LegacySettingsScreen(
         ) {
             item {
                 CollapsibleSettingsSection(
-                    title = "Профили",
+                    title = stringResource(R.string.settings_profiles),
                     expansion = accountsExpansion,
                     testTag = SettingsScreenTestTags.AccountsSection,
                     contentTestTag = SettingsScreenTestTags.AccountsContent,
@@ -1210,7 +1213,7 @@ private fun LegacySettingsScreen(
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
                             petSpeciesLabel = { petSpeciesLabel(it.pet.species) },
-                            petWeightLabel = { formatLatestPetWeight(it) },
+                            petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
                         )
                         WeightRecognitionSetting(
                             state = state.weightDeltaEditor,
@@ -1224,7 +1227,7 @@ private fun LegacySettingsScreen(
             }
             item {
                 CollapsibleSettingsSection(
-                    title = "Интеграции",
+                    title = stringResource(R.string.settings_integrations),
                     expansion = integrationsExpansion,
                     testTag = SettingsScreenTestTags.IntegrationsSection,
                     contentTestTag = SettingsScreenTestTags.IntegrationsContent,
@@ -1236,7 +1239,7 @@ private fun LegacySettingsScreen(
             }
             item {
                 CollapsibleSettingsSection(
-                    title = "Весы",
+                    title = stringResource(R.string.settings_scales),
                     expansion = scaleExpansion,
                     testTag = SettingsScreenTestTags.ScaleSection,
                     contentTestTag = SettingsScreenTestTags.ScaleContent,
@@ -1248,7 +1251,7 @@ private fun LegacySettingsScreen(
             }
             item {
                 CollapsibleSettingsSection(
-                    title = "Резервная копия",
+                    title = stringResource(R.string.settings_backup),
                     expansion = backupExpansion,
                     testTag = SettingsScreenTestTags.BackupSection,
                     contentTestTag = SettingsScreenTestTags.BackupContent,
@@ -1257,7 +1260,7 @@ private fun LegacySettingsScreen(
             }
             item {
                 CollapsibleSettingsSection(
-                    title = "Дополнительно",
+                    title = stringResource(R.string.settings_additional),
                     expansion = additionalExpansion,
                     testTag = SettingsScreenTestTags.AdditionalSection,
                     contentTestTag = SettingsScreenTestTags.AdditionalContent,
@@ -1271,7 +1274,7 @@ private fun LegacySettingsScreen(
             }
             item {
                 CollapsibleSettingsSection(
-                    title = "О приложении",
+                    title = stringResource(R.string.settings_about),
                     expansion = aboutExpansion,
                     testTag = SettingsScreenTestTags.AboutSection,
                     contentTestTag = SettingsScreenTestTags.AboutContent,
@@ -1280,14 +1283,14 @@ private fun LegacySettingsScreen(
                     HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
                         HuaweiSettingRow(
                             icon = HuaweiIcons.Calendar,
-                            title = "История изменений",
-                            supportingText = "Что нового в версиях приложения",
+                            title = stringResource(R.string.settings_changelog),
+                            supportingText = stringResource(R.string.settings_changelog_supporting),
                             modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
                             onClick = callbacks.onOpenChangelog,
                         ) {
                             HuaweiIconButton(
                                 icon = HuaweiIcons.ChevronRight,
-                                contentDescription = "Открыть историю изменений",
+                                contentDescription = stringResource(R.string.settings_open_changelog),
                                 onClick = callbacks.onOpenChangelog,
                             )
                         }
@@ -1302,16 +1305,13 @@ private fun LegacySettingsScreen(
         AlertDialog(
             modifier = Modifier.testTag(SettingsScreenTestTags.BackupDialog),
             onDismissRequest = callbacks.onDismissBackupImport,
-            title = { Text(if (replaceWarning) "Подтвердите замену" else "Проверка импорта") },
+            title = { Text(stringResource(if (replaceWarning) R.string.settings_confirm_replace else R.string.settings_import_preview)) },
             text = {
                 Text(
                     if (replaceWarning) {
-                        BACKUP_REPLACE_WARNING
+                        BACKUP_REPLACE_WARNING.resolve(LocalContext.current.resources)
                     } else {
-                        "Профили: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
-                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
-                            "Питомцы: +${counts.petsAdded}, пропущено ${counts.petsSkipped}, заменено ${counts.petsReplaced}. " +
-                            "Измерения питомцев: +${counts.petMeasurementsAdded}, пропущено ${counts.petMeasurementsSkipped}, заменено ${counts.petMeasurementsReplaced}."
+                        stringResource(R.string.settings_import_counts, counts.accountsAdded, counts.accountsSkipped, counts.accountsReplaced, counts.measurementsAdded, counts.measurementsSkipped, counts.measurementsReplaced, counts.petsAdded, counts.petsSkipped, counts.petsReplaced, counts.petMeasurementsAdded, counts.petMeasurementsSkipped, counts.petMeasurementsReplaced)
                     },
                 )
             },
@@ -1320,10 +1320,10 @@ private fun LegacySettingsScreen(
                     onClick = callbacks.onConfirmBackupImport,
                     enabled = !state.backup.inProgress,
                     modifier = Modifier.testTag(SettingsScreenTestTags.BackupConfirm),
-                ) { Text(if (replaceWarning) "Заменить данные" else "Импортировать") }
+                ) { Text(stringResource(if (replaceWarning) R.string.settings_replace_data else R.string.settings_import)) }
             },
             dismissButton = {
-                TextButton(onClick = callbacks.onDismissBackupImport) { Text("Отмена") }
+                TextButton(onClick = callbacks.onDismissBackupImport) { Text(stringResource(R.string.settings_cancel)) }
             },
         )
     }
@@ -1365,7 +1365,7 @@ private fun IntegrationDestructiveActions(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
                 Text(
-                    "Эти действия прекращают будущую синхронизацию или удаляют привязку устройства.",
+                    stringResource(R.string.settings_danger_explanation),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -1373,7 +1373,7 @@ private fun IntegrationDestructiveActions(
                     onClick = { onRequest(DestructiveSettingsAction.HEALTH_CONNECT) },
                     enabled = !busy,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHealthConnect),
-                ) { Text("Отключить Health Connect") }
+                ) { Text(stringResource(R.string.settings_disconnect_hc)) }
             }
         }
     }
@@ -1393,7 +1393,7 @@ private fun ScaleDestructiveAction(
             .fillMaxWidth()
             .padding(HuaweiDimensions.ContentPadding)
             .testTag(SettingsScreenTestTags.ForgetScale),
-    ) { Text("Забыть выбранные весы") }
+    ) { Text(stringResource(R.string.settings_forget_scale)) }
 }
 
 @Composable
@@ -1404,10 +1404,10 @@ private fun DestructiveConfirmationDialog(
     onConfirm: () -> Unit,
 ) {
     val (title, warning) = when (action) {
-        DestructiveSettingsAction.HEALTH_CONNECT -> "Отключить Health Connect?" to
-            "Новые измерения перестанут отправляться. Уже записанные данные не удалятся. Системные разрешения отзываются отдельно."
-        DestructiveSettingsAction.SCALE -> "Забыть выбранные весы?" to
-            "Фоновое сканирование будет остановлено, а привязку весов потребуется настроить заново. Измерения не удалятся."
+        DestructiveSettingsAction.HEALTH_CONNECT -> stringResource(R.string.settings_disconnect_hc_question) to
+            stringResource(R.string.settings_disconnect_hc_explanation)
+        DestructiveSettingsAction.SCALE -> stringResource(R.string.settings_forget_scale_question) to
+            stringResource(R.string.settings_forget_scale_explanation)
     }
     AlertDialog(
         modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveDialog),
@@ -1421,7 +1421,7 @@ private fun DestructiveConfirmationDialog(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     CircularProgressIndicator()
-                    Text("Выполняется…")
+                    Text(stringResource(R.string.settings_in_progress))
                 }
             }
         },
@@ -1430,9 +1430,9 @@ private fun DestructiveConfirmationDialog(
                 onClick = onConfirm,
                 enabled = !busy,
                 modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveConfirm),
-            ) { Text("Подтвердить") }
+            ) { Text(stringResource(R.string.settings_confirm)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text("Отмена") } },
+        dismissButton = { TextButton(onClick = onDismiss, enabled = !busy) { Text(stringResource(R.string.settings_cancel)) } },
     )
 }
 
@@ -1442,19 +1442,19 @@ private fun PetDeletionDialog(state: MainUiState, callbacks: SettingsCallbacks) 
         AlertDialog(
             modifier = Modifier.testTag(SettingsScreenTestTags.PetDeleteDialog),
             onDismissRequest = { if (!state.petManagement.busy) callbacks.onDismissPetManagement() },
-            title = { Text("Удалить ${preview.pet.displayName}?") },
-            text = { Text("Будет удалено измерений: ${preview.measurementCount}. Это действие нельзя отменить.") },
+            title = { Text(stringResource(R.string.settings_delete_pet_question, preview.pet.displayName)) },
+            text = { Text(stringResource(R.string.settings_delete_pet_explanation, preview.measurementCount)) },
             confirmButton = {
                 TextButton(
                     enabled = !state.petManagement.busy,
                     onClick = callbacks.onConfirmDeletePet,
-                ) { Text("Удалить") }
+                ) { Text(stringResource(R.string.settings_delete)) }
             },
             dismissButton = {
                 TextButton(
                     enabled = !state.petManagement.busy,
                     onClick = callbacks.onDismissPetManagement,
-                ) { Text("Отмена") }
+                ) { Text(stringResource(R.string.settings_cancel)) }
             },
         )
     }
@@ -1464,31 +1464,31 @@ private fun PetDeletionDialog(state: MainUiState, callbacks: SettingsCallbacks) 
 private fun SettingsBackupContent(state: BackupUiState, callbacks: SettingsCallbacks) {
         HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
             Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                Text("Сохраните данные в JSON или импортируйте копию с предварительной проверкой.")
+                Text(stringResource(R.string.settings_backup_intro))
                 if (state.inProgress) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
                         CircularProgressIndicator()
-                        Text("Обработка резервной копии…")
+                        Text(stringResource(R.string.settings_backup_processing))
                     }
                 }
                 Button(
                     onClick = callbacks.onExportBackup,
                     enabled = !state.inProgress,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupExport),
-                ) { Text("Экспортировать") }
+                ) { Text(stringResource(R.string.settings_export)) }
                 OutlinedButton(
                     onClick = { callbacks.onImportBackup(BackupImportMode.MERGE) },
                     enabled = !state.inProgress,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupMerge),
-                ) { Text("Импортировать и объединить") }
+                ) { Text(stringResource(R.string.settings_import_merge)) }
                 OutlinedButton(
                     onClick = { callbacks.onImportBackup(BackupImportMode.REPLACE) },
                     enabled = !state.inProgress,
                     modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupReplace),
-                ) { Text("Импортировать с заменой") }
+                ) { Text(stringResource(R.string.settings_import_replace)) }
             }
         }
 }
@@ -1501,16 +1501,13 @@ private fun BackupImportDialog(state: BackupUiState, callbacks: SettingsCallback
         AlertDialog(
             modifier = Modifier.testTag(SettingsScreenTestTags.BackupDialog),
             onDismissRequest = callbacks.onDismissBackupImport,
-            title = { Text(if (replaceWarning) "Подтвердите замену" else "Проверка импорта") },
+            title = { Text(stringResource(if (replaceWarning) R.string.settings_confirm_replace else R.string.settings_import_preview)) },
             text = {
                 Text(
                     if (replaceWarning) {
-                        BACKUP_REPLACE_WARNING
+                        BACKUP_REPLACE_WARNING.resolve(LocalContext.current.resources)
                     } else {
-                        "Профили: +${counts.accountsAdded}, пропущено ${counts.accountsSkipped}, заменено ${counts.accountsReplaced}. " +
-                            "Измерения: +${counts.measurementsAdded}, пропущено ${counts.measurementsSkipped}, заменено ${counts.measurementsReplaced}. " +
-                            "Питомцы: +${counts.petsAdded}, пропущено ${counts.petsSkipped}, заменено ${counts.petsReplaced}. " +
-                            "Измерения питомцев: +${counts.petMeasurementsAdded}, пропущено ${counts.petMeasurementsSkipped}, заменено ${counts.petMeasurementsReplaced}."
+                        stringResource(R.string.settings_import_counts, counts.accountsAdded, counts.accountsSkipped, counts.accountsReplaced, counts.measurementsAdded, counts.measurementsSkipped, counts.measurementsReplaced, counts.petsAdded, counts.petsSkipped, counts.petsReplaced, counts.petMeasurementsAdded, counts.petMeasurementsSkipped, counts.petMeasurementsReplaced)
                     },
                 )
             },
@@ -1519,10 +1516,10 @@ private fun BackupImportDialog(state: BackupUiState, callbacks: SettingsCallback
                     onClick = callbacks.onConfirmBackupImport,
                     enabled = !state.inProgress,
                     modifier = Modifier.testTag(SettingsScreenTestTags.BackupConfirm),
-                ) { Text(if (replaceWarning) "Заменить данные" else "Импортировать") }
+                ) { Text(stringResource(if (replaceWarning) R.string.settings_replace_data else R.string.settings_import)) }
             },
             dismissButton = {
-                TextButton(onClick = callbacks.onDismissBackupImport) { Text("Отмена") }
+                TextButton(onClick = callbacks.onDismissBackupImport) { Text(stringResource(R.string.settings_cancel)) }
             },
         )
     }
@@ -1533,12 +1530,13 @@ private fun SettingsIntegrationsContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
 ) {
+    val resources = LocalContext.current.resources
     val primary = state.primaryAccount
     val healthConnectCapabilities = state.healthConnectCapabilities
     val primaryStatus = when {
-        primary == null -> "Основной профиль не выбран"
-        !state.canUseExternalIntegrations -> "${primary.displayName} · заполните профиль"
-        else -> "Основной: ${primary.displayName}"
+        primary == null -> uiText(R.string.settings_primary_not_selected)
+        !state.canUseExternalIntegrations -> uiText(R.string.settings_complete_profile, primary.displayName)
+        else -> uiText(R.string.settings_primary_profile, primary.displayName)
     }
     val healthConnect = healthConnectPresentation(
         state.healthConnect,
@@ -1555,12 +1553,12 @@ private fun SettingsIntegrationsContent(
             Column {
                 HuaweiSettingRow(
                     icon = HuaweiIcons.Health,
-                    title = "Health Connect",
-                    supportingText = healthConnect.supportingText,
+                    title = stringResource(R.string.settings_health_connect),
+                    supportingText = healthConnect.supportingText.resolve(resources),
                     modifier = Modifier
                         .testTag(SettingsScreenTestTags.HealthConnectRow)
                         .semantics {
-                            contentDescription = SettingsScreenContentDescriptions.HealthConnectRow
+                            contentDescription = resources.getString(R.string.settings_hc_row_cd)
                         },
                     onClick = callbacks.onHealthConnectAccessManagement.takeIf {
                         healthConnectCapabilities.systemManagementAvailable
@@ -1581,12 +1579,12 @@ private fun SettingsIntegrationsContent(
                                 .testTag(SettingsScreenTestTags.HealthConnectAction)
                                 .semantics {
                                     contentDescription = if (healthConnect.actionOpensManagement) {
-                                        SettingsScreenContentDescriptions.HealthConnectOpenAction
+                                        resources.getString(R.string.settings_hc_open_cd)
                                     } else {
-                                        SettingsScreenContentDescriptions.HealthConnectConnectAction
+                                        resources.getString(R.string.settings_hc_connect_cd)
                                     }
                                 },
-                        ) { Text(label) }
+                        ) { Text(label.resolve(resources)) }
                     }
                 }
             }
@@ -1594,10 +1592,10 @@ private fun SettingsIntegrationsContent(
 }
 
 private fun IntegrationPresentation.forPrimaryAccount(
-    primaryStatus: String,
+    primaryStatus: UiText,
     enabled: Boolean,
 ): IntegrationPresentation = copy(
-    supportingText = "$primaryStatus · $supportingText",
+    supportingText = uiText(R.string.settings_combined_status, primaryStatus, supportingText),
     actionEnabled = actionEnabled && enabled,
 )
 
@@ -1611,12 +1609,13 @@ private fun scalePresentation(state: MainUiState) = scaleSettingsPresentation(
 
 @Composable
 private fun SettingsScaleContent(state: MainUiState, callbacks: SettingsCallbacks) {
+    val resources = LocalContext.current.resources
     val presentation = scalePresentation(state)
     HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
         HuaweiSettingRow(
             icon = HuaweiIcons.Bluetooth,
-            title = "Mi Body Composition Scale 2",
-            supportingText = presentation.supportingText,
+            title = stringResource(R.string.settings_default_scale_name),
+            supportingText = presentation.supportingText.resolve(resources),
             modifier = Modifier.testTag(SettingsScreenTestTags.ScaleStatus),
         ) {
             if (presentation.showProgress) {
@@ -1633,7 +1632,7 @@ private fun SettingsScaleContent(state: MainUiState, callbacks: SettingsCallback
                     },
                     enabled = presentation.actionEnabled,
                     modifier = Modifier.testTag(SettingsScreenTestTags.ScaleAction),
-                ) { Text(label) }
+                ) { Text(label.resolve(resources)) }
             }
         }
     }
@@ -1649,23 +1648,24 @@ private fun CollapsibleSettingsSection(
     content: @Composable () -> Unit,
 ) {
     val expanded = expansion == SettingsSectionExpansion.Expanded
+    val expansionDescription = stringResource(if (expanded) R.string.settings_expanded else R.string.settings_collapsed)
     Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
         HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
             HuaweiSettingRow(
                 icon = HuaweiIcons.ChevronRight,
                 title = title,
-                supportingText = if (expanded) "Развёрнуто" else "Свёрнуто",
+                supportingText = expansionDescription,
                 modifier = Modifier
                     .testTag(testTag)
                     .semantics {
                         role = Role.Button
-                        stateDescription = if (expanded) "Развёрнуто" else "Свёрнуто"
+                        stateDescription = expansionDescription
                     },
                 onClick = onToggle,
             ) {
                 HuaweiIconButton(
                     icon = HuaweiIcons.ChevronRight,
-                    contentDescription = if (expanded) "Свернуть $title" else "Развернуть $title",
+                    contentDescription = stringResource(if (expanded) R.string.settings_collapse_section else R.string.settings_expand_section, title),
                     onClick = onToggle,
                     modifier = Modifier.graphicsLayer { rotationZ = if (expanded) 90f else 0f },
                 )
@@ -1687,6 +1687,7 @@ private fun AdditionalContent(
     callbacks: SettingsCallbacks,
     modifier: Modifier = Modifier,
 ) {
+    val resources = LocalContext.current.resources
     Column(
         modifier = modifier.fillMaxWidth().padding(HuaweiDimensions.ContentPadding),
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
@@ -1703,9 +1704,9 @@ private fun AdditionalContent(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Повышенная надёжность", style = MaterialTheme.typography.titleSmall)
+                Text(stringResource(R.string.settings_enhanced_reliability), style = MaterialTheme.typography.titleSmall)
                 Text(
-                    "Постоянное ожидание весов в фоне",
+                    stringResource(R.string.settings_enhanced_reliability_supporting),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -1713,11 +1714,11 @@ private fun AdditionalContent(
             Switch(
                 checked = state.settings.reliabilityMode,
                 onCheckedChange = callbacks.onReliabilityMode,
-                modifier = Modifier.semantics { contentDescription = "Повышенная надёжность" },
+                modifier = Modifier.semantics { contentDescription = resources.getString(R.string.settings_enhanced_reliability) },
             )
         }
         Text(
-            "Для фоновой работы на некоторых устройствах разрешите автозапуск, работу от батареи и уведомления.",
+            stringResource(R.string.settings_background_help),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodySmall,
         )
@@ -1728,11 +1729,11 @@ private fun AdditionalContent(
             OutlinedButton(
                 onClick = callbacks.openBatterySettings,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text("Батарея") }
+            ) { Text(stringResource(R.string.settings_battery)) }
             OutlinedButton(
                 onClick = callbacks.openApplicationSettings,
                 modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text("Настройки приложения") }
+            ) { Text(stringResource(R.string.settings_app_settings)) }
         }
     }
 }
@@ -1772,7 +1773,7 @@ internal fun ProfileEditorScreen(
         ) {
             item {
                 Text(
-                    "Данные используются для расчёта состава тела.",
+                    stringResource(R.string.settings_profile_editor_intro),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -1797,7 +1798,7 @@ internal fun ProfileEditorScreen(
                         OutlinedTextField(
                             value = state.height,
                             onValueChange = onHeightChanged,
-                            label = { Text("Рост, см") },
+                            label = { Text(stringResource(R.string.settings_height_label)) },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                             singleLine = true,
                             isError = state.errorMessage != null,
@@ -1806,12 +1807,12 @@ internal fun ProfileEditorScreen(
                         OutlinedTextField(
                             value = state.birthDate,
                             onValueChange = onBirthDateChanged,
-                            label = { Text("Дата рождения, ГГГГ-ММ-ДД") },
+                            label = { Text(stringResource(R.string.settings_birth_date_label)) },
                             singleLine = true,
                             isError = state.errorMessage != null,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                        Text("Пол", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.settings_sex), style = MaterialTheme.typography.titleSmall)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(
                                 HuaweiDimensions.CompactItemSpacing,
@@ -1819,7 +1820,7 @@ internal fun ProfileEditorScreen(
                         ) {
                             Sex.entries.forEach { option ->
                                 HuaweiFilterButton(
-                                    text = if (option == Sex.MALE) "Мужской" else "Женский",
+                                    text = stringResource(if (option == Sex.MALE) R.string.settings_sex_male else R.string.settings_sex_female),
                                     onClick = { onSexChanged(option) },
                                     selected = state.sex == option,
                                     modifier = Modifier.weight(1f),
@@ -1854,7 +1855,7 @@ internal fun ProfileEditorSaveBar(
                 .heightIn(min = HuaweiDimensions.TouchTarget),
             shape = MaterialTheme.shapes.medium,
         ) {
-            Text("Сохранить профиль")
+            Text(stringResource(R.string.settings_save_profile))
         }
     }
 }

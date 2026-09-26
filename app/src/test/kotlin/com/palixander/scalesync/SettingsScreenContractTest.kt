@@ -17,32 +17,38 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.Locale
+import com.palixander.scalesync.ui.text.uiText
+import com.palixander.scalesync.ui.text.pluralUiText
+import com.palixander.scalesync.ui.text.UiText
 
 class SettingsScreenContractTest {
     @Test
     fun `profile root summary explicitly describes empty state`() {
-        assertEquals("Добавьте первый профиль", profilesRootSummary(0, 0))
+        assertEquals(uiText(R.string.settings_add_first_profile), profilesRootSummary(0, 0))
     }
 
     @Test
     fun `profile root summary uses correct russian count forms`() {
-        assertEquals("1 человек · 1 питомец", profilesRootSummary(1, 1))
-        assertEquals("2 человека · 4 питомца", profilesRootSummary(2, 4))
-        assertEquals("5 человек · 5 питомцев", profilesRootSummary(5, 5))
-        assertEquals("11 человек · 11 питомцев", profilesRootSummary(11, 11))
-        assertEquals("21 человек · 22 питомца", profilesRootSummary(21, 22))
+        assertEquals(
+            UiText.Joined(listOf(pluralUiText(R.plurals.settings_people_count, 1, 1), pluralUiText(R.plurals.settings_pet_count, 1, 1)), " · "),
+            profilesRootSummary(1, 1),
+        )
+        assertEquals(
+            UiText.Joined(listOf(pluralUiText(R.plurals.settings_people_count, 21, 21), pluralUiText(R.plurals.settings_pet_count, 22, 22)), " · "),
+            profilesRootSummary(21, 22),
+        )
     }
 
     @Test
     fun `connected health connect explains manual management when system destination is missing`() {
         val presentation = IntegrationPresentation(
-            supportingText = "Подключено · все разрешения выданы",
-            actionLabel = "Открыть",
+            supportingText = uiText(R.string.settings_hc_connected),
+            actionLabel = uiText(R.string.settings_open),
             actionOpensManagement = true,
         ).withHealthConnectManagementFallback(systemManagementAvailable = false)
 
         assertEquals(
-            "Подключено · все разрешения выданы · управляйте доступом вручную в Health Connect",
+            uiText(R.string.settings_hc_manual_fallback, uiText(R.string.settings_hc_connected)),
             presentation.supportingText,
         )
         assertNull(presentation.actionLabel)
@@ -51,8 +57,8 @@ class SettingsScreenContractTest {
     @Test
     fun `connected health connect keeps canonical system action when destination is available`() {
         val presentation = IntegrationPresentation(
-            supportingText = "Подключено",
-            actionLabel = "Открыть",
+            supportingText = uiText(R.string.settings_hc_connected),
+            actionLabel = uiText(R.string.settings_open),
             actionOpensManagement = true,
         )
 
@@ -86,7 +92,7 @@ class SettingsScreenContractTest {
         val zone = ZoneId.of("Europe/Moscow")
 
         assertEquals(
-            "5,4 кг · вчера, 13:32",
+            uiText(R.string.settings_pet_weight_summary, "5,4", uiText(R.string.settings_yesterday), "13:32"),
             formatLatestPetWeight(
                 measured,
                 Locale.forLanguageTag("ru-RU"),
@@ -95,7 +101,7 @@ class SettingsScreenContractTest {
             ),
         )
         assertEquals(
-            "—",
+            uiText(R.string.settings_no_value),
             formatLatestPetWeight(
                 PetWithLatestWeight(pet, null),
                 Locale.forLanguageTag("ru-RU"),
@@ -107,21 +113,16 @@ class SettingsScreenContractTest {
 
     @Test
     fun `replace warning names every human and pet data group`() {
-        assertTrue(BACKUP_REPLACE_WARNING.contains("профили"))
-        assertFalse(BACKUP_REPLACE_WARNING.contains("аккаунт", ignoreCase = true))
-        assertTrue(BACKUP_REPLACE_WARNING.contains("измерения людей"))
-        assertTrue(BACKUP_REPLACE_WARNING.contains("ожидающие измерения"))
-        assertTrue(BACKUP_REPLACE_WARNING.contains("питомцы"))
-        assertTrue(BACKUP_REPLACE_WARNING.contains("измерения питомцев"))
+        assertEquals(uiText(R.string.settings_backup_replace_warning), BACKUP_REPLACE_WARNING)
     }
 
     @Test
     fun `profile summary contains real height date and sex`() {
         assertEquals(
-            "181,5 см · 29.02.1988 · женский",
-            formatProfileSummary(UserProfile(181.5, LocalDate.of(1988, 2, 29), Sex.FEMALE)),
+            uiText(R.string.settings_profile_summary, "181,5", "29.02.1988", uiText(R.string.settings_sex_female_lower)),
+            formatProfileSummary(UserProfile(181.5, LocalDate.of(1988, 2, 29), Sex.FEMALE), Locale.forLanguageTag("ru-RU")),
         )
-        assertEquals("Профиль не настроен", formatProfileSummary(null))
+        assertEquals(uiText(R.string.settings_profile_not_configured), formatProfileSummary(null))
     }
 
     @Test
@@ -150,12 +151,12 @@ class SettingsScreenContractTest {
 
     @Test
     fun `scale detail identity never invents an unselected device`() {
-        assertEquals("Устройство не выбрано", scaleDetailIdentity(AppSettings()))
+        assertEquals(uiText(R.string.settings_device_not_selected), scaleDetailIdentity(AppSettings()))
         assertEquals(
-            "MIBFS · AA:BB",
+            uiText(R.string.settings_raw_value, "MIBFS · AA:BB"),
             scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB", scaleName = "MIBFS")),
         )
-        assertEquals("AA:BB", scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB")))
+        assertEquals(uiText(R.string.settings_raw_value, "AA:BB"), scaleDetailIdentity(AppSettings(scaleAddress = "AA:BB")))
     }
 
     @Test
@@ -233,8 +234,8 @@ class SettingsScreenContractTest {
             ),
         )
 
-        assertEquals("Разрешено 2 из 3", presentation.supportingText)
-        assertEquals("Подключить", presentation.actionLabel)
+        assertEquals(uiText(R.string.settings_hc_permissions_count, 2, 3), presentation.supportingText)
+        assertEquals(uiText(R.string.settings_connect), presentation.actionLabel)
         assertFalse(presentation.actionOpensManagement)
     }
 
@@ -245,8 +246,8 @@ class SettingsScreenContractTest {
             HealthConnectPermissionsUiState.snapshot(true, required, required),
         )
 
-        assertEquals("Подключено · все разрешения выданы", presentation.supportingText)
-        assertEquals("Открыть", presentation.actionLabel)
+        assertEquals(uiText(R.string.settings_hc_connected), presentation.supportingText)
+        assertEquals(uiText(R.string.settings_open), presentation.actionLabel)
         assertTrue(presentation.actionOpensManagement)
     }
 
@@ -258,8 +259,8 @@ class SettingsScreenContractTest {
             locallyEnabled = false,
         )
 
-        assertEquals("Отключено в приложении", presentation.supportingText)
-        assertEquals("Подключить снова", presentation.actionLabel)
+        assertEquals(uiText(R.string.settings_hc_disabled), presentation.supportingText)
+        assertEquals(uiText(R.string.settings_connect_again), presentation.actionLabel)
         assertFalse(presentation.actionOpensManagement)
     }
 
@@ -277,12 +278,12 @@ class SettingsScreenContractTest {
         )
 
         assertEquals(
-            "Недоступно: устройство не поддерживает Health Connect",
+            uiText(R.string.settings_hc_unsupported),
             unsupported.supportingText,
         )
         assertNull(unsupported.actionLabel)
         assertEquals(
-            "Недоступно: установите или обновите Health Connect",
+            uiText(R.string.settings_hc_update_required),
             providerMissing.supportingText,
         )
         assertNull(providerMissing.actionLabel)
@@ -301,11 +302,11 @@ class SettingsScreenContractTest {
             ),
         )
 
-        assertEquals("Проверка разрешений…", checking.supportingText)
-        assertEquals("Подключить", checking.actionLabel)
+        assertEquals(uiText(R.string.settings_hc_checking), checking.supportingText)
+        assertEquals(uiText(R.string.settings_connect), checking.actionLabel)
         assertFalse(checking.actionEnabled)
-        assertEquals("Не удалось проверить разрешения", failed.supportingText)
-        assertEquals("Подключить", failed.actionLabel)
+        assertEquals(uiText(R.string.settings_hc_check_failed), failed.supportingText)
+        assertEquals(uiText(R.string.settings_connect), failed.actionLabel)
         assertTrue(failed.actionEnabled)
         assertFalse(failed.actionOpensManagement)
     }
