@@ -961,21 +961,21 @@ class MainViewModel @JvmOverloads constructor(
     fun registerBackgroundScan() {
         if (container.profileStore.settings.value.scaleAddress == null) return
         showMessage(BackgroundScanRegistrar.register(getApplication()).fold(
-            onSuccess = { "Фоновое BLE-сканирование включено" },
+            onSuccess = { localized(R.string.message_ble_background_enabled) },
             onFailure = { it.message ?: localized(R.string.error_enable_scanning) },
         ))
     }
 
     fun toggleManualScan() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage("Сначала завершите взвешивание питомца")
+            showMessage(localized(R.string.message_finish_pet_measurement_first))
             return
         }
         if (scanning.value) {
             scanner.stop()
             scanning.value = false
             restoreAutomaticScanning()
-            showMessage("Ручное сканирование остановлено")
+            showMessage(localized(R.string.message_manual_scan_stopped))
             return
         }
         scaleAvailability.value = currentScaleAvailability()
@@ -995,7 +995,7 @@ class MainViewModel @JvmOverloads constructor(
         )
         started.onSuccess {
             scanning.value = true
-            showMessage("Встаньте на весы и дождитесь финального измерения")
+            showMessage(localized(R.string.message_step_on_scale))
         }.onFailure {
             restoreAutomaticScanning()
             scaleAvailability.value = currentScaleAvailability()
@@ -1008,7 +1008,7 @@ class MainViewModel @JvmOverloads constructor(
     /** Starts one direct BLE request for pull-to-refresh; concurrent gestures are ignored. */
     fun refreshFromScale() {
         if (petMeasurementCoordinator.isActive) {
-            showMessage("Сначала завершите взвешивание питомца")
+            showMessage(localized(R.string.message_finish_pet_measurement_first))
             return
         }
         val refresh = beginScaleRefresh(
@@ -1049,16 +1049,16 @@ class MainViewModel @JvmOverloads constructor(
 
     fun setReliabilityMode(enabled: Boolean) {
         if (!BleSupport.hasScanPermission(getApplication())) {
-            showMessage("Сначала разрешите Bluetooth-сканирование")
+            showMessage(localized(R.string.message_bluetooth_scan_permission_required))
             return
         }
         if (enabled && container.profileStore.settings.value.scaleAddress == null) {
-            showMessage("Сначала выберите весы")
+            showMessage(localized(R.string.error_scale_not_selected))
             return
         }
         container.profileStore.setReliabilityMode(enabled)
         ReliabilityScanService.setEnabled(getApplication(), enabled)
-        showMessage(if (enabled) "Режим повышенной надёжности включён" else "Режим выключен")
+        showMessage(localized(if (enabled) R.string.message_reliable_mode_enabled else R.string.message_reliable_mode_disabled))
     }
 
     /** Stops every BLE producer before durably removing the selected scale. */
@@ -1086,13 +1086,13 @@ class MainViewModel @JvmOverloads constructor(
             packetGate = container.scalePacketProcessingGate,
             clearSettings = container.profileStore::forgetScale,
         ).forget()
-        showMessage("Весы забыты")
+        showMessage(localized(R.string.message_scale_forgotten))
     }
 
     fun disableHealthConnect() = disableExternalIntegration(
         DestructiveSettingsAction.HEALTH_CONNECT,
         ExternalSyncDestination.HEALTH_CONNECT,
-        "Health Connect отключён в приложении. Разрешения можно отозвать в системных настройках.",
+        localized(R.string.message_health_connect_disabled),
     )
 
     private fun disableExternalIntegration(
@@ -1124,7 +1124,7 @@ class MainViewModel @JvmOverloads constructor(
 
     fun retry(id: String) = viewModelScope.launch {
         container.repository.retry(id)
-        showMessage("Повторная отправка поставлена в очередь")
+        showMessage(localized(R.string.message_measurement_retry_queued))
     }
 
     fun setMessage(text: String) {
@@ -1177,7 +1177,7 @@ class MainViewModel @JvmOverloads constructor(
         notificationPermissionGranted.value =
             container.pendingMeasurementNotifications.areNotificationsAllowed()
         runCatching { MeasurementWorkSweep(container.repository).run() }
-            .onFailure { showMessage("Не удалось проверить ожидающие измерения") }
+            .onFailure { showMessage(localized(R.string.message_pending_check_failed)) }
         runCatching { container.repository.refreshPendingPresentation() }
         updateHealthConnectPermissions(notifyResult = false)
     }
@@ -1194,7 +1194,7 @@ class MainViewModel @JvmOverloads constructor(
     fun openPetMeasurement() {
         invalidatePetMeasurementStartup()
         if (scanning.value || refreshing.value || petMeasurementCoordinator.isActive) {
-            showMessage("Дождитесь завершения текущего BLE-сканирования")
+            showMessage(localized(R.string.message_wait_for_ble_scan))
             return
         }
         petMeasurementCoordinator.showSelection()
@@ -1568,7 +1568,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = emptySet(),
             )
-            if (notifyResult) showMessage("Health Connect недоступен на этом устройстве")
+            if (notifyResult) showMessage(localized(R.string.message_health_connect_unavailable))
             return
         }
 
@@ -1583,7 +1583,7 @@ class MainViewModel @JvmOverloads constructor(
                 requiredPermissions = required,
                 grantedPermissions = healthConnect.value.grantedPermissions,
             )
-            if (notifyResult) showMessage("Не удалось проверить разрешения Health Connect")
+            if (notifyResult) showMessage(localized(R.string.message_health_connect_permission_check_failed))
             return
         }
         val snapshot = HealthConnectPermissionsUiState.snapshot(
@@ -1603,10 +1603,10 @@ class MainViewModel @JvmOverloads constructor(
             )
             container.repository.retryPendingHealthConnect()
             if (notifyResult) {
-                showMessage("Health Connect: разрешения выданы, очередь перезапущена")
+                showMessage(localized(R.string.message_health_connect_queue_restarted))
             }
         } else if (notifyResult) {
-            showMessage("Health Connect: разрешены не все показатели")
+            showMessage(localized(R.string.message_health_connect_permissions_incomplete))
         }
     }
 
@@ -1636,7 +1636,7 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingResult.PendingNotFound,
                 -> {
                     completion?.let(::completePendingResolution)
-                    showMessage("Измерение уже обработано")
+                    showMessage(localized(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
@@ -1669,7 +1669,7 @@ class MainViewModel @JvmOverloads constructor(
                 DiscardPendingAndUpdateIgnorePolicyResult.PendingNotFound,
                 -> {
                     completePendingResolution(completion)
-                    showMessage("Измерение уже обработано")
+                    showMessage(localized(R.string.message_measurement_already_processed))
                 }
             }
         } catch (cancelled: CancellationException) {
@@ -1821,9 +1821,8 @@ class MainViewModel @JvmOverloads constructor(
 
 }
 
-internal const val EXTERNAL_SYNC_PAUSED_MESSAGE =
-    "Внешняя синхронизация приостановлена"
-internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "Внешняя синхронизация возобновлена"
+internal const val EXTERNAL_SYNC_PAUSED_MESSAGE = "External sync paused"
+internal const val EXTERNAL_SYNC_RESUMED_MESSAGE = "External sync resumed"
 
 internal fun ExternalSyncPauseTransition.snackbarMessage(): String = when (this) {
     is ExternalSyncPauseTransition.Paused -> EXTERNAL_SYNC_PAUSED_MESSAGE
