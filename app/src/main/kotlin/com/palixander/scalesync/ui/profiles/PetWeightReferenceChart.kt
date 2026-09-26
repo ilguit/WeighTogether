@@ -24,6 +24,7 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PaintingStyle
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -54,6 +55,8 @@ import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailable
 import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
@@ -315,12 +318,13 @@ internal fun petWeightChartDescription(
     hasBreedTimeline: Boolean,
     isPopulationReference: Boolean,
     legendEntries: List<PetWeightChartLegendEntry>,
+    resolveText: (UiText) -> String = { it.toString() },
 ): String = buildString {
     append("График веса питомца. ")
     append(if (factualCount == 0) "Измерений нет. " else "Измерений: $factualCount. ")
     val available = reference as? PetHistoryWeightReference.Available
     if (showReferenceExplanation && !hasBreedTimeline) {
-        append(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation)
+        append(resolveText(available?.accessibilityLabel ?: (reference as PetHistoryWeightReference.Unavailable).explanation))
         if (available != null) append(
             if (available.provenance == WeightReferenceProvenance.BREED_CURVE) " Фактический вес отмечен кругами; модельный породный диапазон — светло-зелёной зоной, его центр — линией."
             else if (available.provenance == WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED) " Фактический вес отмечен кругами; общий, не породный диапазон — зоной P9–P91 и линией P50."
@@ -804,6 +808,7 @@ internal fun PetWeightReferenceChartCard(
     zoneId: ZoneId,
     sourceLauncher: ReferenceSourceLauncher,
 ) {
+    val resources = LocalContext.current.resources
     val factual = remember(series.points) {
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
@@ -855,6 +860,7 @@ internal fun PetWeightReferenceChartCard(
         hasBreedTimeline = hasBreedTimeline,
         isPopulationReference = isPopulationReference,
         legendEntries = legendEntries,
+        resolveText = { it.resolve(resources) },
     )
 
     HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
@@ -1156,9 +1162,10 @@ private fun ChartLegend(text: String, color: Color) {
 
 @Composable
 private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLauncher: ReferenceSourceLauncher) {
+    val resources = LocalContext.current.resources
     when (reference) {
         is PetHistoryWeightReference.Unavailable -> Text(
-            reference.explanation,
+            reference.explanation.resolve(resources),
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier
                 .testTag(PetWeightChartTestTags.Unavailable)
@@ -1175,9 +1182,9 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                     .testTag(PetWeightChartTestTags.ReferenceDetails)
                     .semantics(mergeDescendants = true) {
                         contentDescription = buildString {
-                            append("${reference.basisLabel}. ${reference.ageLabel}.")
+                            append("${reference.basisLabel.resolve(resources)}. ${reference.ageLabel.resolve(resources)}.")
                             if (sourceExpanded) {
-                                append(" ${reference.accessibilityLabel}")
+                                append(" ${reference.accessibilityLabel.resolve(resources)}")
                                 reference.constraints.forEach { append(" Ограничение: $it.") }
                             }
                             if (reference.isFittedPopulationPercentiles) {
@@ -1188,7 +1195,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
             Text(stringResource(if (reference.isFittedPopulationPercentiles) R.string.reference_how_to_read_data else R.string.reference_how_to_read), style = MaterialTheme.typography.titleSmall)
-            Text("${reference.basisLabel} · ${reference.ageLabel}")
+            Text("${reference.basisLabel.resolve(resources)} · ${reference.ageLabel.resolve(resources)}")
             Text(
                 when {
                     reference.provenance == WeightReferenceProvenance.BREED_CURVE ->
@@ -1211,7 +1218,7 @@ private fun ReferenceExplanation(reference: PetHistoryWeightReference, sourceLau
                     Text(stringResource(R.string.reference_source, segment.citation), style = MaterialTheme.typography.bodySmall)
                     Text(stringResource(R.string.reference_license, segment.license), style = MaterialTheme.typography.bodySmall)
                 }
-                reference.sourceAuthorityLabel?.let { Text(stringResource(R.string.reference_source_type, it), style = MaterialTheme.typography.bodySmall) }
+                reference.sourceAuthorityLabel?.let { Text(stringResource(R.string.reference_source_type, it.resolve(resources)), style = MaterialTheme.typography.bodySmall) }
                 reference.sourceAccessedDate?.let { Text(stringResource(R.string.reference_accessed, it), style = MaterialTheme.typography.bodySmall) }
                 reference.sourceDisclosure?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
                 if (reference.provenance == WeightReferenceProvenance.BREED_CURVE) {
