@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_measurement_title">Зважування улюбленця</string>
+    <string name="pet_measurement_close_a11y">Закрити зважування улюбленця</string>
+    <string name="pet_measurement_choose_pet">Виберіть улюбленця</string>
+    <string name="pet_measurement_new_pet">Новий улюбленець</string>
+    <string name="pet_measurement_back_to_selection">Повернутися до вибору улюбленця</string>
+    <string name="pet_measurement_first_title">Перше зважування</string>
+    <string name="pet_measurement_second_title">Друге зважування</string>
+    <string name="pet_measurement_saving_title">Збереження</string>
+    <string name="pet_measurement_failed_title">Не вдалося зважити улюбленця</string>
+    <string name="pet_measurement_connection_lost">З’єднання перервано</string>
+    <string name="pet_measurement_first_instructions_named">Виконайте одне вимірювання, тримаючи %1$s, а друге — без улюбленця. Порядок не має значення. Почніть із будь-якого варіанта й дочекайтеся стабільного показника.</string>
+    <string name="pet_measurement_first_accepted">Перший показник прийнято: %1$s кг</string>
+    <string name="pet_measurement_second_instructions_named">Тепер виконайте решту вимірювання, тримаючи %1$s або без улюбленця. Дочекайтеся стабільного показника.</string>
+    <string name="pet_measurement_first_instructions">Зважтеся з улюбленцем або без нього й дочекайтеся стабільного показника.</string>
+    <string name="pet_measurement_second_instructions">Повторіть зважування інакше: з улюбленцем, якщо перший показник був без нього, або без улюбленця, якщо перший показник був із ним.</string>
+    <string name="pet_measurement_waiting_stable">Очікування стабільного показника</string>
+    <string name="pet_measurement_first_reading">Перший показник: %1$s кг</string>
+    <string name="pet_measurement_first_reading_saved">Перший показник збережено: %1$s кг</string>
+    <string name="pet_measurement_saving">Збереження результату…</string>
+    <string name="pet_measurement_result_weight">Вага улюбленця — %1$s кг</string>
+    <string name="pet_measurement_delta">%1$s%2$s кг від попереднього вимірювання</string>
+    <string name="weight_kg_format">%1$s кг</string>
+    <string name="pet_measurement_no_pets">Улюбленців ще немає. Створіть профіль першого улюбленця.</string>
+    <string name="pet_measurement_latest_weight">Остання вага: %1$s кг · %2$s</string>
+    <string name="pet_measurement_no_measurements">Вимірювань ще немає</string>
+    <string name="pet_measurement_create_and_weigh">Створити й зважити</string>
+    <string name="pet_measurement_cat">Кіт</string>
+    <string name="pet_measurement_dog">Собака</string>
+    <string name="pet_measurement_scale_required">Спочатку виберіть ваги в налаштуваннях</string>
+    <string name="pet_measurement_bluetooth_permission">Надайте дозвіл на Bluetooth, щоб зважити улюбленця</string>
+    <string name="pet_measurement_timeout">Ваги не надіслали нового стабільного вимірювання</string>
+    <string name="pet_measurement_wait_for_ble_scan">Дочекайтеся завершення поточного сканування Bluetooth</string>
+    <string name="pet_measurement_pet_not_found">Улюбленця не знайдено</string>
+    <string name="pet_measurement_start_failed">Не вдалося розпочати сканування</string>
+    <string name="pet_measurement_save_failed">Не вдалося зберегти вагу улюбленця</string>
+    <string name="pet_measurement_retry_failed">Не вдалося відновити сканування</string>
+</resources>

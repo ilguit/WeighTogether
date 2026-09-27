@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="message_ble_background_enabled">Фонавае сканаванне BLE уключана</string>
+    <string name="message_finish_pet_measurement_first">Спачатку завяршыце ўзважванне хатняй жывёлы</string>
+    <string name="message_manual_scan_stopped">Ручное сканаванне спынена</string>
+    <string name="message_step_on_scale">Станьце на вагі і дачакайцеся канчатковага вымярэння</string>
+    <string name="message_bluetooth_scan_permission_required">Спачатку дазвольце сканаванне Bluetooth</string>
+    <string name="message_reliable_mode_enabled">Рэжым павышанай надзейнасці ўключаны</string>
+    <string name="message_reliable_mode_disabled">Рэжым павышанай надзейнасці выключаны</string>
+    <string name="message_scale_forgotten">Вагі забытыя</string>
+    <string name="message_health_connect_disabled">Health Connect адключаны ў праграме. Дазволы можна адклікаць у сістэмных наладах.</string>
+    <string name="message_pending_check_failed">Не ўдалося праверыць вымярэнні, якія чакаюць</string>
+    <string name="message_wait_for_ble_scan">Дачакайцеся завяршэння бягучага сканавання BLE</string>
+    <string name="message_health_connect_permission_check_failed">Не ўдалося праверыць дазволы Health Connect</string>
+    <string name="message_health_connect_queue_restarted">Health Connect: дазволы нададзены, чарга перазапушчана</string>
+    <string name="message_health_connect_permissions_incomplete">Health Connect: дазволены не ўсе тыпы даных</string>
+    <string name="message_external_sync_paused">Знешняя сінхранізацыя прыпынена</string>
+    <string name="message_external_sync_resumed">Знешняя сінхранізацыя адноўлена</string>
+    <string name="measurement_group_main">Асноўнае</string>
+    <string name="measurement_group_body_composition">Склад цела</string>
+    <string name="measurement_group_muscles_bones">Мышцы і косці</string>
+    <string name="measurement_group_metabolism">Метабалізм</string>
+    <string name="measurement_input_label_with_unit">%1$s, %2$s</string>
+    <string name="unit_ohm_symbol">Ω</string>
+    <string name="unit_kcal">ккал</string>
+    <string name="validation_required_field">Абавязковае поле</string>
+    <string name="validation_whole_number">Увядзіце цэлы лік</string>
+    <string name="validation_number">Увядзіце лік</string>
+    <string name="validation_finite_number">Увядзіце канечны лік</string>
+    <string name="validation_non_negative">Значэнне не можа быць адмоўным</string>
+    <string name="validation_allowed_range">Дапушчальны дыяпазон: 0–%1$d</string>
+    <string name="measurement_value_with_unit">%1$s %2$s</string>
+    <string name="measurement_prefixed_unit">\u0020%1$s</string>
+    <string name="measurement_delete_summary">%1$s · %2$s %3$s</string>
+    <string name="measurement_history_fat">Тлушч %1$s</string>
+    <string name="measurement_history_muscle">мышцы %1$s</string>
+    <string name="measurement_history_bmi">ІМТ %1$s</string>
+    <string name="measurement_first_measurement">Першае вымярэнне</string>
+    <string name="measurement_weight_no_change">Без змен</string>
+</resources>

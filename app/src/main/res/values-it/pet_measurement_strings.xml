@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="pet_measurement_title">Pesatura dell’animale</string>
+    <string name="pet_measurement_close_a11y">Chiudi la pesatura dell’animale</string>
+    <string name="pet_measurement_choose_pet">Scegli un animale</string>
+    <string name="pet_measurement_new_pet">Nuovo animale</string>
+    <string name="pet_measurement_back_to_selection">Torna alla selezione dell’animale</string>
+    <string name="pet_measurement_first_title">Prima pesatura</string>
+    <string name="pet_measurement_second_title">Seconda pesatura</string>
+    <string name="pet_measurement_saving_title">Salvataggio</string>
+    <string name="pet_measurement_failed_title">Impossibile pesare l’animale</string>
+    <string name="pet_measurement_connection_lost">Connessione interrotta</string>
+    <string name="pet_measurement_first_instructions_named">Effettua una misurazione tenendo %1$s e un’altra senza l’animale. L’ordine non è importante. Inizia con una delle due opzioni e attendi una lettura stabile.</string>
+    <string name="pet_measurement_first_accepted">Prima lettura accettata: %1$s kg</string>
+    <string name="pet_measurement_second_instructions_named">Ora effettua la misurazione rimanente tenendo %1$s o senza l’animale. Attendi una lettura stabile.</string>
+    <string name="pet_measurement_first_instructions">Pesati con o senza l’animale e attendi una lettura stabile.</string>
+    <string name="pet_measurement_second_instructions">Ripeti la pesatura nell’altro modo: con l’animale se la prima lettura era senza, oppure senza l’animale se la prima lo includeva.</string>
+    <string name="pet_measurement_waiting_stable">In attesa di una lettura stabile</string>
+    <string name="pet_measurement_first_reading">Prima lettura: %1$s kg</string>
+    <string name="pet_measurement_first_reading_saved">Prima lettura salvata: %1$s kg</string>
+    <string name="pet_measurement_saving">Salvataggio del risultato…</string>
+    <string name="pet_measurement_result_weight">Peso dell’animale — %1$s kg</string>
+    <string name="pet_measurement_delta">%1$s%2$s kg dalla misurazione precedente</string>
+    <string name="weight_kg_format">%1$s kg</string>
+    <string name="pet_measurement_no_pets">Non ci sono ancora animali. Crea il primo animale.</string>
+    <string name="pet_measurement_latest_weight">Ultimo peso: %1$s kg · %2$s</string>
+    <string name="pet_measurement_no_measurements">Nessuna misurazione</string>
+    <string name="pet_measurement_create_and_weigh">Crea e pesa</string>
+    <string name="pet_measurement_cat">Gatto</string>
+    <string name="pet_measurement_dog">Cane</string>
+    <string name="pet_measurement_scale_required">Seleziona prima una bilancia nelle Impostazioni</string>
+    <string name="pet_measurement_bluetooth_permission">Consenti il Bluetooth per pesare l’animale</string>
+    <string name="pet_measurement_timeout">La bilancia non ha inviato una nuova misurazione stabile</string>
+    <string name="pet_measurement_wait_for_ble_scan">Attendi il termine della scansione Bluetooth corrente</string>
+    <string name="pet_measurement_pet_not_found">Animale non trovato</string>
+    <string name="pet_measurement_start_failed">Impossibile avviare la scansione</string>
+    <string name="pet_measurement_save_failed">Impossibile salvare il peso dell’animale</string>
+    <string name="pet_measurement_retry_failed">Impossibile riprendere la scansione</string>
+</resources>

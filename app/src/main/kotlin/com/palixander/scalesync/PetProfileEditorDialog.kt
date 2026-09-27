@@ -72,6 +72,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -462,7 +463,11 @@ internal fun PetProfileEditorDialog(
 
                 if (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) {
                     EditorSection(stringResource(R.string.pet_editor_breed)) {
-                        val breedLabel = petBreedLabel(draft.breed).resolve(LocalContext.current.resources)
+                        val locale = com.palixander.scalesync.ui.currentAppLocale()
+                        val localizedBreed = draft.breed?.let {
+                            breedCatalog.resolve(it.id, it.species, locale)
+                        }
+                        val breedLabel = petBreedLabel(localizedBreed).resolve(LocalContext.current.resources)
                         val breedA11y = stringResource(R.string.pet_editor_choose_breed_a11y, breedLabel)
                         OutlinedButton(
                             onClick = { breedPickerOpen = true },
@@ -670,6 +675,7 @@ private fun BirthDateEditor(
     modifier: Modifier = Modifier,
 ) {
     var activePart by rememberSaveable { mutableStateOf<PetBirthDatePart?>(null) }
+    val locale = currentAppLocale()
     val today = LocalDate.now()
     LaunchedEffect(enabled) { if (!enabled) activePart = null }
     EditorSection(stringResource(R.string.pet_editor_birth_date_optional), modifier) {
@@ -682,7 +688,7 @@ private fun BirthDateEditor(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag(birthPartTag(part)),
-                ) { Text(stringResource(R.string.pet_editor_birth_part_value, stringResource(petBirthPartResource(part)), selected?.let { petBirthDatePartLabel(part, it) } ?: stringResource(R.string.action_select))) }
+                ) { Text(stringResource(R.string.pet_editor_birth_part_value, stringResource(petBirthPartResource(part)), selected?.let { petBirthDatePartLabel(part, it, locale) } ?: stringResource(R.string.action_select))) }
             }
         }
         error?.let { FieldError(stringResource(birthDateErrorResource(it))) }
@@ -704,7 +710,7 @@ private fun BirthDateEditor(
                 ) {
                     items(options, key = { it }) { option ->
                         SelectionRow(
-                            label = petBirthDatePartLabel(part, option),
+                            label = petBirthDatePartLabel(part, option, locale),
                             selected = selected == option,
                             enabled = enabled,
                             tag = "pet-birth-option-$option",
@@ -795,9 +801,10 @@ private fun BreedPickerDialog(
     onSelect: (PetBreedOption?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val locale = com.palixander.scalesync.ui.currentAppLocale()
     var query by rememberSaveable(species) { mutableStateOf("") }
-    val options = remember(query, species, breedCatalog) {
-        breedCatalog.search(query, species)
+    val options = remember(query, species, breedCatalog, locale) {
+        breedCatalog.search(query, species, locale)
     }
     val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase()

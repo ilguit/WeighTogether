@@ -53,6 +53,7 @@ import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.domain.reference.BreedWeightValue
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
 import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.text.UiText
@@ -828,6 +829,7 @@ internal fun PetWeightReferenceChartCard(
     sourceLauncher: ReferenceSourceLauncher,
 ) {
     val resources = LocalContext.current.resources
+    val locale = currentAppLocale()
     val factual = remember(series.points) {
         series.points.filter { it.xEpochMillis != null && it.value.isFinite() }
             .sortedBy(ChartPoint::measuredAtEpochSecond)
@@ -941,6 +943,7 @@ private fun PetWeightVicoChart(
     contentDescription: String,
 ) {
     val resources = LocalContext.current.resources
+    val locale = currentAppLocale()
     val viewport = remember(displayedSeries, startDate, endDateInclusive, zoneId) {
         chartViewport(
             displayedSeries.flatMap(PetWeightDisplayedSeries::x),
@@ -991,11 +994,11 @@ private fun PetWeightVicoChart(
             PetAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerFormatter = remember(displayedSeries, zoneId) {
+    val markerFormatter = remember(displayedSeries, zoneId, locale) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
-            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId, resolveText = { it.resolve(resources) })
+            formatPetWeightDisplayedMarker(target.x.toLong(), displayedSeries, zoneId, locale, resolveText = { it.resolve(resources) })
         }
     }
     val zoomState = key(viewport.initialVisibleRange, zoneId) {
@@ -1014,7 +1017,7 @@ private fun PetWeightVicoChart(
         return true
     }
     val accessibleMarker = selectableXs.getOrNull(selectedXIndex)
-        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId, resolveText = { text -> text.resolve(resources) }) }
+        ?.let { formatPetWeightDisplayedMarker(it, displayedSeries, zoneId, locale, resolveText = { text -> text.resolve(resources) }) }
         ?.takeIf(String::isNotEmpty)
     val weightUnit = stringResource(R.string.pet_weight_unit_kg)
     val noSelectablePoints = stringResource(R.string.pet_weight_chart_no_selectable_points)

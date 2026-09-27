@@ -30,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
 import com.palixander.scalesync.ui.theme.HuaweiColors
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -103,7 +104,7 @@ fun MeasurementResolverDialog(
                             style = MaterialTheme.typography.titleLarge,
                         )
                         Text(
-                            formatMeasurementDateTime(state.pending.measuredAt),
+                            formatMeasurementDateTime(state.pending.measuredAt, locale = currentAppLocale()),
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             style = MaterialTheme.typography.bodySmall,
                         )

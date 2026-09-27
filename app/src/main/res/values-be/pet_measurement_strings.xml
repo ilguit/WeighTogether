@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_measurement_title">Узважванне хатняй жывёлы</string>
+    <string name="pet_measurement_close_a11y">Закрыць узважванне хатняй жывёлы</string>
+    <string name="pet_measurement_choose_pet">Выберыце хатнюю жывёлу</string>
+    <string name="pet_measurement_new_pet">Новая хатняя жывёла</string>
+    <string name="pet_measurement_back_to_selection">Назад да выбару хатняй жывёлы</string>
+    <string name="pet_measurement_first_title">Першае ўзважванне</string>
+    <string name="pet_measurement_second_title">Другое ўзважванне</string>
+    <string name="pet_measurement_saving_title">Захаванне</string>
+    <string name="pet_measurement_failed_title">Не ўдалося ўзважыць хатнюю жывёлу</string>
+    <string name="pet_measurement_connection_lost">Злучэнне перапынена</string>
+    <string name="pet_measurement_first_instructions_named">Зрабіце адно вымярэнне, трымаючы %1$s, і другое — без хатняй жывёлы. Парадак не мае значэння. Пачніце з любога варыянта і дачакайцеся стабільнага паказання.</string>
+    <string name="pet_measurement_first_accepted">Першае паказанне прынята: %1$s кг</string>
+    <string name="pet_measurement_second_instructions_named">Цяпер зрабіце астатняе вымярэнне, трымаючы %1$s або без хатняй жывёлы. Дачакайцеся стабільнага паказання.</string>
+    <string name="pet_measurement_first_instructions">Узважцеся з хатняй жывёлай або без яе і дачакайцеся стабільнага паказання.</string>
+    <string name="pet_measurement_second_instructions">Паўтарыце ўзважванне іншым спосабам: з хатняй жывёлай, калі першае паказанне было без яе, або без хатняй жывёлы, калі першае паказанне было з ёй.</string>
+    <string name="pet_measurement_waiting_stable">Чаканне стабільнага паказання</string>
+    <string name="pet_measurement_first_reading">Першае паказанне: %1$s кг</string>
+    <string name="pet_measurement_first_reading_saved">Першае паказанне захавана: %1$s кг</string>
+    <string name="pet_measurement_saving">Захаванне выніку…</string>
+    <string name="pet_measurement_result_weight">Вага хатняй жывёлы — %1$s кг</string>
+    <string name="pet_measurement_delta">%1$s%2$s кг ад папярэдняга вымярэння</string>
+    <string name="weight_kg_format">%1$s кг</string>
+    <string name="pet_measurement_no_pets">Хатніх жывёл пакуль няма. Стварыце першую.</string>
+    <string name="pet_measurement_latest_weight">Апошняя вага: %1$s кг · %2$s</string>
+    <string name="pet_measurement_no_measurements">Вымярэнняў пакуль няма</string>
+    <string name="pet_measurement_create_and_weigh">Стварыць і ўзважыць</string>
+    <string name="pet_measurement_cat">Кот</string>
+    <string name="pet_measurement_dog">Сабака</string>
+    <string name="pet_measurement_scale_required">Спачатку выберыце вагі ў наладах</string>
+    <string name="pet_measurement_bluetooth_permission">Дазвольце Bluetooth, каб узважыць хатнюю жывёлу</string>
+    <string name="pet_measurement_timeout">Вагі не перадалі новае стабільнае вымярэнне</string>
+    <string name="pet_measurement_wait_for_ble_scan">Дачакайцеся завяршэння бягучага сканавання Bluetooth</string>
+    <string name="pet_measurement_pet_not_found">Хатняя жывёла не знойдзена</string>
+    <string name="pet_measurement_start_failed">Не ўдалося пачаць сканаванне</string>
+    <string name="pet_measurement_save_failed">Не ўдалося захаваць вагу хатняй жывёлы</string>
+    <string name="pet_measurement_retry_failed">Не ўдалося аднавіць сканаванне</string>
+</resources>

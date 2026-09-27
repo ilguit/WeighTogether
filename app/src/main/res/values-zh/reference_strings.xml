@@ -1,0 +1,172 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="reference_set_label">参考标准：ScaleSync 1</string>
+    <string name="reference_group_main">基本指标</string>
+    <string name="reference_group_body_composition">身体成分</string>
+    <string name="reference_group_muscles_and_bones">肌肉与骨骼</string>
+    <string name="reference_group_metabolism">代谢</string>
+
+    <string name="reference_metric_weight">体重</string>
+    <string name="reference_metric_impedance">阻抗</string>
+    <string name="reference_metric_bmi">BMI</string>
+    <string name="reference_metric_body_fat">体脂率</string>
+    <string name="reference_metric_body_fat_mass">脂肪量</string>
+    <string name="reference_metric_water">体水分率</string>
+    <string name="reference_metric_water_mass">体水分量</string>
+    <string name="reference_metric_muscle_mass">肌肉量</string>
+    <string name="reference_metric_skeletal_muscle">骨骼肌量</string>
+    <string name="reference_metric_bone_mass">骨量</string>
+    <string name="reference_metric_protein">蛋白质率</string>
+    <string name="reference_metric_protein_mass">蛋白质量</string>
+    <string name="reference_metric_visceral_fat">内脏脂肪</string>
+    <string name="reference_metric_bmr">基础代谢率</string>
+    <string name="reference_metric_metabolic_age">代谢年龄</string>
+    <string name="reference_metric_lean_body_mass">瘦体重</string>
+
+    <string name="reference_unit_kg">kg</string>
+    <string name="reference_unit_ohm">Ω</string>
+    <string name="reference_unit_bmi">kg/m²</string>
+    <string name="reference_unit_percent">%</string>
+    <string name="reference_unit_level">级</string>
+    <string name="reference_unit_kcal_day">kcal/天</string>
+    <string name="reference_unit_years">岁</string>
+    <plurals name="reference_spoken_kg"><item quantity="other">千克</item></plurals>
+    <plurals name="reference_spoken_ohm"><item quantity="other">欧姆</item></plurals>
+    <plurals name="reference_spoken_percent"><item quantity="other">百分比</item></plurals>
+    <plurals name="reference_spoken_year"><item quantity="other">岁</item></plurals>
+    <string name="reference_spoken_bmi">千克每平方米</string>
+    <string name="reference_spoken_level">级</string>
+    <string name="reference_spoken_kcal_day">千卡每天</string>
+
+    <string name="reference_category_very_low">很低</string>
+    <string name="reference_category_low">偏低</string>
+    <string name="reference_category_below_normal">低于正常</string>
+    <string name="reference_category_normal">正常</string>
+    <string name="reference_category_above_normal">高于正常</string>
+    <string name="reference_category_good">良好</string>
+    <string name="reference_category_very_good">很好</string>
+    <string name="reference_category_high">偏高</string>
+    <string name="reference_category_very_high">很高</string>
+    <string name="reference_category_high_bmi">BMI 偏高</string>
+    <string name="reference_category_very_high_bmi">BMI 很高</string>
+    <string name="reference_category_younger">低于实际年龄</string>
+    <string name="reference_category_matches">与实际年龄相符</string>
+    <string name="reference_category_older">高于实际年龄</string>
+    <string name="reference_unavailable_no_reference">无参考范围</string>
+    <string name="reference_unavailable_out_of_domain">您的年龄或参数无适用的参考范围</string>
+    <string name="reference_unavailable_missing_profile">个人资料不足</string>
+    <string name="reference_unavailable_no_data">无数据</string>
+    <string name="reference_preliminary_status">初步结果：%1$s</string>
+    <string name="reference_missing_value_symbol">—</string>
+    <string name="reference_zone_visual">%1$s：%2$s</string>
+    <string name="reference_help_value_summary">%1$s。%2$s</string>
+
+    <string name="reference_range_less_than">低于 %1$s</string>
+    <string name="reference_range_between">%1$s–&lt;%2$s</string>
+    <string name="reference_range_from">不低于 %1$s</string>
+    <string name="reference_spoken_range_less_than">低于 %1$s</string>
+    <string name="reference_spoken_range_between">从 %1$s 到 %2$s，不含 %2$s</string>
+    <string name="reference_spoken_range_from">不低于 %1$s</string>
+    <string name="reference_accessibility_zone">%1$s — %2$s</string>
+    <string name="reference_accessibility_rated">%1$s，%2$s。%3$s。参考范围：%4$s。</string>
+    <string name="reference_accessibility_preview">%1$s，%2$s。初步结果：%3$s。参考范围：%4$s。</string>
+    <string name="reference_accessibility_unavailable">%1$s，%2$s。%3$s。</string>
+    <string name="reference_accessibility_missing">%1$s。%2$s。</string>
+    <string name="reference_info_action">详细了解%1$s</string>
+
+    <string name="reference_help_value_heading">数值与类别</string>
+    <string name="reference_help_zones_heading">参考范围</string>
+    <string name="reference_help_meaning_heading">指标含义</string>
+    <string name="reference_help_calculation_heading">计算方法</string>
+    <string name="reference_help_dependencies_heading">影响因素</string>
+    <string name="reference_help_limitations_heading">局限性</string>
+    <string name="reference_help_source_heading">来源</string>
+    <string name="reference_help_disclaimer_heading">重要提示</string>
+    <string name="reference_open_rating_source">打开评级来源</string>
+    <string name="reference_open_description_source">打开说明来源</string>
+    <string name="reference_close">关闭</string>
+    <string name="reference_source_open_error">无法打开来源。</string>
+    <string name="reference_manual_warning">此测量结果经过手动编辑，相关指标可能尚未重新计算。</string>
+    <string name="reference_legacy_height_warning">此较早测量记录所用的身高已从账户所有者的个人资料中恢复。</string>
+    <string name="reference_used_data">评估使用身高 %1$s cm、个人资料中的当前性别以及测量当日年龄 %2$d 岁。</string>
+    <string name="reference_bia_disclaimer">此指标根据生物电阻抗和个人资料数据估算。它用于跟踪变化趋势，不构成诊断，并可能随测量条件而变化。</string>
+    <string name="reference_bia_contraindications">孕期、装有心脏起搏器或植入式医疗设备、正在接受透析或有重度水肿时，请勿使用生物电阻抗测量。如有疑问，请咨询医生。</string>
+    <string name="reference_general_disclaimer">这些类别是面向消费者的参考解读，不构成诊断或医疗建议。</string>
+
+    <string name="reference_source_xiaomi_legacy">Xiaomi Legacy — 根据 Mi Fit 体脂秤重建</string>
+    <string name="reference_source_schutz_fmi">Schutz 等，2002 — FMI 第 5/第 95 百分位数</string>
+    <string name="reference_source_omron">OMRON BCM-500 — 骨骼肌评级表</string>
+    <string name="reference_source_tanita_age">TANITA RD-953 — 身体年龄解读</string>
+    <string name="reference_source_inbody_bia">InBody — BIA 技术概述</string>
+    <string name="reference_source_tanita_results">TANITA — 身体成分指标说明</string>
+    <string name="reference_source_protein_model">全身蛋白质量模型</string>
+    <string name="reference_secondary_chumlea">其他非交互式参考资料：Chumlea — 总体水分模型。</string>
+    <string name="reference_secondary_janssen">其他非交互式参考资料：Janssen 等，2000 — 骨骼肌量方程。</string>
+    <string name="reference_secondary_niams">其他非交互式参考资料：NIAMS — 估算骨量与骨密度及 T 值的区别。</string>
+    <string name="reference_secondary_espen">其他非交互式参考资料：ESPEN/GLIM — 临床 FFMI 背景，不作为 ScaleSync 的评级标准。</string>
+
+    <string name="reference_help_weight_meaning">体重秤直接测得的身体质量。</string>
+    <string name="reference_help_weight_calculation">根据已保存的身高和 Xiaomi Legacy 的 BMI 阈值计算体重范围。因此，体重类别始终与 BMI 类别一致。</string>
+    <string name="reference_help_weight_dependencies">已保存的身高和体重。不使用阻抗。</string>
+    <string name="reference_help_weight_limitations">仅凭体重无法判断健康状况。未满 20 岁或超出体重秤适用范围时不显示类别。</string>
+    <string name="reference_help_impedance_meaning">体重秤电极之间的电阻，用作计算身体成分的输入值。</string>
+    <string name="reference_help_impedance_calculation">该数值以欧姆为单位从体重秤的 BLE 数据包中读取，不会单独重新计算。</string>
+    <string name="reference_help_impedance_dependencies">足部接触情况、电极排列、频率、身体形态、水合状态、皮肤温度和测量条件。</string>
+    <string name="reference_help_impedance_limitations">该数值本身不是健康指标。不同 BIA 设备的量表不能互换，也没有通用参考范围。</string>
+    <string name="reference_help_bmi_meaning">反映体重与身高关系的指标。BMI 不反映身体成分，也不构成诊断。</string>
+    <string name="reference_help_bmi_calculation">体重（千克）除以已保存身高（米）的平方。类别采用 Xiaomi Legacy 的 18.5、25、28 和 32 阈值。</string>
+    <string name="reference_help_bmi_dependencies">体重和已保存的身高。</string>
+    <string name="reference_help_bmi_limitations">这些类别并非世界卫生组织当前采用的临床分类。未满 20 岁时不显示类别。</string>
+    <string name="reference_help_body_fat_meaning">脂肪组织占总体重的估算比例。</string>
+    <string name="reference_help_body_fat_calculation">与 Xiaomi 兼容的 BIA 公式使用体重、阻抗、身高、年龄和性别。类别采用 Xiaomi Legacy 按年龄和性别划分的评级表。</string>
+    <string name="reference_help_body_fat_dependencies">个人资料中的当前性别、测量当日年龄、已保存的身高和 BIA 测量条件。</string>
+    <string name="reference_help_body_fat_limitations">这是算法估算值，并非对脂肪组织的直接测量。在相似条件下持续观察变化趋势更有意义。</string>
+    <string name="reference_help_body_fat_mass_meaning">脂肪组织的估算质量，单位为千克。</string>
+    <string name="reference_help_body_fat_mass_calculation">脂肪量 = 体重 × 体脂率。参考类别采用 FMI（脂肪量 ÷ 身高²），并与 Schutz 的第 5/第 95 百分位数比较。</string>
+    <string name="reference_help_body_fat_mass_dependencies">估算体脂率、体重、已保存的身高、当前性别和年龄。</string>
+    <string name="reference_help_body_fat_mass_limitations">第 5 至第 95 百分位数基于日内瓦成人群体，而“正常”是 ScaleSync 的产品解读。未满 18 岁或超过 98 岁时无法使用该评级标准。</string>
+    <string name="reference_help_water_meaning">总体水分占体重的估算比例，并非饮水量。</string>
+    <string name="reference_help_water_calculation">与 Xiaomi 兼容的公式根据估算身体成分得出该指标；类别采用 Xiaomi Legacy 按性别划分的评级标准。</string>
+    <string name="reference_help_water_dependencies">当前性别、身体成分、水合状态和测量条件。</string>
+    <string name="reference_help_water_limitations">不能替代对脱水或水肿的评估。</string>
+    <string name="reference_help_water_mass_meaning">总体水分的估算质量，单位为千克。</string>
+    <string name="reference_help_water_mass_calculation">体重 × 体水分率。</string>
+    <string name="reference_help_water_mass_dependencies">体型和估算体水分率。</string>
+    <string name="reference_help_water_mass_limitations">体型越大，绝对量通常越高，因此该数值本身不能反映水合状态。没有可兼容的通用千克参考标准。</string>
+    <string name="reference_help_muscle_mass_meaning">肌肉组织的估算质量。</string>
+    <string name="reference_help_muscle_mass_calculation">ScaleSync 从体重中减去估算脂肪量和骨量。类别采用 Xiaomi Legacy 按性别和身高划分的阈值。</string>
+    <string name="reference_help_muscle_mass_dependencies">当前性别、已保存的身高、体重和所有 BIA 输入值。</string>
+    <string name="reference_help_muscle_mass_limitations">该数值取决于算法，不能测量肌肉力量或功能。</string>
+    <string name="reference_help_skeletal_muscle_meaning">带动身体活动的肌肉的估算质量。</string>
+    <string name="reference_help_skeletal_muscle_calculation">Janssen 方程使用身高、阻抗、性别和年龄。评级时，将骨骼肌量除以体重并转换为百分比，四舍五入至 0.1%%，再与 OMRON 评级表比较。</string>
+    <string name="reference_help_skeletal_muscle_dependencies">当前性别和年龄、已保存的身高、体重及阻抗。</string>
+    <string name="reference_help_skeletal_muscle_limitations">Janssen 使用全身 BIA，而 Xiaomi 使用足对足 BIA。采用 OMRON 类别属于面向消费者的解读，不能评估肌力或诊断肌少症。未满 18 岁或超过 80 岁时无参考范围。</string>
+    <string name="reference_help_bone_mass_meaning">骨骼矿物质成分的估算质量。</string>
+    <string name="reference_help_bone_mass_calculation">与 Xiaomi 兼容的公式使用性别和 BIA 估算的瘦体成分。类别取决于性别和体重。</string>
+    <string name="reference_help_bone_mass_dependencies">当前性别、体重和 BIA 计算结果。</string>
+    <string name="reference_help_bone_mass_limitations">这不是骨密度、BMD/T 值或骨质疏松症筛查。</string>
+    <string name="reference_help_protein_meaning">体内蛋白质成分的估算比例。</string>
+    <string name="reference_help_protein_calculation" formatted="false">与 Xiaomi 兼容的内部公式使用肌肉量、体重和体水分。Xiaomi Legacy 的阈值为 16% 和 20%。</string>
+    <string name="reference_help_protein_dependencies">计算肌肉量和体水分所用的全部输入值。</string>
+    <string name="reference_help_protein_limitations">不能反映蛋白质摄入量、血液蛋白质水平或膳食质量。</string>
+    <string name="reference_help_protein_mass_meaning">由 ScaleSync 内部公式估算的蛋白质成分质量。</string>
+    <string name="reference_help_protein_mass_calculation">体重 × 蛋白质率。</string>
+    <string name="reference_help_protein_mass_dependencies">估算肌肉量、体水分、蛋白质率和体重。</string>
+    <string name="reference_help_protein_mass_limitations">这不是经过验证的全身蛋白质量、血液蛋白质检测结果或膳食目标。没有可兼容的通用千克参考标准。</string>
+    <string name="reference_help_visceral_fat_meaning">内脏周围脂肪的估算指数。</string>
+    <string name="reference_help_visceral_fat_calculation">与 Xiaomi 兼容的回归公式使用性别、年龄、身高和体重。Xiaomi Legacy 的阈值为 10 和 15。</string>
+    <string name="reference_help_visceral_fat_dependencies">当前性别和年龄、已保存的身高及体重。</string>
+    <string name="reference_help_visceral_fat_limitations">这是无量纲的算法评级，并非质量、百分比、腰围或 CT/MRI 面积。</string>
+    <string name="reference_help_bmr_meaning">身体在静息状态下一天消耗的估算能量。</string>
+    <string name="reference_help_bmr_calculation">ScaleSync 采用基于性别、年龄、身高和体重的公式。Xiaomi Legacy 的参考阈值等于体重乘以按年龄和性别划分的系数。</string>
+    <string name="reference_help_bmr_dependencies">当前性别和年龄、已保存的身高及体重。</string>
+    <string name="reference_help_bmr_limitations">这不是每日热量目标、膳食建议或直接测热法的测量结果。</string>
+    <string name="reference_help_metabolic_age_meaning">基于身体成分、由特定算法得出的指标。</string>
+    <string name="reference_help_metabolic_age_calculation">与 Xiaomi 兼容的回归公式使用身高、体重、年龄、阻抗和性别。参照 TANITA 的方式，将结果与测量当日个人资料中的实际年龄比较后划分类别。</string>
+    <string name="reference_help_metabolic_age_dependencies">当前性别和出生日期、已保存的身高、体重及阻抗。</string>
+    <string name="reference_help_metabolic_age_limitations">不能据此确定生物年龄，也不用于诊断。参考范围仅适用于 18 至 99 岁。</string>
+    <string name="reference_help_lean_body_mass_meaning">身体成分公式所使用的 Xiaomi Legacy 内部估算值。</string>
+    <string name="reference_help_lean_body_mass_calculation">回归公式使用身高、体重、阻抗和年龄，然后将结果限制在算法的技术上限内。</string>
+    <string name="reference_help_lean_body_mass_dependencies">当前年龄、已保存的身高、体重及阻抗。</string>
+    <string name="reference_help_lean_body_mass_limitations">此字段并不严格等同于临床上的去脂体重。外部 FFMI 阈值不适用于此字段；技术上限也不是参考范围。</string>
+</resources>

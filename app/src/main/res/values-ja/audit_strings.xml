@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="message_ble_background_enabled">バックグラウンドのBLEスキャンを有効にしました</string>
+    <string name="message_finish_pet_measurement_first">先にペットの計量を完了してください</string>
+    <string name="message_manual_scan_stopped">手動スキャンを停止しました</string>
+    <string name="message_step_on_scale">体重計に乗り、測定が確定するまでお待ちください</string>
+    <string name="message_bluetooth_scan_permission_required">先にBluetoothのスキャンを許可してください</string>
+    <string name="message_reliable_mode_enabled">高信頼モードを有効にしました</string>
+    <string name="message_reliable_mode_disabled">高信頼モードを無効にしました</string>
+    <string name="message_scale_forgotten">体重計の登録を解除しました</string>
+    <string name="message_health_connect_disabled">アプリでヘルスコネクトが無効になっています。権限はシステム設定で取り消せます。</string>
+    <string name="message_pending_check_failed">保留中の測定値を確認できませんでした</string>
+    <string name="message_wait_for_ble_scan">実行中のBLEスキャンが終わるまでお待ちください</string>
+    <string name="message_health_connect_permission_check_failed">ヘルスコネクトの権限を確認できませんでした</string>
+    <string name="message_health_connect_queue_restarted">ヘルスコネクト：権限が付与されたため、キューを再開しました</string>
+    <string name="message_health_connect_permissions_incomplete">ヘルスコネクト：一部のデータタイプが許可されていません</string>
+    <string name="message_external_sync_paused">外部同期を一時停止しました</string>
+    <string name="message_external_sync_resumed">外部同期を再開しました</string>
+    <string name="measurement_group_main">基本</string>
+    <string name="measurement_group_body_composition">体組成</string>
+    <string name="measurement_group_muscles_bones">筋肉と骨</string>
+    <string name="measurement_group_metabolism">代謝</string>
+    <string name="measurement_input_label_with_unit">%1$s（%2$s）</string>
+    <string name="unit_ohm_symbol">Ω</string>
+    <string name="unit_kcal">kcal</string>
+    <string name="validation_required_field">必須項目です</string>
+    <string name="validation_whole_number">整数を入力してください</string>
+    <string name="validation_number">数値を入力してください</string>
+    <string name="validation_finite_number">有限の数値を入力してください</string>
+    <string name="validation_non_negative">負の値は入力できません</string>
+    <string name="validation_allowed_range">指定できる範囲：0～%1$d</string>
+    <string name="measurement_value_with_unit">%1$s %2$s</string>
+    <string name="measurement_prefixed_unit">\u0020%1$s</string>
+    <string name="measurement_delete_summary">%1$s・%2$s %3$s</string>
+    <string name="measurement_history_fat">体脂肪 %1$s</string>
+    <string name="measurement_history_muscle">筋肉 %1$s</string>
+    <string name="measurement_history_bmi">BMI %1$s</string>
+    <string name="measurement_first_measurement">最初の測定</string>
+    <string name="measurement_weight_no_change">変化なし</string>
+</resources>

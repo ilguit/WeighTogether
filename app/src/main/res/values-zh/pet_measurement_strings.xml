@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_measurement_title">宠物称重</string>
+    <string name="pet_measurement_close_a11y">关闭宠物称重</string>
+    <string name="pet_measurement_choose_pet">选择宠物</string>
+    <string name="pet_measurement_new_pet">添加宠物</string>
+    <string name="pet_measurement_back_to_selection">返回宠物选择</string>
+    <string name="pet_measurement_first_title">第一次称重</string>
+    <string name="pet_measurement_second_title">第二次称重</string>
+    <string name="pet_measurement_saving_title">正在保存</string>
+    <string name="pet_measurement_failed_title">无法完成宠物称重</string>
+    <string name="pet_measurement_connection_lost">连接已中断</string>
+    <string name="pet_measurement_first_instructions_named">请抱着 %1$s 测量一次，再不抱宠物测量一次。顺序不限。任选一种开始，并等待读数稳定。</string>
+    <string name="pet_measurement_first_accepted">已记录第一次读数：%1$s kg</string>
+    <string name="pet_measurement_second_instructions_named">现在请完成另一次测量：抱着 %1$s 或不抱宠物。等待读数稳定。</string>
+    <string name="pet_measurement_first_instructions">请抱着或不抱宠物称重，并等待读数稳定。</string>
+    <string name="pet_measurement_second_instructions">请换另一种方式再次称重：第一次未抱宠物则这次抱着，第一次抱着则这次不抱。</string>
+    <string name="pet_measurement_waiting_stable">正在等待稳定读数</string>
+    <string name="pet_measurement_first_reading">第一次读数：%1$s kg</string>
+    <string name="pet_measurement_first_reading_saved">已保存第一次读数：%1$s kg</string>
+    <string name="pet_measurement_saving">正在保存结果…</string>
+    <string name="pet_measurement_result_weight">宠物体重 — %1$s kg</string>
+    <string name="pet_measurement_delta">较上次测量 %1$s%2$s kg</string>
+    <string name="weight_kg_format">%1$s kg</string>
+    <string name="pet_measurement_no_pets">还没有宠物。请先添加宠物。</string>
+    <string name="pet_measurement_latest_weight">最近体重：%1$s kg · %2$s</string>
+    <string name="pet_measurement_no_measurements">暂无测量记录</string>
+    <string name="pet_measurement_create_and_weigh">添加并称重</string>
+    <string name="pet_measurement_cat">猫</string>
+    <string name="pet_measurement_dog">狗</string>
+    <string name="pet_measurement_scale_required">请先在设置中选择体重秤</string>
+    <string name="pet_measurement_bluetooth_permission">请允许使用蓝牙，以便为宠物称重</string>
+    <string name="pet_measurement_timeout">体重秤未发送新的稳定读数</string>
+    <string name="pet_measurement_wait_for_ble_scan">请等待当前蓝牙扫描完成</string>
+    <string name="pet_measurement_pet_not_found">找不到宠物</string>
+    <string name="pet_measurement_start_failed">无法开始扫描</string>
+    <string name="pet_measurement_save_failed">无法保存宠物体重</string>
+    <string name="pet_measurement_retry_failed">无法恢复扫描</string>
+</resources>

@@ -9,18 +9,32 @@ import org.w3c.dom.Element
 
 class LocalizationResourceContractTest {
     @Test
-    fun `default and Russian resources expose matching keys formats and plurals`() {
-        LOCALIZABLE_RESOURCE_FILES.forEach { fileName ->
-            val default = readResources(File("src/main/res/values/$fileName"))
-            val russian = readResources(File("src/main/res/values-ru/$fileName"))
+    fun `localized resources expose matching keys formats and locale plural quantities`() {
+        val defaultResources = LOCALIZABLE_RESOURCE_FILES.associateWith { fileName ->
+            readResources(File("src/main/res/values/$fileName"))
+        }
 
-            assertEquals("Resource keys differ in $fileName", default.keys, russian.keys)
-            default.forEach { (key, value) ->
-                assertEquals("Resource type differs for $key", value.type, russian.getValue(key).type)
-                assertEquals("Format arguments differ for $key", value.arguments, russian.getValue(key).arguments)
-                if (value.type == "plurals") {
-                    assertEquals("Default plural $key must define other", true, "other" in value.quantities)
-                    assertEquals("Russian plural $key must define other", true, "other" in russian.getValue(key).quantities)
+        LOCALES.forEach { locale ->
+            LOCALIZABLE_RESOURCE_FILES.forEach { fileName ->
+                val default = defaultResources.getValue(fileName)
+                val localized = readResources(File("src/main/res/${locale.directory}/$fileName"))
+
+                assertEquals("Resource keys differ for ${locale.tag} in $fileName", default.keys, localized.keys)
+                default.forEach { (key, value) ->
+                    val localizedValue = localized.getValue(key)
+                    assertEquals("Resource type differs for ${locale.tag}:$key", value.type, localizedValue.type)
+                    assertEquals(
+                        "Format arguments differ for ${locale.tag}:$key",
+                        value.arguments,
+                        localizedValue.arguments,
+                    )
+                    if (value.type == "plurals") {
+                        assertEquals(
+                            "Plural quantities differ for ${locale.tag}:$key",
+                            locale.pluralQuantities,
+                            localizedValue.quantities,
+                        )
+                    }
                 }
             }
         }
@@ -63,6 +77,12 @@ class LocalizationResourceContractTest {
         val texts: List<String>,
     )
 
+    private data class LocaleContract(
+        val tag: String,
+        val directory: String,
+        val pluralQuantities: Set<String>,
+    )
+
     private companion object {
         val LOCALIZABLE_RESOURCE_FILES = listOf(
             "account_routing_strings.xml",
@@ -72,6 +92,17 @@ class LocalizationResourceContractTest {
             "reference_strings.xml",
             "strings.xml",
             "ui_strings.xml",
+        )
+        val LOCALES = listOf(
+            LocaleContract("en", "values", setOf("one", "other")),
+            LocaleContract("ru", "values-ru", setOf("one", "few", "many", "other")),
+            LocaleContract("de", "values-de", setOf("one", "other")),
+            LocaleContract("fr", "values-fr", setOf("one", "other")),
+            LocaleContract("it", "values-it", setOf("one", "other")),
+            LocaleContract("uk", "values-uk", setOf("one", "few", "many", "other")),
+            LocaleContract("be", "values-be", setOf("one", "few", "many", "other")),
+            LocaleContract("ja", "values-ja", setOf("other")),
+            LocaleContract("zh", "values-zh", setOf("other")),
         )
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =

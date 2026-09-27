@@ -1,0 +1,40 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="message_ble_background_enabled">Background BLE Suche aktiviert</string>
+    <string name="message_finish_pet_measurement_first">Abschließen der Haustier Wägung erste</string>
+    <string name="message_manual_scan_stopped">Mannual Suche gestoppt</string>
+    <string name="message_step_on_scale">Stellen Sie sich auf die Waage und warten Sie auf der final Messung</string>
+    <string name="message_bluetooth_scan_permission_required">Erlauben Sie zuerst die Bluetooth-Suche</string>
+    <string name="message_reliable_mode_enabled">Modus mit hoher Zuverlässigkeit aktiviert</string>
+    <string name="message_reliable_mode_disabled">Modus mit hoher Zuverlässigkeit deaktiviert</string>
+    <string name="message_scale_forgotten">Skala vergessen</string>
+    <string name="message_health_connect_disabled">Health Connect ist deaktiviert in der App. Sie kann widerrufen Berechtigungen in den Systemeinstellungen.</string>
+    <string name="message_pending_check_failed">Konnte nicht prüfen ausstehende Messungen</string>
+    <string name="message_wait_for_ble_scan">Warten Sie auf der aktuelle BLE scan zu abschließen</string>
+    <string name="message_health_connect_permission_check_failed">Konnte nicht prüfen Health Connect Berechtigungen</string>
+    <string name="message_health_connect_queue_restarted">Health Connect: Berechtigungen erteilt, Warteschlange restarted</string>
+    <string name="message_health_connect_permissions_incomplete">Health Connect: nicht alle Datentypen sind erlaubt</string>
+    <string name="message_external_sync_paused">Externe Synchronisierung pausiert</string>
+    <string name="message_external_sync_resumed">Externe Synchronisierung resumed</string>
+    <string name="measurement_group_main">Hauptwerte</string>
+    <string name="measurement_group_body_composition">Körperzusammensetzung</string>
+    <string name="measurement_group_muscles_bones">Muskeln und Knochen</string>
+    <string name="measurement_group_metabolism">Stoffwechsel</string>
+    <string name="measurement_input_label_with_unit">%1$s, %2$s</string>
+    <string name="unit_ohm_symbol">Ω</string>
+    <string name="unit_kcal">kcal</string>
+    <string name="validation_required_field">Erforderlich Feld</string>
+    <string name="validation_whole_number">Geben Sie eine ganze Zahl ein</string>
+    <string name="validation_number">Geben Sie eine Zahl ein</string>
+    <string name="validation_finite_number">Eingeben ein endliche Zahl</string>
+    <string name="validation_non_negative">Wert kann nicht negativ</string>
+    <string name="validation_allowed_range">Allowed Bereich: 0–%1$d</string>
+    <string name="measurement_value_with_unit">%1$s %2$s</string>
+    <string name="measurement_prefixed_unit">\u0020%1$s</string>
+    <string name="measurement_delete_summary">%1$s · %2$s %3$s</string>
+    <string name="measurement_history_fat">Fett %1$s</string>
+    <string name="measurement_history_muscle">Muskel %1$s</string>
+    <string name="measurement_history_bmi">BMI %1$s</string>
+    <string name="measurement_first_measurement">Erste Messung</string>
+    <string name="measurement_weight_no_change">Keine Änderung</string>
+</resources>

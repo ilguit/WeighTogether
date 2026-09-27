@@ -1,0 +1,99 @@
+<resources>
+    <string name="manual_weight_back">Повернутися до історії</string>
+    <string name="manual_weight_title">Додати вагу</string>
+    <string name="manual_weight_owner_unavailable">Профіль недоступний. Поверніться до історії</string>
+    <string name="manual_weight_label">Вага, кг</string>
+    <string name="manual_weight_date">Дата: %1$s</string>
+    <string name="manual_weight_date_cd">Дата вимірювання: %1$s</string>
+    <string name="manual_weight_time">Час: %1$s</string>
+    <string name="manual_weight_time_cd">Час вимірювання: %1$s</string>
+    <string name="manual_weight_saving_cd">Збереження ваги</string>
+    <string name="manual_weight_duplicate_title">Подібне вимірювання</string>
+    <string name="manual_weight_duplicate_message">Подібне вимірювання вже існує: %1$s кг, %2$s %3$s. Додати ще одне?</string>
+    <string name="manual_weight_add_another">Додати ще одне</string>
+    <string name="manual_weight_invalid_weight">Введіть додатну вагу з не більш ніж трьома знаками після коми</string>
+    <string name="manual_weight_invalid_local_time">Цього місцевого часу не існує. Виберіть інший час</string>
+    <string name="manual_weight_future_time">Дата й час не можуть бути в майбутньому</string>
+    <string name="manual_weight_check_fields">Перевірте вагу, дату й час</string>
+    <string name="manual_weight_save_failed">Не вдалося зберегти вагу. Спробуйте ще раз</string>
+    <string name="action_select">Вибрати</string>
+    <string name="account_selector_label">Профіль</string>
+    <string name="account_selector_cd">Вибрати профіль для даних</string>
+    <string name="account_selector_primary_suffix"> · основний</string>
+    <string name="account_selector_removed">Вибраний профіль видалено. Показано основний профіль.</string>
+    <string name="account_selector_primary_unavailable">Основний профіль недоступний. Виберіть профіль.</string>
+    <string name="account_selector_no_accounts">Створіть профіль, щоб зберігати й переглядати вимірювання.</string>
+    <string name="weight_recognition_title">Розпізнавання вимірювань</string>
+    <string name="weight_recognition_description">Більший допуск підвищує ймовірність автоматичного призначення та хибного збігу.</string>
+    <string name="weight_delta_label">Допуск ваги, кг</string>
+    <string name="weight_delta_saving_cd">Збереження допуску ваги</string>
+    <string name="weight_ignore_unknown">Ігнорувати невідомі показники</string>
+    <string name="weight_ignore_unknown_description">Лише для нових вимірювань після увімкнення</string>
+    <string name="weight_delta_required">Введіть допуск ваги</string>
+    <string name="weight_delta_number">Введіть число з десятковою крапкою або комою</string>
+    <string name="weight_delta_range">Допустиме значення: 0,1–50,0 кг</string>
+    <string name="measurement_resolver_pending_count">Очікують рішення: %1$d</string>
+    <string name="action_open">Відкрити</string>
+    <string name="measurement_weight_kg">%1$s кг</string>
+    <string name="account_primary_profile">Основний профіль</string>
+    <string name="unsaved_preview_calculate_metrics">Розрахувати показники</string>
+    <string name="action_calculate">Розрахувати</string>
+    <string name="unsaved_preview_title">Попередній перегляд вимірювання</string>
+    <string name="unsaved_preview_badge">Не збережено</string>
+    <string name="unsaved_preview_impedance">Імпеданс: %1$d Ом</string>
+    <string name="unsaved_preview_time">Час: %1$s</string>
+    <string name="unsaved_preview_one_time_profile">Одноразовий профіль</string>
+    <string name="profile_height_label">Зріст, см</string>
+    <string name="sex_male">Чоловіча</string>
+    <string name="sex_female">Жіноча</string>
+    <string name="unsaved_preview_result_only">Результат лише для попереднього перегляду</string>
+    <string name="account_error_name_length">Введіть ім’я від 1 до 50 символів</string>
+    <string name="account_error_duplicate_name">Профіль із таким ім’ям уже існує</string>
+    <string name="account_error_height">Допустимий зріст: 100–230 см</string>
+    <string name="account_error_birth_date">Введіть дійсну дату народження</string>
+    <string name="account_error_sex">Виберіть стать</string>
+    <string name="account_profiles_title">Профілі</string><string name="account_profiles_empty">Профілів ще немає.</string><string name="account_add_profile">Додати профіль</string>
+    <string name="account_pets_title">Улюбленці</string><string name="account_pets_empty">Улюбленців ще немає.</string><string name="account_add_pet">Додати улюбленця</string><string name="account_pet">Улюбленець</string>
+    <string name="account_recalculate_title">Перерахувати історію?</string><string name="account_recalculate_message">Нові дані профілю можуть змінити склад тіла в попередніх вимірюваннях для «%1$s».</string>
+    <string name="account_save_recalculate">Зберегти й перерахувати</string><string name="account_save_without_recalculate">Зберегти без перерахунку</string>
+    <string name="account_man">Чоловік</string><string name="account_woman">Жінка</string><string name="account_profile">Профіль</string><string name="account_make_primary">Зробити основним</string><string name="account_primary">Основний</string>
+    <string name="account_new_profile">Новий профіль</string><string name="account_edit_profile">Редагування профілю</string><string name="account_gallery">Галерея</string><string name="account_camera">Камера</string><string name="account_remove_photo">Видалити фото</string><string name="account_name">Ім’я</string><string name="account_sex">Стать</string>
+    <string name="account_male_choice">♂ Чоловік</string><string name="account_female_choice">♀ Жінка</string>
+    <string name="account_discard_title">Відхилити зміни?</string><string name="account_discard_message">Незбережені зміни профілю буде втрачено.</string><string name="account_discard">Відхилити зміни</string><string name="account_continue_editing">Продовжити редагування</string>
+    <string name="account_photo_unreadable">Не вдалося прочитати зображення</string><string name="account_photo_invalid">Вибраний файл не є зображенням</string><string name="account_photo_processing_failed">Не вдалося обробити зображення</string>
+    <string name="unsaved_preview_birth_date_error">Дата народження не може бути пізнішою за вимірювання</string>
+    <string name="error_save_setting">Не вдалося зберегти налаштування</string><string name="error_open_pending_measurement">Не вдалося відкрити нерозподілене вимірювання</string><string name="error_assign_measurement">Не вдалося призначити вимірювання</string><string name="error_enable_scanning">Не вдалося увімкнути сканування</string><string name="error_start_scanning">Не вдалося розпочати сканування</string><string name="error_perform_action">Не вдалося виконати дію</string><string name="error_change_profile">Не вдалося змінити профіль</string>
+    <string name="account_save_error_cd">Помилка збереження: %1$s</string>
+    <string name="account_save_recalculate_cd">Зберегти й перерахувати історію</string>
+    <string name="account_save_without_recalculate_cd">Зберегти без перерахунку історії</string>
+    <string name="account_cancel_update_cd">Скасувати оновлення профілю</string>
+    <string name="account_more_actions">Інші дії для %1$s</string>
+    <string name="account_back_to_profiles">Повернутися до профілів</string>
+    <string name="account_profile_photo">Фото профілю</string>
+    <string name="account_make_primary_title">Зробити основним</string>
+    <string name="account_primary_sync_message">Зовнішня синхронізація буде доступна лише для «%1$s».</string>
+    <string name="account_primary_existing_data_message">Дані, уже надіслані для попереднього основного профілю, не буде видалено.</string>
+    <string name="action_continue">Продовжити</string>
+    <string name="account_delete_title">Видалити профіль «%1$s»?</string>
+    <string name="account_delete_message">Локальну історію профілю буде остаточно видалено. Записи в зовнішніх сервісах залишаться.</string>
+    <string name="account_replacement_title">Новий основний профіль</string>
+    <string name="account_delete_last_primary_message">Після видалення останнього профілю основного профілю не буде.</string>
+    <string name="account_primary_history_title">Історія нового основного профілю</string>
+    <string name="account_sync_future_only">Лише нові вимірювання</string>
+    <string name="account_sync_eligible_history">Синхронізувати придатну історію</string>
+    <string name="account_profile_summary">%1$s см · %2$s · %3$s</string>
+    <string name="account_profile_incomplete">Заповніть профіль</string>
+    <string name="message_account_created">Профіль «%1$s» створено</string>
+    <string name="message_account_created_assigned">Профіль «%1$s» створено, вимірювання призначено</string>
+    <string name="message_account_name_conflict">Профіль із таким ім’ям уже існує</string>
+    <string name="message_measurement_already_processed">Вимірювання вже оброблено</string>
+    <string name="message_measurement_already_assigned">Вимірювання вже призначено</string>
+    <string name="message_account_saved">Профіль «%1$s» збережено</string>
+    <string name="message_primary_account_changed">Основний профіль змінено</string>
+    <string name="message_account_deleted">Профіль і його локальну історію видалено</string>
+    <string name="message_primary_account_deleted">Основний профіль і його локальну історію видалено</string>
+    <string name="message_weight_delta_saved">Допуск розпізнавання збережено</string>
+    <string name="error_save_weight_delta">Не вдалося зберегти допуск розпізнавання</string>
+    <string name="message_complete_selected_profile">Спочатку заповніть вибраний профіль</string>
+    <string name="message_account_already_deleted">Профіль уже видалено</string>
+</resources>

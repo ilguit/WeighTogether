@@ -32,6 +32,7 @@ import java.time.LocalDate
 import java.time.Year
 import java.time.YearMonth
 import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 sealed interface PetProfileEditorMode {
     data object Create : PetProfileEditorMode
@@ -130,67 +131,69 @@ class PetBreedCatalog(
     private val supportedCatBreeds = supportedCatBreedIds
         .mapNotNull(catalog::findById)
         .filter { it.species == BreedSpecies.CAT }
+    private val selectableBreeds = buildMap {
+        supportedDogBreeds.forEach { put(it.breedId, PetSpecies.DOG) }
+        supportedCatBreeds.forEach { put(it.id, PetSpecies.CAT) }
+    }
+    private val localization = PetBreedLocalization.bundled(selectableBreeds, catalog)
 
     /** Searches only product-supported breeds. The full VBO catalog remains internal. */
     fun search(
         query: String,
         species: PetSpecies,
+        locale: Locale = Locale.forLanguageTag("ru"),
     ): List<PetBreedOption> = when (species) {
-        PetSpecies.DOG -> searchDogs(query)
-        PetSpecies.CAT -> searchCats(query)
+        PetSpecies.DOG -> searchDogs(query, locale)
+        PetSpecies.CAT -> searchCats(query, locale)
         PetSpecies.UNSPECIFIED -> emptyList()
     }
 
-    private fun searchDogs(query: String): List<PetBreedOption> {
-        val needle = query.trim().lowercase()
+    private fun searchDogs(query: String, locale: Locale): List<PetBreedOption> {
+        val needle = PetBreedLocalization.normalize(query)
         return supportedDogBreeds
             .asSequence()
+            .map { toPetBreedOption(it, locale) }
             .filter { breed ->
                 needle.isEmpty() || sequenceOf(
-                    breed.russianName,
-                    breed.englishName,
-                    *breed.aliases.mapNotNull(catalog::findById)
-                        .flatMap { listOf(it.displayNameRu, it.canonicalName) + it.aliases }
-                        .toTypedArray(),
-                ).any { it.lowercase().contains(needle) }
+                    breed.displayName, breed.canonicalName, *breed.aliases.toTypedArray(),
+                ).any { PetBreedLocalization.normalize(it).contains(needle) }
             }
-            .sortedBy { it.russianName.lowercase() }
-            .map(::toPetBreedOption)
+            .sortedWith(PetBreedLocalization.comparator(locale))
             .toList()
     }
 
-    private fun searchCats(query: String): List<PetBreedOption> {
-        val matchingIds = catalog.search(query, BreedSpecies.CAT)
-            .asSequence()
-            .map(BreedRecord::id)
-            .toSet()
-        val needle = query.trim().lowercase()
+    private fun searchCats(query: String, locale: Locale): List<PetBreedOption> {
+        val needle = PetBreedLocalization.normalize(query)
         return supportedCatBreeds
             .asSequence()
-            .map(::toPetBreedOption)
+            .map { toPetBreedOption(it, locale) }
             .filter { option ->
-                needle.isEmpty() || option.id.value in matchingIds || sequenceOf(
+                needle.isEmpty() || sequenceOf(
                     option.displayName,
                     option.canonicalName,
                     *option.aliases.toTypedArray(),
-                ).any { needle in it.lowercase() }
+                ).any { needle in PetBreedLocalization.normalize(it) }
             }
-            .sortedWith(compareBy({ it.displayName.lowercase() }, { it.canonicalName.lowercase() }, { it.id.value }))
+            .sortedWith(PetBreedLocalization.comparator(locale))
             .toList()
     }
 
-    fun resolve(id: BreedId, savedSpecies: PetSpecies): PetBreedSelection {
+    fun resolve(
+        id: BreedId,
+        savedSpecies: PetSpecies,
+        locale: Locale = Locale.forLanguageTag("ru"),
+    ): PetBreedSelection {
         val canonicalId = canonicalBreedId(id.value)
-        snapshot?.breed(canonicalId)?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
+        snapshot?.breed(canonicalId)?.let { return PetBreedSelection.Available(toPetBreedOption(it, locale)) }
         supportedCatBreeds.singleOrNull { it.id == canonicalId }
-            ?.let { return PetBreedSelection.Available(toPetBreedOption(it)) }
+            ?.let { return PetBreedSelection.Available(toPetBreedOption(it, locale)) }
         return PetBreedSelection.Unavailable(BreedId(canonicalId), savedSpecies)
     }
 
-    private fun toPetBreedOption(breed: BreedReferenceBreed): PetBreedOption = PetBreedOption(
+    private fun toPetBreedOption(breed: BreedReferenceBreed, locale: Locale): PetBreedOption = PetBreedOption(
         id = BreedId(breed.breedId),
         species = PetSpecies.DOG,
-        displayName = breed.russianName,
+        displayName = localization.displayName(breed.breedId, breed.englishName, breed.russianName, locale),
         canonicalName = breed.englishName,
         aliases = breed.aliases.flatMap { alias ->
             catalog.findById(alias)?.let { listOf(it.displayNameRu, it.canonicalName) + it.aliases }
@@ -199,13 +202,18 @@ class PetBreedCatalog(
         kind = BreedKind.VBO,
     )
 
-    private fun toPetBreedOption(breed: BreedRecord): PetBreedOption = PetBreedOption(
+    private fun toPetBreedOption(breed: BreedRecord, locale: Locale): PetBreedOption = PetBreedOption(
         id = BreedId(breed.id),
         species = when (breed.species) {
             BreedSpecies.CAT -> PetSpecies.CAT
             BreedSpecies.DOG -> PetSpecies.DOG
         },
-        displayName = breed.displayNameRu,
+        displayName = localization.displayName(
+            breed.id,
+            breed.canonicalName,
+            breed.displayNameRu,
+            locale,
+        ),
         canonicalName = breed.canonicalName,
         aliases = breed.aliases,
         kind = breed.kind,

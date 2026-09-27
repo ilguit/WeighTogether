@@ -5,7 +5,7 @@
         <item name="postSplashScreenTheme">@style/Theme.ScaleSync</item>
     </style>
 
-    <style name="Theme.ScaleSync" parent="android:style/Theme.Material.Light.NoActionBar">
+    <style name="Theme.ScaleSync" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>

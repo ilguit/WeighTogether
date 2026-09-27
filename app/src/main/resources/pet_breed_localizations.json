@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "locales": [
+    "be",
+    "de",
+    "fr",
+    "it",
+    "ja",
+    "uk",
+    "zh"
+  ],
+  "breeds": [
+    {
+      "id": "VBO:0100000",
+      "species": "cat",
+      "names": {"be":"Абісінская","de":"Abessinier","fr":"Abyssin","it":"Abissino","ja":"アビシニアン","uk":"Абіссінська","zh":"阿比西尼亚猫"}
+    },
+    {
+      "id": "VBO:0100018",
+      "species": "cat",
+      "names": {"be":"Амерыканская кароткашэрсная","de":"Amerikanisch Kurzhaar","fr":"American Shorthair","it":"American Shorthair","ja":"アメリカンショートヘア","uk":"Американська короткошерста","zh":"美国短毛猫"}
+    },
+    {
+      "id": "VBO:0100036",
+      "species": "cat",
+      "names": {"be":"Балінезійская","de":"Balinese","fr":"Balinais","it":"Balinese","ja":"バリニーズ","uk":"Балінезійська","zh":"巴厘猫"}
+    },
+    {
+      "id": "VBO:0100040",
+      "species": "cat",
+      "names": {"be":"Бенгальская","de":"Bengalkatze","fr":"Bengal","it":"Bengala","ja":"ベンガル","uk":"Бенгальська","zh":"孟加拉猫"}
+    },
+    {
+      "id": "VBO:0100045",
+      "species": "cat",
+      "names": {"be":"Бамбейская","de":"Bombay","fr":"Bombay","it":"Bombay","ja":"ボンベイ","uk":"Бомбейська","zh":"孟买猫"}
+    },
+    {
+      "id": "VBO:0100052",
+      "species": "cat",
+      "names": {"be":"Брытанская кароткашэрсная","de":"Britisch Kurzhaar","fr":"British Shorthair","it":"British Shorthair","ja":"ブリティッシュショートヘア","uk":"Британська короткошерста","zh":"英国短毛猫"}
+    },
+    {
+      "id": "VBO:0100053",
+      "species": "cat",
+      "names": {"be":"Бурманская","de":"Burma-Katze","fr":"Burmese","it":"Burmese","ja":"バーミーズ","uk":"Бурманська","zh":"缅甸猫"}
+    },
+    {
+      "id": "VBO:0100056",
+      "species": "cat",
+      "names": {"be":"Бурміла","de":"Burmilla","fr":"Burmilla","it":"Burmilla","ja":"バーミラ","uk":"Бурміла","zh":"波米拉猫"}
+    },
+    {
+      "id": "VBO:0100077",
+      "species": "cat",
+      "names": {"be":"Корніш-рэкс","de":"Cornish Rex","fr":"Cornish Rex","it":"Cornish Rex","ja":"コーニッシュレックス","uk":"Корніш-рекс","zh":"柯尼斯卷毛猫"}
+    },
+    {
+      "id": "VBO:0100084",
+      "species": "cat",
+      "names": {"be":"Дэвон-рэкс","de":"Devon Rex","fr":"Devon Rex","it":"Devon Rex","ja":"デボンレックス","uk":"Девон-рекс","zh":"德文卷毛猫"}
+    },
+    {
+      "id": "VBO:0100090",
+      "species": "cat",
+      "names": {"be":"Егіпецкая мау","de":"Ägyptische Mau","fr":"Mau égyptien","it":"Mau egiziano","ja":"エジプシャンマウ","uk":"Єгипетська мау","zh":"埃及猫"}
+    },
+    {
+      "id": "VBO:0100154",
+      "species": "cat",
+      "names": {"be":"Мэйн-кун","de":"Maine-Coon-Katze","fr":"Maine Coon","it":"Maine Coon","ja":"メインクーン","uk":"Мейн-кун","zh":"缅因猫"}
+    },
+    {
+      "id": "VBO:0100169",
+      "species": "cat",
+      "names": {"be":"Манчкін","de":"Munchkin","fr":"Munchkin","it":"Munchkin","ja":"マンチカン","uk":"Манчкін","zh":"曼基康猫"}
+    },
+    {
+      "id": "VBO:0100170",
+      "species": "cat",
+      "names": {"be":"Даўгашэрсны манчкін","de":"Munchkin Langhaar","fr":"Munchkin à poil long","it":"Munchkin a pelo lungo","ja":"マンチカン・ロングヘア","uk":"Довгошерстий манчкін","zh":"长毛曼基康猫"}
+    },
+    {
+      "id": "VBO:0100173",
+      "species": "cat",
+      "names": {"be":"Неўская маскарадная","de":"Neva Masquarade","fr":"Neva Masquerade","it":"Neva Masquerade","ja":"ネヴァ・マスカレード","uk":"Невська маскарадна","zh":"涅瓦假面猫"}
+    },
+    {
+      "id": "VBO:0100178",
+      "species": "cat",
+      "names": {"be":"Нарвежская лясная","de":"Norwegische Waldkatze","fr":"Norvégien","it":"Gatto delle foreste norvegesi","ja":"ノルウェージャンフォレストキャット","uk":"Норвезька лісова","zh":"挪威森林猫"}
+    },
+    {
+      "id": "VBO:0100183",
+      "species": "cat",
+      "names": {"be":"Арыентальная даўгашэрсная","de":"Orientalisch Langhaar","fr":"Oriental à poil long","it":"Orientale a pelo lungo","ja":"オリエンタルロングヘア","uk":"Орієнтальна довгошерста","zh":"东方长毛猫"}
+    },
+    {
+      "id": "VBO:0100184",
+      "species": "cat",
+      "names": {"be":"Арыентальная кароткашэрсная","de":"Orientalisch Kurzhaar","fr":"Oriental à poil court","it":"Orientale a pelo corto","ja":"オリエンタルショートヘア","uk":"Орієнтальна короткошерста","zh":"东方短毛猫"}
+    },
+    {
+      "id": "VBO:0100188",
+      "species": "cat",
+      "names": {"be":"Персідская","de":"Perserkatze","fr":"Persan","it":"Persiano","ja":"ペルシャ","uk":"Перська","zh":"波斯猫"}
+    },
+    {
+      "id": "VBO:0100189",
+      "species": "cat",
+      "names": {"be":"Пецярболд","de":"Peterbald","fr":"Peterbald","it":"Peterbald","ja":"ピーターボールド","uk":"Петерболд","zh":"彼得秃猫"}
+    },
+    {
+      "id": "VBO:0100196",
+      "species": "cat",
+      "names": {"be":"Рэгдол","de":"Ragdoll","fr":"Ragdoll","it":"Ragdoll","ja":"ラグドール","uk":"Регдол","zh":"布偶猫"}
+    },
+    {
+      "id": "VBO:0100200",
+      "species": "cat",
+      "names": {"be":"Руская блакітная","de":"Russisch Blau","fr":"Bleu russe","it":"Blu di Russia","ja":"ロシアンブルー","uk":"Російська блакитна","zh":"俄罗斯蓝猫"}
+    },
+    {
+      "id": "VBO:0100209",
+      "species": "cat",
+      "names": {"be":"Шатландская аблавухая","de":"Scottish Fold","fr":"Scottish Fold","it":"Scottish Fold","ja":"スコティッシュフォールド","uk":"Шотландська висловуха","zh":"苏格兰折耳猫"}
+    },
+    {
+      "id": "VBO:0100216",
+      "species": "cat",
+      "names": {"be":"Даўгашэрсны селкірк-рэкс","de":"Selkirk Rex Langhaar","fr":"Selkirk Rex à poil long","it":"Selkirk Rex a pelo lungo","ja":"セルカークレックス・ロングヘア","uk":"Довгошерстий селкірк-рекс","zh":"长毛塞尔凯克卷毛猫"}
+    },
+    {
+      "id": "VBO:0100221",
+      "species": "cat",
+      "names": {"be":"Сіямская","de":"Siamkatze","fr":"Siamois","it":"Siamese","ja":"シャム","uk":"Сіамська","zh":"暹罗猫"}
+    },
+    {
+      "id": "VBO:0100223",
+      "species": "cat",
+      "names": {"be":"Сібірская","de":"Sibirische Katze","fr":"Sibérien","it":"Siberiano","ja":"サイベリアン","uk":"Сибірська","zh":"西伯利亚猫"}
+    },
+    {
+      "id": "VBO:0100230",
+      "species": "cat",
+      "names": {"be":"Сфінкс","de":"Sphynx-Katze","fr":"Sphynx","it":"Sphynx","ja":"スフィンクス","uk":"Сфінкс","zh":"斯芬克斯猫"}
+    },
+    {
+      "id": "VBO:0100235",
+      "species": "cat",
+      "names": {"be":"Тайская","de":"Thaikatze","fr":"Thaï","it":"Thai","ja":"タイ","uk":"Тайська","zh":"泰国猫"}
+    },
+    {
+      "id": "VBO:0100245",
+      "species": "cat",
+      "names": {"be":"Тойгер","de":"Toyger","fr":"Toyger","it":"Toyger","ja":"トイガー","uk":"Тойгер","zh":"玩具虎猫"}
+    },
+    {
+      "id": "VBO:0100249",
+      "species": "cat",
+      "names": {"be":"Турэцкая ангора","de":"Türkisch Angora","fr":"Angora turc","it":"Angora turco","ja":"ターキッシュアンゴラ","uk":"Турецька ангора","zh":"土耳其安哥拉猫"}
+    },
+    {
+      "id": "VBO:0100303",
+      "species": "cat",
+      "names": {"be":"Кароткашэрсны манчкін","de":"Munchkin Kurzhaar","fr":"Munchkin à poil court","it":"Munchkin a pelo corto","ja":"マンチカン・ショートヘア","uk":"Короткошерстий манчкін","zh":"短毛曼基康猫"}
+    },
+    {
+      "id": "VBO:0200995",
+      "species": "dog",
+      "names": {"be":"Вельш-коргі-пемброк","de":"Welsh Corgi Pembroke","fr":"Welsh Corgi Pembroke","it":"Welsh Corgi Pembroke","ja":"ウェルシュ・コーギー・ペンブローク","uk":"Вельш-коргі-пемброк","zh":"彭布罗克威尔士柯基犬"}
+    },
+    {
+      "id": "VBO:0200800",
+      "species": "dog",
+      "names": {"be":"Лабрадор-рэтрывер","de":"Labrador Retriever","fr":"Labrador retriever","it":"Labrador Retriever","ja":"ラブラドール・レトリーバー","uk":"Лабрадор-ретривер","zh":"拉布拉多寻回犬"}
+    },
+    {
+      "id": "VBO:0200309",
+      "species": "dog",
+      "names": {"be":"Кавалер-кінг-чарльз-спаніэль","de":"Cavalier King Charles Spaniel","fr":"Cavalier King Charles Spaniel","it":"Cavalier King Charles Spaniel","ja":"キャバリア・キング・チャールズ・スパニエル","uk":"Кавалер-кінг-чарльз-спанієль","zh":"骑士查理王小猎犬"}
+    },
+    {
+      "id": "VBO:0200442",
+      "species": "dog",
+      "names": {"be":"Даберман","de":"Dobermann","fr":"Dobermann","it":"Dobermann","ja":"ドーベルマン","uk":"Доберман","zh":"杜宾犬"}
+    },
+    {
+      "id": "VBO:0200712",
+      "species": "dog",
+      "names": {"be":"Кане-корса","de":"Cane Corso Italiano","fr":"Cane Corso","it":"Cane Corso italiano","ja":"カネ・コルソ","uk":"Кане-корсо","zh":"卡斯罗犬"}
+    },
+    {
+      "id": "VBO:0200055",
+      "species": "dog",
+      "names": {"be":"Амерыканскі стафардшырскі тэр'ер","de":"American Staffordshire Terrier","fr":"American Staffordshire Terrier","it":"American Staffordshire Terrier","ja":"アメリカン・スタッフォードシャー・テリア","uk":"Американський стафордширський тер'єр","zh":"美国斯塔福郡梗"}
+    },
+    {
+      "id": "VBO:0201220",
+      "species": "dog",
+      "names": {"be":"Сіба-іну","de":"Shiba Inu","fr":"Shiba Inu","it":"Shiba Inu","ja":"柴犬","uk":"Шіба-іну","zh":"柴犬"}
+    },
+    {
+      "id": "VBO:0200131",
+      "species": "dog",
+      "names": {"be":"Бігль","de":"Beagle","fr":"Beagle","it":"Beagle","ja":"ビーグル","uk":"Бігль","zh":"比格犬"}
+    },
+    {
+      "id": "VBO:0201421",
+      "species": "dog",
+      "names": {"be":"Уіпет","de":"Whippet","fr":"Whippet","it":"Whippet","ja":"ウィペット","uk":"Віпет","zh":"惠比特犬"}
+    },
+    {
+      "id": "VBO:0200174",
+      "species": "dog",
+      "names": {"be":"Рускі чорны тэр'ер","de":"Russischer Schwarzer Terrier","fr":"Terrier noir russe","it":"Terrier nero russo","ja":"ロシアン・ブラック・テリア","uk":"Російський чорний тер'єр","zh":"俄罗斯黑梗"}
+    },
+    {
+      "id": "VBO:0200985",
+      "species": "dog",
+      "names": {"be":"Папільён","de":"Papillon","fr":"Épagneul nain continental papillon","it":"Papillon","ja":"パピヨン","uk":"Папільйон","zh":"蝴蝶犬"}
+    },
+    {
+      "id": "VBO:0200290",
+      "species": "dog",
+      "names": {"be":"Вельш-коргі-кардыган","de":"Welsh Corgi Cardigan","fr":"Welsh Corgi Cardigan","it":"Welsh Corgi Cardigan","ja":"ウェルシュ・コーギー・カーディガン","uk":"Вельш-коргі-кардиган","zh":"卡迪根威尔士柯基犬"}
+    },
+    {
+      "id": "VBO:0200610",
+      "species": "dog",
+      "names": {"be":"Залацісты рэтрывер","de":"Golden Retriever","fr":"Golden Retriever","it":"Golden Retriever","ja":"ゴールデン・レトリーバー","uk":"Золотистий ретривер","zh":"金毛寻回犬"}
+    },
+    {
+      "id": "VBO:0200095",
+      "species": "dog",
+      "names": {"be":"Аўстралійская аўчарка","de":"Australian Shepherd","fr":"Berger australien","it":"Pastore australiano","ja":"オーストラリアン・シェパード","uk":"Австралійська вівчарка","zh":"澳大利亚牧羊犬"}
+    },
+    {
+      "id": "VBO:0200470",
+      "species": "dog",
+      "names": {"be":"Усходнееўрапейская аўчарка","de":"Osteuropäischer Schäferhund","fr":"Berger d'Europe de l'Est","it":"Pastore dell'Europa orientale","ja":"イースト・ヨーロピアン・シェパード","uk":"Східноєвропейська вівчарка","zh":"东欧牧羊犬"}
+    },
+    {
+      "id": "VBO:0200120",
+      "species": "dog",
+      "names": {"be":"Басенджы","de":"Basenji","fr":"Basenji","it":"Basenji","ja":"バセンジー","uk":"Басенджі","zh":"巴仙吉犬"}
+    },
+    {
+      "id": "VBO:0200599",
+      "species": "dog",
+      "names": {"be":"Памеранскі шпіц","de":"Zwergspitz","fr":"Spitz nain","it":"Spitz tedesco nano","ja":"ポメラニアン","uk":"Померанський шпіц","zh":"博美犬"}
+    },
+    {
+      "id": "VBO:0201135",
+      "species": "dog",
+      "names": {"be":"Радэзійскі рыджбек","de":"Rhodesian Ridgeback","fr":"Chien de Rhodésie à crête dorsale","it":"Rhodesian Ridgeback","ja":"ローデシアン・リッジバック","uk":"Родезійський риджбек","zh":"罗得西亚脊背犬"}
+    },
+    {
+      "id": "VBO:0200321",
+      "species": "dog",
+      "names": {"be":"Сярэднеазіяцкая аўчарка","de":"Zentralasiatischer Owtscharka","fr":"Berger d'Asie centrale","it":"Pastore dell'Asia centrale","ja":"セントラル・アジア・シェパード・ドッグ","uk":"Середньоазійська вівчарка","zh":"中亚牧羊犬"}
+    },
+    {
+      "id": "VBO:0200893",
+      "species": "dog",
+      "names": {"be":"Цвергпінчар","de":"Zwergpinscher","fr":"Pinscher nain","it":"Pinscher nano","ja":"ミニチュア・ピンシャー","uk":"Цвергпінчер","zh":"迷你杜宾犬"}
+    },
+    {
+      "id": "VBO:0200724",
+      "species": "dog",
+      "names": {"be":"Джэк-расэл-тэр'ер","de":"Jack Russell Terrier","fr":"Jack Russell Terrier","it":"Jack Russell Terrier","ja":"ジャック・ラッセル・テリア","uk":"Джек-рассел-тер'єр","zh":"杰克罗素梗"}
+    },
+    {
+      "id": "VBO:0200898",
+      "species": "dog",
+      "names": {"be":"Цвергшнаўцар, перац з соллю","de":"Zwergschnauzer, Pfeffer und Salz","fr":"Schnauzer nain, poivre et sel","it":"Schnauzer nano, pepe e sale","ja":"ミニチュア・シュナウザー（ソルト＆ペッパー）","uk":"Цвергшнауцер, перець із сіллю","zh":"迷你雪纳瑞（椒盐色）"}
+    },
+    {
+      "id": "VBO:0200420",
+      "species": "dog",
+      "names": {"be":"Стандартная гладкашэрсная такса","de":"Kurzhaar-Standardteckel","fr":"Teckel standard à poil ras","it":"Bassotto standard a pelo corto","ja":"スタンダード・スムースヘアード・ダックスフンド","uk":"Стандартна короткошерста такса","zh":"标准短毛腊肠犬"}
+    },
+    {
+      "id": "VBO:0200193",
+      "species": "dog",
+      "names": {"be":"Бордэр-колі","de":"Border Collie","fr":"Border Collie","it":"Border Collie","ja":"ボーダー・コリー","uk":"Бордер-колі","zh":"边境牧羊犬"}
+    },
+    {
+      "id": "VBO:0201089",
+      "species": "dog",
+      "names": {"be":"Мопс","de":"Mops","fr":"Carlin","it":"Carlino","ja":"パグ","uk":"Мопс","zh":"巴哥犬"}
+    },
+    {
+      "id": "VBO:0201174",
+      "species": "dog",
+      "names": {"be":"Самаедскі сабака","de":"Samojede","fr":"Samoyède","it":"Samoiedo","ja":"サモエド","uk":"Самоїд","zh":"萨摩耶犬"}
+    },
+    {
+      "id": "VBO:0200899",
+      "species": "dog",
+      "names": {"be":"Цвергшнаўцар, чорны","de":"Zwergschnauzer, Schwarz","fr":"Schnauzer nain, noir","it":"Schnauzer nano, nero","ja":"ミニチュア・シュナウザー（ブラック）","uk":"Цвергшнауцер, чорний","zh":"迷你雪纳瑞（纯黑色）"}
+    },
+    {
+      "id": "VBO:0200734",
+      "species": "dog",
+      "names": {"be":"Акіта-іну","de":"Akita Inu","fr":"Akita Inu","it":"Akita Inu","ja":"秋田犬","uk":"Акіта-іну","zh":"秋田犬"}
+    },
+    {
+      "id": "VBO:0200897",
+      "species": "dog",
+      "names": {"be":"Цвергшнаўцар, чорны са срэбрам","de":"Zwergschnauzer, Schwarz-Silber","fr":"Schnauzer nain, noir et argent","it":"Schnauzer nano, nero e argento","ja":"ミニチュア・シュナウザー（ブラック＆シルバー）","uk":"Цвергшнауцер, чорний зі сріблом","zh":"迷你雪纳瑞（黑银色）"}
+    },
+    {
+      "id": "VBO:0200880",
+      "species": "dog",
+      "names": {"be":"Мініяцюрная амерыканская аўчарка","de":"Miniature American Shepherd","fr":"Berger américain miniature","it":"Pastore americano miniatura","ja":"ミニチュア・アメリカン・シェパード","uk":"Мініатюрна американська вівчарка","zh":"迷你美国牧羊犬"}
+    },
+    {
+      "id": "VBO:0201415",
+      "species": "dog",
+      "names": {"be":"Вэст-хайленд-уайт-тэр'ер","de":"West Highland White Terrier","fr":"West Highland White Terrier","it":"West Highland White Terrier","ja":"ウエスト・ハイランド・ホワイト・テリア","uk":"Вест-хайленд-вайт-тер'єр","zh":"西高地白梗"}
+    },
+    {
+      "id": "VBO:0201448",
+      "species": "dog",
+      "names": {"be":"Ёркшырскі тэр'ер","de":"Yorkshire Terrier","fr":"Yorkshire Terrier","it":"Yorkshire Terrier","ja":"ヨークシャー・テリア","uk":"Йоркширський тер'єр","zh":"约克夏梗"}
+    },
+    {
+      "id": "VBO:0200161",
+      "species": "dog",
+      "names": {"be":"Бернскі зененхунд","de":"Berner Sennenhund","fr":"Bouvier bernois","it":"Bovaro del Bernese","ja":"バーニーズ・マウンテン・ドッグ","uk":"Бернський зенненхунд","zh":"伯恩山犬"}
+    },
+    {
+      "id": "VBO:0200339",
+      "species": "dog",
+      "names": {"be":"Даўгашэрсны чыхуахуа","de":"Langhaar-Chihuahua","fr":"Chihuahua à poil long","it":"Chihuahua a pelo lungo","ja":"ロングコート・チワワ","uk":"Довгошерстий чихуахуа","zh":"长毛吉娃娃"}
+    },
+    {
+      "id": "VBO:0200962",
+      "species": "dog",
+      "names": {"be":"Норвіч-тэр'ер","de":"Norwich Terrier","fr":"Norwich Terrier","it":"Norwich Terrier","ja":"ノーリッチ・テリア","uk":"Норвіч-тер'єр","zh":"诺维奇梗"}
+    },
+    {
+      "id": "VBO:0200485",
+      "species": "dog",
+      "names": {"be":"Англійскі бульдог","de":"Englische Bulldogge","fr":"Bouledogue anglais","it":"Bulldog inglese","ja":"イングリッシュ・ブルドッグ","uk":"Англійський бульдог","zh":"英国斗牛犬"}
+    },
+    {
+      "id": "VBO:0200163",
+      "species": "dog",
+      "names": {"be":"Бішон-фрызэ","de":"Bichon Frisé","fr":"Bichon frisé","it":"Bichon a pelo riccio","ja":"ビション・フリーゼ","uk":"Бішон-фрізе","zh":"比熊犬"}
+    },
+    {
+      "id": "VBO:0201198",
+      "species": "dog",
+      "names": {"be":"Шатландскі тэр'ер","de":"Scottish Terrier","fr":"Terrier écossais","it":"Scottish Terrier","ja":"スコティッシュ・テリア","uk":"Шотландський тер'єр","zh":"苏格兰梗"}
+    },
+    {
+      "id": "VBO:0200713",
+      "species": "dog",
+      "names": {"be":"Малы італьянскі хорт","de":"Italienisches Windspiel","fr":"Petit lévrier italien","it":"Piccolo levriero italiano","ja":"イタリアン・グレーハウンド","uk":"Малий італійський хорт","zh":"意大利灵缇犬"}
+    },
+    {
+      "id": "VBO:0201403",
+      "species": "dog",
+      "names": {"be":"Короткашэрсны веймаранер","de":"Weimaraner, kurzhaarig","fr":"Braque de Weimar à poil court","it":"Weimaraner a pelo corto","ja":"ワイマラナー（ショートヘアード）","uk":"Короткошерстий веймаранер","zh":"短毛魏玛犬"}
+    },
+    {
+      "id": "VBO:0200340",
+      "species": "dog",
+      "names": {"be":"Гладкашэрсны чыхуахуа","de":"Kurzhaar-Chihuahua","fr":"Chihuahua à poil court","it":"Chihuahua a pelo corto","ja":"スムースコート・チワワ","uk":"Короткошерстий чихуахуа","zh":"短毛吉娃娃"}
+    },
+    {
+      "id": "VBO:0200345",
+      "species": "dog",
+      "names": {"be":"Кітайскі чубаты сабака","de":"Chinesischer Schopfhund","fr":"Chien chinois à crête","it":"Cane crestato cinese","ja":"チャイニーズ・クレステッド・ドッグ","uk":"Китайський чубатий собака","zh":"中国冠毛犬"}
+    },
+    {
+      "id": "VBO:0201348",
+      "species": "dog",
+      "names": {"be":"Тайскі рыджбек","de":"Thai Ridgeback","fr":"Chien thaïlandais à crête dorsale","it":"Thai Ridgeback","ja":"タイ・リッジバック・ドッグ","uk":"Тайський риджбек","zh":"泰国脊背犬"}
+    },
+    {
+      "id": "VBO:0200410",
+      "species": "dog",
+      "names": {"be":"Мініяцюрная гладкашэрсная такса","de":"Kurzhaar-Zwergteckel","fr":"Teckel nain à poil ras","it":"Bassotto nano a pelo corto","ja":"ミニチュア・スムースヘアード・ダックスフンド","uk":"Мініатюрна короткошерста такса","zh":"迷你短毛腊肠犬"}
+    },
+    {
+      "id": "VBO:0200027",
+      "species": "dog",
+      "names": {"be":"Амерыканская акіта","de":"Amerikanischer Akita","fr":"Akita américain","it":"Akita americano","ja":"アメリカン・アキタ","uk":"Американська акіта","zh":"美国秋田犬"}
+    },
+    {
+      "id": "VBO:0201217",
+      "species": "dog",
+      "names": {"be":"Шэтландская аўчарка","de":"Shetland Sheepdog","fr":"Berger des Shetland","it":"Pastore scozzese Shetland","ja":"シェットランド・シープドッグ","uk":"Шетландська вівчарка","zh":"喜乐蒂牧羊犬"}
+    },
+    {
+      "id": "VBO:0200882",
+      "species": "dog",
+      "names": {"be":"Мініяцюрны бультэр'ер","de":"Miniatur Bullterrier","fr":"Bull Terrier miniature","it":"Bull Terrier miniatura","ja":"ミニチュア・ブル・テリア","uk":"Мініатюрний бультер'єр","zh":"迷你牛头梗"}
+    },
+    {
+      "id": "VBO:0200764",
+      "species": "dog",
+      "names": {"be":"Керы-блю-тэр'ер","de":"Kerry Blue Terrier","fr":"Kerry Blue Terrier","it":"Kerry Blue Terrier","ja":"ケリー・ブルー・テリア","uk":"Керрі-блю-тер'єр","zh":"凯利蓝梗"}
+    },
+    {
+      "id": "VBO:0200375",
+      "species": "dog",
+      "names": {"be":"Колі","de":"Collie","fr":"Colley","it":"Collie","ja":"コリー","uk":"Колі","zh":"柯利犬"}
+    },
+    {
+      "id": "VBO:0201143",
+      "species": "dog",
+      "names": {"be":"Ратвейлер","de":"Rottweiler","fr":"Rottweiler","it":"Rottweiler","ja":"ロットワイラー","uk":"Ротвейлер","zh":"罗威纳犬"}
+    },
+    {
+      "id": "VBO:0200577",
+      "species": "dog",
+      "names": {"be":"Нямецкая аўчарка","de":"Deutscher Schäferhund","fr":"Berger allemand","it":"Pastore tedesco","ja":"ジャーマン・シェパード・ドッグ","uk":"Німецька вівчарка","zh":"德国牧羊犬"}
+    }
+  ]
+}

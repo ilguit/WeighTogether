@@ -57,6 +57,7 @@ import com.palixander.scalesync.domain.normalizePetName
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import java.util.Locale
 import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.currentAppLocale
 
 internal object PetMeasurementTestTags {
     const val Dialog = "pet-measurement-dialog"
@@ -95,6 +96,7 @@ internal fun PetMeasurementDialog(
     pets: List<PetWithLatestWeight>,
     callbacks: PetMeasurementCallbacks,
 ) {
+    val locale = currentAppLocale()
     if (state == PetMeasurementUiState.Idle || state == PetMeasurementUiState.Cancelled) return
 
     if (state is PetMeasurementUiState.AwaitingFirstWeight ||
@@ -125,7 +127,7 @@ internal fun PetMeasurementDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     Text(
-                        stringResource(R.string.pet_measurement_first_accepted, formatPetWeight(state.firstWeightKg)),
+                        stringResource(R.string.pet_measurement_first_accepted, formatPetWeight(state.firstWeightKg, locale)),
                         modifier = Modifier.testTag(PetMeasurementTestTags.FirstWeight),
                     )
                     Text(
@@ -140,7 +142,7 @@ internal fun PetMeasurementDialog(
                     Text(stringResource(R.string.pet_measurement_saving))
                 }
                 is PetMeasurementUiState.Result -> Text(
-                    stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg)),
+                    stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg, locale)),
                     modifier = Modifier.testTag(PetMeasurementTestTags.Result),
                 )
                 is PetMeasurementUiState.Error -> Text(
@@ -191,6 +193,7 @@ private fun PetMeasurementFullScreen(
     state: PetMeasurementUiState,
     callbacks: PetMeasurementCallbacks,
 ) {
+    val locale = currentAppLocale()
     val saving = state is PetMeasurementUiState.Saving
     val titleFocus = remember { FocusRequester() }
     LaunchedEffect(Unit) {
@@ -284,14 +287,14 @@ private fun PetMeasurementFullScreen(
                             )
                             CircularProgressIndicator()
                             state.currentWeightKg?.let {
-                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it)), style = MaterialTheme.typography.headlineMedium)
+                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it, locale)), style = MaterialTheme.typography.headlineMedium)
                             }
                             Text(stringResource(R.string.pet_measurement_waiting_stable))
                         }
                         is PetMeasurementUiState.AwaitingSecondWeight -> {
                             Text(stringResource(R.string.pet_measurement_second_title), style = MaterialTheme.typography.titleLarge)
                             Text(
-                                stringResource(R.string.pet_measurement_first_reading, formatPetWeight(state.firstWeightKg)),
+                                stringResource(R.string.pet_measurement_first_reading, formatPetWeight(state.firstWeightKg, locale)),
                                 modifier = Modifier.padding(vertical = 16.dp)
                                     .testTag(PetMeasurementTestTags.FirstWeight),
                             )
@@ -300,21 +303,21 @@ private fun PetMeasurementFullScreen(
                             )
                             CircularProgressIndicator(Modifier.padding(16.dp))
                             state.currentWeightKg?.let {
-                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it)), style = MaterialTheme.typography.headlineMedium)
+                                Text(stringResource(R.string.weight_kg_format, formatPetWeight(it, locale)), style = MaterialTheme.typography.headlineMedium)
                             }
                         }
                         is PetMeasurementUiState.Result -> {
                             Text("✓", style = MaterialTheme.typography.headlineLarge)
                             Text(stringResource(R.string.action_done), style = MaterialTheme.typography.titleLarge)
                             Text(
-                                stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg)),
+                                stringResource(R.string.pet_measurement_result_weight, formatPetWeight(state.petWeightKg, locale)),
                                 style = MaterialTheme.typography.headlineMedium,
                                 modifier = Modifier.padding(top = 16.dp).testTag(PetMeasurementTestTags.Result),
                             )
                             state.previousPetWeightKg?.let { previous ->
                                 val delta = state.petWeightKg - previous
                                 val prefix = if (delta > 0) "+" else ""
-                                Text(stringResource(R.string.pet_measurement_delta, prefix, formatPetWeight(delta)))
+                                Text(stringResource(R.string.pet_measurement_delta, prefix, formatPetWeight(delta, locale)))
                             }
                         }
                         is PetMeasurementUiState.Saving -> {
@@ -324,7 +327,7 @@ private fun PetMeasurementFullScreen(
                         is PetMeasurementUiState.ConnectionError -> {
                             Text(stringResource(R.string.pet_measurement_connection_lost), style = MaterialTheme.typography.titleLarge)
                             state.firstWeightKg?.let {
-                                Text(stringResource(R.string.pet_measurement_first_reading_saved, formatPetWeight(it)))
+                                Text(stringResource(R.string.pet_measurement_first_reading_saved, formatPetWeight(it, locale)))
                             }
                             Text(state.message.resolve(LocalContext.current.resources), color = MaterialTheme.colorScheme.error)
                         }
@@ -341,14 +344,15 @@ private fun PetSelection(
     pets: List<PetWithLatestWeight>,
     callbacks: PetMeasurementCallbacks,
 ) {
+    val locale = currentAppLocale()
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         if (pets.isEmpty()) Text(stringResource(R.string.pet_measurement_no_pets))
         pets.forEach { item ->
             val detail = item.latestMeasurement?.let {
                 stringResource(
                     R.string.pet_measurement_latest_weight,
-                    formatPetWeight(it.petWeightKg),
-                    formatMeasurementDateTime(it.measuredAt),
+                    formatPetWeight(it.petWeightKg, locale),
+                    formatMeasurementDateTime(it.measuredAt, locale = locale),
                 )
             } ?: stringResource(R.string.pet_measurement_no_measurements)
             Column(

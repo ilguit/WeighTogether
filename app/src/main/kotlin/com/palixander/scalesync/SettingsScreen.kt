@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -34,6 +35,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -71,6 +73,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.appLocale
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
@@ -230,6 +233,9 @@ internal object SettingsScreenTestTags {
     const val ManualTestWeight = "settings-manual-test-weight"
     const val ManualTestImpedance = "settings-manual-test-impedance"
     const val ChangelogRow = "settings-changelog-row"
+    const val LanguageRow = "settings-language-row"
+    const val LanguageDialog = "settings-language-dialog"
+    const val LanguageOptionPrefix = "settings-language-option-"
     const val ProfileEditor = "profile-editor"
     const val ProfileEditorError = "profile-editor-error"
     const val BackupExport = "settings-backup-export"
@@ -928,7 +934,7 @@ private fun SettingsProfilesContent(
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
                     petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
-                    petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
+                    petWeightLabel = { formatLatestPetWeight(it, resources.appLocale).resolve(resources) },
                 )
             }
             item {
@@ -955,6 +961,7 @@ private fun SettingsRootScreen(
     listState: LazyListState,
     modifier: Modifier = Modifier,
 ) {
+    var languageDialogOpen by rememberSaveable { mutableStateOf(false) }
     val scalePresentation = scalePresentation(state)
     val healthPresentation = healthConnectPresentation(
         state.healthConnect,
@@ -1042,6 +1049,16 @@ private fun SettingsRootScreen(
             }
             item {
                 SettingsGroup(Modifier.testTag(SettingsScreenTestTags.SupportGroup)) {
+                    SettingsGroupRow(
+                        leadingIcon = HuaweiIcons.Language,
+                        title = stringResource(R.string.settings_language),
+                        supportingText = stringResource(AppLanguageManager.current().labelRes),
+                        modifier = Modifier.testTag(SettingsScreenTestTags.LanguageRow),
+                        onClick = { languageDialogOpen = true },
+                        leadingIconTag = SettingsScreenTestTags.LanguageRow + SettingsScreenTestTags.LeadingIconSuffix,
+                        trailingTag = SettingsScreenTestTags.LanguageRow + SettingsScreenTestTags.TrailingChevronSuffix,
+                    )
+                    SettingsRootDivider(SettingsScreenTestTags.SupportDivider)
                     SettingsNavigationRow(
                         SettingsDestination.BACKUP,
                         settingsRootIcon(SettingsDestination.BACKUP),
@@ -1050,7 +1067,7 @@ private fun SettingsRootScreen(
                         onDestinationChanged,
                         focusRequesters[SettingsDestination.BACKUP],
                     )
-                    SettingsRootDivider(SettingsScreenTestTags.SupportDivider)
+                    SettingsRootDivider(SettingsScreenTestTags.SupportSecondDivider)
                     SettingsNavigationRow(
                         SettingsDestination.DIAGNOSTICS,
                         settingsRootIcon(SettingsDestination.DIAGNOSTICS),
@@ -1059,7 +1076,7 @@ private fun SettingsRootScreen(
                         onDestinationChanged,
                         focusRequesters[SettingsDestination.DIAGNOSTICS],
                     )
-                    SettingsRootDivider(SettingsScreenTestTags.SupportSecondDivider)
+                    SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
                     SettingsGroupRow(
                         leadingIcon = HuaweiIcons.History,
                         title = stringResource(R.string.settings_version_history),
@@ -1073,6 +1090,43 @@ private fun SettingsRootScreen(
             }
         }
     }
+    if (languageDialogOpen) {
+        AppLanguageDialog(onDismiss = { languageDialogOpen = false })
+    }
+}
+
+@Composable
+private fun AppLanguageDialog(onDismiss: () -> Unit) {
+    val selected = AppLanguageManager.current()
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        modifier = Modifier.testTag(SettingsScreenTestTags.LanguageDialog),
+        title = { Text(stringResource(R.string.settings_language_dialog_title)) },
+        text = {
+            LazyColumn {
+                items(AppLanguage.entries) { language ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable(role = Role.RadioButton) {
+                                onDismiss()
+                                AppLanguageManager.select(language)
+                            }
+                            .testTag(SettingsScreenTestTags.LanguageOptionPrefix + language.languageTag)
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = language == selected, onClick = null)
+                        Text(stringResource(language.labelRes), Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.settings_cancel)) }
+        },
+    )
 }
 
 @Composable
@@ -1213,7 +1267,7 @@ private fun LegacySettingsScreen(
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
                             petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
-                            petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
+                            petWeightLabel = { formatLatestPetWeight(it, resources.appLocale).resolve(resources) },
                         )
                         WeightRecognitionSetting(
                             state = state.weightDeltaEditor,

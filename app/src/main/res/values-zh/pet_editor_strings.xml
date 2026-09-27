@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_editor_create_title">添加宠物</string><string name="pet_editor_edit_title">编辑宠物</string>
+    <string name="pet_editor_photo">宠物照片</string><string name="photo_gallery">相册</string><string name="photo_camera">相机</string><string name="photo_remove">移除照片</string>
+    <string name="pet_editor_name">宠物名称</string><string name="pet_editor_species">宠物种类</string><string name="pet_editor_cat">🐱 猫</string><string name="pet_editor_dog">🐶 狗</string><string name="pet_editor_species_required">请选择宠物种类</string>
+    <string name="pet_editor_sex_optional">性别（可选）</string><string name="pet_editor_sex">宠物性别</string><string name="pet_editor_male">雄性</string><string name="pet_editor_female">雌性</string><string name="pet_editor_clear_sex">清除宠物性别</string>
+    <string name="pet_editor_breed">品种</string><string name="pet_editor_choose_breed_a11y">选择品种。%1$s</string><string name="pet_editor_breed_mismatch">该品种与所选宠物种类不符</string>
+    <string name="pet_editor_save_error_a11y">保存错误：%1$s</string><string name="pet_editor_saving_a11y">正在保存宠物资料</string>
+    <string name="pet_editor_discard_title">放弃更改？</string><string name="pet_editor_discard_text">未保存的宠物资料更改将会丢失。</string><string name="pet_editor_discard">放弃更改</string><string name="pet_editor_keep_editing">继续编辑</string>
+    <string name="photo_error_unreadable">无法读取图片</string><string name="photo_error_invalid">所选文件不是图片</string><string name="photo_error_processing">无法处理图片</string>
+    <string name="pet_editor_birth_date_optional">出生日期（可选）</string><string name="pet_editor_birth_date_help">请选择年份，还可以选择月份和日期。</string><string name="pet_editor_birth_part_value">%1$s：%2$s</string><string name="pet_editor_birth_picker_title">出生日期：%1$s</string>
+    <string name="date_part_year">年</string><string name="date_part_month">月</string><string name="date_part_day">日</string><string name="pet_editor_clear_date">清除日期</string><string name="pet_editor_keep_year">仅保留年份</string><string name="pet_editor_keep_year_month">保留年份和月份</string>
+    <string name="pet_editor_dog_category_optional">成年犬体重类别（可选）</string><string name="pet_editor_dog_category_help">用于确定 12 周至 2 岁期间的 Salt 类别百分位曲线。</string><string name="pet_editor_saved_category">已保存的类别：%1$s</string><string name="pet_editor_clear_category">清除类别</string><string name="pet_editor_clear_category_a11y">清除犬只体重类别</string><string name="pet_editor_category_unavailable">所选品种没有可用的体重类别</string><string name="pet_editor_weight_category">体重类别</string>
+    <string name="pet_editor_other_breed">其他品种</string><string name="pet_editor_choose_breed">选择品种</string><string name="pet_editor_search_breed">搜索品种</string><string name="pet_editor_no_breeds">未找到支持的品种</string>
+    <string name="pet_editor_change_species_title">更改宠物种类？</string><string name="pet_editor_change_species_text">更改种类将清除：%1$s。其他数据会保留。</string><string name="pet_editor_change_species">更改种类</string><string name="list_and_separator">和</string>
+    <string name="pet_editor_name_required">请输入宠物名称</string><string name="pet_editor_name_too_long">名称不能超过 50 个字符</string><string name="pet_editor_name_duplicate">已有同名宠物</string>
+    <string name="pet_editor_birth_incomplete">请补全所有已选择的日期部分</string><string name="pet_editor_birth_invalid">请输入有效日期</string><string name="pet_editor_birth_future">出生日期不能晚于今天</string>
+    <string name="birth_date_open_calendar">打开日历</string><string name="birth_date_label">出生日期</string><string name="birth_date_choose">选择日期</string>
+    <string name="error_create_pet">无法创建宠物</string><string name="error_save_pet">无法保存宠物</string><string name="error_prepare_delete_pet">无法准备删除宠物</string><string name="error_delete_pet">无法删除宠物</string>
+</resources>
