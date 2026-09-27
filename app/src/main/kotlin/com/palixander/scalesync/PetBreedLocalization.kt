@@ -1,107 +1,140 @@
 package com.palixander.scalesync
 
+import com.google.gson.JsonObject
+import com.google.gson.JsonParser
+import com.palixander.scalesync.core.breed.BreedCatalog
+import com.palixander.scalesync.core.breed.BreedSpecies
+import com.palixander.scalesync.core.breed.canonicalBreedId
 import com.palixander.scalesync.domain.PetSpecies
+import java.io.InputStream
 import java.text.Collator
 import java.text.Normalizer
 import java.util.Locale
 
-/** Presentation-only breed localization. Catalog IDs and source strings remain untouched. */
-internal object PetBreedLocalization {
-    private val supportedLanguages = setOf("be", "de", "en", "fr", "it", "ja", "ru", "uk", "zh")
-
-    fun displayName(
-        englishName: String,
-        russianName: String,
-        species: PetSpecies,
-        locale: Locale,
-    ): String = when (locale.language.takeIf(supportedLanguages::contains) ?: "en") {
-        "en" -> englishName
-        "ru" -> russianName
-        "uk" -> russianName.translateWords(ukrainianWords)
-            .replace('ы', 'и').replace('э', 'е').replace('ё', 'ь')
-        "be" -> russianName.translateWords(belarusianWords)
-            .replace("и", "і").replace("щ", "шч")
-        "de" -> englishName.translateWords(germanWords)
-        "fr" -> englishName.translateWords(frenchWords)
-        "it" -> englishName.translateWords(italianWords)
-        "ja" -> "$englishName（${if (species == PetSpecies.CAT) "猫種" else "犬種"}）"
-        "zh" -> "$englishName（${if (species == PetSpecies.CAT) "猫种" else "犬种"}）"
-        else -> englishName
-    }
-
-    fun normalize(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
-        .trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
-
-    fun comparator(locale: Locale): Comparator<PetBreedOption> {
-        val collator = Collator.getInstance(locale).apply { strength = Collator.PRIMARY }
-        return Comparator { left, right ->
-            collator.compare(left.displayName, right.displayName)
-                .takeUnless { it == 0 }
-                ?: left.canonicalName.compareTo(right.canonicalName, ignoreCase = true)
-                    .takeUnless { it == 0 }
-                ?: left.id.value.compareTo(right.id.value)
+/** Deterministic, presentation-only breed names keyed by stable canonical breed ID. */
+internal class PetBreedLocalization private constructor(
+    private val namesById: Map<String, Map<String, String>>,
+) {
+    fun displayName(id: String, englishName: String, russianName: String, locale: Locale): String {
+        require(englishName.isNotBlank()) { "Canonical English breed name must not be blank" }
+        require(russianName.isNotBlank()) { "Russian breed name must not be blank" }
+        return when (val language = locale.language) {
+            "ru" -> russianName
+            "en" -> englishName
+            in TRANSLATED_LOCALES -> namesById[id]?.get(language) ?: englishName
+            else -> englishName
         }
     }
 
-    private fun String.translateWords(words: Map<String, String>): String =
-        words.entries.fold(this) { value, (source, target) ->
-            value.replace(source, target, ignoreCase = true)
+    companion object {
+        const val RESOURCE_PATH = "pet_breed_localizations.json"
+        const val SCHEMA_VERSION = 1
+        val TRANSLATED_LOCALES = setOf("be", "de", "fr", "it", "ja", "uk", "zh")
+
+        fun bundled(expectedBreeds: Map<String, PetSpecies>, catalog: BreedCatalog): PetBreedLocalization = load(
+            streamProvider = {
+                PetBreedLocalization::class.java.getResourceAsStream("/$RESOURCE_PATH")
+                    ?: error("Bundled breed localization resource is missing: $RESOURCE_PATH")
+            },
+            expectedBreeds = expectedBreeds,
+            catalog = catalog,
+            requireCompleteSchema = true,
+        )
+
+        fun load(
+            streamProvider: () -> InputStream,
+            expectedBreeds: Map<String, PetSpecies>,
+            catalog: BreedCatalog,
+            requireCompleteSchema: Boolean = false,
+        ): PetBreedLocalization = streamProvider().use { stream ->
+            val root = JsonParser.parseReader(stream.reader(Charsets.UTF_8)).asJsonObject
+            root.requireOnlyKeys(ROOT_KEYS, "root")
+            require(root.requiredInt("schemaVersion") == SCHEMA_VERSION) { "Unsupported breed localization schema" }
+            val locales = root.requiredArray("locales").map { element ->
+                require(element.isJsonPrimitive && element.asJsonPrimitive.isString) { "Locale keys must be strings" }
+                element.asString
+            }
+            require(locales.size == locales.toSet().size) { "Duplicate locale key" }
+            require(locales.toSet() == TRANSLATED_LOCALES) { "Unsupported or missing locale keys" }
+
+            val entries = root.requiredArray("breeds").map { element ->
+                require(element.isJsonObject) { "Breed localization entries must be objects" }
+                val entry = element.asJsonObject
+                entry.requireOnlyKeys(BREED_KEYS, "breed")
+                val id = entry.requiredString("id")
+                require(id.isNotBlank()) { "Breed localization ID must not be blank" }
+                require(canonicalBreedId(id) == id) { "Noncanonical breed ID $id" }
+                val species = when (entry.requiredString("species")) {
+                    "cat" -> PetSpecies.CAT
+                    "dog" -> PetSpecies.DOG
+                    else -> throw IllegalArgumentException("Unsupported breed species")
+                }
+                val names = entry.getAsJsonObject("names") ?: JsonObject()
+                names.requireOnlyKeys(TRANSLATED_LOCALES, "names for $id")
+                val localizedNames = names.entrySet().associate { (locale, value) ->
+                    require(value.isJsonPrimitive && value.asJsonPrimitive.isString && value.asString.isNotBlank()) {
+                        "Blank breed name for $id/$locale"
+                    }
+                    locale to value.asString
+                }
+                Triple(id, species, localizedNames)
+            }
+
+            require(entries.map { it.first }.toSet().size == entries.size) { "Duplicate breed localization ID" }
+            val actualSpecies = entries.associate { it.first to it.second }
+            if (requireCompleteSchema) {
+                require(actualSpecies.values.count { it == PetSpecies.DOG } == 51) { "Expected 51 dog breed IDs" }
+                require(actualSpecies.values.count { it == PetSpecies.CAT } == 31) { "Expected 31 cat breed IDs" }
+            }
+            require(expectedBreeds.keys.all { it in actualSpecies }) {
+                val missing = expectedBreeds.keys - actualSpecies.keys
+                "Breed localization schema is missing selectable IDs: $missing"
+            }
+            expectedBreeds.forEach { (id, species) ->
+                require(actualSpecies.getValue(id) == species) { "Species mismatch for $id" }
+            }
+            entries.forEach { (id, species) ->
+                val record = catalog.findById(id) ?: throw IllegalArgumentException("Unknown breed ID $id")
+                val catalogSpecies = if (record.species == BreedSpecies.CAT) PetSpecies.CAT else PetSpecies.DOG
+                require(catalogSpecies == species) { "Catalog species mismatch for $id" }
+            }
+            PetBreedLocalization(entries.associate { it.first to it.third })
         }
 
-    private val ukrainianWords = mapOf(
-        "русский" to "російський", "русская" to "російська", "чёрный" to "чорний",
-        "немецкий" to "німецький", "немецкая" to "німецька", "итальянский" to "італійський",
-        "английский" to "англійський", "шотландский" to "шотландський", "шотландская" to "шотландська",
-        "китайская" to "китайська", "тайский" to "тайський", "тайская" to "тайська",
-        "американский" to "американський", "американская" to "американська",
-        "австралийская" to "австралійська", "среднеазиатская" to "середньоазійська",
-        "восточноевропейская" to "східноєвропейська", "овчарка" to "вівчарка",
-        "короткошёрстный" to "короткошерстий", "короткошёрстная" to "короткошерста",
-        "длинношёрстный" to "довгошерстий", "длинношёрстная" to "довгошерста",
-        "гладкошёрстная" to "гладкошерста", "миниатюрный" to "мініатюрний",
-        "миниатюрная" to "мініатюрна", "золотистый" to "золотистий", "голубая" to "блакитна",
-    )
-    private val belarusianWords = mapOf(
-        "русский" to "рускі", "русская" to "руская", "чёрный" to "чорны", "немецкий" to "нямецкі",
-        "немецкая" to "нямецкая", "английский" to "англійскі", "итальянский" to "італьянскі",
-        "шотландский" to "шатландскі", "шотландская" to "шатландская", "китайская" to "кітайская",
-        "американский" to "амерыканскі", "американская" to "амерыканская",
-        "австралийская" to "аўстралійская", "среднеазиатская" to "сярэднеазіяцкая",
-        "восточноевропейская" to "усходнееўрапейская", "овчарка" to "аўчарка",
-        "короткошёрстный" to "кароткашэрсны", "короткошёрстная" to "кароткашэрсная",
-        "длинношёрстный" to "даўгашэрсны", "длинношёрстная" to "даўгашэрсная",
-        "гладкошёрстная" to "гладкашэрсная", "миниатюрный" to "мініяцюрны",
-        "миниатюрная" to "мініяцюрная", "золотистый" to "залацісты", "голубая" to "блакітная",
-    )
-    private val germanWords = mapOf(
-        "American" to "Amerikanischer", "Australian" to "Australischer", "British" to "Britisch Kurzhaar",
-        "English" to "Englische", "German" to "Deutscher", "Italian" to "Italienisches",
-        "Japanese" to "Japanischer", "Russian" to "Russischer", "Scottish" to "Schottische",
-        "Chinese" to "Chinesischer", "Thai" to "Thailändischer", "Norwegian" to "Norwegische",
-        "Shepherd Dog" to "Schäferhund", "Shepherd" to "Schäferhund", "Forest Cat" to "Waldkatze",
-        "Shorthair" to "Kurzhaar", "Short-Haired" to "Kurzhaar", "Smooth-Haired" to "Kurzhaar",
-        "Longhair" to "Langhaar", "Long-Haired" to "Langhaar", "Miniature" to "Zwerg",
-        "Black And Silver" to "Schwarz und Silber", "Pure Black With Black Undercoat" to "Schwarz",
-        "Pepper And Salt" to "Pfeffer und Salz", "Blue" to "Blau", "Golden" to "Golden",
-    )
-    private val frenchWords = mapOf(
-        "American" to "américain", "Australian" to "australien", "British" to "britannique",
-        "English" to "anglais", "German" to "allemand", "Italian" to "italien", "Japanese" to "japonais",
-        "Russian" to "russe", "Scottish" to "écossais", "Chinese" to "chinois", "Thai" to "thaïlandais",
-        "Norwegian" to "norvégien", "Shepherd Dog" to "berger", "Shepherd" to "berger",
-        "Forest Cat" to "chat des forêts", "Shorthair" to "à poil court", "Short-Haired" to "à poil court",
-        "Smooth-Haired" to "à poil ras", "Longhair" to "à poil long", "Long-Haired" to "à poil long",
-        "Miniature" to "nain", "Black And Silver" to "noir et argent", "Pepper And Salt" to "poivre et sel",
-        "Pure Black With Black Undercoat" to "noir", "Blue" to "bleu", "Golden" to "doré",
-    )
-    private val italianWords = mapOf(
-        "American" to "americano", "Australian" to "australiano", "British" to "britannico",
-        "English" to "inglese", "German" to "tedesco", "Italian" to "italiano", "Japanese" to "giapponese",
-        "Russian" to "russo", "Scottish" to "scozzese", "Chinese" to "cinese", "Thai" to "tailandese",
-        "Norwegian" to "norvegese", "Shepherd Dog" to "pastore", "Shepherd" to "pastore",
-        "Forest Cat" to "gatto delle foreste", "Shorthair" to "a pelo corto", "Short-Haired" to "a pelo corto",
-        "Smooth-Haired" to "a pelo raso", "Longhair" to "a pelo lungo", "Long-Haired" to "a pelo lungo",
-        "Miniature" to "nano", "Black And Silver" to "nero e argento", "Pepper And Salt" to "pepe e sale",
-        "Pure Black With Black Undercoat" to "nero", "Blue" to "blu", "Golden" to "dorato",
-    )
+        fun normalize(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+            .trim().replace(Regex("\\s+"), " ").lowercase(Locale.ROOT)
+
+        fun comparator(locale: Locale): Comparator<PetBreedOption> {
+            val collator = Collator.getInstance(locale).apply { strength = Collator.PRIMARY }
+            return Comparator { left, right ->
+                collator.compare(left.displayName, right.displayName).takeUnless { it == 0 }
+                    ?: left.canonicalName.compareTo(right.canonicalName, ignoreCase = true).takeUnless { it == 0 }
+                    ?: left.id.value.compareTo(right.id.value)
+            }
+        }
+
+        private val ROOT_KEYS = setOf("schemaVersion", "locales", "breeds")
+        private val BREED_KEYS = setOf("id", "species", "names")
+
+        private fun JsonObject.requireOnlyKeys(supported: Set<String>, location: String) {
+            val unsupported = keySet() - supported
+            require(unsupported.isEmpty()) { "Unsupported keys in $location: $unsupported" }
+        }
+
+        private fun JsonObject.requiredString(key: String): String {
+            val value = get(key)
+            require(value != null && value.isJsonPrimitive && value.asJsonPrimitive.isString) { "Missing string $key" }
+            return value.asString
+        }
+
+        private fun JsonObject.requiredInt(key: String): Int {
+            val value = get(key)
+            require(value != null && value.isJsonPrimitive && value.asJsonPrimitive.isNumber) { "Missing integer $key" }
+            return value.asInt
+        }
+
+        private fun JsonObject.requiredArray(key: String) = get(key).also { value ->
+            require(value != null && value.isJsonArray) { "Missing array $key" }
+        }.asJsonArray
+    }
 }

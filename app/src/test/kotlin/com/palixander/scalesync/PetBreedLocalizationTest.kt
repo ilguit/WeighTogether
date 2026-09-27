@@ -4,7 +4,7 @@ import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSpecies
 import java.util.Locale
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -69,13 +69,49 @@ class PetBreedLocalizationTest {
     }
 
     @Test
-    fun nonEnglishLocalesHaveLocaleSpecificPresentation() {
+    fun untranslatedLocalesFallBackToCanonicalEnglishWithoutSynthesis() {
         val englishDog = option(BreedId("VBO:0200577"), PetSpecies.DOG, "en").displayName
         val englishCat = option(BreedId("VBO:0100052"), PetSpecies.CAT, "en").displayName
-        locales.filterNot { it.language == "en" }.forEach { locale ->
-            assertNotEquals(englishDog, option(BreedId("VBO:0200577"), PetSpecies.DOG, locale.language).displayName)
-            assertNotEquals(englishCat, option(BreedId("VBO:0100052"), PetSpecies.CAT, locale.language).displayName)
+        PetBreedLocalization.TRANSLATED_LOCALES.forEach { language ->
+            assertEquals(englishDog, option(BreedId("VBO:0200577"), PetSpecies.DOG, language).displayName)
+            assertEquals(englishCat, option(BreedId("VBO:0100052"), PetSpecies.CAT, language).displayName)
         }
+    }
+
+    @Test
+    fun explicitLocalizedNameIsResolvedByCanonicalId() {
+        val localization = load(singleBreedJson(names = "\"de\":\"Deutscher Name\""))
+        assertEquals(
+            "Deutscher Name",
+            localization.displayName(TEST_ID, "German Shepherd Dog", "Немецкая овчарка", Locale.GERMAN),
+        )
+        assertEquals(
+            "German Shepherd Dog",
+            localization.displayName(TEST_ID, "German Shepherd Dog", "Немецкая овчарка", Locale.FRENCH),
+        )
+    }
+
+    @Test
+    fun loaderRejectsDuplicateUnknownAndNoncanonicalIds() {
+        assertInvalid(singleBreedJson(extraBreed = "{\"id\":\"$TEST_ID\",\"species\":\"dog\"}"))
+        assertInvalid(singleBreedJson(id = "VBO:9999999"))
+        assertInvalid(singleBreedJson(id = "VBO:0100061", species = "cat"))
+    }
+
+    @Test
+    fun loaderRejectsUnsupportedKeysBlankNamesAndSpeciesMismatch() {
+        assertInvalid(singleBreedJson(extraRoot = ",\"unexpected\":true"))
+        assertInvalid(singleBreedJson(names = "\"es\":\"Nombre\""))
+        assertInvalid(singleBreedJson(names = "\"de\":\"   \""))
+        assertInvalid(singleBreedJson(species = "cat"))
+    }
+
+    @Test
+    fun bundledSchemaCoversExactlyAllSelectableCanonicalIds() {
+        val options = listOf(PetSpecies.CAT, PetSpecies.DOG).flatMap { catalog.search("", it, Locale.ENGLISH) }
+        assertEquals(82, options.size)
+        assertEquals(82, options.map { it.id }.toSet().size)
+        assertTrue(options.all { com.palixander.scalesync.core.breed.canonicalBreedId(it.id.value) == it.id.value })
     }
 
     @Test
@@ -90,4 +126,32 @@ class PetBreedLocalizationTest {
 
     private fun option(id: BreedId, species: PetSpecies, language: String): PetBreedOption =
         (catalog.resolve(id, species, Locale.forLanguageTag(language)) as PetBreedSelection.Available).option
+
+    private fun load(json: String): PetBreedLocalization = PetBreedLocalization.load(
+        streamProvider = { json.byteInputStream() },
+        expectedBreeds = mapOf(TEST_ID to PetSpecies.DOG),
+        catalog = com.palixander.scalesync.core.breed.BreedCatalog.bundled(),
+    )
+
+    private fun assertInvalid(json: String) {
+        assertThrows(IllegalArgumentException::class.java) { load(json) }
+    }
+
+    private fun singleBreedJson(
+        id: String = TEST_ID,
+        species: String = "dog",
+        names: String = "",
+        extraBreed: String? = null,
+        extraRoot: String = "",
+    ): String {
+        val breeds = buildList {
+            add("{\"id\":\"$id\",\"species\":\"$species\",\"names\":{$names}}")
+            extraBreed?.let(::add)
+        }.joinToString(",")
+        return """{"schemaVersion":1,"locales":["be","de","fr","it","ja","uk","zh"],"breeds":[$breeds]$extraRoot}"""
+    }
+
+    private companion object {
+        const val TEST_ID = "VBO:0200577"
+    }
 }

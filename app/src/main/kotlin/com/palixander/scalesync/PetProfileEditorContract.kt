@@ -131,6 +131,11 @@ class PetBreedCatalog(
     private val supportedCatBreeds = supportedCatBreedIds
         .mapNotNull(catalog::findById)
         .filter { it.species == BreedSpecies.CAT }
+    private val selectableBreeds = buildMap {
+        supportedDogBreeds.forEach { put(it.breedId, PetSpecies.DOG) }
+        supportedCatBreeds.forEach { put(it.id, PetSpecies.CAT) }
+    }
+    private val localization = PetBreedLocalization.bundled(selectableBreeds, catalog)
 
     /** Searches only product-supported breeds. The full VBO catalog remains internal. */
     fun search(
@@ -188,7 +193,7 @@ class PetBreedCatalog(
     private fun toPetBreedOption(breed: BreedReferenceBreed, locale: Locale): PetBreedOption = PetBreedOption(
         id = BreedId(breed.breedId),
         species = PetSpecies.DOG,
-        displayName = PetBreedLocalization.displayName(breed.englishName, breed.russianName, PetSpecies.DOG, locale),
+        displayName = localization.displayName(breed.breedId, breed.englishName, breed.russianName, locale),
         canonicalName = breed.englishName,
         aliases = breed.aliases.flatMap { alias ->
             catalog.findById(alias)?.let { listOf(it.displayNameRu, it.canonicalName) + it.aliases }
@@ -203,10 +208,10 @@ class PetBreedCatalog(
             BreedSpecies.CAT -> PetSpecies.CAT
             BreedSpecies.DOG -> PetSpecies.DOG
         },
-        displayName = PetBreedLocalization.displayName(
+        displayName = localization.displayName(
+            breed.id,
             breed.canonicalName,
             breed.displayNameRu,
-            if (breed.species == BreedSpecies.CAT) PetSpecies.CAT else PetSpecies.DOG,
             locale,
         ),
         canonicalName = breed.canonicalName,

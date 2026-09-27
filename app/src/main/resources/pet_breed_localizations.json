@@ -1,0 +1,424 @@
+{
+  "schemaVersion": 1,
+  "locales": [
+    "be",
+    "de",
+    "fr",
+    "it",
+    "ja",
+    "uk",
+    "zh"
+  ],
+  "breeds": [
+    {
+      "id": "VBO:0100000",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100018",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100036",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100040",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100045",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100052",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100053",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100056",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100077",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100084",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100090",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100154",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100169",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100170",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100173",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100178",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100183",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100184",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100188",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100189",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100196",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100200",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100209",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100216",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100221",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100223",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100230",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100235",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100245",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100249",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0100303",
+      "species": "cat",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200995",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200800",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200309",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200442",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200712",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200055",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201220",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200131",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201421",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200174",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200985",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200290",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200610",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200095",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200470",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200120",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200599",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201135",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200321",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200893",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200724",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200898",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200420",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200193",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201089",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201174",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200899",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200734",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200897",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200880",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201415",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201448",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200161",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200339",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200962",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200485",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200163",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201198",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200713",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201403",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200340",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200345",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201348",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200410",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200027",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201217",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200882",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200764",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200375",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0201143",
+      "species": "dog",
+      "names": {}
+    },
+    {
+      "id": "VBO:0200577",
+      "species": "dog",
+      "names": {}
+    }
+  ]
+}
