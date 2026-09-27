@@ -1,0 +1,99 @@
+<resources>
+    <string name="manual_weight_back">履歴に戻る</string>
+    <string name="manual_weight_title">体重を追加</string>
+    <string name="manual_weight_owner_unavailable">プロフィールを利用できません。履歴に戻ってください</string>
+    <string name="manual_weight_label">体重（kg）</string>
+    <string name="manual_weight_date">日付：%1$s</string>
+    <string name="manual_weight_date_cd">測定日：%1$s</string>
+    <string name="manual_weight_time">時刻：%1$s</string>
+    <string name="manual_weight_time_cd">測定時刻：%1$s</string>
+    <string name="manual_weight_saving_cd">体重を保存しています</string>
+    <string name="manual_weight_duplicate_title">類似する測定値</string>
+    <string name="manual_weight_duplicate_message">類似する測定値がすでにあります：%1$s kg、%2$s %3$s。もう1件追加しますか？</string>
+    <string name="manual_weight_add_another">もう1件追加</string>
+    <string name="manual_weight_invalid_weight">正の数を小数点以下3桁以内で入力してください</string>
+    <string name="manual_weight_invalid_local_time">この現地時刻は存在しません。別の時刻を選択してください</string>
+    <string name="manual_weight_future_time">未来の日時は指定できません</string>
+    <string name="manual_weight_check_fields">体重、日付、時刻を確認してください</string>
+    <string name="manual_weight_save_failed">体重を保存できませんでした。もう一度お試しください</string>
+    <string name="action_select">選択</string>
+    <string name="account_selector_label">プロフィール</string>
+    <string name="account_selector_cd">データの保存先プロフィールを選択</string>
+    <string name="account_selector_primary_suffix">・メイン</string>
+    <string name="account_selector_removed">選択したプロフィールは削除されました。メインプロフィールを表示しています。</string>
+    <string name="account_selector_primary_unavailable">メインプロフィールを利用できません。プロフィールを選択してください。</string>
+    <string name="account_selector_no_accounts">測定値を保存・表示するにはプロフィールを作成してください。</string>
+    <string name="weight_recognition_title">測定値の識別</string>
+    <string name="weight_recognition_description">許容範囲を広げると自動割り当てされやすくなりますが、誤って一致する可能性も高くなります。</string>
+    <string name="weight_delta_label">体重の許容範囲（kg）</string>
+    <string name="weight_delta_saving_cd">体重の許容範囲を保存しています</string>
+    <string name="weight_ignore_unknown">不明な測定値を無視</string>
+    <string name="weight_ignore_unknown_description">有効にした後の新しい測定値にのみ適用されます</string>
+    <string name="weight_delta_required">体重差を入力してください</string>
+    <string name="weight_delta_number">小数点またはカンマを使って数値を入力してください</string>
+    <string name="weight_delta_range">指定できる範囲：0.1～50.0 kg</string>
+    <string name="measurement_resolver_pending_count">確認待ち：%1$d件</string>
+    <string name="action_open">開く</string>
+    <string name="measurement_weight_kg">%1$s kg</string>
+    <string name="account_primary_profile">メインプロフィール</string>
+    <string name="unsaved_preview_calculate_metrics">指標を計算</string>
+    <string name="action_calculate">計算</string>
+    <string name="unsaved_preview_title">測定値のプレビュー</string>
+    <string name="unsaved_preview_badge">未保存</string>
+    <string name="unsaved_preview_impedance">インピーダンス：%1$d Ω</string>
+    <string name="unsaved_preview_time">時刻：%1$s</string>
+    <string name="unsaved_preview_one_time_profile">一時プロフィール</string>
+    <string name="profile_height_label">身長（cm）</string>
+    <string name="sex_male">男性</string>
+    <string name="sex_female">女性</string>
+    <string name="unsaved_preview_result_only">プレビュー専用の結果</string>
+    <string name="account_error_name_length">名前は1～50文字で入力してください</string>
+    <string name="account_error_duplicate_name">同じ名前のプロフィールがすでにあります</string>
+    <string name="account_error_height">指定できる身長：100～230 cm</string>
+    <string name="account_error_birth_date">有効な生年月日を入力してください</string>
+    <string name="account_error_sex">性別を選択してください</string>
+    <string name="account_profiles_title">プロフィール</string><string name="account_profiles_empty">プロフィールはまだありません。</string><string name="account_add_profile">プロフィールを追加</string>
+    <string name="account_pets_title">ペット</string><string name="account_pets_empty">ペットはまだいません。</string><string name="account_add_pet">ペットを追加</string><string name="account_pet">ペット</string>
+    <string name="account_recalculate_title">履歴を再計算しますか？</string><string name="account_recalculate_message">新しいプロフィール情報により、「%1$s」の過去の測定値に含まれる体組成が変わる場合があります。</string>
+    <string name="account_save_recalculate">保存して再計算</string><string name="account_save_without_recalculate">再計算せずに保存</string>
+    <string name="account_man">男性</string><string name="account_woman">女性</string><string name="account_profile">プロフィール</string><string name="account_make_primary">メインに設定</string><string name="account_primary">メイン</string>
+    <string name="account_new_profile">新しいプロフィール</string><string name="account_edit_profile">プロフィールを編集</string><string name="account_gallery">ギャラリー</string><string name="account_camera">カメラ</string><string name="account_remove_photo">写真を削除</string><string name="account_name">名前</string><string name="account_sex">性別</string>
+    <string name="account_male_choice">♂ 男性</string><string name="account_female_choice">♀ 女性</string>
+    <string name="account_discard_title">変更を破棄しますか？</string><string name="account_discard_message">保存していないプロフィールの変更は失われます。</string><string name="account_discard">変更を破棄</string><string name="account_continue_editing">編集を続ける</string>
+    <string name="account_photo_unreadable">画像を読み込めませんでした</string><string name="account_photo_invalid">選択したファイルは画像ではありません</string><string name="account_photo_processing_failed">画像を処理できませんでした</string>
+    <string name="unsaved_preview_birth_date_error">生年月日は測定日以前にしてください</string>
+    <string name="error_save_setting">設定を保存できませんでした</string><string name="error_open_pending_measurement">保留中の測定値を開けませんでした</string><string name="error_assign_measurement">測定値を割り当てられませんでした</string><string name="error_enable_scanning">スキャンを有効にできませんでした</string><string name="error_start_scanning">スキャンを開始できませんでした</string><string name="error_perform_action">操作を実行できませんでした</string><string name="error_change_profile">プロフィールを変更できませんでした</string>
+    <string name="account_save_error_cd">保存エラー：%1$s</string>
+    <string name="account_save_recalculate_cd">保存して履歴を再計算</string>
+    <string name="account_save_without_recalculate_cd">履歴を再計算せずに保存</string>
+    <string name="account_cancel_update_cd">プロフィールの更新をキャンセル</string>
+    <string name="account_more_actions">%1$sのその他の操作</string>
+    <string name="account_back_to_profiles">プロフィールに戻る</string>
+    <string name="account_profile_photo">プロフィール写真</string>
+    <string name="account_make_primary_title">メインに設定</string>
+    <string name="account_primary_sync_message">外部同期は「%1$s」でのみ利用できるようになります。</string>
+    <string name="account_primary_existing_data_message">以前のメインプロフィールから送信済みのデータは削除されません。</string>
+    <string name="action_continue">続行</string>
+    <string name="account_delete_title">プロフィール「%1$s」を削除しますか？</string>
+    <string name="account_delete_message">プロフィールのローカル履歴は完全に削除されます。外部サービスの記録は残ります。</string>
+    <string name="account_replacement_title">新しいメインプロフィール</string>
+    <string name="account_delete_last_primary_message">最後のプロフィールを削除すると、メインプロフィールがなくなります。</string>
+    <string name="account_primary_history_title">新しいメインプロフィールの履歴</string>
+    <string name="account_sync_future_only">新しい測定値のみ</string>
+    <string name="account_sync_eligible_history">対象の履歴を同期</string>
+    <string name="account_profile_summary">%1$s cm・%2$s・%3$s</string>
+    <string name="account_profile_incomplete">プロフィールを完成させてください</string>
+    <string name="message_account_created">プロフィール「%1$s」を作成しました</string>
+    <string name="message_account_created_assigned">プロフィール「%1$s」を作成し、測定値を割り当てました</string>
+    <string name="message_account_name_conflict">同じ名前のプロフィールがすでにあります</string>
+    <string name="message_measurement_already_processed">測定値はすでに処理されています</string>
+    <string name="message_measurement_already_assigned">測定値はすでに割り当てられています</string>
+    <string name="message_account_saved">プロフィール「%1$s」を保存しました</string>
+    <string name="message_primary_account_changed">メインプロフィールを変更しました</string>
+    <string name="message_account_deleted">プロフィールとローカル履歴を削除しました</string>
+    <string name="message_primary_account_deleted">メインプロフィールとローカル履歴を削除しました</string>
+    <string name="message_weight_delta_saved">識別の許容範囲を保存しました</string>
+    <string name="error_save_weight_delta">識別の許容範囲を保存できませんでした</string>
+    <string name="message_complete_selected_profile">先に選択したプロフィールを完成させてください</string>
+    <string name="message_account_already_deleted">プロフィールはすでに削除されています</string>
+</resources>

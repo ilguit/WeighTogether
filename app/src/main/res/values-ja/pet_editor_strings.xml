@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_editor_create_title">新しいペット</string><string name="pet_editor_edit_title">ペットを編集</string>
+    <string name="pet_editor_photo">ペットの写真</string><string name="photo_gallery">ギャラリー</string><string name="photo_camera">カメラ</string><string name="photo_remove">写真を削除</string>
+    <string name="pet_editor_name">ペットの名前</string><string name="pet_editor_species">ペットの種類</string><string name="pet_editor_cat">🐱 猫</string><string name="pet_editor_dog">🐶 犬</string><string name="pet_editor_species_required">ペットの種類を選択してください</string>
+    <string name="pet_editor_sex_optional">性別（任意）</string><string name="pet_editor_sex">ペットの性別</string><string name="pet_editor_male">オス</string><string name="pet_editor_female">メス</string><string name="pet_editor_clear_sex">ペットの性別をクリア</string>
+    <string name="pet_editor_breed">品種</string><string name="pet_editor_choose_breed_a11y">品種を選択。%1$s</string><string name="pet_editor_breed_mismatch">選択したペットの種類と品種が一致しません</string>
+    <string name="pet_editor_save_error_a11y">保存エラー：%1$s</string><string name="pet_editor_saving_a11y">ペットのプロフィールを保存しています</string>
+    <string name="pet_editor_discard_title">変更を破棄しますか？</string><string name="pet_editor_discard_text">保存していないペットのプロフィール変更は失われます。</string><string name="pet_editor_discard">変更を破棄</string><string name="pet_editor_keep_editing">編集を続ける</string>
+    <string name="photo_error_unreadable">画像を読み込めませんでした</string><string name="photo_error_invalid">選択したファイルは画像ではありません</string><string name="photo_error_processing">画像を処理できませんでした</string>
+    <string name="pet_editor_birth_date_optional">生年月日（任意）</string><string name="pet_editor_birth_date_help">年を選択し、必要に応じて月と日も指定してください。</string><string name="pet_editor_birth_part_value">%1$s：%2$s</string><string name="pet_editor_birth_picker_title">生年月日：%1$s</string>
+    <string name="date_part_year">年</string><string name="date_part_month">月</string><string name="date_part_day">日</string><string name="pet_editor_clear_date">日付をクリア</string><string name="pet_editor_keep_year">年のみ残す</string><string name="pet_editor_keep_year_month">年月のみ残す</string>
+    <string name="pet_editor_dog_category_optional">成犬時の体重区分（任意）</string><string name="pet_editor_dog_category_help">生後12週から2歳までのSaltカテゴリのパーセンタイル曲線を決定します。</string><string name="pet_editor_saved_category">保存済みの区分：%1$s</string><string name="pet_editor_clear_category">区分をクリア</string><string name="pet_editor_clear_category_a11y">犬の体重区分をクリア</string><string name="pet_editor_category_unavailable">選択した品種では体重区分を利用できません</string><string name="pet_editor_weight_category">体重区分</string>
+    <string name="pet_editor_other_breed">その他の品種</string><string name="pet_editor_choose_breed">品種を選択</string><string name="pet_editor_search_breed">品種を検索</string><string name="pet_editor_no_breeds">対応する品種が見つかりません</string>
+    <string name="pet_editor_change_species_title">ペットの種類を変更しますか？</string><string name="pet_editor_change_species_text">種類を変更すると、%1$sがクリアされます。その他のデータは保持されます。</string><string name="pet_editor_change_species">種類を変更</string><string name="list_and_separator">、</string>
+    <string name="pet_editor_name_required">ペットの名前を入力してください</string><string name="pet_editor_name_too_long">名前は50文字以内で入力してください</string><string name="pet_editor_name_duplicate">同じ名前のペットがすでにいます</string>
+    <string name="pet_editor_birth_incomplete">選択した日付の項目をすべて入力してください</string><string name="pet_editor_birth_invalid">有効な日付を入力してください</string><string name="pet_editor_birth_future">未来の生年月日は指定できません</string>
+    <string name="birth_date_open_calendar">カレンダーを開く</string><string name="birth_date_label">生年月日</string><string name="birth_date_choose">日付を選択</string>
+    <string name="error_create_pet">ペットを登録できませんでした</string><string name="error_save_pet">ペットを保存できませんでした</string><string name="error_prepare_delete_pet">ペットを削除する準備ができませんでした</string><string name="error_delete_pet">ペットを削除できませんでした</string>
+</resources>

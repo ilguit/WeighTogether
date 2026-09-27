@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="pet_measurement_title">ペットの計量</string>
+    <string name="pet_measurement_close_a11y">ペットの計量を閉じる</string>
+    <string name="pet_measurement_choose_pet">ペットを選択</string>
+    <string name="pet_measurement_new_pet">新しいペット</string>
+    <string name="pet_measurement_back_to_selection">ペットの選択に戻る</string>
+    <string name="pet_measurement_first_title">1回目の計量</string>
+    <string name="pet_measurement_second_title">2回目の計量</string>
+    <string name="pet_measurement_saving_title">保存中</string>
+    <string name="pet_measurement_failed_title">ペットを計量できませんでした</string>
+    <string name="pet_measurement_connection_lost">接続が切断されました</string>
+    <string name="pet_measurement_first_instructions_named">%1$sを抱いた状態と、ペットを抱かない状態で1回ずつ測定します。順番は問いません。どちらか一方から始め、測定値が安定するまでお待ちください。</string>
+    <string name="pet_measurement_first_accepted">1回目の測定値：%1$s kg</string>
+    <string name="pet_measurement_second_instructions_named">次は%1$sを抱いた状態、または抱かない状態のうち、まだ測定していない方で測定してください。測定値が安定するまでお待ちください。</string>
+    <string name="pet_measurement_first_instructions">ペットを抱いた状態または抱かない状態で体重計に乗り、測定値が安定するまでお待ちください。</string>
+    <string name="pet_measurement_second_instructions">1回目と逆の状態で、もう一度測定してください。1回目にペットを抱かなかった場合は抱き、抱いていた場合はペットを降ろしてください。</string>
+    <string name="pet_measurement_waiting_stable">測定値が安定するのを待っています</string>
+    <string name="pet_measurement_first_reading">1回目の測定値：%1$s kg</string>
+    <string name="pet_measurement_first_reading_saved">1回目の測定値を保存しました：%1$s kg</string>
+    <string name="pet_measurement_saving">結果を保存しています…</string>
+    <string name="pet_measurement_result_weight">ペットの体重 — %1$s kg</string>
+    <string name="pet_measurement_delta">前回の測定から%1$s%2$s kg</string>
+    <string name="weight_kg_format">%1$s kg</string>
+    <string name="pet_measurement_no_pets">ペットはまだいません。最初のペットを登録してください。</string>
+    <string name="pet_measurement_latest_weight">最新の体重：%1$s kg・%2$s</string>
+    <string name="pet_measurement_no_measurements">測定値はまだありません</string>
+    <string name="pet_measurement_create_and_weigh">登録して計量</string>
+    <string name="pet_measurement_cat">猫</string>
+    <string name="pet_measurement_dog">犬</string>
+    <string name="pet_measurement_scale_required">先に設定で体重計を選択してください</string>
+    <string name="pet_measurement_bluetooth_permission">ペットを計量するにはBluetoothを許可してください</string>
+    <string name="pet_measurement_timeout">体重計から新しい安定した測定値を受信できませんでした</string>
+    <string name="pet_measurement_wait_for_ble_scan">実行中のBluetoothスキャンが終わるまでお待ちください</string>
+    <string name="pet_measurement_pet_not_found">ペットが見つかりません</string>
+    <string name="pet_measurement_start_failed">スキャンを開始できませんでした</string>
+    <string name="pet_measurement_save_failed">ペットの体重を保存できませんでした</string>
+    <string name="pet_measurement_retry_failed">スキャンを再開できませんでした</string>
+</resources>
