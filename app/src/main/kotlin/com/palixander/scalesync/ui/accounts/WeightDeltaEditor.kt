@@ -21,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -50,6 +51,7 @@ fun WeightRecognitionSetting(
 ) {
     val focusManager = LocalFocusManager.current
     val context = LocalContext.current
+    val resources = LocalResources.current
     var wasFocused by remember { mutableStateOf(false) }
     var completionSubmitted by remember { mutableStateOf(false) }
     LaunchedEffect(state.isSaving) {
@@ -88,7 +90,7 @@ fun WeightRecognitionSetting(
                         },
                         label = { Text(stringResource(R.string.weight_delta_label)) },
                         supportingText = state.error?.let { message ->
-                            { Text(message.resolve(context.resources), Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
+                            { Text(message.resolve(resources), Modifier.testTag(WeightDeltaEditorTestTags.Error)) }
                         },
                         isError = state.error != null,
                         enabled = !state.isSaving,
@@ -110,7 +112,7 @@ fun WeightRecognitionSetting(
                             .testTag(WeightDeltaEditorTestTags.Input)
                             .semantics {
                                 if (state.isSaving) {
-                                    contentDescription = context.getString(R.string.weight_delta_saving_cd)
+                                    contentDescription = resources.getString(R.string.weight_delta_saving_cd)
                                 }
                             },
                     )

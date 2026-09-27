@@ -11,6 +11,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
@@ -55,6 +56,7 @@ fun ManualWeightScreen(
 ) {
     var datePickerOpen by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val dateText = draft.date.format(DateTimeFormatter.ofPattern("dd.MM.uuuu"))
     val timeText = draft.time.format(DateTimeFormatter.ofPattern("HH:mm"))
     Column(
@@ -82,7 +84,7 @@ fun ManualWeightScreen(
             singleLine = true,
             enabled = !draft.saving,
             isError = draft.weightError != null,
-            supportingText = draft.weightError?.let { message -> { FormError(message.resolve(context.resources)) } },
+            supportingText = draft.weightError?.let { message -> { FormError(message.resolve(resources)) } },
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
             modifier = Modifier.fillMaxWidth().testTag(ManualWeightTags.Weight),
         )
@@ -90,7 +92,7 @@ fun ManualWeightScreen(
             onClick = { datePickerOpen = true },
             enabled = !draft.saving,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(ManualWeightTags.Date)
-                .semantics { contentDescription = context.getString(R.string.manual_weight_date_cd, dateText) },
+                .semantics { contentDescription = resources.getString(R.string.manual_weight_date_cd, dateText) },
         ) { Text(stringResource(R.string.manual_weight_date, dateText)) }
         OutlinedButton(
             onClick = {
@@ -99,17 +101,17 @@ fun ManualWeightScreen(
             },
             enabled = !draft.saving,
             modifier = Modifier.fillMaxWidth().heightIn(min = 56.dp).testTag(ManualWeightTags.Time)
-                .semantics { contentDescription = context.getString(R.string.manual_weight_time_cd, timeText) },
+                .semantics { contentDescription = resources.getString(R.string.manual_weight_time_cd, timeText) },
         ) { Text(stringResource(R.string.manual_weight_time, timeText)) }
-        draft.dateError?.let { FormError(it.resolve(context.resources)) }
-        draft.error?.let { FormError(it.resolve(context.resources)) }
+        draft.dateError?.let { FormError(it.resolve(resources)) }
+        draft.error?.let { FormError(it.resolve(resources)) }
         Button(
             onClick = onSave,
             enabled = draft.canSave,
             modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(ManualWeightTags.Save),
         ) {
             if (draft.saving) {
-                CircularProgressIndicator(Modifier.size(24.dp).semantics { contentDescription = context.getString(R.string.manual_weight_saving_cd) })
+                CircularProgressIndicator(Modifier.size(24.dp).semantics { contentDescription = resources.getString(R.string.manual_weight_saving_cd) })
                 Spacer(Modifier.width(8.dp))
                 Text(stringResource(R.string.state_saving))
             } else Text(stringResource(R.string.action_save))

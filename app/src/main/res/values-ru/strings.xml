@@ -1,4 +1,4 @@
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name">Scale Sync</string>
     <string name="measurement_resolver_title">Неназначенное измерение</string>
     <string name="measurement_resolver_assignment_question">Кому назначить это измерение?</string>
@@ -124,10 +124,11 @@
     <string name="pet_profile_weight_category">Весовая категория</string>
     <string name="pet_profile_age_exact">%1$d %2$s</string>
     <string name="pet_profile_age_range">%1$d–%2$d %3$s</string>
-    <plurals name="pet_profile_age_days"><item quantity="one">день</item><item quantity="few">дня</item><item quantity="many">дней</item><item quantity="other">дня</item></plurals>
-    <plurals name="pet_profile_age_weeks"><item quantity="one">неделя</item><item quantity="few">недели</item><item quantity="many">недель</item><item quantity="other">недели</item></plurals>
-    <plurals name="pet_profile_age_months"><item quantity="one">месяц</item><item quantity="few">месяца</item><item quantity="many">месяцев</item><item quantity="other">месяца</item></plurals>
-    <plurals name="pet_profile_age_years"><item quantity="one">год</item><item quantity="few">года</item><item quantity="many">лет</item><item quantity="other">года</item></plurals>
+    <!-- These plurals return a unit word only; pet_profile_age_* supplies the number. -->
+    <plurals name="pet_profile_age_days" tools:ignore="ImpliedQuantity"><item quantity="one">день</item><item quantity="few">дня</item><item quantity="many">дней</item><item quantity="other">дня</item></plurals>
+    <plurals name="pet_profile_age_weeks" tools:ignore="ImpliedQuantity"><item quantity="one">неделя</item><item quantity="few">недели</item><item quantity="many">недель</item><item quantity="other">недели</item></plurals>
+    <plurals name="pet_profile_age_months" tools:ignore="ImpliedQuantity"><item quantity="one">месяц</item><item quantity="few">месяца</item><item quantity="many">месяцев</item><item quantity="other">месяца</item></plurals>
+    <plurals name="pet_profile_age_years" tools:ignore="ImpliedQuantity"><item quantity="one">год</item><item quantity="few">года</item><item quantity="many">лет</item><item quantity="other">года</item></plurals>
     <string name="pet_measurement_delete_title">Удалить измерение питомца?</string>
     <string name="pet_measurement_delete_message">Измерение будет удалено без возможности восстановления.</string>
     <string name="pet_measurement_edit_a11y">Изменить измерение %1$s, %2$s</string>

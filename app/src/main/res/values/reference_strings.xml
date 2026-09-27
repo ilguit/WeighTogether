@@ -150,7 +150,7 @@
     <string name="reference_help_muscle_mass_dependencies">Current sex, saved height, weight, and all BIA inputs.</string>
     <string name="reference_help_muscle_mass_limitations">The value depends on the algorithm and does not measure muscle strength or function.</string>
     <string name="reference_help_skeletal_muscle_meaning">Estimated mass of the muscles that move the body.</string>
-    <string name="reference_help_skeletal_muscle_calculation">The Janssen equation uses height, impedance, sex, and age. For the category, mass is divided by weight, converted to a percentage, rounded to 0.1%, and compared with the OMRON table.</string>
+    <string name="reference_help_skeletal_muscle_calculation">The Janssen equation uses height, impedance, sex, and age. For the category, mass is divided by weight, converted to a percentage, rounded to 0.1%%, and compared with the OMRON table.</string>
     <string name="reference_help_skeletal_muscle_dependencies">Current sex and age, saved height, weight, and impedance.</string>
     <string name="reference_help_skeletal_muscle_limitations">Janssen used whole-body BIA; Xiaomi uses foot-to-foot BIA. Applying OMRON categories is a consumer interpretation. It does not assess strength or diagnose sarcopenia. The reference range is unavailable below age 18 and above age 80.</string>
     <string name="reference_help_bone_mass_meaning">Estimated mineral component of the bones.</string>

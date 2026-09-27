@@ -8,7 +8,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -33,12 +33,14 @@ fun AccountSelector(
     modifier: Modifier = Modifier,
     label: String? = null,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
+    val selectorDescription = stringResource(R.string.account_selector_cd)
+    val primarySuffixText = stringResource(R.string.account_selector_primary_suffix)
     Column(
         modifier = modifier
             .fillMaxWidth()
             .testTag(AccountSelectorTestTags.Selector)
-            .semantics { contentDescription = context.getString(R.string.account_selector_cd) },
+            .semantics { contentDescription = selectorDescription },
         verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
     ) {
         Text(label ?: stringResource(R.string.account_selector_label), style = MaterialTheme.typography.labelLarge)
@@ -48,7 +50,7 @@ fun AccountSelector(
                 verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
             ) {
                 state.accounts.forEach { account ->
-                    val primarySuffix = if (account.id == state.primaryAccountId) context.getString(R.string.account_selector_primary_suffix) else ""
+                    val primarySuffix = if (account.id == state.primaryAccountId) primarySuffixText else ""
                     HuaweiFilterButton(
                         text = account.displayName,
                         selected = account.id == state.selectedAccountId,
@@ -65,7 +67,7 @@ fun AccountSelector(
         }
         state.fallbackMessage?.let { message ->
             Text(
-                text = message.resolve(context.resources),
+                text = message.resolve(resources),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.testTag(AccountSelectorTestTags.Fallback),

@@ -54,6 +54,7 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -171,6 +172,7 @@ internal fun PetProfileEditorDialog(
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val resources = LocalResources.current
     val speciesLabel = stringResource(R.string.pet_editor_species)
     val sexLabel = stringResource(R.string.pet_editor_sex)
     val clearSexLabel = stringResource(R.string.pet_editor_clear_sex)
@@ -202,14 +204,14 @@ internal fun PetProfileEditorDialog(
                 deleteTransientPhoto(draft.photoPath)
                 dispatchPhoto(onAction, path, locked)
             },
-            onError = { error -> photoError = context.getString(petPhotoErrorResource(error)) },
+            onError = { error -> photoError = resources.getString(petPhotoErrorResource(error)) },
         )
     }
     val photoPicker = photoStore?.let { store ->
         photoPickerFactory(
             store,
             { photoCrop?.open(it) },
-            { error -> photoError = context.getString(petPhotoErrorResource(error)) },
+            { error -> photoError = resources.getString(petPhotoErrorResource(error)) },
         )
     }
 

@@ -56,6 +56,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
@@ -312,7 +313,11 @@ private fun ProfileUpdateConfirmationDialog(
     onKeepExisting: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    val context = LocalContext.current
+    val resources = LocalResources.current
+    val saveErrorDescription = stringResource(R.string.account_save_error_cd, error?.resolve(resources).orEmpty())
+    val recalculateDescription = stringResource(R.string.account_save_recalculate_cd)
+    val keepExistingDescription = stringResource(R.string.account_save_without_recalculate_cd)
+    val cancelDescription = stringResource(R.string.account_cancel_update_cd)
     AlertDialog(
         modifier = Modifier.testTag(AccountManagementTestTags.ProfileUpdatePrompt),
         onDismissRequest = { if (!operationInProgress) onCancel() },
@@ -323,17 +328,14 @@ private fun ProfileUpdateConfirmationDialog(
                     stringResource(R.string.account_recalculate_message, request.update.displayName),
                 )
                 error?.let { message ->
-                    val resolvedError = message.resolve(context.resources)
+                    val resolvedError = message.resolve(resources)
                     Text(
                         text = resolvedError,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier
                             .testTag(AccountManagementTestTags.OperationError)
                             .semantics {
-                                contentDescription = context.getString(
-                                    R.string.account_save_error_cd,
-                                    resolvedError,
-                                )
+                                contentDescription = saveErrorDescription
                             },
                     )
                 }
@@ -352,7 +354,7 @@ private fun ProfileUpdateConfirmationDialog(
                         .fillMaxWidth()
                         .testTag(AccountManagementTestTags.ProfileUpdateRecalculate)
                         .semantics {
-                            contentDescription = context.getString(R.string.account_save_recalculate_cd)
+                            contentDescription = recalculateDescription
                         },
                 ) {
                     Text(stringResource(if (operationInProgress) R.string.state_saving else R.string.account_save_recalculate))
@@ -364,7 +366,7 @@ private fun ProfileUpdateConfirmationDialog(
                         .fillMaxWidth()
                         .testTag(AccountManagementTestTags.ProfileUpdateKeepExisting)
                         .semantics {
-                            contentDescription = context.getString(R.string.account_save_without_recalculate_cd)
+                            contentDescription = keepExistingDescription
                         },
                 ) { Text(stringResource(R.string.account_save_without_recalculate)) }
                 TextButton(
@@ -373,7 +375,7 @@ private fun ProfileUpdateConfirmationDialog(
                     modifier = Modifier
                         .testTag(AccountManagementTestTags.ProfileUpdateCancel)
                         .semantics {
-                            contentDescription = context.getString(R.string.account_cancel_update_cd)
+                            contentDescription = cancelDescription
                         },
                 ) { Text(stringResource(R.string.action_cancel)) }
             }
@@ -570,6 +572,8 @@ fun AccountEditorScreen(
     },
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
+    val sexDescription = stringResource(R.string.account_sex)
     val validation = validateAccountEditor(draft, accounts, today)
     val initialDraft = remember(draft.editingAccountId) {
         draft.editingAccountId?.let { id -> accounts.firstOrNull { it.id == id } }
@@ -742,7 +746,7 @@ fun AccountEditorScreen(
                     enabled = !operationInProgress,
                     isError = validationRequested && validation.error(AccountEditorField.NAME) != null,
                     supportingText = validation.error(AccountEditorField.NAME).takeIf { validationRequested }?.let { message ->
-                        { Text(message.resolve(context.resources)) }
+                        { Text(message.resolve(resources)) }
                     },
                     modifier = Modifier.fillMaxWidth().focusRequester(nameFocus)
                         .testTag(AccountManagementTestTags.EditorName),
@@ -754,7 +758,7 @@ fun AccountEditorScreen(
                         .height(IntrinsicSize.Min)
                         .testTag(AccountManagementTestTags.EditorSexGroup)
                         .semantics {
-                            contentDescription = context.getString(R.string.account_sex)
+                            contentDescription = sexDescription
                             selectableGroup()
                         },
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -771,7 +775,7 @@ fun AccountEditorScreen(
                     }
                 }
                 validation.error(AccountEditorField.SEX).takeIf { validationRequested }?.let {
-                    Text(it.resolve(context.resources), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                    Text(it.resolve(resources), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
                 BirthDateField(
                     value = draft.birthDate,
@@ -787,7 +791,7 @@ fun AccountEditorScreen(
                     enabled = !operationInProgress,
                     isError = validationRequested && validation.error(AccountEditorField.BIRTH_DATE) != null,
                     supportingText = validation.error(AccountEditorField.BIRTH_DATE).takeIf { validationRequested }
-                        ?.resolve(context.resources),
+                        ?.resolve(resources),
                     modifier = Modifier.focusRequester(birthDateFocus)
                         .testTag(AccountManagementTestTags.EditorBirthDate),
                 )
@@ -800,23 +804,21 @@ fun AccountEditorScreen(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     isError = validationRequested && validation.error(AccountEditorField.HEIGHT) != null,
                     supportingText = validation.error(AccountEditorField.HEIGHT).takeIf { validationRequested }?.let { message ->
-                        { Text(message.resolve(context.resources)) }
+                        { Text(message.resolve(resources)) }
                     },
                     modifier = Modifier.fillMaxWidth().focusRequester(heightFocus)
                         .testTag(AccountManagementTestTags.EditorHeight),
                 )
                 error?.let { message ->
-                    val resolvedError = message.resolve(context.resources)
+                    val resolvedError = message.resolve(resources)
+                    val saveErrorDescription = stringResource(R.string.account_save_error_cd, resolvedError)
                     Text(
                         text = resolvedError,
                         color = MaterialTheme.colorScheme.error,
                         modifier = Modifier
                             .testTag(AccountManagementTestTags.OperationError)
                             .semantics {
-                                contentDescription = context.getString(
-                                    R.string.account_save_error_cd,
-                                    resolvedError,
-                                )
+                                contentDescription = saveErrorDescription
                             },
                     )
                 }
