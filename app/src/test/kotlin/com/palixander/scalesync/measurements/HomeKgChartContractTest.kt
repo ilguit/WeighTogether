@@ -2,6 +2,8 @@ package com.palixander.scalesync.measurements
 
 import com.palixander.scalesync.domain.PendingMeasurement
 import com.palixander.scalesync.domain.PendingMeasurementId
+import com.palixander.scalesync.R
+import com.palixander.scalesync.ui.text.UiText
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -30,7 +32,7 @@ class HomeKgChartContractTest {
         assertEquals(8, HomeKgChartSeriesCatalog.size)
         assertEquals(8, HomeKgChartSeriesCatalog.map { it.color.argb }.distinct().size)
         assertEquals(8, DefaultHomeKgChartSeriesKeys.size)
-        assertTrue(HomeKgChartSeriesCatalog.all { it.unit == "кг" && it.decimalPlaces == 2 })
+        assertTrue(HomeKgChartSeriesCatalog.all { it.unit == UiText.Resource(R.string.unit_kg) && it.decimalPlaces == 2 })
     }
 
     @Test

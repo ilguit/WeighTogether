@@ -1,6 +1,7 @@
 package com.palixander.scalesync
 
 import com.palixander.scalesync.measurements.MeasurementsDestination
+import com.palixander.scalesync.ui.text.UiText
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -49,7 +50,7 @@ class MainScreenContractTest {
     @Test
     fun petProfileBackButtonDescribesReturningToProfiles() {
         assertEquals(
-            "Вернуться к профилям",
+            UiText.Resource(R.string.action_back_to_profiles),
             mainBackContentDescription(changelogOpen = false, petProfileOpen = true),
         )
     }
@@ -57,7 +58,7 @@ class MainScreenContractTest {
     @Test
     fun settingsDetailBackButtonDescribesReturningToSettings() {
         assertEquals(
-            "Вернуться к настройкам",
+            UiText.Resource(R.string.action_back_to_settings),
             mainBackContentDescription(
                 changelogOpen = false,
                 petProfileOpen = false,

@@ -301,7 +301,7 @@ class PetReferenceIntegrationTest {
         ) as PetHistoryWeightReference.Unavailable
 
         assertEquals(WeightReferenceUnavailableReason.MissingSex, reference.reason)
-        assertFalse(reference.explanation.isBlank())
+        assertEquals(com.palixander.scalesync.ui.text.UiText.Resource(R.string.pet_reference_unavailable_sex), reference.explanation)
         assertNull(petWeightChartRange(emptyList(), reference))
     }
 

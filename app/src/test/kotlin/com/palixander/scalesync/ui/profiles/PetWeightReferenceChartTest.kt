@@ -293,7 +293,10 @@ class PetWeightReferenceChartTest {
             exactObservationGlyphs(reference, ZoneOffset.UTC),
         )
         assertEquals(
-            listOf("↕ Диапазон наблюдения породы в дату рождения", "● Средний вес породы в дату рождения"),
+            listOf(
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_birth_range),
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_birth_mean),
+            ),
             referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
         )
     }
@@ -302,14 +305,25 @@ class PetWeightReferenceChartTest {
         val labels = referenceWeightChartLegendEntries(WeightReferenceProvenance.POPULATION_FALLBACK_FOR_SELECTED_BREED)
             .map(PetWeightChartLegendEntry::label)
 
-        assertTrue(labels.all { "не по породе" in it })
+        assertEquals(
+            listOf(
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_general_range),
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_general_p50),
+            ),
+            labels,
+        )
     }
 
     @Test fun `population legend uses the approved non medical term`() {
         val labels = populationWeightChartLegendEntries().map(PetWeightChartLegendEntry::label)
 
-        assertEquals(listOf("▰ Типичный диапазон веса", "— P50"), labels)
-        assertTrue(labels.none { label -> listOf("норм", "идеаль", "медицин", "целев").any { it in label.lowercase() } })
+        assertEquals(
+            listOf(
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_typical_range),
+                UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_p50),
+            ),
+            labels,
+        )
     }
 
     @Test fun `monotone smoothing retains knots and never overshoots adjacent values`() {
@@ -584,7 +598,9 @@ class PetWeightReferenceChartTest {
             assertEquals(listOf(range.lower), displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_LOWER }.y)
             assertEquals(listOf(range.upper), displayed.single { it.kind == PetWeightDisplayedSeriesKind.BREED_UPPER }.y)
             assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
-            assertTrue(petWeightChartLegendEntries(displayed).none { it.label.contains("ориентира") })
+            assertTrue(petWeightChartLegendEntries(displayed).none {
+                it.label == UiText.Resource(com.palixander.scalesync.R.string.pet_weight_chart_legend_typical_range)
+            })
             assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
             assertEquals(sourceReference, sourceReference.copy())
             assertEquals(sourceTimeline, listOf(PetHistoryBreedReferenceTimelinePoint(x, date, listOf(sourceValue))))
@@ -915,7 +931,7 @@ class PetWeightReferenceChartTest {
     @Test fun `unavailable reference produces no chart series`() {
         val unavailable = PetHistoryWeightReference.Unavailable(
             com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingSex,
-            "missing",
+            UiText.Raw("missing"),
         )
 
         assertTrue(petWeightReferenceChartSeries(unavailable).isEmpty())
@@ -934,7 +950,7 @@ class PetWeightReferenceChartTest {
                 supportedMinimumDays = 56,
                 supportedMaximumDays = 730,
             ),
-            "Для выбранного возраста опубликованные данные отсутствуют.",
+            UiText.Raw("Для выбранного возраста опубликованные данные отсутствуют."),
         )
 
         val displayed = petWeightDisplayedSeries(factual, unavailable, emptyList(), ZoneOffset.UTC)
@@ -947,7 +963,7 @@ class PetWeightReferenceChartTest {
     @Test fun `available breed suppresses only unavailable category explanation`() {
         val unavailable = PetHistoryWeightReference.Unavailable(
             com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingDogAdultWeight,
-            "missing category",
+            UiText.Raw("missing category"),
         )
         val breed = breedAvailable(
             listOf(PetHistoryBreedChartValue.Single(11.0, "Медиана", "median")),
@@ -958,12 +974,12 @@ class PetWeightReferenceChartTest {
         assertTrue(shouldShowWeightReferenceExplanation(available(emptyList()), breed))
         assertTrue(shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Unavailable(
             com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason.OtherBreed,
-            "other breed",
+            UiText.Raw("other breed"),
             false,
         )))
         assertTrue(!shouldShowWeightReferenceExplanation(unavailable, PetHistoryBreedReference.Unavailable(
             com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason.NoApplicableValue,
-            "selected breed",
+            UiText.Raw("selected breed"),
             false,
         )))
     }
@@ -1330,7 +1346,7 @@ class PetWeightReferenceChartTest {
                 emptyList(),
                 PetHistoryWeightReference.Unavailable(
                     com.palixander.scalesync.domain.reference.WeightReferenceUnavailableReason.MissingSex,
-                    "missing",
+                    UiText.Raw("missing"),
                 ),
             ),
         )

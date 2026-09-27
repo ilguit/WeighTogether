@@ -214,7 +214,7 @@ class MeasurementsPresentationTest {
         assertEquals(MeasurementSyncPresentationState.LOCAL_ONLY, local.state)
         assertFalse(local.canRetry)
         assertEquals(UiText.Resource(R.string.sync_state_local_only), local.label)
-        assertTrue(local.directions.all { it.message.isEmpty() })
+        assertTrue(local.directions.all { it.message == null })
     }
 
     @Test

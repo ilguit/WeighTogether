@@ -856,7 +856,12 @@ class PetHistoryStateOwnerTest {
 
         assertEquals(updated, owner.uiState.value.pet)
         assertEquals(
-            listOf(PetProfileSummaryItem("Пол", "Самка")),
+            listOf(
+                PetProfileSummaryItem(
+                    com.palixander.scalesync.ui.text.UiText.Resource(com.palixander.scalesync.R.string.pet_profile_sex),
+                    com.palixander.scalesync.ui.text.UiText.Resource(com.palixander.scalesync.R.string.pet_profile_sex_female),
+                ),
+            ),
             owner.uiState.value.profileSummary?.items,
         )
         assertTrue(owner.uiState.value.content is PetHistoryContent.Empty)

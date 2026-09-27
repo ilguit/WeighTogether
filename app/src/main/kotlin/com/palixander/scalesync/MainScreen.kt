@@ -81,6 +81,7 @@ import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.profiles.PetProfileScreen
 import com.palixander.scalesync.ui.profiles.PetHistoryCallbacks
 import com.palixander.scalesync.ui.profiles.PetHistoryUiState
@@ -636,7 +637,7 @@ internal fun ScaleSyncScaffold(
                                 changelogOpen = changelogOpen,
                                 petProfileOpen = petDestination != null,
                                 settingsDetailOpen = settingsDetailOpen,
-                            ),
+                            ).resolve(LocalContext.current.resources),
                             backModifier = if (settingsDetailOpen) {
                                 Modifier
                                     .testTag(MainScreenTestTags.SettingsBack)
@@ -834,16 +835,15 @@ internal fun ScaleSyncScaffold(
     }
 }
 
-@Composable
 internal fun mainBackContentDescription(
     changelogOpen: Boolean,
     petProfileOpen: Boolean,
     settingsDetailOpen: Boolean = false,
-): String = when {
-    changelogOpen -> stringResource(R.string.action_back_to_settings)
-    settingsDetailOpen -> stringResource(R.string.action_back_to_settings)
-    petProfileOpen -> stringResource(R.string.action_back_to_profiles)
-    else -> stringResource(R.string.action_close_profile_editor)
+): UiText = when {
+    changelogOpen -> UiText.Resource(R.string.action_back_to_settings)
+    settingsDetailOpen -> UiText.Resource(R.string.action_back_to_settings)
+    petProfileOpen -> UiText.Resource(R.string.action_back_to_profiles)
+    else -> UiText.Resource(R.string.action_close_profile_editor)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

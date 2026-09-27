@@ -34,7 +34,7 @@ class PendingDiscardUndoCoordinatorTest {
         assertEquals(firstToken.pendingId, firstEvent.pendingId)
         assertEquals(secondToken.pendingId, secondEvent.pendingId)
         assertEquals(UiText.Resource(R.string.message_pending_discarded), firstEvent.message)
-        assertEquals(PENDING_DISCARD_UNDO_ACTION, firstEvent.actionLabel)
+        assertEquals(UiText.Resource(R.string.action_undo), firstEvent.actionLabel)
         assertEquals(2, coordinator.activeSnackbarCount)
 
         assertSame(secondToken, coordinator.finish(secondEvent.snackbarId, undoRequested = true))
