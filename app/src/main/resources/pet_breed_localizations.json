@@ -178,22 +178,22 @@
     {
       "id": "VBO:0200309",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Кавалер-кінг-чарльз-спаніэль","de":"Cavalier King Charles Spaniel","fr":"Cavalier King Charles Spaniel","it":"Cavalier King Charles Spaniel","ja":"キャバリア・キング・チャールズ・スパニエル","uk":"Кавалер-кінг-чарльз-спанієль","zh":"骑士查理王小猎犬"}
     },
     {
       "id": "VBO:0200442",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Даберман","de":"Dobermann","fr":"Dobermann","it":"Dobermann","ja":"ドーベルマン","uk":"Доберман","zh":"杜宾犬"}
     },
     {
       "id": "VBO:0200712",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Кане-корса","de":"Cane Corso Italiano","fr":"Cane Corso","it":"Cane Corso italiano","ja":"カネ・コルソ","uk":"Кане-корсо","zh":"卡斯罗犬"}
     },
     {
       "id": "VBO:0200055",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Амерыканскі стафардшырскі тэр'ер","de":"American Staffordshire Terrier","fr":"American Staffordshire Terrier","it":"American Staffordshire Terrier","ja":"アメリカン・スタッフォードシャー・テリア","uk":"Американський стафордширський тер'єр","zh":"美国斯塔福郡梗"}
     },
     {
       "id": "VBO:0201220",
@@ -203,7 +203,7 @@
     {
       "id": "VBO:0200131",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Бігль","de":"Beagle","fr":"Beagle","it":"Beagle","ja":"ビーグル","uk":"Бігль","zh":"比格犬"}
     },
     {
       "id": "VBO:0201421",
@@ -213,7 +213,7 @@
     {
       "id": "VBO:0200174",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Рускі чорны тэр'ер","de":"Russischer Schwarzer Terrier","fr":"Terrier noir russe","it":"Terrier nero russo","ja":"ロシアン・ブラック・テリア","uk":"Російський чорний тер'єр","zh":"俄罗斯黑梗"}
     },
     {
       "id": "VBO:0200985",
@@ -223,32 +223,32 @@
     {
       "id": "VBO:0200290",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Вельш-коргі-кардыган","de":"Welsh Corgi Cardigan","fr":"Welsh Corgi Cardigan","it":"Welsh Corgi Cardigan","ja":"ウェルシュ・コーギー・カーディガン","uk":"Вельш-коргі-кардиган","zh":"卡迪根威尔士柯基犬"}
     },
     {
       "id": "VBO:0200610",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Залацісты рэтрывер","de":"Golden Retriever","fr":"Golden Retriever","it":"Golden Retriever","ja":"ゴールデン・レトリーバー","uk":"Золотистий ретривер","zh":"金毛寻回犬"}
     },
     {
       "id": "VBO:0200095",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Аўстралійская аўчарка","de":"Australian Shepherd","fr":"Berger australien","it":"Pastore australiano","ja":"オーストラリアン・シェパード","uk":"Австралійська вівчарка","zh":"澳大利亚牧羊犬"}
     },
     {
       "id": "VBO:0200470",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Усходнееўрапейская аўчарка","de":"Osteuropäischer Schäferhund","fr":"Berger d'Europe de l'Est","it":"Pastore dell'Europa orientale","ja":"イースト・ヨーロピアン・シェパード","uk":"Східноєвропейська вівчарка","zh":"东欧牧羊犬"}
     },
     {
       "id": "VBO:0200120",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Басенджы","de":"Basenji","fr":"Basenji","it":"Basenji","ja":"バセンジー","uk":"Басенджі","zh":"巴仙吉犬"}
     },
     {
       "id": "VBO:0200599",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Памеранскі шпіц","de":"Zwergspitz","fr":"Spitz nain","it":"Spitz tedesco nano","ja":"ポメラニアン","uk":"Померанський шпіц","zh":"博美犬"}
     },
     {
       "id": "VBO:0201135",
@@ -258,7 +258,7 @@
     {
       "id": "VBO:0200321",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Сярэднеазіяцкая аўчарка","de":"Zentralasiatischer Owtscharka","fr":"Berger d'Asie centrale","it":"Pastore dell'Asia centrale","ja":"セントラル・アジア・シェパード・ドッグ","uk":"Середньоазійська вівчарка","zh":"中亚牧羊犬"}
     },
     {
       "id": "VBO:0200893",
@@ -278,12 +278,12 @@
     {
       "id": "VBO:0200420",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Стандартная гладкашэрсная такса","de":"Kurzhaar-Standardteckel","fr":"Teckel standard à poil ras","it":"Bassotto standard a pelo corto","ja":"スタンダード・スムースヘアード・ダックスフンド","uk":"Стандартна короткошерста такса","zh":"标准短毛腊肠犬"}
     },
     {
       "id": "VBO:0200193",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Бордэр-колі","de":"Border Collie","fr":"Border Collie","it":"Border Collie","ja":"ボーダー・コリー","uk":"Бордер-колі","zh":"边境牧羊犬"}
     },
     {
       "id": "VBO:0201089",
@@ -328,12 +328,12 @@
     {
       "id": "VBO:0200161",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Бернскі зененхунд","de":"Berner Sennenhund","fr":"Bouvier bernois","it":"Bovaro del Bernese","ja":"バーニーズ・マウンテン・ドッグ","uk":"Бернський зенненхунд","zh":"伯恩山犬"}
     },
     {
       "id": "VBO:0200339",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Даўгашэрсны чыхуахуа","de":"Langhaar-Chihuahua","fr":"Chihuahua à poil long","it":"Chihuahua a pelo lungo","ja":"ロングコート・チワワ","uk":"Довгошерстий чихуахуа","zh":"长毛吉娃娃"}
     },
     {
       "id": "VBO:0200962",
@@ -343,12 +343,12 @@
     {
       "id": "VBO:0200485",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Англійскі бульдог","de":"Englische Bulldogge","fr":"Bouledogue anglais","it":"Bulldog inglese","ja":"イングリッシュ・ブルドッグ","uk":"Англійський бульдог","zh":"英国斗牛犬"}
     },
     {
       "id": "VBO:0200163",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Бішон-фрызэ","de":"Bichon Frisé","fr":"Bichon frisé","it":"Bichon à poil frisé","ja":"ビション・フリーゼ","uk":"Бішон-фрізе","zh":"比熊犬"}
     },
     {
       "id": "VBO:0201198",
@@ -368,12 +368,12 @@
     {
       "id": "VBO:0200340",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Гладкашэрсны чыхуахуа","de":"Kurzhaar-Chihuahua","fr":"Chihuahua à poil court","it":"Chihuahua a pelo corto","ja":"スムースコート・チワワ","uk":"Короткошерстий чихуахуа","zh":"短毛吉娃娃"}
     },
     {
       "id": "VBO:0200345",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Кітайскі чубаты сабака","de":"Chinesischer Schopfhund","fr":"Chien chinois à crête","it":"Cane crestato cinese","ja":"チャイニーズ・クレステッド・ドッグ","uk":"Китайський чубатий собака","zh":"中国冠毛犬"}
     },
     {
       "id": "VBO:0201348",
@@ -383,12 +383,12 @@
     {
       "id": "VBO:0200410",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Мініяцюрная гладкашэрсная такса","de":"Kurzhaar-Zwergteckel","fr":"Teckel nain à poil ras","it":"Bassotto nano a pelo corto","ja":"ミニチュア・スムースヘアード・ダックスフンド","uk":"Мініатюрна короткошерста такса","zh":"迷你短毛腊肠犬"}
     },
     {
       "id": "VBO:0200027",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Амерыканская акіта","de":"Amerikanischer Akita","fr":"Akita américain","it":"Akita americano","ja":"アメリカン・アキタ","uk":"Американська акіта","zh":"美国秋田犬"}
     },
     {
       "id": "VBO:0201217",
@@ -408,7 +408,7 @@
     {
       "id": "VBO:0200375",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Колі","de":"Collie","fr":"Colley","it":"Collie","ja":"コリー","uk":"Колі","zh":"柯利犬"}
     },
     {
       "id": "VBO:0201143",
@@ -418,7 +418,7 @@
     {
       "id": "VBO:0200577",
       "species": "dog",
-      "names": {}
+      "names": {"be":"Нямецкая аўчарка","de":"Deutscher Schäferhund","fr":"Berger allemand","it":"Pastore tedesco","ja":"ジャーマン・シェパード・ドッグ","uk":"Німецька вівчарка","zh":"德国牧羊犬"}
     }
   ]
 }

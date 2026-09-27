@@ -70,9 +70,59 @@ class PetBreedLocalizationTest {
 
     @Test
     fun untranslatedDogNamesFallBackToCanonicalEnglishWithoutSynthesis() {
-        val englishDog = option(BreedId("VBO:0200577"), PetSpecies.DOG, "en").displayName
+        val englishDog = option(BreedId("VBO:0200713"), PetSpecies.DOG, "en").displayName
         PetBreedLocalization.TRANSLATED_LOCALES.forEach { language ->
-            assertEquals(englishDog, option(BreedId("VBO:0200577"), PetSpecies.DOG, language).displayName)
+            assertEquals(englishDog, option(BreedId("VBO:0200713"), PetSpecies.DOG, language).displayName)
+        }
+    }
+
+    @Test
+    fun representativeDogBreedsHaveExactNaturalNamesAndRemainSearchableByLocalizedAndEnglishNames() {
+        val expected = mapOf(
+            "be" to listOf("Амерыканская акіта", "Бернскі зененхунд", "Нямецкая аўчарка"),
+            "de" to listOf("Amerikanischer Akita", "Berner Sennenhund", "Deutscher Schäferhund"),
+            "fr" to listOf("Akita américain", "Bouvier bernois", "Berger allemand"),
+            "it" to listOf("Akita americano", "Bovaro del Bernese", "Pastore tedesco"),
+            "ja" to listOf("アメリカン・アキタ", "バーニーズ・マウンテン・ドッグ", "ジャーマン・シェパード・ドッグ"),
+            "uk" to listOf("Американська акіта", "Бернський зенненхунд", "Німецька вівчарка"),
+            "zh" to listOf("美国秋田犬", "伯恩山犬", "德国牧羊犬"),
+        )
+        val breeds = listOf(
+            BreedId("VBO:0200027") to "American Akita",
+            BreedId("VBO:0200161") to "Bernese Mountain Dog",
+            BreedId("VBO:0200577") to "German Shepherd Dog",
+        )
+
+        expected.forEach { (language, names) ->
+            val locale = Locale.forLanguageTag(language)
+            breeds.zip(names).forEach { (breed, localizedName) ->
+                val (id, englishName) = breed
+                assertEquals(language, localizedName, option(id, PetSpecies.DOG, language).displayName)
+                assertTrue(catalog.search(localizedName, PetSpecies.DOG, locale).any { it.id == id })
+                assertTrue(catalog.search(englishName, PetSpecies.DOG, locale).any { it.id == id })
+            }
+        }
+    }
+
+    @Test
+    fun translatedDogNamesContainNeitherGenerationMarkersNorDuplicatedWords() {
+        val marker = Regex("(?i)(translated|translation|locale|language|\\[.{0,12}])")
+        val localizedIds = (0 until 25).map { index ->
+            catalog.search("", PetSpecies.DOG, Locale.ENGLISH)
+                .map { it.id }
+                .sortedBy { it.value }[index]
+        }.toSet()
+
+        PetBreedLocalization.TRANSLATED_LOCALES.forEach { language ->
+            catalog.search("", PetSpecies.DOG, Locale.forLanguageTag(language))
+                .filter { it.id in localizedIds }
+                .forEach { option ->
+                    assertTrue("$language: ${option.displayName}", !marker.containsMatchIn(option.displayName))
+                    val words = option.displayName.lowercase(Locale.ROOT)
+                        .split(Regex("[\\s-]+"))
+                        .filter(String::isNotBlank)
+                    assertTrue("$language: ${option.displayName}", words.zipWithNext().none { (a, b) -> a == b })
+                }
         }
     }
 
