@@ -75,17 +75,17 @@ class PetBreedLocalizationTest {
     }
 
     @Test
-    fun newlyLocalizedDogNamesAreExactAndSearchableInEveryTranslatedLocale() {
+    fun reviewedDogNamesAreExactAndSearchableInEveryTranslatedLocale() {
         val expected = mapOf(
-            "be" to listOf("Вельш-коргі-пемброк", "Малая італьянская хорт"),
-            "de" to listOf("Welsh Corgi Pembroke", "Italienisches Windspiel"),
-            "fr" to listOf("Welsh Corgi Pembroke", "Petit lévrier italien"),
-            "it" to listOf("Welsh Corgi Pembroke", "Piccolo levriero italiano"),
-            "ja" to listOf("ウェルシュ・コーギー・ペンブローク", "イタリアン・グレーハウンド"),
-            "uk" to listOf("Вельш-коргі-пемброк", "Мала італійська хорт"),
-            "zh" to listOf("彭布罗克威尔士柯基犬", "意大利灵缇犬"),
+            "be" to listOf("Вельш-коргі-пемброк", "Малы італьянскі хорт", "Бішон-фрызэ"),
+            "de" to listOf("Welsh Corgi Pembroke", "Italienisches Windspiel", "Bichon Frisé"),
+            "fr" to listOf("Welsh Corgi Pembroke", "Petit lévrier italien", "Bichon frisé"),
+            "it" to listOf("Welsh Corgi Pembroke", "Piccolo levriero italiano", "Bichon a pelo riccio"),
+            "ja" to listOf("ウェルシュ・コーギー・ペンブローク", "イタリアン・グレーハウンド", "ビション・フリーゼ"),
+            "uk" to listOf("Вельш-коргі-пемброк", "Малий італійський хорт", "Бішон-фрізе"),
+            "zh" to listOf("彭布罗克威尔士柯基犬", "意大利灵缇犬", "比熊犬"),
         )
-        val ids = listOf(BreedId("VBO:0200995"), BreedId("VBO:0200713"))
+        val ids = listOf(BreedId("VBO:0200995"), BreedId("VBO:0200713"), BreedId("VBO:0200163"))
 
         expected.forEach { (language, names) ->
             val locale = Locale.forLanguageTag(language)

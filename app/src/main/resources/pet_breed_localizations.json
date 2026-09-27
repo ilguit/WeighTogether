@@ -348,7 +348,7 @@
     {
       "id": "VBO:0200163",
       "species": "dog",
-      "names": {"be":"Бішон-фрызэ","de":"Bichon Frisé","fr":"Bichon frisé","it":"Bichon à poil frisé","ja":"ビション・フリーゼ","uk":"Бішон-фрізе","zh":"比熊犬"}
+      "names": {"be":"Бішон-фрызэ","de":"Bichon Frisé","fr":"Bichon frisé","it":"Bichon a pelo riccio","ja":"ビション・フリーゼ","uk":"Бішон-фрізе","zh":"比熊犬"}
     },
     {
       "id": "VBO:0201198",
@@ -358,7 +358,7 @@
     {
       "id": "VBO:0200713",
       "species": "dog",
-      "names": {"be":"Малая італьянская хорт","de":"Italienisches Windspiel","fr":"Petit lévrier italien","it":"Piccolo levriero italiano","ja":"イタリアン・グレーハウンド","uk":"Мала італійська хорт","zh":"意大利灵缇犬"}
+      "names": {"be":"Малы італьянскі хорт","de":"Italienisches Windspiel","fr":"Petit lévrier italien","it":"Piccolo levriero italiano","ja":"イタリアン・グレーハウンド","uk":"Малий італійський хорт","zh":"意大利灵缇犬"}
     },
     {
       "id": "VBO:0201403",
