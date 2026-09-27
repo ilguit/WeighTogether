@@ -463,7 +463,11 @@ internal fun PetProfileEditorDialog(
 
                 if (draft.species == PetSpecies.DOG || draft.species == PetSpecies.CAT) {
                     EditorSection(stringResource(R.string.pet_editor_breed)) {
-                        val breedLabel = petBreedLabel(draft.breed).resolve(LocalContext.current.resources)
+                        val locale = com.palixander.scalesync.ui.currentAppLocale()
+                        val localizedBreed = draft.breed?.let {
+                            breedCatalog.resolve(it.id, it.species, locale)
+                        }
+                        val breedLabel = petBreedLabel(localizedBreed).resolve(LocalContext.current.resources)
                         val breedA11y = stringResource(R.string.pet_editor_choose_breed_a11y, breedLabel)
                         OutlinedButton(
                             onClick = { breedPickerOpen = true },
@@ -797,9 +801,10 @@ private fun BreedPickerDialog(
     onSelect: (PetBreedOption?) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    val locale = com.palixander.scalesync.ui.currentAppLocale()
     var query by rememberSaveable(species) { mutableStateOf("") }
-    val options = remember(query, species, breedCatalog) {
-        breedCatalog.search(query, species)
+    val options = remember(query, species, breedCatalog, locale) {
+        breedCatalog.search(query, species, locale)
     }
     val listState = rememberLazyListState()
     val normalizedQuery = query.trim().lowercase()
