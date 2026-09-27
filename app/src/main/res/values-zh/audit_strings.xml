@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="message_ble_background_enabled">已启用后台 BLE 扫描</string>
+    <string name="message_finish_pet_measurement_first">请先完成宠物称重</string>
+    <string name="message_manual_scan_stopped">手动扫描已停止</string>
+    <string name="message_step_on_scale">请站上体重秤，等待最终读数</string>
+    <string name="message_bluetooth_scan_permission_required">请先允许蓝牙扫描</string>
+    <string name="message_reliable_mode_enabled">已启用高可靠模式</string>
+    <string name="message_reliable_mode_disabled">已停用高可靠模式</string>
+    <string name="message_scale_forgotten">已忘记体重秤</string>
+    <string name="message_health_connect_disabled">应用中的 Health Connect 已停用。您可以在系统设置中撤销权限。</string>
+    <string name="message_pending_check_failed">无法检查待处理的测量记录</string>
+    <string name="message_wait_for_ble_scan">请等待当前 BLE 扫描完成</string>
+    <string name="message_health_connect_permission_check_failed">无法检查 Health Connect 权限</string>
+    <string name="message_health_connect_queue_restarted">Health Connect：权限已授予，队列已重启</string>
+    <string name="message_health_connect_permissions_incomplete">Health Connect：部分数据类型尚未获得授权</string>
+    <string name="message_external_sync_paused">外部同步已暂停</string>
+    <string name="message_external_sync_resumed">外部同步已恢复</string>
+    <string name="measurement_group_main">主要指标</string>
+    <string name="measurement_group_body_composition">身体成分</string>
+    <string name="measurement_group_muscles_bones">肌肉与骨骼</string>
+    <string name="measurement_group_metabolism">代谢</string>
+    <string name="measurement_input_label_with_unit">%1$s，%2$s</string>
+    <string name="unit_ohm_symbol">Ω</string><string name="unit_kcal">kcal</string>
+    <string name="validation_required_field">必填项</string><string name="validation_whole_number">请输入整数</string><string name="validation_number">请输入数字</string><string name="validation_finite_number">请输入有限数值</string><string name="validation_non_negative">数值不能为负数</string>
+    <string name="validation_allowed_range">允许范围：0–%1$d</string>
+    <string name="measurement_value_with_unit">%1$s %2$s</string><string name="measurement_prefixed_unit">\u0020%1$s</string><string name="measurement_delete_summary">%1$s · %2$s %3$s</string>
+    <string name="measurement_history_fat">脂肪 %1$s</string><string name="measurement_history_muscle">肌肉 %1$s</string><string name="measurement_history_bmi">BMI %1$s</string>
+    <string name="measurement_first_measurement">首次测量</string><string name="measurement_weight_no_change">无变化</string>
+</resources>
