@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="reference_set_label">Ensemble de référence : ScaleSync 1</string>
     <string name="reference_group_main">Principales</string>
     <string name="reference_group_body_composition">Composition du corps</string>
@@ -28,19 +28,19 @@
     <string name="reference_unit_level">Niveau</string>
     <string name="reference_unit_kcal_day">kcal/jour</string>
     <string name="reference_unit_years">années</string>
-    <plurals name="reference_spoken_kg">
+    <plurals name="reference_spoken_kg" tools:ignore="ImpliedQuantity">
         <item quantity="one">kilogramme</item>
         <item quantity="other">kg</item>
     </plurals>
-    <plurals name="reference_spoken_ohm">
+    <plurals name="reference_spoken_ohm" tools:ignore="ImpliedQuantity">
         <item quantity="one">Ohm</item>
         <item quantity="other">Ohms</item>
     </plurals>
-    <plurals name="reference_spoken_percent">
+    <plurals name="reference_spoken_percent" tools:ignore="ImpliedQuantity">
         <item quantity="one">Pourcentage</item>
         <item quantity="other">Pourcentage</item>
     </plurals>
-    <plurals name="reference_spoken_year">
+    <plurals name="reference_spoken_year" tools:ignore="ImpliedQuantity">
         <item quantity="one">année</item>
         <item quantity="other">années</item>
     </plurals>
@@ -143,7 +143,7 @@
     <string name="reference_help_muscle_mass_dependencies">Le sexe actuel, la taille sauvée, le poids, et toutes les entrées BIA.</string>
     <string name="reference_help_muscle_mass_limitations">La valeur dépend de l\'algorithme et ne mesure pas la force ou la fonction musculaire.</string>
     <string name="reference_help_skeletal_muscle_meaning">Masse estimée des muscles qui déplacent le corps.</string>
-    <string name="reference_help_skeletal_muscle_calculation">L\'équation de Janssen utilise la taille, l\'impédance, le sexe et l\'âge. Pour la catégorie, la masse est divisée en poids, convertie en pourcentage, arrondie à 0,1%, et comparée au tableau OMRON.</string>
+    <string name="reference_help_skeletal_muscle_calculation" formatted="false">L\'équation de Janssen utilise la taille, l\'impédance, le sexe et l\'âge. Pour la catégorie, la masse est divisée en poids, convertie en pourcentage, arrondie à 0,1%, et comparée au tableau OMRON.</string>
     <string name="reference_help_skeletal_muscle_dependencies">Le sexe et l\'âge actuels, ont sauvé la taille, le poids et l\'impédance.</string>
     <string name="reference_help_skeletal_muscle_limitations">Janssen a utilisé BIA corps entier; Xiaomi utilise BIA pied-à-pied. Appliquer les catégories OMRON est une interprétation du consommateur. Il n\'évalue pas la force ou diagnostique la sarcopénie. La plage de référence est indisponible en dessous de 18 ans et au-delà de 80 ans.</string>
     <string name="reference_help_bone_mass_meaning">Composante minérale estimée des os.</string>

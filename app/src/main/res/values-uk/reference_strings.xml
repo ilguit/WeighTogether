@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="reference_set_label">Набір референтних значень: ScaleSync 1</string>
     <string name="reference_group_main">Основне</string>
     <string name="reference_group_body_composition">Склад тіла</string>
@@ -30,25 +30,25 @@
     <string name="reference_unit_level">рівень</string>
     <string name="reference_unit_kcal_day">ккал/день</string>
     <string name="reference_unit_years">років</string>
-    <plurals name="reference_spoken_kg">
+    <plurals name="reference_spoken_kg" tools:ignore="ImpliedQuantity">
         <item quantity="one">кілограм</item>
         <item quantity="few">кілограми</item>
         <item quantity="many">кілограмів</item>
         <item quantity="other">кілограма</item>
     </plurals>
-    <plurals name="reference_spoken_ohm">
+    <plurals name="reference_spoken_ohm" tools:ignore="ImpliedQuantity">
         <item quantity="one">ом</item>
         <item quantity="few">оми</item>
         <item quantity="many">омів</item>
         <item quantity="other">ома</item>
     </plurals>
-    <plurals name="reference_spoken_percent">
+    <plurals name="reference_spoken_percent" tools:ignore="ImpliedQuantity">
         <item quantity="one">відсоток</item>
         <item quantity="few">відсотки</item>
         <item quantity="many">відсотків</item>
         <item quantity="other">відсотка</item>
     </plurals>
-    <plurals name="reference_spoken_year">
+    <plurals name="reference_spoken_year" tools:ignore="ImpliedQuantity">
         <item quantity="one">рік</item>
         <item quantity="few">роки</item>
         <item quantity="many">років</item>

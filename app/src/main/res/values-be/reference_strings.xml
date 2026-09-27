@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<resources>
+<resources xmlns:tools="http://schemas.android.com/tools">
     <string name="reference_set_label">Набор даведачных значэнняў: ScaleSync 1</string>
     <string name="reference_group_main">Асноўнае</string>
     <string name="reference_group_body_composition">Склад цела</string>
@@ -30,25 +30,25 @@
     <string name="reference_unit_level">узровень</string>
     <string name="reference_unit_kcal_day">ккал/дзень</string>
     <string name="reference_unit_years">гады</string>
-    <plurals name="reference_spoken_kg">
+    <plurals name="reference_spoken_kg" tools:ignore="ImpliedQuantity">
         <item quantity="one">кілаграм</item>
         <item quantity="few">кілаграмы</item>
         <item quantity="many">кілаграмаў</item>
         <item quantity="other">кілаграма</item>
     </plurals>
-    <plurals name="reference_spoken_ohm">
+    <plurals name="reference_spoken_ohm" tools:ignore="ImpliedQuantity">
         <item quantity="one">ом</item>
         <item quantity="few">омы</item>
         <item quantity="many">омаў</item>
         <item quantity="other">ома</item>
     </plurals>
-    <plurals name="reference_spoken_percent">
+    <plurals name="reference_spoken_percent" tools:ignore="ImpliedQuantity">
         <item quantity="one">працэнт</item>
         <item quantity="few">працэнты</item>
         <item quantity="many">працэнтаў</item>
         <item quantity="other">працэнта</item>
     </plurals>
-    <plurals name="reference_spoken_year">
+    <plurals name="reference_spoken_year" tools:ignore="ImpliedQuantity">
         <item quantity="one">год</item>
         <item quantity="few">гады</item>
         <item quantity="many">гадоў</item>
