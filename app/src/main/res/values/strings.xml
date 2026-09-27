@@ -176,6 +176,8 @@
     <string name="pet_weight_unavailable">Measurement unavailable. Return to measurements</string>
     <string name="pet_weight_save_error">Could not save changes. Try again</string>
     <string name="pet_measurement_delete_error">Could not delete measurement</string>
+    <string name="error_delete_measurement">Could not delete measurement</string>
+    <string name="health_connect_title">Health Connect</string>
     <string name="pet_history_load_error">Could not load history</string>
     <string name="pet_profile_summary_title">Pet details</string>
     <string name="pet_profile_summary_empty">Additional details have not been provided</string>

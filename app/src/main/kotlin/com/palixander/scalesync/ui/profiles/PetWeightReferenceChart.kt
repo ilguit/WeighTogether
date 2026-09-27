@@ -940,6 +940,7 @@ private fun PetWeightVicoChart(
     referenceColor: Color,
     contentDescription: String,
 ) {
+    val resources = LocalContext.current.resources
     val viewport = remember(displayedSeries, startDate, endDateInclusive, zoneId) {
         chartViewport(
             displayedSeries.flatMap(PetWeightDisplayedSeries::x),

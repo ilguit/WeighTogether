@@ -106,6 +106,8 @@
     <string name="pet_weight_unavailable">Измерение недоступно. Вернитесь к измерениям</string>
     <string name="pet_weight_save_error">Не удалось сохранить изменения. Попробуйте ещё раз</string>
     <string name="pet_measurement_delete_error">Не удалось удалить измерение</string>
+    <string name="error_delete_measurement">Не удалось удалить измерение</string>
+    <string name="health_connect_title">Health Connect</string>
     <string name="pet_history_load_error">Не удалось загрузить историю</string>
     <string name="pet_profile_summary_title">Данные питомца</string>
     <string name="pet_profile_summary_empty">Дополнительные данные не заполнены</string>

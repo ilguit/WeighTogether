@@ -391,7 +391,6 @@ private fun ClearPendingDialog(
             }
         },
         dismissButton = {
-            val summaryExpansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
             TextButton(
                 onClick = onDismiss,
                 enabled = !confirmation.isClearing,
@@ -624,6 +623,9 @@ private fun MeasurementSummaryCard(
     helpFocusRequesters: MutableMap<String, FocusRequester>,
 ) {
     var menuExpanded by rememberSaveable(summary.latest.presentationKey) { mutableStateOf(false) }
+    val summaryExpansionState = stringResource(
+        if (expanded) R.string.state_expanded else R.string.state_collapsed,
+    )
 
     Surface(
         modifier = Modifier
