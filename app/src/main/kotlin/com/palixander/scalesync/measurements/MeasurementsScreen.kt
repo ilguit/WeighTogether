@@ -87,6 +87,7 @@ import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.components.HuaweiRowIcon
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiStatusAction
@@ -415,7 +416,7 @@ private fun PendingMeasurementCard(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text(
-                text = formatMeasurementDateTime(pending.measuredAt),
+                text = localizedMeasurementDateTime(pending.measuredAt),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodyMedium,
             )
@@ -425,7 +426,7 @@ private fun PendingMeasurementCard(
             ) {
                 PendingMeasurementValue(
                     label = stringResource(R.string.metric_weight),
-                    value = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg), stringResource(R.string.unit_kg)),
+                    value = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, pending.weightKg, currentAppLocale()), stringResource(R.string.unit_kg)),
                     modifier = Modifier.weight(1f),
                 )
                 PendingMeasurementValue(
@@ -646,7 +647,7 @@ private fun MeasurementSummaryCard(
             SummaryHeader(
                 date = {
                     Text(
-                        text = formatMeasurementDateTime(summary.latest.measuredAt),
+                        text = localizedMeasurementDateTime(summary.latest.measuredAt),
                         modifier = Modifier.testTag("summary-date"),
                         color = HuaweiColors.Secondary,
                         style = MaterialTheme.typography.bodySmall,
@@ -1202,7 +1203,7 @@ internal fun MeasurementHistoryCard(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Text(
-                                text = formatMeasurementDateTime(item.measuredAt),
+                                text = localizedMeasurementDateTime(item.measuredAt),
                                 modifier = Modifier.testTag("history-header-date-${item.presentationKey}"),
                                 style = MaterialTheme.typography.titleSmall,
                             )
@@ -1216,7 +1217,7 @@ internal fun MeasurementHistoryCard(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
                                 Text(
-                                    text = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg), stringResource(R.string.unit_kg)),
+                                    text = stringResource(R.string.measurement_value_with_unit, formatDisplayValue(MeasurementField.WEIGHT_KG, item.values.weightKg, currentAppLocale()), stringResource(R.string.unit_kg)),
                                     modifier = Modifier.testTag("history-header-weight-${item.presentationKey}"),
                                     style = MaterialTheme.typography.titleMedium,
                                     softWrap = true,
@@ -1567,7 +1568,7 @@ private fun MeasurementEditorScreen(
             item {
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                     Text(
-                        formatMeasurementDateTime(editor.measuredAt),
+                        localizedMeasurementDateTime(editor.measuredAt),
                         style = MaterialTheme.typography.titleSmall,
                     )
                     if (editor.isWeightOnly) {
@@ -1831,8 +1832,8 @@ private fun DeleteMeasurementDialog(
                 Text(
                     stringResource(
                         R.string.measurement_delete_summary,
-                        formatMeasurementDateTime(confirmation.measuredAt),
-                        formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg),
+                        localizedMeasurementDateTime(confirmation.measuredAt),
+                        formatDisplayValue(MeasurementField.WEIGHT_KG, confirmation.weightKg, currentAppLocale()),
                         stringResource(R.string.unit_kg),
                     ),
                     style = MaterialTheme.typography.titleSmall,
@@ -1910,7 +1911,8 @@ private fun historySubtitle(item: MeasurementUiItem): String = listOf(
 ).joinToString(" · ")
 
 @Composable
-private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.getDefault()): String {
+private fun MeasurementMetricPresentation.displayValue(): String {
+    val locale = currentAppLocale()
     if (value == null) return MissingMeasurementValue
     if (field == MeasurementField.WEIGHT_KG) return formatWeight(value, locale)
     val formatted = formatDisplayValue(field, value, locale)
@@ -1919,13 +1921,16 @@ private fun MeasurementMetricPresentation.displayValue(locale: Locale = Locale.g
 }
 
 @Composable
-private fun formatWeightDelta(delta: Double?, locale: Locale = Locale.getDefault()): String = when {
-    delta == null -> stringResource(R.string.measurement_first_measurement)
-    kotlin.math.abs(delta) < 0.000_001 -> stringResource(R.string.measurement_weight_no_change)
-    else -> {
-        val prefix = if (delta > 0) "+" else "−"
-        val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
-        stringResource(R.string.measurement_value_with_unit, "$prefix$value", stringResource(R.string.unit_kg))
+private fun formatWeightDelta(delta: Double?): String {
+    val locale = currentAppLocale()
+    return when {
+        delta == null -> stringResource(R.string.measurement_first_measurement)
+        kotlin.math.abs(delta) < 0.000_001 -> stringResource(R.string.measurement_weight_no_change)
+        else -> {
+            val prefix = if (delta > 0) "+" else "−"
+            val value = formatDisplayValue(MeasurementField.WEIGHT_KG, kotlin.math.abs(delta), locale)
+            stringResource(R.string.measurement_value_with_unit, "$prefix$value", stringResource(R.string.unit_kg))
+        }
     }
 }
 
@@ -1951,6 +1956,12 @@ fun formatMeasurementDateTime(
 ): String = DateTimeFormatter
     .ofPattern("dd.MM.yyyy HH:mm:ss", locale)
     .format(Instant.ofEpochSecond(instant.epochSecond).atZone(zoneId))
+
+@Composable
+private fun localizedMeasurementDateTime(
+    instant: Instant,
+    zoneId: ZoneId = ZoneId.systemDefault(),
+): String = formatMeasurementDateTime(instant, zoneId, currentAppLocale())
 
 fun formatMeasurementValue(
     field: MeasurementField,

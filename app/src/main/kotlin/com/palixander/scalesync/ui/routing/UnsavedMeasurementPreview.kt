@@ -46,6 +46,7 @@ import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.core.chronologicalAge
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
@@ -318,7 +319,7 @@ private fun RawUnsavedSummary(
         )
         Text(stringResource(R.string.unsaved_preview_impedance, state.pending.impedanceOhm))
         Text(
-            stringResource(R.string.unsaved_preview_time, formatMeasurementDateTime(state.pending.measuredAt, zoneId)),
+            stringResource(R.string.unsaved_preview_time, formatMeasurementDateTime(state.pending.measuredAt, zoneId, currentAppLocale())),
         )
     }
 }

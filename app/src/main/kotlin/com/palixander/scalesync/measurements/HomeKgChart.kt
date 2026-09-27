@@ -49,6 +49,7 @@ import com.palixander.scalesync.charts.rememberChartLine
 import com.palixander.scalesync.charts.rememberChartLineLayer
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
@@ -156,6 +157,7 @@ internal fun HomeKgChart(
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
 ) {
+    val locale = currentAppLocale()
     val hasHistoryData = state.series.any { it.points.isNotEmpty() }
     val plottedSeries = state.series.filter { series ->
         series.key in state.activeSeriesKeys && series.points.isNotEmpty()
@@ -280,6 +282,7 @@ private fun HomeKgVicoChart(
     plottedSeries: List<HomeKgChartSeries>,
     zoneId: ZoneId,
 ) {
+    val locale = currentAppLocale()
     val chartContentDescription = stringResource(
         com.palixander.scalesync.R.string.chart_home_content_description,
     )
@@ -313,12 +316,12 @@ private fun HomeKgVicoChart(
             HomeAxisDateFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerFormatter = remember(state, zoneId) {
+    val markerFormatter = remember(state, zoneId, locale) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
             homeKgChartMarkerSelection(state, target.x.toLong())
-                ?.let { formatHomeKgChartMarker(it, zoneId, resolveText = { text -> text.resolve(resources) }) }
+                ?.let { formatHomeKgChartMarker(it, zoneId, locale, resolveText = { text -> text.resolve(resources) }) }
                 .orEmpty()
         }
     }

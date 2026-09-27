@@ -73,6 +73,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.appLocale
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
@@ -933,7 +934,7 @@ private fun SettingsProfilesContent(
                     onEditPet = { callbacks.onEditPet(it.pet) },
                     onDeletePet = callbacks.onRequestDeletePet,
                     petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
-                    petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
+                    petWeightLabel = { formatLatestPetWeight(it, resources.appLocale).resolve(resources) },
                 )
             }
             item {
@@ -1266,7 +1267,7 @@ private fun LegacySettingsScreen(
                             onEditPet = { callbacks.onEditPet(it.pet) },
                             onDeletePet = callbacks.onRequestDeletePet,
                             petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
-                            petWeightLabel = { formatLatestPetWeight(it).resolve(resources) },
+                            petWeightLabel = { formatLatestPetWeight(it, resources.appLocale).resolve(resources) },
                         )
                         WeightRecognitionSetting(
                             state = state.weightDeltaEditor,

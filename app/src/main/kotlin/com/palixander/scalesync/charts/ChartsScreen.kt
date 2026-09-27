@@ -48,6 +48,7 @@ import com.palixander.scalesync.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.accounts.AccountSelector
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiSurface
@@ -514,6 +515,7 @@ internal fun MetricChartCard(
     endDateInclusive: LocalDate,
     zoneId: ZoneId,
 ) {
+    val locale = currentAppLocale()
     val metric = series.metric.resolveStrings()
     val points = remember(series.points) { orderedChartPoints(series.points) }
     val selectedRange = remember(startDate, endDateInclusive, zoneId) { chartXRange(startDate, endDateInclusive, zoneId) }
@@ -521,21 +523,21 @@ internal fun MetricChartCard(
         points.filter { it.xEpochMillis?.toDouble()?.let { x -> x >= selectedRange.minX && x < selectedRange.maxX } == true }
     }
     val summary = remember(selectedPoints) { chartValueSummary(selectedPoints) }
-    val currentValue = remember(summary.current, metric) {
-        formatChartCurrentValue(summary.current?.value, metric)
+    val currentValue = remember(summary.current, metric, locale) {
+        formatChartCurrentValue(summary.current?.value, metric, locale)
     }
-    val delta = remember(summary.delta, metric) {
-        formatChartDelta(summary.delta, metric)
+    val delta = remember(summary.delta, metric, locale) {
+        formatChartDelta(summary.delta, metric, locale)
     }
     val statistics = remember(selectedPoints) { chartStatistics(selectedPoints) }
-    val minimum = remember(statistics?.minimum, metric) {
-        formatChartStatistic(statistics?.minimum, metric)
+    val minimum = remember(statistics?.minimum, metric, locale) {
+        formatChartStatistic(statistics?.minimum, metric, locale)
     }
-    val maximum = remember(statistics?.maximum, metric) {
-        formatChartStatistic(statistics?.maximum, metric)
+    val maximum = remember(statistics?.maximum, metric, locale) {
+        formatChartStatistic(statistics?.maximum, metric, locale)
     }
-    val average = remember(statistics?.average, metric) {
-        formatChartStatistic(statistics?.average, metric)
+    val average = remember(statistics?.average, metric, locale) {
+        formatChartStatistic(statistics?.average, metric, locale)
     }
     val chartDescription = stringResource(
         R.string.chart_accessibility_summary,
@@ -673,6 +675,7 @@ internal fun MetricLineChart(
     modifier: Modifier = Modifier,
     markerVisibilityListener: CartesianMarkerVisibilityListener? = null,
 ) {
+    val locale = currentAppLocale()
     val chartPoints = remember(points) {
         points.mapNotNull { point -> point.xEpochMillis?.let { x -> x to point } }
     }
@@ -703,7 +706,7 @@ internal fun MetricLineChart(
             AxisDateTimeFormatter.format(Instant.ofEpochMilli(value.toLong()).atZone(zoneId))
         }
     }
-    val markerValueFormatter = remember(metric, zoneId, points) {
+    val markerValueFormatter = remember(metric, zoneId, points, locale) {
         DefaultCartesianMarker.ValueFormatter { _, targets ->
             val target = targets.firstOrNull() as? LineCartesianLayerMarkerTarget
                 ?: return@ValueFormatter ""
@@ -711,12 +714,13 @@ internal fun MetricLineChart(
             chartPoints.firstOrNull { (x, point) ->
                 x == target.x.toLong() && point.value == value
             }?.let { (_, point) ->
-                formatChartMarkerText(point = point, metric = metric, zoneId = zoneId)
+                formatChartMarkerText(point = point, metric = metric, zoneId = zoneId, locale = locale)
             } ?: formatChartMarkerText(
                 measuredAtEpochSecond = Math.floorDiv(target.x.toLong(), 1_000L),
                 value = value,
                 metric = metric,
                 zoneId = zoneId,
+                locale = locale,
             )
         }
     }

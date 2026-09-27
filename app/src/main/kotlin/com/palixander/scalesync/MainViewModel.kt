@@ -63,6 +63,7 @@ import com.palixander.scalesync.ui.routing.activeCompletionFor
 import com.palixander.scalesync.ui.routing.buildResolverAccountOptions
 import com.palixander.scalesync.ui.routing.isActivePendingResolverTarget
 import com.palixander.scalesync.ui.profiles.PetHistoryStateOwner
+import com.palixander.scalesync.ui.appLocale
 import com.palixander.scalesync.ui.profiles.PetHistoryReferenceDependencies
 import com.palixander.scalesync.ui.profiles.PetHistoryReferenceLoader
 import com.palixander.scalesync.ui.routing.oldestPendingResolverTarget
@@ -199,6 +200,7 @@ class MainViewModel @JvmOverloads constructor(
             initialPetId = petId,
             repository = container.pets,
             parentScope = viewModelScope,
+            locale = getApplication<Application>().resources.appLocale,
             referenceDependencies = petHistoryReferenceLoader::load,
         )
     }

@@ -72,6 +72,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -670,6 +671,7 @@ private fun BirthDateEditor(
     modifier: Modifier = Modifier,
 ) {
     var activePart by rememberSaveable { mutableStateOf<PetBirthDatePart?>(null) }
+    val locale = currentAppLocale()
     val today = LocalDate.now()
     LaunchedEffect(enabled) { if (!enabled) activePart = null }
     EditorSection(stringResource(R.string.pet_editor_birth_date_optional), modifier) {
@@ -682,7 +684,7 @@ private fun BirthDateEditor(
                     enabled = enabled,
                     modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)
                         .testTag(birthPartTag(part)),
-                ) { Text(stringResource(R.string.pet_editor_birth_part_value, stringResource(petBirthPartResource(part)), selected?.let { petBirthDatePartLabel(part, it) } ?: stringResource(R.string.action_select))) }
+                ) { Text(stringResource(R.string.pet_editor_birth_part_value, stringResource(petBirthPartResource(part)), selected?.let { petBirthDatePartLabel(part, it, locale) } ?: stringResource(R.string.action_select))) }
             }
         }
         error?.let { FieldError(stringResource(birthDateErrorResource(it))) }
@@ -704,7 +706,7 @@ private fun BirthDateEditor(
                 ) {
                     items(options, key = { it }) { option ->
                         SelectionRow(
-                            label = petBirthDatePartLabel(part, option),
+                            label = petBirthDatePartLabel(part, option, locale),
                             selected = selected == option,
                             enabled = enabled,
                             tag = "pet-birth-option-$option",
