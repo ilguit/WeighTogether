@@ -6,5 +6,5 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "ru-rRU")
 class HomePetShortcutsTest : HomePetShortcutsTestCases()

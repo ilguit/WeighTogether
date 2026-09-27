@@ -20,7 +20,12 @@ class MeasurementEditorValidationTest {
     @Test
     fun editorGroupsContainAllSixteenFieldsExactlyOnce() {
         assertEquals(
-            listOf("Main", "Body composition", "Muscles and bones", "Metabolism"),
+            listOf(
+                UiText.Resource(R.string.measurement_group_main),
+                UiText.Resource(R.string.measurement_group_body_composition),
+                UiText.Resource(R.string.measurement_group_muscles_bones),
+                UiText.Resource(R.string.measurement_group_metabolism),
+            ),
             measurementEditorSections.map(MeasurementEditorSection::title),
         )
         assertEquals(listOf(3, 7, 3, 3), measurementEditorSections.map { it.fields.size })

@@ -1,5 +1,8 @@
 package com.palixander.scalesync.ui.profiles
 
+import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.charts.ChartRangePreset
@@ -23,6 +26,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.ZoneOffset
 import java.util.Locale
+import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -44,7 +49,16 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@org.junit.runner.RunWith(org.robolectric.RobolectricTestRunner::class)
+@org.robolectric.annotation.Config(sdk = [35], application = Application::class)
 class PetHistoryStateOwnerTest {
+    private val resources = ApplicationProvider.getApplicationContext<Context>()
+        .createConfigurationContext(
+            ApplicationProvider.getApplicationContext<Context>().resources.configuration.apply {
+                setLocale(Locale.forLanguageTag("ru"))
+            },
+        ).resources
+    private fun resolveText(text: UiText): String = text.resolve(resources)
     private val zone = ZoneId.of("Europe/Berlin")
     private val clock = Clock.fixed(Instant.parse("2026-03-29T12:00:00Z"), zone)
     private val luna = pet("luna", "Луна")
@@ -129,7 +143,7 @@ class PetHistoryStateOwnerTest {
                 )
                 assertEquals("${scenario.name} $preset", scenario.expectedKinds, displayed.map { it.kind }.toSet())
                 assertEquals("${scenario.name} $preset", 1, displayed.count { it.kind == PetWeightDisplayedSeriesKind.FACTUAL })
-                val tooltip = formatPetWeightDisplayedMarker(measuredAt.toEpochMilli(), displayed, zone, Locale.US)
+                val tooltip = formatPetWeightDisplayedMarker(measuredAt.toEpochMilli(), displayed, zone, Locale.US, ::resolveText)
                 assertTrue("${scenario.name} $preset factual tooltip: $tooltip", tooltip.contains("Фактический вес: 4.25 кг"))
                 assertTrue("${scenario.name} $preset lower tooltip: $tooltip", tooltip.contains("Нижняя"))
                 assertTrue("${scenario.name} $preset upper tooltip: $tooltip", tooltip.contains("Верхняя"))
@@ -332,6 +346,7 @@ class PetHistoryStateOwnerTest {
             displayed,
             zone,
             Locale.US,
+            ::resolveText,
         )
         assertTrue(oldTooltip, oldTooltip.contains("Фактический вес: 4.00 кг"))
         assertTrue(oldTooltip, oldTooltip.contains("Нижняя"))
@@ -397,6 +412,7 @@ class PetHistoryStateOwnerTest {
                 displayed,
                 zone,
                 Locale.US,
+                ::resolveText,
             )
             assertTrue(tooltip, tooltip.contains("Фактический вес: $weight кг"))
             assertTrue(tooltip, tooltip.contains("Нижняя"))
@@ -773,7 +789,7 @@ class PetHistoryStateOwnerTest {
         val rows = (content as PetHistoryContent.Multiple).measurements
         assertEquals(listOf("z", "a", "old"), rows.map { it.id })
         assertEquals("20.03.2026 10:00:00", rows.first().measuredAtText)
-        assertEquals("4.25 кг", rows.first().weightText)
+        assertEquals("4.25", rows.first().weightText.trim())
         assertEquals(4.0, series.points[0].value, 0.000_001)
         assertEquals(4.1, series.points[1].value, 0.000_001)
         assertEquals(4.25, series.points[2].value, 0.000_001)

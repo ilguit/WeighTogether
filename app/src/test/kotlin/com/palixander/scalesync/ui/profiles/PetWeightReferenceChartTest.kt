@@ -1,5 +1,8 @@
 package com.palixander.scalesync.ui.profiles
 
+import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.charts.ChartPoint
 import com.palixander.scalesync.charts.ChartDateRange
 import com.palixander.scalesync.core.reference.ReferenceBasis
@@ -15,6 +18,7 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PartialBirthDate
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -23,8 +27,15 @@ import java.util.Locale
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "ru-rRU")
 class PetWeightReferenceChartTest {
+    private val resources = ApplicationProvider.getApplicationContext<Context>().resources
+    private fun resolveText(text: UiText): String = text.resolve(resources)
     @Test fun `adult other breed dog tooltip includes factual weight and all category bounds`() {
         val zoneId = ZoneOffset.UTC
         val date = LocalDate.of(2026, 9, 25)
@@ -52,12 +63,12 @@ class PetWeightReferenceChartTest {
             listOf(
                 "Дата: 25.09.2026",
                 "Фактический вес: 12.25 кг",
-                "Нижняя граница эталона: 8.85 кг",
+                "Нижняя граница ориентира: 8.85 кг",
                 "Нижняя медианная граница: 10.80 кг",
                 "Верхняя медианная граница: 10.80 кг",
-                "Верхняя граница эталона: 13.15 кг",
+                "Верхняя граница ориентира: 13.15 кг",
             ),
-            formatPetWeightDisplayedMarker(measuredAt * 1_000, displayed, zoneId, Locale.US).lines(),
+            formatPetWeightDisplayedMarker(measuredAt * 1_000, displayed, zoneId, Locale.US, ::resolveText).lines(),
         )
     }
 
@@ -96,7 +107,7 @@ class PetWeightReferenceChartTest {
         assertEquals(2.75, breedWeightReferenceBandLowerKg(band, band.points.first(), 2.75), 0.0)
         val displayed = petWeightDisplayedSeries(emptyList(), available(emptyList()), timeline, ZoneOffset.UTC)
         assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_UPPER), displayed.map { it.kind })
-        assertEquals("Максимальный вес", displayed.single().label)
+        assertEquals("Максимальный вес", resolveText(displayed.single().label))
         assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_LOWER })
         assertTrue(displayed.none { it.kind == PetWeightDisplayedSeriesKind.BREED_CENTER })
     }
@@ -195,8 +206,8 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { 99.0 in it.y })
         assertEquals(dates.size, band.points.size)
         assertEquals(
-            listOf("▰ Светло-зелёная зона — модельный породный диапазон", "— Центр модельного диапазона"),
-            referenceWeightChartLegendEntries(reference.provenance).map(PetWeightChartLegendEntry::label),
+            listOf("▰ Светло-зелёная зона — модельный диапазон породы", "— Центр модельного диапазона"),
+            referenceWeightChartLegendEntries(reference.provenance).map { resolveText(it.label) },
         )
     }
 
@@ -373,7 +384,7 @@ class PetWeightReferenceChartTest {
         assertEquals(3, boundaryAndP50.size)
         assertEquals(
             listOf("Нижняя граница P9", "Медиана P50", "Верхняя граница P91"),
-            boundaryAndP50.map(PetWeightDisplayedSeries::label),
+            boundaryAndP50.map { resolveText(it.label) },
         )
         assertEquals(
             listOf(
@@ -388,7 +399,7 @@ class PetWeightReferenceChartTest {
         assertTrue(boundaryAndP50.all { series -> series.x == band.points.map(BreedWeightReferenceBandPoint::xEpochMillis) })
         assertEquals(
             "Дата: 01.08.2026\nНижняя граница P9: 2.00 кг\nМедиана P50: 3.00 кг\nВерхняя граница P91: 4.00 кг",
-            formatPetWeightDisplayedMarker(expectedX.first(), displayed, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(expectedX.first(), displayed, zoneId, Locale.US, ::resolveText),
         )
     }
 
@@ -436,8 +447,8 @@ class PetWeightReferenceChartTest {
         )
 
         assertEquals(
-            listOf("● Фактический вес", "▰ Светло-зелёная зона — породный диапазон"),
-            petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
+            listOf("● Фактический вес", "▰ Светло-зелёная зона — диапазон породы"),
+            petWeightChartLegendEntries(series).map { resolveText(it.label) },
         )
     }
 
@@ -450,10 +461,10 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             listOf(
-                "▰ Светло-зелёная зона — породный диапазон",
+                "▰ Светло-зелёная зона — диапазон породы",
                 "— Медиана или среднее",
             ),
-            petWeightChartLegendEntries(series).map(PetWeightChartLegendEntry::label),
+            petWeightChartLegendEntries(series).map { resolveText(it.label) },
         )
     }
 
@@ -474,11 +485,12 @@ class PetWeightReferenceChartTest {
             hasBreedTimeline = true,
             isPopulationReference = false,
             legendEntries = petWeightChartLegendEntries(displayed),
+            resolveText = ::resolveText,
         )
 
         assertTrue(description.contains("Измерений: 2"))
         assertTrue(description.contains("● Фактический вес"))
-        assertTrue(description.contains("▰ Светло-зелёная зона — породный диапазон"))
+        assertTrue(description.contains("▰ Светло-зелёная зона — диапазон породы"))
         assertTrue(!description.contains("Дополнительный ориентир"))
         assertTrue(!description.contains("взрослая собака"))
     }
@@ -500,11 +512,11 @@ class PetWeightReferenceChartTest {
         assertTrue(displayed.none { it.style == PetWeightDisplayedSeriesStyle.CATEGORY })
         assertEquals(
             listOf("— Среднее"),
-            petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
+            petWeightChartLegendEntries(displayed).map { resolveText(it.label) },
         )
         assertEquals(
             "Дата: 01.09.2026\nСреднее: 10.40 кг",
-            formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US),
+            formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US, ::resolveText),
         )
         assertEquals(listOf(x), petWeightDisplayedMarkerXs(displayed))
     }
@@ -521,11 +533,11 @@ class PetWeightReferenceChartTest {
             )
 
             assertEquals(listOf(PetWeightDisplayedSeriesKind.BREED_CENTER), displayed.map(PetWeightDisplayedSeries::kind))
-            assertEquals(label, displayed.single().label)
-            assertEquals("— $label", petWeightChartLegendEntries(displayed).single().label)
+            assertEquals(label, resolveText(displayed.single().label))
+            assertEquals("— $label", resolveText(petWeightChartLegendEntries(displayed).single().label))
             assertEquals(
                 "Дата: 01.09.2026\n$label: 11.00 кг",
-                formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US),
+                formatPetWeightDisplayedMarker(x, displayed, ZoneOffset.UTC, Locale.US, ::resolveText),
             )
         }
     }
@@ -632,10 +644,10 @@ class PetWeightReferenceChartTest {
         assertEquals(xs, petWeightDisplayedMarkerXs(displayed))
         assertEquals(
             listOf("— Среднее"),
-            petWeightChartLegendEntries(displayed).map(PetWeightChartLegendEntry::label),
+            petWeightChartLegendEntries(displayed).map { resolveText(it.label) },
         )
         assertTrue(
-            formatPetWeightDisplayedMarker(xs.first(), displayed, ZoneOffset.UTC, Locale.US)
+            formatPetWeightDisplayedMarker(xs.first(), displayed, ZoneOffset.UTC, Locale.US, ::resolveText)
                 .contains("Среднее: 7.00 кг"),
         )
     }
@@ -706,9 +718,9 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 01.01.1970\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг",
-            formatPetWeightDisplayedMarker(selectedX, series, ZoneOffset.UTC, Locale.US),
+            formatPetWeightDisplayedMarker(selectedX, series, ZoneOffset.UTC, Locale.US, ::resolveText),
         )
-        assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, ZoneOffset.UTC, Locale.US))
+        assertEquals("", formatPetWeightDisplayedMarker(3_000L, series, ZoneOffset.UTC, Locale.US, ::resolveText))
     }
 
     @Test fun `tooltip keeps selected factual value and interpolates references at its timestamp`() {
@@ -729,15 +741,15 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 01.09.2026\nФактический вес: 24.50 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
-            formatPetWeightDisplayedMarker(first, series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(first, series, zoneId, Locale.US, ::resolveText),
         )
         assertEquals(
             "Дата: 01.09.2026\nФактический вес: 25.00 кг\nНижняя граница: 22.00 кг\nМедиана: 27.00 кг\nВерхняя граница: 32.00 кг",
-            formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US, ::resolveText),
         )
-        assertTrue(formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("25.00 кг"))
-        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("24.50 кг"))
-        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US).contains("22.50 кг"))
+        assertTrue(formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US, ::resolveText).contains("25.00 кг"))
+        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US, ::resolveText).contains("24.50 кг"))
+        assertTrue(!formatPetWeightDisplayedMarker(second, series, zoneId, Locale.US, ::resolveText).contains("22.50 кг"))
     }
 
     @Test fun `tooltip includes long labels without imposing a logical line capacity`() {
@@ -760,6 +772,7 @@ class PetWeightReferenceChartTest {
             series,
             ZoneOffset.UTC,
             Locale.US,
+        ::resolveText,
         ).lines()
 
         assertEquals(
@@ -789,7 +802,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 03.09.2026\nФактический вес: 12.25 кг\nНижняя граница: 12.50 кг",
-            formatPetWeightDisplayedMarker(factualX, series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(factualX, series, zoneId, Locale.US, ::resolveText),
         )
     }
 
@@ -807,7 +820,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 01.01.1970\nНижняя граница: 6.02 кг",
-            formatPetWeightDisplayedMarker(4_000L, series, ZoneOffset.UTC, Locale.US),
+            formatPetWeightDisplayedMarker(4_000L, series, ZoneOffset.UTC, Locale.US, ::resolveText),
         )
     }
 
@@ -823,7 +836,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 03.09.2026\nНижняя граница: 12.00 кг",
-            formatPetWeightDisplayedMarker(noon, series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(noon, series, zoneId, Locale.US, ::resolveText),
         )
     }
 
@@ -838,7 +851,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 01.09.2026\nНижняя граница: 10.12 кг",
-            formatPetWeightDisplayedMarker(xs.first(), series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(xs.first(), series, zoneId, Locale.US, ::resolveText),
         )
     }
 
@@ -851,9 +864,9 @@ class PetWeightReferenceChartTest {
             PetWeightDisplayedSeries("second", PetWeightDisplayedSeriesKind.BREED_UPPER, "Второй", listOf(x(start.plusDays(5)), x(start.plusDays(7))), listOf(20.0, 22.0), PetWeightDisplayedSeriesStyle.BREED_BOUNDARY),
         )
 
-        assertEquals("", formatPetWeightDisplayedMarker(x(start.minusDays(1)), series, zoneId, Locale.US))
-        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(4)), series, zoneId, Locale.US))
-        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(8)), series, zoneId, Locale.US))
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.minusDays(1)), series, zoneId, Locale.US, ::resolveText))
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(4)), series, zoneId, Locale.US, ::resolveText))
+        assertEquals("", formatPetWeightDisplayedMarker(x(start.plusDays(8)), series, zoneId, Locale.US, ::resolveText))
     }
 
     @Test fun `tooltip selects one exact factual point when several share a date`() {
@@ -867,7 +880,7 @@ class PetWeightReferenceChartTest {
 
         assertEquals(
             "Дата: 01.09.2026\nФактический вес: 11.00 кг",
-            formatPetWeightDisplayedMarker(evening, series, zoneId, Locale.US),
+            formatPetWeightDisplayedMarker(evening, series, zoneId, Locale.US, ::resolveText),
         )
     }
 

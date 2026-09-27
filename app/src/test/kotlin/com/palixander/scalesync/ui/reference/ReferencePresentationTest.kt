@@ -21,7 +21,7 @@ import org.robolectric.RobolectricTestRunner
 import java.util.Locale
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [35], application = Application::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "ru-rRU")
 class ReferencePresentationTest {
     @Test
     fun `createAll passes weight to skeletal muscle kilogram zone presentation`() {

@@ -245,13 +245,13 @@ class MeasurementsPresentationTest {
         assertTrue(bothAnnotations.isManuallyEdited)
         assertTrue(bothAnnotations.hasProfileSyncMismatch)
         assertEquals(
-            "Измерение изменено вручную. Изменения хранятся только на этом устройстве и " +
-                "не отправляются во внешние сервисы.",
+            "This measurement was edited manually. Changes are stored only on this device and " +
+                "are not sent to external services.",
             MANUALLY_EDITED_HISTORY_MESSAGE,
         )
         assertEquals(
-            "Локальные показатели пересчитаны по обновлённому профилю. " +
-                "Ранее синхронизированные данные во внешних сервисах не изменились.",
+            "Local metrics were recalculated for the updated profile. Previously synced data " +
+                "in external services was not changed.",
             PROFILE_SYNC_MISMATCH_HISTORY_MESSAGE,
         )
     }

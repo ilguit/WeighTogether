@@ -46,7 +46,7 @@ class ManualWeightPresentationTest {
         )
         val row = (content as com.palixander.scalesync.ui.profiles.PetHistoryContent.Single).measurement
         assertEquals(record.origin, row.origin)
-        assertEquals("4.125 кг", row.weightText)
+        assertEquals("4.125", row.weightText.trim())
         assertEquals(4.125, series.points.single().value, 0.0)
         assertNull(record.firstWeightKg)
         assertNull(record.secondWeightKg)

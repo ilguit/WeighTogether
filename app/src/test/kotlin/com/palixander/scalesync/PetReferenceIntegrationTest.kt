@@ -80,9 +80,12 @@ class PetReferenceIntegrationTest {
             ChartDateRange(referenceDate.minusDays(2), referenceDate),
         ) as PetHistoryWeightReference.Available
         assertEquals(ReferenceBasis.BREED, reference.basis)
-        assertEquals("профессиональный справочник", reference.sourceAuthorityLabel)
         assertEquals(
-            "Профессиональный справочник; не официальная породная организация",
+            com.palixander.scalesync.ui.text.UiText.Resource(R.string.pet_reference_authority_professional),
+            reference.sourceAuthorityLabel,
+        )
+        assertEquals(
+            "Professional reference; not an official breed organization",
             reference.sourceDisclosure,
         )
         assertTrue(requireNotNull(reference.publicationUrl).startsWith("https://"))
@@ -204,7 +207,10 @@ class PetReferenceIntegrationTest {
             ChartDateRange(referenceDate, referenceDate.plusDays(2)),
         ) as PetHistoryWeightReference.Unavailable
         assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(stableBreedId.value), reference.reason)
-        assertEquals("Для выбранной породы ориентиры сейчас недоступны.", reference.explanation)
+        assertEquals(
+            com.palixander.scalesync.ui.text.UiText.Resource(R.string.pet_reference_unavailable_unsupported_breed),
+            reference.explanation,
+        )
 
         val unknownPet = restoredUnknown.toDomain()
         assertEquals(unknownBreedId, unknownPet.breedId)

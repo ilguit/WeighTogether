@@ -12,7 +12,7 @@ import org.junit.Test
 class BirthDateFieldTest {
     @Test
     fun `formats birth date as day month year`() {
-        assertEquals("09.04.1993", formatBirthDate(LocalDate.of(1993, 4, 9)))
+        assertEquals("Apr 9, 1993", formatBirthDate(LocalDate.of(1993, 4, 9)))
     }
 
     @Test
@@ -22,7 +22,7 @@ class BirthDateFieldTest {
         val restored = birthDateFromPickerMillis(leapDay.toBirthDatePickerMillis())
 
         assertEquals(leapDay, restored)
-        assertEquals("29.02.2000", formatBirthDate(restored))
+        assertEquals("Feb 29, 2000", formatBirthDate(restored))
     }
 
     @Test

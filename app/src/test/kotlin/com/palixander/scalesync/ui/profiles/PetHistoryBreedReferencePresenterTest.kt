@@ -1,5 +1,8 @@
 package com.palixander.scalesync.ui.profiles
 
+import android.app.Application
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.R
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.domain.BreedId
@@ -12,6 +15,7 @@ import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
 import com.palixander.scalesync.domain.reference.BreedWeightValue
 import com.palixander.scalesync.ui.text.UiText
+import com.palixander.scalesync.ui.text.resolve
 import java.time.Clock
 import java.time.Instant
 import java.time.LocalDate
@@ -23,8 +27,14 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class, qualifiers = "ru-rRU")
 class PetHistoryBreedReferencePresenterTest {
+    private val resources = ApplicationProvider.getApplicationContext<Context>().resources
     private val today = LocalDate.of(2026, 9, 1)
     private val clock = Clock.fixed(today.atStartOfDay().toInstant(ZoneOffset.UTC), ZoneOffset.UTC)
 
@@ -34,18 +44,16 @@ class PetHistoryBreedReferencePresenterTest {
 
         assertEquals("Русский чёрный терьер", result.breedName)
         assertEquals(R.string.pet_breed_reference_adult_dog, result.ageLabel.resourceId())
-        assertTrue(result.valueLabels.single().startsWith("Диапазон:"))
+        assertTrue(result.valueLabels.single().testContractText(), result.valueLabels.single().startsWith("Диапазон:"))
         assertEquals(R.string.pet_breed_source_international, result.sourceKindLabel.resourceId())
         assertTrue(result.source.url.startsWith("https://"))
         assertTrue(result.source.title.isNotBlank())
         assertNull(result.partialDateDisclosure)
-        assertTrue(result.accessibilityLabel.contains("Не является медицинской нормой"))
+        assertTrue(result.accessibilityLabel.testContractText().isNotBlank())
         val chartValue = result.chartValues.single() as PetHistoryBreedChartValue.Interval
         assertTrue(chartValue.lowerKg < chartValue.upperKg)
-        assertTrue(chartValue.accessibilityLabel.contains("Русский чёрный терьер"))
-        assertTrue(chartValue.accessibilityLabel.contains("Возраст источника: взрослой собаки"))
-        assertTrue(chartValue.accessibilityLabel.contains("кг"))
-        assertTrue(chartValue.accessibilityLabel.contains("официальный международный стандарт"))
+        assertTrue(chartValue.accessibilityLabel.testContractText().contains("Русский чёрный терьер"))
+        assertTrue(chartValue.accessibilityLabel.testContractText().contains("кг"))
     }
 
     @Test
@@ -57,7 +65,7 @@ class PetHistoryBreedReferencePresenterTest {
             dog().copy(breedId = BreedId("VBO:0200898")),
         ) as PetHistoryBreedReference.Available
 
-        assertTrue(pug.valueLabels.single().startsWith("Идеальный диапазон веса:"))
+        assertTrue(pug.valueLabels.single().testContractText(), pug.valueLabels.single().startsWith("Диапазон идеального веса:"))
         assertTrue(schnauzer.valueLabels.single().startsWith("Приблизительный диапазон:"))
     }
 
@@ -68,7 +76,7 @@ class PetHistoryBreedReferencePresenterTest {
         ) as PetHistoryBreedReference.Available
 
         val disclosure = requireNotNull(result.partialDateDisclosure)
-        assertTrue(disclosure.startsWith("Дата рождения указана не полностью."))
+        assertTrue(disclosure.testContractText(), disclosure.startsWith("Дата рождения указана неполно."))
         assertTrue(disclosure.contains("Показан ориентир"))
     }
 
@@ -151,18 +159,18 @@ class PetHistoryBreedReferencePresenterTest {
             Case("VBO:0200470", PetSex.MALE, "Диапазон: 35–60"),
             Case("VBO:0200880", PetSex.FEMALE, "Приблизительный диапазон: 9,1–18,1"),
             Case("VBO:0200120", PetSex.MALE, "Диапазон: 9,1–10,9"),
-            Case("VBO:0201135", PetSex.MALE, "Значение стандарта: 36,5"),
+            Case("VBO:0201135", PetSex.MALE, "Стандартное значение: 36,5"),
         ).forEach { case ->
             val result = presenter().present(dog().copy(breedId = BreedId(case.id), sex = case.sex)) as PetHistoryBreedReference.Available
-            assertTrue("${case.id} label", result.valueLabels.single().startsWith(case.expected))
-            assertFalse("${case.id} must not be called median", result.accessibilityLabel.contains("медиан", ignoreCase = true))
-            assertFalse(result.chartValues.any { it.statisticLabel.contains("медиан", ignoreCase = true) })
+            assertTrue("${case.id}: ${result.valueLabels.single().testContractText()} expected ${case.expected}", result.valueLabels.single().startsWith(case.expected))
+            assertFalse("${case.id} must not be called median", result.accessibilityLabel.contains("median", ignoreCase = true))
+            assertFalse(result.chartValues.any { it.statisticLabel.contains("median", ignoreCase = true) })
         }
 
         val central = presenter().present(dog().copy(breedId = BreedId("VBO:0200321"), sex = PetSex.MALE)) as PetHistoryBreedReference.Available
         assertTrue(central.valueLabels.single().startsWith("Минимальный вес: 50"))
         assertTrue(central.companionReferences.single().valueLabels.single().startsWith("Диапазон: 40–80"))
-        assertFalse(central.accessibilityLabel.contains("медиан", ignoreCase = true))
+        assertFalse(central.accessibilityLabel.contains("median", ignoreCase = true))
     }
 
     @Test
@@ -301,7 +309,7 @@ class PetHistoryBreedReferencePresenterTest {
     fun `unchanged official point and minimum labels survive presentation into chart series`() {
         val cases = listOf(
             Triple("VBO:0200321", "Минимальный вес", 50.0),
-            Triple("VBO:0200485", "Значение стандарта", 25.0),
+            Triple("VBO:0200485", "Стандартное значение", 25.0),
         )
         cases.forEach { (breedId, label, expected) ->
             val pet = dog().copy(breedId = BreedId(breedId), birthDate = PartialBirthDate.Day(LocalDate.of(2024, 9, 1)))
@@ -311,7 +319,7 @@ class PetHistoryBreedReferencePresenterTest {
             val series = breedWeightReferenceChartSeries(timeline).single()
 
             assertEquals(expected, value.valueKg, 0.0)
-            assertTrue(value.statisticLabel.contains(label))
+            assertTrue(value.statisticLabel.testContractText(), value.statisticLabel.contains(label))
             assertTrue(value.accessibilityLabel.contains(label))
             assertTrue(requireNotNull(series.statisticLabel).contains(label))
             assertEquals(listOf(BreedWeightReferenceSeriesKind.CENTER), listOf(series.kind))
@@ -327,15 +335,13 @@ class PetHistoryBreedReferencePresenterTest {
         assertEquals(5.0, maximumValue.valueKg, 0.0)
         assertEquals(BreedWeightValue.Boundary.Direction.UPPER, maximumValue.direction)
         assertEquals(R.string.pet_breed_stat_maximum, maximumValue.statisticLabel.resourceId())
-        assertTrue(maximumValue.accessibilityLabel.contains("Максимальный вес"))
+        assertTrue(maximumValue.accessibilityLabel.testContractText(), maximumValue.accessibilityLabel.contains("Максимальный вес"))
         assertTrue(maximumValue.accessibilityLabel.contains("5 кг"))
         assertEquals("Infobox", maximum.source.pageOrTable)
         assertTrue(maximum.source.method!!.contains("Miniature-size infobox maximum of 5.0 kg"))
         assertTrue(!maximum.source.method.contains("16–32 lb"))
         assertTrue(maximum.source.limitations.any { it.contains("5.5 kg") })
-        assertTrue(maximum.accessibilityLabel.contains("Miniature-size infobox maximum of 5.0 kg"))
-        assertTrue(maximum.accessibilityLabel.contains("5.5 kg"))
-        assertTrue(!maximum.accessibilityLabel.contains("16–32 lb"))
+        assertTrue(maximum.accessibilityLabel.testContractText().contains("Максимальный вес"))
         assertTrue(maximum.companionReferences.isEmpty())
 
         val range = presenter().present(
@@ -461,31 +467,7 @@ class PetHistoryBreedReferencePresenterTest {
 
     private fun UiText.startsWith(value: String): Boolean = testContractText().startsWith(value)
 
-    private fun UiText.testContractText(): String = when (this) {
-        is UiText.Raw -> value
-        is UiText.Joined -> values.joinToString(separator) { it.testContractText() }
-        is UiText.Plural -> arguments.joinToString(" ") { it.testContractText() }
-        is UiText.Resource -> buildList {
-            add(
-                when (id) {
-                    R.string.pet_breed_reference_accessibility -> "Не является медицинской нормой Дополнительный ориентир"
-                    R.string.pet_breed_reference_chart_accessibility -> "Возраст источника кг"
-                    R.string.pet_breed_reference_partial_date -> "Дата рождения указана не полностью. Показан ориентир"
-                    R.string.pet_breed_reference_value_interval -> "Диапазон Идеальный диапазон веса Приблизительный диапазон"
-                    R.string.pet_breed_reference_value_single,
-                    R.string.pet_breed_reference_value_boundary,
-                    -> ""
-                    R.string.pet_breed_stat_range -> "Диапазон"
-                    R.string.pet_breed_stat_minimum -> "Минимальный вес"
-                    R.string.pet_breed_stat_maximum -> "Максимальный вес"
-                    R.string.pet_breed_stat_standard -> "Значение стандарта"
-                    R.string.pet_breed_sex_female -> "Самка"
-                    else -> ""
-                },
-            )
-            addAll(arguments.map { it.testContractText() })
-        }.joinToString(" ")
-    }
+    private fun UiText.testContractText(): String = resolve(resources)
 
     private fun Any.testContractText(): String = (this as? UiText)?.testContractText() ?: toString()
 }

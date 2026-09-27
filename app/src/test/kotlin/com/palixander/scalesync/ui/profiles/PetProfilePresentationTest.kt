@@ -55,7 +55,7 @@ class PetProfilePresentationTest {
         assertEquals(UiText.Raw("Лабрадор-ретривер"), summary.items[1].value)
         assertEquals(UiText.Raw("29.02.2020"), summary.items[2].value)
         assertEquals(UiText.Resource(R.string.pet_profile_age_exact, listOf(5L, UiText.Plural(R.plurals.pet_profile_age_years, 5))), summary.items[3].value)
-        assertEquals(UiText.Raw("III — 9–15 кг"), summary.items[4].value)
+        assertEquals(UiText.Resource(R.string.dog_weight_iii), summary.items[4].value)
     }
 
     @Test
@@ -82,7 +82,10 @@ class PetProfilePresentationTest {
     fun `unavailable breed id stays visible as factual value`() {
         val summary = petProfileSummary(pet(breedId = BreedId("retired:cat:very-long-id")), catalog)
         assertEquals(UiText.Resource(R.string.pet_profile_breed), summary.items.single().label)
-        assertEquals(UiText.Raw("Недоступна: retired:cat:very-long-id"), summary.items.single().value)
+        assertEquals(
+            UiText.Resource(R.string.pet_breed_unavailable, listOf("retired:cat:very-long-id")),
+            summary.items.single().value,
+        )
     }
 
     private fun pet(

@@ -120,7 +120,7 @@ class PetHistoryReferencePresenterTest {
             ) as PetHistoryWeightReference.Unavailable
 
             assertEquals(WeightReferenceUnavailableReason.UnsupportedBreed(breedId), result.reason)
-            assertEquals(R.string.pet_breed_reference_unavailable, result.explanation.resourceId())
+            assertEquals(R.string.pet_reference_unavailable_unsupported_breed, result.explanation.resourceId())
         }
     }
 

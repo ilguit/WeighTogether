@@ -1,6 +1,7 @@
 package com.palixander.scalesync.ui.accounts
 
 import androidx.compose.runtime.saveable.SaverScope
+import com.palixander.scalesync.R
 import com.palixander.scalesync.core.Sex
 import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
@@ -188,7 +189,7 @@ class MultiAccountUiContractsTest {
             today = LocalDate.of(2026, 8, 15),
         )
         assertEquals(
-            "Профиль с таким именем уже существует",
+            UiText.Resource(R.string.account_error_duplicate_name),
             duplicateValidation.error(AccountEditorField.NAME),
         )
 
