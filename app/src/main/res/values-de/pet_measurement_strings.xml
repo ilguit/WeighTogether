@@ -1,0 +1,39 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="pet_measurement_title">Haustier wiegen</string>
+    <string name="pet_measurement_close_a11y">Schließen Haustier Wägung</string>
+    <string name="pet_measurement_choose_pet">Haustier auswählen</string>
+    <string name="pet_measurement_new_pet">Neues Haustier</string>
+    <string name="pet_measurement_back_to_selection">Zurück zu Haustier selection</string>
+    <string name="pet_measurement_first_title">Erste Wägung</string>
+    <string name="pet_measurement_second_title">Zweite Wägung</string>
+    <string name="pet_measurement_saving_title">Speichern</string>
+    <string name="pet_measurement_failed_title">Konnte nicht wiegen der Haustier</string>
+    <string name="pet_measurement_connection_lost">Connection interrupted</string>
+    <string name="pet_measurement_first_instructions_named">Take eine Messung während Halten %1$s und weitere ohne der Haustier. Die Reihenfolge spielt keine Rolle. Starten mit eine Option und warten Sie auf ein stabilen Messwert.</string>
+    <string name="pet_measurement_first_accepted">Erster Messwert accepted: %1$s kg</string>
+    <string name="pet_measurement_second_instructions_named">Now take der remaining Messung während Halten %1$s oder ohne der Haustier. Warten Sie auf ein stabilen Messwert.</string>
+    <string name="pet_measurement_first_instructions">Wiegen yourself mit oder ohne der Haustier und warten Sie auf ein stabilen Messwert.</string>
+    <string name="pet_measurement_second_instructions">Wiederholen der Wägung der andere Weise: mit der Haustier wenn der erste Messwert wurde ohne es, oder ohne der Haustier wenn der erste Messwert enthalten es.</string>
+    <string name="pet_measurement_waiting_stable">Waiting für ein stabilen Messwert</string>
+    <string name="pet_measurement_first_reading">Erster Messwert: %1$s kg</string>
+    <string name="pet_measurement_first_reading_saved">Erster Messwert gespeichert: %1$s kg</string>
+    <string name="pet_measurement_saving">Ergebnis wird gespeichert…</string>
+    <string name="pet_measurement_result_weight">Haustier Gewicht — %1$s kg</string>
+    <string name="pet_measurement_delta">%1$s%2$s kg seit der vorherigen Messung</string>
+    <string name="weight_kg_format">%1$s kg</string>
+    <string name="pet_measurement_no_pets">Dort sind keine Haustiere noch. Erstellen Sie Ihr erstes Haustier.</string>
+    <string name="pet_measurement_latest_weight">Letztes Gewicht: %1$s kg · %2$s</string>
+    <string name="pet_measurement_no_measurements">Noch keine Messungen</string>
+    <string name="pet_measurement_create_and_weigh">Erstellen und wiegen</string>
+    <string name="pet_measurement_cat">Katze</string>
+    <string name="pet_measurement_dog">Hund</string>
+    <string name="pet_measurement_scale_required">Auswählen ein Skala in Einstellungen erste</string>
+    <string name="pet_measurement_bluetooth_permission">Erlauben Bluetooth zu wiegen Ihr Haustier</string>
+    <string name="pet_measurement_timeout">Der Skala tat nicht senden ein neue stabil Messung</string>
+    <string name="pet_measurement_wait_for_ble_scan">Warten Sie auf der aktuelle Bluetooth scan zu abschließen</string>
+    <string name="pet_measurement_pet_not_found">Haustier nicht gefunden</string>
+    <string name="pet_measurement_start_failed">Konnte nicht starten Suche</string>
+    <string name="pet_measurement_save_failed">Konnte nicht speichern der Haustier Gewicht</string>
+    <string name="pet_measurement_retry_failed">Konnte nicht fortsetzen Suche</string>
+</resources>
