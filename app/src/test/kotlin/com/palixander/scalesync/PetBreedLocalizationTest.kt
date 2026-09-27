@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.google.gson.JsonParser
 import com.palixander.scalesync.domain.BreedId
 import com.palixander.scalesync.domain.PetSpecies
 import java.util.Locale
@@ -65,14 +66,33 @@ class PetBreedLocalizationTest {
                 as PetBreedSelection.Available
             assertEquals(BreedId("VBO:0100230"), sphynx.id)
             assertEquals("Sphynx", sphynx.option.canonicalName)
+
+            val blackRussianTerrier = catalog.resolve(BreedId("VBO:0201146"), PetSpecies.DOG, locale)
+                as PetBreedSelection.Available
+            assertEquals(BreedId("VBO:0200174"), blackRussianTerrier.id)
+            assertEquals("Russkiy Tchiorny Terrier", blackRussianTerrier.option.canonicalName)
         }
     }
 
     @Test
-    fun untranslatedDogNamesFallBackToCanonicalEnglishWithoutSynthesis() {
-        val englishDog = option(BreedId("VBO:0200713"), PetSpecies.DOG, "en").displayName
-        PetBreedLocalization.TRANSLATED_LOCALES.forEach { language ->
-            assertEquals(englishDog, option(BreedId("VBO:0200713"), PetSpecies.DOG, language).displayName)
+    fun newlyLocalizedDogNamesAreExactAndSearchableInEveryTranslatedLocale() {
+        val expected = mapOf(
+            "be" to listOf("Вельш-коргі-пемброк", "Малая італьянская хорт"),
+            "de" to listOf("Welsh Corgi Pembroke", "Italienisches Windspiel"),
+            "fr" to listOf("Welsh Corgi Pembroke", "Petit lévrier italien"),
+            "it" to listOf("Welsh Corgi Pembroke", "Piccolo levriero italiano"),
+            "ja" to listOf("ウェルシュ・コーギー・ペンブローク", "イタリアン・グレーハウンド"),
+            "uk" to listOf("Вельш-коргі-пемброк", "Мала італійська хорт"),
+            "zh" to listOf("彭布罗克威尔士柯基犬", "意大利灵缇犬"),
+        )
+        val ids = listOf(BreedId("VBO:0200995"), BreedId("VBO:0200713"))
+
+        expected.forEach { (language, names) ->
+            val locale = Locale.forLanguageTag(language)
+            ids.zip(names).forEach { (id, name) ->
+                assertEquals(language, name, option(id, PetSpecies.DOG, language).displayName)
+                assertTrue(catalog.search(name, PetSpecies.DOG, locale).any { it.id == id })
+            }
         }
     }
 
@@ -107,15 +127,8 @@ class PetBreedLocalizationTest {
     @Test
     fun translatedDogNamesContainNeitherGenerationMarkersNorDuplicatedWords() {
         val marker = Regex("(?i)(translated|translation|locale|language|\\[.{0,12}])")
-        val localizedIds = (0 until 25).map { index ->
-            catalog.search("", PetSpecies.DOG, Locale.ENGLISH)
-                .map { it.id }
-                .sortedBy { it.value }[index]
-        }.toSet()
-
         PetBreedLocalization.TRANSLATED_LOCALES.forEach { language ->
             catalog.search("", PetSpecies.DOG, Locale.forLanguageTag(language))
-                .filter { it.id in localizedIds }
                 .forEach { option ->
                     assertTrue("$language: ${option.displayName}", !marker.containsMatchIn(option.displayName))
                     val words = option.displayName.lowercase(Locale.ROOT)
@@ -204,6 +217,21 @@ class PetBreedLocalizationTest {
         assertEquals(82, options.size)
         assertEquals(82, options.map { it.id }.toSet().size)
         assertTrue(options.all { com.palixander.scalesync.core.breed.canonicalBreedId(it.id.value) == it.id.value })
+
+        val root = PetBreedLocalizationTest::class.java
+            .getResourceAsStream("/${PetBreedLocalization.RESOURCE_PATH}")!!.reader().use(JsonParser::parseReader)
+            .asJsonObject
+        val entries = root.getAsJsonArray("breeds")
+        assertEquals(82, entries.size())
+        entries.forEach { element ->
+            val names = element.asJsonObject.getAsJsonObject("names")
+            assertEquals(
+                element.asJsonObject.get("id").asString,
+                PetBreedLocalization.TRANSLATED_LOCALES,
+                names.keySet(),
+            )
+            assertTrue(names.entrySet().all { (_, value) -> value.asString.isNotBlank() })
+        }
     }
 
     @Test

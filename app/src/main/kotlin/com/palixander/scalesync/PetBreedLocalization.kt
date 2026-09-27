@@ -85,6 +85,11 @@ internal class PetBreedLocalization private constructor(
             if (requireCompleteSchema) {
                 require(actualSpecies.values.count { it == PetSpecies.DOG } == 51) { "Expected 51 dog breed IDs" }
                 require(actualSpecies.values.count { it == PetSpecies.CAT } == 31) { "Expected 31 cat breed IDs" }
+                entries.forEach { (id, _, names) ->
+                    require(names.keys == TRANSLATED_LOCALES && names.values.all(String::isNotBlank)) {
+                        "Breed localization schema must contain every translated locale for $id"
+                    }
+                }
             }
             require(expectedBreeds.keys.all { it in actualSpecies }) {
                 val missing = expectedBreeds.keys - actualSpecies.keys
