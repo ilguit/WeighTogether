@@ -99,6 +99,7 @@ class LocalizationResourceContractTest {
             LocaleContract("de", "values-de", setOf("one", "other")),
             LocaleContract("fr", "values-fr", setOf("one", "other")),
             LocaleContract("it", "values-it", setOf("one", "other")),
+            LocaleContract("uk", "values-uk", setOf("one", "few", "many", "other")),
         )
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =
