@@ -146,6 +146,7 @@ class WeighingReminderCoordinator(
         owner: WeighingReminderOwner,
         name: String,
     ) {
+        val presentation = weighingReminderNotificationPresentation(importance)
         val channel = if (importance == WeighingReminderImportance.ALARM) {
             NotificationChannelRegistry.weighingAlarms.id
         } else {
@@ -153,11 +154,11 @@ class WeighingReminderCoordinator(
         }
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
-            .setContentTitle(context.getString(if (importance == WeighingReminderImportance.ALARM) R.string.weighing_alarm_notification_title else R.string.weighing_reminder_notification_title, name))
-            .setContentText(context.getString(if (importance == WeighingReminderImportance.ALARM) R.string.weighing_alarm_notification_text else R.string.weighing_reminder_notification_text))
-            .setCategory(if (importance == WeighingReminderImportance.ALARM) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(importance == WeighingReminderImportance.REGULAR)
-            .setOngoing(importance == WeighingReminderImportance.ALARM)
+            .setContentTitle(context.getString(presentation.titleRes, name))
+            .setContentText(context.getString(presentation.textRes))
+            .setCategory(presentation.category)
+            .setAutoCancel(presentation.autoCancel)
+            .setOngoing(presentation.ongoing)
             .setContentIntent(contentIntent(id, token, owner))
             .addAction(
                 0,
@@ -229,3 +230,30 @@ class WeighingReminderCoordinator(
 internal fun weighingReminderNotificationSmallIcon(
     @Suppress("UNUSED_PARAMETER") importance: WeighingReminderImportance,
 ): Int = R.drawable.ic_notification
+
+internal data class WeighingReminderNotificationPresentation(
+    val titleRes: Int,
+    val textRes: Int,
+    val category: String,
+    val ongoing: Boolean,
+    val autoCancel: Boolean,
+)
+
+internal fun weighingReminderNotificationPresentation(importance: WeighingReminderImportance) =
+    if (importance == WeighingReminderImportance.ALARM) {
+        WeighingReminderNotificationPresentation(
+            R.string.weighing_alarm_notification_title,
+            R.string.weighing_alarm_notification_text,
+            NotificationCompat.CATEGORY_ALARM,
+            ongoing = true,
+            autoCancel = false,
+        )
+    } else {
+        WeighingReminderNotificationPresentation(
+            R.string.weighing_reminder_notification_title,
+            R.string.weighing_reminder_notification_text,
+            NotificationCompat.CATEGORY_REMINDER,
+            ongoing = false,
+            autoCancel = true,
+        )
+    }
