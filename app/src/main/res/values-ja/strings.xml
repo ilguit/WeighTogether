@@ -107,4 +107,7 @@
     <string name="reminder_alarm_sound_system_default">システムの標準アラーム</string>
     <string name="reminder_timing_degraded">正確なアラームを利用できないため、通常のリマインダーが遅れる場合があります。</string>
     <string name="reminder_scheduling_failed">リマインダーを設定できませんでした。システムのアラーム設定を確認して再試行してください。</string>
+    <string name="weighing_alarm_notification_title_generic">計量アラーム</string>
+    <string name="weighing_alarm_screen_title">%1$s の計量時刻です</string>
+    <string name="weighing_reminder_stop">停止</string>
 </resources>

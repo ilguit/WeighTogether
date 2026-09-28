@@ -119,4 +119,7 @@
     <string name="reminder_alarm_sound_system_default">Системна мелодія будильника</string>
     <string name="reminder_timing_degraded">Звичайні нагадування можуть запізнюватися, бо точні будильники недоступні.</string>
     <string name="reminder_scheduling_failed">Не вдалося запланувати нагадування. Перевірте системні налаштування будильників і повторіть спробу.</string>
+    <string name="weighing_alarm_notification_title_generic">Будильник зважування</string>
+    <string name="weighing_alarm_screen_title">Час зважити: %1$s</string>
+    <string name="weighing_reminder_stop">Вимкнути</string>
 </resources>

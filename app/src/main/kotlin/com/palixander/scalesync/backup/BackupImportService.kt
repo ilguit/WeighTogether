@@ -701,7 +701,7 @@ private fun BackupDocumentV1.toSnapshot(
     reminderSchedules = reminderSchedules.map {
         WeighingReminderScheduleEntity(
             it.id, it.ownerType, it.ownerId, it.minuteOfDay, it.weekdaysMask, it.importance,
-            it.enabled, it.createdAtEpochMillis, it.updatedAtEpochMillis,
+            it.enabled, it.createdAtEpochMillis, it.updatedAtEpochMillis, it.alarmSoundUri,
         )
     },
     )

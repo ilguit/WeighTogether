@@ -82,7 +82,7 @@ class BackupExportService(
 
 private fun WeighingReminderScheduleEntity.toBackup() = BackupReminderScheduleV7(
     id, ownerType, ownerId, minuteOfDay, weekdaysMask, importance, enabled,
-    createdAtEpochMillis, updatedAtEpochMillis,
+    createdAtEpochMillis, updatedAtEpochMillis, alarmSoundUri,
 )
 
 private fun PetEntity.toBackup() = BackupPetV2(

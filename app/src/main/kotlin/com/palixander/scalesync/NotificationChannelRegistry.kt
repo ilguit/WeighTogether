@@ -13,6 +13,7 @@ data class AppNotificationChannel(
     val importance: Int,
     @param:StringRes val descriptionRes: Int? = null,
     val alarmSound: Boolean = false,
+    val silent: Boolean = false,
 )
 
 object NotificationChannelRegistry {
@@ -39,7 +40,14 @@ object NotificationChannelRegistry {
     )
     val weighingAlarms = AppNotificationChannel(
         // Channel properties are immutable after creation; use a versioned id for the alarm semantics.
-        id = "weighing_alarms_v2",
+        id = "weighing_alarms_v3",
+        nameRes = R.string.notification_channel_weighing_alarms,
+        importance = NotificationManager.IMPORTANCE_HIGH,
+        silent = true,
+    )
+    val weighingAlarmFallback = AppNotificationChannel(
+        // Used only when Android refuses to start the sound foreground service.
+        id = "weighing_alarm_fallback_v1",
         nameRes = R.string.notification_channel_weighing_alarms,
         importance = NotificationManager.IMPORTANCE_HIGH,
         alarmSound = true,
@@ -51,6 +59,7 @@ object NotificationChannelRegistry {
         successfulMeasurementSaves,
         weighingReminders,
         weighingAlarms,
+        weighingAlarmFallback,
     )
 
     fun registerAll(context: Context) {
@@ -78,6 +87,8 @@ object NotificationChannelRegistry {
                             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build(),
                     )
+                } else if (channel.silent) {
+                    setSound(null, null)
                 }
             },
         )

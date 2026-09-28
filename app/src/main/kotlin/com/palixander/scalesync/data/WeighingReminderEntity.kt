@@ -35,6 +35,7 @@ data class WeighingReminderScheduleEntity(
     val enabled: Boolean,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val alarmSoundUri: String? = null,
 ) {
     fun toDomain(): WeighingReminderSchedule = WeighingReminderSchedule(
         id = WeighingReminderId(id),
@@ -46,6 +47,7 @@ data class WeighingReminderScheduleEntity(
         weekdays = weekdaysMask.toWeekdays(),
         importance = importance,
         enabled = enabled,
+        alarmSoundUri = alarmSoundUri,
     )
 }
 

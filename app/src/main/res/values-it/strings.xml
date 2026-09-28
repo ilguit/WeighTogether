@@ -553,4 +553,7 @@
     <string name="reminder_alarm_sound_system_default">Sveglia predefinita di sistema</string>
     <string name="reminder_timing_degraded">I promemoria normali potrebbero arrivare in ritardo perché le sveglie esatte non sono disponibili.</string>
     <string name="reminder_scheduling_failed">Impossibile pianificare un promemoria. Controlla le impostazioni di sistema delle sveglie e riprova.</string>
+    <string name="weighing_alarm_notification_title_generic">Sveglia pesatura</string>
+    <string name="weighing_alarm_screen_title">È ora di pesare: %1$s</string>
+    <string name="weighing_reminder_stop">Interrompi</string>
 </resources>

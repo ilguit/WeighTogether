@@ -76,6 +76,24 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate18To19AddsNullablePerScheduleAlarmSound() {
+        helper.createDatabase(MIGRATION_18_19_DB, 18).apply {
+            execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',NULL,NULL,NULL,0,2,3,NULL)")
+            execSQL("INSERT INTO weighing_reminder_schedules VALUES ('r','ACCOUNT','a',540,1,'ALARM',1,1,1)")
+            close()
+        }
+        helper.runMigrationsAndValidate(
+            MIGRATION_18_19_DB, 19, true, AppDatabase.MIGRATION_18_19,
+        ).apply {
+            query("SELECT alarmSoundUri FROM weighing_reminder_schedules WHERE id='r'").use {
+                assertTrue(it.moveToFirst())
+                assertTrue(it.isNull(0))
+            }
+            close()
+        }
+    }
+
+    @Test
     fun migrate14To15RetainsMeasurementAndDropsHuaweiColumns() {
         helper.createDatabase(MIGRATION_14_15_DB, 14).apply {
             execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',180.0,1,'MALE',1,2,3)")
@@ -742,5 +760,6 @@ class AppDatabaseMigrationTest {
         const val MIGRATION_6_7_DB = "measurement-migration-6-7-test"
         const val MIGRATION_14_15_DB = "measurement-migration-14-15-test"
         const val MIGRATION_17_18_DB = "measurement-migration-17-18-test"
+        const val MIGRATION_18_19_DB = "measurement-migration-18-19-test"
     }
 }

@@ -451,4 +451,7 @@
     <string name="reminder_alarm_sound_system_default">系统默认闹钟</string>
     <string name="reminder_timing_degraded">由于无法使用精确闹钟，普通提醒可能会延迟。</string>
     <string name="reminder_scheduling_failed">无法安排提醒。请检查系统闹钟设置，然后重试。</string>
+    <string name="weighing_alarm_notification_title_generic">称重闹钟</string>
+    <string name="weighing_alarm_screen_title">该为%1$s称重了</string>
+    <string name="weighing_reminder_stop">停止</string>
 </resources>

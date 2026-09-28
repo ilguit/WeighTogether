@@ -21,7 +21,9 @@ import com.palixander.scalesync.worker.PendingMeasurementNotificationHelper
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.reminder.WeighingReminderCoordinator
+import com.palixander.scalesync.reminder.WeighingReminderAlarmGateway
 import com.palixander.scalesync.reminder.WeighingReminderNavigationTarget
+import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.ui.profiles.ProfileKey
 import java.time.LocalDate
 import kotlinx.coroutines.launch
@@ -145,6 +147,16 @@ class MainActivity : AppCompatActivity() {
             WeighingReminderNavigationTarget.ACTION_OPEN_PROFILE -> {
                 val target = consumeReminderProfileTarget(intent) ?: return
                 viewModel.openReminderProfile(target.profileKey, target.ownerUnavailable)
+                val scheduleId = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
+                val occurrenceToken = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
+                if (!scheduleId.isNullOrBlank() && !occurrenceToken.isNullOrBlank()) {
+                    (application as ScaleSyncApplication).container.applicationScope.launch {
+                        (application as ScaleSyncApplication).container.weighingReminders.onContentOpened(
+                            WeighingReminderId(scheduleId),
+                            occurrenceToken,
+                        )
+                    }
+                }
             }
             else -> return
         }

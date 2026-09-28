@@ -32,7 +32,10 @@ class BackupJsonCodec(
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V6) {
             root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("isManuallyEdited") }
         }
-        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) root.remove("reminderSchedules")
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V7) root.remove("reminderSchedules")
+        if (document.schemaVersion == BACKUP_SCHEMA_VERSION_V7) {
+            root.getAsJsonArray("reminderSchedules").forEach { it.asJsonObject.remove("alarmSoundUri") }
+        }
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
             root.getAsJsonArray("measurements").forEach { element ->
                 (MEASUREMENT_KEYS_V3 - MEASUREMENT_KEYS_V1_V2).forEach(element.asJsonObject::remove)
@@ -81,7 +84,7 @@ class BackupJsonCodec(
         if (supportedVersion < BACKUP_SCHEMA_VERSION_V6) {
             root.array("petMeasurements").forEach { it.asJsonObject.addProperty("isManuallyEdited", false) }
         }
-        if (supportedVersion < BACKUP_SCHEMA_VERSION) root.add("reminderSchedules", com.google.gson.JsonArray())
+        if (supportedVersion < BACKUP_SCHEMA_VERSION_V7) root.add("reminderSchedules", com.google.gson.JsonArray())
         var document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
         } catch (error: JsonParseException) {
@@ -105,7 +108,7 @@ class BackupJsonCodec(
     private fun checkShape(root: JsonObject, version: Int) {
         root.requireKeys("$", when {
             version == BACKUP_SCHEMA_VERSION_V1 -> ROOT_KEYS_V1
-            version < BACKUP_SCHEMA_VERSION -> ROOT_KEYS_V2
+            version < BACKUP_SCHEMA_VERSION_V7 -> ROOT_KEYS_V2
             else -> ROOT_KEYS_V7
         })
         root.requireStrings("$", setOf("format", "exportedAt"))
@@ -203,16 +206,17 @@ class BackupJsonCodec(
                 }
             }
         }
-        if (version >= BACKUP_SCHEMA_VERSION) {
+        if (version >= BACKUP_SCHEMA_VERSION_V7) {
             root.array("reminderSchedules").forEachIndexed { index, element ->
                 val path = "$.reminderSchedules[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, REMINDER_SCHEDULE_KEYS)
+                    requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) REMINDER_SCHEDULE_KEYS else REMINDER_SCHEDULE_KEYS - "alarmSoundUri")
                     requireStrings(path, setOf("id", "ownerType", "ownerId", "importance"))
                     requireEnum(path, "ownerType", setOf("ACCOUNT", "PET"))
                     requireEnum(path, "importance", setOf("REGULAR", "ALARM"))
                     requireNumbers(path, setOf("minuteOfDay", "weekdaysMask", "createdAtEpochMillis", "updatedAtEpochMillis"))
                     requireBooleans(path, setOf("enabled"))
+                    if (version >= BACKUP_SCHEMA_VERSION) requireNullableStrings(path, setOf("alarmSoundUri"))
                 }
             }
         }
@@ -374,7 +378,7 @@ class BackupJsonCodec(
             }.isSuccess
             invalidUnless(valid, path, "invalid pet weight or source readings")
         }
-        if (document.schemaVersion < BACKUP_SCHEMA_VERSION && document.reminderSchedules.isNotEmpty()) {
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V7 && document.reminderSchedules.isNotEmpty()) {
             throw BackupException.Invalid("$.reminderSchedules", "requires schema v7")
         }
         unique(document.reminderSchedules.map { it.id }, "reminder schedule id")
@@ -507,7 +511,7 @@ class BackupJsonCodec(
         val ROOT_KEYS_V7 = ROOT_KEYS_V2 + "reminderSchedules"
         val REMINDER_SCHEDULE_KEYS = setOf(
             "id", "ownerType", "ownerId", "minuteOfDay", "weekdaysMask", "importance", "enabled",
-            "createdAtEpochMillis", "updatedAtEpochMillis",
+            "createdAtEpochMillis", "updatedAtEpochMillis", "alarmSoundUri",
         )
         val PET_KEYS_V2 = setOf("id", "displayName", "normalizedName", "species", "createdAtEpochMillis", "updatedAtEpochMillis")
         val PET_KEYS_V3 = PET_KEYS_V2 + setOf("sex", "breedId", "birthYear", "birthMonth", "birthDay", "dogAdultWeightCategory")
@@ -543,6 +547,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V4,
             BACKUP_SCHEMA_VERSION_V5,
             BACKUP_SCHEMA_VERSION_V6,
+            BACKUP_SCHEMA_VERSION_V7,
             BACKUP_SCHEMA_VERSION,
         )
     }
