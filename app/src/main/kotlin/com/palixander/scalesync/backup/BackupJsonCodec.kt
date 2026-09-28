@@ -29,9 +29,10 @@ class BackupJsonCodec(
             root.getAsJsonArray("measurements").forEach { it.asJsonObject.remove("origin") }
             root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("origin") }
         }
-        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V6) {
             root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("isManuallyEdited") }
         }
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION) root.remove("reminderSchedules")
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V3) {
             root.getAsJsonArray("measurements").forEach { element ->
                 (MEASUREMENT_KEYS_V3 - MEASUREMENT_KEYS_V1_V2).forEach(element.asJsonObject::remove)
@@ -77,9 +78,10 @@ class BackupJsonCodec(
             root.array("measurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
             root.array("petMeasurements").forEach { it.asJsonObject.addProperty("origin", "LEGACY") }
         }
-        if (supportedVersion < BACKUP_SCHEMA_VERSION) {
+        if (supportedVersion < BACKUP_SCHEMA_VERSION_V6) {
             root.array("petMeasurements").forEach { it.asJsonObject.addProperty("isManuallyEdited", false) }
         }
+        if (supportedVersion < BACKUP_SCHEMA_VERSION) root.add("reminderSchedules", com.google.gson.JsonArray())
         var document = try {
             gson.fromJson(root, BackupDocumentV1::class.java)
         } catch (error: JsonParseException) {
@@ -101,7 +103,11 @@ class BackupJsonCodec(
     }
 
     private fun checkShape(root: JsonObject, version: Int) {
-        root.requireKeys("$", if (version == BACKUP_SCHEMA_VERSION_V1) ROOT_KEYS_V1 else ROOT_KEYS_V2)
+        root.requireKeys("$", when {
+            version == BACKUP_SCHEMA_VERSION_V1 -> ROOT_KEYS_V1
+            version < BACKUP_SCHEMA_VERSION -> ROOT_KEYS_V2
+            else -> ROOT_KEYS_V7
+        })
         root.requireStrings("$", setOf("format", "exportedAt"))
         root.requireNumbers("$", setOf("schemaVersion"))
         root.array("accounts").forEachIndexed { index, element ->
@@ -126,17 +132,17 @@ class BackupJsonCodec(
             element.requiredObject("$.measurements[$index]").apply {
                 val path = "$.measurements[$index]"
                 val expectedKeys = when {
-                    version >= BACKUP_SCHEMA_VERSION -> MEASUREMENT_KEYS_CURRENT + "origin"
+                    version >= BACKUP_SCHEMA_VERSION_V6 -> MEASUREMENT_KEYS_CURRENT + "origin"
                     version >= BACKUP_SCHEMA_VERSION_V5 -> MEASUREMENT_KEYS_CURRENT + setOf("ratingHeightCm", "ratingHeightOrigin", "origin")
                     version >= BACKUP_SCHEMA_VERSION_V3 -> MEASUREMENT_KEYS_CURRENT + setOf("ratingHeightCm", "ratingHeightOrigin")
                     else -> MEASUREMENT_KEYS_CURRENT - setOf("ratingHeightCm", "ratingHeightOrigin")
                 }
-                if (version < BACKUP_SCHEMA_VERSION) {
+                if (version < BACKUP_SCHEMA_VERSION_V6) {
                     requireKeys(path, expectedKeys, LEGACY_HUAWEI_MEASUREMENT_KEYS)
                 } else {
                     requireKeys(path, expectedKeys)
                 }
-                if (version < BACKUP_SCHEMA_VERSION) {
+                if (version < BACKUP_SCHEMA_VERSION_V6) {
                     LEGACY_HUAWEI_MEASUREMENT_KEYS.forEach(::remove)
                 }
                 requireStrings(path, MEASUREMENT_STRING_KEYS_CURRENT)
@@ -181,7 +187,7 @@ class BackupJsonCodec(
                 val path = "$.petMeasurements[$index]"
                 element.requiredObject(path).apply {
                     requireKeys(path, when {
-                        version >= BACKUP_SCHEMA_VERSION -> PET_MEASUREMENT_KEYS + setOf("origin", "isManuallyEdited")
+                        version >= BACKUP_SCHEMA_VERSION_V6 -> PET_MEASUREMENT_KEYS + setOf("origin", "isManuallyEdited")
                         version >= BACKUP_SCHEMA_VERSION_V5 -> PET_MEASUREMENT_KEYS + "origin"
                         else -> PET_MEASUREMENT_KEYS
                     })
@@ -193,7 +199,20 @@ class BackupJsonCodec(
                     } else {
                         requireNumbers(path, setOf("firstWeightKg", "secondWeightKg"))
                     }
-                    if (version >= BACKUP_SCHEMA_VERSION) requireBooleans(path, setOf("isManuallyEdited"))
+                    if (version >= BACKUP_SCHEMA_VERSION_V6) requireBooleans(path, setOf("isManuallyEdited"))
+                }
+            }
+        }
+        if (version >= BACKUP_SCHEMA_VERSION) {
+            root.array("reminderSchedules").forEachIndexed { index, element ->
+                val path = "$.reminderSchedules[$index]"
+                element.requiredObject(path).apply {
+                    requireKeys(path, REMINDER_SCHEDULE_KEYS)
+                    requireStrings(path, setOf("id", "ownerType", "ownerId", "importance"))
+                    requireEnum(path, "ownerType", setOf("ACCOUNT", "PET"))
+                    requireEnum(path, "importance", setOf("REGULAR", "ALARM"))
+                    requireNumbers(path, setOf("minuteOfDay", "weekdaysMask", "createdAtEpochMillis", "updatedAtEpochMillis"))
+                    requireBooleans(path, setOf("enabled"))
                 }
             }
         }
@@ -216,6 +235,9 @@ class BackupJsonCodec(
         }
         if (document.petMeasurements.size > MAX_BACKUP_PET_MEASUREMENTS) {
             throw BackupException.Limits("$.petMeasurements", MAX_BACKUP_PET_MEASUREMENTS)
+        }
+        if (document.reminderSchedules.size > MAX_BACKUP_REMINDER_SCHEDULES) {
+            throw BackupException.Limits("$.reminderSchedules", MAX_BACKUP_REMINDER_SCHEDULES)
         }
 
         unique(document.accounts.map { it.id }, "account id")
@@ -336,7 +358,7 @@ class BackupJsonCodec(
             if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V5) {
                 invalidUnless(measurement.origin == com.palixander.scalesync.domain.MeasurementOrigin.LEGACY, "$path.origin", "requires v5")
             }
-            if (document.schemaVersion < BACKUP_SCHEMA_VERSION) {
+            if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V6) {
                 invalidUnless(!measurement.isManuallyEdited, "$path.isManuallyEdited", "requires v6")
             }
             if (measurement.petId !in petIds) throw BackupException.MissingPet(measurement.petId)
@@ -351,6 +373,27 @@ class BackupJsonCodec(
                 )
             }.isSuccess
             invalidUnless(valid, path, "invalid pet weight or source readings")
+        }
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION && document.reminderSchedules.isNotEmpty()) {
+            throw BackupException.Invalid("$.reminderSchedules", "requires schema v7")
+        }
+        unique(document.reminderSchedules.map { it.id }, "reminder schedule id")
+        val semantics = mutableSetOf<String>()
+        document.reminderSchedules.forEachIndexed { index, schedule ->
+            val path = "$.reminderSchedules[$index]"
+            invalidUnless(schedule.id.isNotBlank(), "$path.id", "must not be blank")
+            invalidUnless(schedule.ownerId.isNotBlank(), "$path.ownerId", "must not be blank")
+            invalidUnless(schedule.minuteOfDay in 0..1439, "$path.minuteOfDay", "must be 0..1439")
+            invalidUnless(schedule.weekdaysMask in 1..127, "$path.weekdaysMask", "must select weekdays only")
+            invalidUnless(schedule.updatedAtEpochMillis >= schedule.createdAtEpochMillis, "$path.updatedAtEpochMillis", "precedes creation")
+            when (schedule.ownerType) {
+                com.palixander.scalesync.data.WeighingReminderOwnerType.ACCOUNT ->
+                    if (schedule.ownerId !in accountIds) throw BackupException.MissingReminderOwner(schedule.ownerType, schedule.ownerId)
+                com.palixander.scalesync.data.WeighingReminderOwnerType.PET ->
+                    if (schedule.ownerId !in petIds) throw BackupException.MissingReminderOwner(schedule.ownerType, schedule.ownerId)
+            }
+            val semantic = "${schedule.ownerType}:${schedule.ownerId}:${schedule.minuteOfDay}:${schedule.weekdaysMask}:${schedule.importance}"
+            if (!semantics.add(semantic)) throw BackupException.Duplicate("reminder schedule semantics", semantic)
         }
     }
 
@@ -461,6 +504,11 @@ class BackupJsonCodec(
     private companion object {
         val ROOT_KEYS_V1 = setOf("format", "schemaVersion", "exportedAt", "accounts", "appState", "measurements", "settings")
         val ROOT_KEYS_V2 = ROOT_KEYS_V1 + setOf("pets", "petMeasurements")
+        val ROOT_KEYS_V7 = ROOT_KEYS_V2 + "reminderSchedules"
+        val REMINDER_SCHEDULE_KEYS = setOf(
+            "id", "ownerType", "ownerId", "minuteOfDay", "weekdaysMask", "importance", "enabled",
+            "createdAtEpochMillis", "updatedAtEpochMillis",
+        )
         val PET_KEYS_V2 = setOf("id", "displayName", "normalizedName", "species", "createdAtEpochMillis", "updatedAtEpochMillis")
         val PET_KEYS_V3 = PET_KEYS_V2 + setOf("sex", "breedId", "birthYear", "birthMonth", "birthDay", "dogAdultWeightCategory")
         val PET_MEASUREMENT_KEYS = setOf("id", "petId", "measuredAtEpochSecond", "firstWeightKg", "secondWeightKg", "petWeightKg")
@@ -494,6 +542,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V3,
             BACKUP_SCHEMA_VERSION_V4,
             BACKUP_SCHEMA_VERSION_V5,
+            BACKUP_SCHEMA_VERSION_V6,
             BACKUP_SCHEMA_VERSION,
         )
     }

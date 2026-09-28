@@ -149,6 +149,9 @@ class AppContainer(application: Application) {
             BackupImportCompletionHook {
                 MeasurementWorkSweepScheduler.enqueueBestEffort(application)
             },
+            BackupImportCompletionHook {
+                weighingReminders.reconcile()
+            },
         ),
     )
 

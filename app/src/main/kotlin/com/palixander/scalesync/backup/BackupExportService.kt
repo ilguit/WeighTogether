@@ -11,6 +11,7 @@ import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.SyncStatus
+import com.palixander.scalesync.data.WeighingReminderScheduleEntity
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import java.io.IOException
 import java.io.OutputStream
@@ -23,6 +24,7 @@ data class BackupDatabaseSnapshot(
     val measurements: List<MeasurementEntity>,
     val pets: List<PetEntity> = emptyList(),
     val petMeasurements: List<PetMeasurementEntity> = emptyList(),
+    val reminderSchedules: List<WeighingReminderScheduleEntity> = emptyList(),
 )
 
 fun interface BackupSnapshotSource {
@@ -39,6 +41,7 @@ class RoomBackupSnapshotSource(
             measurements = database.measurementDao().getAllForBackup(),
             pets = database.petDao().getAllPetsForBackup(),
             petMeasurements = database.petDao().getAllMeasurementsForBackup(),
+            reminderSchedules = database.weighingReminderDao().getAll(),
         )
     }
 }
@@ -60,6 +63,7 @@ class BackupExportService(
             settings = settings.toBackup(),
             pets = database.pets.map(PetEntity::toBackup),
             petMeasurements = database.petMeasurements.map(PetMeasurementEntity::toBackup),
+            reminderSchedules = database.reminderSchedules.map(WeighingReminderScheduleEntity::toBackup),
         )
     }
 
@@ -75,6 +79,11 @@ class BackupExportService(
         return document
     }
 }
+
+private fun WeighingReminderScheduleEntity.toBackup() = BackupReminderScheduleV7(
+    id, ownerType, ownerId, minuteOfDay, weekdaysMask, importance, enabled,
+    createdAtEpochMillis, updatedAtEpochMillis,
+)
 
 private fun PetEntity.toBackup() = BackupPetV2(
     id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis,

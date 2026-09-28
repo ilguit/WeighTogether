@@ -10,9 +10,12 @@ import com.palixander.scalesync.data.PortableProfileSettings
 import com.palixander.scalesync.data.PetEntity
 import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.SyncStatus
+import com.palixander.scalesync.data.WeighingReminderOwnerType
+import com.palixander.scalesync.data.WeighingReminderScheduleEntity
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
+import com.palixander.scalesync.domain.WeighingReminderImportance
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import java.io.ByteArrayInputStream
 import java.io.IOException
@@ -27,6 +30,85 @@ import com.palixander.scalesync.worker.ExternalSyncOperationSerializer
 class BackupImportServiceTest {
     private val service = BackupImportService()
     private val emptySettings = PortableProfileSettings(null, null, false, null, null)
+
+    @Test
+    fun `merge remaps reminder owner before semantic duplicate checks and counts`() {
+        val localAccount = AccountEntity("local", "Account", "account", null, null, null, false, 1, 2)
+        val localSchedule = schedule("local-s", "local")
+        val current = emptySnapshot().copy(
+            accounts = listOf(localAccount),
+            reminderSchedules = listOf(localSchedule),
+        )
+        val incoming = document().copy(
+            reminderSchedules = listOf(
+                BackupReminderScheduleV7("imported-s", WeighingReminderOwnerType.ACCOUNT, "a", 540, 1,
+                    WeighingReminderImportance.REGULAR, true, 3, 4),
+            ),
+        )
+
+        val preview = service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+
+        assertEquals(listOf(localSchedule), preview.result.reminderSchedules)
+        assertEquals(0, preview.counts.reminderSchedulesAdded)
+        assertEquals(1, preview.counts.reminderSchedulesSkipped)
+    }
+
+    @Test
+    fun `merge rejects schedule id mapped to different semantics`() {
+        val current = emptySnapshot().copy(
+            accounts = listOf(AccountEntity("local", "Account", "account", null, null, null, false, 1, 2)),
+            reminderSchedules = listOf(schedule("same", "local")),
+        )
+        val incoming = document().copy(
+            reminderSchedules = listOf(
+                BackupReminderScheduleV7("same", WeighingReminderOwnerType.ACCOUNT, "a", 600, 1,
+                    WeighingReminderImportance.REGULAR, true, 3, 4),
+            ),
+        )
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        }
+    }
+
+    @Test
+    fun `merge rejects schedules that become semantic duplicates after owner remap`() {
+        val current = emptySnapshot().copy(
+            accounts = listOf(AccountEntity("local", "Account", "account", null, null, null, false, 1, 2)),
+        )
+        val secondAccount = document().accounts.single().copy(
+            id = "second",
+            displayName = "Also account",
+            normalizedName = "account",
+        )
+        val incoming = document().copy(
+            accounts = document().accounts + secondAccount,
+            reminderSchedules = listOf(
+                BackupReminderScheduleV7("one", WeighingReminderOwnerType.ACCOUNT, "a", 540, 1,
+                    WeighingReminderImportance.REGULAR, true, 3, 4),
+                BackupReminderScheduleV7("two", WeighingReminderOwnerType.ACCOUNT, "second", 540, 1,
+                    WeighingReminderImportance.REGULAR, true, 3, 4),
+            ),
+        )
+
+        assertThrows(BackupImportConflicts::class.java) {
+            service.preview(incoming, current, emptySettings, BackupImportMode.MERGE)
+        }
+    }
+
+    @Test
+    fun `replace from legacy v6 clears schedules and reports replacements`() {
+        val current = emptySnapshot().copy(
+            accounts = listOf(AccountEntity("local", "Local", "local", null, null, null, false, 1, 2)),
+            reminderSchedules = listOf(schedule("local-s", "local")),
+        )
+        val legacy = BackupJsonCodec().decode(BackupJsonCodec().encode(document().copy(schemaVersion = 6)))
+
+        val preview = service.preview(legacy, current, emptySettings, BackupImportMode.REPLACE)
+
+        assertEquals(emptyList<WeighingReminderScheduleEntity>(), preview.result.reminderSchedules)
+        assertEquals(1, preview.counts.reminderSchedulesReplaced)
+    }
 
     @Test
     fun `v5 import retains manual provenance and keeps it on merge collisions`() {
@@ -525,7 +607,7 @@ class BackupImportServiceTest {
     }
 
     @Test
-    fun `merge and replace trigger completion sweep after checkpoint cleanup outside import mutex`() =
+    fun `merge and replace reconcile before checkpoint cleanup outside import mutex`() =
         runBlocking {
             BackupImportMode.entries.forEach { mode ->
                 val events = mutableListOf<String>()
@@ -543,14 +625,14 @@ class BackupImportServiceTest {
                 ).apply(preview)
 
                 assertEquals(
-                    listOf("database", "settings", "checkpoint-cleanup", "sweep:$mode"),
+                    listOf("database", "settings", "sweep:$mode", "checkpoint-cleanup"),
                     events,
                 )
             }
         }
 
     @Test
-    fun `post commit hook failures do not change completed result or prevent durable scheduling`() =
+    fun `post commit reconcile failure keeps checkpoint for recovery`() =
         runBlocking {
             val events = mutableListOf<String>()
             val preview = service.preview(
@@ -578,16 +660,12 @@ class BackupImportServiceTest {
                 ),
             ).apply(preview)
 
-            assertEquals(true, result is BackupImportApplyResult.Completed)
+            assertEquals(true, result is BackupImportApplyResult.CompletedPendingRecovery)
             assertEquals(
                 listOf(
                     "database",
                     "settings",
-                    "checkpoint-cleanup",
-                    "failed-success-hook",
-                    "later-success-hook",
                     "failed-scheduler",
-                    "scheduled",
                 ),
                 events,
             )
@@ -623,13 +701,13 @@ class BackupImportServiceTest {
 
             assertEquals(cancellation, thrown)
             assertEquals(listOf("database", "settings"), events)
-            assertEquals(emptyList<String>(), laterHooks)
+            assertEquals(listOf("completion"), laterHooks)
             assertEquals(true, gateway.pendingRecovery() != null)
 
             applier.recoverPendingImport()
 
             assertEquals(null, gateway.pendingRecovery())
-            assertEquals(listOf("completion"), laterHooks)
+            assertEquals(listOf("completion", "completion"), laterHooks)
         }
 
     @Test
@@ -653,7 +731,7 @@ class BackupImportServiceTest {
         }
 
         assertEquals(cancellation, thrown)
-        assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
+        assertEquals(listOf("database", "settings", "completion", "checkpoint-cleanup"), events)
         assertEquals(null, gateway.pendingRecovery())
     }
 
@@ -683,8 +761,8 @@ class BackupImportServiceTest {
             }
 
             assertEquals(cancellation, thrown)
-            assertEquals(listOf("database", "settings", "checkpoint-cleanup"), events)
-            assertEquals(null, gateway.pendingRecovery())
+            assertEquals(listOf("database", "settings"), events)
+            assertEquals(true, gateway.pendingRecovery() != null)
         }
 
     @Test
@@ -804,7 +882,7 @@ class BackupImportServiceTest {
                     BackupImportCompletionHook {
                         schedulingAttempts++
                         events += "schedule:$schedulingAttempts"
-                        error("WorkManager unavailable")
+                        if (schedulingAttempts == 1) error("WorkManager unavailable")
                     },
                 ),
             )
@@ -813,7 +891,9 @@ class BackupImportServiceTest {
             assertEquals(true, applyResult is BackupImportApplyResult.CompletedPendingRecovery)
             assertEquals(0, schedulingAttempts)
 
-            applier.recoverPendingImport()
+            assertThrows(IllegalStateException::class.java) {
+                runBlocking { applier.recoverPendingImport() }
+            }
             applier.recoverPendingImport()
 
             assertEquals(
@@ -821,12 +901,14 @@ class BackupImportServiceTest {
                     "database",
                     "settings:1",
                     "settings:2",
-                    "checkpoint-cleanup",
                     "schedule:1",
+                    "settings:3",
+                    "schedule:2",
+                    "checkpoint-cleanup",
                 ),
                 events,
             )
-            assertEquals(1, schedulingAttempts)
+            assertEquals(2, schedulingAttempts)
         }
 
     @Test
@@ -945,12 +1027,12 @@ class BackupImportServiceTest {
 
                 assertEquals(cancellation, thrown)
                 assertEquals(true, gateway.pendingRecovery() != null)
-                assertEquals(0, completionHooks)
+                assertEquals(1, completionHooks)
 
                 applier.recoverPendingImport()
 
                 assertEquals(null, gateway.pendingRecovery())
-                assertEquals(1, completionHooks)
+                assertEquals(2, completionHooks)
             }
         }
 
@@ -977,7 +1059,7 @@ class BackupImportServiceTest {
 
                 assertEquals(
                     if (successfulImport) {
-                        listOf("settings", "checkpoint-cleanup", "sweep")
+                        listOf("settings", "sweep", "checkpoint-cleanup")
                     } else {
                         listOf("settings", "checkpoint-cleanup")
                     },
@@ -1091,6 +1173,11 @@ class BackupImportServiceTest {
     }
 
     private fun emptySnapshot() = BackupDatabaseSnapshot(emptyList(), AppStateEntity(), emptyList())
+
+    private fun schedule(id: String, ownerId: String) = WeighingReminderScheduleEntity(
+        id, WeighingReminderOwnerType.ACCOUNT, ownerId, 540, 1,
+        WeighingReminderImportance.REGULAR, true, 1, 2,
+    )
 
     private fun document(accountDisplayName: String = "Account") = BackupDocumentV1(
         exportedAt = "2026-08-25T00:00:00Z",

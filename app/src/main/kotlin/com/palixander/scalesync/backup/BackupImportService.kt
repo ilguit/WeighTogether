@@ -14,6 +14,9 @@ import com.palixander.scalesync.data.ProfilePhotoReferenceCoordinator
 import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.VersionedPortableProfileSettings
+import com.palixander.scalesync.data.WeighingReminderOwnerType
+import com.palixander.scalesync.data.WeighingReminderRuntimeEntity
+import com.palixander.scalesync.data.WeighingReminderScheduleEntity
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshot
 import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadResult
 import com.palixander.scalesync.core.breed.BreedCatalog
@@ -47,6 +50,8 @@ sealed interface BackupImportConflict {
     data class PetId(val id: String) : BackupImportConflict
     data class PetName(val normalizedName: String) : BackupImportConflict
     data class PetMeasurementId(val id: String) : BackupImportConflict
+    data class ReminderScheduleId(val id: String) : BackupImportConflict
+    data class ReminderScheduleSemantic(val ownerType: WeighingReminderOwnerType, val ownerId: String) : BackupImportConflict
 }
 
 class BackupImportConflicts(val conflicts: List<BackupImportConflict>) :
@@ -68,6 +73,9 @@ data class BackupImportCounts(
     val petMeasurementsAdded: Int = 0,
     val petMeasurementsSkipped: Int = 0,
     val petMeasurementsReplaced: Int = 0,
+    val reminderSchedulesAdded: Int = 0,
+    val reminderSchedulesSkipped: Int = 0,
+    val reminderSchedulesReplaced: Int = 0,
 )
 
 data class BackupImportPreview(
@@ -140,6 +148,7 @@ class RoomBackupImportGateway internal constructor(
             measurements = database.measurementDao().getAllForBackup(),
             pets = database.petDao().getAllPetsForBackup(),
             petMeasurements = database.petDao().getAllMeasurementsForBackup(),
+            reminderSchedules = database.weighingReminderDao().getAll(),
         )
         val currentSettings = settingsSnapshot()
         val refreshed = importService.preview(
@@ -169,8 +178,14 @@ class RoomBackupImportGateway internal constructor(
                 database.petDao().insertPets(preview.result.pets)
                 database.petDao().insertMeasurements(preview.result.petMeasurements)
                 database.appStateDao().replace(preview.result.appState)
+                val existingIds = currentDatabase.reminderSchedules.mapTo(hashSetOf()) { it.id }
+                preview.result.reminderSchedules.filterNot { it.id in existingIds }.forEach { schedule ->
+                    check(database.weighingReminderDao().insert(schedule) != -1L)
+                    database.weighingReminderDao().insertRuntime(WeighingReminderRuntimeEntity(schedule.id))
+                }
             }
             BackupImportMode.REPLACE -> {
+                database.weighingReminderDao().deleteAll()
                 database.pendingMeasurementDao().deleteAll()
                 database.pendingMeasurementDao().deleteAllTombstones()
                 database.measurementDao().deleteAll()
@@ -182,6 +197,10 @@ class RoomBackupImportGateway internal constructor(
                 database.measurementDao().insertAll(preview.result.measurements)
                 database.petDao().insertPets(preview.result.pets)
                 database.petDao().insertMeasurements(preview.result.petMeasurements)
+                database.weighingReminderDao().insertAll(preview.result.reminderSchedules)
+                preview.result.reminderSchedules.forEach { schedule ->
+                    database.weighingReminderDao().insertRuntime(WeighingReminderRuntimeEntity(schedule.id))
+                }
             }
         }
         Unit
@@ -314,7 +333,7 @@ sealed interface BackupImportApplyResult {
         override val mode: BackupImportMode,
     ) : BackupImportApplyResult
 
-    /** The database is committed and startup recovery will retry the settings commit. */
+    /** The database is committed and startup recovery will retry settings and post-commit reconcile. */
     data class CompletedPendingRecovery(
         override val counts: BackupImportCounts,
         override val mode: BackupImportMode,
@@ -335,11 +354,20 @@ class BackupImportApplier(
             gateway.stage(preview)
             try {
                 settingsWriter.apply(preview.settings)
-                gateway.complete()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (settingsFailure: Exception) {
                 pendingRecovery = settingsFailure
+            }
+        }
+        if (pendingRecovery == null) {
+            try {
+                runCompletionHooks()
+                operations.runExclusive { gateway.complete() }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (reconcileFailure: Exception) {
+                pendingRecovery = reconcileFailure
             }
         }
         pendingRecovery?.let {
@@ -349,9 +377,8 @@ class BackupImportApplier(
                 it,
             )
         }
-        // The import is durably committed once the checkpoint is removed. Observability and
-        // follow-up scheduling are best effort from this point and must not turn that committed
-        // outcome into a reported failure.
+        // The import is complete once settings and all recoverable post-commit reconciliation
+        // have succeeded and the checkpoint has been removed. Observers remain best effort.
         successHooks.forEach { hook ->
             try {
                 hook.onImportSucceeded(preview)
@@ -361,34 +388,18 @@ class BackupImportApplier(
                 // Post-commit observers cannot change the durable import outcome.
             }
         }
-        runCompletionHooksBestEffort()
         return BackupImportApplyResult.Completed(preview.counts, preview.mode)
     }
 
     suspend fun recoverPendingImport() {
-        var sweepNeeded = false
-        operations.runExclusive {
-            val recovery = gateway.pendingRecovery() ?: return@runExclusive
-            settingsWriter.apply(recovery.settings)
-            gateway.complete()
-            sweepNeeded = recovery.sweepNeeded
+        val recovery = operations.runExclusive {
+            gateway.pendingRecovery()?.also { settingsWriter.apply(it.settings) }
         }
-        if (sweepNeeded) {
-            runCompletionHooksBestEffort()
-        }
+        if (recovery != null && recovery.sweepNeeded) runCompletionHooks()
+        if (recovery != null) operations.runExclusive { gateway.complete() }
     }
 
-    private suspend fun runCompletionHooksBestEffort() {
-        completionHooks.forEach { hook ->
-            try {
-                hook.onImportCompleted()
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                // Completion hooks only schedule durable repair work. Startup/foreground retries.
-            }
-        }
-    }
+    private suspend fun runCompletionHooks() = completionHooks.forEach { it.onImportCompleted() }
 }
 
 fun ProfileStore.asPortableSettingsWriter(): PortableSettingsWriter =
@@ -490,6 +501,9 @@ class BackupImportService(
                 petMeasurementsAdded = result.petMeasurements.size,
                 petMeasurementsSkipped = 0,
                 petMeasurementsReplaced = current.petMeasurements.size,
+                reminderSchedulesAdded = result.reminderSchedules.size,
+                reminderSchedulesSkipped = 0,
+                reminderSchedulesReplaced = current.reminderSchedules.size,
             ),
             result,
             document.settings.toSettings(),
@@ -574,6 +588,38 @@ class BackupImportService(
             val existing = existingPetMeasurementsById[measurement.id]
             existing == null
         }
+        val remappedSchedules = incoming.reminderSchedules.map { schedule ->
+            schedule.copy(
+                ownerId = when (schedule.ownerType) {
+                    WeighingReminderOwnerType.ACCOUNT -> accountIdMapping.getValue(schedule.ownerId)
+                    WeighingReminderOwnerType.PET -> petIdMapping.getValue(schedule.ownerId)
+                },
+            )
+        }
+        val existingSchedulesById = current.reminderSchedules.associateBy { it.id }
+        val existingSchedulesBySemantic = current.reminderSchedules.associateBy { it.semanticKey() }
+        val remappedScheduleIdsBySemantic = mutableMapOf<String, String>()
+        val schedulesToAdd = remappedSchedules.filter { schedule ->
+            val previousImportedId = remappedScheduleIdsBySemantic.putIfAbsent(schedule.semanticKey(), schedule.id)
+            if (previousImportedId != null && previousImportedId != schedule.id) {
+                conflicts += BackupImportConflict.ReminderScheduleSemantic(schedule.ownerType, schedule.ownerId)
+                return@filter false
+            }
+            val byScheduleId = existingSchedulesById[schedule.id]
+            val bySemantic = existingSchedulesBySemantic[schedule.semanticKey()]
+            when {
+                byScheduleId != null && bySemantic != null && byScheduleId.id != bySemantic.id -> {
+                    conflicts += BackupImportConflict.ReminderScheduleId(schedule.id)
+                    conflicts += BackupImportConflict.ReminderScheduleSemantic(schedule.ownerType, schedule.ownerId)
+                    false
+                }
+                byScheduleId != null && byScheduleId.semanticKey() != schedule.semanticKey() -> {
+                    conflicts += BackupImportConflict.ReminderScheduleId(schedule.id)
+                    false
+                }
+                else -> byScheduleId == null && bySemantic == null
+            }
+        }
         if (conflicts.isNotEmpty()) throw BackupImportConflicts(conflicts.distinct())
         val result = BackupDatabaseSnapshot(
             accounts = current.accounts + accountsToAdd,
@@ -584,6 +630,7 @@ class BackupImportService(
             measurements = current.measurements + measurementsToAdd,
             pets = current.pets + petsToAdd,
             petMeasurements = current.petMeasurements + petMeasurementsToAdd,
+            reminderSchedules = current.reminderSchedules + schedulesToAdd,
         )
         val importedSettings = document.settings.toSettings()
         return BackupImportPreview(
@@ -594,6 +641,9 @@ class BackupImportService(
                 petsToAdd.size, incoming.pets.size - petsToAdd.size, 0,
                 petMeasurementsToAdd.size,
                 incoming.petMeasurements.size - petMeasurementsToAdd.size,
+                0,
+                schedulesToAdd.size,
+                incoming.reminderSchedules.size - schedulesToAdd.size,
                 0,
             ),
             result,
@@ -648,8 +698,17 @@ private fun BackupDocumentV1.toSnapshot(
         PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg,
             it.petWeightKg, it.origin, it.isManuallyEdited)
     },
+    reminderSchedules = reminderSchedules.map {
+        WeighingReminderScheduleEntity(
+            it.id, it.ownerType, it.ownerId, it.minuteOfDay, it.weekdaysMask, it.importance,
+            it.enabled, it.createdAtEpochMillis, it.updatedAtEpochMillis,
+        )
+    },
     )
 }
+
+private fun WeighingReminderScheduleEntity.semanticKey(): String =
+    "$ownerType:$ownerId:$minuteOfDay:$weekdaysMask:$importance"
 
 private fun normalizeImportedBreedId(
     species: PetSpecies,
