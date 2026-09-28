@@ -4,6 +4,9 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.os.PowerManager
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -45,18 +48,27 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 orientation = android.widget.LinearLayout.VERTICAL
                 gravity = android.view.Gravity.CENTER
                 setPadding(padding, padding, padding, padding)
+                setBackgroundColor(Color.rgb(250, 250, 250))
             }
             layout.addView(android.widget.TextView(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_alarm_screen_title, owner)
                 textSize = 28f; gravity = android.view.Gravity.CENTER
+                setTextColor(Color.rgb(24, 24, 24))
+                setPadding(0, padding, 0, padding)
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_stop)
                 setOnClickListener { perform(application, id, token, false) }
+                minHeight = (56 * resources.displayMetrics.density).toInt()
+                setTextColor(Color.WHITE)
+                background = alarmButtonBackground(Color.rgb(183, 28, 28))
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
                 setOnClickListener { perform(application, id, token, true) }
+                minHeight = (56 * resources.displayMetrics.density).toInt()
+                setTextColor(Color.WHITE)
+                background = alarmButtonBackground(Color.rgb(21, 101, 192))
             })
             setContentView(layout)
             return
@@ -73,11 +85,32 @@ class WeighingReminderOpenActivity : ComponentActivity() {
     private fun perform(app: ScaleSyncApplication, id: String, token: String, snooze: Boolean) {
         if (!actionStarted.compareAndSet(false, true)) return
         app.container.applicationScope.launch {
+            var navigationTarget: WeighingReminderNavigationTarget? = null
             try {
-                if (snooze) app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
-                else app.container.weighingReminders.onStop(WeighingReminderId(id), token)
-            } finally { runOnUiThread(::finish) }
+                if (snooze) {
+                    app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
+                } else {
+                    navigationTarget = app.container.weighingReminders.onStop(WeighingReminderId(id), token)
+                }
+            } finally {
+                runOnUiThread {
+                    navigationTarget?.let(::openOwner)
+                    finish()
+                }
+            }
         }
+    }
+
+    private fun openOwner(target: WeighingReminderNavigationTarget) {
+        startActivity(target.putInto(Intent(this, com.palixander.scalesync.MainActivity::class.java)).apply {
+            action = WeighingReminderNavigationTarget.ACTION_OPEN_PROFILE
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        })
+    }
+
+    private fun alarmButtonBackground(color: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = 12 * resources.displayMetrics.density
     }
 
     private fun stopAlarmOrFinish() {
@@ -140,11 +173,18 @@ private fun BroadcastReceiver.async(
 ) {
     val application = context.applicationContext as? ScaleSyncApplication ?: return
     val pendingResult = goAsync()
+    val wakeLock = context.getSystemService(PowerManager::class.java).newWakeLock(
+        PowerManager.PARTIAL_WAKE_LOCK,
+        "ScaleSync:weighing-reminder-receiver",
+    ).apply { acquire(RECEIVER_WAKE_LOCK_TIMEOUT_MILLIS) }
     application.container.applicationScope.launch {
         try {
             application.container.weighingReminders.block()
         } finally {
+            if (wakeLock.isHeld) wakeLock.release()
             pendingResult.finish()
         }
     }
 }
+
+internal const val RECEIVER_WAKE_LOCK_TIMEOUT_MILLIS = 60_000L

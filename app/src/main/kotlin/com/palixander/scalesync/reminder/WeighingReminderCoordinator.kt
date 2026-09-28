@@ -172,17 +172,17 @@ class WeighingReminderCoordinator(
         }
     }
 
-    suspend fun onStop(id: WeighingReminderId, token: String) {
+    suspend fun onStop(id: WeighingReminderId, token: String): WeighingReminderNavigationTarget? {
         val snapshot = repository.snapshot(id) ?: run {
             WeighingAlarmSoundService.stop(context, id.value, token)
             cancelNotificationCopies(id)
-            return
+            return null
         }
-        if (!repository.consumeAction(id, token)) return
+        if (!repository.consumeAction(id, token)) return null
         WeighingAlarmSoundService.stop(context, id.value, token)
         cancelNotificationCopies(id)
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        launch(WeighingReminderNavigationTarget(snapshot.schedule.owner))
+        return WeighingReminderNavigationTarget(snapshot.schedule.owner)
     }
 
     private fun publish(
@@ -203,6 +203,13 @@ class WeighingReminderCoordinator(
             .setAutoCancel(presentation.autoCancel)
             .setOngoing(presentation.ongoing)
             .setContentIntent(openIntent)
+            .setPriority(
+                if (importance == WeighingReminderImportance.ALARM) {
+                    NotificationCompat.PRIORITY_MAX
+                } else {
+                    NotificationCompat.PRIORITY_HIGH
+                },
+            )
             .addAction(
                 0,
                 context.getString(R.string.weighing_reminder_snooze),
@@ -210,7 +217,6 @@ class WeighingReminderCoordinator(
             )
             .apply {
                 if (importance == WeighingReminderImportance.ALARM) {
-                    setPriority(NotificationCompat.PRIORITY_MAX)
                     setFullScreenIntent(openIntent, true)
                 }
             }
@@ -283,6 +289,7 @@ class WeighingReminderCoordinator(
             putExtra(EXTRA_ALARM, alarm)
             putExtra(EXTRA_OWNER_NAME, ownerName)
             WeighingReminderNavigationTarget(owner).putInto(this)
+            if (!alarm) flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )

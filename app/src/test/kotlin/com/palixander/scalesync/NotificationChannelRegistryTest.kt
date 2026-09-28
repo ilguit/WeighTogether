@@ -22,12 +22,25 @@ class NotificationChannelRegistryTest {
                 "scale_scanning",
                 "pending_measurement_routing",
                 "successful_measurement_saves",
-                "weighing_reminders",
+                "weighing_reminders_v2",
                 "weighing_alarms_v3",
                 "weighing_alarm_fallback_v1",
             ),
             NotificationChannelRegistry.all.map { it.id },
         )
+    }
+
+    @Test
+    fun `regular reminder channel is audible high importance and vibrates`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val manager = context.getSystemService(NotificationManager::class.java)
+
+        NotificationChannelRegistry.register(context, manager, NotificationChannelRegistry.weighingReminders)
+
+        val channel = manager.getNotificationChannel(NotificationChannelRegistry.weighingReminders.id)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
+        assertEquals(AudioAttributes.USAGE_NOTIFICATION, channel.audioAttributes?.usage)
+        assertEquals(true, channel.shouldVibrate())
     }
 
     @Test
@@ -89,7 +102,7 @@ class NotificationChannelRegistryTest {
             NotificationChannelRegistry.successfulMeasurementSaves.descriptionRes,
         )
 
-        assertEquals(NotificationManager.IMPORTANCE_DEFAULT, NotificationChannelRegistry.weighingReminders.importance)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, NotificationChannelRegistry.weighingReminders.importance)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, NotificationChannelRegistry.weighingAlarms.importance)
         assertEquals(false, NotificationChannelRegistry.weighingAlarms.alarmSound)
         assertEquals(true, NotificationChannelRegistry.weighingAlarms.silent)

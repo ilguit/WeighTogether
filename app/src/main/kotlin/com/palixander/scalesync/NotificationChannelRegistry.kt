@@ -13,6 +13,7 @@ data class AppNotificationChannel(
     val importance: Int,
     @param:StringRes val descriptionRes: Int? = null,
     val alarmSound: Boolean = false,
+    val notificationSound: Boolean = false,
     val silent: Boolean = false,
 )
 
@@ -34,9 +35,12 @@ object NotificationChannelRegistry {
         descriptionRes = R.string.notification_channel_saved_measurements_description,
     )
     val weighingReminders = AppNotificationChannel(
-        id = "weighing_reminders",
+        // Importance and sound are immutable after first creation. Version the channel so
+        // installs that already created the old DEFAULT channel receive heads-up reminders.
+        id = "weighing_reminders_v2",
         nameRes = R.string.notification_channel_weighing_reminders,
-        importance = NotificationManager.IMPORTANCE_DEFAULT,
+        importance = NotificationManager.IMPORTANCE_HIGH,
+        notificationSound = true,
     )
     val weighingAlarms = AppNotificationChannel(
         // Channel properties are immutable after creation; use a versioned id for the alarm semantics.
@@ -87,6 +91,15 @@ object NotificationChannelRegistry {
                             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build(),
                     )
+                } else if (channel.notificationSound) {
+                    setSound(
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION),
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_NOTIFICATION)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                    enableVibration(true)
                 } else if (channel.silent) {
                     setSound(null, null)
                 }

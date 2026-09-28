@@ -29,4 +29,9 @@ class WeighingReminderNotificationPresentationTest {
         assertFalse(presentation.ongoing)
         assertTrue(presentation.autoCancel)
     }
+
+    @Test
+    fun `receiver wake lock is bounded`() {
+        assertEquals(60_000L, RECEIVER_WAKE_LOCK_TIMEOUT_MILLIS)
+    }
 }

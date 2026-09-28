@@ -64,6 +64,7 @@
 
         <activity
             android:name=".MainActivity"
+            android:launchMode="singleTop"
             android:theme="@style/Theme.ScaleSync.Starting"
             android:exported="true">
             <intent-filter>
@@ -81,7 +82,7 @@
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
-            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+            android:theme="@style/Theme.ScaleSync.Alarm" />
 
         <service
             android:name=".reminder.WeighingAlarmSoundService"
