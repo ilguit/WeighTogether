@@ -38,7 +38,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             return
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_PERFORM_WEIGH, false)) {
-            perform(application, id, token, false)
+            perform(application, id, token, AlarmActivityAction.WEIGH)
             return
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
@@ -54,7 +54,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 )
             }
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() = stopAlarmOrFinish()
+                override fun handleOnBackPressed() = dismissAlarmOrFinish()
             })
             val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
             val padding = (24 * resources.displayMetrics.density).toInt()
@@ -72,7 +72,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_weigh)
-                setOnClickListener { perform(application, id, token, false) }
+                setOnClickListener { perform(application, id, token, AlarmActivityAction.WEIGH) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(183, 28, 28))
@@ -80,7 +80,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
-                setOnClickListener { perform(application, id, token, true) }
+                setOnClickListener { perform(application, id, token, AlarmActivityAction.SNOOZE) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(21, 101, 192))
@@ -98,15 +98,18 @@ class WeighingReminderOpenActivity : ComponentActivity() {
         }
     }
 
-    private fun perform(app: ScaleSyncApplication, id: String, token: String, snooze: Boolean) {
+    private fun perform(app: ScaleSyncApplication, id: String, token: String, action: AlarmActivityAction) {
         if (!actionStarted.compareAndSet(false, true)) return
         app.container.applicationScope.launch {
             var navigationTarget: WeighingReminderNavigationTarget? = null
             try {
-                if (snooze) {
-                    app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
-                } else {
-                    navigationTarget = app.container.weighingReminders.onStop(WeighingReminderId(id), token)
+                when (action) {
+                    AlarmActivityAction.SNOOZE ->
+                        app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
+                    AlarmActivityAction.DISMISS ->
+                        app.container.weighingReminders.onDismiss(WeighingReminderId(id), token)
+                    AlarmActivityAction.WEIGH ->
+                        navigationTarget = app.container.weighingReminders.onStop(WeighingReminderId(id), token)
                 }
             } finally {
                 runOnUiThread {
@@ -136,17 +139,19 @@ class WeighingReminderOpenActivity : ComponentActivity() {
         this.topMargin = (topMargin * resources.displayMetrics.density).toInt()
     }
 
-    private fun stopAlarmOrFinish() {
+    private fun dismissAlarmOrFinish() {
         val application = applicationContext as? ScaleSyncApplication
         val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
         val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
         if (application == null || id.isNullOrBlank() || token.isNullOrBlank()) {
             finish()
         } else {
-            perform(application, id, token, false)
+            perform(application, id, token, AlarmActivityAction.DISMISS)
         }
     }
 }
+
+internal enum class AlarmActivityAction { WEIGH, SNOOZE, DISMISS }
 
 class WeighingReminderFireReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
@@ -169,7 +174,7 @@ class WeighingReminderActionReceiver : BroadcastReceiver() {
             ?: return
         when (intent.action) {
             WeighingReminderCoordinator.ACTION_SNOOZE -> async(context) { onSnooze(WeighingReminderId(id), token) }
-            WeighingReminderCoordinator.ACTION_STOP -> async(context) { onStop(WeighingReminderId(id), token) }
+            WeighingReminderCoordinator.ACTION_STOP -> async(context) { onDismiss(WeighingReminderId(id), token) }
         }
     }
 }

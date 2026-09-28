@@ -164,9 +164,7 @@ class WeighingReminderCoordinator(
         val snapshot = repository.snapshot(id) ?: return@withLock
         val due = clock.millis() + 10.minutes.inWholeMilliseconds
         val snoozeToken = repository.snooze(id, token, due) ?: return@withLock
-        WeighingAlarmSoundService.stop(context, id.value, token)
-        cancelNotificationCopies(id)
-        alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+        stopOccurrenceUnlocked(id, token)
         if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
             repository.invalidateRuntime(id)
         }
@@ -186,9 +184,7 @@ class WeighingReminderCoordinator(
     private suspend fun onContentOpenedUnlocked(id: WeighingReminderId, token: String): Boolean {
         val snapshot = repository.snapshot(id)
         if (snapshot != null && !repository.consumeAction(id, token)) return false
-        WeighingAlarmSoundService.stop(context, id.value, token)
-        cancelNotificationCopies(id)
-        alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+        stopOccurrenceUnlocked(id, token)
         return true
     }
 
@@ -228,15 +224,25 @@ class WeighingReminderCoordinator(
 
     suspend fun onStop(id: WeighingReminderId, token: String): WeighingReminderNavigationTarget? = runtimeMutex.withLock {
         val snapshot = repository.snapshot(id) ?: run {
-            WeighingAlarmSoundService.stop(context, id.value, token)
-            cancelNotificationCopies(id)
+            stopOccurrenceUnlocked(id, token)
             return null
         }
         if (!repository.consumeAction(id, token)) return null
+        stopOccurrenceUnlocked(id, token)
+        return WeighingReminderNavigationTarget(snapshot.schedule.owner)
+    }
+
+    /** Dismisses the exact alarm occurrence without opening its owner. */
+    suspend fun onDismiss(id: WeighingReminderId, token: String): Unit = runtimeMutex.withLock {
+        val snapshot = repository.snapshot(id)
+        if (snapshot != null && !repository.consumeAction(id, token)) return@withLock
+        stopOccurrenceUnlocked(id, token)
+    }
+
+    private fun stopOccurrenceUnlocked(id: WeighingReminderId, token: String) {
         WeighingAlarmSoundService.stop(context, id.value, token)
         cancelNotificationCopies(id)
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        return WeighingReminderNavigationTarget(snapshot.schedule.owner)
     }
 
     private fun publish(

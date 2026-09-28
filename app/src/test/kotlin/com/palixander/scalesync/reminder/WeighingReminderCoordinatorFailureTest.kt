@@ -93,6 +93,30 @@ class WeighingReminderCoordinatorFailureTest {
     }
 
     @Test
+    fun `system back dismissal consumes alarm without an owner navigation result`() = runBlocking {
+        val (id, active) = createClaimable(WeighingReminderImportance.ALARM)
+        coordinator.onFire(id, ReminderCallbackKind.REGULAR, active)
+
+        val result: Unit = coordinator.onDismiss(id, active)
+
+        assertEquals(Unit, result)
+        assertNull(notification(id))
+        assertFalse(repository.consumeAction(id, active))
+    }
+
+    @Test
+    fun `explicit weigh consumes alarm and returns its exact owner`() = runBlocking {
+        val (id, active) = createClaimable(WeighingReminderImportance.ALARM)
+        coordinator.onFire(id, ReminderCallbackKind.REGULAR, active)
+
+        val target = coordinator.onStop(id, active)
+
+        assertEquals(WeighingReminderOwner.Account(AccountId("account")), target?.owner)
+        assertNull(notification(id))
+        assertFalse(repository.consumeAction(id, active))
+    }
+
+    @Test
     fun `ongoing alarm is dismissible by its content action after next scheduling fails`() = runBlocking {
         val (id, active) = createClaimable(WeighingReminderImportance.ALARM)
 

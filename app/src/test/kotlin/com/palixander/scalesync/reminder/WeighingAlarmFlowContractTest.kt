@@ -20,6 +20,14 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35], application = Application::class)
 class WeighingAlarmFlowContractTest {
     @Test
+    fun `alarm screen keeps weigh snooze and system back as distinct actions`() {
+        assertEquals(
+            setOf(AlarmActivityAction.WEIGH, AlarmActivityAction.SNOOZE, AlarmActivityAction.DISMISS),
+            AlarmActivityAction.entries.toSet(),
+        )
+    }
+
+    @Test
     fun `foreground alarm playback uses alarm audio attributes`() {
         assertEquals(AudioAttributes.USAGE_ALARM, WEIGHING_ALARM_AUDIO_USAGE)
         assertEquals(AudioAttributes.CONTENT_TYPE_SONIFICATION, WEIGHING_ALARM_AUDIO_CONTENT_TYPE)
