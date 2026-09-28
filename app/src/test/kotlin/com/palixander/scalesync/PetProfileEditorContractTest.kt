@@ -25,6 +25,26 @@ import org.junit.Test
 
 class PetProfileEditorContractTest {
     @Test
+    fun `restore persisted action replaces dirty draft and pending confirmation`() {
+        val persisted = PetProfileEditorState(
+            PetProfileDraft.create().copy(displayName = "Луна", species = PetSpecies.CAT),
+        )
+        val dirty = PetProfileEditorState(
+            draft = persisted.draft.copy(displayName = "Другое имя", species = PetSpecies.DOG),
+            pendingSpeciesChange = PendingPetSpeciesChange(
+                requestedSpecies = PetSpecies.CAT,
+                clearBreed = true,
+                clearDogAdultWeightCategory = false,
+            ),
+        )
+
+        assertEquals(
+            persisted,
+            PetProfileReducer.reduce(dirty, PetProfileAction.RestorePersisted(persisted)),
+        )
+    }
+
+    @Test
     fun `photo action is persisted by create validation`() {
         val photo = "profile-photos/pets/new/profile.webp"
         val initial = PetProfileEditorState(

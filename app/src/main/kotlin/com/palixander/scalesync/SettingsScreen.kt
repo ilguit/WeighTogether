@@ -115,6 +115,7 @@ internal data class SettingsCallbacks(
     val onEditPet: (Pet) -> Unit = {},
     val onPetProfileAction: (PetProfileAction) -> Unit = {},
     val onSavePet: () -> Unit = {},
+    val onSavePetAndContinue: () -> Unit = {},
     val onRequestDeletePet: (PetId) -> Unit = {},
     val onConfirmDeletePet: () -> Unit = {},
     val onDismissPetManagement: () -> Unit = {},

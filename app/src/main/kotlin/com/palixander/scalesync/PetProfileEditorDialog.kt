@@ -146,6 +146,7 @@ internal fun PetProfileEditorDialog(
     breedCatalog: PetBreedCatalog = remember { PetBreedCatalog() },
     onAction: (PetProfileAction) -> Unit,
     onSave: () -> Unit,
+    onSaveAndContinue: () -> Unit = onSave,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
@@ -165,8 +166,9 @@ internal fun PetProfileEditorDialog(
     var openAfterSave by rememberSaveable { mutableStateOf(false) }
     val locked = busy || submitted
     val draft = state.draft
-    val initialDraft = remember(draft.mode) { draft }
-    val dirty = draft != initialDraft
+    val initialState = remember(draft.mode) { state }
+    var persistedState by remember(draft.mode) { mutableStateOf(initialState) }
+    val dirty = draft != persistedState.draft
     val contentScrollState = rememberScrollState()
     val nameFocus = remember { FocusRequester() }
     val titleFocus = remember { FocusRequester() }
@@ -195,7 +197,7 @@ internal fun PetProfileEditorDialog(
         )
     }
     fun deleteTransientPhoto(path: String?) {
-        if (path != null && path != initialDraft.photoPath) {
+        if (path != null && path != persistedState.draft.photoPath) {
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
@@ -226,7 +228,10 @@ internal fun PetProfileEditorDialog(
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
         if (openAfterSave && !busy) {
-            if (!fieldErrors.hasErrors && repositoryError == null) remindersOpen = true
+            if (!fieldErrors.hasErrors && repositoryError == null) {
+                persistedState = state
+                remindersOpen = true
+            }
             openAfterSave = false
         }
     }
@@ -636,8 +641,8 @@ internal fun PetProfileEditorDialog(
         onDismissRequest = { reminderGuardOpen = false },
         title = { Text(stringResource(R.string.reminder_unsaved_title)) },
         text = { Text(stringResource(R.string.reminder_unsaved_text)) },
-        confirmButton = { TextButton(onClick = { reminderGuardOpen = false; openAfterSave = true; submitted = true; onSave() }) { Text(stringResource(R.string.reminder_save_continue)) } },
-        dismissButton = { Column { TextButton(onClick = { reminderGuardOpen = false; onDismiss() }) { Text(stringResource(R.string.reminder_discard_continue)) }; TextButton(onClick = { reminderGuardOpen = false }) { Text(stringResource(R.string.reminder_keep_editing)) } } },
+        confirmButton = { TextButton(onClick = { reminderGuardOpen = false; openAfterSave = true; submitted = true; onSaveAndContinue() }) { Text(stringResource(R.string.reminder_save_continue)) } },
+        dismissButton = { Column { TextButton(onClick = { reminderGuardOpen = false; deleteTransientPhoto(draft.photoPath); onAction(PetProfileAction.RestorePersisted(persistedState)); remindersOpen = true }) { Text(stringResource(R.string.reminder_discard_continue)) }; TextButton(onClick = { reminderGuardOpen = false }) { Text(stringResource(R.string.reminder_keep_editing)) } } },
     )
 }
 

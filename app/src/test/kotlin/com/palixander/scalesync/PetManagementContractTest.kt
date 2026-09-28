@@ -187,6 +187,32 @@ class PetManagementContractTest {
     }
 
     @Test
+    fun successfulSaveForReminderNavigationKeepsPersistedEditorOpen() {
+        val draft = PetProfileDraft.edit(pet("luna", "Луна", PetSpecies.CAT), breedCatalog)
+        val opened = PetManagementUiState(
+            editor = PetProfileEditorState(draft),
+            editorSessionId = 10L,
+        )
+        val ready = PetManagementController.prepareSave(
+            opened,
+            today,
+            emptyList(),
+            keepEditorOpen = true,
+        ) as PetProfileSavePreparation.Ready
+
+        val saved = PetManagementController.finishSave(
+            state = ready.state,
+            request = ready.request,
+            result = PetProfilePersistenceResult.Success,
+        )
+
+        assertEquals(draft, saved.editor?.draft)
+        assertEquals(10L, saved.editorSessionId)
+        assertFalse(saved.busy)
+        assertNull(saved.error)
+    }
+
+    @Test
     fun staleSaveCompletionCannotCloseOrCorruptANewerEditorSession() {
         val oldState = PetManagementUiState(
             editor = PetProfileEditorState(

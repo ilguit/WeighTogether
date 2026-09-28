@@ -1290,11 +1290,12 @@ class MainViewModel @JvmOverloads constructor(
         petManagement.value = PetManagementController.onAction(petManagement.value, action)
     }
 
-    fun savePetManagement() {
+    fun savePetManagement(keepEditorOpen: Boolean = false) {
         val preparation = PetManagementController.prepareSave(
             state = petManagement.value,
             today = currentDate(),
             existingPets = pets.value.pets.map { it.pet },
+            keepEditorOpen = keepEditorOpen,
         )
         petManagement.value = preparation.state
         val request = (preparation as? PetProfileSavePreparation.Ready)?.request ?: return

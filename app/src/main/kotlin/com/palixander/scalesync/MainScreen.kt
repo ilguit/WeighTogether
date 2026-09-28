@@ -441,7 +441,8 @@ fun ScaleSyncApp(
             onCreatePet = viewModel::showCreatePetManagement,
             onEditPet = viewModel::showEditPetManagement,
             onPetProfileAction = viewModel::onPetProfileAction,
-            onSavePet = viewModel::savePetManagement,
+            onSavePet = { viewModel.savePetManagement() },
+            onSavePetAndContinue = { viewModel.savePetManagement(keepEditorOpen = true) },
             onRequestDeletePet = viewModel::requestDeletePet,
             onConfirmDeletePet = viewModel::confirmDeletePet,
             onDismissPetManagement = viewModel::dismissPetManagement,
@@ -862,6 +863,7 @@ internal fun ScaleSyncScaffold(
                     busy = state.petManagement.busy,
                     onAction = settingsCallbacks.onPetProfileAction,
                     onSave = settingsCallbacks.onSavePet,
+                    onSaveAndContinue = settingsCallbacks.onSavePetAndContinue,
                     onDismiss = settingsCallbacks.onDismissPetManagement,
                 )
             }
