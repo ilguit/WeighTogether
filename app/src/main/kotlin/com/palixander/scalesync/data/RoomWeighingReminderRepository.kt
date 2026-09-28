@@ -20,6 +20,7 @@ data class WeighingReminderDraft(
     val weekdays: Set<DayOfWeek>,
     val importance: WeighingReminderImportance,
     val enabled: Boolean = true,
+    val alarmSoundUri: String? = null,
 ) {
     init {
         require(weekdays.isNotEmpty())
@@ -334,5 +335,6 @@ private fun WeighingReminderDraft.toEntity(
         enabled = enabled,
         createdAtEpochMillis = createdAtEpochMillis,
         updatedAtEpochMillis = updatedAtEpochMillis,
+        alarmSoundUri = alarmSoundUri.takeIf { importance == WeighingReminderImportance.ALARM },
     )
 }

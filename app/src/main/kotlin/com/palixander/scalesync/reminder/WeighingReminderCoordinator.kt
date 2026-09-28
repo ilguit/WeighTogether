@@ -110,14 +110,14 @@ class WeighingReminderCoordinator(
             return
         }
         val name = repository.ownerDisplayName(snapshot.schedule.owner) ?: return
-        publish(snapshot.schedule.importance, id, token, snapshot.schedule.owner, name)
+        publish(snapshot.schedule, token, name)
     }
 
     suspend fun onSnooze(id: WeighingReminderId, token: String) {
         val snapshot = repository.snapshot(id) ?: return
-        if (!capabilityGateway.read().canPublish(snapshot.schedule.importance)) return
         val due = clock.millis() + 10.minutes.inWholeMilliseconds
         val snoozeToken = repository.snooze(id, token, due) ?: return
+        WeighingAlarmSoundService.stop(context)
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
         if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
@@ -127,10 +127,12 @@ class WeighingReminderCoordinator(
 
     suspend fun onContentTap(id: WeighingReminderId, token: String) {
         val snapshot = repository.snapshot(id) ?: run {
+            WeighingAlarmSoundService.stop(context)
             notifications.cancel(notificationId(id))
             return launchFallback()
         }
         if (!repository.consumeAction(id, token)) return
+        WeighingAlarmSoundService.stop(context)
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
         launch(WeighingReminderNavigationTarget(snapshot.schedule.owner))
@@ -146,34 +148,58 @@ class WeighingReminderCoordinator(
         }
     }
 
+    suspend fun onStop(id: WeighingReminderId, token: String) {
+        val snapshot = repository.snapshot(id) ?: run {
+            WeighingAlarmSoundService.stop(context)
+            notifications.cancel(notificationId(id))
+            return
+        }
+        if (!repository.consumeAction(id, token)) return
+        WeighingAlarmSoundService.stop(context)
+        notifications.cancel(notificationId(id))
+        alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+        launch(WeighingReminderNavigationTarget(snapshot.schedule.owner))
+    }
+
     private fun publish(
-        importance: WeighingReminderImportance,
-        id: WeighingReminderId,
+        schedule: com.palixander.scalesync.domain.WeighingReminderSchedule,
         token: String,
-        owner: WeighingReminderOwner,
         name: String,
     ) {
+        val importance = schedule.importance
+        val id = schedule.id
+        val owner = schedule.owner
         val presentation = weighingReminderNotificationPresentation(importance)
         val channel = if (importance == WeighingReminderImportance.ALARM) {
             NotificationChannelRegistry.weighingAlarms.id
         } else {
             NotificationChannelRegistry.weighingReminders.id
         }
-        val notification = NotificationCompat.Builder(context, channel)
+        val openIntent = contentIntent(id, token, owner, importance == WeighingReminderImportance.ALARM, name)
+        val builder = NotificationCompat.Builder(context, channel)
             .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
             .setContentTitle(context.getString(presentation.titleRes, name))
             .setContentText(context.getString(presentation.textRes))
             .setCategory(presentation.category)
             .setAutoCancel(presentation.autoCancel)
             .setOngoing(presentation.ongoing)
-            .setContentIntent(contentIntent(id, token, owner))
+            .setContentIntent(openIntent)
             .addAction(
                 0,
                 context.getString(R.string.weighing_reminder_snooze),
                 actionIntent(ACTION_SNOOZE, id, token, owner),
             )
-            .build()
-        notifications.notify(notificationId(id), notification)
+        if (importance == WeighingReminderImportance.ALARM) {
+            builder.setFullScreenIntent(openIntent, true).addAction(
+                0,
+                context.getString(R.string.weighing_reminder_stop),
+                actionIntent(ACTION_STOP, id, token, owner),
+            )
+        }
+        notifications.notify(notificationId(id), builder.build())
+        if (importance == WeighingReminderImportance.ALARM) {
+            runCatching { WeighingAlarmSoundService.start(context, token, schedule.alarmSoundUri) }
+        }
     }
 
     private fun actionIntent(
@@ -198,6 +224,8 @@ class WeighingReminderCoordinator(
         id: WeighingReminderId,
         token: String,
         owner: WeighingReminderOwner,
+        alarm: Boolean,
+        ownerName: String,
     ): PendingIntent = PendingIntent.getActivity(
         context,
         0,
@@ -206,6 +234,8 @@ class WeighingReminderCoordinator(
             data = Uri.parse("scalesync://weighing-reminder-action/${Uri.encode(id.value)}/open")
             putExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID, id.value)
             putExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN, token)
+            putExtra(EXTRA_ALARM, alarm)
+            putExtra(EXTRA_OWNER_NAME, ownerName)
             WeighingReminderNavigationTarget(owner).putInto(this)
         },
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
@@ -228,8 +258,11 @@ class WeighingReminderCoordinator(
 
     companion object {
         const val ACTION_SNOOZE = "com.palixander.scalesync.action.SNOOZE_WEIGHING_REMINDER"
+        const val ACTION_STOP = "com.palixander.scalesync.action.STOP_WEIGHING_REMINDER"
         const val ACTION_OPEN = "com.palixander.scalesync.action.OPEN_WEIGHING_REMINDER"
         const val EXTRA_OWNER_UNAVAILABLE = "weighing_reminder_owner_unavailable"
+        const val EXTRA_ALARM = "weighing_reminder_alarm"
+        const val EXTRA_OWNER_NAME = "weighing_reminder_owner_name"
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }

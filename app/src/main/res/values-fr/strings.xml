@@ -553,4 +553,7 @@
     <string name="reminder_alarm_sound_system_default">Alarme système par défaut</string>
     <string name="reminder_timing_degraded">Les rappels normaux peuvent être retardés, car les alarmes exactes sont indisponibles.</string>
     <string name="reminder_scheduling_failed">Impossible de planifier un rappel. Vérifiez les réglages système des alarmes et réessayez.</string>
+    <string name="weighing_alarm_notification_title_generic">Alarme de pesée</string>
+    <string name="weighing_alarm_screen_title">Il est temps de peser : %1$s</string>
+    <string name="weighing_reminder_stop">Arrêter</string>
 </resources>

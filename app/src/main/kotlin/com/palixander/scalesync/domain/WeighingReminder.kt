@@ -34,6 +34,7 @@ data class WeighingReminderSchedule(
     val weekdays: Set<DayOfWeek>,
     val importance: WeighingReminderImportance,
     val enabled: Boolean,
+    val alarmSoundUri: String? = null,
 ) {
     init {
         require(weekdays.isNotEmpty())

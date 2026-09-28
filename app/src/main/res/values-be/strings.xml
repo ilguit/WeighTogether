@@ -371,4 +371,7 @@
     <string name="reminder_alarm_sound_system_default">Сістэмная мелодыя будзільніка</string>
     <string name="reminder_timing_degraded">Звычайныя напаміны могуць спазняцца, бо дакладныя будзільнікі недаступныя.</string>
     <string name="reminder_scheduling_failed">Не ўдалося запланаваць напамін. Праверце сістэмныя налады будзільнікаў і паўтарыце спробу.</string>
+    <string name="weighing_alarm_notification_title_generic">Будзільнік узважвання</string>
+    <string name="weighing_alarm_screen_title">Час узважыць: %1$s</string>
+    <string name="weighing_reminder_stop">Выключыць</string>
 </resources>

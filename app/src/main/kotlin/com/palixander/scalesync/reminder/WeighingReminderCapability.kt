@@ -19,6 +19,7 @@ data class WeighingReminderCapability(
     val regularChannelAllowed: Boolean,
     val alarmChannelAllowed: Boolean,
     val exactAlarmsAllowed: Boolean,
+    val fullScreenAllowed: Boolean = true,
 ) {
     fun canPublish(importance: WeighingReminderImportance): Boolean =
         issuesFor(setOf(importance)).isEmpty()
@@ -45,6 +46,7 @@ enum class WeighingReminderCapabilityIssue {
     REGULAR_CHANNEL,
     ALARM_CHANNEL,
     EXACT_ALARM,
+    FULL_SCREEN,
 }
 
 class WeighingReminderCapabilityGateway(private val context: Context) {
@@ -62,6 +64,7 @@ class WeighingReminderCapabilityGateway(private val context: Context) {
             regularChannelAllowed = channelAllowed(NotificationChannelRegistry.weighingReminders.id),
             alarmChannelAllowed = channelAllowed(NotificationChannelRegistry.weighingAlarms.id),
             exactAlarmsAllowed = Build.VERSION.SDK_INT < 31 || alarmManager.canScheduleExactAlarms(),
+            fullScreenAllowed = Build.VERSION.SDK_INT < 34 || notifications.canUseFullScreenIntent(),
         )
     }
 
@@ -69,6 +72,9 @@ class WeighingReminderCapabilityGateway(private val context: Context) {
         when (issue) {
             WeighingReminderCapabilityIssue.EXACT_ALARM -> if (Build.VERSION.SDK_INT >= 31) {
                 add(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, "package:${context.packageName}".toUri()))
+            }
+            WeighingReminderCapabilityIssue.FULL_SCREEN -> if (Build.VERSION.SDK_INT >= 34) {
+                add(Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, "package:${context.packageName}".toUri()))
             }
             WeighingReminderCapabilityIssue.REGULAR_CHANNEL,
             WeighingReminderCapabilityIssue.ALARM_CHANNEL,

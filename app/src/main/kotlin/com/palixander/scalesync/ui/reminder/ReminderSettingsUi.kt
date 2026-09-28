@@ -1,10 +1,14 @@
 package com.palixander.scalesync.ui.reminder
 
 import android.app.TimePickerDialog
-import android.app.NotificationManager
+import android.app.Activity
 import android.content.Context
+import android.content.Intent
 import android.media.RingtoneManager
+import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -171,7 +175,6 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
                 ReminderListState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally).testTag(ReminderSettingsTestTags.Loading))
                 is ReminderListState.Error -> Text(stringResource(R.string.reminder_load_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(ReminderSettingsTestTags.Error).semantics { liveRegion = LiveRegionMode.Polite })
                 is ReminderListState.Ready -> {
-                    AlarmSoundRow(stateOwner)
                     val issues = stateOwner.capability().issuesFor(
                         current.schedules.filter { it.enabled }.mapTo(mutableSetOf()) { it.importance },
                     )
@@ -182,6 +185,9 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
                     ) {
                         TimingWarning(stateOwner, R.string.reminder_timing_degraded)
                     }
+                    if (current.schedules.any { it.enabled && it.importance == WeighingReminderImportance.ALARM } &&
+                        !capability.fullScreenAllowed
+                    ) CapabilityWarning(stateOwner, WeighingReminderCapabilityIssue.FULL_SCREEN)
                     if (stateOwner.hasSchedulingFailure(current.schedules.map { it.id })) {
                         TimingWarning(stateOwner, R.string.reminder_scheduling_failed)
                     }
@@ -196,23 +202,6 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
             }
         }
     }
-}
-
-@Composable
-private fun AlarmSoundRow(stateOwner: ReminderSettingsStateOwner) {
-    val context = LocalContext.current
-    val channel = context.getSystemService(NotificationManager::class.java)
-        .getNotificationChannel(com.palixander.scalesync.NotificationChannelRegistry.weighingAlarms.id)
-    val summary = channel?.sound?.let { uri ->
-        runCatching { RingtoneManager.getRingtone(context, uri)?.getTitle(context) }.getOrNull()
-    } ?: stringResource(R.string.reminder_alarm_sound_system_default)
-    ListItem(
-        headlineContent = { Text(stringResource(R.string.reminder_alarm_sound)) },
-        supportingContent = { Text(summary) },
-        modifier = Modifier.fillMaxWidth().clickable {
-            stateOwner.alarmSoundIntents().firstOrNull { runCatching { context.startActivity(it); true }.getOrDefault(false) }
-        }.testTag(ReminderSettingsTestTags.AlarmSound),
-    )
 }
 
 @Composable
@@ -264,6 +253,14 @@ private fun ReminderEditor(owner: WeighingReminderOwner, existing: WeighingRemin
     var time by remember(existing) { mutableStateOf(existing?.time ?: LocalTime.of(9, 0)) }
     var weekdays by remember(existing) { mutableStateOf(existing?.weekdays ?: setOf(LocalDate.now().dayOfWeek)) }
     var importance by remember(existing) { mutableStateOf(existing?.importance ?: WeighingReminderImportance.REGULAR) }
+    var alarmSoundUri by remember(existing) { mutableStateOf(existing?.alarmSoundUri) }
+    val ringtonePicker = rememberLauncherForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
+        if (result.resultCode == Activity.RESULT_OK) {
+            @Suppress("DEPRECATION")
+            val picked = result.data?.getParcelableExtra<Uri>(RingtoneManager.EXTRA_RINGTONE_PICKED_URI)
+            alarmSoundUri = picked?.toString()
+        }
+    }
     var enabled by remember(existing) { mutableStateOf(existing?.enabled ?: true) }
     var error by remember { mutableStateOf<Int?>(null) }
     var deleteConfirmation by remember { mutableStateOf(false) }
@@ -280,12 +277,31 @@ private fun ReminderEditor(owner: WeighingReminderOwner, existing: WeighingRemin
                 FilterChip(importance == WeighingReminderImportance.REGULAR, { importance = WeighingReminderImportance.REGULAR }, { Text(stringResource(R.string.reminder_regular)) })
                 FilterChip(importance == WeighingReminderImportance.ALARM, { importance = WeighingReminderImportance.ALARM }, { Text(stringResource(R.string.reminder_alarm)) })
             }
+            if (importance == WeighingReminderImportance.ALARM) {
+                val soundTitle = alarmSoundUri?.let { value ->
+                    runCatching { RingtoneManager.getRingtone(context, Uri.parse(value))?.getTitle(context) }.getOrNull()
+                } ?: stringResource(R.string.reminder_alarm_sound_system_default)
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.reminder_alarm_sound)) },
+                    supportingContent = { Text(soundTitle) },
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        ringtonePicker.launch(Intent(RingtoneManager.ACTION_RINGTONE_PICKER).apply {
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_TYPE, RingtoneManager.TYPE_ALARM)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_SHOW_DEFAULT, true)
+                            putExtra(RingtoneManager.EXTRA_RINGTONE_EXISTING_URI, alarmSoundUri?.let(Uri::parse))
+                        })
+                    }.testTag(ReminderSettingsTestTags.AlarmSound),
+                )
+            }
             stateOwner.capability().issuesFor(setOf(importance)).firstOrNull()?.let { issue ->
                 CapabilityWarning(stateOwner, issue)
             }
+            if (importance == WeighingReminderImportance.ALARM && !stateOwner.capability().fullScreenAllowed) {
+                CapabilityWarning(stateOwner, WeighingReminderCapabilityIssue.FULL_SCREEN)
+            }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.reminder_enabled), Modifier.weight(1f)); Switch(enabled, { enabled = it }) }
             error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(if (it == R.string.reminder_duplicate) ReminderSettingsTestTags.Duplicate else ReminderSettingsTestTags.Error).semantics { liveRegion = LiveRegionMode.Assertive }) }
-            Button(onClick = { scope.launch { try { when (stateOwner.save(existing?.id, WeighingReminderDraft(owner, time, weekdays, importance, enabled))) { is SaveWeighingReminderResult.Saved -> onBack(); SaveWeighingReminderResult.Duplicate -> error = R.string.reminder_duplicate; else -> error = R.string.reminder_save_error } } catch (t: Throwable) { if (t is CancellationException) throw t; error = R.string.reminder_save_error } } }, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(ReminderSettingsTestTags.Save)) { Text(stringResource(R.string.action_save)) }
+            Button(onClick = { scope.launch { try { when (stateOwner.save(existing?.id, WeighingReminderDraft(owner, time, weekdays, importance, enabled, alarmSoundUri))) { is SaveWeighingReminderResult.Saved -> onBack(); SaveWeighingReminderResult.Duplicate -> error = R.string.reminder_duplicate; else -> error = R.string.reminder_save_error } } catch (t: Throwable) { if (t is CancellationException) throw t; error = R.string.reminder_save_error } } }, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(ReminderSettingsTestTags.Save)) { Text(stringResource(R.string.action_save)) }
             if (existing != null) OutlinedButton(onClick = { deleteConfirmation = true }, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag(ReminderSettingsTestTags.Delete)) { Text(stringResource(R.string.action_delete)) }
         }
     }

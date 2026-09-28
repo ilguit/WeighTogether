@@ -151,6 +151,21 @@ class RoomWeighingReminderRepositoryTest {
     }
 
     @Test
+    fun alarmSoundIsStoredOnlyForAlarmSchedules() = runBlocking {
+        insertAccount("account")
+        val owner = WeighingReminderOwner.Account(AccountId("account"))
+        val alarm = draft(owner).copy(
+            importance = WeighingReminderImportance.ALARM,
+            alarmSoundUri = "content://media/alarm/7",
+        )
+        repository.create(alarm)
+
+        assertEquals("content://media/alarm/7", repository.get(WeighingReminderId("schedule"))?.alarmSoundUri)
+        repository.update(WeighingReminderId("schedule"), alarm.copy(importance = WeighingReminderImportance.REGULAR))
+        assertNull(repository.get(WeighingReminderId("schedule"))?.alarmSoundUri)
+    }
+
+    @Test
     fun expiredSnoozeCannotSuppressNextRegularOccurrence() = runBlocking {
         insertAccount("account")
         val owner = WeighingReminderOwner.Account(AccountId("account"))

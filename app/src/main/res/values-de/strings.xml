@@ -553,4 +553,7 @@
     <string name="reminder_alarm_sound_system_default">Standard-Alarmton des Systems</string>
     <string name="reminder_timing_degraded">Normale Erinnerungen können verspätet eintreffen, da genaue Alarme nicht verfügbar sind.</string>
     <string name="reminder_scheduling_failed">Eine Erinnerung konnte nicht geplant werden. Systemeinstellungen für Alarme prüfen und erneut versuchen.</string>
+    <string name="weighing_alarm_notification_title_generic">Wiegealarm</string>
+    <string name="weighing_alarm_screen_title">Zeit zum Wiegen: %1$s</string>
+    <string name="weighing_reminder_stop">Beenden</string>
 </resources>

@@ -454,4 +454,7 @@
     <string name="reminder_alarm_sound_system_default">System default alarm</string>
     <string name="reminder_timing_degraded">Regular reminders may arrive late because exact alarms are unavailable.</string>
     <string name="reminder_scheduling_failed">A reminder could not be scheduled. Check system alarm settings and try again.</string>
+    <string name="weighing_alarm_notification_title_generic">Weighing alarm</string>
+    <string name="weighing_alarm_screen_title">Time to weigh %1$s</string>
+    <string name="weighing_reminder_stop">Stop</string>
 </resources>

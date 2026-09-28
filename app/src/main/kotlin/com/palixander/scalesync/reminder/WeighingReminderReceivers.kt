@@ -19,12 +19,46 @@ class WeighingReminderOpenActivity : Activity() {
             finish()
             return
         }
+        if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
+            setShowWhenLocked(true)
+            setTurnScreenOn(true)
+            val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
+            val padding = (24 * resources.displayMetrics.density).toInt()
+            val layout = android.widget.LinearLayout(this).apply {
+                orientation = android.widget.LinearLayout.VERTICAL
+                gravity = android.view.Gravity.CENTER
+                setPadding(padding, padding, padding, padding)
+            }
+            layout.addView(android.widget.TextView(this).apply {
+                text = getString(com.palixander.scalesync.R.string.weighing_alarm_screen_title, owner)
+                textSize = 28f; gravity = android.view.Gravity.CENTER
+            })
+            layout.addView(android.widget.Button(this).apply {
+                text = getString(com.palixander.scalesync.R.string.weighing_reminder_stop)
+                setOnClickListener { perform(application, id, token, false) }
+            })
+            layout.addView(android.widget.Button(this).apply {
+                text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
+                setOnClickListener { perform(application, id, token, true) }
+            })
+            setContentView(layout)
+            return
+        }
         application.container.applicationScope.launch {
             try {
                 application.container.weighingReminders.onContentTap(WeighingReminderId(id), token)
             } finally {
                 runOnUiThread(::finish)
             }
+        }
+    }
+
+    private fun perform(app: ScaleSyncApplication, id: String, token: String, snooze: Boolean) {
+        app.container.applicationScope.launch {
+            try {
+                if (snooze) app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
+                else app.container.weighingReminders.onStop(WeighingReminderId(id), token)
+            } finally { runOnUiThread(::finish) }
         }
     }
 }
@@ -50,6 +84,7 @@ class WeighingReminderActionReceiver : BroadcastReceiver() {
             ?: return
         when (intent.action) {
             WeighingReminderCoordinator.ACTION_SNOOZE -> async(context) { onSnooze(WeighingReminderId(id), token) }
+            WeighingReminderCoordinator.ACTION_STOP -> async(context) { onStop(WeighingReminderId(id), token) }
         }
     }
 }

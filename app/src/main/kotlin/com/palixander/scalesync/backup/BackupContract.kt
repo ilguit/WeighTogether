@@ -12,13 +12,14 @@ import com.palixander.scalesync.data.WeighingReminderOwnerType
 import com.palixander.scalesync.domain.WeighingReminderImportance
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 7
+const val BACKUP_SCHEMA_VERSION: Int = 8
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
 const val BACKUP_SCHEMA_VERSION_V4: Int = 4
 const val BACKUP_SCHEMA_VERSION_V5: Int = 5
 const val BACKUP_SCHEMA_VERSION_V6: Int = 6
+const val BACKUP_SCHEMA_VERSION_V7: Int = 7
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -49,6 +50,7 @@ data class BackupReminderScheduleV7(
     val enabled: Boolean,
     val createdAtEpochMillis: Long,
     val updatedAtEpochMillis: Long,
+    val alarmSoundUri: String? = null,
 )
 
 data class BackupPetV2(

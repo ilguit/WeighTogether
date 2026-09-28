@@ -106,17 +106,31 @@ class WeighingReminderCapabilityTest {
         assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intents[2].action)
     }
 
+    @Test
+    fun fullScreenAccessIsRequiredOnlyForAlarmAndOpensFocusedSettings() {
+        val capability = capability(fullScreenAllowed = false)
+        assertTrue(capability.canPublish(WeighingReminderImportance.REGULAR))
+        assertTrue(capability.canPublish(WeighingReminderImportance.ALARM))
+        assertEquals(
+            Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT,
+            WeighingReminderCapabilityGateway(RuntimeEnvironment.getApplication())
+                .settingsIntents(WeighingReminderCapabilityIssue.FULL_SCREEN).first().action,
+        )
+    }
+
     private fun capability(
         postNotificationsAllowed: Boolean = true,
         appNotificationsAllowed: Boolean = true,
         regularChannelAllowed: Boolean = true,
         alarmChannelAllowed: Boolean = true,
         exactAlarmsAllowed: Boolean = true,
+        fullScreenAllowed: Boolean = true,
     ) = WeighingReminderCapability(
         postNotificationsAllowed = postNotificationsAllowed,
         appNotificationsAllowed = appNotificationsAllowed,
         regularChannelAllowed = regularChannelAllowed,
         alarmChannelAllowed = alarmChannelAllowed,
         exactAlarmsAllowed = exactAlarmsAllowed,
+        fullScreenAllowed = fullScreenAllowed,
     )
 }

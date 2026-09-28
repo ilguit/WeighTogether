@@ -179,7 +179,7 @@ class BackupJsonCodecTest {
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
         val json = codec.encode(document())
-            .replace("\"schemaVersion\":7", "\"schemaVersion\":8")
+            .replace("\"schemaVersion\":8", "\"schemaVersion\":9")
             .replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }

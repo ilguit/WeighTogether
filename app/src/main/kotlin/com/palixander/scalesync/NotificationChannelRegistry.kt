@@ -39,10 +39,10 @@ object NotificationChannelRegistry {
     )
     val weighingAlarms = AppNotificationChannel(
         // Channel properties are immutable after creation; use a versioned id for the alarm semantics.
-        id = "weighing_alarms_v2",
+        id = "weighing_alarms_v3",
         nameRes = R.string.notification_channel_weighing_alarms,
         importance = NotificationManager.IMPORTANCE_HIGH,
-        alarmSound = true,
+        alarmSound = false,
     )
 
     val all: List<AppNotificationChannel> = listOf(
