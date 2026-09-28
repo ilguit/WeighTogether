@@ -3,8 +3,6 @@ package com.palixander.scalesync
 import android.app.NotificationManager
 import android.app.Application
 import android.content.Context
-import android.media.AudioAttributes
-import android.media.RingtoneManager
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -24,22 +22,22 @@ class NotificationChannelRegistryTest {
                 "pending_measurement_routing",
                 "successful_measurement_saves",
                 "weighing_reminders",
-                "weighing_alarms_v2",
+                "weighing_alarms_v3",
             ),
             NotificationChannelRegistry.all.map { it.id },
         )
     }
 
     @Test
-    fun `alarm channel uses default alarm ringtone and alarm audio usage`() {
+    fun `alarm channel stays silent because foreground service owns playback`() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val manager = context.getSystemService(NotificationManager::class.java)
 
         NotificationChannelRegistry.register(context, manager, NotificationChannelRegistry.weighingAlarms)
 
         val channel = manager.getNotificationChannel(NotificationChannelRegistry.weighingAlarms.id)
-        assertEquals(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM), channel.sound)
-        assertEquals(AudioAttributes.USAGE_ALARM, channel.audioAttributes.usage)
+        assertNull(channel.sound)
+        assertNull(channel.audioAttributes)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
     }
 
@@ -77,6 +75,7 @@ class NotificationChannelRegistryTest {
 
         assertEquals(NotificationManager.IMPORTANCE_DEFAULT, NotificationChannelRegistry.weighingReminders.importance)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, NotificationChannelRegistry.weighingAlarms.importance)
-        assertEquals(true, NotificationChannelRegistry.weighingAlarms.alarmSound)
+        assertEquals(false, NotificationChannelRegistry.weighingAlarms.alarmSound)
+        assertEquals(true, NotificationChannelRegistry.weighingAlarms.silent)
     }
 }

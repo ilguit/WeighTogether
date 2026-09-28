@@ -40,7 +40,10 @@ class WeighingAlarmSoundService : Service() {
             val requested = intent.getStringExtra(EXTRA_SOUND)?.let(Uri::parse)
             ringtone = (requested?.let { runCatching { RingtoneManager.getRingtone(this, it) }.getOrNull() }
                 ?: RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))).apply {
-                audioAttributes = AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build()
+                audioAttributes = AudioAttributes.Builder()
+                    .setUsage(WEIGHING_ALARM_AUDIO_USAGE)
+                    .setContentType(WEIGHING_ALARM_AUDIO_CONTENT_TYPE)
+                    .build()
                 isLooping = true; play()
             }
         }
@@ -82,6 +85,9 @@ class WeighingAlarmSoundService : Service() {
         }
     }
 }
+
+internal const val WEIGHING_ALARM_AUDIO_USAGE = AudioAttributes.USAGE_ALARM
+internal const val WEIGHING_ALARM_AUDIO_CONTENT_TYPE = AudioAttributes.CONTENT_TYPE_SONIFICATION
 
 internal fun shouldStopWeighingAlarm(
     activeScheduleId: String?,

@@ -13,6 +13,7 @@ data class AppNotificationChannel(
     val importance: Int,
     @param:StringRes val descriptionRes: Int? = null,
     val alarmSound: Boolean = false,
+    val silent: Boolean = false,
 )
 
 object NotificationChannelRegistry {
@@ -42,7 +43,7 @@ object NotificationChannelRegistry {
         id = "weighing_alarms_v3",
         nameRes = R.string.notification_channel_weighing_alarms,
         importance = NotificationManager.IMPORTANCE_HIGH,
-        alarmSound = false,
+        silent = true,
     )
 
     val all: List<AppNotificationChannel> = listOf(
@@ -78,6 +79,8 @@ object NotificationChannelRegistry {
                             .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
                             .build(),
                     )
+                } else if (channel.silent) {
+                    setSound(null, null)
                 }
             },
         )
