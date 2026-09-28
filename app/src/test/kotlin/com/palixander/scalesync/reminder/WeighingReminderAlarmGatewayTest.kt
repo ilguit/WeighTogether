@@ -8,6 +8,7 @@ import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.domain.WeighingReminderImportance
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -91,5 +92,30 @@ class WeighingReminderAlarmGatewayTest {
 
         assertEquals(setOf(id), gateway.cancelUnknown(emptySet()))
         assertTrue(shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.isEmpty())
+    }
+
+    @Test
+    fun `successful snooze scheduling does not hide regular scheduling failure`() {
+        val id = WeighingReminderId("partially-failed")
+        context.getSharedPreferences("weighing_reminder_alarm_registry", Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet("failures", setOf("${id.value}|${ReminderCallbackKind.REGULAR.name}"))
+            .commit()
+
+        gateway.schedule(id, ReminderCallbackKind.SNOOZE, "snooze", 2_000, WeighingReminderImportance.REGULAR)
+
+        assertTrue(gateway.hasSchedulingFailure(id))
+    }
+
+    @Test
+    fun `cancel unknown clears orphan scheduling failures`() {
+        val id = WeighingReminderId("deleted-failure")
+        context.getSharedPreferences("weighing_reminder_alarm_registry", Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet("failures", setOf("${id.value}|${ReminderCallbackKind.REGULAR.name}"))
+            .commit()
+
+        assertEquals(setOf(id), gateway.cancelUnknown(emptySet()))
+        assertFalse(gateway.hasAnySchedulingFailure())
     }
 }

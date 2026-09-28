@@ -46,21 +46,22 @@ class WeighingReminderAlarmGateway(private val context: Context) {
             ReminderScheduleResult.INEXACT
         }
         remember(identity(id, kind))
-        clearFailure(id)
+        clearFailure(id, kind)
         result
     }.getOrElse {
-        rememberFailure(id)
+        rememberFailure(id, kind)
         ReminderScheduleResult.FAILED
     }
 
-    fun hasSchedulingFailure(id: WeighingReminderId): Boolean = id.value in failedIds()
+    fun hasSchedulingFailure(id: WeighingReminderId): Boolean =
+        failedIdentities().any { it.substringBefore('|') == id.value }
 
-    fun hasAnySchedulingFailure(): Boolean = failedIds().isNotEmpty()
+    fun hasAnySchedulingFailure(): Boolean = failedIdentities().isNotEmpty()
 
     fun cancel(id: WeighingReminderId, kind: ReminderCallbackKind) {
         pendingIntent(id, kind, "", PendingIntent.FLAG_NO_CREATE)?.let(alarms::cancel)
         forget(identity(id, kind))
-        if (kind == ReminderCallbackKind.REGULAR) clearFailure(id)
+        clearFailure(id, kind)
     }
 
     fun cancelUnknown(validScheduleIds: Set<String>): Set<WeighingReminderId> {
@@ -70,6 +71,11 @@ class WeighingReminderAlarmGateway(private val context: Context) {
             val scheduleId = WeighingReminderId(id)
             removed += scheduleId
             cancel(scheduleId, ReminderCallbackKind.valueOf(kind))
+        }
+        failedIdentities().filter { it.substringBefore('|') !in validScheduleIds }.forEach { encoded ->
+            val id = WeighingReminderId(encoded.substringBefore('|'))
+            removed += id
+            forgetFailure(encoded)
         }
         return removed
     }
@@ -102,12 +108,22 @@ class WeighingReminderAlarmGateway(private val context: Context) {
 
     private fun knownIdentities(): Set<String> = registry.getStringSet(KEY_IDENTITIES, emptySet()).orEmpty().toSet()
     private fun identity(id: WeighingReminderId, kind: ReminderCallbackKind) = "${id.value}|${kind.name}"
-    private fun failedIds(): Set<String> = registry.getStringSet(KEY_FAILURES, emptySet()).orEmpty().toSet()
-    private fun rememberFailure(id: WeighingReminderId) {
-        registry.edit().putStringSet(KEY_FAILURES, failedIds() + id.value).commit()
+    private fun failedIdentities(): Set<String> = registry.getStringSet(KEY_FAILURES, emptySet()).orEmpty().toSet()
+    private fun rememberFailure(id: WeighingReminderId, kind: ReminderCallbackKind) {
+        // Retained for migration from the first failure-registry format, which stored only an id.
+        val migratedFailures = failedIdentities().mapTo(mutableSetOf()) {
+            if ('|' in it) it else "$it|${ReminderCallbackKind.REGULAR.name}"
+        }
+        registry.edit().putStringSet(KEY_FAILURES, migratedFailures + identity(id, kind)).commit()
     }
-    private fun clearFailure(id: WeighingReminderId) {
-        registry.edit().putStringSet(KEY_FAILURES, failedIds() - id.value).commit()
+    private fun clearFailure(id: WeighingReminderId, kind: ReminderCallbackKind) {
+        registry.edit().putStringSet(
+            KEY_FAILURES,
+            failedIdentities() - id.value - identity(id, kind),
+        ).commit()
+    }
+    private fun forgetFailure(value: String) {
+        registry.edit().putStringSet(KEY_FAILURES, failedIdentities() - value).commit()
     }
 
     companion object {
