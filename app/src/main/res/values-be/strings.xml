@@ -365,4 +365,10 @@
     <string name="weighing_reminder_notification_title">Час узважыцца — %1$s</string>
     <string name="weighing_reminder_notification_text">Адкрыйце профіль, каб запісаць вымярэнне</string>
     <string name="weighing_reminder_snooze">Адкласці на 10 хвілін</string>
+    <string name="weighing_alarm_notification_title">Будзільнік узважвання — %1$s</string>
+    <string name="weighing_alarm_notification_text">Будзільнік: націсніце, каб адкрыць профіль, або адкладзіце на 10 хвілін</string>
+    <string name="reminder_alarm_sound">Мелодыя будзільніка</string>
+    <string name="reminder_alarm_sound_system_default">Сістэмная мелодыя будзільніка</string>
+    <string name="reminder_timing_degraded">Звычайныя напаміны могуць спазняцца, бо дакладныя будзільнікі недаступныя.</string>
+    <string name="reminder_scheduling_failed">Не ўдалося запланаваць напамін. Праверце сістэмныя налады будзільнікаў і паўтарыце спробу.</string>
 </resources>

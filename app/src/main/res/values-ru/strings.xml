@@ -365,4 +365,10 @@
     <string name="weighing_reminder_notification_title">Пора взвеситься — %1$s</string>
     <string name="weighing_reminder_notification_text">Откройте профиль, чтобы записать измерение</string>
     <string name="weighing_reminder_snooze">Отложить на 10 минут</string>
+    <string name="weighing_alarm_notification_title">Будильник взвешивания — %1$s</string>
+    <string name="weighing_alarm_notification_text">Будильник: нажмите, чтобы открыть профиль, или отложите на 10 минут</string>
+    <string name="reminder_alarm_sound">Мелодия будильника</string>
+    <string name="reminder_alarm_sound_system_default">Системная мелодия будильника</string>
+    <string name="reminder_timing_degraded">Обычные напоминания могут опаздывать: точные будильники недоступны.</string>
+    <string name="reminder_scheduling_failed">Не удалось запланировать напоминание. Проверьте системные настройки будильников и повторите попытку.</string>
 </resources>

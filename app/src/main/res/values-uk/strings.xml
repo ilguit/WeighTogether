@@ -113,4 +113,10 @@
     <string name="weighing_reminder_notification_title">Час зважитися — %1$s</string>
     <string name="weighing_reminder_notification_text">Відкрийте профіль, щоб записати вимірювання</string>
     <string name="weighing_reminder_snooze">Відкласти на 10 хвилин</string>
+    <string name="weighing_alarm_notification_title">Будильник зважування — %1$s</string>
+    <string name="weighing_alarm_notification_text">Будильник: торкніться, щоб відкрити профіль, або відкладіть на 10 хвилин</string>
+    <string name="reminder_alarm_sound">Мелодія будильника</string>
+    <string name="reminder_alarm_sound_system_default">Системна мелодія будильника</string>
+    <string name="reminder_timing_degraded">Звичайні нагадування можуть запізнюватися, бо точні будильники недоступні.</string>
+    <string name="reminder_scheduling_failed">Не вдалося запланувати нагадування. Перевірте системні налаштування будильників і повторіть спробу.</string>
 </resources>

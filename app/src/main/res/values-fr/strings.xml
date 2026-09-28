@@ -547,4 +547,10 @@
     <string name="weighing_reminder_notification_title">C’est l’heure de la pesée — %1$s</string>
     <string name="weighing_reminder_notification_text">Ouvrez le profil pour enregistrer une mesure</string>
     <string name="weighing_reminder_snooze">Reporter de 10 minutes</string>
+    <string name="weighing_alarm_notification_title">Alarme de pesée — %1$s</string>
+    <string name="weighing_alarm_notification_text">Alarme : touchez pour ouvrir le profil ou reportez de 10 minutes</string>
+    <string name="reminder_alarm_sound">Son de l’alarme</string>
+    <string name="reminder_alarm_sound_system_default">Alarme système par défaut</string>
+    <string name="reminder_timing_degraded">Les rappels normaux peuvent être retardés, car les alarmes exactes sont indisponibles.</string>
+    <string name="reminder_scheduling_failed">Impossible de planifier un rappel. Vérifiez les réglages système des alarmes et réessayez.</string>
 </resources>

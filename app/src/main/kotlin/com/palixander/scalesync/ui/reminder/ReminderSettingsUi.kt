@@ -1,7 +1,9 @@
 package com.palixander.scalesync.ui.reminder
 
 import android.app.TimePickerDialog
+import android.app.NotificationManager
 import android.content.Context
+import android.media.RingtoneManager
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -44,6 +46,7 @@ object ReminderSettingsTestTags {
     const val Empty = "reminder-settings-empty"
     const val Error = "reminder-settings-error"
     const val Unavailable = "reminder-settings-unavailable"
+    const val AlarmSound = "reminder-settings-alarm-sound"
     const val Add = "reminder-settings-add"
     const val Editor = "reminder-settings-editor"
     const val Time = "reminder-settings-time"
@@ -67,10 +70,13 @@ class ReminderSettingsStateOwner(
     private val repository: RoomWeighingReminderRepository,
     private val coordinator: WeighingReminderCoordinator,
     private val capabilities: WeighingReminderCapabilityGateway,
+    private val alarmGateway: com.palixander.scalesync.reminder.WeighingReminderAlarmGateway,
 ) {
     val schedules = repository.observe(owner)
     fun capability(): WeighingReminderCapability = capabilities.read()
     fun settingsIntents(issue: WeighingReminderCapabilityIssue) = capabilities.settingsIntents(issue)
+    fun alarmSoundIntents() = capabilities.alarmSoundSettingsIntents()
+    fun hasSchedulingFailure() = alarmGateway.hasAnySchedulingFailure()
     suspend fun save(id: WeighingReminderId?, draft: WeighingReminderDraft): SaveWeighingReminderResult {
         val result = if (id == null) repository.create(draft) else repository.update(id, draft)
         if (result is SaveWeighingReminderResult.Saved) coordinator.reconcile()
@@ -94,6 +100,7 @@ fun rememberReminderSettingsStateOwner(owner: WeighingReminderOwner): ReminderSe
         ReminderSettingsStateOwner(
             owner, app.container.weighingReminderRepository,
             app.container.weighingReminders, app.container.weighingReminderCapabilities,
+            app.container.weighingReminderAlarmGateway,
         )
     }
 }
@@ -163,10 +170,20 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
                 ReminderListState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally).testTag(ReminderSettingsTestTags.Loading))
                 is ReminderListState.Error -> Text(stringResource(R.string.reminder_load_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(ReminderSettingsTestTags.Error).semantics { liveRegion = LiveRegionMode.Polite })
                 is ReminderListState.Ready -> {
+                    AlarmSoundRow(stateOwner)
                     val issues = stateOwner.capability().issuesFor(
                         current.schedules.filter { it.enabled }.mapTo(mutableSetOf()) { it.importance },
                     )
                     if (issues.isNotEmpty()) CapabilityWarning(stateOwner, issues.first())
+                    val capability = stateOwner.capability()
+                    if (current.schedules.any { it.enabled && it.importance == WeighingReminderImportance.REGULAR } &&
+                        !capability.exactAlarmsAllowed
+                    ) {
+                        TimingWarning(stateOwner, R.string.reminder_timing_degraded)
+                    }
+                    if (stateOwner.hasSchedulingFailure()) {
+                        TimingWarning(stateOwner, R.string.reminder_scheduling_failed)
+                    }
                     if (current.schedules.isEmpty()) {
                         Text(stringResource(R.string.reminder_empty), Modifier.testTag(ReminderSettingsTestTags.Empty))
                     } else current.schedules.forEach { schedule ->
@@ -176,6 +193,36 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun AlarmSoundRow(stateOwner: ReminderSettingsStateOwner) {
+    val context = LocalContext.current
+    val channel = context.getSystemService(NotificationManager::class.java)
+        .getNotificationChannel(com.palixander.scalesync.NotificationChannelRegistry.weighingAlarms.id)
+    val summary = channel?.sound?.let { uri ->
+        runCatching { RingtoneManager.getRingtone(context, uri)?.getTitle(context) }.getOrNull()
+    } ?: stringResource(R.string.reminder_alarm_sound_system_default)
+    ListItem(
+        headlineContent = { Text(stringResource(R.string.reminder_alarm_sound)) },
+        supportingContent = { Text(summary) },
+        modifier = Modifier.fillMaxWidth().clickable {
+            stateOwner.alarmSoundIntents().firstOrNull { runCatching { context.startActivity(it); true }.getOrDefault(false) }
+        }.testTag(ReminderSettingsTestTags.AlarmSound),
+    )
+}
+
+@Composable
+private fun TimingWarning(stateOwner: ReminderSettingsStateOwner, text: Int) {
+    val context = LocalContext.current
+    Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(12.dp)) {
+            Text(stringResource(text))
+            TextButton(onClick = {
+                openFirstSettings(context, stateOwner, WeighingReminderCapabilityIssue.EXACT_ALARM)
+            }) { Text(stringResource(R.string.reminder_open_settings)) }
         }
     }
 }

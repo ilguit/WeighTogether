@@ -101,4 +101,10 @@
     <string name="weighing_reminder_notification_title">計量の時間です — %1$s</string>
     <string name="weighing_reminder_notification_text">プロフィールを開いて測定値を記録してください</string>
     <string name="weighing_reminder_snooze">10分後に再通知</string>
+    <string name="weighing_alarm_notification_title">計量アラーム — %1$s</string>
+    <string name="weighing_alarm_notification_text">アラーム：タップしてプロフィールを開くか、10分後に再通知します</string>
+    <string name="reminder_alarm_sound">アラーム音</string>
+    <string name="reminder_alarm_sound_system_default">システムの標準アラーム</string>
+    <string name="reminder_timing_degraded">正確なアラームを利用できないため、通常のリマインダーが遅れる場合があります。</string>
+    <string name="reminder_scheduling_failed">リマインダーを設定できませんでした。システムのアラーム設定を確認して再試行してください。</string>
 </resources>

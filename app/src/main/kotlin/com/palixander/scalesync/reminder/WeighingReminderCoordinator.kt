@@ -64,13 +64,14 @@ class WeighingReminderCoordinator(
             if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
                 snoozeDue != null && snoozeToken != null && snoozeDue > clock.millis()
             ) {
-                alarmGateway.schedule(
+                val result = alarmGateway.schedule(
                     id,
                     ReminderCallbackKind.SNOOZE,
                     snoozeToken,
                     snoozeDue,
                     snapshot.schedule.importance,
                 )
+                if (result == ReminderScheduleResult.FAILED) repository.invalidateRuntime(id)
             } else {
                 alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
                 if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
@@ -112,7 +113,7 @@ class WeighingReminderCoordinator(
         val snoozeToken = repository.snooze(id, token, due) ?: return
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        if (!alarmGateway.schedule(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance)) {
+        if (alarmGateway.schedule(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
             repository.invalidateRuntime(id)
         }
     }
@@ -133,7 +134,9 @@ class WeighingReminderCoordinator(
         val due = nextReminderInstant(schedule, clock).toEpochMilli()
         val token = repository.prepareRegularOccurrence(id, due) ?: return
         alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
-        alarmGateway.schedule(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance)
+        if (alarmGateway.schedule(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
+            repository.invalidateRuntime(id)
+        }
     }
 
     private fun publish(
@@ -150,9 +153,9 @@ class WeighingReminderCoordinator(
         }
         val notification = NotificationCompat.Builder(context, channel)
             .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
-            .setContentTitle(context.getString(R.string.weighing_reminder_notification_title, name))
-            .setContentText(context.getString(R.string.weighing_reminder_notification_text))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
+            .setContentTitle(context.getString(if (importance == WeighingReminderImportance.ALARM) R.string.weighing_alarm_notification_title else R.string.weighing_reminder_notification_title, name))
+            .setContentText(context.getString(if (importance == WeighingReminderImportance.ALARM) R.string.weighing_alarm_notification_text else R.string.weighing_reminder_notification_text))
+            .setCategory(if (importance == WeighingReminderImportance.ALARM) NotificationCompat.CATEGORY_ALARM else NotificationCompat.CATEGORY_REMINDER)
             .setAutoCancel(importance == WeighingReminderImportance.REGULAR)
             .setOngoing(importance == WeighingReminderImportance.ALARM)
             .setContentIntent(contentIntent(id, token, owner))

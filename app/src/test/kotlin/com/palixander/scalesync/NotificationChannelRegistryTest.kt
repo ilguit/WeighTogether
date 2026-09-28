@@ -14,7 +14,7 @@ class NotificationChannelRegistryTest {
                 "pending_measurement_routing",
                 "successful_measurement_saves",
                 "weighing_reminders",
-                "weighing_alarms",
+                "weighing_alarms_v2",
             ),
             NotificationChannelRegistry.all.map { it.id },
         )
@@ -54,5 +54,6 @@ class NotificationChannelRegistryTest {
 
         assertEquals(NotificationManager.IMPORTANCE_DEFAULT, NotificationChannelRegistry.weighingReminders.importance)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, NotificationChannelRegistry.weighingAlarms.importance)
+        assertEquals(true, NotificationChannelRegistry.weighingAlarms.alarmSound)
     }
 }

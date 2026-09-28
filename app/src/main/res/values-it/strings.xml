@@ -547,4 +547,10 @@
     <string name="weighing_reminder_notification_title">È ora di pesarsi — %1$s</string>
     <string name="weighing_reminder_notification_text">Apri il profilo per registrare una misurazione</string>
     <string name="weighing_reminder_snooze">Rimanda di 10 minuti</string>
+    <string name="weighing_alarm_notification_title">Sveglia pesatura — %1$s</string>
+    <string name="weighing_alarm_notification_text">Sveglia: tocca per aprire il profilo o rimanda di 10 minuti</string>
+    <string name="reminder_alarm_sound">Suono della sveglia</string>
+    <string name="reminder_alarm_sound_system_default">Sveglia predefinita di sistema</string>
+    <string name="reminder_timing_degraded">I promemoria normali potrebbero arrivare in ritardo perché le sveglie esatte non sono disponibili.</string>
+    <string name="reminder_scheduling_failed">Impossibile pianificare un promemoria. Controlla le impostazioni di sistema delle sveglie e riprova.</string>
 </resources>

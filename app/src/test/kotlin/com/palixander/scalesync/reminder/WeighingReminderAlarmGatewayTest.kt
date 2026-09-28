@@ -9,6 +9,7 @@ import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.domain.WeighingReminderImportance
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -43,7 +44,7 @@ class WeighingReminderAlarmGatewayTest {
     }
 
     @Test
-    fun `regular and snooze have distinct identities and alarm is exact`() {
+    fun `alarm uses alarm clock info with show intent`() {
         val id = WeighingReminderId("schedule")
         gateway.schedule(id, ReminderCallbackKind.REGULAR, "regular", 1_000, WeighingReminderImportance.ALARM)
         gateway.schedule(id, ReminderCallbackKind.SNOOZE, "snooze", 2_000, WeighingReminderImportance.ALARM)
@@ -51,7 +52,36 @@ class WeighingReminderAlarmGatewayTest {
         val alarms = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms
         assertEquals(2, alarms.size)
         assertTrue(alarms.all { it.windowLengthMs == ShadowAlarmManager.WINDOW_EXACT })
-        assertTrue(alarms.all { it.allowWhileIdle })
+        assertTrue(alarms.all { it.type == AlarmManager.RTC_WAKEUP })
+        assertTrue(alarms.all { it.showIntent != null })
+    }
+
+    @Test
+    fun `regular reminder uses exact idle alarm when permitted`() {
+        val result = gateway.schedule(
+            WeighingReminderId("exact"), ReminderCallbackKind.REGULAR, "token", 1_000,
+            WeighingReminderImportance.REGULAR,
+        )
+
+        assertEquals(ReminderScheduleResult.EXACT, result)
+        val alarm = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.single()
+        assertEquals(ShadowAlarmManager.WINDOW_EXACT, alarm.windowLengthMs)
+        assertTrue(alarm.allowWhileIdle)
+    }
+
+    @Test
+    fun `regular reminder falls back to inexact idle alarm without exact capability`() {
+        ShadowAlarmManager.setCanScheduleExactAlarms(false)
+
+        val result = gateway.schedule(
+            WeighingReminderId("inexact"), ReminderCallbackKind.REGULAR, "token", 1_000,
+            WeighingReminderImportance.REGULAR,
+        )
+
+        assertEquals(ReminderScheduleResult.INEXACT, result)
+        val alarm = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.single()
+        assertTrue(alarm.windowLengthMs != ShadowAlarmManager.WINDOW_EXACT)
+        assertTrue(alarm.allowWhileIdle)
     }
 
     @Test

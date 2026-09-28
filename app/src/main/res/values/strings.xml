@@ -448,4 +448,10 @@
     <string name="reminder_save_continue">Save and continue</string>
     <string name="reminder_discard_continue">Discard changes</string>
     <string name="reminder_keep_editing">Keep editing</string>
+    <string name="weighing_alarm_notification_title">Weighing alarm — %1$s</string>
+    <string name="weighing_alarm_notification_text">Alarm: tap to open the profile or snooze for 10 minutes</string>
+    <string name="reminder_alarm_sound">Alarm sound</string>
+    <string name="reminder_alarm_sound_system_default">System default alarm</string>
+    <string name="reminder_timing_degraded">Regular reminders may arrive late because exact alarms are unavailable.</string>
+    <string name="reminder_scheduling_failed">A reminder could not be scheduled. Check system alarm settings and try again.</string>
 </resources>

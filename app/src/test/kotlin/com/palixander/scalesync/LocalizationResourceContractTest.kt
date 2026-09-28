@@ -151,6 +151,7 @@ class LocalizationResourceContractTest {
         fun isReminderResource(key: String): Boolean =
             key.startsWith("reminder_") ||
                 key.startsWith("weighing_reminder_") ||
+                key.startsWith("weighing_alarm_") ||
                 key.startsWith("notification_channel_weighing_")
         // “Alarm” is the idiomatic German UI term as well as the English source text.
         val IDENTICAL_TRANSLATION_EXCEPTIONS = setOf("de" to "reminder_alarm")

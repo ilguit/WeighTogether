@@ -61,10 +61,11 @@ class AppContainer(application: Application) {
     val database: AppDatabase = AppDatabase.build(application)
     val weighingReminderRepository = RoomWeighingReminderRepository(database)
     val weighingReminderCapabilities = WeighingReminderCapabilityGateway(application)
+    val weighingReminderAlarmGateway = WeighingReminderAlarmGateway(application)
     val weighingReminders = WeighingReminderCoordinator(
         context = application,
         repository = weighingReminderRepository,
-        alarmGateway = WeighingReminderAlarmGateway(application),
+        alarmGateway = weighingReminderAlarmGateway,
         capabilityGateway = weighingReminderCapabilities,
     )
     internal val externalSyncOperations = ExternalSyncOperationSerializer()

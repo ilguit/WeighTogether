@@ -445,4 +445,10 @@
     <string name="weighing_reminder_notification_title">该称重了 — %1$s</string>
     <string name="weighing_reminder_notification_text">打开个人资料以记录测量值</string>
     <string name="weighing_reminder_snooze">10 分钟后提醒</string>
+    <string name="weighing_alarm_notification_title">称重闹钟 — %1$s</string>
+    <string name="weighing_alarm_notification_text">闹钟：点按以打开个人资料，或延后 10 分钟</string>
+    <string name="reminder_alarm_sound">闹钟铃声</string>
+    <string name="reminder_alarm_sound_system_default">系统默认闹钟</string>
+    <string name="reminder_timing_degraded">由于无法使用精确闹钟，普通提醒可能会延迟。</string>
+    <string name="reminder_scheduling_failed">无法安排提醒。请检查系统闹钟设置，然后重试。</string>
 </resources>
