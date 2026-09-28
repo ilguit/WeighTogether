@@ -85,4 +85,31 @@ class ReminderProfileNavigationTest {
         assertEquals(humanKey, resolveReminderProfileNavigation(ReminderProfileNavigationRequest(1, humanKey), profiles).profileKey)
         assertEquals(petKey, resolveReminderProfileNavigation(ReminderProfileNavigationRequest(2, petKey), profiles).profileKey)
     }
+
+    @Test
+    fun reminderRouteWinsOverRestoredPetAndMeasurementAccountInSameFrame() {
+        val reminderHuman = ProfileKey.Human(AccountId("reminder-human"))
+        val restoredPet = ProfileKey.Pet(PetId("last-pet"))
+
+        val result = reminderWinningProfileKey(
+            reminderNavigation = ReminderProfileNavigationRequest(3, reminderHuman),
+            navigation = com.palixander.scalesync.ui.profiles.ProfileNavigationState().select(restoredPet),
+            selectedMeasurementAccountId = AccountId("last-human"),
+        )
+
+        assertEquals(reminderHuman, result)
+    }
+
+    @Test
+    fun restoredSelectionIsUsedAfterReminderRouteIsConsumed() {
+        val restoredPet = ProfileKey.Pet(PetId("last-pet"))
+
+        val result = reminderWinningProfileKey(
+            reminderNavigation = null,
+            navigation = com.palixander.scalesync.ui.profiles.ProfileNavigationState().select(restoredPet),
+            selectedMeasurementAccountId = AccountId("last-human"),
+        )
+
+        assertEquals(restoredPet, result)
+    }
 }

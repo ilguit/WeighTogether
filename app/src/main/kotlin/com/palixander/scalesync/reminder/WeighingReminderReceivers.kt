@@ -27,6 +27,10 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             finish()
             return
         }
+        if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_PERFORM_WEIGH, false)) {
+            perform(application, id, token, false)
+            return
+        }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
             setFinishOnTouchOutside(false)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
@@ -57,7 +61,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 setPadding(0, padding, 0, padding)
             })
             layout.addView(android.widget.Button(this).apply {
-                text = getString(com.palixander.scalesync.R.string.weighing_reminder_stop)
+                text = getString(com.palixander.scalesync.R.string.weighing_reminder_weigh)
                 setOnClickListener { perform(application, id, token, false) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)

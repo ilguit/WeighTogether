@@ -131,6 +131,7 @@ object AccountManagementTestTags {
     const val EditorDiscardPrompt = "account-editor-discard-prompt"
     const val EditorDiscardConfirm = "account-editor-discard-confirm"
     const val ReminderGuard = "account-editor-reminder-guard"
+    const val EditorReminder = "account-editor-reminder"
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
@@ -779,14 +780,6 @@ fun AccountEditorScreen(
                     modifier = Modifier.fillMaxWidth().focusRequester(nameFocus)
                         .testTag(AccountManagementTestTags.EditorName),
                 )
-                draft.editingAccountId?.let { accountId ->
-                    ReminderSettingsEntry(
-                        owner = WeighingReminderOwner.Account(accountId),
-                        onClick = {
-                            if (draft == initialDraft) remindersOpen = true else reminderGuardOpen = true
-                        },
-                    )
-                }
                 Text(stringResource(R.string.account_sex), style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier
@@ -857,6 +850,16 @@ fun AccountEditorScreen(
                                 contentDescription = saveErrorDescription
                             },
                     )
+                }
+                draft.editingAccountId?.let { accountId ->
+                    Box(Modifier.testTag(AccountManagementTestTags.EditorReminder)) {
+                        ReminderSettingsEntry(
+                            owner = WeighingReminderOwner.Account(accountId),
+                            onClick = {
+                                if (draft == initialDraft) remindersOpen = true else reminderGuardOpen = true
+                            },
+                        )
+                    }
                 }
             }
         }

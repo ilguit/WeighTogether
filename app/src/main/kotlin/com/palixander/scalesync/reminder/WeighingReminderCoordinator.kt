@@ -277,8 +277,8 @@ class WeighingReminderCoordinator(
             .apply {
                 if (importance == WeighingReminderImportance.ALARM) addAction(
                     0,
-                    context.getString(R.string.weighing_reminder_stop),
-                    actionIntent(ACTION_STOP, id, token, owner),
+                    context.getString(R.string.weighing_reminder_weigh),
+                    weighIntent(id, token, owner, name),
                 )
             }
             .build()
@@ -326,6 +326,26 @@ class WeighingReminderCoordinator(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    private fun weighIntent(
+        id: WeighingReminderId,
+        token: String,
+        owner: WeighingReminderOwner,
+        ownerName: String,
+    ): PendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, WeighingReminderOpenActivity::class.java).apply {
+            action = ACTION_WEIGH
+            data = Uri.parse("scalesync://weighing-reminder-action/${Uri.encode(id.value)}/weigh")
+            putExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID, id.value)
+            putExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN, token)
+            putExtra(EXTRA_OWNER_NAME, ownerName)
+            putExtra(EXTRA_PERFORM_WEIGH, true)
+            WeighingReminderNavigationTarget(owner).putInto(this)
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     private fun contentIntent(
         id: WeighingReminderId,
         token: String,
@@ -367,10 +387,12 @@ class WeighingReminderCoordinator(
         private val runtimeMutex = Mutex()
         const val ACTION_SNOOZE = "com.palixander.scalesync.action.SNOOZE_WEIGHING_REMINDER"
         const val ACTION_STOP = "com.palixander.scalesync.action.STOP_WEIGHING_REMINDER"
+        const val ACTION_WEIGH = "com.palixander.scalesync.action.WEIGH_FROM_WEIGHING_REMINDER"
         const val ACTION_OPEN = "com.palixander.scalesync.action.OPEN_WEIGHING_REMINDER"
         const val EXTRA_OWNER_UNAVAILABLE = "weighing_reminder_owner_unavailable"
         const val EXTRA_ALARM = "weighing_reminder_alarm"
         const val EXTRA_OWNER_NAME = "weighing_reminder_owner_name"
+        const val EXTRA_PERFORM_WEIGH = "weighing_reminder_perform_weigh"
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }

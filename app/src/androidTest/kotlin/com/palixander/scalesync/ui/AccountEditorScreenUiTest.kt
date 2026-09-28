@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.width
 import com.palixander.scalesync.core.Sex
+import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.ui.accounts.AccountEditorDraft
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.AccountManagementTestTags
@@ -154,6 +155,34 @@ class AccountEditorScreenUiTest {
         composeRule.onNodeWithTag(AccountManagementTestTags.EditorSexGroup)
             .assertContentDescriptionEquals("Пол")
             .assert(SemanticsMatcher.keyIsDefined(SemanticsProperties.SelectableGroup))
+    }
+
+    @Test
+    fun existingAccountPlacesReminderSettingsAfterAllProfileFields() {
+        composeRule.setContent {
+            ScaleSyncTheme {
+                AccountEditorScreen(
+                    draft = AccountEditorDraft(
+                        editingAccountId = AccountId("human-1"),
+                        name = "Анна",
+                        heightCm = "170",
+                        birthDate = LocalDate.of(1990, 1, 1),
+                        sex = Sex.FEMALE,
+                    ),
+                    accounts = emptyList(),
+                    operationInProgress = false,
+                    onDraftChanged = {},
+                    onCreate = {},
+                    onUpdate = {},
+                    onDismiss = {},
+                    today = LocalDate.of(2026, 8, 20),
+                )
+            }
+        }
+
+        val reminder = bounds(AccountManagementTestTags.EditorReminder)
+        val height = bounds(AccountManagementTestTags.EditorHeight)
+        assertTrue(height.bottom <= reminder.top)
     }
 
     @Test
