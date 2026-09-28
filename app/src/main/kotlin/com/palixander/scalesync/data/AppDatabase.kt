@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -17,8 +18,10 @@ import androidx.room.migration.Migration
         PetEntity::class,
         PetMeasurementEntity::class,
         AcceptedStableMeasurementEntity::class,
+        WeighingReminderScheduleEntity::class,
+        WeighingReminderRuntimeEntity::class,
     ],
-    version = 17,
+    version = 18,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -37,6 +40,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun petDao(): PetDao
 
     abstract fun acceptedStableMeasurementDao(): AcceptedStableMeasurementDao
+
+    abstract fun weighingReminderDao(): WeighingReminderDao
 
     companion object {
         fun migration1To2(
@@ -61,12 +66,20 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_14_15: Migration = Migration14To15
         val MIGRATION_15_16: Migration = Migration15To16
         val MIGRATION_16_17: Migration = Migration16To17
+        val MIGRATION_17_18: Migration = Migration17To18
         val MIGRATION_12_13: Migration = Migration12To13
 
         fun build(
             context: Context,
             databaseName: String = "scalesync.db",
         ): AppDatabase = Room.databaseBuilder(context, AppDatabase::class.java, databaseName)
+            .addCallback(
+                object : Callback() {
+                    override fun onCreate(db: SupportSQLiteDatabase) {
+                        createWeighingReminderOwnerTriggers(db)
+                    }
+                },
+            )
             .addMigrations(
                 migration1To2(context),
                 MIGRATION_2_3,
@@ -84,6 +97,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_14_15,
                 MIGRATION_15_16,
                 MIGRATION_16_17,
+                MIGRATION_17_18,
             )
             .build()
     }

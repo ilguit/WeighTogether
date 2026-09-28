@@ -12,10 +12,13 @@ import com.palixander.scalesync.data.PetMeasurementEntity
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
 import com.palixander.scalesync.data.toPortableSnapshot
+import com.palixander.scalesync.data.WeighingReminderOwnerType
+import com.palixander.scalesync.data.WeighingReminderScheduleEntity
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.domain.WeighingReminderImportance
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
@@ -57,6 +60,10 @@ class BackupExportServiceTest {
             pets = listOf(PetEntity("pet", "Dog", "dog", PetSpecies.DOG, 5, 6,
                 PetSex.FEMALE, "external:dog:breed", 2020, 2, null, DogAdultWeightCategory.II)),
             petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 70.0, 74.0, 4.0)),
+            reminderSchedules = listOf(
+                WeighingReminderScheduleEntity("reminder", WeighingReminderOwnerType.ACCOUNT, "account", 540, 5,
+                    WeighingReminderImportance.ALARM, true, 8, 9),
+            ),
         )
         val service = service(source)
 
@@ -79,6 +86,8 @@ class BackupExportServiceTest {
         assertEquals(2, document.pets.single().birthMonth)
         assertEquals(DogAdultWeightCategory.II, document.pets.single().dogAdultWeightCategory)
         assertEquals(4.0, document.petMeasurements.single().petWeightKg, 0.0)
+        assertEquals("reminder", document.reminderSchedules.single().id)
+        assertEquals(WeighingReminderImportance.ALARM, document.reminderSchedules.single().importance)
         assertEquals(listOf("bmi", "weight"), document.settings.selectedChartMetricKeys)
         assertEquals(listOf("fat", "weight"), document.settings.homeKgChartSeriesKeys)
     }

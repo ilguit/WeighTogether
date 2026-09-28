@@ -3,10 +3,12 @@ package com.palixander.scalesync.backup
 import com.palixander.scalesync.data.MeasurementType
 import com.palixander.scalesync.data.RatingHeightOrigin
 import com.palixander.scalesync.data.SyncStatus
+import com.palixander.scalesync.data.WeighingReminderOwnerType
 import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.domain.WeighingReminderImportance
 import com.google.gson.JsonParser
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -21,6 +23,38 @@ class BackupJsonCodecTest {
         "huaweiWeightSynced",
         "huaweiSyncedCalculatedValues",
     )
+
+    @Test
+    fun reminderSchedulesRoundTripInV7AndAreAbsentFromV1ThroughV6() {
+        val reminder = BackupReminderScheduleV7(
+            "r", WeighingReminderOwnerType.ACCOUNT, "a", 1439, 127,
+            WeighingReminderImportance.ALARM, false, 10, 11,
+        )
+        val current = document().copy(reminderSchedules = listOf(reminder))
+        assertEquals(listOf(reminder), codec.decode(codec.encode(current)).reminderSchedules)
+        for (version in 1..6) {
+            val legacy = codec.decode(codec.encode(document().copy(schemaVersion = version)))
+            assertEquals(emptyList<BackupReminderScheduleV7>(), legacy.reminderSchedules)
+        }
+    }
+
+    @Test
+    fun reminderScheduleShapeLimitsAndOwnerAreStrictlyValidated() {
+        val valid = document().copy(reminderSchedules = listOf(
+            BackupReminderScheduleV7("r", WeighingReminderOwnerType.ACCOUNT, "a", 540, 1,
+                WeighingReminderImportance.REGULAR, true, 1, 2),
+        ))
+        val encoded = codec.encode(valid)
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace("\"minuteOfDay\":540", "\"minuteOfDay\":1440"))
+        }
+        assertThrows(BackupException.MissingReminderOwner::class.java) {
+            codec.decode(encoded.replace("\"ownerId\":\"a\"", "\"ownerId\":\"missing\""))
+        }
+        assertThrows(BackupException.Invalid::class.java) {
+            codec.decode(encoded.replace("\"enabled\":true", "\"enabled\":\"yes\""))
+        }
+    }
 
 
     @Test
@@ -145,7 +179,7 @@ class BackupJsonCodecTest {
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
         val json = codec.encode(document())
-            .replace("\"schemaVersion\":6", "\"schemaVersion\":7")
+            .replace("\"schemaVersion\":7", "\"schemaVersion\":8")
             .replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
@@ -371,6 +405,7 @@ class BackupJsonCodecTest {
             )),
         ))).asJsonObject
         root.addProperty("schemaVersion", version)
+        root.remove("reminderSchedules")
         root.getAsJsonArray("measurements").forEach { element ->
             element.asJsonObject.apply {
                 addProperty("huaweiStatus", "FAILED")

@@ -235,6 +235,7 @@ fun ScaleSyncApp(
         mutableStateOf(ProfileNavigationState())
     }
     val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val reminderNavigation by viewModel.reminderProfileNavigation.collectAsStateWithLifecycle()
     val manualDraft by measurementsViewModel.manualWeight.draft.collectAsStateWithLifecycle()
     val measurementsState = if (currentSection == AppSection.MEASUREMENTS) {
         val activeState by measurementsViewModel.uiState.collectAsStateWithLifecycle()
@@ -260,6 +261,24 @@ fun ScaleSyncApp(
         )
     } else {
         null
+    }
+    LaunchedEffect(reminderNavigation?.id, state.profilesLoaded) {
+        val request = reminderNavigation ?: return@LaunchedEffect
+        if (!state.profilesLoaded) return@LaunchedEffect
+        val resolution = resolveReminderProfileNavigation(request, profiles.map { it.key })
+        currentSection = AppSection.MEASUREMENTS
+        currentDestination = AppDestination.ROOT
+        settingsDestination = SettingsDestination.ROOT
+        measurementsViewModel.callbacks.onSummaryRequested()
+        profileNavigation = if (resolution.profileKey != null) {
+            ProfileNavigationState().select(resolution.profileKey)
+        } else {
+            ProfileNavigationState()
+        }
+        if (resolution.showUnavailableMessage) {
+            snackbarHostState.showSnackbar(resources.getString(R.string.message_profile_no_longer_available))
+        }
+        viewModel.consumeReminderProfileNavigation(request.id)
     }
     ProfileMeasurementSelectionEffect(
         navigation = profileNavigation,
@@ -411,6 +430,7 @@ fun ScaleSyncApp(
                 onAction = viewModel::onAccountManagementAction,
                 onCreate = viewModel::createAccount,
                 onUpdate = viewModel::updateAccount,
+                onUpdateAndContinue = viewModel::updateAccountAndContinue,
                 onConfirmProfileUpdate = viewModel::confirmProfileUpdate,
                 onSetPrimary = viewModel::setPrimaryAccount,
                 onDelete = viewModel::deleteAccount,
@@ -422,7 +442,8 @@ fun ScaleSyncApp(
             onCreatePet = viewModel::showCreatePetManagement,
             onEditPet = viewModel::showEditPetManagement,
             onPetProfileAction = viewModel::onPetProfileAction,
-            onSavePet = viewModel::savePetManagement,
+            onSavePet = { viewModel.savePetManagement() },
+            onSavePetAndContinue = { viewModel.savePetManagement(keepEditorOpen = true) },
             onRequestDeletePet = viewModel::requestDeletePet,
             onConfirmDeletePet = viewModel::confirmDeletePet,
             onDismissPetManagement = viewModel::dismissPetManagement,
@@ -473,6 +494,22 @@ fun ScaleSyncApp(
                 modifier = Modifier.fillMaxSize().padding(padding),
             )
         },
+    )
+}
+
+internal data class ReminderProfileNavigationResolution(
+    val profileKey: ProfileKey?,
+    val showUnavailableMessage: Boolean,
+)
+
+internal fun resolveReminderProfileNavigation(
+    request: ReminderProfileNavigationRequest,
+    profileKeys: List<ProfileKey>,
+): ReminderProfileNavigationResolution {
+    val existingKey = request.profileKey?.takeIf(profileKeys::contains)
+    return ReminderProfileNavigationResolution(
+        profileKey = existingKey,
+        showUnavailableMessage = request.ownerUnavailable || existingKey == null,
     )
 }
 
@@ -827,6 +864,7 @@ internal fun ScaleSyncScaffold(
                     busy = state.petManagement.busy,
                     onAction = settingsCallbacks.onPetProfileAction,
                     onSave = settingsCallbacks.onSavePet,
+                    onSaveAndContinue = settingsCallbacks.onSavePetAndContinue,
                     onDismiss = settingsCallbacks.onDismissPetManagement,
                 )
             }

@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
+import com.palixander.scalesync.domain.normalizeAccountName
 import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import java.time.LocalDate
@@ -19,6 +20,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MultiAccountUiContractsTest {
+    @Test
+    fun `save and continue reloads persisted account while ordinary save closes editor`() {
+        val original = account("a", "Анна")
+        val persisted = original.copy(
+            displayName = "Анна Мария",
+            normalizedName = normalizeAccountName("Анна Мария"),
+            updatedAt = original.updatedAt.plusSeconds(1),
+        )
+        val dirty = AccountEditorDraft.edit(original).copy(name = " Анна Мария ")
+        val state = AccountManagementUiState(
+            accounts = listOf(original),
+            editor = dirty,
+            operationInProgress = true,
+            operationError = UiText.Raw("old error"),
+        )
+
+        val continued = completeAccountUpdate(state, persisted, keepEditorOpen = true)
+
+        assertEquals(AccountEditorDraft.edit(persisted), continued.editor)
+        assertEquals(listOf(persisted), continued.accounts)
+        assertNull(continued.operationError)
+        assertEquals(AccountManagementUiState(), completeAccountUpdate(state, persisted, false))
+    }
     @Test
     fun `photo path survives draft reducer saver and create mapping`() {
         val photo = "profile-photos/accounts/new/profile.webp"
@@ -57,6 +81,106 @@ class MultiAccountUiContractsTest {
         )
         assertEquals(draft, cancelled.editor)
         assertNull(cancelled.profileUpdateConfirmation)
+    }
+
+    @Test
+    fun `reminder navigation intent survives confirmation and successful reload`() {
+        val original = account("one", "One")
+        val draft = AccountEditorDraft.edit(original).copy(heightCm = "181")
+        val update = requireNotNull(draft.toAccountUpdateOrNull(validateAccountEditor(draft, listOf(original))))
+        val requested = reduceAccountManagement(
+            AccountManagementUiState(accounts = listOf(original), editor = draft),
+            AccountManagementAction.OpenRemindersAfterSaveRequested,
+        )
+        val prompted = reduceAccountManagement(
+            requested,
+            AccountManagementAction.ProfileUpdateConfirmationRequested(update, draft, keepEditorOpen = true),
+        )
+
+        assertTrue(prompted.openRemindersAfterSave)
+        assertNull(prompted.editor)
+        val saved = original.copy(profile = AccountProfile.Complete(
+            heightCm = 181.0,
+            birthDate = LocalDate.of(1990, 1, 1),
+            sex = Sex.FEMALE,
+        ))
+        val reloaded = completeAccountUpdate(prompted, saved, keepEditorOpen = true)
+        assertTrue(reloaded.openRemindersAfterSave)
+        assertEquals(AccountEditorDraft.edit(saved), reloaded.editor)
+    }
+
+    @Test
+    fun `cancelling confirmation clears reminder navigation intent and restores draft`() {
+        val original = account("one", "One")
+        val draft = AccountEditorDraft.edit(original).copy(heightCm = "181")
+        val update = requireNotNull(draft.toAccountUpdateOrNull(validateAccountEditor(draft, listOf(original))))
+        val prompted = reduceAccountManagement(
+            AccountManagementUiState(
+                accounts = listOf(original),
+                editor = draft,
+                openRemindersAfterSave = true,
+            ),
+            AccountManagementAction.ProfileUpdateConfirmationRequested(update, draft, keepEditorOpen = true),
+        )
+
+        val cancelled = reduceAccountManagement(
+            prompted,
+            AccountManagementAction.ProfileUpdateConfirmationCancelled,
+        )
+
+        assertEquals(draft, cancelled.editor)
+        assertFalse(cancelled.openRemindersAfterSave)
+    }
+
+    @Test
+    fun `reminder navigation intent is consumed exactly once`() {
+        val original = account("one", "One")
+        val requested = reduceAccountManagement(
+            AccountManagementUiState(accounts = listOf(original), editor = AccountEditorDraft.edit(original)),
+            AccountManagementAction.OpenRemindersAfterSaveRequested,
+        )
+
+        val consumed = reduceAccountManagement(
+            requested,
+            AccountManagementAction.OpenRemindersAfterSaveConsumed,
+        )
+
+        assertFalse(consumed.openRemindersAfterSave)
+        assertEquals(
+            consumed,
+            reduceAccountManagement(consumed, AccountManagementAction.OpenRemindersAfterSaveConsumed),
+        )
+    }
+
+    @Test
+    fun `invalid reminder navigation request does not arm future editor`() {
+        val state = AccountManagementUiState(accounts = listOf(account("one", "One")))
+
+        assertSame(
+            state,
+            reduceAccountManagement(state, AccountManagementAction.OpenRemindersAfterSaveRequested),
+        )
+    }
+
+    @Test
+    fun `save error keeps editor and error but clears reminder navigation intent`() {
+        val original = account("one", "One")
+        val draft = AccountEditorDraft.edit(original).copy(heightCm = "181")
+        val error = UiText.Raw("repository failed")
+        val failed = failAccountOperation(
+            AccountManagementUiState(
+                accounts = listOf(original),
+                editor = draft,
+                operationInProgress = true,
+                openRemindersAfterSave = true,
+            ),
+            error,
+        )
+
+        assertEquals(draft, failed.editor)
+        assertEquals(error, failed.operationError)
+        assertFalse(failed.operationInProgress)
+        assertFalse(failed.openRemindersAfterSave)
     }
 
     @Test

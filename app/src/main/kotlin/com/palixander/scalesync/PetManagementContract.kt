@@ -20,6 +20,7 @@ data class PetManagementUiState(
 internal data class PetProfileSaveRequest(
     val editorSessionId: Long,
     val profile: ValidatedPetProfile,
+    val keepEditorOpen: Boolean = false,
 )
 
 internal sealed interface PetProfileSavePreparation {
@@ -90,6 +91,7 @@ internal object PetManagementController {
         state: PetManagementUiState,
         today: LocalDate,
         existingPets: Iterable<Pet>,
+        keepEditorOpen: Boolean = false,
     ): PetProfileSavePreparation {
         val editor = state.editor
         val editorSessionId = state.editorSessionId
@@ -119,7 +121,7 @@ internal object PetManagementController {
         )
         return PetProfileSavePreparation.Ready(
             state = savingState,
-            request = PetProfileSaveRequest(editorSessionId, profile),
+            request = PetProfileSaveRequest(editorSessionId, profile, keepEditorOpen),
         )
     }
 
@@ -135,7 +137,11 @@ internal object PetManagementController {
             return state
         }
         return when (result) {
-            PetProfilePersistenceResult.Success -> PetManagementUiState()
+            PetProfilePersistenceResult.Success -> if (request.keepEditorOpen) {
+                state.copy(busy = false, error = null)
+            } else {
+                PetManagementUiState()
+            }
             is PetProfilePersistenceResult.Failure -> state.copy(
                 busy = false,
                 error = result.message,

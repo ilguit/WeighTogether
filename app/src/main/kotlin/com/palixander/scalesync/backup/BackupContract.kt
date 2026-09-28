@@ -8,19 +8,23 @@ import com.palixander.scalesync.domain.ExternalSyncPolicy
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
+import com.palixander.scalesync.data.WeighingReminderOwnerType
+import com.palixander.scalesync.domain.WeighingReminderImportance
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 6
+const val BACKUP_SCHEMA_VERSION: Int = 7
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
 const val BACKUP_SCHEMA_VERSION_V4: Int = 4
 const val BACKUP_SCHEMA_VERSION_V5: Int = 5
+const val BACKUP_SCHEMA_VERSION_V6: Int = 6
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
 const val MAX_BACKUP_PET_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_SERIES_KEYS: Int = 100
+const val MAX_BACKUP_REMINDER_SCHEDULES: Int = 10_000
 
 data class BackupDocumentV1(
     val format: String = BACKUP_FORMAT_ID,
@@ -32,6 +36,19 @@ data class BackupDocumentV1(
     val settings: BackupSettingsV1,
     val pets: List<BackupPetV2> = emptyList(),
     val petMeasurements: List<BackupPetMeasurementV2> = emptyList(),
+    val reminderSchedules: List<BackupReminderScheduleV7> = emptyList(),
+)
+
+data class BackupReminderScheduleV7(
+    val id: String,
+    val ownerType: WeighingReminderOwnerType,
+    val ownerId: String,
+    val minuteOfDay: Int,
+    val weekdaysMask: Int,
+    val importance: WeighingReminderImportance,
+    val enabled: Boolean,
+    val createdAtEpochMillis: Long,
+    val updatedAtEpochMillis: Long,
 )
 
 data class BackupPetV2(
@@ -143,6 +160,9 @@ sealed class BackupException(message: String, cause: Throwable? = null) : Except
 
     class MissingPet(val petId: String) :
         BackupException("Pet measurement references missing pet: $petId")
+
+    class MissingReminderOwner(val ownerType: WeighingReminderOwnerType, val ownerId: String) :
+        BackupException("Reminder references missing $ownerType owner: $ownerId")
 
     class Conflict(detail: String) : BackupException(detail)
     class Limits(val path: String, val limit: Int) : BackupException("$path exceeds limit $limit")

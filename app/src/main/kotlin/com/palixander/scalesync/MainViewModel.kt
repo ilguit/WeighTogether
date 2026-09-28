@@ -45,6 +45,8 @@ import com.palixander.scalesync.domain.RoutingDecision
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
 import com.palixander.scalesync.ui.accounts.AccountManagementAction
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
+import com.palixander.scalesync.ui.accounts.completeAccountUpdate
+import com.palixander.scalesync.ui.accounts.failAccountOperation
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.reconcileAccountManagement
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
@@ -208,6 +210,8 @@ class MainViewModel @JvmOverloads constructor(
     private val refreshScanner = ManualScaleScanner(application)
     private val petScanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
+    private val reminderNavigationIds = AtomicLong(0L)
+    private val _reminderProfileNavigation = MutableStateFlow<ReminderProfileNavigationRequest?>(null)
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
@@ -317,6 +321,23 @@ class MainViewModel @JvmOverloads constructor(
         )
 
     val events = eventEmitter.events
+    val reminderProfileNavigation: StateFlow<ReminderProfileNavigationRequest?> =
+        _reminderProfileNavigation
+
+    fun openReminderProfile(profileKey: com.palixander.scalesync.ui.profiles.ProfileKey?, ownerUnavailable: Boolean) {
+        _reminderProfileNavigation.value = ReminderProfileNavigationRequest(
+            id = reminderNavigationIds.incrementAndGet(),
+            profileKey = profileKey,
+            ownerUnavailable = ownerUnavailable,
+        )
+    }
+
+    fun consumeReminderProfileNavigation(id: Long) {
+        _reminderProfileNavigation.compareAndSet(
+            _reminderProfileNavigation.value?.takeIf { it.id == id },
+            null,
+        )
+    }
 
     private val scaleScanningState = combine(
         container.profileStore.settings,
@@ -680,31 +701,55 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    fun updateAccount(account: AccountUpdate) = runAccountOperation {
+    fun updateAccount(account: AccountUpdate) = updateAccount(account, keepEditorOpen = false)
+
+    fun updateAccountAndContinue(account: AccountUpdate) = updateAccount(account, keepEditorOpen = true)
+
+    private fun updateAccount(account: AccountUpdate, keepEditorOpen: Boolean) = runAccountOperation {
         when (val result = container.accounts.attemptProfileUpdate(account)) {
             is ProfileUpdateAttemptResult.Saved ->
-                finishAccountOperation(
-                    uiText(R.string.message_account_saved, result.account.displayName),
-                )
+                finishAccountUpdate(result.account, keepEditorOpen)
             ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
                     accountManagementDialog.value.copy(operationInProgress = false),
-                    AccountManagementAction.ProfileUpdateConfirmationRequested(account, draft),
+                    AccountManagementAction.ProfileUpdateConfirmationRequested(
+                        account,
+                        draft,
+                        keepEditorOpen,
+                    ),
                 )
             }
         }
     }
 
     fun confirmProfileUpdate(mode: ProfileHistoryUpdateMode) = runAccountOperation {
-        val update = accountManagementDialog.value.profileUpdateConfirmation?.update
+        val confirmation = accountManagementDialog.value.profileUpdateConfirmation
             ?: return@runAccountOperation
-        saveAccountUpdate(update, mode)
+        saveAccountUpdate(confirmation.update, mode, confirmation.keepEditorOpen)
     }
 
-    private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
+    private suspend fun saveAccountUpdate(
+        account: AccountUpdate,
+        mode: ProfileHistoryUpdateMode,
+        keepEditorOpen: Boolean,
+    ) {
         val updated = container.accounts.updateAccount(account, mode)
-        finishAccountOperation(uiText(R.string.message_account_saved, updated.displayName))
+        finishAccountUpdate(updated, keepEditorOpen)
+    }
+
+    private fun finishAccountUpdate(account: Account, keepEditorOpen: Boolean) {
+        val message = uiText(R.string.message_account_saved, account.displayName)
+        if (!keepEditorOpen) {
+            finishAccountOperation(message)
+            return
+        }
+        accountManagementDialog.value = completeAccountUpdate(
+            state = accountManagementDialog.value,
+            account = account,
+            keepEditorOpen = true,
+        )
+        showMessage(message)
     }
 
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =
@@ -715,7 +760,11 @@ class MainViewModel @JvmOverloads constructor(
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
+        val reminderIds = container.weighingReminderRepository.idsForOwner(
+            com.palixander.scalesync.domain.WeighingReminderOwner.Account(accountId),
+        )
         container.accounts.deleteAccount(accountId)
+        container.weighingReminders.cancelDeleted(reminderIds)
         val selection = container.accountSelection.selection.value
         if (selection.accountId == accountId) {
             container.accountSelection.selectIfCurrent(selection, null)
@@ -724,11 +773,15 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
+        val reminderIds = container.weighingReminderRepository.idsForOwner(
+            com.palixander.scalesync.domain.WeighingReminderOwner.Account(request.accountId),
+        )
         container.accounts.deletePrimaryWithReplacement(
             primaryAccountId = request.accountId,
             replacementAccountId = request.replacementAccountId,
             historySyncMode = request.historySyncMode,
         )
+        container.weighingReminders.cancelDeleted(reminderIds)
         container.accountSelection.select(request.replacementAccountId)
         finishAccountOperation(uiText(R.string.message_primary_account_deleted))
     }
@@ -1271,11 +1324,12 @@ class MainViewModel @JvmOverloads constructor(
         petManagement.value = PetManagementController.onAction(petManagement.value, action)
     }
 
-    fun savePetManagement() {
+    fun savePetManagement(keepEditorOpen: Boolean = false) {
         val preparation = PetManagementController.prepareSave(
             state = petManagement.value,
             today = currentDate(),
             existingPets = pets.value.pets.map { it.pet },
+            keepEditorOpen = keepEditorOpen,
         )
         petManagement.value = preparation.state
         val request = (preparation as? PetProfileSavePreparation.Ready)?.request ?: return
@@ -1324,7 +1378,13 @@ class MainViewModel @JvmOverloads constructor(
         if (snapshot.busy) return
         petManagement.value = snapshot.copy(busy = true, error = null)
         viewModelScope.launch {
-            runCatching { container.pets.deletePet(preview.pet.id) }
+            runCatching {
+                val reminderIds = container.weighingReminderRepository.idsForOwner(
+                    com.palixander.scalesync.domain.WeighingReminderOwner.Pet(preview.pet.id),
+                )
+                container.pets.deletePet(preview.pet.id)
+                    .also { container.weighingReminders.cancelDeleted(reminderIds) }
+            }
                 .onSuccess { petManagement.value = PetManagementUiState() }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
@@ -1767,10 +1827,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun failAccountOperation(message: UiText) {
-        accountManagementDialog.value = accountManagementDialog.value.copy(
-            operationInProgress = false,
-            operationError = message,
-        )
+        accountManagementDialog.value = failAccountOperation(accountManagementDialog.value, message)
         showMessage(message)
     }
 

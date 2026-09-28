@@ -191,6 +191,7 @@ data class AccountDeletionRequest(
 data class ProfileUpdateConfirmation(
     val update: AccountUpdate,
     val editorDraft: AccountEditorDraft,
+    val keepEditorOpen: Boolean = false,
 )
 
 @Immutable
@@ -201,6 +202,7 @@ data class AccountManagementUiState(
     val primaryChange: PrimaryAccountChangeRequest? = null,
     val deletion: AccountDeletionRequest? = null,
     val profileUpdateConfirmation: ProfileUpdateConfirmation? = null,
+    val openRemindersAfterSave: Boolean = false,
     val operationInProgress: Boolean = false,
     val operationError: UiText? = null,
 ) {
@@ -214,6 +216,30 @@ data class AccountManagementUiState(
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == primaryAccountId }
 }
+
+internal fun completeAccountUpdate(
+    state: AccountManagementUiState,
+    account: Account,
+    keepEditorOpen: Boolean,
+): AccountManagementUiState = if (keepEditorOpen) {
+    state.copy(
+        accounts = state.accounts.map { if (it.id == account.id) account else it },
+        editor = AccountEditorDraft.edit(account),
+        profileUpdateConfirmation = null,
+        operationError = null,
+    )
+} else {
+    AccountManagementUiState()
+}
+
+internal fun failAccountOperation(
+    state: AccountManagementUiState,
+    message: UiText,
+): AccountManagementUiState = state.copy(
+    operationInProgress = false,
+    operationError = message,
+    openRemindersAfterSave = false,
+)
 
 /**
  * Reconciles an open dialog with the latest durable account snapshot.
@@ -275,8 +301,11 @@ sealed interface AccountManagementAction {
     data class ProfileUpdateConfirmationRequested(
         val update: AccountUpdate,
         val editorDraft: AccountEditorDraft,
+        val keepEditorOpen: Boolean = false,
     ) : AccountManagementAction
     data object ProfileUpdateConfirmationCancelled : AccountManagementAction
+    data object OpenRemindersAfterSaveRequested : AccountManagementAction
+    data object OpenRemindersAfterSaveConsumed : AccountManagementAction
     data object DialogDismissed : AccountManagementAction
 }
 
@@ -376,6 +405,7 @@ fun reduceAccountManagement(
                 profileUpdateConfirmation = ProfileUpdateConfirmation(
                     update = action.update,
                     editorDraft = action.editorDraft,
+                    keepEditorOpen = action.keepEditorOpen,
                 ),
                 operationError = null,
             )
@@ -385,14 +415,25 @@ fun reduceAccountManagement(
             state.copy(
                 editor = pending.editorDraft,
                 profileUpdateConfirmation = null,
+                openRemindersAfterSave = false,
                 operationError = null,
             )
         }
+        AccountManagementAction.OpenRemindersAfterSaveRequested -> if (
+            state.editor?.editingAccountId != null
+        ) {
+            state.copy(openRemindersAfterSave = true)
+        } else {
+            state
+        }
+        AccountManagementAction.OpenRemindersAfterSaveConsumed ->
+            state.copy(openRemindersAfterSave = false)
         AccountManagementAction.DialogDismissed -> state.copy(
             editor = null,
             primaryChange = null,
             deletion = null,
             profileUpdateConfirmation = null,
+            openRemindersAfterSave = false,
             operationError = null,
         )
     }

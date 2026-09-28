@@ -146,6 +146,7 @@ internal fun PetProfileEditorDialog(
     breedCatalog: PetBreedCatalog = remember { PetBreedCatalog() },
     onAction: (PetProfileAction) -> Unit,
     onSave: () -> Unit,
+    onSaveAndContinue: () -> Unit = onSave,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     profilePhotoStore: ProfilePhotoStore? = currentProfilePhotoStore(),
@@ -160,10 +161,14 @@ internal fun PetProfileEditorDialog(
     var breedPickerOpen by rememberSaveable { mutableStateOf(false) }
     var submitted by rememberSaveable { mutableStateOf(false) }
     var discardRequested by rememberSaveable { mutableStateOf(false) }
+    var remindersOpen by rememberSaveable { mutableStateOf(false) }
+    var reminderGuardOpen by rememberSaveable { mutableStateOf(false) }
+    var openAfterSave by rememberSaveable { mutableStateOf(false) }
     val locked = busy || submitted
     val draft = state.draft
-    val initialDraft = remember(draft.mode) { draft }
-    val dirty = draft != initialDraft
+    val initialState = remember(draft.mode) { state }
+    var persistedState by remember(draft.mode) { mutableStateOf(initialState) }
+    val dirty = draft != persistedState.draft
     val contentScrollState = rememberScrollState()
     val nameFocus = remember { FocusRequester() }
     val titleFocus = remember { FocusRequester() }
@@ -192,7 +197,7 @@ internal fun PetProfileEditorDialog(
         )
     }
     fun deleteTransientPhoto(path: String?) {
-        if (path != null && path != initialDraft.photoPath) {
+        if (path != null && path != persistedState.draft.photoPath) {
             scope.launch { runCatching { photoStore?.onPhotoDereferenced(path) } }
         }
     }
@@ -222,6 +227,21 @@ internal fun PetProfileEditorDialog(
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
+        if (openAfterSave && !busy) {
+            if (!fieldErrors.hasErrors && repositoryError == null) {
+                persistedState = state
+                remindersOpen = true
+            }
+            openAfterSave = false
+        }
+    }
+    val reminderPetId = (draft.mode as? PetProfileEditorMode.Edit)?.petId
+    if (remindersOpen && reminderPetId != null) {
+        com.palixander.scalesync.ui.reminder.ReminderSettingsScreen(
+            owner = com.palixander.scalesync.domain.WeighingReminderOwner.Pet(reminderPetId),
+            onBack = { remindersOpen = false },
+        )
+        return
     }
     LaunchedEffect(busy) {
         if (busy) breedPickerOpen = false
@@ -558,6 +578,12 @@ internal fun PetProfileEditorDialog(
                         Text(stringResource(R.string.state_saving))
                     }
                 }
+                reminderPetId?.let { petId ->
+                    com.palixander.scalesync.ui.reminder.ReminderSettingsEntry(
+                        owner = com.palixander.scalesync.domain.WeighingReminderOwner.Pet(petId),
+                        onClick = { if (dirty) reminderGuardOpen = true else remindersOpen = true },
+                    )
+                }
             }
         }
     }
@@ -611,6 +637,13 @@ internal fun PetProfileEditorDialog(
             },
         )
     }
+    if (reminderGuardOpen) AlertDialog(
+        onDismissRequest = { reminderGuardOpen = false },
+        title = { Text(stringResource(R.string.reminder_unsaved_title)) },
+        text = { Text(stringResource(R.string.reminder_unsaved_text)) },
+        confirmButton = { TextButton(onClick = { reminderGuardOpen = false; openAfterSave = true; submitted = true; onSaveAndContinue() }) { Text(stringResource(R.string.reminder_save_continue)) } },
+        dismissButton = { Column { TextButton(onClick = { reminderGuardOpen = false; deleteTransientPhoto(draft.photoPath); onAction(PetProfileAction.RestorePersisted(persistedState)); remindersOpen = true }) { Text(stringResource(R.string.reminder_discard_continue)) }; TextButton(onClick = { reminderGuardOpen = false }) { Text(stringResource(R.string.reminder_keep_editing)) } } },
+    )
 }
 
 private fun dispatchPhoto(onAction: (PetProfileAction) -> Unit, path: String, locked: Boolean) {

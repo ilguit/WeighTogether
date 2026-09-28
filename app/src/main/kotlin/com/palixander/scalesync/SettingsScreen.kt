@@ -115,6 +115,7 @@ internal data class SettingsCallbacks(
     val onEditPet: (Pet) -> Unit = {},
     val onPetProfileAction: (PetProfileAction) -> Unit = {},
     val onSavePet: () -> Unit = {},
+    val onSavePetAndContinue: () -> Unit = {},
     val onRequestDeletePet: (PetId) -> Unit = {},
     val onConfirmDeletePet: () -> Unit = {},
     val onDismissPetManagement: () -> Unit = {},
@@ -904,6 +905,14 @@ private fun SettingsProfilesContent(
             ) },
             onCreate = callbacks.accountManagement.onCreate,
             onUpdate = callbacks.accountManagement.onUpdate,
+            onUpdateAndContinue = callbacks.accountManagement.onUpdateAndContinue,
+            openRemindersAfterSave = state.accountManagement.openRemindersAfterSave,
+            onOpenRemindersAfterSaveRequested = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveRequested,
+            ) },
+            onOpenRemindersAfterSaveConsumed = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveConsumed,
+            ) },
             onDismiss = { callbacks.accountManagement.onAction(
                 com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
             ) },
@@ -1210,6 +1219,14 @@ private fun LegacySettingsScreen(
             ) },
             onCreate = callbacks.accountManagement.onCreate,
             onUpdate = callbacks.accountManagement.onUpdate,
+            onUpdateAndContinue = callbacks.accountManagement.onUpdateAndContinue,
+            openRemindersAfterSave = state.accountManagement.openRemindersAfterSave,
+            onOpenRemindersAfterSaveRequested = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveRequested,
+            ) },
+            onOpenRemindersAfterSaveConsumed = { callbacks.accountManagement.onAction(
+                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveConsumed,
+            ) },
             onDismiss = { callbacks.accountManagement.onAction(
                 com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
             ) },

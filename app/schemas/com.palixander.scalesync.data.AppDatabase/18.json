@@ -1,0 +1,1052 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 18,
+    "identityHash": "2ca70944b35ad075d65baffa553be2e5",
+    "entities": [
+      {
+        "tableName": "accounts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `displayName` TEXT NOT NULL, `normalizedName` TEXT NOT NULL, `heightCm` REAL, `birthDateEpochDay` INTEGER, `sex` TEXT, `isProfileComplete` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, `photoPath` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedName",
+            "columnName": "normalizedName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "heightCm",
+            "columnName": "heightCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "birthDateEpochDay",
+            "columnName": "birthDateEpochDay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "sex",
+            "columnName": "sex",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "isProfileComplete",
+            "columnName": "isProfileComplete",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "photoPath",
+            "columnName": "photoPath",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_accounts_normalizedName",
+            "unique": true,
+            "columnNames": [
+              "normalizedName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_accounts_normalizedName` ON `${TABLE_NAME}` (`normalizedName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "app_state",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`singletonId` INTEGER NOT NULL, `primaryAccountId` TEXT, `weightDeltaKg` REAL NOT NULL, `ignoreUnknownMeasurements` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`singletonId`), FOREIGN KEY(`primaryAccountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE SET NULL )",
+        "fields": [
+          {
+            "fieldPath": "singletonId",
+            "columnName": "singletonId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "primaryAccountId",
+            "columnName": "primaryAccountId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "weightDeltaKg",
+            "columnName": "weightDeltaKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ignoreUnknownMeasurements",
+            "columnName": "ignoreUnknownMeasurements",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "singletonId"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_app_state_primaryAccountId",
+            "unique": false,
+            "columnNames": [
+              "primaryAccountId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_app_state_primaryAccountId` ON `${TABLE_NAME}` (`primaryAccountId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "accounts",
+            "onDelete": "SET NULL",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "primaryAccountId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "measurements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `fingerprint` TEXT NOT NULL, `measurementType` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `rawPayloadHex` TEXT NOT NULL, `weightKg` REAL NOT NULL, `rawWeight` INTEGER NOT NULL, `impedanceOhm` INTEGER, `bmi` REAL, `bodyFatPercent` REAL, `bodyFatMassKg` REAL, `waterPercent` REAL, `waterMassKg` REAL, `muscleMassKg` REAL, `skeletalMuscleMassKg` REAL, `boneMassKg` REAL, `proteinPercent` REAL, `proteinMassKg` REAL, `visceralFatLevel` REAL, `basalMetabolicRateKcal` REAL, `metabolicAge` INTEGER, `leanBodyMassKg` REAL, `algorithmVersion` TEXT, `healthConnectStatus` TEXT NOT NULL, `healthConnectError` TEXT, `healthConnectWeightSynced` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `accountId` TEXT NOT NULL, `externalSyncPolicy` TEXT NOT NULL, `sourcePendingId` TEXT, `deduplicationHash` TEXT, `healthConnectSyncedCalculatedValues` TEXT, `ratingHeightCm` REAL, `ratingHeightOrigin` TEXT NOT NULL DEFAULT 'RESTORED_CURRENT_ACCOUNT', `origin` TEXT NOT NULL DEFAULT 'LEGACY', PRIMARY KEY(`id`), FOREIGN KEY(`accountId`) REFERENCES `accounts`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fingerprint",
+            "columnName": "fingerprint",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measurementType",
+            "columnName": "measurementType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAddress",
+            "columnName": "deviceAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtEpochSecond",
+            "columnName": "measuredAtEpochSecond",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawPayloadHex",
+            "columnName": "rawPayloadHex",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawWeight",
+            "columnName": "rawWeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impedanceOhm",
+            "columnName": "impedanceOhm",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "bmi",
+            "columnName": "bmi",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "bodyFatPercent",
+            "columnName": "bodyFatPercent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "bodyFatMassKg",
+            "columnName": "bodyFatMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "waterPercent",
+            "columnName": "waterPercent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "waterMassKg",
+            "columnName": "waterMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "muscleMassKg",
+            "columnName": "muscleMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "skeletalMuscleMassKg",
+            "columnName": "skeletalMuscleMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "boneMassKg",
+            "columnName": "boneMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "proteinPercent",
+            "columnName": "proteinPercent",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "proteinMassKg",
+            "columnName": "proteinMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "visceralFatLevel",
+            "columnName": "visceralFatLevel",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "basalMetabolicRateKcal",
+            "columnName": "basalMetabolicRateKcal",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "metabolicAge",
+            "columnName": "metabolicAge",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "leanBodyMassKg",
+            "columnName": "leanBodyMassKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "algorithmVersion",
+            "columnName": "algorithmVersion",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "healthConnectStatus",
+            "columnName": "healthConnectStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "healthConnectError",
+            "columnName": "healthConnectError",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "healthConnectWeightSynced",
+            "columnName": "healthConnectWeightSynced",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "accountId",
+            "columnName": "accountId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "externalSyncPolicy",
+            "columnName": "externalSyncPolicy",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sourcePendingId",
+            "columnName": "sourcePendingId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "deduplicationHash",
+            "columnName": "deduplicationHash",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "healthConnectSyncedCalculatedValues",
+            "columnName": "healthConnectSyncedCalculatedValues",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "ratingHeightCm",
+            "columnName": "ratingHeightCm",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "ratingHeightOrigin",
+            "columnName": "ratingHeightOrigin",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'RESTORED_CURRENT_ACCOUNT'"
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'LEGACY'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_measurements_fingerprint",
+            "unique": true,
+            "columnNames": [
+              "fingerprint"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_measurements_fingerprint` ON `${TABLE_NAME}` (`fingerprint`)"
+          },
+          {
+            "name": "index_measurements_accountId_measuredAtEpochSecond",
+            "unique": false,
+            "columnNames": [
+              "accountId",
+              "measuredAtEpochSecond"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_measurements_accountId_measuredAtEpochSecond` ON `${TABLE_NAME}` (`accountId`, `measuredAtEpochSecond`)"
+          },
+          {
+            "name": "index_measurements_deviceAddress_rawWeight_measuredAtEpochSecond",
+            "unique": false,
+            "columnNames": [
+              "deviceAddress",
+              "rawWeight",
+              "measuredAtEpochSecond"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_measurements_deviceAddress_rawWeight_measuredAtEpochSecond` ON `${TABLE_NAME}` (`deviceAddress`, `rawWeight`, `measuredAtEpochSecond`)"
+          },
+          {
+            "name": "index_measurements_sourcePendingId",
+            "unique": true,
+            "columnNames": [
+              "sourcePendingId"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_measurements_sourcePendingId` ON `${TABLE_NAME}` (`sourcePendingId`)"
+          },
+          {
+            "name": "index_measurements_deduplicationHash",
+            "unique": true,
+            "columnNames": [
+              "deduplicationHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_measurements_deduplicationHash` ON `${TABLE_NAME}` (`deduplicationHash`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "accounts",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "accountId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "pending_measurements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `impedanceOhm` INTEGER NOT NULL, `isStable` INTEGER NOT NULL, `hasImpedance` INTEGER NOT NULL, `rawPayload` BLOB NOT NULL, `deduplicationHash` TEXT NOT NULL, `enqueuedAtEpochMillis` INTEGER NOT NULL, `rawWeight` INTEGER NOT NULL, `finalizeAfterEpochMillis` INTEGER NOT NULL, `provisionalAccountId` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAddress",
+            "columnName": "deviceAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtEpochSecond",
+            "columnName": "measuredAtEpochSecond",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impedanceOhm",
+            "columnName": "impedanceOhm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isStable",
+            "columnName": "isStable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasImpedance",
+            "columnName": "hasImpedance",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawPayload",
+            "columnName": "rawPayload",
+            "affinity": "BLOB",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deduplicationHash",
+            "columnName": "deduplicationHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enqueuedAtEpochMillis",
+            "columnName": "enqueuedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawWeight",
+            "columnName": "rawWeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "finalizeAfterEpochMillis",
+            "columnName": "finalizeAfterEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "provisionalAccountId",
+            "columnName": "provisionalAccountId",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pending_measurements_deduplicationHash",
+            "unique": true,
+            "columnNames": [
+              "deduplicationHash"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_pending_measurements_deduplicationHash` ON `${TABLE_NAME}` (`deduplicationHash`)"
+          },
+          {
+            "name": "index_pending_measurements_enqueuedAtEpochMillis_id",
+            "unique": false,
+            "columnNames": [
+              "enqueuedAtEpochMillis",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_measurements_enqueuedAtEpochMillis_id` ON `${TABLE_NAME}` (`enqueuedAtEpochMillis`, `id`)"
+          },
+          {
+            "name": "index_pending_measurements_provisionalAccountId_measuredAtEpochSecond_id",
+            "unique": false,
+            "columnNames": [
+              "provisionalAccountId",
+              "measuredAtEpochSecond",
+              "id"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pending_measurements_provisionalAccountId_measuredAtEpochSecond_id` ON `${TABLE_NAME}` (`provisionalAccountId`, `measuredAtEpochSecond`, `id`)"
+          }
+        ]
+      },
+      {
+        "tableName": "measurement_tombstones",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`deduplicationHash` TEXT NOT NULL, `expiresAtEpochMillis` INTEGER NOT NULL, `deviceAddress` TEXT, `measuredAtEpochSecond` INTEGER, `rawWeight` INTEGER, PRIMARY KEY(`deduplicationHash`))",
+        "fields": [
+          {
+            "fieldPath": "deduplicationHash",
+            "columnName": "deduplicationHash",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "expiresAtEpochMillis",
+            "columnName": "expiresAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAddress",
+            "columnName": "deviceAddress",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "measuredAtEpochSecond",
+            "columnName": "measuredAtEpochSecond",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "rawWeight",
+            "columnName": "rawWeight",
+            "affinity": "INTEGER"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "deduplicationHash"
+          ]
+        }
+      },
+      {
+        "tableName": "backup_import_checkpoint",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`singletonId` INTEGER NOT NULL, `phase` TEXT NOT NULL, `rollbackDatabaseJson` TEXT NOT NULL, `previousSettingsJson` TEXT NOT NULL, `targetSettingsJson` TEXT NOT NULL, PRIMARY KEY(`singletonId`))",
+        "fields": [
+          {
+            "fieldPath": "singletonId",
+            "columnName": "singletonId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "phase",
+            "columnName": "phase",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "operationId",
+            "columnName": "rollbackDatabaseJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sweepNeeded",
+            "columnName": "previousSettingsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "targetSettingsJson",
+            "columnName": "targetSettingsJson",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "singletonId"
+          ]
+        }
+      },
+      {
+        "tableName": "pets",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `displayName` TEXT NOT NULL, `normalizedName` TEXT NOT NULL, `species` TEXT NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, `sex` TEXT, `breedId` TEXT, `birthYear` INTEGER, `birthMonth` INTEGER, `birthDay` INTEGER, `dogAdultWeightCategory` TEXT, `photoPath` TEXT, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "displayName",
+            "columnName": "displayName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "normalizedName",
+            "columnName": "normalizedName",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "species",
+            "columnName": "species",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "sex",
+            "columnName": "sex",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "breedId",
+            "columnName": "breedId",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "birthYear",
+            "columnName": "birthYear",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "birthMonth",
+            "columnName": "birthMonth",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "birthDay",
+            "columnName": "birthDay",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "dogAdultWeightCategory",
+            "columnName": "dogAdultWeightCategory",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "photoPath",
+            "columnName": "photoPath",
+            "affinity": "TEXT"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pets_normalizedName",
+            "unique": true,
+            "columnNames": [
+              "normalizedName"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_pets_normalizedName` ON `${TABLE_NAME}` (`normalizedName`)"
+          }
+        ]
+      },
+      {
+        "tableName": "pet_measurements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `petId` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `firstWeightKg` REAL, `secondWeightKg` REAL, `petWeightKg` REAL NOT NULL, `origin` TEXT NOT NULL DEFAULT 'LEGACY', `isManuallyEdited` INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(`id`), FOREIGN KEY(`petId`) REFERENCES `pets`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "petId",
+            "columnName": "petId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtEpochSecond",
+            "columnName": "measuredAtEpochSecond",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "firstWeightKg",
+            "columnName": "firstWeightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "secondWeightKg",
+            "columnName": "secondWeightKg",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "petWeightKg",
+            "columnName": "petWeightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "origin",
+            "columnName": "origin",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'LEGACY'"
+          },
+          {
+            "fieldPath": "isManuallyEdited",
+            "columnName": "isManuallyEdited",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "0"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_pet_measurements_petId_measuredAtEpochSecond",
+            "unique": false,
+            "columnNames": [
+              "petId",
+              "measuredAtEpochSecond"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_pet_measurements_petId_measuredAtEpochSecond` ON `${TABLE_NAME}` (`petId`, `measuredAtEpochSecond`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "pets",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "petId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "accepted_stable_measurements",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `deviceAddress` TEXT NOT NULL, `measuredAtEpochSecond` INTEGER NOT NULL, `measuredAtNano` INTEGER NOT NULL, `weightKg` REAL NOT NULL, `rawWeight` INTEGER NOT NULL, `impedanceOhm` INTEGER NOT NULL, `isStable` INTEGER NOT NULL, `hasImpedance` INTEGER NOT NULL, `rawPayload` BLOB NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "deviceAddress",
+            "columnName": "deviceAddress",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtEpochSecond",
+            "columnName": "measuredAtEpochSecond",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "measuredAtNano",
+            "columnName": "measuredAtNano",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weightKg",
+            "columnName": "weightKg",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawWeight",
+            "columnName": "rawWeight",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "impedanceOhm",
+            "columnName": "impedanceOhm",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "isStable",
+            "columnName": "isStable",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hasImpedance",
+            "columnName": "hasImpedance",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "rawPayload",
+            "columnName": "rawPayload",
+            "affinity": "BLOB",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "weighing_reminder_schedules",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` TEXT NOT NULL, `ownerType` TEXT NOT NULL, `ownerId` TEXT NOT NULL, `minuteOfDay` INTEGER NOT NULL, `weekdaysMask` INTEGER NOT NULL, `importance` TEXT NOT NULL, `enabled` INTEGER NOT NULL, `createdAtEpochMillis` INTEGER NOT NULL, `updatedAtEpochMillis` INTEGER NOT NULL, PRIMARY KEY(`id`))",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerType",
+            "columnName": "ownerType",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "ownerId",
+            "columnName": "ownerId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "minuteOfDay",
+            "columnName": "minuteOfDay",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "weekdaysMask",
+            "columnName": "weekdaysMask",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "importance",
+            "columnName": "importance",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "enabled",
+            "columnName": "enabled",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAtEpochMillis",
+            "columnName": "createdAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAtEpochMillis",
+            "columnName": "updatedAtEpochMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_weighing_reminder_schedules_ownerType_ownerId",
+            "unique": false,
+            "columnNames": [
+              "ownerType",
+              "ownerId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_weighing_reminder_schedules_ownerType_ownerId` ON `${TABLE_NAME}` (`ownerType`, `ownerId`)"
+          },
+          {
+            "name": "index_weighing_reminder_schedules_ownerType_ownerId_minuteOfDay_weekdaysMask_importance",
+            "unique": true,
+            "columnNames": [
+              "ownerType",
+              "ownerId",
+              "minuteOfDay",
+              "weekdaysMask",
+              "importance"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_weighing_reminder_schedules_ownerType_ownerId_minuteOfDay_weekdaysMask_importance` ON `${TABLE_NAME}` (`ownerType`, `ownerId`, `minuteOfDay`, `weekdaysMask`, `importance`)"
+          }
+        ]
+      },
+      {
+        "tableName": "weighing_reminder_runtime",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`scheduleId` TEXT NOT NULL, `generation` INTEGER NOT NULL, `regularOccurrenceToken` TEXT, `regularDueEpochMillis` INTEGER, `regularStatus` TEXT NOT NULL, `activeOccurrenceToken` TEXT, `snoozeGeneration` INTEGER, `snoozeSourceOccurrenceToken` TEXT, `snoozeOccurrenceToken` TEXT, `snoozeDueEpochMillis` INTEGER, `snoozeStatus` TEXT NOT NULL, PRIMARY KEY(`scheduleId`), FOREIGN KEY(`scheduleId`) REFERENCES `weighing_reminder_schedules`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "scheduleId",
+            "columnName": "scheduleId",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "generation",
+            "columnName": "generation",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "regularOccurrenceToken",
+            "columnName": "regularOccurrenceToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "regularDueEpochMillis",
+            "columnName": "regularDueEpochMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "regularStatus",
+            "columnName": "regularStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "activeOccurrenceToken",
+            "columnName": "activeOccurrenceToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "snoozeGeneration",
+            "columnName": "snoozeGeneration",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "snoozeSourceOccurrenceToken",
+            "columnName": "snoozeSourceOccurrenceToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "snoozeOccurrenceToken",
+            "columnName": "snoozeOccurrenceToken",
+            "affinity": "TEXT"
+          },
+          {
+            "fieldPath": "snoozeDueEpochMillis",
+            "columnName": "snoozeDueEpochMillis",
+            "affinity": "INTEGER"
+          },
+          {
+            "fieldPath": "snoozeStatus",
+            "columnName": "snoozeStatus",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "scheduleId"
+          ]
+        },
+        "foreignKeys": [
+          {
+            "table": "weighing_reminder_schedules",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "scheduleId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '2ca70944b35ad075d65baffa553be2e5')"
+    ]
+  }
+}

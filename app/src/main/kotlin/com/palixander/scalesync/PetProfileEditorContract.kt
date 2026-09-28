@@ -301,6 +301,7 @@ data class AutomaticallyAssignedDogCategory(
 )
 
 sealed interface PetProfileAction {
+    data class RestorePersisted(val state: PetProfileEditorState) : PetProfileAction
     data class DisplayNameChanged(val value: String) : PetProfileAction
     data class SpeciesChangeRequested(val species: PetSpecies) : PetProfileAction
     data class SexChanged(val sex: PetSex?) : PetProfileAction
@@ -321,6 +322,7 @@ object PetProfileReducer {
         action: PetProfileAction,
     ): PetProfileEditorState {
         val pending = state.pendingSpeciesChange
+        if (action is PetProfileAction.RestorePersisted) return action.state
         if (pending != null) {
             return when (action) {
                 PetProfileAction.ConfirmSpeciesChange -> state.copy(
@@ -340,6 +342,7 @@ object PetProfileReducer {
         }
 
         return when (action) {
+            is PetProfileAction.RestorePersisted -> action.state
             is PetProfileAction.DisplayNameChanged -> state.withDraft {
                 copy(displayName = action.value)
             }
