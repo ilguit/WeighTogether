@@ -2,6 +2,7 @@ package com.palixander.scalesync
 
 import android.app.Application
 import android.content.Intent
+import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.WeighingReminderOwner
@@ -19,6 +20,19 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35], application = Application::class)
 class ReminderProfileNavigationTest {
+    @Test
+    fun reminderMainActivityUsesSingleTopForWarmNavigation() {
+        val info = ApplicationProvider.getApplicationContext<Application>().packageManager
+            .getActivityInfo(
+                android.content.ComponentName(
+                    ApplicationProvider.getApplicationContext(),
+                    MainActivity::class.java,
+                ),
+                0,
+            )
+
+        assertEquals(android.content.pm.ActivityInfo.LAUNCH_SINGLE_TOP, info.launchMode)
+    }
     @Test
     fun coldStartIntentSelectsHumanProfileWithoutMeasurementAction() {
         val intent = WeighingReminderNavigationTarget(

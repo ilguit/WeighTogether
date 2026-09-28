@@ -82,20 +82,11 @@ class ReminderSettingsStateOwner(
     fun alarmSoundIntents() = capabilities.alarmSoundSettingsIntents()
     fun hasSchedulingFailure(scheduleIds: Iterable<WeighingReminderId>) =
         alarmGateway.hasSchedulingFailure(scheduleIds)
-    suspend fun save(id: WeighingReminderId?, draft: WeighingReminderDraft): SaveWeighingReminderResult {
-        val result = if (id == null) repository.create(draft) else repository.update(id, draft)
-        if (result is SaveWeighingReminderResult.Saved) coordinator.reconcile()
-        return result
-    }
-    suspend fun enabled(id: WeighingReminderId, enabled: Boolean): SaveWeighingReminderResult {
-        val result = repository.setEnabled(id, enabled)
-        coordinator.reconcile()
-        return result
-    }
-    suspend fun delete(id: WeighingReminderId) {
-        repository.delete(id)
-        coordinator.reconcile()
-    }
+    suspend fun save(id: WeighingReminderId?, draft: WeighingReminderDraft): SaveWeighingReminderResult =
+        coordinator.save(id, draft)
+    suspend fun enabled(id: WeighingReminderId, enabled: Boolean): SaveWeighingReminderResult =
+        coordinator.setEnabled(id, enabled)
+    suspend fun delete(id: WeighingReminderId) = coordinator.delete(id)
 }
 
 @Composable
