@@ -73,6 +73,11 @@ class WeighingReminderCoordinator(
                 )
             } else {
                 alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+                if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
+                    snoozeDue != null && snoozeDue <= clock.millis()
+                ) {
+                    repository.expireSnooze(id, clock.millis())
+                }
             }
         }
     }

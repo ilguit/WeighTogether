@@ -182,6 +182,18 @@ class RoomWeighingReminderRepository(
             dao.updateRuntime(runtime.copy(activeOccurrenceToken = null)) == 1
         }
 
+    suspend fun expireSnooze(id: WeighingReminderId, nowEpochMillis: Long): Boolean =
+        serializedTransaction {
+            val runtime = dao.getRuntime(id.value) ?: return@serializedTransaction false
+            val due = runtime.snoozeDueEpochMillis
+            if (runtime.snoozeStatus != ReminderSnoozeStatus.SCHEDULED ||
+                due == null || due > nowEpochMillis
+            ) {
+                return@serializedTransaction false
+            }
+            dao.updateRuntime(runtime.clearSnooze()) == 1
+        }
+
     suspend fun invalidateRuntime(id: WeighingReminderId): Boolean = serializedTransaction {
         if (dao.get(id.value) == null || dao.getRuntime(id.value) == null) return@serializedTransaction false
         resetRuntime(id.value)

@@ -134,6 +134,26 @@ class RoomWeighingReminderRepositoryTest {
         assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.SNOOZE, snooze))
     }
 
+    @Test
+    fun expiredSnoozeCannotSuppressNextRegularOccurrence() = runBlocking {
+        insertAccount("account")
+        val owner = WeighingReminderOwner.Account(AccountId("account"))
+        repository.create(draft(owner))
+        val id = WeighingReminderId("schedule")
+        val regular = requireNotNull(repository.prepareRegularOccurrence(id, 1_000))
+        repository.claimDue(id, ReminderCallbackKind.REGULAR, regular)
+        val snooze = requireNotNull(repository.snooze(id, regular, 2_000))
+
+        assertTrue(repository.expireSnooze(id, 2_000))
+        val nextRegular = requireNotNull(repository.prepareRegularOccurrence(id, 3_000))
+
+        assertEquals(
+            ReminderClaimResult.Publish(nextRegular),
+            repository.claimDue(id, ReminderCallbackKind.REGULAR, nextRegular),
+        )
+        assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.SNOOZE, snooze))
+    }
+
     private suspend fun insertAccount(id: String) {
         database.accountDao().insert(
             AccountEntity(id, "Alice", "alice", null, null, null, false, 1, 1),
