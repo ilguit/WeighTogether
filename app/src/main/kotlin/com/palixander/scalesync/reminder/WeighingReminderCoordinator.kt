@@ -11,13 +11,19 @@ import com.palixander.scalesync.NotificationChannelRegistry
 import com.palixander.scalesync.R
 import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.data.ReminderClaimResult
+import com.palixander.scalesync.data.ReminderOccurrenceStatus
 import com.palixander.scalesync.data.ReminderSnoozeStatus
 import com.palixander.scalesync.data.RoomWeighingReminderRepository
+import com.palixander.scalesync.data.SaveWeighingReminderResult
+import com.palixander.scalesync.data.WeighingReminderDraft
+import com.palixander.scalesync.data.WeighingReminderSnapshot
 import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.domain.WeighingReminderImportance
 import com.palixander.scalesync.domain.WeighingReminderOwner
 import java.time.Clock
 import kotlin.time.Duration.Companion.minutes
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 data class WeighingReminderNavigationTarget(val owner: WeighingReminderOwner) {
     fun putInto(intent: Intent): Intent = intent.apply {
@@ -69,7 +75,27 @@ class WeighingReminderCoordinator(
 ) {
     private val notifications = context.getSystemService(NotificationManager::class.java)
 
-    suspend fun reconcile() {
+    suspend fun reconcile() = runtimeMutex.withLock { reconcileUnlocked() }
+
+    suspend fun save(
+        id: WeighingReminderId?,
+        draft: WeighingReminderDraft,
+    ): SaveWeighingReminderResult = runtimeMutex.withLock {
+        val result = if (id == null) repository.create(draft) else repository.update(id, draft)
+        if (result is SaveWeighingReminderResult.Saved) reconcileUnlocked()
+        result
+    }
+
+    suspend fun setEnabled(id: WeighingReminderId, enabled: Boolean): SaveWeighingReminderResult =
+        runtimeMutex.withLock {
+            repository.setEnabled(id, enabled).also { reconcileUnlocked() }
+        }
+
+    suspend fun delete(id: WeighingReminderId) = runtimeMutex.withLock {
+        repository.delete(id).also { reconcileUnlocked() }
+    }
+
+    private suspend fun reconcileUnlocked() {
         val snapshots = repository.snapshotEnabled()
         alarmGateway.cancelUnknown(snapshots.mapTo(mutableSetOf()) { it.schedule.id.value })
             .forEach(::cancelNotificationCopies)
@@ -85,7 +111,7 @@ class WeighingReminderCoordinator(
                 return@forEach
             }
             if (snapshot.activeOccurrenceToken == null) cancelNotificationCopies(id)
-            scheduleNextRegular(snapshot.schedule.id)
+            scheduleNextRegularUnlocked(snapshot)
             val snoozeDue = snapshot.snoozeDueEpochMillis
             val snoozeToken = snapshot.snoozeOccurrenceToken
             if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
@@ -111,7 +137,7 @@ class WeighingReminderCoordinator(
     }
 
     /** Cleans up platform state for schedules already removed by an owner cascade. */
-    fun cancelDeleted(scheduleIds: Iterable<WeighingReminderId>) {
+    suspend fun cancelDeleted(scheduleIds: Iterable<WeighingReminderId>) = runtimeMutex.withLock {
         scheduleIds.forEach { id ->
             WeighingAlarmSoundService.stop(context, id.value)
             alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
@@ -120,24 +146,24 @@ class WeighingReminderCoordinator(
         }
     }
 
-    suspend fun onFire(id: WeighingReminderId, kind: ReminderCallbackKind, token: String) {
-        if (repository.claimDue(id, kind, token) !is ReminderClaimResult.Publish) return
-        val snapshot = repository.snapshot(id) ?: return
-        scheduleNextRegular(id)
+    suspend fun onFire(id: WeighingReminderId, kind: ReminderCallbackKind, token: String): Unit = runtimeMutex.withLock {
+        if (repository.claimDue(id, kind, token) !is ReminderClaimResult.Publish) return@withLock
+        val snapshot = repository.snapshot(id) ?: return@withLock
+        scheduleNextRegularUnlocked(id)
         if (!capabilityGateway.read().canPublish(snapshot.schedule.importance)) {
             repository.invalidateRuntime(id)
             alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
             alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-            return
+            return@withLock
         }
-        val name = repository.ownerDisplayName(snapshot.schedule.owner) ?: return
+        val name = repository.ownerDisplayName(snapshot.schedule.owner) ?: return@withLock
         publish(snapshot.schedule, token, name)
     }
 
-    suspend fun onSnooze(id: WeighingReminderId, token: String) {
-        val snapshot = repository.snapshot(id) ?: return
+    suspend fun onSnooze(id: WeighingReminderId, token: String): Unit = runtimeMutex.withLock {
+        val snapshot = repository.snapshot(id) ?: return@withLock
         val due = clock.millis() + 10.minutes.inWholeMilliseconds
-        val snoozeToken = repository.snooze(id, token, due) ?: return
+        val snoozeToken = repository.snooze(id, token, due) ?: return@withLock
         WeighingAlarmSoundService.stop(context, id.value, token)
         cancelNotificationCopies(id)
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
@@ -146,14 +172,18 @@ class WeighingReminderCoordinator(
         }
     }
 
-    suspend fun onContentTap(id: WeighingReminderId, token: String) {
+    suspend fun onContentTap(id: WeighingReminderId, token: String) = runtimeMutex.withLock {
         val snapshot = repository.snapshot(id)
-        if (!onContentOpened(id, token)) return
+        if (!onContentOpenedUnlocked(id, token)) return@withLock
         snapshot?.let { launch(WeighingReminderNavigationTarget(it.schedule.owner)) } ?: launchFallback()
     }
 
     /** Consumes an occurrence opened directly by MainActivity without launching a second task. */
-    suspend fun onContentOpened(id: WeighingReminderId, token: String): Boolean {
+    suspend fun onContentOpened(id: WeighingReminderId, token: String): Boolean = runtimeMutex.withLock {
+        onContentOpenedUnlocked(id, token)
+    }
+
+    private suspend fun onContentOpenedUnlocked(id: WeighingReminderId, token: String): Boolean {
         val snapshot = repository.snapshot(id)
         if (snapshot != null && !repository.consumeAction(id, token)) return false
         WeighingAlarmSoundService.stop(context, id.value, token)
@@ -162,17 +192,41 @@ class WeighingReminderCoordinator(
         return true
     }
 
-    private suspend fun scheduleNextRegular(id: WeighingReminderId) {
-        val schedule = repository.get(id) ?: return
+    private suspend fun scheduleNextRegularUnlocked(id: WeighingReminderId) {
+        val snapshot = repository.snapshot(id) ?: return
+        scheduleNextRegularUnlocked(snapshot)
+    }
+
+    private suspend fun scheduleNextRegularUnlocked(
+        snapshot: WeighingReminderSnapshot,
+    ) {
+        val schedule = snapshot.schedule
+        val existingToken = snapshot.regularOccurrenceToken
+        val existingDue = snapshot.regularDueEpochMillis
+        if (snapshot.regularStatus == ReminderOccurrenceStatus.SCHEDULED &&
+            existingToken != null && existingDue != null
+        ) {
+            if (scheduleAlarm(
+                    schedule.id,
+                    ReminderCallbackKind.REGULAR,
+                    existingToken,
+                    existingDue,
+                    schedule.importance,
+                ) == ReminderScheduleResult.FAILED
+            ) {
+                repository.discardRegularOccurrence(schedule.id, existingToken)
+            }
+            return
+        }
         val due = nextReminderInstant(schedule, clock).toEpochMilli()
-        val token = repository.prepareRegularOccurrence(id, due) ?: return
-        alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
-        if (scheduleAlarm(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
-            repository.discardRegularOccurrence(id, token)
+        val token = repository.prepareRegularOccurrence(schedule.id, due) ?: return
+        alarmGateway.cancel(schedule.id, ReminderCallbackKind.REGULAR)
+        if (scheduleAlarm(schedule.id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
+            repository.discardRegularOccurrence(schedule.id, token)
         }
     }
 
-    suspend fun onStop(id: WeighingReminderId, token: String): WeighingReminderNavigationTarget? {
+    suspend fun onStop(id: WeighingReminderId, token: String): WeighingReminderNavigationTarget? = runtimeMutex.withLock {
         val snapshot = repository.snapshot(id) ?: run {
             WeighingAlarmSoundService.stop(context, id.value, token)
             cancelNotificationCopies(id)
@@ -310,6 +364,7 @@ class WeighingReminderCoordinator(
     }
 
     companion object {
+        private val runtimeMutex = Mutex()
         const val ACTION_SNOOZE = "com.palixander.scalesync.action.SNOOZE_WEIGHING_REMINDER"
         const val ACTION_STOP = "com.palixander.scalesync.action.STOP_WEIGHING_REMINDER"
         const val ACTION_OPEN = "com.palixander.scalesync.action.OPEN_WEIGHING_REMINDER"

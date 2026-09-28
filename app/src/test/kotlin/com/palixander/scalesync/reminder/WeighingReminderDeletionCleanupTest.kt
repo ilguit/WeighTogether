@@ -13,6 +13,7 @@ import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.data.RoomWeighingReminderRepository
 import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.domain.WeighingReminderImportance
+import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -41,7 +42,7 @@ class WeighingReminderDeletionCleanupTest {
     fun close() = database.close()
 
     @Test
-    fun `deleted owner cleanup cancels notification regular alarm and snooze idempotently`() {
+    fun `deleted owner cleanup cancels notification regular alarm and snooze idempotently`() = runBlocking {
         val id = WeighingReminderId("deleted-schedule")
         val notifications = context.getSystemService(NotificationManager::class.java)
         notifications.createNotificationChannel(NotificationChannel("test", "Test", NotificationManager.IMPORTANCE_DEFAULT))
