@@ -29,11 +29,23 @@ object NotificationChannelRegistry {
         importance = NotificationManager.IMPORTANCE_DEFAULT,
         descriptionRes = R.string.notification_channel_saved_measurements_description,
     )
+    val weighingReminders = AppNotificationChannel(
+        id = "weighing_reminders",
+        nameRes = R.string.notification_channel_weighing_reminders,
+        importance = NotificationManager.IMPORTANCE_DEFAULT,
+    )
+    val weighingAlarms = AppNotificationChannel(
+        id = "weighing_alarms",
+        nameRes = R.string.notification_channel_weighing_alarms,
+        importance = NotificationManager.IMPORTANCE_HIGH,
+    )
 
     val all: List<AppNotificationChannel> = listOf(
         scaleScanning,
         pendingMeasurementRouting,
         successfulMeasurementSaves,
+        weighingReminders,
+        weighingAlarms,
     )
 
     fun registerAll(context: Context) {

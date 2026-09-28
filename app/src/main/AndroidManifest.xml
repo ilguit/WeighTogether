@@ -16,6 +16,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.health.WRITE_WEIGHT" />
     <uses-permission android:name="android.permission.health.WRITE_BODY_FAT" />
@@ -72,6 +73,13 @@
             </intent-filter>
         </activity>
 
+        <activity
+            android:name=".reminder.WeighingReminderOpenActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+
         <activity-alias
             android:name=".ViewPermissionUsageActivity"
             android:exported="true"
@@ -90,6 +98,20 @@
         <receiver
             android:name=".worker.PendingNotificationDismissReceiver"
             android:exported="false" />
+
+        <receiver android:name=".reminder.WeighingReminderFireReceiver" android:exported="false" />
+        <receiver android:name=".reminder.WeighingReminderActionReceiver" android:exported="false" />
+        <receiver
+            android:name=".reminder.WeighingReminderReconcileReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+            </intent-filter>
+        </receiver>
 
         <receiver
             android:name=".ble.BootReceiver"

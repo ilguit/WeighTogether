@@ -18,6 +18,7 @@ import com.palixander.scalesync.data.ProfileStore
 import com.palixander.scalesync.data.RoomAccountRepository
 import com.palixander.scalesync.data.RoomMeasurementPersistence
 import com.palixander.scalesync.data.RoomPetRepository
+import com.palixander.scalesync.data.RoomWeighingReminderRepository
 import com.palixander.scalesync.data.SyncAwareAccountRepository
 import com.palixander.scalesync.sync.HealthConnectGateway
 import com.palixander.scalesync.profile.ProfilePhotoStore
@@ -36,7 +37,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.launch
 import com.palixander.scalesync.ble.ScalePacketProcessingGate
+import com.palixander.scalesync.reminder.WeighingReminderAlarmGateway
+import com.palixander.scalesync.reminder.WeighingReminderCapabilityGateway
+import com.palixander.scalesync.reminder.WeighingReminderCoordinator
 
 class ScaleSyncApplication : Application() {
     lateinit var container: AppContainer
@@ -47,12 +52,21 @@ class ScaleSyncApplication : Application() {
         NotificationChannelRegistry.registerAll(this)
         container = AppContainer(this)
         MeasurementWorkSweepScheduler.enqueueBestEffort(this)
+        container.applicationScope.launch { container.weighingReminders.reconcile() }
     }
 }
 
 class AppContainer(application: Application) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val database: AppDatabase = AppDatabase.build(application)
+    val weighingReminderRepository = RoomWeighingReminderRepository(database)
+    val weighingReminderCapabilities = WeighingReminderCapabilityGateway(application)
+    val weighingReminders = WeighingReminderCoordinator(
+        context = application,
+        repository = weighingReminderRepository,
+        alarmGateway = WeighingReminderAlarmGateway(application),
+        capabilityGateway = weighingReminderCapabilities,
+    )
     internal val externalSyncOperations = ExternalSyncOperationSerializer()
     val profileStore = ProfileStore(application, externalSyncOperations)
     val profilePhotos = ProfilePhotoStore(application)

@@ -19,6 +19,7 @@ import com.palixander.scalesync.ble.BleSupport
 import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.worker.PendingMeasurementNotificationHelper
 import java.time.LocalDate
+import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
     private val viewModel: MainViewModel by viewModels()
@@ -111,6 +112,9 @@ class MainActivity : AppCompatActivity() {
         super.onResume()
         refreshHealthConnectSystemManagementAvailability()
         viewModel.onForeground()
+        (application as ScaleSyncApplication).container.applicationScope.launch {
+            (application as ScaleSyncApplication).container.weighingReminders.reconcile()
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -68,20 +68,23 @@ class RoomWeighingReminderRepository(
     suspend fun get(id: WeighingReminderId): WeighingReminderSchedule? =
         serializedTransaction { dao.get(id.value)?.toDomain() }
 
+    suspend fun snapshot(id: WeighingReminderId): WeighingReminderSnapshot? = serializedTransaction {
+        val schedule = dao.get(id.value) ?: return@serializedTransaction null
+        val runtime = dao.getRuntime(id.value) ?: return@serializedTransaction null
+        schedule.toDomain().withRuntime(runtime)
+    }
+
+    suspend fun ownerDisplayName(owner: WeighingReminderOwner): String? = serializedTransaction {
+        when (owner) {
+            is WeighingReminderOwner.Account -> database.accountDao().get(owner.id.value)?.displayName
+            is WeighingReminderOwner.Pet -> database.petDao().getPet(owner.id.value)?.displayName
+        }
+    }
+
     suspend fun snapshotEnabled(): List<WeighingReminderSnapshot> = serializedTransaction {
         dao.getEnabled().map { schedule ->
             val runtime = requireNotNull(dao.getRuntime(schedule.id))
-            WeighingReminderSnapshot(
-                schedule = schedule.toDomain(),
-                generation = runtime.generation,
-                regularOccurrenceToken = runtime.regularOccurrenceToken,
-                regularDueEpochMillis = runtime.regularDueEpochMillis,
-                regularStatus = runtime.regularStatus,
-                activeOccurrenceToken = runtime.activeOccurrenceToken,
-                snoozeOccurrenceToken = runtime.snoozeOccurrenceToken,
-                snoozeDueEpochMillis = runtime.snoozeDueEpochMillis,
-                snoozeStatus = runtime.snoozeStatus,
-            )
+            schedule.toDomain().withRuntime(runtime)
         }
     }
 
@@ -179,6 +182,12 @@ class RoomWeighingReminderRepository(
             dao.updateRuntime(runtime.copy(activeOccurrenceToken = null)) == 1
         }
 
+    suspend fun invalidateRuntime(id: WeighingReminderId): Boolean = serializedTransaction {
+        if (dao.get(id.value) == null || dao.getRuntime(id.value) == null) return@serializedTransaction false
+        resetRuntime(id.value)
+        true
+    }
+
     private suspend fun claimRegular(
         runtime: WeighingReminderRuntimeEntity,
         token: String,
@@ -243,6 +252,19 @@ class RoomWeighingReminderRepository(
     private suspend fun <T> serializedTransaction(block: suspend () -> T): T =
         mutex.withLock { database.withTransaction { block() } }
 }
+
+private fun WeighingReminderSchedule.withRuntime(runtime: WeighingReminderRuntimeEntity) =
+    WeighingReminderSnapshot(
+        schedule = this,
+        generation = runtime.generation,
+        regularOccurrenceToken = runtime.regularOccurrenceToken,
+        regularDueEpochMillis = runtime.regularDueEpochMillis,
+        regularStatus = runtime.regularStatus,
+        activeOccurrenceToken = runtime.activeOccurrenceToken,
+        snoozeOccurrenceToken = runtime.snoozeOccurrenceToken,
+        snoozeDueEpochMillis = runtime.snoozeDueEpochMillis,
+        snoozeStatus = runtime.snoozeStatus,
+    )
 
 private fun WeighingReminderRuntimeEntity.clearSnooze() = copy(
     snoozeGeneration = null,
