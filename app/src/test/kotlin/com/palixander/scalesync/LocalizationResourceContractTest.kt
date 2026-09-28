@@ -28,6 +28,11 @@ class LocalizationResourceContractTest {
                     default!!.arguments,
                     translation!!.arguments,
                 )
+                assertEquals(
+                    "Format argument counts differ for ${locale.tag}:$key",
+                    default.argumentCounts,
+                    translation.argumentCounts,
+                )
                 if ((locale.tag to key) !in IDENTICAL_TRANSLATION_EXCEPTIONS) {
                     assertFalse(
                         "Reminder resource is still English for ${locale.tag}:$key",
@@ -93,10 +98,12 @@ class LocalizationResourceContractTest {
                 }
                 element.getAttribute("name") to ResourceContract(
                     type = element.tagName,
-                    arguments = texts
-                        .flatMap { FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value) }
-                        .groupingBy { it }
-                        .eachCount(),
+                    arguments = texts.flatMap {
+                        FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value)
+                    }.toSet(),
+                    argumentCounts = texts.flatMap {
+                        FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value)
+                    }.groupingBy { it }.eachCount(),
                     quantities = texts.mapNotNull { it.getAttribute("quantity").takeIf(String::isNotEmpty) }.toSet(),
                     texts = texts.map { it.textContent.trim() },
                 )
@@ -105,7 +112,8 @@ class LocalizationResourceContractTest {
 
     private data class ResourceContract(
         val type: String,
-        val arguments: Map<String, Int>,
+        val arguments: Set<String>,
+        val argumentCounts: Map<String, Int>,
         val quantities: Set<String>,
         val texts: List<String>,
     )

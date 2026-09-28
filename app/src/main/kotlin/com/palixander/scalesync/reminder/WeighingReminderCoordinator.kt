@@ -149,7 +149,7 @@ class WeighingReminderCoordinator(
             NotificationChannelRegistry.weighingReminders.id
         }
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
+            .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
             .setContentTitle(context.getString(R.string.weighing_reminder_notification_title, name))
             .setContentText(context.getString(R.string.weighing_reminder_notification_text))
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
@@ -222,3 +222,7 @@ class WeighingReminderCoordinator(
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }
+
+internal fun weighingReminderNotificationSmallIcon(
+    @Suppress("UNUSED_PARAMETER") importance: WeighingReminderImportance,
+): Int = R.drawable.ic_notification
