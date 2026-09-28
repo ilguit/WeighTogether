@@ -6,16 +6,29 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
+import android.media.AudioManager
 import android.media.MediaPlayer
 import android.media.Ringtone
 import android.media.RingtoneManager
+import android.media.ToneGenerator
 import android.net.Uri
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import androidx.annotation.RequiresApi
 
 class WeighingAlarmSoundService : Service() {
     private var ringtone: Ringtone? = null
     private var legacyPlayer: MediaPlayer? = null
+    private var fallbackTone: ToneGenerator? = null
+    private val fallbackHandler = Handler(Looper.getMainLooper())
+    private val repeatFallbackTone = object : Runnable {
+        override fun run() {
+            fallbackTone?.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, FALLBACK_TONE_MS)
+            if (fallbackTone != null) fallbackHandler.postDelayed(this, FALLBACK_REPEAT_MS)
+        }
+    }
     private var token: String? = null
     private var scheduleId: String? = null
     override fun onBind(intent: Intent?): IBinder? = null
@@ -24,6 +37,12 @@ class WeighingAlarmSoundService : Service() {
             val requestedSchedule = intent.getStringExtra(EXTRA_SCHEDULE_ID)
             val requestedToken = intent.getStringExtra(EXTRA_TOKEN)
             if (shouldStopWeighingAlarm(scheduleId, token, requestedSchedule, requestedToken)) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+                    stopForeground(STOP_FOREGROUND_REMOVE)
+                } else {
+                    @Suppress("DEPRECATION")
+                    stopForeground(true)
+                }
                 stopSelf()
             }
             return START_NOT_STICKY
@@ -49,29 +68,22 @@ class WeighingAlarmSoundService : Service() {
             releaseSound()
             token = next
             scheduleId = nextSchedule
-            val sound = intent.getStringExtra(EXTRA_SOUND)?.let(Uri::parse)
-                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val selectedSound = intent.getStringExtra(EXTRA_SOUND)?.let { runCatching { Uri.parse(it) }.getOrNull() }
+            val systemSound = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
             val attributes = AudioAttributes.Builder()
                 .setUsage(WEIGHING_ALARM_AUDIO_USAGE)
                 .setContentType(WEIGHING_ALARM_AUDIO_CONTENT_TYPE)
                 .build()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                ringtone = (runCatching { RingtoneManager.getRingtone(this, sound) }.getOrNull()
-                    ?: RingtoneManager.getRingtone(
-                        this,
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
-                    ))?.apply {
-                    audioAttributes = attributes
-                    isLooping = true
-                    play()
+                ringtone = firstPlayableAlarmSound(alarmSoundCandidates(selectedSound, systemSound)) { sound ->
+                    playRingtone(sound, attributes)
                 }
             } else {
-                legacyPlayer = createLoopingPlayer(sound, attributes)
-                    ?: createLoopingPlayer(
-                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
-                        attributes,
-                    )
+                legacyPlayer = firstPlayableAlarmSound(alarmSoundCandidates(selectedSound, systemSound)) { sound ->
+                    createLoopingPlayer(sound, attributes)
+                }
             }
+            if (ringtone == null && legacyPlayer == null) startFallbackTone()
         }
         return START_NOT_STICKY
     }
@@ -100,12 +112,39 @@ class WeighingAlarmSoundService : Service() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.P)
+    private fun playRingtone(uri: Uri, attributes: AudioAttributes): Ringtone? {
+        var candidate: Ringtone? = null
+        return runCatching {
+            val loaded = RingtoneManager.getRingtone(this, uri) ?: error("Ringtone is unavailable")
+            candidate = loaded
+            loaded.audioAttributes = attributes
+            loaded.isLooping = true
+            loaded.play()
+            loaded
+        }.getOrElse {
+            runCatching { candidate?.stop() }
+            null
+        }
+    }
+
+    private fun startFallbackTone() {
+        fallbackTone = runCatching { ToneGenerator(AudioManager.STREAM_ALARM, ToneGenerator.MAX_VOLUME) }.getOrNull()
+        fallbackTone?.let {
+            it.startTone(ToneGenerator.TONE_CDMA_ALERT_CALL_GUARD, FALLBACK_TONE_MS)
+            fallbackHandler.postDelayed(repeatFallbackTone, FALLBACK_REPEAT_MS)
+        }
+    }
+
     private fun releaseSound() {
-        ringtone?.stop()
+        runCatching { ringtone?.stop() }
         ringtone = null
-        legacyPlayer?.stop()
-        legacyPlayer?.release()
+        runCatching { legacyPlayer?.stop() }
+        runCatching { legacyPlayer?.release() }
         legacyPlayer = null
+        fallbackHandler.removeCallbacks(repeatFallbackTone)
+        fallbackTone?.release()
+        fallbackTone = null
     }
     companion object {
         internal const val ACTION_START = "com.palixander.scalesync.action.START_WEIGHING_ALARM_SOUND"
@@ -122,14 +161,19 @@ class WeighingAlarmSoundService : Service() {
             soundUri: String?,
             notificationId: Int,
             notification: Notification,
-        ) = context.startForegroundService(Intent(context, WeighingAlarmSoundService::class.java).apply {
-            action = ACTION_START
-            putExtra(EXTRA_SCHEDULE_ID, scheduleId)
-            putExtra(EXTRA_TOKEN, token)
-            putExtra(EXTRA_SOUND, soundUri)
-            putExtra(EXTRA_NOTIFICATION_ID, notificationId)
-            putExtra(EXTRA_NOTIFICATION, notification)
-        })
+        ): Boolean = try {
+            context.startForegroundService(Intent(context, WeighingAlarmSoundService::class.java).apply {
+                action = ACTION_START
+                putExtra(EXTRA_SCHEDULE_ID, scheduleId)
+                putExtra(EXTRA_TOKEN, token)
+                putExtra(EXTRA_SOUND, soundUri)
+                putExtra(EXTRA_NOTIFICATION_ID, notificationId)
+                putExtra(EXTRA_NOTIFICATION, notification)
+            })
+            true
+        } catch (_: RuntimeException) {
+            false
+        }
 
         fun stop(context: Context, scheduleId: String, token: String? = null) {
             runCatching {
@@ -140,7 +184,20 @@ class WeighingAlarmSoundService : Service() {
                 })
             }
         }
+
+        private const val FALLBACK_TONE_MS = 700
+        private const val FALLBACK_REPEAT_MS = 1_000L
     }
+}
+
+internal fun alarmSoundCandidates(selected: Uri?, systemDefault: Uri?): List<Uri> =
+    listOfNotNull(selected, systemDefault).distinct()
+
+internal fun <T : Any> firstPlayableAlarmSound(candidates: List<Uri>, play: (Uri) -> T?): T? {
+    candidates.forEach { candidate ->
+        runCatching { play(candidate) }.getOrNull()?.let { return it }
+    }
+    return null
 }
 
 internal const val WEIGHING_ALARM_AUDIO_USAGE = AudioAttributes.USAGE_ALARM

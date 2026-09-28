@@ -98,6 +98,45 @@ class WeighingReminderCoordinatorFailureTest {
         assertFalse(repository.consumeAction(id, active))
     }
 
+    @Test
+    fun `service start failure publishes one audible manageable alarm notification`() = runBlocking {
+        var serviceCopy: Notification? = null
+        var serviceId = 0
+        val fallbackCoordinator = WeighingReminderCoordinator(
+            context = context,
+            repository = repository,
+            alarmGateway = WeighingReminderAlarmGateway(context),
+            capabilityGateway = WeighingReminderCapabilityGateway(context),
+            clock = Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC),
+            startAlarmSound = { _, _, _, notificationId, notification ->
+                serviceId = notificationId
+                serviceCopy = notification
+                false
+            },
+            scheduleAlarm = { _, _, _, _, _ -> ReminderScheduleResult.EXACT },
+        )
+        val (id, active) = createClaimable(WeighingReminderImportance.ALARM)
+
+        fallbackCoordinator.onFire(id, ReminderCallbackKind.REGULAR, active)
+
+        val foreground = requireNotNull(serviceCopy)
+        assertNull(foreground.fullScreenIntent)
+        assertTrue(foreground.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)
+        assertEquals(WeighingReminderCoordinator.serviceNotificationId(id), serviceId)
+        val public = requireNotNull(notification(id))
+        assertEquals(NotificationChannelRegistry.weighingAlarmFallback.id, public.channelId)
+        assertNotNull(public.fullScreenIntent)
+        assertEquals(2, public.actions.size)
+
+        // Even if Android had briefly posted the service copy, Stop clears both ids.
+        context.getSystemService(NotificationManager::class.java).notify(serviceId, foreground)
+        fallbackCoordinator.onStop(id, active)
+        assertNull(notification(id))
+        assertNull(
+            shadowOf(context.getSystemService(NotificationManager::class.java)).getNotification(serviceId),
+        )
+    }
+
     private suspend fun createClaimable(
         importance: WeighingReminderImportance,
     ): Pair<WeighingReminderId, String> {

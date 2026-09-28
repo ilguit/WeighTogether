@@ -45,6 +45,13 @@ object NotificationChannelRegistry {
         importance = NotificationManager.IMPORTANCE_HIGH,
         silent = true,
     )
+    val weighingAlarmFallback = AppNotificationChannel(
+        // Used only when Android refuses to start the sound foreground service.
+        id = "weighing_alarm_fallback_v1",
+        nameRes = R.string.notification_channel_weighing_alarms,
+        importance = NotificationManager.IMPORTANCE_HIGH,
+        alarmSound = true,
+    )
 
     val all: List<AppNotificationChannel> = listOf(
         scaleScanning,
@@ -52,6 +59,7 @@ object NotificationChannelRegistry {
         successfulMeasurementSaves,
         weighingReminders,
         weighingAlarms,
+        weighingAlarmFallback,
     )
 
     fun registerAll(context: Context) {

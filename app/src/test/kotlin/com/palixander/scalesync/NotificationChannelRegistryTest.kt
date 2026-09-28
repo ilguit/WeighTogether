@@ -3,6 +3,7 @@ package com.palixander.scalesync
 import android.app.NotificationManager
 import android.app.Application
 import android.content.Context
+import android.media.AudioAttributes
 import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -23,9 +24,24 @@ class NotificationChannelRegistryTest {
                 "successful_measurement_saves",
                 "weighing_reminders",
                 "weighing_alarms_v3",
+                "weighing_alarm_fallback_v1",
             ),
             NotificationChannelRegistry.all.map { it.id },
         )
+    }
+
+    @Test
+    fun `alarm fallback channel is audible when sound service cannot start`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val manager = context.getSystemService(NotificationManager::class.java)
+
+        NotificationChannelRegistry.register(context, manager, NotificationChannelRegistry.weighingAlarmFallback)
+
+        val channel = manager.getNotificationChannel(NotificationChannelRegistry.weighingAlarmFallback.id)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
+        assertEquals(AudioAttributes.USAGE_ALARM, channel.audioAttributes?.usage)
+        assertEquals(false, NotificationChannelRegistry.weighingAlarmFallback.silent)
+        assertEquals(true, NotificationChannelRegistry.weighingAlarmFallback.alarmSound)
     }
 
     @Test
