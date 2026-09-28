@@ -1,5 +1,6 @@
 package com.palixander.scalesync.data
 
+import android.app.Application
 import android.content.Context
 import androidx.room.Room
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -20,8 +21,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 class RoomWeighingReminderRepositoryTest {
     private val context = ApplicationProvider.getApplicationContext<Context>()
     private val ids = ArrayDeque(listOf("schedule", "regular", "snooze", "next-regular"))
@@ -82,6 +85,38 @@ class RoomWeighingReminderRepositoryTest {
 
         assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.REGULAR, laterRegular))
         assertEquals(ReminderClaimResult.Publish(snooze), repository.claimDue(id, ReminderCallbackKind.SNOOZE, snooze))
+        assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.REGULAR, laterRegular))
+    }
+
+    @Test
+    fun earlierSnoozeInvalidatesLaterRegularWhenSnoozeCallbackArrivesFirst() = runBlocking {
+        insertAccount("account")
+        repository.create(draft(WeighingReminderOwner.Account(AccountId("account"))))
+        val id = WeighingReminderId("schedule")
+        val regular = requireNotNull(repository.prepareRegularOccurrence(id, 1_000))
+        repository.claimDue(id, ReminderCallbackKind.REGULAR, regular)
+        val snooze = requireNotNull(repository.snooze(id, regular, 2_000))
+        val laterRegular = requireNotNull(repository.prepareRegularOccurrence(id, 3_000))
+
+        assertEquals(ReminderClaimResult.Publish(snooze), repository.claimDue(id, ReminderCallbackKind.SNOOZE, snooze))
+        assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.REGULAR, laterRegular))
+    }
+
+    @Test
+    fun enabledSnapshotIsConsistentAndExcludesDisabledSchedules() = runBlocking {
+        insertAccount("account")
+        val owner = WeighingReminderOwner.Account(AccountId("account"))
+        repository.create(draft(owner))
+        val id = WeighingReminderId("schedule")
+        val token = requireNotNull(repository.prepareRegularOccurrence(id, 1_000))
+
+        val snapshot = repository.snapshotEnabled().single()
+        assertEquals(id, snapshot.schedule.id)
+        assertEquals(token, snapshot.regularOccurrenceToken)
+        assertEquals(ReminderOccurrenceStatus.SCHEDULED, snapshot.regularStatus)
+
+        repository.setEnabled(id, false)
+        assertTrue(repository.snapshotEnabled().isEmpty())
     }
 
     @Test

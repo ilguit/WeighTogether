@@ -15,6 +15,9 @@ interface WeighingReminderDao {
     @Query("SELECT * FROM weighing_reminder_schedules WHERE id=:id")
     suspend fun get(id: String): WeighingReminderScheduleEntity?
 
+    @Query("SELECT * FROM weighing_reminder_schedules WHERE enabled=1 ORDER BY ownerType, ownerId, minuteOfDay, id")
+    suspend fun getEnabled(): List<WeighingReminderScheduleEntity>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(schedule: WeighingReminderScheduleEntity): Long
 

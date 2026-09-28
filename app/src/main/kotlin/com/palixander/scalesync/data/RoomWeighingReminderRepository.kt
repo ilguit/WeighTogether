@@ -40,6 +40,18 @@ sealed interface ReminderClaimResult {
     data object NoOp : ReminderClaimResult
 }
 
+data class WeighingReminderSnapshot(
+    val schedule: WeighingReminderSchedule,
+    val generation: Long,
+    val regularOccurrenceToken: String?,
+    val regularDueEpochMillis: Long?,
+    val regularStatus: ReminderOccurrenceStatus,
+    val activeOccurrenceToken: String?,
+    val snoozeOccurrenceToken: String?,
+    val snoozeDueEpochMillis: Long?,
+    val snoozeStatus: ReminderSnoozeStatus,
+)
+
 class RoomWeighingReminderRepository(
     private val database: AppDatabase,
     private val dao: WeighingReminderDao = database.weighingReminderDao(),
@@ -51,6 +63,26 @@ class RoomWeighingReminderRepository(
     fun observe(owner: WeighingReminderOwner): Flow<List<WeighingReminderSchedule>> {
         val (type, id) = owner.storageIdentity()
         return dao.observe(type, id).map { rows -> rows.map(WeighingReminderScheduleEntity::toDomain) }
+    }
+
+    suspend fun get(id: WeighingReminderId): WeighingReminderSchedule? =
+        serializedTransaction { dao.get(id.value)?.toDomain() }
+
+    suspend fun snapshotEnabled(): List<WeighingReminderSnapshot> = serializedTransaction {
+        dao.getEnabled().map { schedule ->
+            val runtime = requireNotNull(dao.getRuntime(schedule.id))
+            WeighingReminderSnapshot(
+                schedule = schedule.toDomain(),
+                generation = runtime.generation,
+                regularOccurrenceToken = runtime.regularOccurrenceToken,
+                regularDueEpochMillis = runtime.regularDueEpochMillis,
+                regularStatus = runtime.regularStatus,
+                activeOccurrenceToken = runtime.activeOccurrenceToken,
+                snoozeOccurrenceToken = runtime.snoozeOccurrenceToken,
+                snoozeDueEpochMillis = runtime.snoozeDueEpochMillis,
+                snoozeStatus = runtime.snoozeStatus,
+            )
+        }
     }
 
     suspend fun create(draft: WeighingReminderDraft): SaveWeighingReminderResult = serializedTransaction {
@@ -157,7 +189,10 @@ class RoomWeighingReminderRepository(
         val regularDue = requireNotNull(runtime.regularDueEpochMillis)
         val snoozeWins = runtime.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
             requireNotNull(runtime.snoozeDueEpochMillis) < regularDue
-        if (snoozeWins) return ReminderClaimResult.NoOp
+        if (snoozeWins) {
+            dao.updateRuntime(runtime.clearRegular())
+            return ReminderClaimResult.NoOp
+        }
         dao.updateRuntime(
             runtime.copy(
                 regularStatus = ReminderOccurrenceStatus.CLAIMED,
@@ -186,7 +221,12 @@ class RoomWeighingReminderRepository(
             dao.updateRuntime(runtime.clearSnooze())
             return ReminderClaimResult.NoOp
         }
-        dao.updateRuntime(runtime.copy(activeOccurrenceToken = token, snoozeStatus = ReminderSnoozeStatus.CONSUMED))
+        dao.updateRuntime(
+            runtime.clearRegular().copy(
+                activeOccurrenceToken = token,
+                snoozeStatus = ReminderSnoozeStatus.CONSUMED,
+            ),
+        )
         return ReminderClaimResult.Publish(token)
     }
 
@@ -210,6 +250,12 @@ private fun WeighingReminderRuntimeEntity.clearSnooze() = copy(
     snoozeOccurrenceToken = null,
     snoozeDueEpochMillis = null,
     snoozeStatus = ReminderSnoozeStatus.NONE,
+)
+
+private fun WeighingReminderRuntimeEntity.clearRegular() = copy(
+    regularOccurrenceToken = null,
+    regularDueEpochMillis = null,
+    regularStatus = ReminderOccurrenceStatus.NONE,
 )
 
 private fun WeighingReminderOwner.storageIdentity(): Pair<WeighingReminderOwnerType, String> = when (this) {
