@@ -3,10 +3,10 @@ package com.palixander.scalesync.reminder
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.os.Build
-import android.os.PowerManager
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
+import android.os.Build
+import android.os.PowerManager
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -62,6 +62,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(183, 28, 28))
+                layoutParams = alarmButtonLayoutParams(topMargin = 0)
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
@@ -69,6 +70,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(21, 101, 192))
+                layoutParams = alarmButtonLayoutParams(topMargin = 12)
             })
             setContentView(layout)
             return
@@ -111,6 +113,13 @@ class WeighingReminderOpenActivity : ComponentActivity() {
     private fun alarmButtonBackground(color: Int) = GradientDrawable().apply {
         setColor(color)
         cornerRadius = 12 * resources.displayMetrics.density
+    }
+
+    private fun alarmButtonLayoutParams(topMargin: Int) = android.widget.LinearLayout.LayoutParams(
+        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT,
+    ).apply {
+        this.topMargin = (topMargin * resources.displayMetrics.density).toInt()
     }
 
     private fun stopAlarmOrFinish() {
@@ -173,17 +182,31 @@ private fun BroadcastReceiver.async(
 ) {
     val application = context.applicationContext as? ScaleSyncApplication ?: return
     val pendingResult = goAsync()
-    val wakeLock = context.getSystemService(PowerManager::class.java).newWakeLock(
-        PowerManager.PARTIAL_WAKE_LOCK,
-        "ScaleSync:weighing-reminder-receiver",
-    ).apply { acquire(RECEIVER_WAKE_LOCK_TIMEOUT_MILLIS) }
-    application.container.applicationScope.launch {
+    val wakeLock = runCatching {
+        context.getSystemService(PowerManager::class.java).newWakeLock(
+            PowerManager.PARTIAL_WAKE_LOCK,
+            "ScaleSync:weighing-reminder-receiver",
+        ).apply { acquire(RECEIVER_WAKE_LOCK_TIMEOUT_MILLIS) }
+    }.getOrNull()
+    try {
+        application.container.applicationScope.launch {
+            try {
+                application.container.weighingReminders.block()
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) wakeLock.release()
+                } finally {
+                    pendingResult.finish()
+                }
+            }
+        }
+    } catch (failure: Throwable) {
         try {
-            application.container.weighingReminders.block()
+            if (wakeLock?.isHeld == true) wakeLock.release()
         } finally {
-            if (wakeLock.isHeld) wakeLock.release()
             pendingResult.finish()
         }
+        throw failure
     }
 }
 
