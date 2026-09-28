@@ -160,6 +160,9 @@ internal fun PetProfileEditorDialog(
     var breedPickerOpen by rememberSaveable { mutableStateOf(false) }
     var submitted by rememberSaveable { mutableStateOf(false) }
     var discardRequested by rememberSaveable { mutableStateOf(false) }
+    var remindersOpen by rememberSaveable { mutableStateOf(false) }
+    var reminderGuardOpen by rememberSaveable { mutableStateOf(false) }
+    var openAfterSave by rememberSaveable { mutableStateOf(false) }
     val locked = busy || submitted
     val draft = state.draft
     val initialDraft = remember(draft.mode) { draft }
@@ -222,6 +225,18 @@ internal fun PetProfileEditorDialog(
 
     LaunchedEffect(busy, fieldErrors, repositoryError) {
         if (!busy && (fieldErrors.hasErrors || repositoryError != null)) submitted = false
+        if (openAfterSave && !busy) {
+            if (!fieldErrors.hasErrors && repositoryError == null) remindersOpen = true
+            openAfterSave = false
+        }
+    }
+    val reminderPetId = (draft.mode as? PetProfileEditorMode.Edit)?.petId
+    if (remindersOpen && reminderPetId != null) {
+        com.palixander.scalesync.ui.reminder.ReminderSettingsScreen(
+            owner = com.palixander.scalesync.domain.WeighingReminderOwner.Pet(reminderPetId),
+            onBack = { remindersOpen = false },
+        )
+        return
     }
     LaunchedEffect(busy) {
         if (busy) breedPickerOpen = false
@@ -558,6 +573,12 @@ internal fun PetProfileEditorDialog(
                         Text(stringResource(R.string.state_saving))
                     }
                 }
+                reminderPetId?.let { petId ->
+                    com.palixander.scalesync.ui.reminder.ReminderSettingsEntry(
+                        owner = com.palixander.scalesync.domain.WeighingReminderOwner.Pet(petId),
+                        onClick = { if (dirty) reminderGuardOpen = true else remindersOpen = true },
+                    )
+                }
             }
         }
     }
@@ -611,6 +632,13 @@ internal fun PetProfileEditorDialog(
             },
         )
     }
+    if (reminderGuardOpen) AlertDialog(
+        onDismissRequest = { reminderGuardOpen = false },
+        title = { Text(stringResource(R.string.reminder_unsaved_title)) },
+        text = { Text(stringResource(R.string.reminder_unsaved_text)) },
+        confirmButton = { TextButton(onClick = { reminderGuardOpen = false; openAfterSave = true; submitted = true; onSave() }) { Text(stringResource(R.string.reminder_save_continue)) } },
+        dismissButton = { Column { TextButton(onClick = { reminderGuardOpen = false; onDismiss() }) { Text(stringResource(R.string.reminder_discard_continue)) }; TextButton(onClick = { reminderGuardOpen = false }) { Text(stringResource(R.string.reminder_keep_editing)) } } },
+    )
 }
 
 private fun dispatchPhoto(onAction: (PetProfileAction) -> Unit, path: String, locked: Boolean) {

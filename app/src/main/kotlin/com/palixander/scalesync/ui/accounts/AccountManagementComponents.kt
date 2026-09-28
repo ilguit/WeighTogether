@@ -103,6 +103,9 @@ import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import kotlinx.coroutines.launch
+import com.palixander.scalesync.domain.WeighingReminderOwner
+import com.palixander.scalesync.ui.reminder.ReminderSettingsEntry
+import com.palixander.scalesync.ui.reminder.ReminderSettingsScreen
 
 object AccountManagementTestTags {
     const val List = "account-management-list"
@@ -127,6 +130,7 @@ object AccountManagementTestTags {
     const val EditorSave = "account-editor-save"
     const val EditorDiscardPrompt = "account-editor-discard-prompt"
     const val EditorDiscardConfirm = "account-editor-discard-confirm"
+    const val ReminderGuard = "account-editor-reminder-guard"
     const val DeleteWarning = "account-delete-warning"
     const val DeleteConfirm = "account-delete-confirm"
     const val PrimaryChange = "account-primary-change"
@@ -582,6 +586,9 @@ fun AccountEditorScreen(
     var validationRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
     var discardRequested by remember(draft.editingAccountId) { mutableStateOf(false) }
     var saveSubmitted by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var remindersOpen by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var reminderGuardOpen by remember(draft.editingAccountId) { mutableStateOf(false) }
+    var openAfterSave by remember(draft.editingAccountId) { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
     val titleFocus = remember { FocusRequester() }
     val sexFocus = remember { FocusRequester() }
@@ -628,6 +635,21 @@ fun AccountEditorScreen(
     }
     LaunchedEffect(operationInProgress, error) {
         if (!operationInProgress && error != null) saveSubmitted = false
+    }
+    LaunchedEffect(operationInProgress, error, accounts) {
+        if (openAfterSave && !operationInProgress) {
+            if (error == null && draft.editingAccountId?.let { id -> accounts.firstOrNull { it.id == id } }?.let(AccountEditorDraft::edit) == draft) {
+                openAfterSave = false
+                remindersOpen = true
+            } else if (error != null) openAfterSave = false
+        }
+    }
+    if (remindersOpen) {
+        ReminderSettingsScreen(
+            owner = WeighingReminderOwner.Account(requireNotNull(draft.editingAccountId)),
+            onBack = { remindersOpen = false },
+        )
+        return
     }
     val requestClose = {
         if (!operationInProgress) {
@@ -751,6 +773,14 @@ fun AccountEditorScreen(
                     modifier = Modifier.fillMaxWidth().focusRequester(nameFocus)
                         .testTag(AccountManagementTestTags.EditorName),
                 )
+                draft.editingAccountId?.let { accountId ->
+                    ReminderSettingsEntry(
+                        owner = WeighingReminderOwner.Account(accountId),
+                        onClick = {
+                            if (draft == initialDraft) remindersOpen = true else reminderGuardOpen = true
+                        },
+                    )
+                }
                 Text(stringResource(R.string.account_sex), style = MaterialTheme.typography.labelLarge)
                 Row(
                     modifier = Modifier
@@ -841,6 +871,32 @@ fun AccountEditorScreen(
         },
         dismissButton = {
             TextButton(onClick = { discardRequested = false }) { Text(stringResource(R.string.account_continue_editing)) }
+        },
+    )
+    if (reminderGuardOpen) AlertDialog(
+        modifier = Modifier.testTag(AccountManagementTestTags.ReminderGuard),
+        onDismissRequest = { reminderGuardOpen = false },
+        title = { Text(stringResource(R.string.reminder_unsaved_title)) },
+        text = { Text(stringResource(R.string.reminder_unsaved_text)) },
+        confirmButton = {
+            TextButton(onClick = {
+                val update = draft.toAccountUpdateOrNull(validation)
+                if (update != null) {
+                    reminderGuardOpen = false
+                    openAfterSave = true
+                    onUpdate(update)
+                } else validationRequested = true
+            }) { Text(stringResource(R.string.reminder_save_continue)) }
+        },
+        dismissButton = {
+            Column {
+                TextButton(onClick = {
+                    reminderGuardOpen = false
+                    onDraftChanged(initialDraft)
+                    remindersOpen = true
+                }) { Text(stringResource(R.string.reminder_discard_continue)) }
+                TextButton(onClick = { reminderGuardOpen = false }) { Text(stringResource(R.string.reminder_keep_editing)) }
+            }
         },
     )
 }
