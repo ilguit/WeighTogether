@@ -6,13 +6,16 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.media.AudioAttributes
+import android.media.MediaPlayer
 import android.media.Ringtone
 import android.media.RingtoneManager
 import android.net.Uri
+import android.os.Build
 import android.os.IBinder
 
 class WeighingAlarmSoundService : Service() {
     private var ringtone: Ringtone? = null
+    private var legacyPlayer: MediaPlayer? = null
     private var token: String? = null
     private var scheduleId: String? = null
     override fun onBind(intent: Intent?): IBinder? = null
@@ -33,23 +36,77 @@ class WeighingAlarmSoundService : Service() {
             ?: return START_NOT_STICKY
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0).takeIf { it != 0 }
             ?: return START_NOT_STICKY
-        startForeground(notificationId, notification,
-            ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
-        if (next != token || ringtone?.isPlaying != true) {
-            ringtone?.stop(); token = next; scheduleId = nextSchedule
-            val requested = intent.getStringExtra(EXTRA_SOUND)?.let(Uri::parse)
-            ringtone = (requested?.let { runCatching { RingtoneManager.getRingtone(this, it) }.getOrNull() }
-                ?: RingtoneManager.getRingtone(this, RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM))).apply {
-                audioAttributes = AudioAttributes.Builder()
-                    .setUsage(WEIGHING_ALARM_AUDIO_USAGE)
-                    .setContentType(WEIGHING_ALARM_AUDIO_CONTENT_TYPE)
-                    .build()
-                isLooping = true; play()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                notificationId,
+                notification,
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+            )
+        } else {
+            startForeground(notificationId, notification)
+        }
+        if (next != token || !isSoundPlaying()) {
+            releaseSound()
+            token = next
+            scheduleId = nextSchedule
+            val sound = intent.getStringExtra(EXTRA_SOUND)?.let(Uri::parse)
+                ?: RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val attributes = AudioAttributes.Builder()
+                .setUsage(WEIGHING_ALARM_AUDIO_USAGE)
+                .setContentType(WEIGHING_ALARM_AUDIO_CONTENT_TYPE)
+                .build()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                ringtone = (runCatching { RingtoneManager.getRingtone(this, sound) }.getOrNull()
+                    ?: RingtoneManager.getRingtone(
+                        this,
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                    ))?.apply {
+                    audioAttributes = attributes
+                    isLooping = true
+                    play()
+                }
+            } else {
+                legacyPlayer = createLoopingPlayer(sound, attributes)
+                    ?: createLoopingPlayer(
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                        attributes,
+                    )
             }
         }
         return START_NOT_STICKY
     }
-    override fun onDestroy() { ringtone?.stop(); ringtone = null; token = null; scheduleId = null; super.onDestroy() }
+    override fun onDestroy() {
+        token = null
+        scheduleId = null
+        releaseSound()
+        super.onDestroy()
+    }
+
+    private fun isSoundPlaying(): Boolean = ringtone?.isPlaying == true || legacyPlayer?.isPlaying == true
+
+    private fun createLoopingPlayer(uri: Uri, attributes: AudioAttributes): MediaPlayer? {
+        val player = MediaPlayer()
+        return runCatching {
+            player.apply {
+                setAudioAttributes(attributes)
+                setDataSource(this@WeighingAlarmSoundService, uri)
+                isLooping = true
+                prepare()
+                start()
+            }
+        }.getOrElse {
+            player.release()
+            null
+        }
+    }
+
+    private fun releaseSound() {
+        ringtone?.stop()
+        ringtone = null
+        legacyPlayer?.stop()
+        legacyPlayer?.release()
+        legacyPlayer = null
+    }
     companion object {
         internal const val ACTION_START = "com.palixander.scalesync.action.START_WEIGHING_ALARM_SOUND"
         internal const val ACTION_STOP = "com.palixander.scalesync.action.STOP_WEIGHING_ALARM_SOUND"

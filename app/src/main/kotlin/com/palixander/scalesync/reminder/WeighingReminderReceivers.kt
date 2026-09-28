@@ -1,16 +1,19 @@
 package com.palixander.scalesync.reminder
 
-import android.app.Activity
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.os.Build
+import android.view.WindowManager
+import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import com.palixander.scalesync.ScaleSyncApplication
 import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.domain.WeighingReminderId
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 
-class WeighingReminderOpenActivity : Activity() {
+class WeighingReminderOpenActivity : ComponentActivity() {
     private val actionStarted = AtomicBoolean(false)
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
@@ -23,8 +26,19 @@ class WeighingReminderOpenActivity : Activity() {
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
             setFinishOnTouchOutside(false)
-            setShowWhenLocked(true)
-            setTurnScreenOn(true)
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O_MR1) {
+                setShowWhenLocked(true)
+                setTurnScreenOn(true)
+            } else {
+                @Suppress("DEPRECATION")
+                window.addFlags(
+                    WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or
+                        WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON,
+                )
+            }
+            onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() = stopAlarmOrFinish()
+            })
             val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
             val padding = (24 * resources.displayMetrics.density).toInt()
             val layout = android.widget.LinearLayout(this).apply {
@@ -66,8 +80,7 @@ class WeighingReminderOpenActivity : Activity() {
         }
     }
 
-    @Deprecated("Android invokes this callback for the system Back action")
-    override fun onBackPressed() {
+    private fun stopAlarmOrFinish() {
         val application = applicationContext as? ScaleSyncApplication
         val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
         val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
