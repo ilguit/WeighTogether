@@ -122,4 +122,5 @@
     <string name="weighing_alarm_notification_title_generic">Будильник зважування</string>
     <string name="weighing_alarm_screen_title">Час зважити: %1$s</string>
     <string name="weighing_reminder_stop">Вимкнути</string>
+    <string name="weighing_reminder_weigh">Зважити</string>
 </resources>

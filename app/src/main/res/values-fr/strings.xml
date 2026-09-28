@@ -556,4 +556,5 @@
     <string name="weighing_alarm_notification_title_generic">Alarme de pesée</string>
     <string name="weighing_alarm_screen_title">Il est temps de peser : %1$s</string>
     <string name="weighing_reminder_stop">Arrêter</string>
+    <string name="weighing_reminder_weigh">Peser</string>
 </resources>

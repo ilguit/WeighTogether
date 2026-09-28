@@ -454,4 +454,5 @@
     <string name="weighing_alarm_notification_title_generic">称重闹钟</string>
     <string name="weighing_alarm_screen_title">该为%1$s称重了</string>
     <string name="weighing_reminder_stop">停止</string>
+    <string name="weighing_reminder_weigh">称重</string>
 </resources>

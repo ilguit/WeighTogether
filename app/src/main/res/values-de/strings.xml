@@ -556,4 +556,5 @@
     <string name="weighing_alarm_notification_title_generic">Wiegealarm</string>
     <string name="weighing_alarm_screen_title">Zeit zum Wiegen: %1$s</string>
     <string name="weighing_reminder_stop">Beenden</string>
+    <string name="weighing_reminder_weigh">Wiegen</string>
 </resources>
