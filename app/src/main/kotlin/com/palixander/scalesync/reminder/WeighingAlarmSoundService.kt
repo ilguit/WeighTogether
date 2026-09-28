@@ -1,6 +1,7 @@
 package com.palixander.scalesync.reminder
 
 import android.app.Notification
+import android.app.NotificationManager
 import android.app.Service
 import android.content.Context
 import android.content.Intent
@@ -55,14 +56,23 @@ class WeighingAlarmSoundService : Service() {
             ?: return START_NOT_STICKY
         val notificationId = intent.getIntExtra(EXTRA_NOTIFICATION_ID, 0).takeIf { it != 0 }
             ?: return START_NOT_STICKY
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                notificationId,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-            )
-        } else {
-            startForeground(notificationId, notification)
+        @Suppress("DEPRECATION")
+        val fallbackNotification = intent.getParcelableExtra<Notification>(EXTRA_FALLBACK_NOTIFICATION)
+            ?: return START_NOT_STICKY
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    notificationId,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            } else {
+                startForeground(notificationId, notification)
+            }
+        } catch (_: RuntimeException) {
+            getSystemService(NotificationManager::class.java).notify(notificationId, fallbackNotification)
+            stopSelf(startId)
+            return START_NOT_STICKY
         }
         if (next != token || !isSoundPlaying()) {
             releaseSound()
@@ -154,6 +164,7 @@ class WeighingAlarmSoundService : Service() {
         private const val EXTRA_SCHEDULE_ID = "schedule_id"
         private const val EXTRA_NOTIFICATION_ID = "notification_id"
         private const val EXTRA_NOTIFICATION = "notification"
+        private const val EXTRA_FALLBACK_NOTIFICATION = "fallback_notification"
         fun start(
             context: Context,
             scheduleId: String,
@@ -161,6 +172,7 @@ class WeighingAlarmSoundService : Service() {
             soundUri: String?,
             notificationId: Int,
             notification: Notification,
+            fallbackNotification: Notification,
         ): Boolean = try {
             context.startForegroundService(Intent(context, WeighingAlarmSoundService::class.java).apply {
                 action = ACTION_START
@@ -169,6 +181,7 @@ class WeighingAlarmSoundService : Service() {
                 putExtra(EXTRA_SOUND, soundUri)
                 putExtra(EXTRA_NOTIFICATION_ID, notificationId)
                 putExtra(EXTRA_NOTIFICATION, notification)
+                putExtra(EXTRA_FALLBACK_NOTIFICATION, fallbackNotification)
             })
             true
         } catch (_: RuntimeException) {

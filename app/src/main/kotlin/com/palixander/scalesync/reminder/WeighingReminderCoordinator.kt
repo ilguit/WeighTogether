@@ -40,8 +40,15 @@ class WeighingReminderCoordinator(
     private val alarmGateway: WeighingReminderAlarmGateway,
     private val capabilityGateway: WeighingReminderCapabilityGateway,
     private val clock: Clock = Clock.systemDefaultZone(),
-    private val startAlarmSound: (String, String, String?, Int, android.app.Notification) -> Boolean =
-        { scheduleId, token, soundUri, notificationId, notification ->
+    private val startAlarmSound: (
+        String,
+        String,
+        String?,
+        Int,
+        android.app.Notification,
+        android.app.Notification,
+    ) -> Boolean =
+        { scheduleId, token, soundUri, notificationId, notification, fallbackNotification ->
             WeighingAlarmSoundService.start(
                 context,
                 scheduleId,
@@ -49,6 +56,7 @@ class WeighingReminderCoordinator(
                 soundUri,
                 notificationId,
                 notification,
+                fallbackNotification,
             )
         },
     private val scheduleAlarm: (
@@ -187,7 +195,7 @@ class WeighingReminderCoordinator(
         val owner = schedule.owner
         val presentation = weighingReminderNotificationPresentation(importance)
         val openIntent = contentIntent(id, token, owner, importance == WeighingReminderImportance.ALARM, name)
-        fun buildNotification(channel: String, serviceCopy: Boolean = false) = NotificationCompat.Builder(context, channel)
+        fun buildNotification(channel: String) = NotificationCompat.Builder(context, channel)
             .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
             .setContentTitle(context.getString(presentation.titleRes, name))
             .setContentText(context.getString(presentation.textRes))
@@ -201,11 +209,8 @@ class WeighingReminderCoordinator(
                 actionIntent(ACTION_SNOOZE, id, token, owner),
             )
             .apply {
-                if (serviceCopy) {
-                    setSilent(true)
-                    setOnlyAlertOnce(true)
-                    setPriority(NotificationCompat.PRIORITY_MIN)
-                } else if (importance == WeighingReminderImportance.ALARM) {
+                if (importance == WeighingReminderImportance.ALARM) {
+                    setPriority(NotificationCompat.PRIORITY_MAX)
                     setFullScreenIntent(openIntent, true)
                 }
             }
@@ -219,20 +224,18 @@ class WeighingReminderCoordinator(
             .build()
 
         if (importance == WeighingReminderImportance.ALARM) {
-            val serviceNotification = buildNotification(NotificationChannelRegistry.weighingAlarms.id, serviceCopy = true)
+            val notificationId = notificationId(id)
+            val notification = buildNotification(NotificationChannelRegistry.weighingAlarms.id)
+            val fallbackNotification = buildNotification(NotificationChannelRegistry.weighingAlarmFallback.id)
             val started = startAlarmSound(
                 id.value,
                 token,
                 schedule.alarmSoundUri,
-                serviceNotificationId(id),
-                serviceNotification,
+                notificationId,
+                notification,
+                fallbackNotification,
             )
-            val publicChannel = if (started) {
-                NotificationChannelRegistry.weighingAlarms.id
-            } else {
-                NotificationChannelRegistry.weighingAlarmFallback.id
-            }
-            notifications.notify(notificationId(id), buildNotification(publicChannel))
+            if (!started) notifications.notify(notificationId, fallbackNotification)
         } else {
             notifications.notify(
                 notificationId(id),
@@ -243,7 +246,6 @@ class WeighingReminderCoordinator(
 
     private fun cancelNotificationCopies(id: WeighingReminderId) {
         notifications.cancel(notificationId(id))
-        notifications.cancel(serviceNotificationId(id))
     }
 
     private fun actionIntent(
@@ -308,7 +310,6 @@ class WeighingReminderCoordinator(
         const val EXTRA_ALARM = "weighing_reminder_alarm"
         const val EXTRA_OWNER_NAME = "weighing_reminder_owner_name"
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
-        fun serviceNotificationId(id: WeighingReminderId): Int = 0x57100000 xor id.value.hashCode()
     }
 }
 

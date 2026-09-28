@@ -4,6 +4,7 @@ import android.app.Application
 import android.app.Notification
 import android.app.NotificationManager
 import android.content.Context
+import androidx.core.app.NotificationCompat
 import androidx.room.Room
 import androidx.test.core.app.ApplicationProvider
 import com.palixander.scalesync.NotificationChannelRegistry
@@ -44,15 +45,20 @@ class WeighingReminderCoordinatorFailureTest {
     private val ids = ArrayDeque(listOf("schedule", "active", "next", "snooze"))
     private val repository = RoomWeighingReminderRepository(database, newId = { ids.removeFirst() })
     private val coordinator = WeighingReminderCoordinator(
-        context,
-        repository,
-        WeighingReminderAlarmGateway(context),
-        WeighingReminderCapabilityGateway(context),
-        Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC),
-    ) { _, kind, _, _, _ ->
-        if (kind == ReminderCallbackKind.REGULAR) ReminderScheduleResult.FAILED
-        else ReminderScheduleResult.EXACT
-    }
+        context = context,
+        repository = repository,
+        alarmGateway = WeighingReminderAlarmGateway(context),
+        capabilityGateway = WeighingReminderCapabilityGateway(context),
+        clock = Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC),
+        startAlarmSound = { _, _, _, notificationId, notification, _ ->
+            context.getSystemService(NotificationManager::class.java).notify(notificationId, notification)
+            true
+        },
+        scheduleAlarm = { _, kind, _, _, _ ->
+            if (kind == ReminderCallbackKind.REGULAR) ReminderScheduleResult.FAILED
+            else ReminderScheduleResult.EXACT
+        },
+    )
 
     @After
     fun close() = database.close()
@@ -100,7 +106,8 @@ class WeighingReminderCoordinatorFailureTest {
 
     @Test
     fun `service start failure publishes one audible manageable alarm notification`() = runBlocking {
-        var serviceCopy: Notification? = null
+        var serviceNotification: Notification? = null
+        var fallbackNotification: Notification? = null
         var serviceId = 0
         val fallbackCoordinator = WeighingReminderCoordinator(
             context = context,
@@ -108,9 +115,10 @@ class WeighingReminderCoordinatorFailureTest {
             alarmGateway = WeighingReminderAlarmGateway(context),
             capabilityGateway = WeighingReminderCapabilityGateway(context),
             clock = Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC),
-            startAlarmSound = { _, _, _, notificationId, notification ->
+            startAlarmSound = { _, _, _, notificationId, notification, fallback ->
                 serviceId = notificationId
-                serviceCopy = notification
+                serviceNotification = notification
+                fallbackNotification = fallback
                 false
             },
             scheduleAlarm = { _, _, _, _, _ -> ReminderScheduleResult.EXACT },
@@ -119,22 +127,49 @@ class WeighingReminderCoordinatorFailureTest {
 
         fallbackCoordinator.onFire(id, ReminderCallbackKind.REGULAR, active)
 
-        val foreground = requireNotNull(serviceCopy)
-        assertNull(foreground.fullScreenIntent)
-        assertTrue(foreground.flags and Notification.FLAG_ONLY_ALERT_ONCE != 0)
-        assertEquals(WeighingReminderCoordinator.serviceNotificationId(id), serviceId)
+        val foreground = requireNotNull(serviceNotification)
+        assertNotNull(foreground.fullScreenIntent)
+        assertEquals(WeighingReminderCoordinator.notificationId(id), serviceId)
+        assertEquals(NotificationChannelRegistry.weighingAlarms.id, foreground.channelId)
+        assertEquals(NotificationChannelRegistry.weighingAlarmFallback.id, fallbackNotification?.channelId)
         val public = requireNotNull(notification(id))
         assertEquals(NotificationChannelRegistry.weighingAlarmFallback.id, public.channelId)
         assertNotNull(public.fullScreenIntent)
         assertEquals(2, public.actions.size)
 
-        // Even if Android had briefly posted the service copy, Stop clears both ids.
+        // The foreground and fallback paths own the same notification id.
         context.getSystemService(NotificationManager::class.java).notify(serviceId, foreground)
         fallbackCoordinator.onStop(id, active)
         assertNull(notification(id))
-        assertNull(
-            shadowOf(context.getSystemService(NotificationManager::class.java)).getNotification(serviceId),
+    }
+
+    @Test
+    fun `successful alarm delegates exactly one full screen notification to foreground service`() = runBlocking {
+        val delivered = mutableListOf<Pair<Int, Notification>>()
+        val successfulCoordinator = WeighingReminderCoordinator(
+            context = context,
+            repository = repository,
+            alarmGateway = WeighingReminderAlarmGateway(context),
+            capabilityGateway = WeighingReminderCapabilityGateway(context),
+            clock = Clock.fixed(Instant.parse("2026-09-28T08:00:00Z"), ZoneOffset.UTC),
+            startAlarmSound = { _, _, _, notificationId, notification, _ ->
+                delivered += notificationId to notification
+                true
+            },
+            scheduleAlarm = { _, _, _, _, _ -> ReminderScheduleResult.EXACT },
         )
+        val (id, active) = createClaimable(WeighingReminderImportance.ALARM)
+
+        successfulCoordinator.onFire(id, ReminderCallbackKind.REGULAR, active)
+
+        assertEquals(1, delivered.size)
+        assertEquals(WeighingReminderCoordinator.notificationId(id), delivered.single().first)
+        assertNotNull(delivered.single().second.fullScreenIntent)
+        @Suppress("DEPRECATION")
+        val priority = delivered.single().second.priority
+        assertEquals(NotificationCompat.PRIORITY_MAX, priority)
+        assertEquals(2, delivered.single().second.actions.size)
+        assertNull(notification(id))
     }
 
     private suspend fun createClaimable(
