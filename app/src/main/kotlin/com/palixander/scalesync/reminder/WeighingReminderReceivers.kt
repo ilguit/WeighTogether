@@ -8,8 +8,10 @@ import com.palixander.scalesync.ScaleSyncApplication
 import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.domain.WeighingReminderId
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 
 class WeighingReminderOpenActivity : Activity() {
+    private val actionStarted = AtomicBoolean(false)
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
@@ -20,6 +22,7 @@ class WeighingReminderOpenActivity : Activity() {
             return
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
+            setFinishOnTouchOutside(false)
             setShowWhenLocked(true)
             setTurnScreenOn(true)
             val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
@@ -54,11 +57,24 @@ class WeighingReminderOpenActivity : Activity() {
     }
 
     private fun perform(app: ScaleSyncApplication, id: String, token: String, snooze: Boolean) {
+        if (!actionStarted.compareAndSet(false, true)) return
         app.container.applicationScope.launch {
             try {
                 if (snooze) app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
                 else app.container.weighingReminders.onStop(WeighingReminderId(id), token)
             } finally { runOnUiThread(::finish) }
+        }
+    }
+
+    @Deprecated("Android invokes this callback for the system Back action")
+    override fun onBackPressed() {
+        val application = applicationContext as? ScaleSyncApplication
+        val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
+        val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
+        if (application == null || id.isNullOrBlank() || token.isNullOrBlank()) {
+            finish()
+        } else {
+            perform(application, id, token, false)
         }
     }
 }

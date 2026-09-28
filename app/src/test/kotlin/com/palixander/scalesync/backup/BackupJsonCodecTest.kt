@@ -16,6 +16,36 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class BackupJsonCodecTest {
+    @Test
+    fun versionSevenReminderBackupRemainsReadableWithoutAlarmSound() {
+        val legacy = codec.encode(
+            document().copy(
+                reminderSchedules = listOf(
+                    BackupReminderScheduleV7(
+                        "r",
+                        WeighingReminderOwnerType.ACCOUNT,
+                        "a",
+                        540,
+                        1,
+                        WeighingReminderImportance.ALARM,
+                        true,
+                        1,
+                        2,
+                        "content://media/alarm/7",
+                    ),
+                ),
+            ),
+        )
+            .replace("\"schemaVersion\":8", "\"schemaVersion\":7")
+            .replace(Regex(",\"alarmSoundUri\":(?:null|\"[^\"]*\")"), "")
+
+        val decoded = codec.decode(legacy)
+
+        assertEquals(7, decoded.schemaVersion)
+        assertEquals(1, decoded.reminderSchedules.size)
+        assertTrue(decoded.reminderSchedules.single().alarmSoundUri == null)
+    }
+
     private val codec = BackupJsonCodec()
     private val legacyHuaweiKeys = setOf(
         "huaweiStatus",

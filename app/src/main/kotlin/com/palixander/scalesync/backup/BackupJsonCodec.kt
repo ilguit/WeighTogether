@@ -108,7 +108,7 @@ class BackupJsonCodec(
     private fun checkShape(root: JsonObject, version: Int) {
         root.requireKeys("$", when {
             version == BACKUP_SCHEMA_VERSION_V1 -> ROOT_KEYS_V1
-            version < BACKUP_SCHEMA_VERSION -> ROOT_KEYS_V2
+            version < BACKUP_SCHEMA_VERSION_V7 -> ROOT_KEYS_V2
             else -> ROOT_KEYS_V7
         })
         root.requireStrings("$", setOf("format", "exportedAt"))
@@ -547,6 +547,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V4,
             BACKUP_SCHEMA_VERSION_V5,
             BACKUP_SCHEMA_VERSION_V6,
+            BACKUP_SCHEMA_VERSION_V7,
             BACKUP_SCHEMA_VERSION,
         )
     }

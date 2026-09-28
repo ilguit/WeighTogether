@@ -58,6 +58,7 @@ class WeighingReminderCoordinator(
         snapshots.forEach { snapshot ->
             val id = snapshot.schedule.id
             if (!capability.canPublish(snapshot.schedule.importance)) {
+                WeighingAlarmSoundService.stop(context, id.value)
                 notifications.cancel(notificationId(id))
                 alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
                 alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
@@ -93,6 +94,7 @@ class WeighingReminderCoordinator(
     /** Cleans up platform state for schedules already removed by an owner cascade. */
     fun cancelDeleted(scheduleIds: Iterable<WeighingReminderId>) {
         scheduleIds.forEach { id ->
+            WeighingAlarmSoundService.stop(context, id.value)
             alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
             alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
             notifications.cancel(notificationId(id))
@@ -117,7 +119,7 @@ class WeighingReminderCoordinator(
         val snapshot = repository.snapshot(id) ?: return
         val due = clock.millis() + 10.minutes.inWholeMilliseconds
         val snoozeToken = repository.snooze(id, token, due) ?: return
-        WeighingAlarmSoundService.stop(context)
+        WeighingAlarmSoundService.stop(context, id.value, token)
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
         if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
@@ -126,16 +128,19 @@ class WeighingReminderCoordinator(
     }
 
     suspend fun onContentTap(id: WeighingReminderId, token: String) {
-        val snapshot = repository.snapshot(id) ?: run {
-            WeighingAlarmSoundService.stop(context)
-            notifications.cancel(notificationId(id))
-            return launchFallback()
-        }
-        if (!repository.consumeAction(id, token)) return
-        WeighingAlarmSoundService.stop(context)
+        val snapshot = repository.snapshot(id)
+        if (!onContentOpened(id, token)) return
+        snapshot?.let { launch(WeighingReminderNavigationTarget(it.schedule.owner)) } ?: launchFallback()
+    }
+
+    /** Consumes an occurrence opened directly by MainActivity without launching a second task. */
+    suspend fun onContentOpened(id: WeighingReminderId, token: String): Boolean {
+        val snapshot = repository.snapshot(id)
+        if (snapshot != null && !repository.consumeAction(id, token)) return false
+        WeighingAlarmSoundService.stop(context, id.value, token)
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        launch(WeighingReminderNavigationTarget(snapshot.schedule.owner))
+        return true
     }
 
     private suspend fun scheduleNextRegular(id: WeighingReminderId) {
@@ -150,12 +155,12 @@ class WeighingReminderCoordinator(
 
     suspend fun onStop(id: WeighingReminderId, token: String) {
         val snapshot = repository.snapshot(id) ?: run {
-            WeighingAlarmSoundService.stop(context)
+            WeighingAlarmSoundService.stop(context, id.value, token)
             notifications.cancel(notificationId(id))
             return
         }
         if (!repository.consumeAction(id, token)) return
-        WeighingAlarmSoundService.stop(context)
+        WeighingAlarmSoundService.stop(context, id.value, token)
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
         launch(WeighingReminderNavigationTarget(snapshot.schedule.owner))
@@ -196,9 +201,19 @@ class WeighingReminderCoordinator(
                 actionIntent(ACTION_STOP, id, token, owner),
             )
         }
-        notifications.notify(notificationId(id), builder.build())
+        val notification = builder.build()
+        notifications.notify(notificationId(id), notification)
         if (importance == WeighingReminderImportance.ALARM) {
-            runCatching { WeighingAlarmSoundService.start(context, token, schedule.alarmSoundUri) }
+            runCatching {
+                WeighingAlarmSoundService.start(
+                    context,
+                    id.value,
+                    token,
+                    schedule.alarmSoundUri,
+                    notificationId(id),
+                    notification,
+                )
+            }
         }
     }
 
@@ -229,8 +244,8 @@ class WeighingReminderCoordinator(
     ): PendingIntent = PendingIntent.getActivity(
         context,
         0,
-        Intent(context, WeighingReminderOpenActivity::class.java).apply {
-            action = ACTION_OPEN
+        Intent(context, weighingReminderContentActivity(alarm)).apply {
+            action = if (alarm) ACTION_OPEN else WeighingReminderNavigationTarget.ACTION_OPEN_PROFILE
             data = Uri.parse("scalesync://weighing-reminder-action/${Uri.encode(id.value)}/open")
             putExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID, id.value)
             putExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN, token)
@@ -266,6 +281,9 @@ class WeighingReminderCoordinator(
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }
+
+internal fun weighingReminderContentActivity(alarm: Boolean): Class<*> =
+    if (alarm) WeighingReminderOpenActivity::class.java else MainActivity::class.java
 
 internal fun weighingReminderNotificationSmallIcon(
     @Suppress("UNUSED_PARAMETER") importance: WeighingReminderImportance,
