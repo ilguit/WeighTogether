@@ -22,6 +22,7 @@ import com.palixander.scalesync.data.*
 import com.palixander.scalesync.domain.*
 import com.palixander.scalesync.reminder.WeighingReminderCapability
 import com.palixander.scalesync.reminder.WeighingReminderCapabilityGateway
+import com.palixander.scalesync.reminder.WeighingReminderCapabilityIssue
 import com.palixander.scalesync.reminder.WeighingReminderCoordinator
 import com.palixander.scalesync.reminder.nextEnabledReminderOccurrence
 import java.time.Clock
@@ -69,7 +70,7 @@ class ReminderSettingsStateOwner(
 ) {
     val schedules = repository.observe(owner)
     fun capability(): WeighingReminderCapability = capabilities.read()
-    fun settingsIntents(importance: WeighingReminderImportance) = capabilities.settingsIntents(importance)
+    fun settingsIntents(issue: WeighingReminderCapabilityIssue) = capabilities.settingsIntents(issue)
     suspend fun save(id: WeighingReminderId?, draft: WeighingReminderDraft): SaveWeighingReminderResult {
         val result = if (id == null) repository.create(draft) else repository.update(id, draft)
         if (result is SaveWeighingReminderResult.Saved) coordinator.reconcile()
@@ -158,18 +159,20 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
         floatingActionButton = { FloatingActionButton(onClick = { creating = true }, Modifier.testTag(ReminderSettingsTestTags.Add)) { Text("+") } },
     ) { padding ->
         Column(Modifier.fillMaxSize().padding(padding).verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            val capability = stateOwner.capability()
-            if (!capability.notificationsAllowed || !capability.regularChannelAllowed || !capability.alarmChannelAllowed || !capability.exactAlarmsAllowed) {
-                CapabilityWarning(stateOwner, capability)
-            }
             when (val current = state) {
                 ReminderListState.Loading -> CircularProgressIndicator(Modifier.align(Alignment.CenterHorizontally).testTag(ReminderSettingsTestTags.Loading))
                 is ReminderListState.Error -> Text(stringResource(R.string.reminder_load_error), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(ReminderSettingsTestTags.Error).semantics { liveRegion = LiveRegionMode.Polite })
-                is ReminderListState.Ready -> if (current.schedules.isEmpty()) {
-                    Text(stringResource(R.string.reminder_empty), Modifier.testTag(ReminderSettingsTestTags.Empty))
-                } else current.schedules.forEach { schedule ->
-                    ReminderRow(schedule, { editing = schedule }) { enabled ->
-                        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { stateOwner.enabled(schedule.id, enabled) }
+                is ReminderListState.Ready -> {
+                    val issues = stateOwner.capability().issuesFor(
+                        current.schedules.filter { it.enabled }.mapTo(mutableSetOf()) { it.importance },
+                    )
+                    if (issues.isNotEmpty()) CapabilityWarning(stateOwner, issues.first())
+                    if (current.schedules.isEmpty()) {
+                        Text(stringResource(R.string.reminder_empty), Modifier.testTag(ReminderSettingsTestTags.Empty))
+                    } else current.schedules.forEach { schedule ->
+                        ReminderRow(schedule, { editing = schedule }) { enabled ->
+                            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch { stateOwner.enabled(schedule.id, enabled) }
+                        }
                     }
                 }
             }
@@ -178,20 +181,20 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
 }
 
 @Composable
-private fun CapabilityWarning(stateOwner: ReminderSettingsStateOwner, capability: WeighingReminderCapability) {
+private fun CapabilityWarning(stateOwner: ReminderSettingsStateOwner, issue: WeighingReminderCapabilityIssue) {
     val context = LocalContext.current
     Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth().testTag(ReminderSettingsTestTags.Unavailable)) {
         Column(Modifier.padding(12.dp)) {
             Text(stringResource(R.string.reminder_unavailable))
-            TextButton(onClick = { openFirstSettings(context, stateOwner, if (!capability.exactAlarmsAllowed) WeighingReminderImportance.ALARM else WeighingReminderImportance.REGULAR) }) {
+            TextButton(onClick = { openFirstSettings(context, stateOwner, issue) }) {
                 Text(stringResource(R.string.reminder_open_settings))
             }
         }
     }
 }
 
-private fun openFirstSettings(context: Context, owner: ReminderSettingsStateOwner, importance: WeighingReminderImportance) {
-    owner.settingsIntents(importance).firstOrNull { runCatching { context.startActivity(it); true }.getOrDefault(false) }
+private fun openFirstSettings(context: Context, owner: ReminderSettingsStateOwner, issue: WeighingReminderCapabilityIssue) {
+    owner.settingsIntents(issue).firstOrNull { runCatching { context.startActivity(it); true }.getOrDefault(false) }
 }
 
 @Composable
@@ -228,6 +231,9 @@ private fun ReminderEditor(owner: WeighingReminderOwner, existing: WeighingRemin
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(importance == WeighingReminderImportance.REGULAR, { importance = WeighingReminderImportance.REGULAR }, { Text(stringResource(R.string.reminder_regular)) })
                 FilterChip(importance == WeighingReminderImportance.ALARM, { importance = WeighingReminderImportance.ALARM }, { Text(stringResource(R.string.reminder_alarm)) })
+            }
+            stateOwner.capability().issuesFor(setOf(importance)).firstOrNull()?.let { issue ->
+                CapabilityWarning(stateOwner, issue)
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) { Text(stringResource(R.string.reminder_enabled), Modifier.weight(1f)); Switch(enabled, { enabled = it }) }
             error?.let { Text(stringResource(it), color = MaterialTheme.colorScheme.error, modifier = Modifier.testTag(if (it == R.string.reminder_duplicate) ReminderSettingsTestTags.Duplicate else ReminderSettingsTestTags.Error).semantics { liveRegion = LiveRegionMode.Assertive }) }
