@@ -23,6 +23,8 @@ import com.palixander.scalesync.domain.*
 import com.palixander.scalesync.reminder.WeighingReminderCapability
 import com.palixander.scalesync.reminder.WeighingReminderCapabilityGateway
 import com.palixander.scalesync.reminder.WeighingReminderCoordinator
+import com.palixander.scalesync.reminder.nextEnabledReminderOccurrence
+import java.time.Clock
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.LocalTime
@@ -126,9 +128,11 @@ private fun reminderSummary(schedules: List<WeighingReminderSchedule>): String {
     if (schedules.isEmpty()) return stringResource(R.string.reminder_none)
     val enabled = schedules.filter { it.enabled }
     if (enabled.isEmpty()) return stringResource(R.string.reminder_all_disabled)
-    val first = enabled.minBy { it.time }
-    val time = first.time.format(DateTimeFormatter.ofLocalizedTime(FormatStyle.SHORT))
-    return if (enabled.size == 1) time else stringResource(R.string.reminder_summary_more, time, enabled.size - 1)
+    val clock = Clock.systemDefaultZone()
+    val occurrence = checkNotNull(nextEnabledReminderOccurrence(enabled, clock))
+    val dateTime = occurrence.instant.atZone(clock.zone)
+        .format(DateTimeFormatter.ofLocalizedDateTime(FormatStyle.SHORT))
+    return if (enabled.size == 1) dateTime else stringResource(R.string.reminder_summary_more, dateTime, enabled.size - 1)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

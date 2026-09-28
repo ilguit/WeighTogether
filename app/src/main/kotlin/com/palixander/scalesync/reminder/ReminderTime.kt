@@ -27,3 +27,18 @@ internal fun nextReminderInstant(
     }
     error("A non-empty weekly schedule must have a future occurrence")
 }
+
+internal data class NextReminderOccurrence(
+    val schedule: WeighingReminderSchedule,
+    val instant: Instant,
+)
+
+internal fun nextEnabledReminderOccurrence(
+    schedules: List<WeighingReminderSchedule>,
+    clock: Clock,
+    zone: ZoneId = clock.zone,
+): NextReminderOccurrence? = schedules
+    .asSequence()
+    .filter(WeighingReminderSchedule::enabled)
+    .map { schedule -> NextReminderOccurrence(schedule, nextReminderInstant(schedule, clock, zone)) }
+    .minByOrNull(NextReminderOccurrence::instant)

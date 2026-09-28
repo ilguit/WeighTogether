@@ -40,8 +40,44 @@ class ReminderTimeTest {
         assertEquals(Instant.parse("2026-10-25T00:30:00Z"), nextReminderInstant(schedule, clock))
     }
 
-    private fun schedule(time: LocalTime, day: DayOfWeek) = WeighingReminderSchedule(
-        id = WeighingReminderId("id"),
+    @Test
+    fun `summary occurrence selects next weekday rather than earliest wall clock time`() {
+        val sundayEvening = schedule(LocalTime.of(20, 0), DayOfWeek.SUNDAY, "sunday")
+        val mondayMorning = schedule(LocalTime.of(8, 0), DayOfWeek.MONDAY, "monday")
+        val clock = Clock.fixed(Instant.parse("2026-02-01T18:00:00Z"), berlin)
+
+        val occurrence = nextEnabledReminderOccurrence(listOf(mondayMorning, sundayEvening), clock)
+
+        assertEquals(sundayEvening, occurrence?.schedule)
+        assertEquals(Instant.parse("2026-02-01T19:00:00Z"), occurrence?.instant)
+    }
+
+    @Test
+    fun `summary occurrence rolls into next week after todays time passes`() {
+        val sundayEvening = schedule(LocalTime.of(20, 0), DayOfWeek.SUNDAY, "sunday")
+        val mondayMorning = schedule(LocalTime.of(8, 0), DayOfWeek.MONDAY, "monday")
+        val clock = Clock.fixed(Instant.parse("2026-02-01T20:00:00Z"), berlin)
+
+        val occurrence = nextEnabledReminderOccurrence(listOf(sundayEvening, mondayMorning), clock)
+
+        assertEquals(mondayMorning, occurrence?.schedule)
+        assertEquals(Instant.parse("2026-02-02T07:00:00Z"), occurrence?.instant)
+    }
+
+    @Test
+    fun `summary occurrence compares resolved dst gap instants`() {
+        val gap = schedule(LocalTime.of(2, 30), DayOfWeek.SUNDAY, "gap")
+        val later = schedule(LocalTime.of(3, 15), DayOfWeek.SUNDAY, "later")
+        val clock = Clock.fixed(Instant.parse("2026-03-28T12:00:00Z"), berlin)
+
+        val occurrence = nextEnabledReminderOccurrence(listOf(later, gap), clock)
+
+        assertEquals(gap, occurrence?.schedule)
+        assertEquals(Instant.parse("2026-03-29T01:00:00Z"), occurrence?.instant)
+    }
+
+    private fun schedule(time: LocalTime, day: DayOfWeek, id: String = "id") = WeighingReminderSchedule(
+        id = WeighingReminderId(id),
         owner = WeighingReminderOwner.Account(AccountId("account")),
         time = time,
         weekdays = setOf(day),
