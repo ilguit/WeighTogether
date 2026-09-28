@@ -3,7 +3,6 @@ package com.palixander.scalesync.reminder
 import com.palixander.scalesync.domain.WeighingReminderSchedule
 import java.time.Clock
 import java.time.Instant
-import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
@@ -14,7 +13,7 @@ internal fun nextReminderInstant(
     zone: ZoneId = clock.zone,
 ): Instant {
     val now = clock.instant()
-    val today = LocalDate.ofInstant(now, zone)
+    val today = now.atZone(zone).toLocalDate()
     for (offset in 0..7) {
         val date = today.plusDays(offset.toLong())
         if (date.dayOfWeek !in schedule.weekdays) continue
