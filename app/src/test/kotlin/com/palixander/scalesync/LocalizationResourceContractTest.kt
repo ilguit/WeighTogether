@@ -11,11 +11,14 @@ class LocalizationResourceContractTest {
     @Test
     fun `weighing reminder copy is translated in every supported locale`() {
         val defaults = readResources(File("src/main/res/values/strings.xml"))
+        val reminderKeys = defaults.keys.filter(::isReminderResource).toSet()
+
+        assertFalse("No default reminder resources found", reminderKeys.isEmpty())
 
         LOCALES.filterNot { it.directory == "values" }.forEach { locale ->
             val localized = readResources(File("src/main/res/${locale.directory}/strings.xml"))
 
-            REMINDER_KEYS.forEach { key ->
+            reminderKeys.forEach { key ->
                 val default = defaults[key]
                 val translation = localized[key]
                 assertFalse("Missing default reminder resource: $key", default == null)
@@ -90,7 +93,10 @@ class LocalizationResourceContractTest {
                 }
                 element.getAttribute("name") to ResourceContract(
                     type = element.tagName,
-                    arguments = texts.flatMap { FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value) }.toSet(),
+                    arguments = texts
+                        .flatMap { FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value) }
+                        .groupingBy { it }
+                        .eachCount(),
                     quantities = texts.mapNotNull { it.getAttribute("quantity").takeIf(String::isNotEmpty) }.toSet(),
                     texts = texts.map { it.textContent.trim() },
                 )
@@ -99,7 +105,7 @@ class LocalizationResourceContractTest {
 
     private data class ResourceContract(
         val type: String,
-        val arguments: Set<String>,
+        val arguments: Map<String, Int>,
         val quantities: Set<String>,
         val texts: List<String>,
     )
@@ -134,46 +140,10 @@ class LocalizationResourceContractTest {
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =
             Regex("(?i)\\b(?:meaning|calculation|dependencies?|limitations?|warning|disclaimer|source)?\\s*information\\b")
-        val REMINDER_KEYS = setOf(
-            "reminder_title",
-            "reminder_loading",
-            "reminder_requires_attention",
-            "reminder_none",
-            "reminder_all_disabled",
-            "reminder_summary_more",
-            "reminder_load_error",
-            "reminder_empty",
-            "reminder_unavailable",
-            "reminder_open_settings",
-            "reminder_alarm",
-            "reminder_regular",
-            "reminder_add",
-            "reminder_edit",
-            "reminder_weekdays",
-            "reminder_type",
-            "reminder_enabled",
-            "reminder_duplicate",
-            "reminder_save_error",
-            "reminder_delete_title",
-            "reminder_delete_text",
-            "reminder_monday",
-            "reminder_tuesday",
-            "reminder_wednesday",
-            "reminder_thursday",
-            "reminder_friday",
-            "reminder_saturday",
-            "reminder_sunday",
-            "reminder_unsaved_title",
-            "reminder_unsaved_text",
-            "reminder_save_continue",
-            "reminder_discard_continue",
-            "reminder_keep_editing",
-            "notification_channel_weighing_reminders",
-            "notification_channel_weighing_alarms",
-            "weighing_reminder_notification_title",
-            "weighing_reminder_notification_text",
-            "weighing_reminder_snooze",
-        )
+        fun isReminderResource(key: String): Boolean =
+            key.startsWith("reminder_") ||
+                key.startsWith("weighing_reminder_") ||
+                key.startsWith("notification_channel_weighing_")
         // “Alarm” is the idiomatic German UI term as well as the English source text.
         val IDENTICAL_TRANSLATION_EXCEPTIONS = setOf("de" to "reminder_alarm")
     }

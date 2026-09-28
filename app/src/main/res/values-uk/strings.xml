@@ -81,7 +81,7 @@
     <string name="reminder_none">Не налаштовано</string>
     <string name="reminder_all_disabled">Усі вимкнені</string>
     <string name="reminder_summary_more">%1$s і ще %2$d</string>
-    <string name="reminder_load_error">Не вдалося завантажити нагадування. Зміни збережено.</string>
+    <string name="reminder_load_error">Не вдалося завантажити нагадування. Внесені зміни не втрачено.</string>
     <string name="reminder_empty">Нагадувань ще немає</string>
     <string name="reminder_unavailable">Для деяких нагадувань потрібні дозволи або налаштування каналів сповіщень.</string>
     <string name="reminder_open_settings">Відкрити системні налаштування</string>

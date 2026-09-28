@@ -333,7 +333,7 @@
     <string name="reminder_none">Не настроено</string>
     <string name="reminder_all_disabled">Все отключены</string>
     <string name="reminder_summary_more">%1$s и ещё %2$d</string>
-    <string name="reminder_load_error">Не удалось загрузить напоминания. Изменения сохранены.</string>
+    <string name="reminder_load_error">Не удалось загрузить напоминания. Внесённые изменения не потеряны.</string>
     <string name="reminder_empty">Напоминаний пока нет</string>
     <string name="reminder_unavailable">Для некоторых напоминаний требуются разрешения или настройка каналов уведомлений.</string>
     <string name="reminder_open_settings">Открыть настройки системы</string>
