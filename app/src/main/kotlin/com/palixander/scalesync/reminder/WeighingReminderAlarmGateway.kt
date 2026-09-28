@@ -56,6 +56,11 @@ class WeighingReminderAlarmGateway(private val context: Context) {
     fun hasSchedulingFailure(id: WeighingReminderId): Boolean =
         failedIdentities().any { it.substringBefore('|') == id.value }
 
+    fun hasSchedulingFailure(ids: Iterable<WeighingReminderId>): Boolean {
+        val validIds = ids.mapTo(mutableSetOf()) { it.value }
+        return failedIdentities().any { it.substringBefore('|') in validIds }
+    }
+
     fun hasAnySchedulingFailure(): Boolean = failedIdentities().isNotEmpty()
 
     fun cancel(id: WeighingReminderId, kind: ReminderCallbackKind) {

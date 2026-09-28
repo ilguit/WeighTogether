@@ -40,6 +40,13 @@ class WeighingReminderCoordinator(
     private val alarmGateway: WeighingReminderAlarmGateway,
     private val capabilityGateway: WeighingReminderCapabilityGateway,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val scheduleAlarm: (
+        WeighingReminderId,
+        ReminderCallbackKind,
+        String,
+        Long,
+        WeighingReminderImportance,
+    ) -> ReminderScheduleResult = alarmGateway::schedule,
 ) {
     private val notifications = context.getSystemService(NotificationManager::class.java)
 
@@ -64,7 +71,7 @@ class WeighingReminderCoordinator(
             if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
                 snoozeDue != null && snoozeToken != null && snoozeDue > clock.millis()
             ) {
-                val result = alarmGateway.schedule(
+                val result = scheduleAlarm(
                     id,
                     ReminderCallbackKind.SNOOZE,
                     snoozeToken,
@@ -113,7 +120,7 @@ class WeighingReminderCoordinator(
         val snoozeToken = repository.snooze(id, token, due) ?: return
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        if (alarmGateway.schedule(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
+        if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
             repository.invalidateRuntime(id)
         }
     }
@@ -134,8 +141,8 @@ class WeighingReminderCoordinator(
         val due = nextReminderInstant(schedule, clock).toEpochMilli()
         val token = repository.prepareRegularOccurrence(id, due) ?: return
         alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
-        if (alarmGateway.schedule(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
-            repository.invalidateRuntime(id)
+        if (scheduleAlarm(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
+            repository.discardRegularOccurrence(id, token)
         }
     }
 

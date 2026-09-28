@@ -76,7 +76,8 @@ class ReminderSettingsStateOwner(
     fun capability(): WeighingReminderCapability = capabilities.read()
     fun settingsIntents(issue: WeighingReminderCapabilityIssue) = capabilities.settingsIntents(issue)
     fun alarmSoundIntents() = capabilities.alarmSoundSettingsIntents()
-    fun hasSchedulingFailure() = alarmGateway.hasAnySchedulingFailure()
+    fun hasSchedulingFailure(scheduleIds: Iterable<WeighingReminderId>) =
+        alarmGateway.hasSchedulingFailure(scheduleIds)
     suspend fun save(id: WeighingReminderId?, draft: WeighingReminderDraft): SaveWeighingReminderResult {
         val result = if (id == null) repository.create(draft) else repository.update(id, draft)
         if (result is SaveWeighingReminderResult.Saved) coordinator.reconcile()
@@ -181,7 +182,7 @@ fun ReminderSettingsScreen(owner: WeighingReminderOwner, onBack: () -> Unit) {
                     ) {
                         TimingWarning(stateOwner, R.string.reminder_timing_degraded)
                     }
-                    if (stateOwner.hasSchedulingFailure()) {
+                    if (stateOwner.hasSchedulingFailure(current.schedules.map { it.id })) {
                         TimingWarning(stateOwner, R.string.reminder_scheduling_failed)
                     }
                     if (current.schedules.isEmpty()) {

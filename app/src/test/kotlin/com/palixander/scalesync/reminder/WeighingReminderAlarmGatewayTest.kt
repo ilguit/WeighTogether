@@ -118,4 +118,18 @@ class WeighingReminderAlarmGatewayTest {
         assertEquals(setOf(id), gateway.cancelUnknown(emptySet()))
         assertFalse(gateway.hasAnySchedulingFailure())
     }
+
+    @Test
+    fun `failure lookup is scoped to current owner schedule ids`() {
+        val firstOwner = WeighingReminderId("first-owner")
+        val secondOwner = WeighingReminderId("second-owner")
+        context.getSharedPreferences("weighing_reminder_alarm_registry", Context.MODE_PRIVATE)
+            .edit()
+            .putStringSet("failures", setOf("${secondOwner.value}|${ReminderCallbackKind.REGULAR.name}"))
+            .commit()
+
+        assertFalse(gateway.hasSchedulingFailure(listOf(firstOwner)))
+        assertTrue(gateway.hasSchedulingFailure(listOf(secondOwner)))
+        assertFalse(gateway.hasSchedulingFailure(emptyList()))
+    }
 }
