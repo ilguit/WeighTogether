@@ -9,6 +9,41 @@ import org.w3c.dom.Element
 
 class LocalizationResourceContractTest {
     @Test
+    fun `weighing reminder copy is translated in every supported locale`() {
+        val defaults = readResources(File("src/main/res/values/strings.xml"))
+        val reminderKeys = defaults.keys.filter(::isReminderResource).toSet()
+
+        assertFalse("No default reminder resources found", reminderKeys.isEmpty())
+
+        LOCALES.filterNot { it.directory == "values" }.forEach { locale ->
+            val localized = readResources(File("src/main/res/${locale.directory}/strings.xml"))
+
+            reminderKeys.forEach { key ->
+                val default = defaults[key]
+                val translation = localized[key]
+                assertFalse("Missing default reminder resource: $key", default == null)
+                assertFalse("Missing ${locale.tag} reminder resource: $key", translation == null)
+                assertEquals(
+                    "Format arguments differ for ${locale.tag}:$key",
+                    default!!.arguments,
+                    translation!!.arguments,
+                )
+                assertEquals(
+                    "Format argument counts differ for ${locale.tag}:$key",
+                    default.argumentCounts,
+                    translation.argumentCounts,
+                )
+                if ((locale.tag to key) !in IDENTICAL_TRANSLATION_EXCEPTIONS) {
+                    assertFalse(
+                        "Reminder resource is still English for ${locale.tag}:$key",
+                        default.texts == translation.texts,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
     fun `localized resources expose matching keys formats and locale plural quantities`() {
         val defaultResources = LOCALIZABLE_RESOURCE_FILES.associateWith { fileName ->
             readResources(File("src/main/res/values/$fileName"))
@@ -63,7 +98,12 @@ class LocalizationResourceContractTest {
                 }
                 element.getAttribute("name") to ResourceContract(
                     type = element.tagName,
-                    arguments = texts.flatMap { FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value) }.toSet(),
+                    arguments = texts.flatMap {
+                        FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value)
+                    }.toSet(),
+                    argumentCounts = texts.flatMap {
+                        FORMAT_ARGUMENT.findAll(it.textContent).map(MatchResult::value)
+                    }.groupingBy { it }.eachCount(),
                     quantities = texts.mapNotNull { it.getAttribute("quantity").takeIf(String::isNotEmpty) }.toSet(),
                     texts = texts.map { it.textContent.trim() },
                 )
@@ -73,6 +113,7 @@ class LocalizationResourceContractTest {
     private data class ResourceContract(
         val type: String,
         val arguments: Set<String>,
+        val argumentCounts: Map<String, Int>,
         val quantities: Set<String>,
         val texts: List<String>,
     )
@@ -107,5 +148,12 @@ class LocalizationResourceContractTest {
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =
             Regex("(?i)\\b(?:meaning|calculation|dependencies?|limitations?|warning|disclaimer|source)?\\s*information\\b")
+        fun isReminderResource(key: String): Boolean =
+            key.startsWith("reminder_") ||
+                key.startsWith("weighing_reminder_") ||
+                key.startsWith("weighing_alarm_") ||
+                key.startsWith("notification_channel_weighing_")
+        // “Alarm” is the idiomatic German UI term as well as the English source text.
+        val IDENTICAL_TRANSLATION_EXCEPTIONS = setOf("de" to "reminder_alarm")
     }
 }

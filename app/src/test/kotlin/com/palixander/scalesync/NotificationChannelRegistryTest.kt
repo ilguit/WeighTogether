@@ -1,10 +1,20 @@
 package com.palixander.scalesync
 
 import android.app.NotificationManager
+import android.app.Application
+import android.content.Context
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import androidx.test.core.app.ApplicationProvider
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [35], application = Application::class)
 class NotificationChannelRegistryTest {
     @Test
     fun `registry contains every app notification channel exactly once`() {
@@ -14,10 +24,23 @@ class NotificationChannelRegistryTest {
                 "pending_measurement_routing",
                 "successful_measurement_saves",
                 "weighing_reminders",
-                "weighing_alarms",
+                "weighing_alarms_v2",
             ),
             NotificationChannelRegistry.all.map { it.id },
         )
+    }
+
+    @Test
+    fun `alarm channel uses default alarm ringtone and alarm audio usage`() {
+        val context = ApplicationProvider.getApplicationContext<Context>()
+        val manager = context.getSystemService(NotificationManager::class.java)
+
+        NotificationChannelRegistry.register(context, manager, NotificationChannelRegistry.weighingAlarms)
+
+        val channel = manager.getNotificationChannel(NotificationChannelRegistry.weighingAlarms.id)
+        assertEquals(RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM), channel.sound)
+        assertEquals(AudioAttributes.USAGE_ALARM, channel.audioAttributes.usage)
+        assertEquals(NotificationManager.IMPORTANCE_HIGH, channel.importance)
     }
 
     @Test
@@ -54,5 +77,6 @@ class NotificationChannelRegistryTest {
 
         assertEquals(NotificationManager.IMPORTANCE_DEFAULT, NotificationChannelRegistry.weighingReminders.importance)
         assertEquals(NotificationManager.IMPORTANCE_HIGH, NotificationChannelRegistry.weighingAlarms.importance)
+        assertEquals(true, NotificationChannelRegistry.weighingAlarms.alarmSound)
     }
 }

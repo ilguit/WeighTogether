@@ -140,6 +140,22 @@ class RoomWeighingReminderRepository(
             token
         }
 
+    /**
+     * Drops a regular occurrence that could not be handed to AlarmManager without disturbing an
+     * already displayed occurrence. The token check prevents a stale scheduling attempt from
+     * clearing a newer regular occurrence.
+     */
+    suspend fun discardRegularOccurrence(id: WeighingReminderId, occurrenceToken: String): Boolean =
+        serializedTransaction {
+            val runtime = dao.getRuntime(id.value) ?: return@serializedTransaction false
+            if (runtime.regularOccurrenceToken != occurrenceToken ||
+                runtime.regularStatus != ReminderOccurrenceStatus.SCHEDULED
+            ) {
+                return@serializedTransaction false
+            }
+            dao.updateRuntime(runtime.clearRegular()) == 1
+        }
+
     suspend fun snooze(
         id: WeighingReminderId,
         sourceOccurrenceToken: String,

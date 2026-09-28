@@ -90,4 +90,13 @@ class WeighingReminderCapabilityGateway(private val context: Context) {
         add(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName))
         add(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()))
     }
+
+    fun alarmSoundSettingsIntents(): List<Intent> = listOf(
+        Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+            putExtra(Settings.EXTRA_CHANNEL_ID, NotificationChannelRegistry.weighingAlarms.id)
+        },
+        Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName),
+        Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:${context.packageName}".toUri()),
+    )
 }

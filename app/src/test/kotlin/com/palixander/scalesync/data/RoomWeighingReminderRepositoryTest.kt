@@ -75,6 +75,21 @@ class RoomWeighingReminderRepositoryTest {
     }
 
     @Test
+    fun discardingFailedNextRegularPreservesActiveOccurrenceActions() = runBlocking {
+        insertAccount("account")
+        repository.create(draft(WeighingReminderOwner.Account(AccountId("account"))))
+        val id = WeighingReminderId("schedule")
+        val active = requireNotNull(repository.prepareRegularOccurrence(id, 1_000))
+        repository.claimDue(id, ReminderCallbackKind.REGULAR, active)
+        val failedNext = requireNotNull(repository.prepareRegularOccurrence(id, 2_000))
+
+        assertTrue(repository.discardRegularOccurrence(id, failedNext))
+        assertEquals(active, repository.snapshot(id)?.activeOccurrenceToken)
+        assertTrue(repository.consumeAction(id, active))
+        assertFalse(repository.consumeAction(id, active))
+    }
+
+    @Test
     fun earlierSnoozeWinsRegardlessOfRegularCallbackOrder() = runBlocking {
         insertAccount("account")
         repository.create(draft(WeighingReminderOwner.Account(AccountId("account"))))

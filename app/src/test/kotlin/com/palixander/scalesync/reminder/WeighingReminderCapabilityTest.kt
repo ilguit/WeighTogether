@@ -95,6 +95,17 @@ class WeighingReminderCapabilityTest {
         )
     }
 
+    @Test
+    fun alarmSoundOpensVersionedAlarmChannelWithFallbacks() {
+        val intents = WeighingReminderCapabilityGateway(RuntimeEnvironment.getApplication())
+            .alarmSoundSettingsIntents()
+
+        assertEquals(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS, intents[0].action)
+        assertEquals(NotificationChannelRegistry.weighingAlarms.id, intents[0].getStringExtra(Settings.EXTRA_CHANNEL_ID))
+        assertEquals(Settings.ACTION_APP_NOTIFICATION_SETTINGS, intents[1].action)
+        assertEquals(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, intents[2].action)
+    }
+
     private fun capability(
         postNotificationsAllowed: Boolean = true,
         appNotificationsAllowed: Boolean = true,

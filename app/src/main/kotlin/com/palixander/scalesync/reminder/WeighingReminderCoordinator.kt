@@ -40,6 +40,13 @@ class WeighingReminderCoordinator(
     private val alarmGateway: WeighingReminderAlarmGateway,
     private val capabilityGateway: WeighingReminderCapabilityGateway,
     private val clock: Clock = Clock.systemDefaultZone(),
+    private val scheduleAlarm: (
+        WeighingReminderId,
+        ReminderCallbackKind,
+        String,
+        Long,
+        WeighingReminderImportance,
+    ) -> ReminderScheduleResult = alarmGateway::schedule,
 ) {
     private val notifications = context.getSystemService(NotificationManager::class.java)
 
@@ -64,13 +71,14 @@ class WeighingReminderCoordinator(
             if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
                 snoozeDue != null && snoozeToken != null && snoozeDue > clock.millis()
             ) {
-                alarmGateway.schedule(
+                val result = scheduleAlarm(
                     id,
                     ReminderCallbackKind.SNOOZE,
                     snoozeToken,
                     snoozeDue,
                     snapshot.schedule.importance,
                 )
+                if (result == ReminderScheduleResult.FAILED) repository.invalidateRuntime(id)
             } else {
                 alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
                 if (snapshot.snoozeStatus == ReminderSnoozeStatus.SCHEDULED &&
@@ -112,7 +120,7 @@ class WeighingReminderCoordinator(
         val snoozeToken = repository.snooze(id, token, due) ?: return
         notifications.cancel(notificationId(id))
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        if (!alarmGateway.schedule(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance)) {
+        if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
             repository.invalidateRuntime(id)
         }
     }
@@ -133,7 +141,9 @@ class WeighingReminderCoordinator(
         val due = nextReminderInstant(schedule, clock).toEpochMilli()
         val token = repository.prepareRegularOccurrence(id, due) ?: return
         alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
-        alarmGateway.schedule(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance)
+        if (scheduleAlarm(id, ReminderCallbackKind.REGULAR, token, due, schedule.importance) == ReminderScheduleResult.FAILED) {
+            repository.discardRegularOccurrence(id, token)
+        }
     }
 
     private fun publish(
@@ -143,18 +153,19 @@ class WeighingReminderCoordinator(
         owner: WeighingReminderOwner,
         name: String,
     ) {
+        val presentation = weighingReminderNotificationPresentation(importance)
         val channel = if (importance == WeighingReminderImportance.ALARM) {
             NotificationChannelRegistry.weighingAlarms.id
         } else {
             NotificationChannelRegistry.weighingReminders.id
         }
         val notification = NotificationCompat.Builder(context, channel)
-            .setSmallIcon(android.R.drawable.ic_lock_idle_alarm)
-            .setContentTitle(context.getString(R.string.weighing_reminder_notification_title, name))
-            .setContentText(context.getString(R.string.weighing_reminder_notification_text))
-            .setCategory(NotificationCompat.CATEGORY_REMINDER)
-            .setAutoCancel(importance == WeighingReminderImportance.REGULAR)
-            .setOngoing(importance == WeighingReminderImportance.ALARM)
+            .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
+            .setContentTitle(context.getString(presentation.titleRes, name))
+            .setContentText(context.getString(presentation.textRes))
+            .setCategory(presentation.category)
+            .setAutoCancel(presentation.autoCancel)
+            .setOngoing(presentation.ongoing)
             .setContentIntent(contentIntent(id, token, owner))
             .addAction(
                 0,
@@ -222,3 +233,34 @@ class WeighingReminderCoordinator(
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }
+
+internal fun weighingReminderNotificationSmallIcon(
+    @Suppress("UNUSED_PARAMETER") importance: WeighingReminderImportance,
+): Int = R.drawable.ic_notification
+
+internal data class WeighingReminderNotificationPresentation(
+    val titleRes: Int,
+    val textRes: Int,
+    val category: String,
+    val ongoing: Boolean,
+    val autoCancel: Boolean,
+)
+
+internal fun weighingReminderNotificationPresentation(importance: WeighingReminderImportance) =
+    if (importance == WeighingReminderImportance.ALARM) {
+        WeighingReminderNotificationPresentation(
+            R.string.weighing_alarm_notification_title,
+            R.string.weighing_alarm_notification_text,
+            NotificationCompat.CATEGORY_ALARM,
+            ongoing = true,
+            autoCancel = false,
+        )
+    } else {
+        WeighingReminderNotificationPresentation(
+            R.string.weighing_reminder_notification_title,
+            R.string.weighing_reminder_notification_text,
+            NotificationCompat.CATEGORY_REMINDER,
+            ongoing = false,
+            autoCancel = true,
+        )
+    }

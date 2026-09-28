@@ -3,6 +3,8 @@ package com.palixander.scalesync
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import androidx.annotation.StringRes
 
 data class AppNotificationChannel(
@@ -10,6 +12,7 @@ data class AppNotificationChannel(
     @param:StringRes val nameRes: Int,
     val importance: Int,
     @param:StringRes val descriptionRes: Int? = null,
+    val alarmSound: Boolean = false,
 )
 
 object NotificationChannelRegistry {
@@ -35,9 +38,11 @@ object NotificationChannelRegistry {
         importance = NotificationManager.IMPORTANCE_DEFAULT,
     )
     val weighingAlarms = AppNotificationChannel(
-        id = "weighing_alarms",
+        // Channel properties are immutable after creation; use a versioned id for the alarm semantics.
+        id = "weighing_alarms_v2",
         nameRes = R.string.notification_channel_weighing_alarms,
         importance = NotificationManager.IMPORTANCE_HIGH,
+        alarmSound = true,
     )
 
     val all: List<AppNotificationChannel> = listOf(
@@ -65,6 +70,15 @@ object NotificationChannelRegistry {
                 channel.importance,
             ).apply {
                 description = channel.descriptionRes?.let(context::getString)
+                if (channel.alarmSound) {
+                    setSound(
+                        RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM),
+                        AudioAttributes.Builder()
+                            .setUsage(AudioAttributes.USAGE_ALARM)
+                            .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                            .build(),
+                    )
+                }
             },
         )
     }
