@@ -56,6 +56,17 @@ class WeighingAlarmFlowContractTest {
     }
 
     @Test
+    fun `alarm activity reuses its visible instance for notification actions`() {
+        val context = androidx.test.core.app.ApplicationProvider.getApplicationContext<Application>()
+        val info = context.packageManager.getActivityInfo(
+            android.content.ComponentName(context, WeighingReminderOpenActivity::class.java),
+            0,
+        )
+
+        assertEquals(android.content.pm.ActivityInfo.LAUNCH_SINGLE_TOP, info.launchMode)
+    }
+
+    @Test
     fun `stop command cannot silence a different occurrence`() {
         assertFalse(shouldStopWeighingAlarm("schedule", "new", "schedule", "old"))
         assertFalse(shouldStopWeighingAlarm("new-schedule", "token", "old-schedule", null))
