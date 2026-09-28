@@ -48,6 +48,34 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate17To18CreatesReminderTablesAndOwnerCascadeTriggers() {
+        helper.createDatabase(MIGRATION_17_18_DB, 17).apply {
+            execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',NULL,NULL,NULL,0,2,3,NULL)")
+            close()
+        }
+
+        helper.runMigrationsAndValidate(
+            MIGRATION_17_18_DB,
+            18,
+            true,
+            AppDatabase.MIGRATION_17_18,
+        ).apply {
+            execSQL("INSERT INTO weighing_reminder_schedules VALUES ('r','ACCOUNT','a',540,1,'REGULAR',1,1,1)")
+            execSQL("INSERT INTO weighing_reminder_runtime (scheduleId,generation,regularStatus,snoozeStatus) VALUES ('r',0,'NONE','NONE')")
+            execSQL("DELETE FROM accounts WHERE id='a'")
+            query("SELECT COUNT(*) FROM weighing_reminder_schedules").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+            query("SELECT COUNT(*) FROM weighing_reminder_runtime").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(0, it.getInt(0))
+            }
+            close()
+        }
+    }
+
+    @Test
     fun migrate14To15RetainsMeasurementAndDropsHuaweiColumns() {
         helper.createDatabase(MIGRATION_14_15_DB, 14).apply {
             execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',180.0,1,'MALE',1,2,3)")
@@ -713,5 +741,6 @@ class AppDatabaseMigrationTest {
         const val MIGRATION_5_6_DB = "measurement-migration-5-6-test"
         const val MIGRATION_6_7_DB = "measurement-migration-6-7-test"
         const val MIGRATION_14_15_DB = "measurement-migration-14-15-test"
+        const val MIGRATION_17_18_DB = "measurement-migration-17-18-test"
     }
 }
