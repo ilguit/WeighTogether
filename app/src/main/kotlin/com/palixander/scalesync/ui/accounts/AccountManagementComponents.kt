@@ -566,6 +566,9 @@ fun AccountEditorScreen(
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
     onUpdateAndContinue: (AccountUpdate) -> Unit = onUpdate,
+    openRemindersAfterSave: Boolean = false,
+    onOpenRemindersAfterSaveRequested: () -> Unit = {},
+    onOpenRemindersAfterSaveConsumed: () -> Unit = {},
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
@@ -591,7 +594,6 @@ fun AccountEditorScreen(
     var saveSubmitted by remember(draft.editingAccountId) { mutableStateOf(false) }
     var remindersOpen by remember(draft.editingAccountId) { mutableStateOf(false) }
     var reminderGuardOpen by remember(draft.editingAccountId) { mutableStateOf(false) }
-    var openAfterSave by remember(draft.editingAccountId) { mutableStateOf(false) }
     val nameFocus = remember { FocusRequester() }
     val titleFocus = remember { FocusRequester() }
     val sexFocus = remember { FocusRequester() }
@@ -639,12 +641,13 @@ fun AccountEditorScreen(
     LaunchedEffect(operationInProgress, error) {
         if (!operationInProgress && error != null) saveSubmitted = false
     }
-    LaunchedEffect(operationInProgress, error, accounts) {
-        if (openAfterSave && !operationInProgress) {
-            if (error == null && draft.editingAccountId?.let { id -> accounts.firstOrNull { it.id == id } }?.let(AccountEditorDraft::edit) == draft) {
-                openAfterSave = false
-                remindersOpen = true
-            } else if (error != null) openAfterSave = false
+    LaunchedEffect(openRemindersAfterSave, operationInProgress, error, accounts) {
+        if (openRemindersAfterSave && !operationInProgress && error == null &&
+            draft.editingAccountId?.let { id -> accounts.firstOrNull { it.id == id } }
+                ?.let(AccountEditorDraft::edit) == draft
+        ) {
+            onOpenRemindersAfterSaveConsumed()
+            remindersOpen = true
         }
     }
     if (remindersOpen) {
@@ -886,7 +889,7 @@ fun AccountEditorScreen(
                 val update = draft.toAccountUpdateOrNull(validation)
                 if (update != null) {
                     reminderGuardOpen = false
-                    openAfterSave = true
+                    onOpenRemindersAfterSaveRequested()
                     onUpdateAndContinue(update)
                 } else validationRequested = true
             }) { Text(stringResource(R.string.reminder_save_continue)) }

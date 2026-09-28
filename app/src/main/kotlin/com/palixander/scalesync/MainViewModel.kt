@@ -46,6 +46,7 @@ import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
 import com.palixander.scalesync.ui.accounts.AccountManagementAction
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
 import com.palixander.scalesync.ui.accounts.completeAccountUpdate
+import com.palixander.scalesync.ui.accounts.failAccountOperation
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.reconcileAccountManagement
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
@@ -1826,10 +1827,7 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     private fun failAccountOperation(message: UiText) {
-        accountManagementDialog.value = accountManagementDialog.value.copy(
-            operationInProgress = false,
-            operationError = message,
-        )
+        accountManagementDialog.value = failAccountOperation(accountManagementDialog.value, message)
         showMessage(message)
     }
 
