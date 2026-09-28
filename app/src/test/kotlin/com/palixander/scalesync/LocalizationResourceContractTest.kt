@@ -9,6 +9,33 @@ import org.w3c.dom.Element
 
 class LocalizationResourceContractTest {
     @Test
+    fun `weighing reminder copy is translated in every supported locale`() {
+        val defaults = readResources(File("src/main/res/values/strings.xml"))
+
+        LOCALES.filterNot { it.directory == "values" }.forEach { locale ->
+            val localized = readResources(File("src/main/res/${locale.directory}/strings.xml"))
+
+            REMINDER_KEYS.forEach { key ->
+                val default = defaults[key]
+                val translation = localized[key]
+                assertFalse("Missing default reminder resource: $key", default == null)
+                assertFalse("Missing ${locale.tag} reminder resource: $key", translation == null)
+                assertEquals(
+                    "Format arguments differ for ${locale.tag}:$key",
+                    default!!.arguments,
+                    translation!!.arguments,
+                )
+                if ((locale.tag to key) !in IDENTICAL_TRANSLATION_EXCEPTIONS) {
+                    assertFalse(
+                        "Reminder resource is still English for ${locale.tag}:$key",
+                        default.texts == translation.texts,
+                    )
+                }
+            }
+        }
+    }
+
+    @Test
     fun `localized resources expose matching keys formats and locale plural quantities`() {
         val defaultResources = LOCALIZABLE_RESOURCE_FILES.associateWith { fileName ->
             readResources(File("src/main/res/values/$fileName"))
@@ -107,5 +134,47 @@ class LocalizationResourceContractTest {
         val FORMAT_ARGUMENT = Regex("%\\d+\\$[a-zA-Z]")
         val PLACEHOLDER_PROSE =
             Regex("(?i)\\b(?:meaning|calculation|dependencies?|limitations?|warning|disclaimer|source)?\\s*information\\b")
+        val REMINDER_KEYS = setOf(
+            "reminder_title",
+            "reminder_loading",
+            "reminder_requires_attention",
+            "reminder_none",
+            "reminder_all_disabled",
+            "reminder_summary_more",
+            "reminder_load_error",
+            "reminder_empty",
+            "reminder_unavailable",
+            "reminder_open_settings",
+            "reminder_alarm",
+            "reminder_regular",
+            "reminder_add",
+            "reminder_edit",
+            "reminder_weekdays",
+            "reminder_type",
+            "reminder_enabled",
+            "reminder_duplicate",
+            "reminder_save_error",
+            "reminder_delete_title",
+            "reminder_delete_text",
+            "reminder_monday",
+            "reminder_tuesday",
+            "reminder_wednesday",
+            "reminder_thursday",
+            "reminder_friday",
+            "reminder_saturday",
+            "reminder_sunday",
+            "reminder_unsaved_title",
+            "reminder_unsaved_text",
+            "reminder_save_continue",
+            "reminder_discard_continue",
+            "reminder_keep_editing",
+            "notification_channel_weighing_reminders",
+            "notification_channel_weighing_alarms",
+            "weighing_reminder_notification_title",
+            "weighing_reminder_notification_text",
+            "weighing_reminder_snooze",
+        )
+        // “Alarm” is the idiomatic German UI term as well as the English source text.
+        val IDENTICAL_TRANSLATION_EXCEPTIONS = setOf("de" to "reminder_alarm")
     }
 }
