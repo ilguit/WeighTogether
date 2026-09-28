@@ -45,6 +45,7 @@ import com.palixander.scalesync.domain.RoutingDecision
 import com.palixander.scalesync.ui.accounts.AccountDeletionRequest
 import com.palixander.scalesync.ui.accounts.AccountManagementAction
 import com.palixander.scalesync.ui.accounts.AccountManagementUiState
+import com.palixander.scalesync.ui.accounts.completeAccountUpdate
 import com.palixander.scalesync.ui.accounts.WeightDeltaEditorState
 import com.palixander.scalesync.ui.accounts.reconcileAccountManagement
 import com.palixander.scalesync.ui.accounts.reduceAccountManagement
@@ -699,31 +700,55 @@ class MainViewModel @JvmOverloads constructor(
         }
     }
 
-    fun updateAccount(account: AccountUpdate) = runAccountOperation {
+    fun updateAccount(account: AccountUpdate) = updateAccount(account, keepEditorOpen = false)
+
+    fun updateAccountAndContinue(account: AccountUpdate) = updateAccount(account, keepEditorOpen = true)
+
+    private fun updateAccount(account: AccountUpdate, keepEditorOpen: Boolean) = runAccountOperation {
         when (val result = container.accounts.attemptProfileUpdate(account)) {
             is ProfileUpdateAttemptResult.Saved ->
-                finishAccountOperation(
-                    uiText(R.string.message_account_saved, result.account.displayName),
-                )
+                finishAccountUpdate(result.account, keepEditorOpen)
             ProfileUpdateAttemptResult.ConfirmationRequired -> {
                 val draft = accountManagementDialog.value.editor ?: return@runAccountOperation
                 accountManagementDialog.value = reduceAccountManagement(
                     accountManagementDialog.value.copy(operationInProgress = false),
-                    AccountManagementAction.ProfileUpdateConfirmationRequested(account, draft),
+                    AccountManagementAction.ProfileUpdateConfirmationRequested(
+                        account,
+                        draft,
+                        keepEditorOpen,
+                    ),
                 )
             }
         }
     }
 
     fun confirmProfileUpdate(mode: ProfileHistoryUpdateMode) = runAccountOperation {
-        val update = accountManagementDialog.value.profileUpdateConfirmation?.update
+        val confirmation = accountManagementDialog.value.profileUpdateConfirmation
             ?: return@runAccountOperation
-        saveAccountUpdate(update, mode)
+        saveAccountUpdate(confirmation.update, mode, confirmation.keepEditorOpen)
     }
 
-    private suspend fun saveAccountUpdate(account: AccountUpdate, mode: ProfileHistoryUpdateMode) {
+    private suspend fun saveAccountUpdate(
+        account: AccountUpdate,
+        mode: ProfileHistoryUpdateMode,
+        keepEditorOpen: Boolean,
+    ) {
         val updated = container.accounts.updateAccount(account, mode)
-        finishAccountOperation(uiText(R.string.message_account_saved, updated.displayName))
+        finishAccountUpdate(updated, keepEditorOpen)
+    }
+
+    private fun finishAccountUpdate(account: Account, keepEditorOpen: Boolean) {
+        val message = uiText(R.string.message_account_saved, account.displayName)
+        if (!keepEditorOpen) {
+            finishAccountOperation(message)
+            return
+        }
+        accountManagementDialog.value = completeAccountUpdate(
+            state = accountManagementDialog.value,
+            account = account,
+            keepEditorOpen = true,
+        )
+        showMessage(message)
     }
 
     fun setPrimaryAccount(accountId: AccountId, mode: PrimaryHistorySyncMode) =

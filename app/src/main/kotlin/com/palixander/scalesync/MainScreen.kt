@@ -430,6 +430,7 @@ fun ScaleSyncApp(
                 onAction = viewModel::onAccountManagementAction,
                 onCreate = viewModel::createAccount,
                 onUpdate = viewModel::updateAccount,
+                onUpdateAndContinue = viewModel::updateAccountAndContinue,
                 onConfirmProfileUpdate = viewModel::confirmProfileUpdate,
                 onSetPrimary = viewModel::setPrimaryAccount,
                 onDelete = viewModel::deleteAccount,

@@ -905,6 +905,7 @@ private fun SettingsProfilesContent(
             ) },
             onCreate = callbacks.accountManagement.onCreate,
             onUpdate = callbacks.accountManagement.onUpdate,
+            onUpdateAndContinue = callbacks.accountManagement.onUpdateAndContinue,
             onDismiss = { callbacks.accountManagement.onAction(
                 com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
             ) },
@@ -1211,6 +1212,7 @@ private fun LegacySettingsScreen(
             ) },
             onCreate = callbacks.accountManagement.onCreate,
             onUpdate = callbacks.accountManagement.onUpdate,
+            onUpdateAndContinue = callbacks.accountManagement.onUpdateAndContinue,
             onDismiss = { callbacks.accountManagement.onAction(
                 com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
             ) },

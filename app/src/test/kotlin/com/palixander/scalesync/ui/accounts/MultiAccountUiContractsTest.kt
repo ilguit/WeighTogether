@@ -7,6 +7,7 @@ import com.palixander.scalesync.domain.Account
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.PrimaryHistorySyncMode
+import com.palixander.scalesync.domain.normalizeAccountName
 import com.palixander.scalesync.ui.text.UiText
 import java.time.Instant
 import java.time.LocalDate
@@ -19,6 +20,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MultiAccountUiContractsTest {
+    @Test
+    fun `save and continue reloads persisted account while ordinary save closes editor`() {
+        val original = account("a", "Анна")
+        val persisted = original.copy(
+            displayName = "Анна Мария",
+            normalizedName = normalizeAccountName("Анна Мария"),
+            updatedAt = original.updatedAt.plusSeconds(1),
+        )
+        val dirty = AccountEditorDraft.edit(original).copy(name = " Анна Мария ")
+        val state = AccountManagementUiState(
+            accounts = listOf(original),
+            editor = dirty,
+            operationInProgress = true,
+            operationError = UiText.Raw("old error"),
+        )
+
+        val continued = completeAccountUpdate(state, persisted, keepEditorOpen = true)
+
+        assertEquals(AccountEditorDraft.edit(persisted), continued.editor)
+        assertEquals(listOf(persisted), continued.accounts)
+        assertNull(continued.operationError)
+        assertEquals(AccountManagementUiState(), completeAccountUpdate(state, persisted, false))
+    }
     @Test
     fun `photo path survives draft reducer saver and create mapping`() {
         val photo = "profile-photos/accounts/new/profile.webp"

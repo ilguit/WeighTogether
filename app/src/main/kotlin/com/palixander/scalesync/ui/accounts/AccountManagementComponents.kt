@@ -155,6 +155,7 @@ data class AccountManagementCallbacks(
     val onAction: (AccountManagementAction) -> Unit,
     val onCreate: (NewAccount) -> Unit,
     val onUpdate: (AccountUpdate) -> Unit,
+    val onUpdateAndContinue: (AccountUpdate) -> Unit,
     val onConfirmProfileUpdate: (ProfileHistoryUpdateMode) -> Unit,
     val onSetPrimary: (AccountId, PrimaryHistorySyncMode) -> Unit,
     val onDelete: (AccountId) -> Unit,
@@ -165,6 +166,7 @@ data class AccountManagementCallbacks(
             onAction = {},
             onCreate = {},
             onUpdate = {},
+            onUpdateAndContinue = {},
             onConfirmProfileUpdate = {},
             onSetPrimary = { _, _ -> },
             onDelete = {},
@@ -563,6 +565,7 @@ fun AccountEditorScreen(
     onDraftChanged: (AccountEditorDraft) -> Unit,
     onCreate: (NewAccount) -> Unit,
     onUpdate: (AccountUpdate) -> Unit,
+    onUpdateAndContinue: (AccountUpdate) -> Unit = onUpdate,
     onDismiss: () -> Unit,
     modifier: Modifier = Modifier,
     today: LocalDate = LocalDate.now(),
@@ -884,7 +887,7 @@ fun AccountEditorScreen(
                 if (update != null) {
                     reminderGuardOpen = false
                     openAfterSave = true
-                    onUpdate(update)
+                    onUpdateAndContinue(update)
                 } else validationRequested = true
             }) { Text(stringResource(R.string.reminder_save_continue)) }
         },

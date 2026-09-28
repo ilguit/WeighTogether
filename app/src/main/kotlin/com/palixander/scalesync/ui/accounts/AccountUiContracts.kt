@@ -191,6 +191,7 @@ data class AccountDeletionRequest(
 data class ProfileUpdateConfirmation(
     val update: AccountUpdate,
     val editorDraft: AccountEditorDraft,
+    val keepEditorOpen: Boolean = false,
 )
 
 @Immutable
@@ -213,6 +214,21 @@ data class AccountManagementUiState(
 
     val primaryAccount: Account?
         get() = accounts.firstOrNull { it.id == primaryAccountId }
+}
+
+internal fun completeAccountUpdate(
+    state: AccountManagementUiState,
+    account: Account,
+    keepEditorOpen: Boolean,
+): AccountManagementUiState = if (keepEditorOpen) {
+    state.copy(
+        accounts = state.accounts.map { if (it.id == account.id) account else it },
+        editor = AccountEditorDraft.edit(account),
+        profileUpdateConfirmation = null,
+        operationError = null,
+    )
+} else {
+    AccountManagementUiState()
 }
 
 /**
@@ -275,6 +291,7 @@ sealed interface AccountManagementAction {
     data class ProfileUpdateConfirmationRequested(
         val update: AccountUpdate,
         val editorDraft: AccountEditorDraft,
+        val keepEditorOpen: Boolean = false,
     ) : AccountManagementAction
     data object ProfileUpdateConfirmationCancelled : AccountManagementAction
     data object DialogDismissed : AccountManagementAction
@@ -376,6 +393,7 @@ fun reduceAccountManagement(
                 profileUpdateConfirmation = ProfileUpdateConfirmation(
                     update = action.update,
                     editorDraft = action.editorDraft,
+                    keepEditorOpen = action.keepEditorOpen,
                 ),
                 operationError = null,
             )
