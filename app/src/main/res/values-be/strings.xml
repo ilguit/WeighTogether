@@ -326,4 +326,5 @@
     <string name="health_connect_sync_write">Запіс у Health Connect</string>
     <string name="health_connect_sync_rejected_detail">%1$s адхілена: %2$s</string>
     <string name="health_connect_sync_retryable_detail">%1$s часова не выканана: %2$s</string>
+    <string name="message_profile_no_longer_available">Профіль больш недаступны</string>
 </resources>

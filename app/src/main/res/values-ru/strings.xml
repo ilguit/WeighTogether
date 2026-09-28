@@ -326,4 +326,5 @@
     <string name="health_connect_sync_write">Запись Health Connect</string>
     <string name="health_connect_sync_rejected_detail">%1$s отклонена: %2$s</string>
     <string name="health_connect_sync_retryable_detail">%1$s временно не выполнена: %2$s</string>
+    <string name="message_profile_no_longer_available">Профиль больше недоступен</string>
 </resources>

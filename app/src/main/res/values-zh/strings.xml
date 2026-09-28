@@ -406,4 +406,5 @@
     <string name="health_connect_sync_write">正在写入健康数据共享</string>
     <string name="health_connect_sync_rejected_detail">%1$s 被拒绝：%2$s</string>
     <string name="health_connect_sync_retryable_detail">%1$s 暂时无法完成：%2$s</string>
+    <string name="message_profile_no_longer_available">个人资料已不可用</string>
 </resources>

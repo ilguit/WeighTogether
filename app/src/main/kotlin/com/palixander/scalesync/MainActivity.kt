@@ -18,6 +18,11 @@ import androidx.health.connect.client.PermissionController
 import com.palixander.scalesync.ble.BleSupport
 import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.worker.PendingMeasurementNotificationHelper
+import com.palixander.scalesync.domain.AccountId
+import com.palixander.scalesync.domain.PetId
+import com.palixander.scalesync.reminder.WeighingReminderCoordinator
+import com.palixander.scalesync.reminder.WeighingReminderNavigationTarget
+import com.palixander.scalesync.ui.profiles.ProfileKey
 import java.time.LocalDate
 import kotlinx.coroutines.launch
 
@@ -135,10 +140,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        if (intent?.action == PendingMeasurementNotificationHelper.ACTION_RESOLVE_PENDING) {
-            viewModel.openResolver()
-            intent.action = null
+        when (intent?.action) {
+            PendingMeasurementNotificationHelper.ACTION_RESOLVE_PENDING -> viewModel.openResolver()
+            WeighingReminderNavigationTarget.ACTION_OPEN_PROFILE -> {
+                val target = consumeReminderProfileTarget(intent) ?: return
+                viewModel.openReminderProfile(target.profileKey, target.ownerUnavailable)
+            }
+            else -> return
         }
+        intent.action = null
     }
 
     private fun openBatterySettings() {
@@ -166,6 +176,34 @@ class MainActivity : AppCompatActivity() {
     private fun refreshHealthConnectSystemManagementAvailability() {
         healthConnectSystemManagementAvailable = healthConnectManagementIntent() != null
     }
+}
+
+internal data class ReminderProfileIntentTarget(
+    val profileKey: ProfileKey?,
+    val ownerUnavailable: Boolean,
+)
+
+internal fun reminderProfileTarget(intent: Intent): ReminderProfileIntentTarget {
+    val ownerUnavailable = intent.getBooleanExtra(
+        WeighingReminderCoordinator.EXTRA_OWNER_UNAVAILABLE,
+        false,
+    )
+    val ownerId = intent.getStringExtra(WeighingReminderNavigationTarget.EXTRA_OWNER_ID)
+        ?.takeIf(String::isNotBlank)
+    val profileKey = when (intent.getStringExtra(WeighingReminderNavigationTarget.EXTRA_KIND)) {
+        WeighingReminderNavigationTarget.KIND_ACCOUNT -> ownerId?.let { ProfileKey.Human(AccountId(it)) }
+        WeighingReminderNavigationTarget.KIND_PET -> ownerId?.let { ProfileKey.Pet(PetId(it)) }
+        else -> null
+    }
+    return ReminderProfileIntentTarget(
+        profileKey = profileKey,
+        ownerUnavailable = ownerUnavailable || profileKey == null,
+    )
+}
+
+internal fun consumeReminderProfileTarget(intent: Intent): ReminderProfileIntentTarget? {
+    if (intent.action != WeighingReminderNavigationTarget.ACTION_OPEN_PROFILE) return null
+    return reminderProfileTarget(intent).also { intent.action = null }
 }
 
 internal fun defaultBackupFileName(date: LocalDate = LocalDate.now()): String =

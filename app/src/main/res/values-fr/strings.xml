@@ -508,4 +508,5 @@
     <string name="health_connect_sync_write">Écrire à Health Connect</string>
     <string name="health_connect_sync_rejected_detail">%1$s a été rejeté :%2$s</string>
     <string name="health_connect_sync_retryable_detail">%1$s n\'a pas pu être rempli temporairement :%2$s</string>
+    <string name="message_profile_no_longer_available">Le profil n’est plus disponible</string>
 </resources>

@@ -6,6 +6,7 @@ import com.palixander.scalesync.core.UserProfile
 import com.palixander.scalesync.domain.PendingDiscardUndoToken
 import com.palixander.scalesync.domain.PendingMeasurementId
 import com.palixander.scalesync.domain.RestorePendingResult
+import com.palixander.scalesync.ui.profiles.ProfileKey
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
@@ -31,6 +32,13 @@ sealed interface MainUiEvent {
         val returnDestination: PendingResolverReturnDestination,
     ) : MainUiEvent
 }
+
+/** One-shot navigation requested by a reminder notification content tap. */
+data class ReminderProfileNavigationRequest(
+    val id: Long,
+    val profileKey: ProfileKey?,
+    val ownerUnavailable: Boolean = false,
+)
 
 internal class MainUiEventEmitter {
     private val channel = Channel<MainUiEvent>(Channel.UNLIMITED)

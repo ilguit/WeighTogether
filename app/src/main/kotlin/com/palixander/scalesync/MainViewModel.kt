@@ -208,6 +208,8 @@ class MainViewModel @JvmOverloads constructor(
     private val refreshScanner = ManualScaleScanner(application)
     private val petScanner = ManualScaleScanner(application)
     private val eventEmitter = MainUiEventEmitter()
+    private val reminderNavigationIds = AtomicLong(0L)
+    private val _reminderProfileNavigation = MutableStateFlow<ReminderProfileNavigationRequest?>(null)
     private val pendingDiscardUndo = PendingDiscardUndoCoordinator(eventEmitter)
     private val pendingDiscardsInProgress = mutableSetOf<PendingMeasurementId>()
     private val scanning = MutableStateFlow(false)
@@ -317,6 +319,23 @@ class MainViewModel @JvmOverloads constructor(
         )
 
     val events = eventEmitter.events
+    val reminderProfileNavigation: StateFlow<ReminderProfileNavigationRequest?> =
+        _reminderProfileNavigation
+
+    fun openReminderProfile(profileKey: com.palixander.scalesync.ui.profiles.ProfileKey?, ownerUnavailable: Boolean) {
+        _reminderProfileNavigation.value = ReminderProfileNavigationRequest(
+            id = reminderNavigationIds.incrementAndGet(),
+            profileKey = profileKey,
+            ownerUnavailable = ownerUnavailable,
+        )
+    }
+
+    fun consumeReminderProfileNavigation(id: Long) {
+        _reminderProfileNavigation.compareAndSet(
+            _reminderProfileNavigation.value?.takeIf { it.id == id },
+            null,
+        )
+    }
 
     private val scaleScanningState = combine(
         container.profileStore.settings,
