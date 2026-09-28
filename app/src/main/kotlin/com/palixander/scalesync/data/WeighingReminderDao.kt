@@ -12,6 +12,9 @@ interface WeighingReminderDao {
     @Query("SELECT * FROM weighing_reminder_schedules WHERE ownerType=:ownerType AND ownerId=:ownerId ORDER BY minuteOfDay, id")
     fun observe(ownerType: WeighingReminderOwnerType, ownerId: String): Flow<List<WeighingReminderScheduleEntity>>
 
+    @Query("SELECT id FROM weighing_reminder_schedules WHERE ownerType=:ownerType AND ownerId=:ownerId")
+    suspend fun getIds(ownerType: WeighingReminderOwnerType, ownerId: String): List<String>
+
     @Query("SELECT * FROM weighing_reminder_schedules WHERE id=:id")
     suspend fun get(id: String): WeighingReminderScheduleEntity?
 

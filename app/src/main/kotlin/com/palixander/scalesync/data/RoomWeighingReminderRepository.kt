@@ -65,6 +65,11 @@ class RoomWeighingReminderRepository(
         return dao.observe(type, id).map { rows -> rows.map(WeighingReminderScheduleEntity::toDomain) }
     }
 
+    suspend fun idsForOwner(owner: WeighingReminderOwner): List<WeighingReminderId> = serializedTransaction {
+        val (type, id) = owner.storageIdentity()
+        dao.getIds(type, id).map(::WeighingReminderId)
+    }
+
     suspend fun get(id: WeighingReminderId): WeighingReminderSchedule? =
         serializedTransaction { dao.get(id.value)?.toDomain() }
 

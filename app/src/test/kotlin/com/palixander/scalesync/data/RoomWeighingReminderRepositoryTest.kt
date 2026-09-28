@@ -48,6 +48,7 @@ class RoomWeighingReminderRepositoryTest {
 
         assertTrue(first is SaveWeighingReminderResult.Saved)
         assertEquals(SaveWeighingReminderResult.Duplicate, duplicate)
+        assertEquals(listOf(WeighingReminderId("schedule")), repository.idsForOwner(owner))
         database.accountDao().delete("account")
         assertTrue(repository.observe(owner).first().isEmpty())
         assertNull(database.weighingReminderDao().getRuntime("schedule"))

@@ -82,6 +82,15 @@ class WeighingReminderCoordinator(
         }
     }
 
+    /** Cleans up platform state for schedules already removed by an owner cascade. */
+    fun cancelDeleted(scheduleIds: Iterable<WeighingReminderId>) {
+        scheduleIds.forEach { id ->
+            alarmGateway.cancel(id, ReminderCallbackKind.REGULAR)
+            alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+            notifications.cancel(notificationId(id))
+        }
+    }
+
     suspend fun onFire(id: WeighingReminderId, kind: ReminderCallbackKind, token: String) {
         if (repository.claimDue(id, kind, token) !is ReminderClaimResult.Publish) return
         val snapshot = repository.snapshot(id) ?: return

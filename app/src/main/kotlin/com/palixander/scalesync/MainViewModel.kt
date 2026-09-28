@@ -734,7 +734,11 @@ class MainViewModel @JvmOverloads constructor(
         }
 
     fun deleteAccount(accountId: AccountId) = runAccountOperation {
+        val reminderIds = container.weighingReminderRepository.idsForOwner(
+            com.palixander.scalesync.domain.WeighingReminderOwner.Account(accountId),
+        )
         container.accounts.deleteAccount(accountId)
+        container.weighingReminders.cancelDeleted(reminderIds)
         val selection = container.accountSelection.selection.value
         if (selection.accountId == accountId) {
             container.accountSelection.selectIfCurrent(selection, null)
@@ -743,11 +747,15 @@ class MainViewModel @JvmOverloads constructor(
     }
 
     fun deletePrimaryAccount(request: AccountDeletionRequest) = runAccountOperation {
+        val reminderIds = container.weighingReminderRepository.idsForOwner(
+            com.palixander.scalesync.domain.WeighingReminderOwner.Account(request.accountId),
+        )
         container.accounts.deletePrimaryWithReplacement(
             primaryAccountId = request.accountId,
             replacementAccountId = request.replacementAccountId,
             historySyncMode = request.historySyncMode,
         )
+        container.weighingReminders.cancelDeleted(reminderIds)
         container.accountSelection.select(request.replacementAccountId)
         finishAccountOperation(uiText(R.string.message_primary_account_deleted))
     }
@@ -1344,7 +1352,13 @@ class MainViewModel @JvmOverloads constructor(
         if (snapshot.busy) return
         petManagement.value = snapshot.copy(busy = true, error = null)
         viewModelScope.launch {
-            runCatching { container.pets.deletePet(preview.pet.id) }
+            runCatching {
+                val reminderIds = container.weighingReminderRepository.idsForOwner(
+                    com.palixander.scalesync.domain.WeighingReminderOwner.Pet(preview.pet.id),
+                )
+                container.pets.deletePet(preview.pet.id)
+                    .also { container.weighingReminders.cancelDeleted(reminderIds) }
+            }
                 .onSuccess { petManagement.value = PetManagementUiState() }
                 .onFailure { error ->
                     if (error is CancellationException) throw error
