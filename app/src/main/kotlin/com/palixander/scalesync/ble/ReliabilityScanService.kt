@@ -33,14 +33,8 @@ class ReliabilityScanService : Service() {
         )
     }
 
-    @SuppressLint("MissingPermission")
     override fun onDestroy() {
-        callback?.let { active ->
-            if (BleSupport.hasScanPermission(this)) {
-                runCatching { BleSupport.scanner(this)?.stopScan(active) }
-            }
-        }
-        callback = null
+        stopScanner()
         super.onDestroy()
     }
 
