@@ -251,8 +251,14 @@ fun ScaleSyncApp(
     }
     val snackbarHostState = remember { SnackbarHostState() }
     val profiles = buildProfilePresentations(state.accounts, state.pets)
-    val requestedProfileKey = profileNavigation.selectedKey ?: measurementsState.accountSelector
-        .selectedAccountId?.let(ProfileKey::Human)
+    // A reminder route is an explicit user request and must win the same composition frame in
+    // which it arrives. Otherwise the selection reconciliation effect can restore the previously
+    // visible profile before the reminder effect gets a chance to apply its destination.
+    val requestedProfileKey = reminderWinningProfileKey(
+        reminderNavigation = reminderNavigation,
+        navigation = profileNavigation,
+        selectedMeasurementAccountId = measurementsState.accountSelector.selectedAccountId,
+    )
     val profileSelection = if (state.profilesLoaded) {
         reconcileProfileSelection(
             profiles = profiles,
@@ -501,6 +507,14 @@ internal data class ReminderProfileNavigationResolution(
     val profileKey: ProfileKey?,
     val showUnavailableMessage: Boolean,
 )
+
+internal fun reminderWinningProfileKey(
+    reminderNavigation: ReminderProfileNavigationRequest?,
+    navigation: ProfileNavigationState,
+    selectedMeasurementAccountId: com.palixander.scalesync.domain.AccountId?,
+): ProfileKey? = reminderNavigation?.profileKey
+    ?: navigation.selectedKey
+    ?: selectedMeasurementAccountId?.let(ProfileKey::Human)
 
 internal fun resolveReminderProfileNavigation(
     request: ReminderProfileNavigationRequest,

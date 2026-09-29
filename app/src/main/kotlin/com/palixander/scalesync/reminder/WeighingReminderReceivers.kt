@@ -14,17 +14,31 @@ import com.palixander.scalesync.ScaleSyncApplication
 import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.domain.WeighingReminderId
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 
 class WeighingReminderOpenActivity : ComponentActivity() {
-    private val actionStarted = AtomicBoolean(false)
+    private val actionGuard = AlarmOccurrenceActionGuard()
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
+        handleIntent(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+    }
+
+    private fun handleIntent(intent: Intent) {
         val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
         val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
         val application = applicationContext as? ScaleSyncApplication
         if (id.isNullOrBlank() || token.isNullOrBlank() || application == null) {
             finish()
+            return
+        }
+        val presentation = actionGuard.install(id, token)
+        if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_PERFORM_WEIGH, false)) {
+            perform(application, presentation, AlarmActivityAction.WEIGH)
             return
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
@@ -40,7 +54,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 )
             }
             onBackPressedDispatcher.addCallback(this, object : OnBackPressedCallback(true) {
-                override fun handleOnBackPressed() = stopAlarmOrFinish()
+                override fun handleOnBackPressed() = dismissAlarmOrFinish()
             })
             val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
             val padding = (24 * resources.displayMetrics.density).toInt()
@@ -57,8 +71,8 @@ class WeighingReminderOpenActivity : ComponentActivity() {
                 setPadding(0, padding, 0, padding)
             })
             layout.addView(android.widget.Button(this).apply {
-                text = getString(com.palixander.scalesync.R.string.weighing_reminder_stop)
-                setOnClickListener { perform(application, id, token, false) }
+                text = getString(com.palixander.scalesync.R.string.weighing_reminder_weigh)
+                setOnClickListener { perform(application, presentation, AlarmActivityAction.WEIGH) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(183, 28, 28))
@@ -66,7 +80,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
-                setOnClickListener { perform(application, id, token, true) }
+                setOnClickListener { perform(application, presentation, AlarmActivityAction.SNOOZE) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(21, 101, 192))
@@ -84,20 +98,31 @@ class WeighingReminderOpenActivity : ComponentActivity() {
         }
     }
 
-    private fun perform(app: ScaleSyncApplication, id: String, token: String, snooze: Boolean) {
-        if (!actionStarted.compareAndSet(false, true)) return
+    private fun perform(
+        app: ScaleSyncApplication,
+        presentation: AlarmOccurrenceActionGuard.Presentation,
+        action: AlarmActivityAction,
+    ) {
+        if (!actionGuard.begin(presentation)) return
         app.container.applicationScope.launch {
             var navigationTarget: WeighingReminderNavigationTarget? = null
             try {
-                if (snooze) {
-                    app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
-                } else {
-                    navigationTarget = app.container.weighingReminders.onStop(WeighingReminderId(id), token)
+                val id = WeighingReminderId(presentation.scheduleId)
+                val token = presentation.occurrenceToken
+                when (action) {
+                    AlarmActivityAction.SNOOZE ->
+                        app.container.weighingReminders.onSnooze(id, token)
+                    AlarmActivityAction.DISMISS ->
+                        app.container.weighingReminders.onDismiss(id, token)
+                    AlarmActivityAction.WEIGH ->
+                        navigationTarget = app.container.weighingReminders.onStop(id, token)
                 }
             } finally {
                 runOnUiThread {
-                    navigationTarget?.let(::openOwner)
-                    finish()
+                    if (actionGuard.isCurrent(presentation)) {
+                        navigationTarget?.let(::openOwner)
+                        finish()
+                    }
                 }
             }
         }
@@ -122,15 +147,55 @@ class WeighingReminderOpenActivity : ComponentActivity() {
         this.topMargin = (topMargin * resources.displayMetrics.density).toInt()
     }
 
-    private fun stopAlarmOrFinish() {
+    private fun dismissAlarmOrFinish() {
         val application = applicationContext as? ScaleSyncApplication
-        val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
-        val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
-        if (application == null || id.isNullOrBlank() || token.isNullOrBlank()) {
+        val presentation = actionGuard.current()
+        if (application == null || presentation == null) {
             finish()
         } else {
-            perform(application, id, token, false)
+            perform(application, presentation, AlarmActivityAction.DISMISS)
         }
+    }
+}
+
+internal enum class AlarmActivityAction { WEIGH, SNOOZE, DISMISS }
+
+/** Keeps action idempotency and Activity completion scoped to the occurrence currently on screen. */
+internal class AlarmOccurrenceActionGuard {
+    private var generation = 0L
+    private var current: Presentation? = null
+    private val started = mutableSetOf<Occurrence>()
+
+    @Synchronized
+    fun install(scheduleId: String, occurrenceToken: String): Presentation {
+        val occurrence = Occurrence(scheduleId, occurrenceToken)
+        current?.takeIf { it.key == occurrence }?.let { return it }
+        return Presentation(scheduleId, occurrenceToken, ++generation).also { current = it }
+    }
+
+    @Synchronized
+    fun begin(presentation: Presentation): Boolean {
+        if (current != presentation) return false
+        return started.add(presentation.key)
+    }
+
+    @Synchronized
+    fun isCurrent(presentation: Presentation): Boolean = current == presentation
+
+    @Synchronized
+    fun current(): Presentation? = current
+
+    internal data class Occurrence(
+        val scheduleId: String,
+        val occurrenceToken: String,
+    )
+
+    internal data class Presentation(
+        val scheduleId: String,
+        val occurrenceToken: String,
+        val generation: Long,
+    ) {
+        internal val key: Occurrence get() = Occurrence(scheduleId, occurrenceToken)
     }
 }
 
@@ -155,7 +220,7 @@ class WeighingReminderActionReceiver : BroadcastReceiver() {
             ?: return
         when (intent.action) {
             WeighingReminderCoordinator.ACTION_SNOOZE -> async(context) { onSnooze(WeighingReminderId(id), token) }
-            WeighingReminderCoordinator.ACTION_STOP -> async(context) { onStop(WeighingReminderId(id), token) }
+            WeighingReminderCoordinator.ACTION_STOP -> async(context) { onDismiss(WeighingReminderId(id), token) }
         }
     }
 }

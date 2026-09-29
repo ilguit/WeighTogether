@@ -164,9 +164,7 @@ class WeighingReminderCoordinator(
         val snapshot = repository.snapshot(id) ?: return@withLock
         val due = clock.millis() + 10.minutes.inWholeMilliseconds
         val snoozeToken = repository.snooze(id, token, due) ?: return@withLock
-        WeighingAlarmSoundService.stop(context, id.value, token)
-        cancelNotificationCopies(id)
-        alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+        stopOccurrenceUnlocked(id, token)
         if (scheduleAlarm(id, ReminderCallbackKind.SNOOZE, snoozeToken, due, snapshot.schedule.importance) == ReminderScheduleResult.FAILED) {
             repository.invalidateRuntime(id)
         }
@@ -186,9 +184,7 @@ class WeighingReminderCoordinator(
     private suspend fun onContentOpenedUnlocked(id: WeighingReminderId, token: String): Boolean {
         val snapshot = repository.snapshot(id)
         if (snapshot != null && !repository.consumeAction(id, token)) return false
-        WeighingAlarmSoundService.stop(context, id.value, token)
-        cancelNotificationCopies(id)
-        alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
+        stopOccurrenceUnlocked(id, token)
         return true
     }
 
@@ -228,15 +224,25 @@ class WeighingReminderCoordinator(
 
     suspend fun onStop(id: WeighingReminderId, token: String): WeighingReminderNavigationTarget? = runtimeMutex.withLock {
         val snapshot = repository.snapshot(id) ?: run {
-            WeighingAlarmSoundService.stop(context, id.value, token)
-            cancelNotificationCopies(id)
+            stopOccurrenceUnlocked(id, token)
             return null
         }
         if (!repository.consumeAction(id, token)) return null
+        stopOccurrenceUnlocked(id, token)
+        return WeighingReminderNavigationTarget(snapshot.schedule.owner)
+    }
+
+    /** Dismisses the exact alarm occurrence without opening its owner. */
+    suspend fun onDismiss(id: WeighingReminderId, token: String): Unit = runtimeMutex.withLock {
+        val snapshot = repository.snapshot(id)
+        if (snapshot != null && !repository.consumeAction(id, token)) return@withLock
+        stopOccurrenceUnlocked(id, token)
+    }
+
+    private fun stopOccurrenceUnlocked(id: WeighingReminderId, token: String) {
         WeighingAlarmSoundService.stop(context, id.value, token)
         cancelNotificationCopies(id)
         alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
-        return WeighingReminderNavigationTarget(snapshot.schedule.owner)
     }
 
     private fun publish(
@@ -277,8 +283,8 @@ class WeighingReminderCoordinator(
             .apply {
                 if (importance == WeighingReminderImportance.ALARM) addAction(
                     0,
-                    context.getString(R.string.weighing_reminder_stop),
-                    actionIntent(ACTION_STOP, id, token, owner),
+                    context.getString(R.string.weighing_reminder_weigh),
+                    weighIntent(id, token, owner, name),
                 )
             }
             .build()
@@ -326,6 +332,27 @@ class WeighingReminderCoordinator(
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
 
+    private fun weighIntent(
+        id: WeighingReminderId,
+        token: String,
+        owner: WeighingReminderOwner,
+        ownerName: String,
+    ): PendingIntent = PendingIntent.getActivity(
+        context,
+        0,
+        Intent(context, WeighingReminderOpenActivity::class.java).apply {
+            action = ACTION_WEIGH
+            data = Uri.parse("scalesync://weighing-reminder-action/${Uri.encode(id.value)}/weigh")
+            putExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID, id.value)
+            putExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN, token)
+            putExtra(EXTRA_OWNER_NAME, ownerName)
+            putExtra(EXTRA_PERFORM_WEIGH, true)
+            WeighingReminderNavigationTarget(owner).putInto(this)
+            flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+        },
+        PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+    )
+
     private fun contentIntent(
         id: WeighingReminderId,
         token: String,
@@ -367,10 +394,12 @@ class WeighingReminderCoordinator(
         private val runtimeMutex = Mutex()
         const val ACTION_SNOOZE = "com.palixander.scalesync.action.SNOOZE_WEIGHING_REMINDER"
         const val ACTION_STOP = "com.palixander.scalesync.action.STOP_WEIGHING_REMINDER"
+        const val ACTION_WEIGH = "com.palixander.scalesync.action.WEIGH_FROM_WEIGHING_REMINDER"
         const val ACTION_OPEN = "com.palixander.scalesync.action.OPEN_WEIGHING_REMINDER"
         const val EXTRA_OWNER_UNAVAILABLE = "weighing_reminder_owner_unavailable"
         const val EXTRA_ALARM = "weighing_reminder_alarm"
         const val EXTRA_OWNER_NAME = "weighing_reminder_owner_name"
+        const val EXTRA_PERFORM_WEIGH = "weighing_reminder_perform_weigh"
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }
 }

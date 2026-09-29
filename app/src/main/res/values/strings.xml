@@ -457,4 +457,5 @@
     <string name="weighing_alarm_notification_title_generic">Weighing alarm</string>
     <string name="weighing_alarm_screen_title">Time to weigh %1$s</string>
     <string name="weighing_reminder_stop">Stop</string>
+    <string name="weighing_reminder_weigh">Weigh</string>
 </resources>

@@ -80,6 +80,7 @@
             android:name=".reminder.WeighingReminderOpenActivity"
             android:excludeFromRecents="true"
             android:exported="false"
+            android:launchMode="singleTop"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:theme="@style/Theme.ScaleSync.Alarm" />

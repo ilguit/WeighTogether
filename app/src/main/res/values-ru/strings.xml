@@ -374,4 +374,5 @@
     <string name="weighing_alarm_notification_title_generic">Будильник взвешивания</string>
     <string name="weighing_alarm_screen_title">Пора взвесить: %1$s</string>
     <string name="weighing_reminder_stop">Отключить</string>
+    <string name="weighing_reminder_weigh">Взвесить</string>
 </resources>
