@@ -8,24 +8,19 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
@@ -34,7 +29,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -62,7 +56,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.data.AppSettings
@@ -72,7 +65,6 @@ import com.palixander.scalesync.backup.BackupImportMode
 import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetWithLatestWeight
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
 import com.palixander.scalesync.ui.appLocale
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
@@ -1815,118 +1807,4 @@ private fun SettingsDivider(modifier: Modifier = Modifier) {
         modifier = modifier.padding(start = 68.dp),
         color = MaterialTheme.colorScheme.outlineVariant,
     )
-}
-
-@Composable
-internal fun ProfileEditorScreen(
-    state: ProfileEditorUiState,
-    onHeightChanged: (String) -> Unit,
-    onBirthDateChanged: (String) -> Unit,
-    onSexChanged: (Sex) -> Unit,
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize().padding(contentPadding),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth()
-                .widthIn(max = 720.dp)
-                .testTag(SettingsScreenTestTags.ProfileEditor),
-            contentPadding = PaddingValues(
-                horizontal = HuaweiDimensions.ContentPadding,
-                vertical = HuaweiDimensions.CompactItemSpacing,
-            ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-        ) {
-            item {
-                Text(
-                    stringResource(R.string.settings_profile_editor_intro),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            }
-            state.errorMessage?.let { message ->
-                item {
-                    Surface(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .testTag(SettingsScreenTestTags.ProfileEditorError),
-                        shape = MaterialTheme.shapes.medium,
-                        color = MaterialTheme.colorScheme.errorContainer,
-                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
-                    ) {
-                        Text(message.resolve(LocalContext.current.resources), Modifier.padding(14.dp))
-                    }
-                }
-            }
-            item {
-                HuaweiSurface {
-                    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-                        OutlinedTextField(
-                            value = state.height,
-                            onValueChange = onHeightChanged,
-                            label = { Text(stringResource(R.string.settings_height_label)) },
-                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-                            singleLine = true,
-                            isError = state.errorMessage != null,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedTextField(
-                            value = state.birthDate,
-                            onValueChange = onBirthDateChanged,
-                            label = { Text(stringResource(R.string.settings_birth_date_label)) },
-                            singleLine = true,
-                            isError = state.errorMessage != null,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        Text(stringResource(R.string.settings_sex), style = MaterialTheme.typography.titleSmall)
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(
-                                HuaweiDimensions.CompactItemSpacing,
-                            ),
-                        ) {
-                            Sex.entries.forEach { option ->
-                                HuaweiFilterButton(
-                                    text = stringResource(if (option == Sex.MALE) R.string.settings_sex_male else R.string.settings_sex_female),
-                                    onClick = { onSexChanged(option) },
-                                    selected = state.sex == option,
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-            item { Spacer(Modifier.height(HuaweiDimensions.ItemSpacing)) }
-        }
-    }
-}
-
-@Composable
-internal fun ProfileEditorSaveBar(
-    onSave: () -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Surface(
-        modifier = modifier
-            .fillMaxWidth()
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        color = MaterialTheme.colorScheme.background,
-        shadowElevation = 2.dp,
-    ) {
-        Button(
-            onClick = onSave,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
-                .heightIn(min = HuaweiDimensions.TouchTarget),
-            shape = MaterialTheme.shapes.medium,
-        ) {
-            Text(stringResource(R.string.settings_save_profile))
-        }
-    }
 }
