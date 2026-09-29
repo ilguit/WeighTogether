@@ -3,6 +3,7 @@ package com.palixander.scalesync.core
 import java.time.Instant
 import java.time.ZoneId
 import kotlin.test.Test
+import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -85,6 +86,100 @@ class MiScalePacketParserTest {
 
         assertNotNull(parsed)
         assertEquals(70.0, parsed.weightKg, 0.0001)
+    }
+
+    @Test
+    fun calendarAndClockErrorsFallBackToTheExactReceivedInstant() {
+        val receivedAt = Instant.parse("2026-08-11T12:34:56.123456789Z")
+        val invalidDates = listOf(
+            validPayload().also {
+                it[4] = 2
+                it[5] = 29
+            },
+            validPayload().also {
+                it[4] = 4
+                it[5] = 31
+            },
+            validPayload().also { it[4] = 0 },
+            validPayload().also { it[4] = 13 },
+            validPayload().also { it[5] = 0 },
+            validPayload().also { it[6] = 24 },
+            validPayload().also { it[7] = 60 },
+            validPayload().also { it[8] = 60 },
+        )
+
+        for (payload in invalidDates) {
+            val parsed = assertNotNull(parser.parse(payload, "AA:BB:CC:DD:EE:FF", receivedAt))
+            assertEquals(receivedAt, parsed.measuredAt, payload.contentToString())
+            assertTrue(parsed.hasFullBodyComposition)
+        }
+    }
+
+    @Test
+    fun scaleTimeUsesTheExplicitTimeZoneAndAcceptsLeapDay() {
+        val localParser = MiScalePacketParser(ZoneId.of("Asia/Yekaterinburg"))
+        val payload = validPayload().also {
+            it[2] = 0xe8.toByte() // 2024
+            it[4] = 2
+            it[5] = 29
+        }
+
+        val parsed = assertNotNull(localParser.parse(payload, "AA:BB:CC:DD:EE:FF"))
+
+        assertEquals(Instant.parse("2024-02-29T07:34:56Z"), parsed.measuredAt)
+    }
+
+    @Test
+    fun retainedPayloadIsAnIndependentCopyOfTheLastThirteenBytes() {
+        val expected = validPayload()
+        for (prefix in listOf(byteArrayOf(), byteArrayOf(0x1b, 0x18))) {
+            val advertised = prefix + expected
+            val parsed = assertNotNull(parser.parse(advertised, "AA:BB:CC:DD:EE:FF"))
+
+            assertContentEquals(expected, parsed.rawPayload)
+            advertised.fill(0)
+            assertContentEquals(expected, parsed.rawPayload)
+            parsed.rawPayload.fill(1)
+            assertContentEquals(ByteArray(advertised.size), advertised)
+        }
+    }
+
+    @Test
+    fun stableWeightEligibilityIncludesBothEndpointsOnly() {
+        val cases = listOf(
+            1_999 to false,
+            2_000 to true,
+            60_000 to true,
+            60_001 to false,
+        )
+        for ((rawWeight, accepted) in cases) {
+            val payload = validPayload().also {
+                it[11] = rawWeight.toByte()
+                it[12] = (rawWeight ushr 8).toByte()
+            }
+            val parsed = assertNotNull(parser.parse(payload, "AA:BB:CC:DD:EE:FF"))
+
+            assertEquals(rawWeight, parsed.rawWeight)
+            assertEquals(accepted, parsed.isStableWeight, "rawWeight=$rawWeight")
+            assertEquals(accepted, parsed.hasFullBodyComposition, "rawWeight=$rawWeight")
+        }
+    }
+
+    @Test
+    fun compositionEligibilityIncludesBothImpedanceEndpointsOnly() {
+        val cases = listOf(0 to false, 79 to false, 80 to true, 3_000 to true, 3_001 to false)
+        for ((impedance, accepted) in cases) {
+            val payload = validPayload().also {
+                it[9] = impedance.toByte()
+                it[10] = (impedance ushr 8).toByte()
+            }
+            val parsed = assertNotNull(parser.parse(payload, "AA:BB:CC:DD:EE:FF"))
+
+            assertEquals(impedance, parsed.impedanceOhm)
+            assertTrue(parsed.isStableWeight)
+            assertEquals(impedance != 0, parsed.hasImpedance, "impedance=$impedance")
+            assertEquals(accepted, parsed.hasFullBodyComposition, "impedance=$impedance")
+        }
     }
 
     @Test
