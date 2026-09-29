@@ -206,7 +206,9 @@ class MeasurementIngestionCoordinatorTest {
         val early = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter.minusMillis(1))
 
         assertTrue(early is AggregateFinalizationResult.Reschedule)
-        assertTrue(events.none { it == "accounts" || it.startsWith("finalize:") })
+        assertEquals(listOf("enqueue"), events)
+        assertTrue(persistence.historyRequests.isEmpty())
+        assertTrue(persistence.atomicRequests.isEmpty())
         assertTrue(scheduler.enqueued.isEmpty())
 
         val due = coordinator.finalizeDue(created.pending.id, created.pending.finalizeAfter)
@@ -221,6 +223,164 @@ class MeasurementIngestionCoordinatorTest {
         assertEquals(MeasurementIngestionResult.PendingMissing, repeated.outcome)
         assertEquals(1, persistence.finalized.size)
         assertEquals(1, scheduler.enqueued.size)
+    }
+
+    @Test
+    fun manualRoutingReadsAccountsThenSettingsThenExclusiveHistoryInAccountOrder() = runBlocking {
+        assertRoutingReadContract(finalizeDue = false)
+    }
+
+    @Test
+    fun dueFallbackReadsAccountsThenSettingsThenExclusiveHistoryInAccountOrder() = runBlocking {
+        assertRoutingReadContract(finalizeDue = true)
+    }
+
+    private suspend fun assertRoutingReadContract(finalizeDue: Boolean) {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(secondary, primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events).apply {
+            histories[primary.id] = listOf(history(50.0))
+            histories[secondary.id] = listOf(
+                history(70.0),
+                WeightHistoryRecord(RAW_TIME, 100.0),
+                WeightHistoryRecord(RAW_TIME.plusSeconds(1), 100.0),
+            )
+        }
+        val scheduler = UniqueFakeScheduler(events)
+        val successNotifier = RecordingSuccessfulMeasurementNotifier()
+        val coordinator = coordinator(
+            persistence, accounts, scheduler,
+            successfulMeasurementNotifier = successNotifier,
+        )
+        val pending = (coordinator.ingest(raw(70.0)) as
+            MeasurementIngestionResult.CreatedAggregate).pending
+        events.clear()
+
+        val result = coordinator.evaluate(pending, finalizeDue) as MeasurementIngestionResult.Assigned
+
+        assertEquals(secondary.id, result.measurement.accountId)
+        assertEquals(
+            (if (finalizeDue) listOf("atomic") else emptyList()) +
+                listOf("accounts", "settings", "history:secondary", "history:primary", "finalize:secondary"),
+            events,
+        )
+        assertEquals(listOf(secondary.id to pending.measuredAt, primary.id to pending.measuredAt),
+            persistence.historyRequests)
+        assertTrue(persistence.pendingSnapshot().isEmpty())
+        assertEquals(1, persistence.finalized.size)
+        assertTrue(scheduler.enqueued.isEmpty())
+        assertEquals(listOf(SuccessfulNotification(result.measurement, secondary.displayName)),
+            successNotifier.notifications)
+    }
+
+    @Test
+    fun manualRoutingRereadsChangedSettingsHistoryAndAccounts() = runBlocking {
+        assertRoutingUsesCurrentData(finalizeDue = false)
+    }
+
+    @Test
+    fun dueFallbackRereadsChangedSettingsHistoryAndAccounts() = runBlocking {
+        assertRoutingUsesCurrentData(finalizeDue = true)
+    }
+
+    private suspend fun assertRoutingUsesCurrentData(finalizeDue: Boolean) {
+        val third = testAccount("third", "Cara")
+        val accounts = FakeAccountRepository(listOf(primary, secondary, third), primary.id)
+        accounts.updateWeightDeltaKg(1.0)
+        val persistence = FakeRoutingPersistence(accounts).apply {
+            histories[primary.id] = listOf(history(50.0))
+            histories[secondary.id] = listOf(history(73.0))
+            histories[third.id] = listOf(history(73.0))
+        }
+        val scheduler = UniqueFakeScheduler()
+        val coordinator = coordinator(persistence, accounts, scheduler)
+        val pending = (coordinator.ingest(raw(70.0)) as
+            MeasurementIngestionResult.CreatedAggregate).pending
+        val noMatch = coordinator.evaluate(pending, finalizeDue) as MeasurementIngestionResult.AwaitingDecision
+        assertEquals(RoutingDecision.NoMatch, noMatch.decision)
+
+        accounts.updateWeightDeltaKg(3.0)
+        val widerMatch = coordinator.evaluate(pending, finalizeDue) as MeasurementIngestionResult.AwaitingDecision
+        assertEquals(listOf(secondary.id, third.id),
+            (widerMatch.decision as RoutingDecision.ChooseAccount).candidates.map { it.accountId })
+
+        persistence.histories[secondary.id] = listOf(history(80.0))
+        persistence.histories[third.id] = listOf(history(80.0))
+        val changedHistory = coordinator.evaluate(pending, finalizeDue) as MeasurementIngestionResult.AwaitingDecision
+        assertEquals(RoutingDecision.NoMatch, changedHistory.decision)
+
+        persistence.histories[secondary.id] = listOf(history(70.0))
+        persistence.histories[third.id] = listOf(history(70.0))
+        accounts.deleteAccount(third.id)
+        persistence.historyRequests.clear()
+        val assigned = coordinator.evaluate(pending, finalizeDue) as MeasurementIngestionResult.Assigned
+        assertEquals(secondary.id, assigned.measurement.accountId)
+        assertEquals(listOf(primary.id, secondary.id), persistence.historyRequests.map { it.first })
+        assertEquals(1, persistence.finalized.size)
+        assertTrue(scheduler.enqueued.isEmpty())
+    }
+
+    @Test
+    fun manualNoMatchStaysPendingButDueFallbackAppliesCurrentIgnorePolicy() = runBlocking {
+        val accounts = FakeAccountRepository(emptyList(), null)
+        val persistence = FakeRoutingPersistence(accounts)
+        val notifier = RecordingNotifier()
+        val scheduler = UniqueFakeScheduler()
+        val coordinator = coordinator(persistence, accounts, scheduler, notifier)
+        val pending = (coordinator.ingest(raw(70.0)) as
+            MeasurementIngestionResult.CreatedAggregate).pending
+        val initial = coordinator.evaluate(pending, true) as MeasurementIngestionResult.AwaitingDecision
+        assertEquals(RoutingDecision.NoMatch, initial.decision)
+
+        accounts.updateIgnoreUnknownMeasurements(true)
+        val manual = coordinator.route(pending.id) as MeasurementIngestionResult.AwaitingDecision
+        assertEquals(RoutingDecision.NoMatch, manual.decision)
+        assertEquals(listOf(pending), persistence.pendingSnapshot())
+
+        assertEquals(MeasurementIngestionResult.AutomaticallyIgnoredUnknown,
+            coordinator.evaluate(pending, true))
+        assertTrue(persistence.pendingSnapshot().isEmpty())
+        assertEquals(listOf(1, 1, 0), notifier.counts)
+        assertEquals(MeasurementIngestionResult.SuppressedTombstone, coordinator.ingest(raw(70.0)))
+        assertTrue(scheduler.enqueued.isEmpty())
+    }
+
+    @Test
+    fun nonNullAtomicResultBypassesFallbackReadsAndPreservesReschedule() = runBlocking {
+        val events = mutableListOf<String>()
+        val accounts = FakeAccountRepository(listOf(primary), primary.id, events)
+        val persistence = FakeRoutingPersistence(accounts, events)
+        val scheduler = UniqueFakeScheduler(events)
+        val notifier = RecordingNotifier()
+        val engine = MatchingEngine()
+        val coordinator = MeasurementIngestionCoordinator(
+            persistence, accounts, BodyCompositionCalculator(ZoneId.of("UTC")), scheduler,
+            notifier = notifier, matchingEngine = engine,
+        )
+        val pending = (coordinator.ingest(raw(70.0)) as
+            MeasurementIngestionResult.CreatedAggregate).pending
+        val extended = pending.copy(finalizeAfter = pending.finalizeAfter.plusSeconds(10))
+        persistence.atomicResult = AtomicDueRoutingResult.NotDue(extended)
+        events.clear()
+
+        assertEquals(AggregateFinalizationResult.Reschedule(extended),
+            coordinator.finalizeDue(pending.id, pending.finalizeAfter))
+        assertEquals(listOf("atomic"), events)
+        assertEquals(listOf(pending.id to pending.finalizeAfter), persistence.atomicRequests)
+        assertTrue(persistence.atomicMatchingEngine === engine)
+        assertTrue(persistence.historyRequests.isEmpty())
+        assertTrue(persistence.finalized.isEmpty())
+        assertTrue(scheduler.enqueued.isEmpty())
+        assertTrue(notifier.counts.isEmpty())
+    }
+
+    private suspend fun MeasurementIngestionCoordinator.evaluate(
+        pending: PendingMeasurement,
+        finalizeDue: Boolean,
+    ): MeasurementIngestionResult = if (finalizeDue) {
+        (finalizeDue(pending.id, pending.finalizeAfter) as AggregateFinalizationResult.Completed).outcome
+    } else {
+        route(pending.id)
     }
 
     @Test
@@ -812,6 +972,10 @@ private class FakeRoutingPersistence(
     private val events: MutableList<String> = mutableListOf(),
 ) : MeasurementRoutingPersistence {
     val histories = mutableMapOf<AccountId, List<WeightHistoryRecord>>()
+    val historyRequests = mutableListOf<Pair<AccountId, Instant>>()
+    val atomicRequests = mutableListOf<Pair<PendingMeasurementId, Instant>>()
+    var atomicMatchingEngine: MatchingEngine? = null
+    var atomicResult: AtomicDueRoutingResult? = null
     val finalized = linkedMapOf<String, AccountMeasurement>()
     val writeOperations = mutableListOf<String>()
     private val pending = linkedMapOf<PendingMeasurementId, PendingMeasurement>()
@@ -889,6 +1053,7 @@ private class FakeRoutingPersistence(
         measuredAtExclusive: Instant,
     ): List<WeightHistoryRecord> {
         events += "history:${accountId.value}"
+        historyRequests += accountId to measuredAtExclusive
         return histories[accountId].orEmpty().filter { it.measuredAt.isBefore(measuredAtExclusive) }
     }
 
@@ -897,6 +1062,10 @@ private class FakeRoutingPersistence(
         now: Instant,
         matchingEngine: MatchingEngine,
     ): AtomicDueRoutingResult? {
+        events += "atomic"
+        atomicRequests += pendingId to now
+        atomicMatchingEngine = matchingEngine
+        atomicResult?.let { return it }
         if (!useAtomicDueRouting) return null
         val value = pending[pendingId] ?: return AtomicDueRoutingResult.PendingNotFound
         if (now < value.finalizeAfter) return AtomicDueRoutingResult.NotDue(value)

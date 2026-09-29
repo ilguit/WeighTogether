@@ -6,6 +6,7 @@ import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.domain.AccountMeasurement
 import com.palixander.scalesync.domain.AccountProfile
 import com.palixander.scalesync.domain.AccountRepository
+import com.palixander.scalesync.domain.AccountSettings
 import com.palixander.scalesync.domain.CreateAccountAndAssignResult
 import com.palixander.scalesync.domain.DiscardPendingResult
 import com.palixander.scalesync.domain.DiscardPendingAndUpdateIgnorePolicyResult
@@ -326,20 +327,7 @@ class MeasurementIngestionCoordinator(
             }
         }
 
-        val accountSnapshot = accounts.observeAccounts().first()
-        val settings = accounts.observeSettings().first()
-        val histories = accountSnapshot.associate { account ->
-            account.id to persistence.latestHistoryBefore(account.id, pending.measuredAt)
-        }
-        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
-        val selectedAccountId = when (decision) {
-            is RoutingDecision.AssignPrimary -> decision.accountId
-            is RoutingDecision.AssignSingle -> decision.candidate.accountId
-            is RoutingDecision.ChooseAccount,
-            RoutingDecision.NoMatch,
-            -> null
-        }
-
+        val (decision, settings, selectedAccountId) = evaluateRouting(pending)
         if (selectedAccountId != null) {
             return when (
                 val result = persistence.finalizePendingIfDue(
@@ -524,20 +512,7 @@ class MeasurementIngestionCoordinator(
     }
 
     private suspend fun route(pending: PendingMeasurement): MeasurementIngestionResult {
-        val accountSnapshot = accounts.observeAccounts().first()
-        val settings = accounts.observeSettings().first()
-        val histories = accountSnapshot.associate { account ->
-            account.id to persistence.latestHistoryBefore(account.id, pending.measuredAt)
-        }
-        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
-        val selectedAccountId = when (decision) {
-            is RoutingDecision.AssignPrimary -> decision.accountId
-            is RoutingDecision.AssignSingle -> decision.candidate.accountId
-            is RoutingDecision.ChooseAccount,
-            RoutingDecision.NoMatch,
-            -> null
-        }
-
+        val (decision, _, selectedAccountId) = evaluateRouting(pending)
         if (selectedAccountId != null) {
             when (val finalized = persistence.finalizePending(pending.id, selectedAccountId)) {
                 is FinalizePendingResult.Finalized -> {
@@ -562,6 +537,29 @@ class MeasurementIngestionCoordinator(
 
         val count = refreshPendingPresentation()
         return MeasurementIngestionResult.AwaitingDecision(pending, decision, count)
+    }
+
+    private data class RoutingEvaluation(
+        val decision: RoutingDecision,
+        val settings: AccountSettings,
+        val selectedAccountId: AccountId?,
+    )
+
+    private suspend fun evaluateRouting(pending: PendingMeasurement): RoutingEvaluation {
+        val accountSnapshot = accounts.observeAccounts().first()
+        val settings = accounts.observeSettings().first()
+        val histories = accountSnapshot.associate { account ->
+            account.id to persistence.latestHistoryBefore(account.id, pending.measuredAt)
+        }
+        val decision = matchingEngine.match(pending, accountSnapshot, histories, settings)
+        val selectedAccountId = when (decision) {
+            is RoutingDecision.AssignPrimary -> decision.accountId
+            is RoutingDecision.AssignSingle -> decision.candidate.accountId
+            is RoutingDecision.ChooseAccount,
+            RoutingDecision.NoMatch,
+            -> null
+        }
+        return RoutingEvaluation(decision, settings, selectedAccountId)
     }
 
     private suspend fun alreadyFinalizedOrMissing(
