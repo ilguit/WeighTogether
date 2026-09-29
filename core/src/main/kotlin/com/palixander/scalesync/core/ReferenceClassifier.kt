@@ -183,9 +183,7 @@ class ReferenceClassifier(
         metric: BodyMetric,
         value: Double,
         context: ReferenceContext,
-    ): MetricInterpretation {
-        val common = compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
-        val (age, sex) = common
+    ): MetricInterpretation = withCompositionInputs(metric, context) { age, sex ->
         val transitions = when (sex) {
             Sex.FEMALE -> when (age) {
                 in 10..11 -> listOf(12.0, 21.0, 30.0, 34.0)
@@ -203,21 +201,27 @@ class ReferenceClassifier(
                 else -> listOf(14.0, 20.0, 25.0, 30.0)
             }
         }
-        return rated(
+        rated(
             metric,
             value,
             zones(transitions, listOf(ReferenceCategory.VERY_LOW, ReferenceCategory.LOW, ReferenceCategory.NORMAL, ReferenceCategory.HIGH, ReferenceCategory.VERY_HIGH)),
         )
     }
 
-    private fun classifyWater(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        val (_, sex) = compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
+    private fun classifyWater(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { _, sex ->
         val transitions = if (sex == Sex.MALE) listOf(55.0, 65.1) else listOf(45.0, 60.1)
-        return rated(metric, value, zones(transitions, listOf(ReferenceCategory.BELOW_NORMAL, ReferenceCategory.NORMAL, ReferenceCategory.GOOD)))
+        rated(metric, value, zones(transitions, listOf(ReferenceCategory.BELOW_NORMAL, ReferenceCategory.NORMAL, ReferenceCategory.GOOD)))
     }
 
-    private fun classifyMuscle(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        val (_, sex) = compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
+    private fun classifyMuscle(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { _, sex ->
         val height = context.heightCm!!
         val transitions = when (sex) {
             Sex.FEMALE -> when {
@@ -231,11 +235,14 @@ class ReferenceClassifier(
                 else -> listOf(49.4, 59.5)
             }
         }
-        return rated(metric, value, zones(transitions, lowNormalGood))
+        rated(metric, value, zones(transitions, lowNormalGood))
     }
 
-    private fun classifyBone(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        val (_, sex) = compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
+    private fun classifyBone(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { _, sex ->
         val weight = context.weightKg!!
         val transitions = when (sex) {
             Sex.FEMALE -> when {
@@ -249,21 +256,30 @@ class ReferenceClassifier(
                 else -> listOf(2.0, 4.2)
             }
         }
-        return rated(metric, value, zones(transitions, lowNormalGood))
+        rated(metric, value, zones(transitions, lowNormalGood))
     }
 
-    private fun classifyProtein(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
-        return rated(metric, value, zones(listOf(16.0, 20.0), lowNormalGood))
+    private fun classifyProtein(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { _, _ ->
+        rated(metric, value, zones(listOf(16.0, 20.0), lowNormalGood))
     }
 
-    private fun classifyVisceralFat(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
-        return rated(metric, value, zones(listOf(10.0, 15.0), listOf(ReferenceCategory.NORMAL, ReferenceCategory.HIGH, ReferenceCategory.VERY_HIGH)))
+    private fun classifyVisceralFat(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { _, _ ->
+        rated(metric, value, zones(listOf(10.0, 15.0), listOf(ReferenceCategory.NORMAL, ReferenceCategory.HIGH, ReferenceCategory.VERY_HIGH)))
     }
 
-    private fun classifyBmr(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
-        val (age, sex) = compositionInputs(context, requireSex = true) ?: return inputFailure(metric, context, true)
+    private fun classifyBmr(
+        metric: BodyMetric,
+        value: Double,
+        context: ReferenceContext,
+    ): MetricInterpretation = withCompositionInputs(metric, context) { age, sex ->
         val coefficient = when (sex) {
             Sex.FEMALE -> when (age) {
                 in 10..29 -> 21.24
@@ -277,7 +293,7 @@ class ReferenceClassifier(
             }
         }
         val threshold = context.weightKg!! * coefficient
-        return rated(metric, value, zones(listOf(threshold), listOf(ReferenceCategory.BELOW_NORMAL, ReferenceCategory.NORMAL)))
+        rated(metric, value, zones(listOf(threshold), listOf(ReferenceCategory.BELOW_NORMAL, ReferenceCategory.NORMAL)))
     }
 
     private fun classifyFatMass(metric: BodyMetric, value: Double, context: ReferenceContext): MetricInterpretation {
@@ -311,9 +327,7 @@ class ReferenceClassifier(
         metric: BodyMetric,
         value: Double,
         context: ReferenceContext,
-    ): MetricInterpretation {
-        val (age, sex) = compositionInputs(context, requireSex = true, ageRange = 18..80)
-            ?: return inputFailure(metric, context, true, 18..80)
+    ): MetricInterpretation = withCompositionInputs(metric, context, ageRange = 18..80) { age, sex ->
         val transitions = when (sex) {
             Sex.FEMALE -> when (age) {
                 in 18..39 -> listOf(24.3, 30.4, 35.4)
@@ -328,7 +342,7 @@ class ReferenceClassifier(
         }
         val percent = value * 100.0 / context.weightKg!!
         val decimalPercent = BigDecimal.valueOf(percent).setScale(1, RoundingMode.HALF_UP).toDouble()
-        return rated(
+        rated(
             metric,
             decimalPercent,
             zones(transitions, listOf(ReferenceCategory.BELOW_NORMAL, ReferenceCategory.NORMAL, ReferenceCategory.GOOD, ReferenceCategory.VERY_GOOD)),
@@ -353,34 +367,20 @@ class ReferenceClassifier(
         return MetricInterpretation.Rated(metric, version, category, zones, ZoneBasis.CHRONOLOGICAL_AGE, value)
     }
 
-    private fun compositionInputs(
-        context: ReferenceContext,
-        requireSex: Boolean,
-        ageRange: IntRange = 10..99,
-    ): Pair<Int, Sex>? {
-        val birthDate = context.birthDate ?: return null
-        val sex = context.sex ?: if (requireSex) return null else Sex.MALE
-        val height = context.heightCm ?: return null
-        val weight = context.weightKg ?: return null
-        val impedance = context.impedanceOhm ?: return null
-        val age = chronologicalAge(birthDate, context.measurementDate)
-        if (age !in ageRange || height !in 100.0..220.0 || weight !in 10.0..150.0 || impedance !in 80..3_000) return null
-        return age to sex
-    }
-
-    private fun inputFailure(
+    private fun withCompositionInputs(
         metric: BodyMetric,
         context: ReferenceContext,
-        requireSex: Boolean,
         ageRange: IntRange = 10..99,
+        block: (age: Int, sex: Sex) -> MetricInterpretation,
     ): MetricInterpretation {
-        if (context.birthDate == null || context.heightCm == null || (requireSex && context.sex == null)) return missingProfile(metric)
-        if (context.weightKg == null || context.impedanceOhm == null) return noData(metric)
-        val age = chronologicalAge(context.birthDate, context.measurementDate)
-        return if (
-            age !in ageRange || context.heightCm !in 100.0..220.0 ||
-            context.weightKg !in 10.0..150.0 || context.impedanceOhm !in 80..3_000
-        ) outOfDomain(metric) else error("Inputs unexpectedly valid")
+        val birthDate = context.birthDate ?: return missingProfile(metric)
+        val sex = context.sex ?: return missingProfile(metric)
+        val height = context.heightCm ?: return missingProfile(metric)
+        val weight = context.weightKg ?: return noData(metric)
+        val impedance = context.impedanceOhm ?: return noData(metric)
+        val age = chronologicalAge(birthDate, context.measurementDate)
+        if (age !in ageRange || height !in 100.0..220.0 || weight !in 10.0..150.0 || impedance !in 80..3_000) return outOfDomain(metric)
+        return block(age, sex)
     }
 
     private fun age(context: ReferenceContext): Int? =
