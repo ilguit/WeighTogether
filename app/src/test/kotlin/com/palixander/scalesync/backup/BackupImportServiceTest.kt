@@ -20,8 +20,12 @@ import com.palixander.scalesync.core.breedreference.BreedReferenceSnapshotLoadRe
 import java.io.ByteArrayInputStream
 import java.io.IOException
 import java.io.InputStream
+import java.nio.charset.CharacterCodingException
 import kotlinx.coroutines.CancellationException
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Assert.assertThrows
 import org.junit.Test
 import kotlinx.coroutines.runBlocking
@@ -157,6 +161,118 @@ class BackupImportServiceTest {
         assertThrows(BackupException.Io::class.java) { service.read(object : InputStream() {
             override fun read(): Int = throw IOException("lost provider")
         }) }
+    }
+
+    @Test
+    fun `read accepts exact byte limit including multibyte account name`() {
+        val json = BackupJsonCodec().encode(document(accountDisplayName = "Анна 🌿"))
+        val bytes = json.toByteArray(Charsets.UTF_8)
+        assertTrue(bytes.size > json.length)
+        val input = TrackingInputStream(bytes)
+
+        val result = BackupImportService(byteLimit = bytes.size).read(input)
+
+        assertEquals("Анна 🌿", result.accounts.single().displayName)
+        assertEquals("m", result.measurements.single().id)
+        assertFalse(input.closed)
+    }
+
+    @Test
+    fun `read rejects one byte beyond limit for ascii and multibyte documents`() {
+        for (name in listOf("Account", "Анна 🌿")) {
+            val bytes = BackupJsonCodec().encode(document(accountDisplayName = name)).toByteArray(Charsets.UTF_8)
+            val input = TrackingInputStream(bytes)
+            val limit = bytes.size - 1
+
+            val error = assertThrows(BackupException.Limits::class.java) {
+                BackupImportService(byteLimit = limit).read(input)
+            }
+
+            assertEquals("$", error.path)
+            assertEquals(limit, error.limit)
+            assertFalse(input.closed)
+        }
+    }
+
+    @Test
+    fun `read joins fragmented multibyte input across finite zero reads`() {
+        val bytes = BackupJsonCodec().encode(document(accountDisplayName = "Анна 🌿")).toByteArray(Charsets.UTF_8)
+        val input = FragmentedInputStream(bytes, zeroReads = true)
+
+        val result = BackupImportService(byteLimit = bytes.size).read(input)
+
+        assertEquals("Анна 🌿", result.accounts.single().displayName)
+        assertEquals("m", result.measurements.single().id)
+        assertFalse(input.closed)
+    }
+
+    @Test
+    fun `read rejects malformed and truncated utf8 with coding cause and leaves stream open`() {
+        for (bytes in listOf(byteArrayOf(0xc3.toByte(), 0x28), byteArrayOf(0xe2.toByte(), 0x82.toByte()))) {
+            val input = TrackingInputStream(bytes)
+
+            val error = assertThrows(BackupException.Corrupt::class.java) { service.read(input) }
+
+            assertTrue(error.cause is CharacterCodingException)
+            assertFalse(input.closed)
+        }
+    }
+
+    @Test
+    fun `read reports size limit before malformed utf8 or json`() {
+        val input = FragmentedInputStream(byteArrayOf(0xff.toByte(), 0xff.toByte()))
+
+        val error = assertThrows(BackupException.Limits::class.java) {
+            BackupImportService(byteLimit = 1).read(input)
+        }
+
+        assertEquals("$", error.path)
+        assertEquals(1, error.limit)
+        assertFalse(input.closed)
+    }
+
+    @Test
+    fun `read wraps partial io failure with original cause before decoding`() {
+        val failure = IOException("provider disconnected")
+        val input = FragmentedInputStream(byteArrayOf(0xff.toByte()), failure = failure)
+
+        val error = assertThrows(BackupException.Io::class.java) { service.read(input) }
+
+        assertSame(failure, error.cause)
+        assertFalse(input.closed)
+    }
+
+    @Test
+    fun `read preserves backup exception from stream`() {
+        val failure = BackupException.Invalid("provider", "unavailable")
+        val input = FragmentedInputStream(byteArrayOf(0x7b), failure = failure)
+
+        val error = assertThrows(BackupException.Invalid::class.java) { service.read(input) }
+
+        assertSame(failure, error)
+        assertFalse(input.closed)
+    }
+
+    @Test
+    fun `read delegates empty input and invalid json to codec validation`() {
+        for (json in listOf("", "{", "{}")) {
+            val expected = assertThrows(BackupException::class.java) { BackupJsonCodec().decode(json) }
+            val input = TrackingInputStream(json.toByteArray(Charsets.UTF_8))
+
+            val actual = assertThrows(BackupException::class.java) { service.read(input) }
+
+            assertEquals(expected.javaClass, actual.javaClass)
+            assertEquals(expected.message, actual.message)
+            assertEquals(expected.cause?.javaClass, actual.cause?.javaClass)
+            assertFalse(input.closed)
+        }
+    }
+
+    @Test
+    fun `service rejects nonpositive byte limits before reading`() {
+        for (limit in listOf(0, -1)) {
+            assertThrows(IllegalArgumentException::class.java) { BackupImportService(byteLimit = limit) }
+        }
     }
 
     @Test
@@ -1199,6 +1315,34 @@ class BackupImportServiceTest {
         )),
         settings = BackupSettingsV1("AA:BB", "Scale", true, emptyList(), emptyList()),
     )
+
+    private class FragmentedInputStream(
+        private val bytes: ByteArray,
+        private val zeroReads: Boolean = false,
+        private val failure: Exception? = null,
+    ) : InputStream() {
+        var closed = false
+        private var position = 0
+        private var returnZero = zeroReads
+
+        override fun read(): Int = error("Expected bulk read")
+
+        override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+            if (returnZero) {
+                returnZero = false
+                return 0
+            }
+            if (position == bytes.size) {
+                failure?.let { throw it }
+                return -1
+            }
+            buffer[offset] = bytes[position++]
+            returnZero = zeroReads
+            return 1
+        }
+
+        override fun close() { closed = true }
+    }
 
     private class TrackingInputStream(bytes: ByteArray) : ByteArrayInputStream(bytes) {
         var closed = false
