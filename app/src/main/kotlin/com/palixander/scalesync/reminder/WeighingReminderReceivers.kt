@@ -14,10 +14,9 @@ import com.palixander.scalesync.ScaleSyncApplication
 import com.palixander.scalesync.data.ReminderCallbackKind
 import com.palixander.scalesync.domain.WeighingReminderId
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicBoolean
 
 class WeighingReminderOpenActivity : ComponentActivity() {
-    private val actionStarted = AtomicBoolean(false)
+    private val actionGuard = AlarmOccurrenceActionGuard()
     override fun onCreate(savedInstanceState: android.os.Bundle?) {
         super.onCreate(savedInstanceState)
         handleIntent(intent)
@@ -37,8 +36,9 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             finish()
             return
         }
+        val presentation = actionGuard.install(id, token)
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_PERFORM_WEIGH, false)) {
-            perform(application, id, token, AlarmActivityAction.WEIGH)
+            perform(application, presentation, AlarmActivityAction.WEIGH)
             return
         }
         if (intent.getBooleanExtra(WeighingReminderCoordinator.EXTRA_ALARM, false)) {
@@ -72,7 +72,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_weigh)
-                setOnClickListener { perform(application, id, token, AlarmActivityAction.WEIGH) }
+                setOnClickListener { perform(application, presentation, AlarmActivityAction.WEIGH) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(183, 28, 28))
@@ -80,7 +80,7 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             layout.addView(android.widget.Button(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_reminder_snooze)
-                setOnClickListener { perform(application, id, token, AlarmActivityAction.SNOOZE) }
+                setOnClickListener { perform(application, presentation, AlarmActivityAction.SNOOZE) }
                 minHeight = (56 * resources.displayMetrics.density).toInt()
                 setTextColor(Color.WHITE)
                 background = alarmButtonBackground(Color.rgb(21, 101, 192))
@@ -98,23 +98,31 @@ class WeighingReminderOpenActivity : ComponentActivity() {
         }
     }
 
-    private fun perform(app: ScaleSyncApplication, id: String, token: String, action: AlarmActivityAction) {
-        if (!actionStarted.compareAndSet(false, true)) return
+    private fun perform(
+        app: ScaleSyncApplication,
+        presentation: AlarmOccurrenceActionGuard.Presentation,
+        action: AlarmActivityAction,
+    ) {
+        if (!actionGuard.begin(presentation)) return
         app.container.applicationScope.launch {
             var navigationTarget: WeighingReminderNavigationTarget? = null
             try {
+                val id = WeighingReminderId(presentation.scheduleId)
+                val token = presentation.occurrenceToken
                 when (action) {
                     AlarmActivityAction.SNOOZE ->
-                        app.container.weighingReminders.onSnooze(WeighingReminderId(id), token)
+                        app.container.weighingReminders.onSnooze(id, token)
                     AlarmActivityAction.DISMISS ->
-                        app.container.weighingReminders.onDismiss(WeighingReminderId(id), token)
+                        app.container.weighingReminders.onDismiss(id, token)
                     AlarmActivityAction.WEIGH ->
-                        navigationTarget = app.container.weighingReminders.onStop(WeighingReminderId(id), token)
+                        navigationTarget = app.container.weighingReminders.onStop(id, token)
                 }
             } finally {
                 runOnUiThread {
-                    navigationTarget?.let(::openOwner)
-                    finish()
+                    if (actionGuard.isCurrent(presentation)) {
+                        navigationTarget?.let(::openOwner)
+                        finish()
+                    }
                 }
             }
         }
@@ -141,17 +149,55 @@ class WeighingReminderOpenActivity : ComponentActivity() {
 
     private fun dismissAlarmOrFinish() {
         val application = applicationContext as? ScaleSyncApplication
-        val id = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID)
-        val token = intent.getStringExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN)
-        if (application == null || id.isNullOrBlank() || token.isNullOrBlank()) {
+        val presentation = actionGuard.current()
+        if (application == null || presentation == null) {
             finish()
         } else {
-            perform(application, id, token, AlarmActivityAction.DISMISS)
+            perform(application, presentation, AlarmActivityAction.DISMISS)
         }
     }
 }
 
 internal enum class AlarmActivityAction { WEIGH, SNOOZE, DISMISS }
+
+/** Keeps action idempotency and Activity completion scoped to the occurrence currently on screen. */
+internal class AlarmOccurrenceActionGuard {
+    private var generation = 0L
+    private var current: Presentation? = null
+    private val started = mutableSetOf<Occurrence>()
+
+    @Synchronized
+    fun install(scheduleId: String, occurrenceToken: String): Presentation {
+        val occurrence = Occurrence(scheduleId, occurrenceToken)
+        current?.takeIf { it.key == occurrence }?.let { return it }
+        return Presentation(scheduleId, occurrenceToken, ++generation).also { current = it }
+    }
+
+    @Synchronized
+    fun begin(presentation: Presentation): Boolean {
+        if (current != presentation) return false
+        return started.add(presentation.key)
+    }
+
+    @Synchronized
+    fun isCurrent(presentation: Presentation): Boolean = current == presentation
+
+    @Synchronized
+    fun current(): Presentation? = current
+
+    internal data class Occurrence(
+        val scheduleId: String,
+        val occurrenceToken: String,
+    )
+
+    internal data class Presentation(
+        val scheduleId: String,
+        val occurrenceToken: String,
+        val generation: Long,
+    ) {
+        internal val key: Occurrence get() = Occurrence(scheduleId, occurrenceToken)
+    }
+}
 
 class WeighingReminderFireReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {

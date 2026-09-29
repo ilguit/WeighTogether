@@ -75,6 +75,31 @@ class WeighingAlarmFlowContractTest {
     }
 
     @Test
+    fun `new occurrence remains actionable when previous action completes`() {
+        AlarmActivityAction.entries.forEach { action ->
+            val guard = AlarmOccurrenceActionGuard()
+            val first = guard.install("schedule-a", "token-a")
+            assertTrue("A $action starts", guard.begin(first))
+
+            val second = guard.install("schedule-b", "token-b")
+            assertFalse("A $action completion must not finish B", guard.isCurrent(first))
+            assertTrue("B $action remains actionable", guard.begin(second))
+            assertTrue("B $action completion may finish B", guard.isCurrent(second))
+        }
+    }
+
+    @Test
+    fun `duplicate actions for one occurrence are rejected`() {
+        val guard = AlarmOccurrenceActionGuard()
+        val presentation = guard.install("schedule", "token")
+
+        assertTrue(guard.begin(presentation))
+        assertFalse(guard.begin(presentation))
+        assertSame(presentation, guard.install("schedule", "token"))
+        assertFalse(guard.begin(presentation))
+    }
+
+    @Test
     fun `stop command cannot silence a different occurrence`() {
         assertFalse(shouldStopWeighingAlarm("schedule", "new", "schedule", "old"))
         assertFalse(shouldStopWeighingAlarm("new-schedule", "token", "old-schedule", null))
