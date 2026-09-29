@@ -26,8 +26,16 @@ sealed interface UiText {
 
 fun UiText.resolve(resources: Resources): String = when (this) {
     is UiText.Raw -> value
-    is UiText.Resource -> resources.getString(id, *arguments.resolve(resources))
-    is UiText.Plural -> resources.getQuantityString(id, quantity, *arguments.resolve(resources))
+    is UiText.Resource -> if (arguments.isEmpty()) {
+        resources.getString(id)
+    } else {
+        resources.getString(id, *arguments.resolve(resources))
+    }
+    is UiText.Plural -> if (arguments.isEmpty()) {
+        resources.getQuantityString(id, quantity)
+    } else {
+        resources.getQuantityString(id, quantity, *arguments.resolve(resources))
+    }
     is UiText.Joined -> values.joinToString(separator) { it.resolve(resources) }
 }
 
