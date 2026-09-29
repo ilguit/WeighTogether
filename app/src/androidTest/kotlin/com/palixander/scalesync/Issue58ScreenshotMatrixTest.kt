@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.fillMaxSize
@@ -187,7 +188,7 @@ class Issue58ScreenshotMatrixTest {
             draft = AccountEditorDraft.edit(account),
             accounts = listOf(account),
             operationInProgress = busy,
-            error = error,
+            error = error?.let { UiText.Raw(it) },
             onDraftChanged = {}, onCreate = {}, onUpdate = {}, onDismiss = {},
             today = LocalDate.of(2026, 9, 10),
         )

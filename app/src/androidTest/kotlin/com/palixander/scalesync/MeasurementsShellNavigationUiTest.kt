@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -387,6 +388,16 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
+    fun openingHistoryShowsBodyFatPercentWithoutCrashing() {
+        setMeasurementsShell()
+
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
+
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        composeRule.onNodeWithText("18,7 %", substring = true).assertIsDisplayed()
+    }
+
+    @Test
     fun historyOwnsChromeAndSystemBackReturnsToSummary() {
         setMeasurementsShell()
 
@@ -609,7 +620,7 @@ class MeasurementsShellNavigationUiTest {
                     MeasurementSyncDirectionPresentation(
                         direction = MeasurementSyncDirection.HEALTH_CONNECT,
                         state = MeasurementSyncPresentationState.SYNCED,
-                        message = "Данные отправлены",
+                        message = UiText.Raw("Данные отправлены"),
                         canRetry = false,
                     ),
                 ),

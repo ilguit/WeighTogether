@@ -1,5 +1,7 @@
 package com.palixander.scalesync.measurements
 
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
@@ -252,7 +254,7 @@ class MeasurementsScreenTest {
             node.assertExists().assertIsOn()
             node.assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
             node.assert(SemanticsMatcher.keyNotDefined(SemanticsProperties.ContentDescription))
-            node.assertTextContains(metric.label)
+            node.assertTextContains(metric.label.resolve(InstrumentationRegistry.getInstrumentation().targetContext.resources))
         }
     }
 
@@ -1406,7 +1408,7 @@ class MeasurementsScreenTest {
             MeasurementSyncDirectionPresentation(
                 direction = MeasurementSyncDirection.HEALTH_CONNECT,
                 state = MeasurementSyncPresentationState.SYNCED,
-                message = "Данные отправлены",
+                message = UiText.Raw("Данные отправлены"),
                 canRetry = false,
             ),
         ),
@@ -1419,7 +1421,7 @@ class MeasurementsScreenTest {
             MeasurementSyncDirectionPresentation(
                 direction = MeasurementSyncDirection.HEALTH_CONNECT,
                 state = MeasurementSyncPresentationState.ERROR,
-                message = "Health Connect временно недоступен",
+                message = UiText.Raw("Health Connect временно недоступен"),
                 canRetry = true,
             ),
         ),
@@ -1432,7 +1434,7 @@ class MeasurementsScreenTest {
             MeasurementSyncDirectionPresentation(
                 direction = MeasurementSyncDirection.HEALTH_CONNECT,
                 state = MeasurementSyncPresentationState.LOCAL_ONLY,
-                message = "Данные остаются на устройстве",
+                message = UiText.Raw("Данные остаются на устройстве"),
                 canRetry = false,
             ),
         ),

@@ -23,12 +23,12 @@ class MainSnackbarUiTest {
 
     @Test
     fun externalSyncPauseFeedbackIsShownInSnackbar() {
-        assertSnackbarMessage(EXTERNAL_SYNC_PAUSED_MESSAGE)
+        assertSnackbarMessage(composeRule.activity.getString(R.string.message_external_sync_paused))
     }
 
     @Test
     fun externalSyncResumeFeedbackIsShownInSnackbar() {
-        assertSnackbarMessage(EXTERNAL_SYNC_RESUMED_MESSAGE)
+        assertSnackbarMessage(composeRule.activity.getString(R.string.message_external_sync_resumed))
     }
 
     @Test
@@ -63,7 +63,7 @@ class MainSnackbarUiTest {
 
         composeRule.runOnIdle { channel.trySend(event).getOrThrow() }
         composeRule.onNodeWithText(composeRule.activity.getString(R.string.message_pending_discarded)).assertIsDisplayed()
-        composeRule.onNodeWithText(PENDING_DISCARD_UNDO_ACTION).assertIsDisplayed().performClick()
+        composeRule.onNodeWithText(composeRule.activity.getString(R.string.action_undo)).assertIsDisplayed().performClick()
         composeRule.waitUntil(timeoutMillis = 5_000) { results.isNotEmpty() }
 
         composeRule.runOnIdle {
