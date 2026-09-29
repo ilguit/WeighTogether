@@ -387,6 +387,16 @@ class MeasurementsShellNavigationUiTest {
     }
 
     @Test
+    fun openingHistoryShowsBodyFatPercentWithoutCrashing() {
+        setMeasurementsShell()
+
+        composeRule.onNodeWithTag("summary-history").performScrollTo().performClick()
+
+        composeRule.onNodeWithTag("measurement-history").assertIsDisplayed()
+        composeRule.onNodeWithText("18,7 %", substring = true).assertIsDisplayed()
+    }
+
+    @Test
     fun historyOwnsChromeAndSystemBackReturnsToSummary() {
         setMeasurementsShell()
 
