@@ -14,10 +14,8 @@ internal sealed interface MeasurementSyncOutcome {
 }
 
 /**
- * Runs one measurement sync without depending on WorkManager. Each destination reloads the
- * measurement immediately before deciding whether to call the external gateway. This prevents a
- * worker that was already running when a local edit happened from sending the edited record to the
- * next destination.
+ * Runs one measurement sync without depending on WorkManager. Reloads the measurement on each
+ * attempt before deciding whether to send it to Health Connect.
  */
 internal class MeasurementSyncProcessor(
     private val loadMeasurement: suspend (String) -> MeasurementEntity?,
@@ -29,41 +27,26 @@ internal class MeasurementSyncProcessor(
     private val isHealthConnectEnabled: () -> Boolean = { true },
 ) {
     suspend fun sync(measurementId: String): MeasurementSyncOutcome {
-        val healthConnectResult = syncHealthConnect(measurementId)
-        if (healthConnectResult is DestinationResult.Paused) return MeasurementSyncOutcome.Paused
-        return if (healthConnectResult.isRetryable()) {
-            MeasurementSyncOutcome.Retry
-        } else {
-            MeasurementSyncOutcome.Complete
-        }
-    }
-
-    private suspend fun syncHealthConnect(measurementId: String): DestinationResult {
-        val value = loadMeasurement(measurementId) ?: return DestinationResult.Skipped
-        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return DestinationResult.Skipped
-        if (!isEligible(value)) return DestinationResult.Skipped
+        val value = loadMeasurement(measurementId) ?: return MeasurementSyncOutcome.Complete
+        if (value.externalSyncPolicy != ExternalSyncPolicy.AUTO.name) return MeasurementSyncOutcome.Complete
+        if (!isEligible(value)) return MeasurementSyncOutcome.Complete
         if (value.healthConnectStatus in HEALTH_CONNECT_TERMINAL_STATUSES) {
-            return DestinationResult.Skipped
+            return MeasurementSyncOutcome.Complete
         }
-        if (!isHealthConnectEnabled()) return DestinationResult.Skipped
+        if (!isHealthConnectEnabled()) return MeasurementSyncOutcome.Complete
 
         val payload = MeasurementSyncPayload(
             measurement = value,
             includesWeight = !value.healthConnectWeightSynced,
         )
-        if (isPaused()) return DestinationResult.Paused
+        if (isPaused()) return MeasurementSyncOutcome.Paused
         val result = if (payload.isEmpty) SyncResult.Success else writeHealthConnect(payload)
         applyHealthConnectResult(measurementId, payload, result)
-        return DestinationResult.Attempted(result)
-    }
-
-    private fun DestinationResult.isRetryable(): Boolean =
-        this is DestinationResult.Attempted && result is SyncResult.Retryable
-
-    private sealed interface DestinationResult {
-        data object Skipped : DestinationResult
-        data class Attempted(val result: SyncResult) : DestinationResult
-        data object Paused : DestinationResult
+        return if (result is SyncResult.Retryable) {
+            MeasurementSyncOutcome.Retry
+        } else {
+            MeasurementSyncOutcome.Complete
+        }
     }
 
     private companion object {
