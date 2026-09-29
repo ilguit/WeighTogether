@@ -27,6 +27,7 @@ import java.time.LocalDate
 import java.time.ZoneOffset
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -163,6 +164,140 @@ class MeasurementsViewModelTest {
         assertEquals(MeasurementsDestination.HISTORY, normalized.navigation.destination)
         assertEquals(null, normalized.editor)
         assertEquals(null, normalized.deleteConfirmation)
+    }
+
+    @Test
+    fun unchangedSelectionPreservesInteractionInstance() {
+        val current = populatedInteraction()
+
+        assertSame(current, current.normalizedFor(current.selection.copy()))
+    }
+
+    @Test
+    fun newGenerationOfSameAccountClearsAllTransientStateAndTokens() {
+        val current = populatedInteraction()
+        val nextSelection = AccountSelection(current.accountId, 1L)
+
+        val normalized = current.normalizedFor(nextSelection)
+
+        assertEquals(
+            MeasurementsInteractionState(
+                selection = nextSelection,
+                navigation = MeasurementsNavigationState(
+                    destination = MeasurementsDestination.HISTORY,
+                    editorOrigin = MeasurementEditorOrigin.HISTORY,
+                ),
+            ),
+            normalized,
+        )
+    }
+
+    @Test
+    fun currentSaveOperationAcceptsCompletion() {
+        val current = populatedInteraction()
+        val state = MutableStateFlow(current)
+
+        val accepted = state.acceptOperation(current.saveOperation!!, current.selection) {
+            it.afterSaveCompletion(MeasurementMutationResult.Success)
+        }
+
+        assertTrue(accepted)
+        assertEquals(
+            current.copy(navigation = current.navigation.back(), editor = null, saveOperation = null),
+            state.value,
+        )
+    }
+
+    @Test
+    fun currentDeleteRequestAcceptsConfirmationAndClearsRequestToken() {
+        val current = populatedInteraction()
+        val state = MutableStateFlow(current)
+        val requested = confirmation(current.deleteRequestOperation!!.measurementId)
+
+        val accepted = state.acceptOperation(current.deleteRequestOperation, current.selection) {
+            it.withDeleteConfirmation(current.selection, requested).copy(deleteRequestOperation = null)
+        }
+
+        assertTrue(accepted)
+        assertEquals(current.copy(deleteConfirmation = requested, deleteRequestOperation = null), state.value)
+    }
+
+    @Test
+    fun currentDeleteOperationAcceptsCompletionAndClearsDialog() {
+        val current = populatedInteraction()
+        val state = MutableStateFlow(current)
+
+        val accepted = state.acceptOperation(current.deleteOperation!!, current.selection) {
+            it.copy(deleteConfirmation = null, deleteOperation = null)
+        }
+
+        assertTrue(accepted)
+        assertEquals(current.copy(deleteConfirmation = null, deleteOperation = null), state.value)
+    }
+
+    @Test
+    fun matchingSaveTokenWithDifferentEditorTargetRejectsWithoutTransform() {
+        val current = populatedInteraction().copy(editor = editor("different-editor"))
+        val state = MutableStateFlow(current)
+
+        val accepted = state.acceptOperation(current.saveOperation!!, current.selection) {
+            error("A different editor must not accept this save completion")
+        }
+
+        assertFalse(accepted)
+        assertSame(current, state.value)
+    }
+
+    @Test
+    fun matchingDeleteTokenWithDifferentConfirmationTargetRejectsWithoutTransform() {
+        val current = populatedInteraction().copy(deleteConfirmation = confirmation("different-delete"))
+        val state = MutableStateFlow(current)
+
+        val accepted = state.acceptOperation(current.deleteOperation!!, current.selection) {
+            error("A different confirmation must not accept this delete completion")
+        }
+
+        assertFalse(accepted)
+        assertSame(current, state.value)
+    }
+
+    @Test
+    fun successfulOrMissingSaveClosesEditorAndReturnsToItsOrigin() {
+        for (origin in MeasurementEditorOrigin.entries) {
+            for (result in listOf(MeasurementMutationResult.Success, MeasurementMutationResult.NotFound)) {
+                val current = populatedInteraction().copy(
+                    navigation = MeasurementsNavigationState().showEditor(origin),
+                )
+
+                val completed = current.afterSaveCompletion(result)
+
+                assertEquals(
+                    current.copy(
+                        navigation = MeasurementsNavigationState(
+                            destination = origin.destination,
+                            editorOrigin = origin,
+                        ),
+                        editor = null,
+                        saveOperation = null,
+                    ),
+                    completed,
+                )
+            }
+        }
+    }
+
+    @Test
+    fun invalidSaveKeepsDraftAndNavigationAndAllowsRetry() {
+        val current = populatedInteraction()
+
+        val completed = current.afterSaveCompletion(MeasurementMutationResult.Invalid)
+
+        assertEquals(
+            current.copy(editor = current.editor!!.copy(isSaving = false), saveOperation = null),
+            completed,
+        )
+        assertSame(current.editor.draft, completed.editor!!.draft)
+        assertSame(current.navigation, completed.navigation)
     }
 
     @Test
@@ -681,6 +816,21 @@ class MeasurementsViewModelTest {
         assertEquals(null, result.age)
         assertEquals(168.5, result.context.heightCm)
     }
+}
+
+private fun populatedInteraction(): MeasurementsInteractionState {
+    val selection = AccountSelection(AccountId("account-a"))
+    return MeasurementsInteractionState(
+        scrollToMeasurementId = "scroll-target",
+        selection = selection,
+        navigation = MeasurementsNavigationState().showEditor(MeasurementEditorOrigin.HISTORY),
+        editor = editor("save-target").copy(isSaving = true),
+        deleteConfirmation = confirmation("delete-target").copy(isDeleting = true),
+        pendingClearConfirmation = PendingClearConfirmation(count = 3, isClearing = true),
+        saveOperation = MeasurementOperationToken(selection, "save-target", 1L),
+        deleteRequestOperation = MeasurementOperationToken(selection, "request-target", 2L),
+        deleteOperation = MeasurementOperationToken(selection, "delete-target", 3L),
+    )
 }
 
 private fun editor(id: String) = MeasurementEditorState(
