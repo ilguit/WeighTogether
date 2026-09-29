@@ -155,11 +155,10 @@ class RoomMeasurementPersistence(
         startInclusive: Instant,
         endExclusive: Instant,
     ): Flow<List<AccountMeasurement>> {
-        require(startInclusive < endExclusive) { "Measurement range must be non-empty" }
-        return measurementDao.observeRange(
-            accountId = accountId.value,
-            startInclusive = startInclusive.ceilToEpochSecond(),
-            endExclusive = endExclusive.ceilToEpochSecond(),
+        return observeRangeEntities(
+            accountId = accountId,
+            startInclusive = startInclusive,
+            endExclusive = endExclusive,
         ).map { values -> values.map(MeasurementEntity::toAccountMeasurement) }
     }
 
