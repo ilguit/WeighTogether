@@ -5,10 +5,8 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,7 +23,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -46,7 +43,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -56,7 +52,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.data.AppSettings
 import com.palixander.scalesync.core.Sex
@@ -70,9 +65,6 @@ import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.components.HuaweiSettingRow
-import com.palixander.scalesync.ui.components.HuaweiSurface
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.settings.SettingsGroup
 import com.palixander.scalesync.ui.settings.SettingsGroupDivider
@@ -1179,287 +1171,6 @@ private fun SettingsRootStatusMark(success: Boolean, tag: String) {
 }
 
 @Composable
-private fun SettingsDetailPlaceholder(
-    destination: SettingsDestination,
-    contentPadding: PaddingValues,
-    modifier: Modifier,
-) {
-    Box(
-        modifier = modifier.fillMaxSize().padding(contentPadding).testTag(SettingsScreenTestTags.Detail),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(stringResource(destination.titleRes), style = MaterialTheme.typography.titleLarge)
-    }
-}
-
-@Composable
-private fun LegacySettingsScreen(
-    state: MainUiState,
-    callbacks: SettingsCallbacks,
-    contentPadding: PaddingValues,
-    modifier: Modifier = Modifier,
-) {
-    val resources = LocalContext.current.resources
-    state.accountManagement.editor?.let { draft ->
-        AccountEditorScreen(
-            draft = draft,
-            accounts = state.accountManagement.accounts,
-            operationInProgress = state.accountManagement.operationInProgress,
-            error = state.accountManagement.operationError,
-            onDraftChanged = { callbacks.accountManagement.onAction(
-                com.palixander.scalesync.ui.accounts.AccountManagementAction.EditorChanged(it),
-            ) },
-            onCreate = callbacks.accountManagement.onCreate,
-            onUpdate = callbacks.accountManagement.onUpdate,
-            onUpdateAndContinue = callbacks.accountManagement.onUpdateAndContinue,
-            openRemindersAfterSave = state.accountManagement.openRemindersAfterSave,
-            onOpenRemindersAfterSaveRequested = { callbacks.accountManagement.onAction(
-                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveRequested,
-            ) },
-            onOpenRemindersAfterSaveConsumed = { callbacks.accountManagement.onAction(
-                com.palixander.scalesync.ui.accounts.AccountManagementAction.OpenRemindersAfterSaveConsumed,
-            ) },
-            onDismiss = { callbacks.accountManagement.onAction(
-                com.palixander.scalesync.ui.accounts.AccountManagementAction.DialogDismissed,
-            ) },
-            modifier = modifier.padding(contentPadding),
-        )
-        return
-    }
-    var accountsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var integrationsExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var scaleExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var backupExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var additionalExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var aboutExpansion by rememberSaveable { mutableStateOf(SettingsSectionExpansion.Collapsed) }
-    var destructiveConfirmation by rememberSaveable { mutableStateOf<DestructiveSettingsAction?>(null) }
-    var destructiveSubmitted by rememberSaveable { mutableStateOf(false) }
-    LaunchedEffect(state.destructiveActionInProgress) {
-        if (destructiveSubmitted && state.destructiveActionInProgress == null) {
-            destructiveConfirmation = null
-            destructiveSubmitted = false
-        }
-    }
-
-    Box(
-        modifier = modifier.fillMaxSize().padding(contentPadding),
-        contentAlignment = Alignment.TopCenter,
-    ) {
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxHeight()
-                .fillMaxWidth()
-                .widthIn(max = 720.dp)
-                .testTag(SettingsScreenTestTags.List),
-            contentPadding = PaddingValues(
-                start = HuaweiDimensions.ContentPadding,
-                end = HuaweiDimensions.ContentPadding,
-                top = 4.dp,
-                bottom = 28.dp,
-            ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-        ) {
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_profiles),
-                    expansion = accountsExpansion,
-                    testTag = SettingsScreenTestTags.AccountsSection,
-                    contentTestTag = SettingsScreenTestTags.AccountsContent,
-                    onToggle = { accountsExpansion = accountsExpansion.toggled() },
-                ) {
-                    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
-                        AccountManagementSection(
-                            state = state.accountManagement,
-                            callbacks = callbacks.accountManagement,
-                            pets = state.pets,
-                            onAddPet = callbacks.onCreatePet,
-                            onEditPet = { callbacks.onEditPet(it.pet) },
-                            onDeletePet = callbacks.onRequestDeletePet,
-                            petSpeciesLabel = { petSpeciesLabel(it.pet.species).resolve(resources) },
-                            petWeightLabel = { formatLatestPetWeight(it, resources.appLocale).resolve(resources) },
-                        )
-                        WeightRecognitionSetting(
-                            state = state.weightDeltaEditor,
-                            onStateChanged = callbacks.onWeightDeltaStateChanged,
-                            onSave = callbacks.onWeightDeltaSave,
-                            ignoreUnknownMeasurements = state.accountSettings.ignoreUnknownMeasurements,
-                            onIgnoreUnknownMeasurementsChanged = callbacks.onIgnoreUnknownMeasurementsChanged,
-                        )
-                    }
-                }
-            }
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_integrations),
-                    expansion = integrationsExpansion,
-                    testTag = SettingsScreenTestTags.IntegrationsSection,
-                    contentTestTag = SettingsScreenTestTags.IntegrationsContent,
-                    onToggle = { integrationsExpansion = integrationsExpansion.toggled() },
-                ) {
-                    SettingsIntegrationsContent(state, callbacks)
-                    IntegrationDestructiveActions(state) { destructiveConfirmation = it }
-                }
-            }
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_scales),
-                    expansion = scaleExpansion,
-                    testTag = SettingsScreenTestTags.ScaleSection,
-                    contentTestTag = SettingsScreenTestTags.ScaleContent,
-                    onToggle = { scaleExpansion = scaleExpansion.toggled() },
-                ) {
-                    SettingsScaleContent(state, callbacks)
-                    ScaleDestructiveAction(state) { destructiveConfirmation = it }
-                }
-            }
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_backup),
-                    expansion = backupExpansion,
-                    testTag = SettingsScreenTestTags.BackupSection,
-                    contentTestTag = SettingsScreenTestTags.BackupContent,
-                    onToggle = { backupExpansion = backupExpansion.toggled() },
-                ) { SettingsBackupContent(state.backup, callbacks) }
-            }
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_additional),
-                    expansion = additionalExpansion,
-                    testTag = SettingsScreenTestTags.AdditionalSection,
-                    contentTestTag = SettingsScreenTestTags.AdditionalContent,
-                    onToggle = { additionalExpansion = additionalExpansion.toggled() },
-                ) {
-                    AdditionalContent(
-                        state = state,
-                        callbacks = callbacks,
-                    )
-                }
-            }
-            item {
-                CollapsibleSettingsSection(
-                    title = stringResource(R.string.settings_about),
-                    expansion = aboutExpansion,
-                    testTag = SettingsScreenTestTags.AboutSection,
-                    contentTestTag = SettingsScreenTestTags.AboutContent,
-                    onToggle = { aboutExpansion = aboutExpansion.toggled() },
-                ) {
-                    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-                        HuaweiSettingRow(
-                            icon = HuaweiIcons.Calendar,
-                            title = stringResource(R.string.settings_changelog),
-                            supportingText = stringResource(R.string.settings_changelog_supporting),
-                            modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
-                            onClick = callbacks.onOpenChangelog,
-                        ) {
-                            HuaweiIconButton(
-                                icon = HuaweiIcons.ChevronRight,
-                                contentDescription = stringResource(R.string.settings_open_changelog),
-                                onClick = callbacks.onOpenChangelog,
-                            )
-                        }
-                    }
-                }
-            }
-        }
-    }
-    state.backup.preview?.let { preview ->
-        val counts = preview.counts
-        val replaceWarning = state.backup.replaceConfirmationRequested
-        AlertDialog(
-            modifier = Modifier.testTag(SettingsScreenTestTags.BackupDialog),
-            onDismissRequest = callbacks.onDismissBackupImport,
-            title = { Text(stringResource(if (replaceWarning) R.string.settings_confirm_replace else R.string.settings_import_preview)) },
-            text = {
-                Text(
-                    if (replaceWarning) {
-                        BACKUP_REPLACE_WARNING.resolve(LocalContext.current.resources)
-                    } else {
-                        stringResource(R.string.settings_import_counts, counts.accountsAdded, counts.accountsSkipped, counts.accountsReplaced, counts.measurementsAdded, counts.measurementsSkipped, counts.measurementsReplaced, counts.petsAdded, counts.petsSkipped, counts.petsReplaced, counts.petMeasurementsAdded, counts.petMeasurementsSkipped, counts.petMeasurementsReplaced)
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = callbacks.onConfirmBackupImport,
-                    enabled = !state.backup.inProgress,
-                    modifier = Modifier.testTag(SettingsScreenTestTags.BackupConfirm),
-                ) { Text(stringResource(if (replaceWarning) R.string.settings_replace_data else R.string.settings_import)) }
-            },
-            dismissButton = {
-                TextButton(onClick = callbacks.onDismissBackupImport) { Text(stringResource(R.string.settings_cancel)) }
-            },
-        )
-    }
-    PetDeletionDialog(state, callbacks)
-    destructiveConfirmation?.let { action ->
-        DestructiveConfirmationDialog(
-            action = action,
-            busy = state.destructiveActionInProgress != null,
-            onDismiss = {
-                if (state.destructiveActionInProgress == null) {
-                    destructiveConfirmation = null
-                    destructiveSubmitted = false
-                }
-            },
-            onConfirm = {
-                destructiveSubmitted = true
-                when (action) {
-                    DestructiveSettingsAction.HEALTH_CONNECT -> callbacks.onDisableHealthConnect()
-                    DestructiveSettingsAction.SCALE -> callbacks.onForgetScale()
-                }
-            },
-        )
-    }
-}
-
-@Composable
-private fun IntegrationDestructiveActions(
-    state: MainUiState,
-    onRequest: (DestructiveSettingsAction) -> Unit,
-) {
-    val busy = state.destructiveActionInProgress != null
-    val healthEnabled = state.settings.healthConnectSyncEnabled && state.healthConnect.isConnected
-    if (!healthEnabled) return
-    Column {
-        SettingsDivider()
-        HuaweiSurface(
-            modifier = Modifier.testTag(SettingsScreenTestTags.DestructiveSection),
-            contentPadding = PaddingValues(HuaweiDimensions.ContentPadding),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                Text(
-                    stringResource(R.string.settings_danger_explanation),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (healthEnabled) OutlinedButton(
-                    onClick = { onRequest(DestructiveSettingsAction.HEALTH_CONNECT) },
-                    enabled = !busy,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.DisableHealthConnect),
-                ) { Text(stringResource(R.string.settings_disconnect_hc)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun ScaleDestructiveAction(
-    state: MainUiState,
-    onRequest: (DestructiveSettingsAction) -> Unit,
-) {
-    if (state.settings.scaleAddress == null) return
-    SettingsDivider()
-    OutlinedButton(
-        onClick = { onRequest(DestructiveSettingsAction.SCALE) },
-        enabled = state.destructiveActionInProgress == null,
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(HuaweiDimensions.ContentPadding)
-            .testTag(SettingsScreenTestTags.ForgetScale),
-    ) { Text(stringResource(R.string.settings_forget_scale)) }
-}
-
-@Composable
 private fun DestructiveConfirmationDialog(
     action: DestructiveSettingsAction,
     busy: Boolean,
@@ -1524,39 +1235,6 @@ private fun PetDeletionDialog(state: MainUiState, callbacks: SettingsCallbacks) 
 }
 
 @Composable
-private fun SettingsBackupContent(state: BackupUiState, callbacks: SettingsCallbacks) {
-        HuaweiSurface(contentPadding = PaddingValues(HuaweiDimensions.ContentPadding)) {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-                Text(stringResource(R.string.settings_backup_intro))
-                if (state.inProgress) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        CircularProgressIndicator()
-                        Text(stringResource(R.string.settings_backup_processing))
-                    }
-                }
-                Button(
-                    onClick = callbacks.onExportBackup,
-                    enabled = !state.inProgress,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupExport),
-                ) { Text(stringResource(R.string.settings_export)) }
-                OutlinedButton(
-                    onClick = { callbacks.onImportBackup(BackupImportMode.MERGE) },
-                    enabled = !state.inProgress,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupMerge),
-                ) { Text(stringResource(R.string.settings_import_merge)) }
-                OutlinedButton(
-                    onClick = { callbacks.onImportBackup(BackupImportMode.REPLACE) },
-                    enabled = !state.inProgress,
-                    modifier = Modifier.fillMaxWidth().testTag(SettingsScreenTestTags.BackupReplace),
-                ) { Text(stringResource(R.string.settings_import_replace)) }
-            }
-        }
-}
-
-@Composable
 private fun BackupImportDialog(state: BackupUiState, callbacks: SettingsCallbacks) {
     state.preview?.let { preview ->
         val counts = preview.counts
@@ -1588,80 +1266,6 @@ private fun BackupImportDialog(state: BackupUiState, callbacks: SettingsCallback
     }
 }
 
-@Composable
-private fun SettingsIntegrationsContent(
-    state: MainUiState,
-    callbacks: SettingsCallbacks,
-) {
-    val resources = LocalContext.current.resources
-    val primary = state.primaryAccount
-    val healthConnectCapabilities = state.healthConnectCapabilities
-    val primaryStatus = when {
-        primary == null -> uiText(R.string.settings_primary_not_selected)
-        !state.canUseExternalIntegrations -> uiText(R.string.settings_complete_profile, primary.displayName)
-        else -> uiText(R.string.settings_primary_profile, primary.displayName)
-    }
-    val healthConnect = healthConnectPresentation(
-        state.healthConnect,
-        locallyEnabled = state.settings.healthConnectSyncEnabled,
-    )
-        .withHealthConnectManagementFallback(
-            healthConnectCapabilities.systemManagementAvailable,
-        )
-        .forPrimaryAccount(
-            primaryStatus,
-            healthConnectCapabilities.selectedAccountSyncEligible,
-        )
-    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            Column {
-                HuaweiSettingRow(
-                    icon = HuaweiIcons.Health,
-                    title = stringResource(R.string.settings_health_connect),
-                    supportingText = healthConnect.supportingText.resolve(resources),
-                    modifier = Modifier
-                        .testTag(SettingsScreenTestTags.HealthConnectRow)
-                        .semantics {
-                            contentDescription = resources.getString(R.string.settings_hc_row_cd)
-                        },
-                    onClick = callbacks.onHealthConnectAccessManagement.takeIf {
-                        healthConnectCapabilities.systemManagementAvailable
-                    },
-                ) {
-                    healthConnect.actionLabel?.takeUnless {
-                        healthConnect.actionOpensManagement &&
-                            !healthConnectCapabilities.systemManagementAvailable
-                    }?.let { label ->
-                        TextButton(
-                            onClick = if (healthConnect.actionOpensManagement) {
-                                callbacks.onHealthConnectAccessManagement
-                            } else {
-                                callbacks.onHealthConnectAuthorization
-                            },
-                            enabled = healthConnect.actionEnabled,
-                            modifier = Modifier
-                                .testTag(SettingsScreenTestTags.HealthConnectAction)
-                                .semantics {
-                                    contentDescription = if (healthConnect.actionOpensManagement) {
-                                        resources.getString(R.string.settings_hc_open_cd)
-                                    } else {
-                                        resources.getString(R.string.settings_hc_connect_cd)
-                                    }
-                                },
-                        ) { Text(label.resolve(resources)) }
-                    }
-                }
-            }
-        }
-}
-
-private fun IntegrationPresentation.forPrimaryAccount(
-    primaryStatus: UiText,
-    enabled: Boolean,
-): IntegrationPresentation = copy(
-    supportingText = uiText(R.string.settings_combined_status, primaryStatus, supportingText),
-    actionEnabled = actionEnabled && enabled,
-)
-
 private fun scalePresentation(state: MainUiState) = scaleSettingsPresentation(
     selectedAddress = state.settings.scaleAddress,
     selectedName = state.settings.scaleName,
@@ -1669,142 +1273,3 @@ private fun scalePresentation(state: MainUiState) = scaleSettingsPresentation(
     availability = state.scaleAvailability,
     scanError = state.scaleScanError,
 )
-
-@Composable
-private fun SettingsScaleContent(state: MainUiState, callbacks: SettingsCallbacks) {
-    val resources = LocalContext.current.resources
-    val presentation = scalePresentation(state)
-    HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-        HuaweiSettingRow(
-            icon = HuaweiIcons.Bluetooth,
-            title = stringResource(R.string.settings_default_scale_name),
-            supportingText = presentation.supportingText.resolve(resources),
-            modifier = Modifier.testTag(SettingsScreenTestTags.ScaleStatus),
-        ) {
-            if (presentation.showProgress) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(24.dp).testTag(SettingsScreenTestTags.ScaleProgress),
-                )
-            }
-            presentation.actionLabel?.let { label ->
-                TextButton(
-                    onClick = when (presentation.action) {
-                        ScaleSettingsAction.OPEN_APP_SETTINGS -> callbacks.openApplicationSettings
-                        ScaleSettingsAction.SEARCH, ScaleSettingsAction.RETRY -> callbacks.onManualScan
-                        null -> ({})
-                    },
-                    enabled = presentation.actionEnabled,
-                    modifier = Modifier.testTag(SettingsScreenTestTags.ScaleAction),
-                ) { Text(label.resolve(resources)) }
-            }
-        }
-    }
-}
-
-@Composable
-private fun CollapsibleSettingsSection(
-    title: String,
-    expansion: SettingsSectionExpansion,
-    testTag: String,
-    contentTestTag: String,
-    onToggle: () -> Unit,
-    content: @Composable () -> Unit,
-) {
-    val expanded = expansion == SettingsSectionExpansion.Expanded
-    val expansionDescription = stringResource(if (expanded) R.string.settings_expanded else R.string.settings_collapsed)
-    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
-        HuaweiSurface(contentPadding = PaddingValues(0.dp)) {
-            HuaweiSettingRow(
-                icon = HuaweiIcons.ChevronRight,
-                title = title,
-                supportingText = expansionDescription,
-                modifier = Modifier
-                    .testTag(testTag)
-                    .semantics {
-                        role = Role.Button
-                        stateDescription = expansionDescription
-                    },
-                onClick = onToggle,
-            ) {
-                HuaweiIconButton(
-                    icon = HuaweiIcons.ChevronRight,
-                    contentDescription = stringResource(if (expanded) R.string.settings_collapse_section else R.string.settings_expand_section, title),
-                    onClick = onToggle,
-                    modifier = Modifier.graphicsLayer { rotationZ = if (expanded) 90f else 0f },
-                )
-            }
-        }
-        if (expanded) {
-            Column(
-                modifier = Modifier.fillMaxWidth().testTag(contentTestTag),
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-            ) { content() }
-        }
-    }
-}
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun AdditionalContent(
-    state: MainUiState,
-    callbacks: SettingsCallbacks,
-    modifier: Modifier = Modifier,
-) {
-    val resources = LocalContext.current.resources
-    Column(
-        modifier = modifier.fillMaxWidth().padding(HuaweiDimensions.ContentPadding),
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-    ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clickable(
-                    role = Role.Switch,
-                    onClick = { callbacks.onReliabilityMode(!state.settings.reliabilityMode) },
-                )
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Column(Modifier.weight(1f)) {
-                Text(stringResource(R.string.settings_enhanced_reliability), style = MaterialTheme.typography.titleSmall)
-                Text(
-                    stringResource(R.string.settings_enhanced_reliability_supporting),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            Switch(
-                checked = state.settings.reliabilityMode,
-                onCheckedChange = callbacks.onReliabilityMode,
-                modifier = Modifier.semantics { contentDescription = resources.getString(R.string.settings_enhanced_reliability) },
-            )
-        }
-        Text(
-            stringResource(R.string.settings_background_help),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodySmall,
-        )
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-        ) {
-            OutlinedButton(
-                onClick = callbacks.openBatterySettings,
-                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text(stringResource(R.string.settings_battery)) }
-            OutlinedButton(
-                onClick = callbacks.openApplicationSettings,
-                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
-            ) { Text(stringResource(R.string.settings_app_settings)) }
-        }
-    }
-}
-
-@Composable
-private fun SettingsDivider(modifier: Modifier = Modifier) {
-    HorizontalDivider(
-        modifier = modifier.padding(start = 68.dp),
-        color = MaterialTheme.colorScheme.outlineVariant,
-    )
-}
