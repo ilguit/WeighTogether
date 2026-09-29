@@ -64,6 +64,31 @@ class ProfilePhotoStore private constructor(
         return resolved
     }
 
+    /** Decodes a managed photo without allowing corrupt metadata to allocate an unbounded bitmap. */
+    fun decodeForDisplay(photoPath: String, maxDimensionPx: Int): Bitmap? {
+        require(maxDimensionPx > 0)
+        return runCatching {
+            val source = resolve(photoPath)
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeFile(source.path, bounds)
+            if (bounds.outWidth <= 0 || bounds.outHeight <= 0) return@runCatching null
+            var sample = 1
+            while (max(bounds.outWidth, bounds.outHeight) / (sample * 2) >= maxDimensionPx) sample *= 2
+            val decoded = BitmapFactory.decodeFile(
+                source.path,
+                BitmapFactory.Options().apply { inSampleSize = sample },
+            ) ?: return@runCatching null
+            if (max(decoded.width, decoded.height) <= maxDimensionPx) return@runCatching decoded
+            val scale = maxDimensionPx.toFloat() / max(decoded.width, decoded.height)
+            Bitmap.createScaledBitmap(
+                decoded,
+                (decoded.width * scale).toInt().coerceAtLeast(1),
+                (decoded.height * scale).toInt().coerceAtLeast(1),
+                true,
+            ).also { if (it !== decoded) decoded.recycle() }
+        }.getOrNull()
+    }
+
     suspend fun prepare(source: Uri): PreparedProfilePhoto = withContext(Dispatchers.IO) {
         try {
             appContext.contentResolver.openInputStream(source)?.use { input ->

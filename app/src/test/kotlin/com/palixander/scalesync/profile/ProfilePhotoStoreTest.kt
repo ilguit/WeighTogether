@@ -136,6 +136,25 @@ class ProfilePhotoStoreTest {
     }
 
     @Test
+    fun `display decode bounds managed bitmap and rejects invalid path`() = runBlocking {
+        store = ProfilePhotoStore(context, maxDimensionPx = 200)
+        val prepared = store.prepare(image(width = 400, height = 400))
+        var path = ""
+        store.confirmCrop(
+            ProfilePhotoOwner(ProfilePhotoOwnerType.ACCOUNT, "account"),
+            prepared,
+            ProfilePhotoCropTransform(),
+        ) { path = it }
+
+        val decoded = store.decodeForDisplay(path, maxDimensionPx = 48)
+
+        assertEquals(48, decoded?.width)
+        assertEquals(48, decoded?.height)
+        decoded?.recycle()
+        assertEquals(null, store.decodeForDisplay("other/file.jpg", maxDimensionPx = 48))
+    }
+
+    @Test
     fun `prepare applies EXIF rotation before exposing dimensions`() {
         val source = File(context.cacheDir, "orientation-source.jpg")
         Bitmap.createBitmap(40, 20, Bitmap.Config.ARGB_8888).also { bitmap ->

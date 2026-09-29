@@ -26,20 +26,11 @@ class WeighingReminderAlarmGateway(private val context: Context) {
     ): ReminderScheduleResult = runCatching {
         val operation = requireNotNull(pendingIntent(id, kind, token, PendingIntent.FLAG_UPDATE_CURRENT))
         val exactAllowed = Build.VERSION.SDK_INT < 31 || alarms.canScheduleExactAlarms()
-        val result = if (importance == WeighingReminderImportance.ALARM) {
-            val showIntent = PendingIntent.getActivity(
-                context,
-                0,
-                Intent(context, MainActivity::class.java).apply {
-                    action = ACTION_SHOW_ALARM
-                    data = Uri.parse("scalesync://weighing-reminder/${Uri.encode(id.value)}/show")
-                },
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        val result = if (importance == WeighingReminderImportance.ALARM || exactAllowed) {
+            alarms.setAlarmClock(
+                AlarmManager.AlarmClockInfo(dueEpochMillis, showIntent(id, kind)),
+                operation,
             )
-            alarms.setAlarmClock(AlarmManager.AlarmClockInfo(dueEpochMillis, showIntent), operation)
-            ReminderScheduleResult.EXACT
-        } else if (exactAllowed) {
-            alarms.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, dueEpochMillis, operation)
             ReminderScheduleResult.EXACT
         } else {
             alarms.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, dueEpochMillis, operation)
@@ -102,6 +93,19 @@ class WeighingReminderAlarmGateway(private val context: Context) {
         },
         flags or PendingIntent.FLAG_IMMUTABLE,
     )
+
+    private fun showIntent(id: WeighingReminderId, kind: ReminderCallbackKind): PendingIntent =
+        PendingIntent.getActivity(
+            context,
+            0,
+            Intent(context, MainActivity::class.java).apply {
+                action = ACTION_SHOW_ALARM
+                data = Uri.parse(
+                    "scalesync://weighing-reminder/${Uri.encode(id.value)}/${kind.name.lowercase()}/show",
+                )
+            },
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+        )
 
     private fun remember(value: String) {
         registry.edit().putStringSet(KEY_IDENTITIES, knownIdentities() + value).apply()

@@ -57,7 +57,7 @@ class WeighingReminderAlarmGatewayTest {
     }
 
     @Test
-    fun `regular reminder uses exact idle alarm when permitted`() {
+    fun `regular reminder uses user visible alarm clock transport when exact is permitted`() {
         val result = gateway.schedule(
             WeighingReminderId("exact"), ReminderCallbackKind.REGULAR, "token", 1_000,
             WeighingReminderImportance.REGULAR,
@@ -66,7 +66,8 @@ class WeighingReminderAlarmGatewayTest {
         assertEquals(ReminderScheduleResult.EXACT, result)
         val alarm = shadowOf(context.getSystemService(AlarmManager::class.java)).scheduledAlarms.single()
         assertEquals(ShadowAlarmManager.WINDOW_EXACT, alarm.windowLengthMs)
-        assertTrue(alarm.allowWhileIdle)
+        assertEquals(AlarmManager.RTC_WAKEUP, alarm.type)
+        assertTrue(alarm.showIntent != null)
     }
 
     @Test
