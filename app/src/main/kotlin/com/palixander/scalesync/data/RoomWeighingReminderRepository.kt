@@ -53,6 +53,11 @@ data class WeighingReminderSnapshot(
     val snoozeStatus: ReminderSnoozeStatus,
 )
 
+data class WeighingReminderOwnerPresentation(
+    val displayName: String,
+    val photoPath: String?,
+)
+
 class RoomWeighingReminderRepository(
     private val database: AppDatabase,
     private val dao: WeighingReminderDao = database.weighingReminderDao(),
@@ -80,12 +85,17 @@ class RoomWeighingReminderRepository(
         schedule.toDomain().withRuntime(runtime)
     }
 
-    suspend fun ownerDisplayName(owner: WeighingReminderOwner): String? = serializedTransaction {
-        when (owner) {
-            is WeighingReminderOwner.Account -> database.accountDao().get(owner.id.value)?.displayName
-            is WeighingReminderOwner.Pet -> database.petDao().getPet(owner.id.value)?.displayName
+    suspend fun ownerPresentation(owner: WeighingReminderOwner): WeighingReminderOwnerPresentation? =
+        serializedTransaction {
+            when (owner) {
+                is WeighingReminderOwner.Account -> database.accountDao().get(owner.id.value)?.let {
+                    WeighingReminderOwnerPresentation(it.displayName, it.photoPath)
+                }
+                is WeighingReminderOwner.Pet -> database.petDao().getPet(owner.id.value)?.let {
+                    WeighingReminderOwnerPresentation(it.displayName, it.photoPath)
+                }
+            }
         }
-    }
 
     suspend fun snapshotEnabled(): List<WeighingReminderSnapshot> = serializedTransaction {
         dao.getEnabled().map { schedule ->

@@ -4,9 +4,12 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.PowerManager
+import android.view.View
+import android.view.ViewOutlineProvider
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
@@ -58,12 +61,34 @@ class WeighingReminderOpenActivity : ComponentActivity() {
             })
             val owner = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_NAME).orEmpty()
             val padding = (24 * resources.displayMetrics.density).toInt()
+            val avatarSize = (128 * resources.displayMetrics.density).toInt()
             val layout = android.widget.LinearLayout(this).apply {
                 orientation = android.widget.LinearLayout.VERTICAL
                 gravity = android.view.Gravity.CENTER
                 setPadding(padding, padding, padding, padding)
                 setBackgroundColor(Color.rgb(250, 250, 250))
             }
+            layout.addView(android.widget.ImageView(this).apply {
+                contentDescription = owner
+                scaleType = android.widget.ImageView.ScaleType.CENTER_CROP
+                outlineProvider = object : ViewOutlineProvider() {
+                    override fun getOutline(view: View, outline: Outline) {
+                        outline.setOval(0, 0, view.width, view.height)
+                    }
+                }
+                clipToOutline = true
+                val photoPath = intent.getStringExtra(WeighingReminderCoordinator.EXTRA_OWNER_PHOTO_PATH)
+                val photo = photoPath?.let {
+                    application.container.profilePhotos.decodeForDisplay(it, avatarSize)
+                }
+                if (photo != null) {
+                    setImageBitmap(photo)
+                } else {
+                    setImageDrawable(applicationInfo.loadIcon(packageManager))
+                    setPadding(padding, padding, padding, padding)
+                }
+                layoutParams = android.widget.LinearLayout.LayoutParams(avatarSize, avatarSize)
+            })
             layout.addView(android.widget.TextView(this).apply {
                 text = getString(com.palixander.scalesync.R.string.weighing_alarm_screen_title, owner)
                 textSize = 28f; gravity = android.view.Gravity.CENTER

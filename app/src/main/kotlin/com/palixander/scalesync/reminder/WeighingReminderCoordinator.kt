@@ -16,6 +16,7 @@ import com.palixander.scalesync.data.ReminderSnoozeStatus
 import com.palixander.scalesync.data.RoomWeighingReminderRepository
 import com.palixander.scalesync.data.SaveWeighingReminderResult
 import com.palixander.scalesync.data.WeighingReminderDraft
+import com.palixander.scalesync.data.WeighingReminderOwnerPresentation
 import com.palixander.scalesync.data.WeighingReminderSnapshot
 import com.palixander.scalesync.domain.WeighingReminderId
 import com.palixander.scalesync.domain.WeighingReminderImportance
@@ -156,8 +157,8 @@ class WeighingReminderCoordinator(
             alarmGateway.cancel(id, ReminderCallbackKind.SNOOZE)
             return@withLock
         }
-        val name = repository.ownerDisplayName(snapshot.schedule.owner) ?: return@withLock
-        publish(snapshot.schedule, token, name)
+        val owner = repository.ownerPresentation(snapshot.schedule.owner) ?: return@withLock
+        publish(snapshot.schedule, token, owner)
     }
 
     suspend fun onSnooze(id: WeighingReminderId, token: String): Unit = runtimeMutex.withLock {
@@ -248,13 +249,20 @@ class WeighingReminderCoordinator(
     private fun publish(
         schedule: com.palixander.scalesync.domain.WeighingReminderSchedule,
         token: String,
-        name: String,
+        ownerPresentation: WeighingReminderOwnerPresentation,
     ) {
         val importance = schedule.importance
         val id = schedule.id
         val owner = schedule.owner
+        val name = ownerPresentation.displayName
         val presentation = weighingReminderNotificationPresentation(importance)
-        val openIntent = contentIntent(id, token, owner, importance == WeighingReminderImportance.ALARM, name)
+        val openIntent = contentIntent(
+            id,
+            token,
+            owner,
+            importance == WeighingReminderImportance.ALARM,
+            ownerPresentation,
+        )
         fun buildNotification(channel: String) = NotificationCompat.Builder(context, channel)
             .setSmallIcon(weighingReminderNotificationSmallIcon(importance))
             .setContentTitle(context.getString(presentation.titleRes, name))
@@ -358,7 +366,7 @@ class WeighingReminderCoordinator(
         token: String,
         owner: WeighingReminderOwner,
         alarm: Boolean,
-        ownerName: String,
+        ownerPresentation: WeighingReminderOwnerPresentation,
     ): PendingIntent = PendingIntent.getActivity(
         context,
         0,
@@ -368,7 +376,8 @@ class WeighingReminderCoordinator(
             putExtra(WeighingReminderAlarmGateway.EXTRA_SCHEDULE_ID, id.value)
             putExtra(WeighingReminderAlarmGateway.EXTRA_OCCURRENCE_TOKEN, token)
             putExtra(EXTRA_ALARM, alarm)
-            putExtra(EXTRA_OWNER_NAME, ownerName)
+            putExtra(EXTRA_OWNER_NAME, ownerPresentation.displayName)
+            putExtra(EXTRA_OWNER_PHOTO_PATH, ownerPresentation.photoPath)
             WeighingReminderNavigationTarget(owner).putInto(this)
             if (!alarm) flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
         },
@@ -399,6 +408,7 @@ class WeighingReminderCoordinator(
         const val EXTRA_OWNER_UNAVAILABLE = "weighing_reminder_owner_unavailable"
         const val EXTRA_ALARM = "weighing_reminder_alarm"
         const val EXTRA_OWNER_NAME = "weighing_reminder_owner_name"
+        const val EXTRA_OWNER_PHOTO_PATH = "weighing_reminder_owner_photo_path"
         const val EXTRA_PERFORM_WEIGH = "weighing_reminder_perform_weigh"
         fun notificationId(id: WeighingReminderId): Int = 0x57000000 xor id.value.hashCode()
     }

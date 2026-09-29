@@ -136,6 +136,17 @@ class RoomWeighingReminderRepositoryTest {
     }
 
     @Test
+    fun ownerPresentationIncludesManagedPhotoPath() = runBlocking {
+        insertAccount("account", "profile-photos/accounts/account/avatar.jpg")
+        val presentation = repository.ownerPresentation(
+            WeighingReminderOwner.Account(AccountId("account")),
+        )
+
+        assertEquals("Alice", presentation?.displayName)
+        assertEquals("profile-photos/accounts/account/avatar.jpg", presentation?.photoPath)
+    }
+
+    @Test
     fun editCancelsPendingSnoozeAndInvalidatesTokens() = runBlocking {
         insertAccount("account")
         val owner = WeighingReminderOwner.Account(AccountId("account"))
@@ -185,9 +196,9 @@ class RoomWeighingReminderRepositoryTest {
         assertEquals(ReminderClaimResult.NoOp, repository.claimDue(id, ReminderCallbackKind.SNOOZE, snooze))
     }
 
-    private suspend fun insertAccount(id: String) {
+    private suspend fun insertAccount(id: String, photoPath: String? = null) {
         database.accountDao().insert(
-            AccountEntity(id, "Alice", "alice", null, null, null, false, 1, 1),
+            AccountEntity(id, "Alice", "alice", null, null, null, false, 1, 1, photoPath),
         )
     }
 
