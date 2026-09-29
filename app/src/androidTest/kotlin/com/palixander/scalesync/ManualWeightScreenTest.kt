@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModelProvider
 import androidx.test.platform.app.InstrumentationRegistry
@@ -129,7 +130,7 @@ class ManualWeightScreenTest {
     }
 
     @Test fun failedSaveKeepsWeightAndDeletedProfileDisablesSave() {
-        val value = mutableStateOf(draft().copy(weight = "4,125", error = "Не удалось сохранить вес. Попробуйте ещё раз"))
+        val value = mutableStateOf(draft().copy(weight = "4,125", error = UiText.Raw("Не удалось сохранить вес. Попробуйте ещё раз")))
         compose.setContent {
             ScaleSyncTheme { ManualWeightScreen(value.value, {}, {}, {}, {}, {}, {}, {}) }
         }

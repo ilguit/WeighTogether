@@ -1,5 +1,6 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.UiText
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -619,7 +620,7 @@ class MeasurementsShellNavigationUiTest {
                     MeasurementSyncDirectionPresentation(
                         direction = MeasurementSyncDirection.HEALTH_CONNECT,
                         state = MeasurementSyncPresentationState.SYNCED,
-                        message = "Данные отправлены",
+                        message = UiText.Raw("Данные отправлены"),
                         canRetry = false,
                     ),
                 ),

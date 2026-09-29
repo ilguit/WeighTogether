@@ -507,7 +507,7 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
             .assertHasClickAction()
-            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
+            .assertContentDescriptionEquals(composeRule.activity.getString(R.string.settings_hc_row_cd))
             .performClick()
 
         composeRule.runOnIdle {
@@ -555,7 +555,7 @@ class SettingsShellUiTest {
             .performScrollTo()
             .assertIsEnabled()
             .assertContentDescriptionEquals(
-                SettingsScreenContentDescriptions.HealthConnectConnectAction,
+                composeRule.activity.getString(R.string.settings_hc_connect_cd),
             )
             .performClick()
 
@@ -588,7 +588,7 @@ class SettingsShellUiTest {
             .performScrollTo()
             .assertIsEnabled()
             .assertContentDescriptionEquals(
-                SettingsScreenContentDescriptions.HealthConnectOpenAction,
+                composeRule.activity.getString(R.string.settings_hc_open_cd),
             )
             .performClick()
 
@@ -667,7 +667,7 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction)
             .assertIsEnabled()
             .assertContentDescriptionEquals(
-                SettingsScreenContentDescriptions.HealthConnectConnectAction,
+                composeRule.activity.getString(R.string.settings_hc_connect_cd),
             )
             .performClick()
 
@@ -689,7 +689,7 @@ class SettingsShellUiTest {
         ).performScrollTo().assertIsDisplayed()
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .assertHasNoClickAction()
-            .assertContentDescriptionEquals(SettingsScreenContentDescriptions.HealthConnectRow)
+            .assertContentDescriptionEquals(composeRule.activity.getString(R.string.settings_hc_row_cd))
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectAction).assertDoesNotExist()
 
         composeRule.runOnIdle {

@@ -1,5 +1,7 @@
 package com.palixander.scalesync
 
+import com.palixander.scalesync.ui.text.resolve
+import com.palixander.scalesync.ui.text.UiText
 import androidx.activity.ComponentActivity
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -371,10 +373,10 @@ class PetHistoryScreenUiTest {
     @Test fun filledSummaryListsLabeledValuesAndActualSemantics() {
         val summary = PetProfileSummary(
             listOf(
-                PetProfileSummaryItem("Пол", "Самка"),
-                PetProfileSummaryItem("Порода", "Метис"),
-                PetProfileSummaryItem("Дата рождения", "02.2020 (месяц)"),
-                PetProfileSummaryItem("Весовая категория", "IV — 15–30 кг"),
+                PetProfileSummaryItem(UiText.Raw("Пол"), UiText.Raw("Самка")),
+                PetProfileSummaryItem(UiText.Raw("Порода"), UiText.Raw("Метис")),
+                PetProfileSummaryItem(UiText.Raw("Дата рождения"), UiText.Raw("02.2020 (месяц)")),
+                PetProfileSummaryItem(UiText.Raw("Весовая категория"), UiText.Raw("IV — 15–30 кг")),
             ),
         )
         setScreen(
@@ -385,8 +387,8 @@ class PetHistoryScreenUiTest {
         )
 
         summary.items.forEach { item ->
-            composeRule.onNodeWithText(item.label).assertExists()
-            composeRule.onNodeWithText(item.value).assertExists()
+            composeRule.onNodeWithText(item.label.resolve(composeRule.activity.resources)).assertExists()
+            composeRule.onNodeWithText(item.value.resolve(composeRule.activity.resources)).assertExists()
         }
         composeRule.onNode(
             hasContentDescription("Дата рождения: 02.2020 (месяц)", substring = true),
@@ -397,7 +399,7 @@ class PetHistoryScreenUiTest {
         val unavailable = "Недоступна: retired:cat:" + "очень-длинный-идентификатор-".repeat(5)
         val screenState = state(PetHistoryContent.Empty).copy(
             profileSummary = PetProfileSummary(
-                listOf(PetProfileSummaryItem("Порода", unavailable)),
+                listOf(PetProfileSummaryItem(UiText.Raw("Порода"), UiText.Raw(unavailable))),
             ),
         )
         composeRule.setContent {
@@ -521,7 +523,7 @@ class PetHistoryScreenUiTest {
     @Test fun modelledCatBreedUsesRussianHonestLegendAndExplanation() {
         val reference = availableReference("Эталон по породе").copy(
             provenance = WeightReferenceProvenance.BREED_CURVE,
-            provenanceExplanation = "Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая.",
+            provenanceExplanation = UiText.Raw("Показан модельный возрастной диапазон выбранной породы, а не наблюдаемая породная кривая."),
             constraints = listOf("Модель основана на популяционной кривой кошек того же пола"),
         )
 
