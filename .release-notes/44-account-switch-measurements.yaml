@@ -1,5 +1,6 @@
 issue: 44
-userVisible: true
-text: Исправлено отображение измерений при быстром переключении аккаунтов
+userVisible: false
+reason: Исправление отображения измерений при быстром переключении аккаунтов отнесено к технической задаче
+suppressReleasedChange: true
 flavors:
   - personal

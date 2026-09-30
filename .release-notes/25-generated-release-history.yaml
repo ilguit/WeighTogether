@@ -1,3 +1,4 @@
 issue: 25
-userVisible: true
-text: История версий теперь формируется автоматически из релизных заметок
+userVisible: false
+reason: Автоматическая генерация истории версий из релизных заметок отнесена к технической задаче
+suppressReleasedChange: true
