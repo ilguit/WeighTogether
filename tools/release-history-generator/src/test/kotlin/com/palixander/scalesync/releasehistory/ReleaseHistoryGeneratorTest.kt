@@ -765,6 +765,27 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `reopened task suppression removes its released text in build and release modes`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Полное удаление прежней функциональности", suppressReleasedChange = true)
+        git.commit("Reopen and remove task (#1)")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        for (mode in listOf(ReleaseHistoryMode.BUILD, ReleaseHistoryMode.RELEASE)) {
+            val history = ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, mode)
+
+            val allChanges = history.releases.flatMap { it.changes } + history.latestChanges
+            assertEquals(listOf(2), allChanges.map { it.issue })
+        }
+    }
+
+    @Test
     fun `ordinary technical carryover keeps the released change`() {
         val git = TestGit(directory)
         git.init()

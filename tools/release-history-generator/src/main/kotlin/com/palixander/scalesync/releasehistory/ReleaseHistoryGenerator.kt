@@ -152,7 +152,6 @@ class ReleaseHistoryGenerator(
                 range.fragments.asSequence()
                     .filter { fragment ->
                         fragment.suppressReleasedChange &&
-                            fragment.issue !in range.issues &&
                             fragment.appliesTo(flavor)
                     }
                     .map { it.issue }
