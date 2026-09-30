@@ -18,6 +18,7 @@
     <string name="analytical_help">Come funziona il filtro</string>
     <string name="analytical_configure">Configura</string>
     <string name="analytical_remove">Rimuovi grafico</string>
+    <string name="analytical_menu">Azioni del grafico</string>
     <string name="analytical_none_excluded">Nessuna misurazione esclusa.</string>
     <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
     <string name="analytical_mode_auto">Automatico · anomalie valutate tra 05:00 e 12:00</string>

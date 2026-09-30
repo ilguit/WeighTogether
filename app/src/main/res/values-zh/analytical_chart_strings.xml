@@ -18,6 +18,7 @@
     <string name="analytical_help">筛选规则</string>
     <string name="analytical_configure">设置</string>
     <string name="analytical_remove">移除图表</string>
+    <string name="analytical_menu">图表操作</string>
     <string name="analytical_none_excluded">没有已排除的测量。</string>
     <string name="analytical_hour_row">%1$s–%2$s · %3$d 次 · %4$s%%</string>
     <string name="analytical_mode_auto">自动 · 在基础时间段05:00–12:00内判断异常值</string>
