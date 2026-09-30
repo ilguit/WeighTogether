@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">グラフを追加</string>
+    <string name="analytical_morning">朝の測定</string>
+    <string name="analytical_minimum">日ごとの最小値</string>
+    <string name="analytical_hourly">測定時刻</string>
+    <string name="analytical_added">追加済み</string>
+    <string name="analytical_removed">グラフを削除しました</string>
+    <string name="analytical_window">%1$s–%2$s · 単独の外れ値を非表示</string>
+    <string name="analytical_minimum_hint">日ごとの最小体重。単独の外れ値を非表示</string>
+    <string name="analytical_all_time">全期間 · %1$d 件</string>
+    <string name="analytical_error">計算できませんでした。再試行してください。</string>
+    <string name="analytical_no_source">測定はまだありません。</string>
+    <string name="analytical_no_filtered">この時間帯に残る測定はありません。</string>
+    <string name="analytical_no_period">選択期間に点がありません。スクロールして全履歴を確認できます。</string>
+    <string name="analytical_choose_series">指標を選択</string>
+    <string name="analytical_small_history">履歴が不足しているため、外れ値を除外せず表示します。</string>
+    <string name="analytical_excluded">除外した測定を表示（%1$d）</string>
+    <string name="analytical_help">フィルターの仕組み</string>
+    <string name="analytical_configure">設定</string>
+    <string name="analytical_remove">グラフを削除</string>
+    <string name="analytical_none_excluded">除外した測定はありません。</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d 件 · %4$s%%</string>
+    <string name="analytical_mode_auto">自動 · 基準時間帯05:00–12:00で外れ値を判定</string>
+    <string name="analytical_mode_manual">手動 · 選択した時間帯で外れ値を判定</string>
+    <string name="analytical_start">開始（HH:mm）</string>
+    <string name="analytical_end">終了（HH:mm、含まない）</string>
+    <string name="analytical_invalid_time">00:00〜24:00の有効な時刻を入力し、開始を終了より前にしてください。</string>
+    <string name="analytical_auto">測定から選択</string>
+    <string name="analytical_insufficient">2〜3時間の時間帯に必要なデータが不足しています。手動で選択してください。</string>
+    <string name="analytical_preview">プレビュー %1$s–%2$s\n基準: %3$d · 残る測定: %4$d\n時間帯外: %5$d · 外れ値: %6$d\n「保存」で適用します。</string>
+    <string name="analytical_hourly_hint">すべての測定を現地時刻の24時間に分類します。選択期間や他のフィルターは影響しません。</string>
+    <string name="analytical_rule">表示用の目安であり、医学的基準ではありません。異なる時刻が7つ以上、7日以内の隣接差が6つ以上必要です。しきい値はmax（0.5 kg、隣接する絶対差の中央値の3倍）です。両隣よりしきい値を超えて高い、または低く、両隣の差がしきい値以下の場合のみ非表示にします。端点、同一時刻、緩やかな傾向、持続的な変化、隣接する候補の集まりは保持します。測定は削除しません。自動選択は05:00–12:00から始まり、1回で片側を30分ずらし、最大10回で十分なデータのある2〜3時間に絞ります。時間帯外は外れ値ではありません。日ごとの最小値には1件の測定全体を使用し、除外した最小値は置き換えません。</string>
+</resources>

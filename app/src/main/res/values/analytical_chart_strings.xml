@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Add chart</string>
+    <string name="analytical_morning">Morning measurements</string>
+    <string name="analytical_minimum">Daily minimums</string>
+    <string name="analytical_hourly">Measurement times</string>
+    <string name="analytical_added">Added</string>
+    <string name="analytical_removed">Chart removed</string>
+    <string name="analytical_window">%1$s–%2$s · isolated outliers hidden</string>
+    <string name="analytical_minimum_hint">Lowest weight each day; isolated outliers hidden</string>
+    <string name="analytical_all_time">All time · %1$d measurements</string>
+    <string name="analytical_error">Could not calculate. Try again.</string>
+    <string name="analytical_no_source">No measurements yet.</string>
+    <string name="analytical_no_filtered">No measurements remain in this interval.</string>
+    <string name="analytical_no_period">No points in the selected period. Scroll to explore the full history.</string>
+    <string name="analytical_choose_series">Choose metrics</string>
+    <string name="analytical_small_history">Too little history to filter outliers; measurements are shown unchanged.</string>
+    <string name="analytical_excluded">Show excluded (%1$d)</string>
+    <string name="analytical_help">How the filter works</string>
+    <string name="analytical_configure">Configure</string>
+    <string name="analytical_remove">Remove chart</string>
+    <string name="analytical_none_excluded">No excluded measurements.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Automatic · outliers classified in the base window 05:00–12:00</string>
+    <string name="analytical_mode_manual">Manual · outliers classified inside the chosen interval</string>
+    <string name="analytical_start">From (HH:mm)</string>
+    <string name="analytical_end">Until (HH:mm, exclusive)</string>
+    <string name="analytical_invalid_time">Enter valid times from 00:00 to 24:00; start must be earlier than end.</string>
+    <string name="analytical_auto">Select from measurements</string>
+    <string name="analytical_insufficient">Not enough data for a 2–3 hour window. Choose the interval manually.</string>
+    <string name="analytical_preview">Preview %1$s–%2$s\nBase: %3$d · Kept: %4$d\nOutside interval: %5$d · Outliers: %6$d\nApply with Save.</string>
+    <string name="analytical_hourly_hint">All measurements, grouped into 24 local hours. The selected period and other filters do not affect this chart.</string>
+    <string name="analytical_rule">Visual aid, not a medical rule. With at least 7 distinct timestamps and 6 neighboring differences no more than 7 days apart, the threshold is max(0.5 kg, 3 × median absolute neighboring difference). A point is hidden only if it is strictly above or below both neighbors by more than the threshold, while the neighbors differ by no more than the threshold. Endpoints, tied timestamps, steady trends, lasting level changes and adjacent candidate groups remain. Filtering never deletes measurements. Automatic selection starts at 05:00–12:00 and moves one boundary by 30 minutes per iteration, at most 10 steps, to 2–3 hours; it needs sufficient data. Points outside the chosen hours are not outliers. Daily minimums use one complete measurement; an excluded minimum is not replaced.</string>
+</resources>

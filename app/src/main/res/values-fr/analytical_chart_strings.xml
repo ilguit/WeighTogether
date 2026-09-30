@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Ajouter un graphique</string>
+    <string name="analytical_morning">Mesures du matin</string>
+    <string name="analytical_minimum">Minimums quotidiens</string>
+    <string name="analytical_hourly">Heures des mesures</string>
+    <string name="analytical_added">Ajouté</string>
+    <string name="analytical_removed">Graphique retiré</string>
+    <string name="analytical_window">%1$s–%2$s · valeurs aberrantes isolées masquées</string>
+    <string name="analytical_minimum_hint">Poids minimum quotidien ; valeurs aberrantes isolées masquées</string>
+    <string name="analytical_all_time">Depuis le début · %1$d mesures</string>
+    <string name="analytical_error">Calcul impossible. Réessayez.</string>
+    <string name="analytical_no_source">Aucune mesure pour le moment.</string>
+    <string name="analytical_no_filtered">Aucune mesure restante dans cet intervalle.</string>
+    <string name="analytical_no_period">Aucun point sur la période choisie. Faites défiler tout l’historique.</string>
+    <string name="analytical_choose_series">Choisir les indicateurs</string>
+    <string name="analytical_small_history">Historique insuffisant pour filtrer ; toutes les mesures sont conservées.</string>
+    <string name="analytical_excluded">Voir les exclusions (%1$d)</string>
+    <string name="analytical_help">Fonctionnement du filtre</string>
+    <string name="analytical_configure">Configurer</string>
+    <string name="analytical_remove">Retirer le graphique</string>
+    <string name="analytical_none_excluded">Aucune mesure exclue.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Automatique · anomalies évaluées sur 05:00–12:00</string>
+    <string name="analytical_mode_manual">Manuel · anomalies évaluées dans l’intervalle choisi</string>
+    <string name="analytical_start">De (HH:mm)</string>
+    <string name="analytical_end">À (HH:mm, exclu)</string>
+    <string name="analytical_invalid_time">Saisissez des heures de 00:00 à 24:00 ; le début doit précéder la fin.</string>
+    <string name="analytical_auto">Choisir selon les mesures</string>
+    <string name="analytical_insufficient">Données insuffisantes pour 2–3 heures. Choisissez manuellement.</string>
+    <string name="analytical_preview">Aperçu %1$s–%2$s\nBase : %3$d · Conservées : %4$d\nHors intervalle : %5$d · Anomalies : %6$d\nAppliquer avec Enregistrer.</string>
+    <string name="analytical_hourly_hint">Toutes les mesures réparties en 24 heures locales. La période et les autres filtres ne modifient pas ce graphique.</string>
+    <string name="analytical_rule">Aide visuelle, sans valeur médicale. Il faut 7 instants distincts et 6 écarts voisins espacés de 7 jours au plus. Seuil : max(0,5 kg ; 3 × médiane des écarts absolus voisins). Un point est masqué seulement s’il dépasse ses deux voisins, vers le haut ou le bas, de plus que le seuil, et si les voisins diffèrent au plus du seuil. Les extrémités, heures identiques, tendances progressives, changements durables et groupes de candidats adjacents restent. Aucune mesure n’est supprimée. Le choix automatique part de 05:00–12:00 et déplace une borne de 30 minutes par étape, au plus 10 étapes, vers 2–3 heures avec assez de données. Hors intervalle ne signifie pas aberrant. Le minimum quotidien utilise une mesure entière ; un minimum exclu n’est pas remplacé.</string>
+</resources>

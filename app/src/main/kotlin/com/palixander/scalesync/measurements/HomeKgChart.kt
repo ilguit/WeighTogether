@@ -156,6 +156,8 @@ internal fun HomeKgChart(
     onSeriesToggled: (String) -> Unit,
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
+    title: String = stringResource(com.palixander.scalesync.R.string.chart_body_composition_title),
+    subtitle: String = stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
 ) {
     val locale = currentAppLocale()
     val hasHistoryData = state.series.any { it.points.isNotEmpty() }
@@ -170,9 +172,9 @@ internal fun HomeKgChart(
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(com.palixander.scalesync.R.string.chart_body_composition_title), style = MaterialTheme.typography.titleMedium)
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
+                    subtitle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )

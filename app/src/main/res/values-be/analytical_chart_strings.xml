@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Дадаць графік</string>
+    <string name="analytical_morning">Ранішнія вымярэнні</string>
+    <string name="analytical_minimum">Дзённыя мінімумы</string>
+    <string name="analytical_hourly">Час вымярэнняў</string>
+    <string name="analytical_added">Дададзены</string>
+    <string name="analytical_removed">Графік прыбраны</string>
+    <string name="analytical_window">%1$s–%2$s · адзінкавыя выкіды схаваны</string>
+    <string name="analytical_minimum_hint">Мінімальная вага за дзень; адзінкавыя выкіды схаваны</string>
+    <string name="analytical_all_time">За ўвесь час · %1$d вымярэнняў</string>
+    <string name="analytical_error">Не ўдалося разлічыць. Паўтарыце спробу.</string>
+    <string name="analytical_no_source">Вымярэнняў пакуль няма.</string>
+    <string name="analytical_no_filtered">У гэтым інтэрвале не засталося вымярэнняў.</string>
+    <string name="analytical_no_period">У абраным перыядзе няма кропак. Прагартайце ўсю гісторыю.</string>
+    <string name="analytical_choose_series">Выбраць паказчыкі</string>
+    <string name="analytical_small_history">Гісторыі недастаткова для фільтра; усе вымярэнні захаваны.</string>
+    <string name="analytical_excluded">Паказаць выключаныя (%1$d)</string>
+    <string name="analytical_help">Як працуе фільтр</string>
+    <string name="analytical_configure">Наладзіць</string>
+    <string name="analytical_remove">Прыбраць графік</string>
+    <string name="analytical_none_excluded">Выключаных вымярэнняў няма.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Аўтаматычна · выкіды вызначаюцца ў базавым акне 05:00–12:00</string>
+    <string name="analytical_mode_manual">Уручную · выкіды вызначаюцца ў абраным інтэрвале</string>
+    <string name="analytical_start">З (ГГ:хх)</string>
+    <string name="analytical_end">Да (ГГ:хх, не ўключаючы)</string>
+    <string name="analytical_invalid_time">Увядзіце час ад 00:00 да 24:00; пачатак павінен быць раней за канец.</string>
+    <string name="analytical_auto">Падабраць па вымярэннях</string>
+    <string name="analytical_insufficient">Недастаткова даных для акна 2–3 гадзіны. Выберыце інтэрвал уручную.</string>
+    <string name="analytical_preview">Перадпрагляд %1$s–%2$s\nУ базавым акне: %3$d · Засталося: %4$d\nПа-за інтэрвалам: %5$d · Выкіды: %6$d\nУжыць кнопкай «Захаваць».</string>
+    <string name="analytical_hourly_hint">Усе вымярэнні па 24 мясцовых гадзінах. Абраны перыяд і іншыя фільтры не ўплываюць на дыяграму.</string>
+    <string name="analytical_rule">Гэта візуальная эўрыстыка, не медыцынскае правіла. Патрэбныя 7 розных часавых адзнак і 6 суседніх розніц з прамежкамі да 7 сутак. Парог: max(0,5 кг; 3 × медыяна абсалютных суседніх розніц). Кропка хаваецца толькі калі яна вышэйшая або ніжэйшая за абодвух суседзяў больш чым на парог, а суседзі адрозніваюцца не больш чым на парог. Крайнія кропкі, аднолькавы час, плаўны трэнд, устойлівы новы ўзровень і суседнія групы кандыдатаў захоўваюцца. Вымярэнні не выдаляюцца. Аўтападбор пачынае з 05:00–12:00 і ссоўвае адну мяжу на 30 хвілін за ітэрацыю, максімум 10 крокаў, да 2–3 гадзін пры дастатковых даных. Вымярэнні па-за акном — не выкіды. Дзённы мінімум бярэ адно цэлае вымярэнне; выключаны мінімум не замяняецца.</string>
+</resources>
