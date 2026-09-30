@@ -18,6 +18,7 @@
     <string name="analytical_help">Как работает фильтр</string>
     <string name="analytical_configure">Настроить</string>
     <string name="analytical_remove">Убрать график</string>
+    <string name="analytical_menu">Действия с графиком</string>
     <string name="analytical_none_excluded">Исключённых измерений нет.</string>
     <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
     <string name="analytical_mode_auto">Автоматически · выбросы определяются в базовом окне 05:00–12:00</string>

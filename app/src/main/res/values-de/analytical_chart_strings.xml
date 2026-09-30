@@ -18,6 +18,7 @@
     <string name="analytical_help">So funktioniert der Filter</string>
     <string name="analytical_configure">Konfigurieren</string>
     <string name="analytical_remove">Diagramm entfernen</string>
+    <string name="analytical_menu">Diagrammaktionen</string>
     <string name="analytical_none_excluded">Keine ausgeblendeten Messungen.</string>
     <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
     <string name="analytical_mode_auto">Automatisch · Ausreißer im Basisfenster 05:00–12:00</string>

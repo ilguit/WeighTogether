@@ -1,13 +1,11 @@
 package com.palixander.scalesync.charts
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
@@ -15,7 +13,6 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -39,8 +36,9 @@ import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
-import kotlin.math.atan2
+import kotlin.math.cos
 import kotlin.math.hypot
+import kotlin.math.sin
 
 internal fun analyticalTitle(type: AnalyticalChartType): Int = when (type) {
     AnalyticalChartType.MORNING -> R.string.analytical_morning
@@ -106,6 +104,7 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
     val type = card.settings.type
     var help by rememberSaveable { mutableStateOf(false) }
     var excluded by rememberSaveable { mutableStateOf(false) }
+    var menuExpanded by rememberSaveable { mutableStateOf(false) }
     val title = stringResource(analyticalTitle(type))
     val locale = currentAppLocale()
     val subtitle = when (type) {
@@ -114,9 +113,27 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
         AnalyticalChartType.DAILY_MINIMUM -> stringResource(R.string.analytical_minimum_hint)
         AnalyticalChartType.HOURLY -> stringResource(R.string.analytical_all_time, card.sourceCount)
     }
-    ScaleSyncSurface(Modifier.fillMaxWidth().testTag("analytical-card-$type")) {
+    val menuDescription = stringResource(R.string.analytical_menu)
+    ScaleSyncSurface(Modifier.fillMaxWidth().testTag("analytical-card-$type").pointerInput(type) {
+        detectTapGestures(onLongPress = { menuExpanded = true })
+    }.semantics { onLongClick(menuDescription) { menuExpanded = true; true } }) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f).semantics { heading() })
+                Box {
+                    IconButton({ menuExpanded = true }, Modifier.size(48.dp).testTag("analytical-menu-$type")) {
+                        Text("⋮", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { contentDescription = menuDescription })
+                    }
+                    DropdownMenu(menuExpanded, { menuExpanded = false }) {
+                        if (type != AnalyticalChartType.HOURLY) {
+                            DropdownMenuItem({ Text(stringResource(R.string.analytical_excluded, card.excluded.size)) }, onClick = { menuExpanded = false; excluded = true }, modifier = Modifier.testTag("analytical-excluded-$type"))
+                            DropdownMenuItem({ Text(stringResource(R.string.analytical_help)) }, onClick = { menuExpanded = false; help = true }, modifier = Modifier.testTag("analytical-help-$type"))
+                        }
+                        DropdownMenuItem({ Text(stringResource(R.string.analytical_configure)) }, onClick = { menuExpanded = false; callbacks.controller.edit(type) }, modifier = Modifier.testTag("analytical-edit-$type"))
+                        DropdownMenuItem({ Text(stringResource(R.string.analytical_remove)) }, onClick = { menuExpanded = false; callbacks.controller.remove(type) }, modifier = Modifier.testTag("analytical-remove-$type"))
+                    }
+                }
+            }
             Text(subtitle, style = MaterialTheme.typography.bodySmall)
             when {
                 loading -> CircularProgressIndicator(Modifier.testTag("analytical-loading-$type"))
@@ -151,14 +168,8 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
                         TextButton({ callbacks.controller.edit(type) }) { Text(stringResource(R.string.analytical_choose_series)) }
                     }
                     if (!card.sufficientHistory && card.sourceCount > 0) Text(stringResource(R.string.analytical_small_history), style = MaterialTheme.typography.bodySmall)
-                    TextButton({ excluded = true }, Modifier.fillMaxWidth().testTag("analytical-excluded-$type")) {
-                        Text(stringResource(R.string.analytical_excluded, card.excluded.size))
-                    }
-                    TextButton({ help = true }, Modifier.fillMaxWidth().testTag("analytical-help-$type")) { Text(stringResource(R.string.analytical_help)) }
                 }
             }
-            TextButton({ callbacks.controller.edit(type) }, Modifier.fillMaxWidth().testTag("analytical-edit-$type")) { Text(stringResource(R.string.analytical_configure)) }
-            TextButton({ callbacks.controller.remove(type) }, Modifier.fillMaxWidth().testTag("analytical-remove-$type")) { Text(stringResource(R.string.analytical_remove)) }
         }
     }
     if (help) AnalyticalDialog(stringResource(R.string.analytical_help), { help = false }) {
@@ -180,54 +191,54 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
     }
 }
 
-/** Text selection provides the same information as tapping a slice, including all zero groups. */
+/** A 24-direction radial histogram; selection exposes the exact value without a permanent long list. */
 @Composable
 internal fun HourlyChart(hourlyCounts: List<Int>) {
     val counts = List(24) { hourlyCounts.getOrElse(it) { 0 } }
     val total = counts.sum()
     var selected by rememberSaveable { mutableStateOf<Int?>(null) }
-    val colors = remember { List(24) { Color.hsv(it * 15f, 0.65f, 0.65f) } }
+    val lengths = remember(counts) { normalizedHourlyLengths(counts) }
     val locale = currentAppLocale()
     if (total == 0) Text(stringResource(R.string.analytical_no_source)) else {
-        val outline = MaterialTheme.colorScheme.onSurface
-        Canvas(Modifier.fillMaxWidth().height(200.dp).testTag("analytical-pie").pointerInput(counts) {
+        val line = MaterialTheme.colorScheme.primary
+        val grid = MaterialTheme.colorScheme.outlineVariant
+        val selectedColor = MaterialTheme.colorScheme.onSurface
+        val semanticsText = counts.mapIndexed { hour, count -> "${minuteText(hour * 60)}: $count" }.joinToString(", ")
+        Canvas(Modifier.fillMaxWidth().height(220.dp).testTag("analytical-radial").semantics {
+            contentDescription = semanticsText
+        }.pointerInput(counts) {
             detectTapGestures { point ->
                 val centerX = size.width / 2f
                 val centerY = size.height / 2f
                 if (hypot(point.x - centerX, point.y - centerY) <= minOf(size.width, size.height) / 2f) {
-                    val angle = ((Math.toDegrees(atan2((point.y - centerY).toDouble(), (point.x - centerX).toDouble())) + 450) % 360).toFloat()
-                    var accumulated = 0f
-                    selected = counts.indices.firstOrNull { hour ->
-                        accumulated += counts[hour] * 360f / total
-                        counts[hour] > 0 && angle < accumulated
-                    }
+                    selected = hourForRadialPoint(point.x, point.y, centerX, centerY)
                 }
             }
         }) {
-            val diameter = minOf(size.width, size.height)
-            val topLeft = androidx.compose.ui.geometry.Offset((size.width - diameter) / 2, (size.height - diameter) / 2)
-            val arcSize = androidx.compose.ui.geometry.Size(diameter, diameter)
-            var angle = -90f
+            val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+            val radius = minOf(size.width, size.height) * 0.42f
+            drawCircle(grid, radius, center, style = Stroke(1.dp.toPx()))
+            drawCircle(grid, radius / 2f, center, style = Stroke(1.dp.toPx()))
             counts.forEachIndexed { hour, count ->
-                val sweep = count * 360f / total
+                val angle = Math.toRadians(hour * 15.0 - 90.0)
+                val direction = androidx.compose.ui.geometry.Offset(cos(angle).toFloat(), sin(angle).toFloat())
+                val edge = center + direction * radius
+                drawLine(grid, center, edge, 1.dp.toPx())
                 if (count > 0) {
-                    drawArc(colors[hour], angle, sweep, true, topLeft, arcSize)
-                    if (selected == hour) drawArc(outline, angle, sweep, true, topLeft, arcSize, style = Stroke(4.dp.toPx()))
+                    val end = center + direction * (radius * lengths[hour])
+                    drawLine(if (selected == hour) selectedColor else line, center, end, if (selected == hour) 8.dp.toPx() else 5.dp.toPx())
                 }
-                angle += sweep
             }
         }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            listOf("00", "06", "12", "18").forEach { Text(it, style = MaterialTheme.typography.labelSmall) }
+        }
     }
-    counts.forEachIndexed { hour, count ->
+    selected?.let { hour ->
+        val count = counts[hour]
         val percent = String.format(locale, "%.1f", if (total == 0) 0.0 else count * 100.0 / total)
         val label = stringResource(R.string.analytical_hour_row, minuteText(hour * 60), minuteText((hour + 1) * 60), count, percent)
-        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-            .selectable(selected == hour, role = Role.RadioButton, onClick = { selected = hour })
-            .testTag("analytical-hour-$hour").padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            RadioButton(selected == hour, onClick = null)
-            Box(Modifier.size(12.dp).background(colors[hour]))
-            Text(label, Modifier.padding(start = 8.dp).weight(1f))
-        }
+        Text(label, Modifier.fillMaxWidth().testTag("analytical-hour-selection").semantics { liveRegion = LiveRegionMode.Polite })
     }
 }
 

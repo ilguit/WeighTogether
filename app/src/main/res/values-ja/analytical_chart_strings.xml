@@ -18,6 +18,7 @@
     <string name="analytical_help">フィルターの仕組み</string>
     <string name="analytical_configure">設定</string>
     <string name="analytical_remove">グラフを削除</string>
+    <string name="analytical_menu">グラフの操作</string>
     <string name="analytical_none_excluded">除外した測定はありません。</string>
     <string name="analytical_hour_row">%1$s–%2$s · %3$d 件 · %4$s%%</string>
     <string name="analytical_mode_auto">自動 · 基準時間帯05:00–12:00で外れ値を判定</string>
