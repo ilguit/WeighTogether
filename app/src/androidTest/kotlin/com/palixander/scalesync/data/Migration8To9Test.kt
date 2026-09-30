@@ -21,7 +21,7 @@ class Migration8To9Test {
     @Test
     fun migrationAddsEmptyDurableBaselineAndPreservesExistingState() {
         helper.createDatabase(DATABASE_NAME, 8).apply {
-            execSQL("INSERT INTO app_state VALUES (1, NULL, 4.25)")
+            execSQL("INSERT INTO app_state (singletonId, primaryAccountId, weightDeltaKg) VALUES (1, NULL, 4.25)")
             close()
         }
 
@@ -31,7 +31,7 @@ class Migration8To9Test {
             true,
             AppDatabase.MIGRATION_8_9,
         )
-        migrated.query("SELECT weightDeltaThresholdKg FROM app_state").use {
+        migrated.query("SELECT weightDeltaKg FROM app_state").use {
             assertTrue(it.moveToFirst())
             assertEquals(4.25, it.getDouble(0), 0.0)
         }
