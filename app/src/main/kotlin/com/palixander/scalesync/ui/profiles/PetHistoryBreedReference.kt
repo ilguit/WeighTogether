@@ -35,9 +35,9 @@ import com.palixander.scalesync.domain.reference.BreedWeightReferenceResolver
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
 import com.palixander.scalesync.domain.reference.BreedWeightSourceMetadata
 import com.palixander.scalesync.domain.reference.BreedWeightValue
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.text.uiText
@@ -340,8 +340,8 @@ internal fun PetHistoryBreedReferenceCard(
     var sourceErrors by remember(reference) { mutableStateOf<Set<Int>>(emptySet()) }
     val expandedState = stringResource(R.string.state_expanded)
     val collapsedState = stringResource(R.string.state_collapsed)
-    HuaweiSurface(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Card)) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+    ScaleSyncSurface(Modifier.fillMaxWidth().testTag(PetBreedReferenceTestTags.Card)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Text(stringResource(R.string.pet_breed_reference_title), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             when (reference) {
                 PetHistoryBreedReference.Hidden -> Unit
@@ -353,7 +353,7 @@ internal fun PetHistoryBreedReferenceCard(
                     )
                     if (reference.showEditAction) TextButton(
                         onClick = onEdit,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget).testTag(PetBreedReferenceTestTags.Edit),
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget).testTag(PetBreedReferenceTestTags.Edit),
                     ) { Text(stringResource(R.string.pet_breed_reference_edit_profile)) }
                 }
                 is PetHistoryBreedReference.Available -> {
@@ -435,7 +435,7 @@ private fun ReferenceSourceGroup(
         TextButton(
             onClick = { onOpenResult(sourceLauncher.open(source.url)) },
             modifier = Modifier
-                .heightIn(min = HuaweiDimensions.TouchTarget)
+                .heightIn(min = ScaleSyncDimensions.TouchTarget)
                 .testTag(PetBreedReferenceTestTags.openSource(index)),
         ) { Text(stringResource(R.string.reference_open_source_named, source.title)) }
         if (hasError) Text(

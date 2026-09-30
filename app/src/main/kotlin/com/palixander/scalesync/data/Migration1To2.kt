@@ -211,11 +211,8 @@ class Migration1To2(
                 metabolicAge INTEGER,
                 leanBodyMassKg REAL,
                 algorithmVersion TEXT,
-                huaweiStatus TEXT NOT NULL,
                 healthConnectStatus TEXT NOT NULL,
-                huaweiError TEXT,
                 healthConnectError TEXT,
-                huaweiWeightSynced INTEGER NOT NULL,
                 healthConnectWeightSynced INTEGER NOT NULL,
                 createdAtEpochMillis INTEGER NOT NULL,
                 accountId TEXT NOT NULL,
@@ -238,8 +235,8 @@ class Migration1To2(
                     waterMassKg, muscleMassKg, skeletalMuscleMassKg, boneMassKg,
                     proteinPercent, proteinMassKg, visceralFatLevel,
                     basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
-                    algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                    healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
+                    algorithmVersion, healthConnectStatus,
+                    healthConnectError, healthConnectWeightSynced,
                     createdAtEpochMillis, accountId,
                     externalSyncPolicy, sourcePendingId, deduplicationHash
                 )
@@ -262,13 +259,12 @@ class Migration1To2(
                     waterMassKg, muscleMassKg, skeletalMuscleMassKg, boneMassKg,
                     proteinPercent, proteinMassKg, visceralFatLevel,
                     basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
-                    algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
+                    algorithmVersion, healthConnectStatus,
                     healthConnectError,
-                    CASE WHEN huaweiStatus = 'SYNCED' THEN 1 ELSE 0 END,
                     CASE WHEN healthConnectStatus = 'SYNCED' THEN 1 ELSE 0 END,
                     createdAtEpochMillis, ?,
                     CASE
-                        WHEN huaweiStatus = 'LOCAL_ONLY' OR healthConnectStatus = 'LOCAL_ONLY'
+                        WHEN healthConnectStatus = 'LOCAL_ONLY'
                             THEN 'USER_LOCAL'
                         ELSE 'AUTO'
                     END,

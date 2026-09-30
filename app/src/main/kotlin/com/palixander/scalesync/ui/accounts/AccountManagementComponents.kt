@@ -82,13 +82,13 @@ import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
 import com.palixander.scalesync.ui.components.BirthDateField
 import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.components.HuaweiSectionTitle
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncSectionTitle
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.components.EditableProfileAvatar
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.profile.ProfilePhotoError
 import com.palixander.scalesync.profile.PreparedProfilePhoto
 import com.palixander.scalesync.profile.ProfilePhotoPicker
@@ -97,8 +97,8 @@ import com.palixander.scalesync.profile.ProfilePhotoOwner
 import com.palixander.scalesync.profile.ProfilePhotoOwnerType
 import com.palixander.scalesync.profile.rememberProfilePhotoCropController
 import com.palixander.scalesync.profile.rememberProfilePhotoPicker
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.text.UiText
 import java.time.LocalDate
@@ -191,10 +191,10 @@ fun AccountManagementSection(
 ) {
     Column(
         modifier = modifier.fillMaxWidth().testTag(AccountManagementTestTags.List),
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle(stringResource(R.string.account_profiles_title))
-        HuaweiSurface(
+        ScaleSyncSectionTitle(stringResource(R.string.account_profiles_title))
+        ScaleSyncSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PeopleGroup),
             contentPadding = PaddingValues(0.dp),
         ) {
@@ -203,7 +203,7 @@ fun AccountManagementSection(
                     text = stringResource(R.string.account_profiles_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier
-                        .padding(HuaweiDimensions.ContentPadding)
+                        .padding(ScaleSyncDimensions.ContentPadding)
                         .then(
                             if (pets.isEmpty()) Modifier.testTag(AccountManagementTestTags.Empty)
                             else Modifier,
@@ -237,8 +237,8 @@ fun AccountManagementSection(
             onClick = { callbacks.onAction(AccountManagementAction.AddRequested) },
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.Add),
         ) { Text(stringResource(R.string.account_add_profile)) }
-        HuaweiSectionTitle(stringResource(R.string.account_pets_title))
-        HuaweiSurface(
+        ScaleSyncSectionTitle(stringResource(R.string.account_pets_title))
+        ScaleSyncSurface(
             modifier = Modifier.fillMaxWidth().testTag(AccountManagementTestTags.PetsGroup),
             contentPadding = PaddingValues(0.dp),
         ) {
@@ -246,7 +246,7 @@ fun AccountManagementSection(
                 Text(
                     text = stringResource(R.string.account_pets_empty),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(HuaweiDimensions.ContentPadding),
+                    modifier = Modifier.padding(ScaleSyncDimensions.ContentPadding),
                 )
             } else Column {
                 pets.sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.pet.displayName })
@@ -412,7 +412,7 @@ private fun AccountRow(
         val completeProfile = account.profile as? AccountProfile.Complete
         ProfileAvatar(
             photoPath = account.photoPath,
-            fallbackIcon = HuaweiIcons.Profile,
+            fallbackIcon = ScaleSyncIcons.Profile,
             contentDescription = when (completeProfile?.sex) {
                 Sex.MALE -> stringResource(R.string.account_man)
                 Sex.FEMALE -> stringResource(R.string.account_woman)
@@ -434,8 +434,8 @@ private fun AccountRow(
                 if (isPrimary) PrimaryBadge(account.id)
             }
         }
-        HuaweiIconButton(
-            icon = HuaweiIcons.More,
+        ScaleSyncIconButton(
+            icon = ScaleSyncIcons.More,
             contentDescription = stringResource(R.string.account_more_actions, account.displayName),
             onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.humanEdit(account.id)),
@@ -480,9 +480,9 @@ private fun PetProfileRow(
         ProfileAvatar(
             photoPath = pet.pet.photoPath,
             fallbackIcon = when (pet.pet.species) {
-                PetSpecies.CAT -> HuaweiIcons.Cat
-                PetSpecies.DOG -> HuaweiIcons.Dog
-                PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+                PetSpecies.CAT -> ScaleSyncIcons.Cat
+                PetSpecies.DOG -> ScaleSyncIcons.Dog
+                PetSpecies.UNSPECIFIED -> ScaleSyncIcons.Profile
             },
             contentDescription = speciesLabel,
             store = photoStore,
@@ -492,8 +492,8 @@ private fun PetProfileRow(
             Text(pet.pet.displayName, style = MaterialTheme.typography.titleSmall)
             if (weightLabel.isNotEmpty()) Text(weightLabel, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodySmall)
         }
-        HuaweiIconButton(
-            icon = HuaweiIcons.More,
+        ScaleSyncIconButton(
+            icon = ScaleSyncIcons.More,
             contentDescription = stringResource(R.string.account_more_actions, pet.pet.displayName),
             onClick = { menuExpanded = true },
             modifier = Modifier.testTag(AccountManagementTestTags.petEdit(pet.pet.id)),
@@ -680,8 +680,8 @@ fun AccountEditorScreen(
                     )
                 },
                 navigationIcon = {
-                    HuaweiIconButton(
-                        icon = HuaweiIcons.Back,
+                    ScaleSyncIconButton(
+                        icon = ScaleSyncIcons.Back,
                         contentDescription = stringResource(R.string.account_back_to_profiles),
                         onClick = requestClose,
                         enabled = !operationInProgress,
@@ -716,8 +716,8 @@ fun AccountEditorScreen(
                     },
                     enabled = !operationInProgress && !saveSubmitted,
                     modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .padding(horizontal = ScaleSyncDimensions.ContentPadding, vertical = 12.dp)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(AccountManagementTestTags.EditorSave),
                     shape = MaterialTheme.shapes.medium,
                 ) { Text(stringResource(if (operationInProgress) R.string.state_saving else R.string.action_save)) }
@@ -728,12 +728,12 @@ fun AccountEditorScreen(
             Column(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 720.dp)
                     .verticalScroll(rememberScrollState())
-                    .padding(HuaweiDimensions.ContentPadding),
+                    .padding(ScaleSyncDimensions.ContentPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 EditableProfileAvatar(
                     photoPath = draft.photoPath,
-                    fallbackIcon = HuaweiIcons.Profile,
+                    fallbackIcon = ScaleSyncIcons.Profile,
                     contentDescription = stringResource(R.string.account_profile_photo),
                     store = photoStore,
                     size = 96.dp,
@@ -748,13 +748,13 @@ fun AccountEditorScreen(
                     OutlinedButton(
                         onClick = { photoPicker?.chooseFromGallery?.invoke() },
                         enabled = !operationInProgress && photoPicker != null,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(AccountManagementTestTags.EditorPhotoGallery),
                     ) { Text(stringResource(R.string.account_gallery)) }
                     OutlinedButton(
                         onClick = { photoPicker?.takePhoto?.invoke() },
                         enabled = !operationInProgress && photoPicker != null,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(AccountManagementTestTags.EditorPhotoCamera),
                     ) { Text(stringResource(R.string.account_camera)) }
                     if (draft.photoPath != null) OutlinedButton(
@@ -763,7 +763,7 @@ fun AccountEditorScreen(
                             onDraftChanged(reduceAccountEditor(draft, AccountEditorAction.PhotoChanged(null)))
                         },
                         enabled = !operationInProgress,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(AccountManagementTestTags.EditorPhotoRemove),
                     ) { Text(stringResource(R.string.account_remove_photo)) }
                 }
@@ -1014,8 +1014,8 @@ private fun AccountDeletionDialog(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Surface(
-                    color = HuaweiColors.WarningContainer,
-                    contentColor = HuaweiColors.OnWarningContainer,
+                    color = ScaleSyncColors.WarningContainer,
+                    contentColor = ScaleSyncColors.OnWarningContainer,
                     shape = MaterialTheme.shapes.medium,
                 ) {
                     Text(

@@ -17,9 +17,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.BuildConfig
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 internal object ChangelogScreenTestTags {
     const val List = "changelog-list"
@@ -46,13 +46,13 @@ fun ChangelogScreen(
     LazyColumn(
         modifier = modifier.fillMaxSize().testTag(ChangelogScreenTestTags.List),
         contentPadding = PaddingValues(
-            start = HuaweiDimensions.ContentPadding,
-            top = HuaweiDimensions.CompactItemSpacing + contentPadding.calculateTopPadding(),
-            end = HuaweiDimensions.ContentPadding,
+            start = ScaleSyncDimensions.ContentPadding,
+            top = ScaleSyncDimensions.CompactItemSpacing + contentPadding.calculateTopPadding(),
+            end = ScaleSyncDimensions.ContentPadding,
             bottom = 28.dp + contentPadding.calculateBottomPadding(),
         ),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
     ) {
         if (latestChanges.isNotEmpty()) {
             item(key = "latest-changes") {
@@ -85,8 +85,8 @@ fun ChangelogScreen(
 
 @Composable
 private fun LatestChangesCard(changes: List<ReleaseChange>, modifier: Modifier = Modifier) {
-    HuaweiSurface(modifier = modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+    ScaleSyncSurface(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Text(
                 stringResource(R.string.changelog_latest, BuildConfig.VERSION_CODE),
                 style = MaterialTheme.typography.titleMedium,
@@ -106,8 +106,8 @@ private fun cardModifier(version: String) = Modifier.fillMaxWidth().widthIn(max 
 
 @Composable
 private fun ReleaseCard(release: AppRelease, modifier: Modifier = Modifier) {
-    HuaweiSurface(modifier = modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+    ScaleSyncSurface(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             ReleaseHeading(release.version)
             ReleaseChanges(release)
         }
@@ -123,10 +123,10 @@ private fun PreviousReleasesCard(
 ) {
     val expandLabel = stringResource(if (expanded) R.string.changelog_collapse_previous else R.string.changelog_expand_previous)
     val expandedState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
-    HuaweiSurface(modifier = modifier) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+    ScaleSyncSurface(modifier = modifier) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Row(
-                modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                modifier = Modifier.fillMaxWidth().heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .clickable(
                         role = Role.Button,
                         onClickLabel = expandLabel,
@@ -142,11 +142,11 @@ private fun PreviousReleasesCard(
                 Text(
                     stringResource(R.string.changelog_previous),
                     style = MaterialTheme.typography.titleMedium,
-                    modifier = Modifier.weight(1f).padding(end = HuaweiDimensions.CompactItemSpacing)
+                    modifier = Modifier.weight(1f).padding(end = ScaleSyncDimensions.CompactItemSpacing)
                         .testTag(ChangelogScreenTestTags.PreviousReleasesTitle),
                 )
                 Icon(
-                    HuaweiIcons.ChevronDown,
+                    ScaleSyncIcons.ChevronDown,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(24.dp).rotate(if (expanded) 180f else 0f)
@@ -156,12 +156,12 @@ private fun PreviousReleasesCard(
             if (expanded) {
                 Column(
                     modifier = Modifier.testTag(ChangelogScreenTestTags.PreviousReleasesContent),
-                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
                 ) {
                     releases.forEach { release ->
                         Column(
                             modifier = Modifier.testTag(ChangelogScreenTestTags.release(release.version)),
-                            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
                         ) {
                             ReleaseHeading(release.version)
                             ReleaseChanges(release)
@@ -194,10 +194,10 @@ private fun ReleaseChanges(release: AppRelease) {
 private fun ReleaseChanges(changes: List<ReleaseChange>, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
         changes.forEach { change ->
-            Row(horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
                 Text("•", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.bodyMedium)
                 Column(modifier = Modifier.weight(1f)) {
                     Text(change.description, style = MaterialTheme.typography.bodyMedium)

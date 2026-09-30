@@ -29,7 +29,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
@@ -80,7 +80,7 @@ fun BirthDateField(
         placeholder = { Text(stringResource(R.string.birth_date_choose)) },
         trailingIcon = {
             Icon(
-                imageVector = HuaweiIcons.Calendar,
+                imageVector = ScaleSyncIcons.Calendar,
                 contentDescription = null,
             )
         },

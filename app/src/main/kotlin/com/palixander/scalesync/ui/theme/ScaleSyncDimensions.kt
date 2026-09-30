@@ -4,7 +4,7 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.dp
 
 @Immutable
-object HuaweiDimensions {
+object ScaleSyncDimensions {
     val ContentPadding = 16.dp
     val CompactContentPadding = 12.dp
     val ItemSpacing = 12.dp

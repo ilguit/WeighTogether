@@ -71,12 +71,12 @@ import com.palixander.scalesync.domain.PetSex
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
-import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
 import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.components.EditableProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.profile.ProfilePhotoError
 import com.palixander.scalesync.profile.PreparedProfilePhoto
 import com.palixander.scalesync.profile.ProfilePhotoPicker
@@ -297,8 +297,8 @@ internal fun PetProfileEditorDialog(
                     )
                 },
                 navigationIcon = {
-                    HuaweiIconButton(
-                        icon = HuaweiIcons.Back,
+                    ScaleSyncIconButton(
+                        icon = ScaleSyncIcons.Back,
                         contentDescription = stringResource(R.string.action_back_to_profiles),
                         onClick = ::requestClose,
                         enabled = !locked,
@@ -325,8 +325,8 @@ internal fun PetProfileEditorDialog(
                     shape = MaterialTheme.shapes.medium,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .padding(horizontal = ScaleSyncDimensions.ContentPadding, vertical = 12.dp)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(PetProfileEditorTestTags.Save),
                 ) { Text(stringResource(if (busy) R.string.state_saving else R.string.action_save)) }
             }
@@ -341,16 +341,16 @@ internal fun PetProfileEditorDialog(
                     .fillMaxWidth()
                     .widthIn(max = 720.dp)
                     .verticalScroll(contentScrollState)
-                    .padding(HuaweiDimensions.ContentPadding)
+                    .padding(ScaleSyncDimensions.ContentPadding)
                     .testTag(PetProfileEditorTestTags.Content),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 EditableProfileAvatar(
                     photoPath = draft.photoPath,
                     fallbackIcon = when (draft.species) {
-                        PetSpecies.CAT -> HuaweiIcons.Cat
-                        PetSpecies.DOG -> HuaweiIcons.Dog
-                        else -> HuaweiIcons.Profile
+                        PetSpecies.CAT -> ScaleSyncIcons.Cat
+                        PetSpecies.DOG -> ScaleSyncIcons.Dog
+                        else -> ScaleSyncIcons.Profile
                     },
                     contentDescription = stringResource(R.string.pet_editor_photo),
                     store = photoStore,
@@ -366,13 +366,13 @@ internal fun PetProfileEditorDialog(
                     OutlinedButton(
                         onClick = { photoPicker?.chooseFromGallery?.invoke() },
                         enabled = !locked && photoPicker != null,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoGallery),
                     ) { Text(stringResource(R.string.photo_gallery)) }
                     OutlinedButton(
                         onClick = { photoPicker?.takePhoto?.invoke() },
                         enabled = !locked && photoPicker != null,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoCamera),
                     ) { Text(stringResource(R.string.photo_camera)) }
                     if (draft.photoPath != null) OutlinedButton(
@@ -381,7 +381,7 @@ internal fun PetProfileEditorDialog(
                             dispatch(PetProfileAction.PhotoChanged(null))
                         },
                         enabled = !locked,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(PetProfileEditorTestTags.PhotoRemove),
                     ) { Text(stringResource(R.string.photo_remove)) }
                 }

@@ -32,7 +32,7 @@ Approved by the owner on 2026-08-30. Final independent design review: no finding
 - Публичное имя набора: **«Справочные нормы ScaleSync, версия 1»**.
 - Категории являются потребительской интерпретацией, не диагнозом.
 - Scope: Summary, раскрытая History, Preview RESULT; 16 человеческих показателей.
-- Out of scope: Charts/reference bands, editor classification, pets, remote content, English, передача категорий в Health Connect/Huawei.
+- Out of scope: Charts/reference bands, editor classification, pets, remote content, English, передача категорий в Health Connect.
 - В свернутой Summary: число, единица, категория и цвет; без границ и info-actions.
 - В раскрытой Summary/History и Preview: все зоны, границы и отдельная info-кнопка 48×48 dp.
 - Справка: локальный AlertDialog; внешний браузер используется только для источника.
@@ -1147,8 +1147,8 @@ Unavailable templates используют тексты из E и не прои�
 
 ### Q2. Flavors и сохранение UI-state
 
-- `personal` и `huaweiEnterprise` имеют идентичные локальные тексты, классификаторы, зоны, цвета, help, Preview и accessibility.
-- Flavor не меняет нормативы и не создаёт отдельный источник. Внешняя синхронизация Health Connect/Huawei не получает категории, границы или справочные тексты.
+- Единая сборка использует согласованные локальные тексты, классификаторы, зоны, цвета, help, Preview и accessibility.
+- Flavor не меняет нормативы и не создаёт отдельный источник. Внешняя синхронизация Health Connect не получает категории, границы или справочные тексты.
 - Раскрытие Summary сохраняется при configuration change/process recreation тем же механизмом saved UI-state, что и другие восстанавливаемые состояния экрана.
 - В History одновременно раскрытые карточки сохраняют согласованное поведение списка; открытие новой карточки не сворачивает уже раскрытую.
 - Help после configuration change либо безопасно восстанавливается с тем же metric/measurement, либо закрывается с восстановлением вызывающего экрана; потеря/подмена контекста недопустима.

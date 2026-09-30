@@ -19,11 +19,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.PetSpecies
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.components.ScaleSyncFilterButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 object ProfileSelectorTestTags {
     const val Selector = "profile-selector"
@@ -45,14 +45,14 @@ fun ProfileSelector(
             .fillMaxWidth()
             .testTag(ProfileSelectorTestTags.Selector)
             .semantics { contentDescription = selectorDescription },
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
         Text(stringResource(R.string.profile_selector_title), style = MaterialTheme.typography.labelLarge)
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
         ) {
             state.profiles.forEach { profile ->
                 val kind = stringResource(if (profile is ProfilePresentation.Human) R.string.profile_kind_human else R.string.profile_kind_pet)
@@ -60,7 +60,7 @@ fun ProfileSelector(
                     is ProfileKey.Human -> ProfileSelectorTestTags.human(key.accountId.value)
                     is ProfileKey.Pet -> ProfileSelectorTestTags.pet(key.petId.value)
                 }
-                HuaweiFilterButton(
+                ScaleSyncFilterButton(
                     text = profile.displayName,
                     icon = profile.selectorIcon(),
                     leadingContent = profile.photoPath()?.let { path -> {
@@ -98,11 +98,11 @@ internal fun ProfilePresentation.photoPath(): String? = when (this) {
 }
 
 internal fun ProfilePresentation.selectorIcon(): ImageVector = when (this) {
-    is ProfilePresentation.Human -> HuaweiIcons.Profile
+    is ProfilePresentation.Human -> ScaleSyncIcons.Profile
     is ProfilePresentation.Pet -> when (petWithLatestWeight.pet.species) {
-        PetSpecies.CAT -> HuaweiIcons.Cat
-        PetSpecies.DOG -> HuaweiIcons.Dog
-        PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+        PetSpecies.CAT -> ScaleSyncIcons.Cat
+        PetSpecies.DOG -> ScaleSyncIcons.Dog
+        PetSpecies.UNSPECIFIED -> ScaleSyncIcons.Profile
     }
 }
 

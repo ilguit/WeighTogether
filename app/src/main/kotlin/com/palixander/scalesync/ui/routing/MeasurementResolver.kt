@@ -32,8 +32,8 @@ import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.accounts.formatLocalizedDecimal
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 object MeasurementResolverTestTags {
     const val Dialog = "measurement-resolver"
@@ -57,13 +57,13 @@ fun PendingResolverForegroundFallback(
     Surface(
         modifier = modifier.fillMaxWidth().testTag(MeasurementResolverTestTags.ForegroundFallback),
         shape = MaterialTheme.shapes.large,
-        color = HuaweiColors.WarningContainer,
-        contentColor = HuaweiColors.OnWarningContainer,
+        color = ScaleSyncColors.WarningContainer,
+        contentColor = ScaleSyncColors.OnWarningContainer,
     ) {
         Row(
-            modifier = Modifier.padding(HuaweiDimensions.CompactContentPadding),
+            modifier = Modifier.padding(ScaleSyncDimensions.CompactContentPadding),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
         ) {
             Text(
                 text = stringResource(R.string.measurement_resolver_pending_count, state.pendingCount),
@@ -91,14 +91,14 @@ fun MeasurementResolverDialog(
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
             ) {
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = MaterialTheme.shapes.medium,
                     color = MaterialTheme.colorScheme.surfaceContainer,
                 ) {
-                    Column(Modifier.padding(HuaweiDimensions.CompactContentPadding)) {
+                    Column(Modifier.padding(ScaleSyncDimensions.CompactContentPadding)) {
                         Text(
                             stringResource(R.string.measurement_weight_kg, formatLocalizedDecimal(state.pending.weightKg)),
                             style = MaterialTheme.typography.titleLarge,

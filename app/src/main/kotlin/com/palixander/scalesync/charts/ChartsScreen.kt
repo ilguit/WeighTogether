@@ -47,13 +47,13 @@ import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.components.ScaleSyncFilterButton
 import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.accounts.AccountSelector
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
 import com.patrykandpatrick.vico.compose.cartesian.Scroll
 import com.patrykandpatrick.vico.compose.cartesian.Zoom
@@ -121,8 +121,8 @@ fun ChartsScreen(
             modifier = Modifier
                 .testTag("charts-list")
                 .fillMaxSize()
-                .padding(horizontal = HuaweiDimensions.ContentPadding),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+                .padding(horizontal = ScaleSyncDimensions.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item { Spacer(Modifier.height(1.dp)) }
             if (showAccountSelector) {
@@ -163,7 +163,7 @@ fun ChartsScreen(
             }
             state.errorMessage?.let { message ->
                 item {
-                    HuaweiSurface(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                    ScaleSyncSurface(containerColor = MaterialTheme.colorScheme.errorContainer) {
                         Text(
                             text = message,
                             color = MaterialTheme.colorScheme.onErrorContainer,
@@ -218,20 +218,20 @@ private fun ChartFilterRow(
     val metricsDescription = stringResource(R.string.chart_metrics_description, selectedCount, metricCount)
     Row(
         modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
-        HuaweiFilterButton(
+        ScaleSyncFilterButton(
             text = rangeText,
             onClick = onOpenRangeFilter,
-            icon = HuaweiIcons.Calendar,
+            icon = ScaleSyncIcons.Calendar,
             modifier = Modifier.semantics {
                 contentDescription = periodDescription
             },
         )
-        HuaweiFilterButton(
+        ScaleSyncFilterButton(
             text = "$selectedCount / $metricCount",
             onClick = onOpenMetricFilter,
-            icon = HuaweiIcons.Tune,
+            icon = ScaleSyncIcons.Tune,
             selected = selectedCount != 0,
             modifier = Modifier.semantics {
                 contentDescription = metricsDescription
@@ -255,9 +255,9 @@ private fun RangeFilterSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = HuaweiDimensions.ContentPadding)
+                .padding(horizontal = ScaleSyncDimensions.ContentPadding)
                 .padding(bottom = 24.dp),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
         ) {
             SheetHeader(title = stringResource(R.string.chart_period), onDismiss = onDismiss)
             RangePresetRow(
@@ -291,7 +291,7 @@ private fun RangePresetRow(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
         PresetChoice(
             preset = first,
@@ -317,7 +317,7 @@ private fun PresetChoice(
 ) {
     Surface(
         onClick = onClick,
-        modifier = modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+        modifier = modifier.heightIn(min = ScaleSyncDimensions.TouchTarget),
         shape = MaterialTheme.shapes.medium,
         color = if (selected) {
             MaterialTheme.colorScheme.primaryContainer
@@ -368,14 +368,14 @@ private fun MetricSelectionSheet(
             modifier = Modifier
                 .fillMaxWidth()
                 .fillMaxHeight(0.9f)
-                .padding(horizontal = HuaweiDimensions.ContentPadding),
+                .padding(horizontal = ScaleSyncDimensions.ContentPadding),
         ) {
             SheetHeader(title = stringResource(R.string.chart_metrics), onDismiss = onDismiss)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
             ) {
                 TextButton(onClick = onSelectAll) { Text(stringResource(R.string.action_select_all)) }
                 TextButton(onClick = onClearSelection) { Text(stringResource(R.string.action_clear)) }
@@ -404,7 +404,7 @@ private fun MetricSelectionSheet(
                 onClick = onDone,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget),
+                    .heightIn(min = ScaleSyncDimensions.TouchTarget),
                 shape = MaterialTheme.shapes.medium,
             ) {
                 Text(stringResource(R.string.action_done))
@@ -423,7 +423,7 @@ private fun MetricChoiceRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .heightIn(min = ScaleSyncDimensions.TouchTarget)
             .toggleable(
                 value = selected,
                 role = Role.Checkbox,
@@ -452,8 +452,8 @@ private fun SheetHeader(title: String, onDismiss: () -> Unit) {
             modifier = Modifier.weight(1f).semantics { heading() },
             style = MaterialTheme.typography.titleLarge,
         )
-        HuaweiIconButton(
-            icon = HuaweiIcons.Close,
+        ScaleSyncIconButton(
+            icon = ScaleSyncIcons.Close,
             contentDescription = stringResource(R.string.action_close),
             onClick = onDismiss,
         )
@@ -502,7 +502,7 @@ private fun InclusiveDateRangeDialog(
 @Composable
 private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
     val noMetricsDescription = stringResource(R.string.chart_no_metrics)
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .semantics { contentDescription = noMetricsDescription },
@@ -510,7 +510,7 @@ private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
     ) {
         Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
         ) {
             Text(
                 text = stringResource(R.string.chart_no_metrics),
@@ -523,10 +523,10 @@ private fun ChartsEmptyState(onChooseMetrics: () -> Unit) {
                 style = MaterialTheme.typography.bodyMedium,
                 textAlign = TextAlign.Center,
             )
-            HuaweiFilterButton(
+            ScaleSyncFilterButton(
                 text = stringResource(R.string.action_select_metrics),
                 onClick = onChooseMetrics,
-                icon = HuaweiIcons.Tune,
+                icon = ScaleSyncIcons.Tune,
             )
         }
     }
@@ -569,12 +569,12 @@ internal fun MetricChartCard(
         currentValue,
         delta,
     )
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(MetricChartTestTags.Card),
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),

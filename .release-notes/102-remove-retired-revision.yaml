@@ -1,0 +1,4 @@
+issue: 102
+userVisible: false
+reason: Удаление устаревшей ревизии, её данных и конфигурации отнесено к технической задаче
+suppressReleasedChange: true

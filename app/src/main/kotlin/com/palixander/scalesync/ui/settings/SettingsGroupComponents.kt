@@ -34,9 +34,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 /** A settings-only surface that owns the outline and clipping for all of its rows. */
 @Composable
@@ -93,8 +93,8 @@ internal fun SettingsGroupRow(
             )
         }
         val interactionColor = when {
-            pressed -> HuaweiColors.SurfaceContainerHigh
-            focused -> HuaweiColors.SurfaceInfo
+            pressed -> ScaleSyncColors.SurfaceContainerHigh
+            focused -> ScaleSyncColors.SurfaceInfo
             else -> Color.Transparent
         }
 
@@ -162,7 +162,7 @@ internal fun SettingsStatusMark(
 @Composable
 internal fun SettingsTrailingChevron(modifier: Modifier = Modifier, tag: String? = null) {
     Icon(
-        imageVector = HuaweiIcons.ChevronRight,
+        imageVector = ScaleSyncIcons.ChevronRight,
         contentDescription = null,
         tint = MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = modifier
@@ -184,7 +184,7 @@ private fun SettingsLeadingIcon(icon: ImageVector, size: Dp, tag: String?) {
                 imageVector = icon,
                 contentDescription = null,
                 modifier = Modifier
-                    .size(HuaweiDimensions.Icon)
+                    .size(ScaleSyncDimensions.Icon)
                     .then(if (tag == null) Modifier else Modifier.testTag(tag)),
             )
         }

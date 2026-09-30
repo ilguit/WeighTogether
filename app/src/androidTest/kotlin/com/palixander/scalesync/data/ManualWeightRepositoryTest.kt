@@ -2,7 +2,6 @@ package com.palixander.scalesync.data
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -22,7 +21,7 @@ import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
 class ManualWeightRepositoryTest {
-    @get:Rule val helper = MigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
+    @get:Rule val helper = RetainedMigrationTestHelper(InstrumentationRegistry.getInstrumentation(), AppDatabase::class.java)
     private lateinit var database: AppDatabase
     private lateinit var repository: ManualWeightRepository
     private val human = ManualWeightOwner.Human(AccountId("human"))
@@ -187,19 +186,19 @@ class ManualWeightRepositoryTest {
         val name = "manual-origin-migration"
         helper.createDatabase(name, 13).apply {
             execSQL("INSERT INTO accounts VALUES ('owner','Человек','человек',NULL,NULL,NULL,0,100,100)")
-            execSQL("INSERT INTO measurements (id,fingerprint,measurementType,deviceAddress,measuredAtEpochSecond,rawPayloadHex,weightKg,rawWeight,huaweiStatus,healthConnectStatus,huaweiWeightSynced,healthConnectWeightSynced,createdAtEpochMillis,accountId,externalSyncPolicy) VALUES ('human-old','fingerprint','WEIGHT_ONLY','manual',-60,'',4.125,825,'SYNCED','FAILED',1,0,100,'owner','USER_LOCAL')")
+            execSQL("INSERT INTO measurements (id,fingerprint,measurementType,deviceAddress,measuredAtEpochSecond,rawPayloadHex,weightKg,rawWeight,healthConnectStatus,healthConnectWeightSynced,createdAtEpochMillis,accountId,externalSyncPolicy) VALUES ('human-old','fingerprint','WEIGHT_ONLY','manual',-60,'',4.125,825,'FAILED',0,100,'owner','USER_LOCAL')")
             execSQL("INSERT INTO pets (id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis) VALUES ('pet','Кот','кот','CAT',100,100)")
             execSQL("INSERT INTO pet_measurements VALUES ('old','pet',-60,70.0,74.125,4.125)")
             close()
         }
         helper.runMigrationsAndValidate(name, 14, true, AppDatabase.MIGRATION_13_14).apply {
-            query("SELECT origin, weightKg, externalSyncPolicy, deviceAddress, huaweiStatus FROM measurements WHERE id = 'human-old'").use {
+            query("SELECT origin, weightKg, externalSyncPolicy, deviceAddress, healthConnectStatus FROM measurements WHERE id = 'human-old'").use {
                 assertTrue(it.moveToFirst())
                 assertEquals("LEGACY", it.getString(0))
                 assertEquals(4.125, it.getDouble(1), 0.0)
                 assertEquals("USER_LOCAL", it.getString(2))
                 assertEquals("manual", it.getString(3))
-                assertEquals("SYNCED", it.getString(4))
+                assertEquals("FAILED", it.getString(4))
             }
             query("SELECT firstWeightKg, secondWeightKg, petWeightKg, origin FROM pet_measurements WHERE id = 'old'").use {
                 assertTrue(it.moveToFirst())

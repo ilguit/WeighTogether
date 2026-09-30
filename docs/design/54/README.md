@@ -52,12 +52,6 @@ state/action rows explicitly named in them.
 | Health Connect | locally disabled | disabled in app | connect again | hidden |
 | Health Connect | unavailable/provider update required | exact existing reason | none | hidden |
 | Health Connect | check failed | check failed | connect through existing authorization flow | hidden |
-| Huawei Health | authorized | connected | none | disconnect |
-| Huawei Health | authorization required | not connected | authorize access | hidden |
-| Huawei Health | checking | checking | disabled progress/action | hidden |
-| Huawei Health | locally disabled | disabled in app | connect again | hidden |
-| Huawei Health | unavailable | exact existing reason | none | hidden |
-| Huawei Health | check failed | check failed | existing retry action | hidden |
 | Backup | idle | existing export/import/replace rows | selected operation | replace uses confirmation flow |
 | Backup | busy | existing inline progress | duplicate start unavailable | unchanged |
 | Backup | error | existing inline/dialog error | existing retry/close | unchanged |
@@ -69,10 +63,9 @@ use the more precise existing presentation states described above.
 
 ## Flavor and visual contract
 
-- `personal`: Huawei row and screen are absent.
-- `huaweiEnterprise`: Huawei is visible with its actual state.
-- HuaweiTheme palette: `#28766B` primary, `#F5F7F3` background, white surfaces.
-- Empty and unavailable rows remain visible with textual statuses, except Huawei in personal.
+- The application has one supported build.
+- ScaleSyncTheme palette: `#28766B` primary, `#F5F7F3` background, white surfaces.
+- Empty and unavailable rows remain visible with textual statuses, with no flavor-specific exceptions.
 - Rows use an icon, title, short textual status, and navigation indicator.
 - Layouts must work at regular and narrow widths, with long names and increased font scale.
 
@@ -88,13 +81,8 @@ use the more precise existing presentation states described above.
 ## Files
 
 - `prototype.html` — standalone interactive prototype; open locally in a browser.
-- `preview.png` — regular personal ready state.
-- `preview-personal-unavailable.png` — personal unavailable state.
-- `preview-enterprise-ready.png` — enterprise ready state.
-- `preview-enterprise-unavailable.png` — enterprise unavailable state.
-- `preview-large-narrow.png` — narrow layout, large text, and long names.
-- `preview-health-connected.png` — connected Health Connect detail actions.
-- `preview-huawei-disabled.png` — locally disabled Huawei detail action.
+
+Obsolete screenshots were removed with the retired build controls; the interactive prototype is the current visual reference.
 
 ## Prototype limitations
 

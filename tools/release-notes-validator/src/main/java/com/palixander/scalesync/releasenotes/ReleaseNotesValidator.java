@@ -40,7 +40,7 @@ public final class ReleaseNotesValidator {
     static final int MAX_FRAGMENT_BYTES = 64 * 1024;
     private static final Set<String> ALLOWED_KEYS = Set.of(
             "issue", "userVisible", "text", "reason", "flavors", "suppressReleasedChange");
-    private static final Set<String> ALLOWED_FLAVORS = Set.of("personal", "huaweiEnterprise");
+    private static final Set<String> ALLOWED_FLAVORS = Set.of("personal");
     private static final Set<String> SUPPORT_FILES = Set.of("README.md", "template.yaml.example");
 
     private final Load yaml = new Load(LoadSettings.builder()
@@ -361,7 +361,7 @@ public final class ReleaseNotesValidator {
                 throw error(fragment, "every 'flavors' item must be a string");
             }
             if (!ALLOWED_FLAVORS.contains(flavor)) {
-                throw error(fragment, "unknown flavor '" + flavor + "'; allowed: personal, huaweiEnterprise");
+                throw error(fragment, "unknown flavor '" + flavor + "'; allowed: personal");
             }
             if (!unique.add(flavor)) {
                 throw error(fragment, "duplicate flavor '" + flavor + "'");

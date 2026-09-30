@@ -492,7 +492,6 @@ class SettingsShellUiTest {
         composeRule.onNodeWithTag(SettingsScreenTestTags.HealthConnectRow)
             .performScrollTo()
             .assertIsDisplayed()
-        composeRule.onNodeWithText("Huawei Health").assertDoesNotExist()
     }
 
     @Test

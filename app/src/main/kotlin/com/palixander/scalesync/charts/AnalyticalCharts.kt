@@ -33,7 +33,7 @@ import com.palixander.scalesync.measurements.HomeKgChart
 import com.palixander.scalesync.measurements.HomeKgChartSeriesCatalog
 import com.palixander.scalesync.measurements.formatMeasurementDateTime
 import com.palixander.scalesync.measurements.formatWeight
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
@@ -114,7 +114,7 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
         AnalyticalChartType.DAILY_MINIMUM -> stringResource(R.string.analytical_minimum_hint)
         AnalyticalChartType.HOURLY -> stringResource(R.string.analytical_all_time, card.sourceCount)
     }
-    HuaweiSurface(Modifier.fillMaxWidth().testTag("analytical-card-$type")) {
+    ScaleSyncSurface(Modifier.fillMaxWidth().testTag("analytical-card-$type")) {
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
             Text(subtitle, style = MaterialTheme.typography.bodySmall)

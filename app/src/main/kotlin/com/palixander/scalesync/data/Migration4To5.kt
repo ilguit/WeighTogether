@@ -12,7 +12,6 @@ import androidx.sqlite.db.SupportSQLiteDatabase
  */
 object Migration4To5 : Migration(4, 5) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        db.execSQL("ALTER TABLE measurements ADD COLUMN huaweiSyncedCalculatedValues TEXT")
         db.execSQL("ALTER TABLE measurements ADD COLUMN healthConnectSyncedCalculatedValues TEXT")
     }
 }

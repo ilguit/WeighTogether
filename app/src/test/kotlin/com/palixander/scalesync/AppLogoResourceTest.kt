@@ -41,7 +41,7 @@ class AppLogoResourceTest {
                 val icon = xml("res/$directory/$name.xml")
                 val background = icon.getElementsByTagName("background").item(0) as Element
                 val foreground = icon.getElementsByTagName("foreground").item(0) as Element
-                assertEquals("@color/huawei_primary", background.getAttributeNS(android, "drawable"))
+                assertEquals("@color/scalesync_primary", background.getAttributeNS(android, "drawable"))
                 assertEquals("@drawable/ic_app_foreground", foreground.getAttributeNS(android, "drawable"))
                 if (directory.endsWith("v33")) {
                     val mono = icon.getElementsByTagName("monochrome").item(0) as Element
