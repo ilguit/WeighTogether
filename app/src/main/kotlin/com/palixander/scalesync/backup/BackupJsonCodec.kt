@@ -140,14 +140,7 @@ class BackupJsonCodec(
                     version >= BACKUP_SCHEMA_VERSION_V3 -> MEASUREMENT_KEYS_CURRENT + setOf("ratingHeightCm", "ratingHeightOrigin")
                     else -> MEASUREMENT_KEYS_CURRENT - setOf("ratingHeightCm", "ratingHeightOrigin")
                 }
-                if (version < BACKUP_SCHEMA_VERSION_V6) {
-                    requireKeys(path, expectedKeys, LEGACY_HUAWEI_MEASUREMENT_KEYS)
-                } else {
-                    requireKeys(path, expectedKeys)
-                }
-                if (version < BACKUP_SCHEMA_VERSION_V6) {
-                    LEGACY_HUAWEI_MEASUREMENT_KEYS.forEach(::remove)
-                }
+                requireKeys(path, expectedKeys)
                 requireStrings(path, MEASUREMENT_STRING_KEYS_CURRENT)
                 requireNullableStrings(path, MEASUREMENT_NULLABLE_STRING_KEYS_CURRENT)
                 if (version >= BACKUP_SCHEMA_VERSION_V5) requireEnum(path, "origin", setOf("LEGACY", "SCALE", "MANUAL"))
@@ -524,17 +517,12 @@ class BackupJsonCodec(
             "id", "fingerprint", "measurementType", "deviceAddress", "measuredAtEpochSecond", "rawPayloadHex", "weightKg", "rawWeight",
             "impedanceOhm", "bmi", "bodyFatPercent", "bodyFatMassKg", "waterPercent", "waterMassKg", "muscleMassKg", "skeletalMuscleMassKg",
             "boneMassKg", "proteinPercent", "proteinMassKg", "visceralFatLevel", "basalMetabolicRateKcal", "metabolicAge", "leanBodyMassKg",
-            "algorithmVersion", "huaweiStatus", "healthConnectStatus", "huaweiError", "healthConnectError", "huaweiWeightSynced",
+            "algorithmVersion", "healthConnectStatus", "healthConnectError",
             "healthConnectWeightSynced", "createdAtEpochMillis", "accountId", "externalSyncPolicy", "sourcePendingId", "deduplicationHash",
-            "huaweiSyncedCalculatedValues", "healthConnectSyncedCalculatedValues",
+            "healthConnectSyncedCalculatedValues",
         )
         val MEASUREMENT_KEYS_V3 = MEASUREMENT_KEYS_V1_V2 + setOf("ratingHeightCm", "ratingHeightOrigin")
-        val MEASUREMENT_KEYS_CURRENT = MEASUREMENT_KEYS_V3 - setOf(
-            "huaweiStatus", "huaweiError", "huaweiWeightSynced", "huaweiSyncedCalculatedValues",
-        )
-        val LEGACY_HUAWEI_MEASUREMENT_KEYS = setOf(
-            "huaweiStatus", "huaweiError", "huaweiWeightSynced", "huaweiSyncedCalculatedValues",
-        )
+        val MEASUREMENT_KEYS_CURRENT = MEASUREMENT_KEYS_V3
         val MEASUREMENT_STRING_KEYS_CURRENT = setOf("id", "fingerprint", "measurementType", "deviceAddress", "rawPayloadHex", "healthConnectStatus", "accountId", "externalSyncPolicy")
         val MEASUREMENT_NULLABLE_STRING_KEYS_CURRENT = setOf("algorithmVersion", "healthConnectError", "sourcePendingId", "deduplicationHash", "healthConnectSyncedCalculatedValues")
         val MEASUREMENT_NUMBER_KEYS = setOf("measuredAtEpochSecond", "weightKg", "rawWeight", "createdAtEpochMillis")

@@ -52,10 +52,10 @@ import com.palixander.scalesync.core.reference.ReferenceBasis
 import com.palixander.scalesync.domain.reference.WeightReferenceProvenance
 import com.palixander.scalesync.domain.reference.BreedWeightValue
 import com.palixander.scalesync.domain.reference.BreedWeightReferenceUnavailableReason
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.currentAppLocale
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.text.uiText
@@ -884,8 +884,8 @@ internal fun PetWeightReferenceChartCard(
         resolveText = { it.resolve(resources) },
     )
 
-    HuaweiSurface(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+    ScaleSyncSurface(modifier = Modifier.fillMaxWidth()) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Text(
                 stringResource(R.string.pet_history_weight_metric),
                 style = MaterialTheme.typography.titleMedium,

@@ -69,6 +69,22 @@ class ReleaseHistoryGeneratorTest {
     }
 
     @Test
+    fun `tagged retired flavor metadata is excluded while shared changes remain`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "retired", true, "Retired change", listOf("retiredVariant"))
+        git.commit("Retired improvement (#1)")
+        git.fragment(2, "shared", true, "Shared change", listOf("retiredVariant", "personal"))
+        git.commit("Shared improvement (#2)")
+        git.annotatedTag("apk/0.1.1")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), result.releases.single().changes.map { it.issue })
+    }
+
+    @Test
     fun `build mode allows unchanged version after its release tag`() {
         val git = TestGit(directory)
         git.init()
@@ -98,18 +114,15 @@ class ReleaseHistoryGeneratorTest {
         git.commit("Add older improvement (#2)")
         git.fragment(3, "technical", false, "Служебная подготовка")
         git.commit("Prepare internals (#3)")
-        git.fragment(4, "enterprise", true, "Изменение предприятия", listOf("huaweiEnterprise"))
-        git.commit("Add enterprise improvement (#4)")
+        git.fragment(4, "personal", true, "Изменение приложения", listOf("personal"))
+        git.commit("Add personal improvement (#4)")
         git.fragment(5, "newer", true, "Самое новое улучшение")
         git.commit("Add newest improvement (#5)")
 
         val personal = ReleaseHistoryGenerator(GitRepository(directory))
             .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
-        val enterprise = ReleaseHistoryGenerator(GitRepository(directory))
-            .generate("HEAD", "0.1.1", ReleaseFlavor.HUAWEI_ENTERPRISE, ReleaseHistoryMode.BUILD)
 
-        assertEquals(listOf(5, 2), personal.latestChanges.map { it.issue })
-        assertEquals(listOf(5, 4, 2), enterprise.latestChanges.map { it.issue })
+        assertEquals(listOf(5, 4, 2), personal.latestChanges.map { it.issue })
         assertEquals(listOf(1), personal.releases.single().changes.map { it.issue })
     }
 
@@ -383,9 +396,6 @@ class ReleaseHistoryGeneratorTest {
         assertEquals(firstRelease, personal.releases[1].commitSha)
         assertEquals(listOf(1), personal.releases[1].changes.map { it.issue })
 
-        val enterprise = ReleaseHistoryGenerator(GitRepository(directory))
-            .generate("HEAD", "0.1.2", ReleaseFlavor.HUAWEI_ENTERPRISE, ReleaseHistoryMode.RELEASE)
-        assertTrue(enterprise.releases[0].changes.isEmpty())
     }
 
     @Test
@@ -752,6 +762,27 @@ class ReleaseHistoryGeneratorTest {
         assertEquals(listOf("0.1.1", "0.1.0"), history.releases.map { it.version })
         assertEquals(listOf(2), history.releases.flatMap { release -> release.changes.map { it.issue } })
         assertTrue(history.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `reopened task suppression removes its released text in build and release modes`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Полное удаление прежней функциональности", suppressReleasedChange = true)
+        git.commit("Reopen and remove task (#1)")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        for (mode in listOf(ReleaseHistoryMode.BUILD, ReleaseHistoryMode.RELEASE)) {
+            val history = ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, mode)
+
+            val allChanges = history.releases.flatMap { it.changes } + history.latestChanges
+            assertEquals(listOf(2), allChanges.map { it.issue })
+        }
     }
 
     @Test

@@ -47,8 +47,8 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.platform.LocalContext
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.domain.PET_NAME_LENGTH
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
@@ -223,8 +223,8 @@ private fun PetMeasurementFullScreen(
                             )
                         },
                         navigationIcon = {
-                            HuaweiIconButton(
-                                icon = HuaweiIcons.Back,
+                            ScaleSyncIconButton(
+                                icon = ScaleSyncIcons.Back,
                                 contentDescription = stringResource(R.string.pet_measurement_close_a11y),
                                 onClick = callbacks.onCancel,
                                 enabled = !saving,

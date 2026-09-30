@@ -20,9 +20,9 @@ class AppSectionTest {
 
     @Test
     fun `navigation uses labelled vector icons from the redesign`() {
-        assertEquals("Huawei.Scale", AppSection.MEASUREMENTS.icon.name)
-        assertEquals("Huawei.Charts", AppSection.CHARTS.icon.name)
-        assertEquals("Huawei.Settings", AppSection.SETTINGS.icon.name)
+        assertEquals("ScaleSync.Scale", AppSection.MEASUREMENTS.icon.name)
+        assertEquals("ScaleSync.Charts", AppSection.CHARTS.icon.name)
+        assertEquals("ScaleSync.Settings", AppSection.SETTINGS.icon.name)
         assertEquals(AppSection.entries.size, AppSection.entries.map { it.icon.name }.distinct().size)
     }
 

@@ -16,7 +16,7 @@ import com.palixander.scalesync.domain.Pet
 import com.palixander.scalesync.domain.PetId
 import com.palixander.scalesync.domain.PetSpecies
 import com.palixander.scalesync.domain.PetWithLatestWeight
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.ui.profiles.ProfileKey
 import com.palixander.scalesync.ui.profiles.ProfilePresentation
 import com.palixander.scalesync.ui.profiles.ProfileSelector
@@ -60,10 +60,10 @@ class ProfileSelectorUiTest {
 
     @Test
     fun petIconsFollowSpeciesAndUnspecifiedUsesSafeProfileFallback() {
-        assertEquals(HuaweiIcons.Cat, ProfilePresentation.Pet(pet("cat", PetSpecies.CAT)).selectorIcon())
-        assertEquals(HuaweiIcons.Dog, ProfilePresentation.Pet(pet("dog", PetSpecies.DOG)).selectorIcon())
+        assertEquals(ScaleSyncIcons.Cat, ProfilePresentation.Pet(pet("cat", PetSpecies.CAT)).selectorIcon())
+        assertEquals(ScaleSyncIcons.Dog, ProfilePresentation.Pet(pet("dog", PetSpecies.DOG)).selectorIcon())
         assertEquals(
-            HuaweiIcons.Profile,
+            ScaleSyncIcons.Profile,
             ProfilePresentation.Pet(pet("legacy", PetSpecies.UNSPECIFIED)).selectorIcon(),
         )
     }

@@ -24,7 +24,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 
 internal const val HistoryIndicatorAlpha = 0.55f
 
@@ -69,13 +69,13 @@ internal fun HistoryMeasurementIndicators(
         verticalAlignment = Alignment.Bottom,
     ) {
         if (manual) Icon(
-            HuaweiIcons.Keyboard,
+            ScaleSyncIcons.Keyboard,
             contentDescription = null,
             tint = indicatorTint,
             modifier = Modifier.size(20.dp).testTag("$tagPrefix-manual-origin"),
         )
         if (isManuallyEdited) Icon(
-            HuaweiIcons.Edit,
+            ScaleSyncIcons.Edit,
             contentDescription = null,
             tint = indicatorTint,
             modifier = Modifier.size(20.dp).testTag("$tagPrefix-manually-edited"),

@@ -8,6 +8,18 @@ class FragmentParserTest {
     private val parser = FragmentParser()
 
     @Test
+    fun `historical metadata preserves filtering without admitting retired variants in current fragments`() {
+        val input = "issue: 25\nuserVisible: true\ntext: Old change\nflavors: [retiredVariant]"
+        org.junit.jupiter.api.Assertions.assertThrows(GenerationException::class.java) {
+            parser.parse("25-change.yaml", input)
+        }
+        val historical = parser.parse("25-change.yaml", input, historical = true)
+        assertEquals(false, historical.appliesTo(ReleaseFlavor.PERSONAL))
+        val shared = parser.parse("25-change.yaml", input.replace("[retiredVariant]", "[retiredVariant, personal]"), historical = true)
+        assertEquals(true, shared.appliesTo(ReleaseFlavor.PERSONAL))
+    }
+
+    @Test
     fun `parses technical and flavor metadata`() {
         val fragment = parser.parse(
             ".release-notes/25-generator.yaml",
@@ -20,7 +32,7 @@ class FragmentParserTest {
             """.trimIndent(),
         )
         assertEquals(25, fragment.issue)
-        assertEquals(setOf(ReleaseFlavor.PERSONAL), fragment.flavors)
+        assertEquals(setOf("personal"), fragment.flavors)
         assertEquals(false, fragment.suppressReleasedChange)
     }
 

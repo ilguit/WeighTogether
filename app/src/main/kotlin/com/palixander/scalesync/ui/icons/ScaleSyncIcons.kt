@@ -12,7 +12,7 @@ import androidx.compose.ui.unit.dp
  * Small, dependency-free icon set derived from the redesign template's 24 dp line symbols.
  * Use a null content description only when an adjacent label already names the action.
  */
-object HuaweiIcons {
+object ScaleSyncIcons {
     val Language: ImageVector by lazy {
         outlineIcon(
             "Language",
@@ -288,7 +288,7 @@ object HuaweiIcons {
         filledPaths: List<String> = emptyList(),
         autoMirror: Boolean = false,
     ): ImageVector = ImageVector.Builder(
-        name = "Huawei.$name",
+        name = "ScaleSync.$name",
         defaultWidth = 24.dp,
         defaultHeight = 24.dp,
         viewportWidth = 24f,

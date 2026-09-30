@@ -34,7 +34,7 @@ class SplashScreenThemeTest {
         }
 
         assertEquals(
-            R.color.huawei_background,
+            R.color.scalesync_background,
             attributeResource(androidx.core.splashscreen.R.attr.windowSplashScreenBackground),
         )
         val icon = attributeResource(androidx.core.splashscreen.R.attr.windowSplashScreenAnimatedIcon)

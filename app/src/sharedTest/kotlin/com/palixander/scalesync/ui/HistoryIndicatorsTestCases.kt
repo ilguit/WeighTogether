@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.measurements.*
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.profiles.PetHistoryMeasurementDetails
 import com.palixander.scalesync.ui.profiles.PetHistoryMeasurementUi
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
@@ -53,7 +53,7 @@ abstract class HistoryIndicatorsTestCases {
                 Column(Modifier.width(360.dp)) {
                     MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), expanded.value,
                         { expanded.value = it }, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
-                    HuaweiSurface {
+                    ScaleSyncSurface {
                         PetHistoryMeasurementDetails(pet(MeasurementOrigin.MANUAL, true), true, {}, {})
                     }
                 }
@@ -79,7 +79,7 @@ abstract class HistoryIndicatorsTestCases {
                     Column(Modifier.width(width.value)) {
                         MeasurementHistoryCard(human(origin.value, edited.value), false, {}, {},
                             MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
-                        HuaweiSurface(Modifier.testTag("pet-card")) {
+                        ScaleSyncSurface(Modifier.testTag("pet-card")) {
                             PetHistoryMeasurementDetails(pet(origin.value, edited.value), true, {}, {})
                         }
                     }
@@ -134,7 +134,7 @@ abstract class HistoryIndicatorsTestCases {
                 Column(Modifier.width(360.dp)) {
                     MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), expanded.value,
                         { expanded.value = it }, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
-                    HuaweiSurface {
+                    ScaleSyncSurface {
                         PetHistoryMeasurementDetails(pet(MeasurementOrigin.MANUAL, true), true, { edits++ }, { deletes++ })
                     }
                 }

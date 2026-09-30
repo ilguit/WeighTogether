@@ -53,9 +53,9 @@ class Migration1To2Test {
 
             val measurement = migrated.multiAccountMeasurementDao().get("legacy-id")!!
             assertEquals(accountId, measurement.accountId)
-            assertEquals(ExternalSyncPolicy.USER_LOCAL.name, measurement.externalSyncPolicy)
+            assertEquals(ExternalSyncPolicy.AUTO.name, measurement.externalSyncPolicy)
             assertEquals("AA:BB", measurement.deviceAddress)
-            assertEquals(1_234_567L, measurement.measuredAtEpochMillis)
+            assertEquals(1_234_000L, measurement.measuredAtEpochMillis)
             assertEquals("0102ff", measurement.rawPayloadHex)
             assertEquals(72.25, measurement.weightKg, 0.0)
             assertEquals(501, measurement.impedanceOhm)
@@ -78,7 +78,7 @@ class Migration1To2Test {
             assertEquals("legacy-health-error", measurement.healthConnectError)
             assertEquals(9_876_543L, measurement.createdAtEpochMillis)
             assertNull(measurement.sourcePendingId)
-            assertNull(measurement.deduplicationHash)
+            assertEquals("AA:BB|1234|14450", measurement.deduplicationHash)
         } finally {
             migrated.close()
         }
@@ -226,6 +226,19 @@ class Migration1To2Test {
                 AppDatabase.MIGRATION_3_4,
                 AppDatabase.MIGRATION_4_5,
                 AppDatabase.MIGRATION_5_6,
+                AppDatabase.MIGRATION_6_7,
+                AppDatabase.MIGRATION_7_8,
+                AppDatabase.MIGRATION_8_9,
+                AppDatabase.MIGRATION_9_10,
+                AppDatabase.MIGRATION_10_11,
+                AppDatabase.MIGRATION_11_12,
+                AppDatabase.MIGRATION_12_13,
+                AppDatabase.MIGRATION_13_14,
+                AppDatabase.MIGRATION_14_15,
+                AppDatabase.MIGRATION_15_16,
+                AppDatabase.MIGRATION_16_17,
+                AppDatabase.MIGRATION_17_18,
+                AppDatabase.MIGRATION_18_19,
             )
             .allowMainThreadQueries()
             .build()
@@ -237,7 +250,7 @@ class Migration1To2Test {
         database.execSQL(
             """
             INSERT INTO measurements VALUES (
-                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
+                ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?
             )
             """.trimIndent(),
             arrayOf<Any?>(
@@ -262,9 +275,7 @@ class Migration1To2Test {
                 42,
                 54.85,
                 "legacy-algorithm",
-                SyncStatus.LOCAL_ONLY.name,
                 SyncStatus.FAILED.name,
-                "legacy-huawei-error",
                 "legacy-health-error",
                 9_876_543L,
             ),
@@ -296,9 +307,7 @@ class Migration1To2Test {
                 metabolicAge INTEGER NOT NULL,
                 leanBodyMassKg REAL NOT NULL,
                 algorithmVersion TEXT NOT NULL,
-                huaweiStatus TEXT NOT NULL,
                 healthConnectStatus TEXT NOT NULL,
-                huaweiError TEXT,
                 healthConnectError TEXT,
                 createdAtEpochMillis INTEGER NOT NULL,
                 PRIMARY KEY(id)

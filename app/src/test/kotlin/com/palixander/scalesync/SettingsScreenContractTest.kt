@@ -167,11 +167,11 @@ class SettingsScreenContractTest {
 
     @Test
     fun `settings root destinations keep their approved thematic line icons`() {
-        assertEquals("Huawei.Users", settingsRootIcon(SettingsDestination.PROFILES).name)
-        assertEquals("Huawei.Bluetooth", settingsRootIcon(SettingsDestination.SCALE).name)
-        assertEquals("Huawei.HealthConnect", settingsRootIcon(SettingsDestination.HEALTH_CONNECT).name)
-        assertEquals("Huawei.Archive", settingsRootIcon(SettingsDestination.BACKUP).name)
-        assertEquals("Huawei.Stethoscope", settingsRootIcon(SettingsDestination.DIAGNOSTICS).name)
+        assertEquals("ScaleSync.Users", settingsRootIcon(SettingsDestination.PROFILES).name)
+        assertEquals("ScaleSync.Bluetooth", settingsRootIcon(SettingsDestination.SCALE).name)
+        assertEquals("ScaleSync.HealthConnect", settingsRootIcon(SettingsDestination.HEALTH_CONNECT).name)
+        assertEquals("ScaleSync.Archive", settingsRootIcon(SettingsDestination.BACKUP).name)
+        assertEquals("ScaleSync.Stethoscope", settingsRootIcon(SettingsDestination.DIAGNOSTICS).name)
     }
 
     @Test

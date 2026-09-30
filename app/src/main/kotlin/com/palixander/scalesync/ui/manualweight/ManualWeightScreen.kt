@@ -19,8 +19,8 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.R
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
@@ -65,8 +65,8 @@ fun ManualWeightScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         Row {
-            HuaweiIconButton(
-                icon = HuaweiIcons.Back,
+            ScaleSyncIconButton(
+                icon = ScaleSyncIcons.Back,
                 contentDescription = stringResource(R.string.manual_weight_back),
                 onClick = onBack,
                 modifier = Modifier.testTag(ManualWeightTags.Back),

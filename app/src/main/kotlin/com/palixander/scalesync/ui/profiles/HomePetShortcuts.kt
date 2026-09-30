@@ -28,10 +28,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
+import com.palixander.scalesync.ui.components.ScaleSyncFilterButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 
 object HomePetShortcutsTestTags {
     const val Block = "home-pet-shortcuts"
@@ -63,7 +63,7 @@ fun HomePetShortcuts(
         val naturalWidths = pets.map { pet ->
             subcompose("probe-${pet.key.petId.value}") {
                 Box(Modifier.clearAndSetSemantics {}) {
-                    HuaweiFilterButton(
+                    ScaleSyncFilterButton(
                         text = pet.displayName,
                         icon = pet.selectorIcon(),
                         leadingContent = pet.photoPath()?.let { path -> {
@@ -102,7 +102,7 @@ fun HomePetShortcuts(
                     if (columnIndex < remainder) 1 else 0
                 val pet = pets[petIndex]
                 subcompose("pet-${pet.key.petId.value}") {
-                    HuaweiFilterButton(
+                    ScaleSyncFilterButton(
                         text = pet.displayName,
                         icon = pet.selectorIcon(),
                         leadingContent = pet.photoPath()?.let { path -> {
@@ -118,7 +118,7 @@ fun HomePetShortcuts(
         val rowHeights = measuredRows.map { row -> row.maxOfOrNull { it.height } ?: 0 }
         val buttonsHeight = rowHeights.sum() + gap * (rowHeights.size - 1).coerceAtLeast(0)
         val add = if (expanded && pets.isEmpty()) subcompose("add") {
-            HuaweiFilterButton(
+            ScaleSyncFilterButton(
                 text = addPetLabel,
                 onClick = onAddPet,
                 modifier = Modifier.testTag(HomePetShortcutsTestTags.Add),
@@ -147,7 +147,7 @@ fun HomePetShortcuts(
                 contentAlignment = Alignment.Center,
             ) {
                 Icon(
-                    imageVector = HuaweiIcons.ChevronDown,
+                    imageVector = ScaleSyncIcons.ChevronDown,
                     contentDescription = null,
                     modifier = Modifier.size(16.dp).rotate(if (expanded) 180f else 0f),
                 )

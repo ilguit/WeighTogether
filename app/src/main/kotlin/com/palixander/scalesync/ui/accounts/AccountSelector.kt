@@ -16,8 +16,8 @@ import androidx.compose.ui.semantics.semantics
 import com.palixander.scalesync.domain.AccountId
 import com.palixander.scalesync.R
 import com.palixander.scalesync.ui.text.resolve
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncFilterButton
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 object AccountSelectorTestTags {
     const val Selector = "account-selector"
@@ -41,17 +41,17 @@ fun AccountSelector(
             .fillMaxWidth()
             .testTag(AccountSelectorTestTags.Selector)
             .semantics { contentDescription = selectorDescription },
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
         Text(label ?: stringResource(R.string.account_selector_label), style = MaterialTheme.typography.labelLarge)
         if (state.accounts.isNotEmpty()) {
             FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
-                verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
+                verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
             ) {
                 state.accounts.forEach { account ->
                     val primarySuffix = if (account.id == state.primaryAccountId) primarySuffixText else ""
-                    HuaweiFilterButton(
+                    ScaleSyncFilterButton(
                         text = account.displayName,
                         selected = account.id == state.selectedAccountId,
                         enabled = !state.isLoading,

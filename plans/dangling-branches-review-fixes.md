@@ -7,7 +7,7 @@
 ## 1. Исправить импорт `weight` в графиках
 
 - Ветка: `agent/charts-ui`.
-- Файл: `app/src/main/kotlin/com/example/huaweimisync/charts/ChartsScreen.kt`.
+- Файл: `app/src/main/kotlin/com/palixander/scalesync/charts/ChartsScreen.kt`.
 - Удалить импорт `androidx.compose.foundation.layout.weight`, который разрешается во внутренний API Compose.
 - Оставить вызов `Modifier.weight(1f)` внутри `Row`, где доступен `RowScope.weight`.
 - Проверить, что строка с названием показателя занимает оставшуюся ширину и не ломает компиляцию.
@@ -15,7 +15,7 @@
 ## 2. Подключить Vico extension `rememberLine`
 
 - Ветка: `agent/charts-ui`.
-- Файл: `app/src/main/kotlin/com/example/huaweimisync/charts/ChartsScreen.kt`.
+- Файл: `app/src/main/kotlin/com/palixander/scalesync/charts/ChartsScreen.kt`.
 - Добавить импорт `com.patrykandpatrick.vico.compose.cartesian.layer.rememberLine`.
 - Не менять закреплённую версию Vico `3.2.1`.
 - Проверить создание линии, точек и marker после компиляции.
@@ -23,9 +23,9 @@
 ## 3. Добавить предупреждение перед сохранением локальной правки
 
 - Ветка: `agent/measurements-ui`.
-- Файл: `app/src/main/kotlin/com/example/huaweimisync/measurements/MeasurementsScreen.kt`.
+- Файл: `app/src/main/kotlin/com/palixander/scalesync/measurements/MeasurementsScreen.kt`.
 - В информационном блоке редактора явно сообщить, что изменение затронет только локальную запись.
-- Уточнить, что уже отправленные данные в Health Connect и Huawei Health не обновятся и не удалятся.
+- Уточнить, что уже отправленные данные в Health Connect не обновятся и не удалятся.
 - Показать предупреждение до кнопок сохранения, не скрывая существующую информацию о неизменяемой дате, устройстве и исходных данных.
 
 ## 4. Объединить зависимые ветки в правильном порядке
@@ -40,10 +40,8 @@
 После исправлений и объединения выполнить:
 
 ```bash
-./gradlew testPersonalDebugUnitTest
-./gradlew testHuaweiEnterpriseDebugUnitTest
-./gradlew assemblePersonalDebug
-./gradlew assembleHuaweiEnterpriseDebug
+./gradlew testDebugUnitTest
+./gradlew assembleDebug
 ```
 
 Ручная проверка:

@@ -40,12 +40,12 @@ import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 /** Draws the palette behind transparent edge-to-edge system bars without consuming insets. */
 @Composable
-fun HuaweiSystemBarBackgrounds(modifier: Modifier = Modifier) {
+fun ScaleSyncSystemBarBackgrounds(modifier: Modifier = Modifier) {
     Box(modifier = modifier.fillMaxSize()) {
         Spacer(
             Modifier
@@ -65,9 +65,9 @@ fun HuaweiSystemBarBackgrounds(modifier: Modifier = Modifier) {
 }
 
 @Composable
-fun HuaweiSurface(
+fun ScaleSyncSurface(
     modifier: Modifier = Modifier,
-    contentPadding: PaddingValues = PaddingValues(HuaweiDimensions.ContentPadding),
+    contentPadding: PaddingValues = PaddingValues(ScaleSyncDimensions.ContentPadding),
     containerColor: Color = MaterialTheme.colorScheme.surface,
     content: @Composable () -> Unit,
 ) {
@@ -83,7 +83,7 @@ fun HuaweiSurface(
 }
 
 @Composable
-fun HuaweiSectionTitle(
+fun ScaleSyncSectionTitle(
     text: String,
     modifier: Modifier = Modifier,
 ) {
@@ -96,7 +96,7 @@ fun HuaweiSectionTitle(
 }
 
 @Composable
-fun HuaweiFilterButton(
+fun ScaleSyncFilterButton(
     text: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
@@ -108,7 +108,7 @@ fun HuaweiFilterButton(
     OutlinedButton(
         onClick = onClick,
         modifier = modifier
-            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .heightIn(min = ScaleSyncDimensions.TouchTarget)
             .semantics { this.selected = selected },
         enabled = enabled,
         shape = MaterialTheme.shapes.medium,
@@ -143,7 +143,7 @@ fun HuaweiFilterButton(
 }
 
 @Composable
-fun HuaweiSettingRow(
+fun ScaleSyncSettingRow(
     icon: ImageVector,
     title: String,
     supportingText: String,
@@ -162,11 +162,11 @@ fun HuaweiSettingRow(
         modifier = modifier
             .fillMaxWidth()
             .then(interactionModifier)
-            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .heightIn(min = ScaleSyncDimensions.TouchTarget)
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        HuaweiRowIcon(icon = icon)
+        ScaleSyncRowIcon(icon = icon)
         androidx.compose.foundation.layout.Column(
             modifier = Modifier.padding(horizontal = 12.dp).weight(1f),
         ) {
@@ -189,13 +189,13 @@ fun HuaweiSettingRow(
 }
 
 @Composable
-fun HuaweiRowIcon(
+fun ScaleSyncRowIcon(
     icon: ImageVector,
     modifier: Modifier = Modifier,
     contentDescription: String? = null,
 ) {
     Surface(
-        modifier = modifier.size(HuaweiDimensions.RowIconContainer),
+        modifier = modifier.size(ScaleSyncDimensions.RowIconContainer),
         shape = MaterialTheme.shapes.medium,
         color = MaterialTheme.colorScheme.secondaryContainer,
         contentColor = MaterialTheme.colorScheme.primary,
@@ -204,14 +204,14 @@ fun HuaweiRowIcon(
             Icon(
                 imageVector = icon,
                 contentDescription = contentDescription,
-                modifier = Modifier.size(HuaweiDimensions.Icon),
+                modifier = Modifier.size(ScaleSyncDimensions.Icon),
             )
         }
     }
 }
 
 @Composable
-fun HuaweiIconButton(
+fun ScaleSyncIconButton(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
@@ -222,20 +222,20 @@ fun HuaweiIconButton(
     IconButton(
         onClick = onClick,
         modifier = modifier
-            .size(HuaweiDimensions.TouchTarget),
+            .size(ScaleSyncDimensions.TouchTarget),
         enabled = enabled,
         colors = colors,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = contentDescription,
-            modifier = Modifier.size(HuaweiDimensions.Icon),
+            modifier = Modifier.size(ScaleSyncDimensions.Icon),
         )
     }
 }
 
 @Immutable
-enum class HuaweiStatusTone {
+enum class ScaleSyncStatusTone {
     Success,
     Pending,
     Warning,
@@ -244,26 +244,26 @@ enum class HuaweiStatusTone {
 }
 
 @Composable
-fun HuaweiStatusAction(
+fun ScaleSyncStatusAction(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    tone: HuaweiStatusTone = HuaweiStatusTone.Success,
+    tone: ScaleSyncStatusTone = ScaleSyncStatusTone.Success,
     enabled: Boolean = true,
 ) {
     val (containerColor, contentColor) = when (tone) {
-        HuaweiStatusTone.Success -> Color.Transparent to MaterialTheme.colorScheme.primary
-        HuaweiStatusTone.Pending -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
-        HuaweiStatusTone.Warning -> HuaweiColors.WarningContainer to HuaweiColors.Warning
-        HuaweiStatusTone.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
-        HuaweiStatusTone.Local -> HuaweiColors.LocalContainer to HuaweiColors.Local
+        ScaleSyncStatusTone.Success -> Color.Transparent to MaterialTheme.colorScheme.primary
+        ScaleSyncStatusTone.Pending -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
+        ScaleSyncStatusTone.Warning -> ScaleSyncColors.WarningContainer to ScaleSyncColors.Warning
+        ScaleSyncStatusTone.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
+        ScaleSyncStatusTone.Local -> ScaleSyncColors.LocalContainer to ScaleSyncColors.Local
     }
-    HuaweiIconButton(
+    ScaleSyncIconButton(
         icon = icon,
         contentDescription = contentDescription,
         onClick = onClick,
-        modifier = modifier.widthIn(min = HuaweiDimensions.TouchTarget),
+        modifier = modifier.widthIn(min = ScaleSyncDimensions.TouchTarget),
         enabled = enabled,
         colors = IconButtonDefaults.iconButtonColors(
             containerColor = containerColor,

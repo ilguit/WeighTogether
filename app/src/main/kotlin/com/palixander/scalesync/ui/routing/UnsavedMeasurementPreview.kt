@@ -57,8 +57,8 @@ import com.palixander.scalesync.ui.reference.ReferenceMetricPresentation
 import com.palixander.scalesync.ui.reference.ReferencePresentationFactory
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import com.palixander.scalesync.ui.text.resolve
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import java.time.ZoneId
 
 object UnsavedPreviewTestTags {
@@ -194,7 +194,7 @@ fun UnsavedMeasurementPreviewDialog(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Next),
                 ) { Text(stringResource(R.string.unsaved_preview_calculate_metrics)) }
                 UnsavedPreviewStep.PROFILE_EDITOR -> {
@@ -207,7 +207,7 @@ fun UnsavedMeasurementPreviewDialog(
                         enabled = validation.isValid && !state.isCalculating,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .heightIn(min = HuaweiDimensions.TouchTarget)
+                            .heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag(UnsavedPreviewTestTags.Calculate),
                     ) {
                         if (state.isCalculating) {
@@ -230,7 +230,7 @@ fun UnsavedMeasurementPreviewDialog(
                     onClick = requestClose,
                     enabled = !closeRequested.value,
                     modifier = Modifier
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Close),
                 ) { Text(stringResource(R.string.action_close)) }
             } else {
@@ -238,7 +238,7 @@ fun UnsavedMeasurementPreviewDialog(
                     onClick = requestBack,
                     enabled = !state.isCalculating,
                     modifier = Modifier
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(UnsavedPreviewTestTags.Back),
                 ) { Text(stringResource(R.string.action_back)) }
             }
@@ -256,8 +256,8 @@ private fun UnsavedPreviewContext(step: UnsavedPreviewStep) {
             style = MaterialTheme.typography.labelLarge,
         )
         Surface(
-            color = HuaweiColors.WarningContainer,
-            contentColor = HuaweiColors.OnWarningContainer,
+            color = ScaleSyncColors.WarningContainer,
+            contentColor = ScaleSyncColors.OnWarningContainer,
             shape = MaterialTheme.shapes.medium,
             modifier = Modifier
                 .fillMaxWidth()
@@ -276,7 +276,7 @@ private fun UnsavedPreviewContext(step: UnsavedPreviewStep) {
 internal fun UnsavedPreviewTitle(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
         Text(
             stringResource(R.string.unsaved_preview_title),
@@ -289,8 +289,8 @@ internal fun UnsavedPreviewTitle(modifier: Modifier = Modifier) {
 @Composable
 private fun UnsavedBadge() {
     Surface(
-        color = HuaweiColors.WarningContainer,
-        contentColor = HuaweiColors.OnWarningContainer,
+        color = ScaleSyncColors.WarningContainer,
+        contentColor = ScaleSyncColors.OnWarningContainer,
         shape = MaterialTheme.shapes.small,
         modifier = Modifier.testTag(UnsavedPreviewTestTags.UnsavedBadge),
     ) {

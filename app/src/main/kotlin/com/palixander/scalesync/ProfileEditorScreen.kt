@@ -32,9 +32,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.core.Sex
-import com.palixander.scalesync.ui.components.HuaweiFilterButton
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncFilterButton
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.resolve
 
 @Composable
@@ -57,10 +57,10 @@ internal fun ProfileEditorScreen(
                 .widthIn(max = 720.dp)
                 .testTag(SettingsScreenTestTags.ProfileEditor),
             contentPadding = PaddingValues(
-                horizontal = HuaweiDimensions.ContentPadding,
-                vertical = HuaweiDimensions.CompactItemSpacing,
+                horizontal = ScaleSyncDimensions.ContentPadding,
+                vertical = ScaleSyncDimensions.CompactItemSpacing,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item {
                 Text(
@@ -84,8 +84,8 @@ internal fun ProfileEditorScreen(
                 }
             }
             item {
-                HuaweiSurface {
-                    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+                ScaleSyncSurface {
+                    Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing)) {
                         OutlinedTextField(
                             value = state.height,
                             onValueChange = onHeightChanged,
@@ -106,11 +106,11 @@ internal fun ProfileEditorScreen(
                         Text(stringResource(R.string.settings_sex), style = MaterialTheme.typography.titleSmall)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(
-                                HuaweiDimensions.CompactItemSpacing,
+                                ScaleSyncDimensions.CompactItemSpacing,
                             ),
                         ) {
                             Sex.entries.forEach { option ->
-                                HuaweiFilterButton(
+                                ScaleSyncFilterButton(
                                     text = stringResource(if (option == Sex.MALE) R.string.settings_sex_male else R.string.settings_sex_female),
                                     onClick = { onSexChanged(option) },
                                     selected = state.sex == option,
@@ -121,7 +121,7 @@ internal fun ProfileEditorScreen(
                     }
                 }
             }
-            item { Spacer(Modifier.height(HuaweiDimensions.ItemSpacing)) }
+            item { Spacer(Modifier.height(ScaleSyncDimensions.ItemSpacing)) }
         }
     }
 }
@@ -142,8 +142,8 @@ internal fun ProfileEditorSaveBar(
             onClick = onSave,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp)
-                .heightIn(min = HuaweiDimensions.TouchTarget),
+                .padding(horizontal = ScaleSyncDimensions.ContentPadding, vertical = 12.dp)
+                .heightIn(min = ScaleSyncDimensions.TouchTarget),
             shape = MaterialTheme.shapes.medium,
         ) {
             Text(stringResource(R.string.settings_save_profile))

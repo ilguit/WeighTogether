@@ -15,7 +15,7 @@ class FragmentParser {
     private val yaml = Load(settings)
     private val parser = Parse(settings)
 
-    fun parse(path: String, input: String): ReleaseNoteFragment {
+    fun parse(path: String, input: String, historical: Boolean = false): ReleaseNoteFragment {
         val fileIssue = FILE_NAME.matchEntire(path.substringAfterLast('/'))?.groupValues?.get(1)?.toIntOrNull()
             ?: fail(path, "filename must match <positive-issue>-<lowercase-slug>.yaml")
         val document = try {
@@ -70,7 +70,11 @@ class FragmentParser {
                 if (value.isEmpty() || value.any { it !is String }) {
                     fail(path, "field 'flavors' must be a non-empty string list")
                 }
-                value.map { ReleaseFlavor.fromId(it as String) }.toSet().also {
+                value.map {
+                    val id = it as String
+                    if (!historical) ReleaseFlavor.fromId(id)
+                    id
+                }.toSet().also {
                     if (it.size != value.size) fail(path, "field 'flavors' must not contain duplicates")
                 }
             }

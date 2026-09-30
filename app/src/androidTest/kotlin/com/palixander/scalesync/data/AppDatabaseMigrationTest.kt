@@ -2,7 +2,6 @@ package com.palixander.scalesync.data
 
 import android.content.Context
 import androidx.room.Room
-import androidx.room.testing.MigrationTestHelper
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -33,7 +32,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class AppDatabaseMigrationTest {
     @get:Rule
-    val helper = MigrationTestHelper(
+    val helper = RetainedMigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
         AppDatabase::class.java,
     )
@@ -94,17 +93,18 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
-    fun migrate14To15RetainsMeasurementAndDropsHuaweiColumns() {
+    fun migrate14To15RetainsMeasurementAndDropsUnretainedColumns() {
         helper.createDatabase(MIGRATION_14_15_DB, 14).apply {
+            execSQL("ALTER TABLE measurements ADD COLUMN unusedSyncState TEXT")
             execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',180.0,1,'MALE',1,2,3)")
             execSQL(
                 """
                 INSERT INTO measurements VALUES (
                     'm','fingerprint','FULL','AA:BB',123,'00ff',70.5,14100,500,22.0,
                     20.0,14.1,55.0,38.8,40.0,20.0,3.0,18.0,12.6,7.0,1500.0,35,
-                    56.4,'algo','FAILED','SYNCED','legacy Huawei error','health error',1,1,
-                    456,'a','AUTO','pending','dedupe','legacy Huawei snapshot','health snapshot',
-                    179.5,'CAPTURED','SCALE'
+                    56.4,'algo','SYNCED','health error',1,
+                    456,'a','AUTO','pending','dedupe','health snapshot',
+                    179.5,'CAPTURED','SCALE','discarded'
                 )
                 """.trimIndent(),
             )
@@ -128,7 +128,7 @@ class AppDatabaseMigrationTest {
             }
             query("PRAGMA table_info(measurements)").use { cursor ->
                 val columns = buildSet { while (cursor.moveToNext()) add(cursor.getString(1)) }
-                assertFalse(columns.any { it.contains("huawei", ignoreCase = true) })
+                assertFalse("unusedSyncState" in columns)
             }
             close()
         }
@@ -143,8 +143,8 @@ class AppDatabaseMigrationTest {
                 INSERT INTO measurements VALUES (
                     'legacy-id', 'aa:bb:cc:dd:ee:ff', 1786451696000, '0022', 70.0, 500,
                     22.9, 20.0, 14.0, 55.0, 38.5, 40.0, 20.0, 3.0, 18.0, 12.6,
-                    7.0, 1500.0, 35, 56.0, 'legacy-algorithm', 'FAILED', 'BLOCKED',
-                    'huawei-error', 'health-error', 1786451700000
+                    7.0, 1500.0, 35, 56.0, 'legacy-algorithm', 'BLOCKED',
+                    'health-error', 1786451700000
                 )
                 """.trimIndent(),
             )
@@ -153,8 +153,8 @@ class AppDatabaseMigrationTest {
                 INSERT INTO measurements VALUES (
                     'legacy-synced', 'aa:bb:cc:dd:ee:ff', 1786452696000, '0023', 71.0, 510,
                     23.2, 19.0, 13.5, 56.0, 39.8, 41.0, 21.0, 3.1, 18.5, 13.1,
-                    7.0, 1510.0, 35, 57.5, 'legacy-algorithm', 'SYNCED', 'SYNCED',
-                    NULL, NULL, 1786452700000
+                    7.0, 1510.0, 35, 57.5, 'legacy-algorithm', 'SYNCED',
+                    NULL, 1786452700000
                 )
                 """.trimIndent(),
             )
@@ -176,7 +176,6 @@ class AppDatabaseMigrationTest {
                 cursor.getString(cursor.getColumnIndexOrThrow("fingerprint")),
             )
             assertEquals("FULL", cursor.getString(cursor.getColumnIndexOrThrow("measurementType")))
-            assertEquals("FAILED", cursor.getString(cursor.getColumnIndexOrThrow("huaweiStatus")))
             assertEquals(
                 "BLOCKED",
                 cursor.getString(cursor.getColumnIndexOrThrow("healthConnectStatus")),
@@ -184,7 +183,6 @@ class AppDatabaseMigrationTest {
             assertEquals(1786451700000, cursor.getLong(cursor.getColumnIndexOrThrow("createdAtEpochMillis")))
             assertEquals(500, cursor.getInt(cursor.getColumnIndexOrThrow("impedanceOhm")))
             assertEquals(56.0, cursor.getDouble(cursor.getColumnIndexOrThrow("leanBodyMassKg")), 0.0)
-            assertEquals(0, cursor.getInt(cursor.getColumnIndexOrThrow("huaweiWeightSynced")))
             assertEquals(
                 0,
                 cursor.getInt(cursor.getColumnIndexOrThrow("healthConnectWeightSynced")),
@@ -192,7 +190,6 @@ class AppDatabaseMigrationTest {
         }
         migrated.query("SELECT * FROM measurements WHERE id = 'legacy-synced'").use { cursor ->
             assertTrue(cursor.moveToFirst())
-            assertEquals(1, cursor.getInt(cursor.getColumnIndexOrThrow("huaweiWeightSynced")))
             assertEquals(
                 1,
                 cursor.getInt(cursor.getColumnIndexOrThrow("healthConnectWeightSynced")),
@@ -218,11 +215,11 @@ class AppDatabaseMigrationTest {
                     """
                     INSERT INTO measurements (
                         id, fingerprint, measurementType, deviceAddress, measuredAtEpochMillis,
-                        rawPayloadHex, weightKg, huaweiStatus, healthConnectStatus,
-                        huaweiWeightSynced, healthConnectWeightSynced, createdAtEpochMillis,
+                        rawPayloadHex, weightKg, healthConnectStatus,
+                        healthConnectWeightSynced, createdAtEpochMillis,
                         accountId, externalSyncPolicy
                     ) VALUES (?, ?, 'WEIGHT_ONLY', 'AA:BB:CC:DD:EE:FF', ?, '00', 70.0,
-                        'PENDING', 'PENDING', 0, 0, 30, 'account', 'AUTO')
+                        'PENDING', 0, 30, 'account', 'AUTO')
                     """.trimIndent(),
                     arrayOf<Any>(id, "fingerprint-$id", millis),
                 )
@@ -284,7 +281,6 @@ class AppDatabaseMigrationTest {
                 second: Long,
                 nano: Int,
                 accountId: String,
-                huaweiStatus: String,
                 healthStatus: String,
                 sourcePendingId: String?,
                 deduplicationHash: String,
@@ -294,11 +290,11 @@ class AppDatabaseMigrationTest {
                     INSERT INTO measurements (
                         id, fingerprint, measurementType, deviceAddress, measuredAtEpochMillis,
                         measuredAtEpochSecond, measuredAtNano, rawPayloadHex, weightKg,
-                        huaweiStatus, healthConnectStatus, huaweiError, healthConnectError,
-                        huaweiWeightSynced, healthConnectWeightSynced, createdAtEpochMillis,
+                        healthConnectStatus, healthConnectError,
+                        healthConnectWeightSynced, createdAtEpochMillis,
                         accountId, externalSyncPolicy, sourcePendingId, deduplicationHash
                     ) VALUES (?, ?, 'WEIGHT_ONLY', 'AA:BB:CC:DD:EE:FF', ?, ?, ?, '00', 70.005,
-                        ?, ?, 'huawei-error', 'health-error', 1, 0, 30, ?, 'AUTO', ?, ?)
+                        ?, 'health-error', 0, 30, ?, 'AUTO', ?, ?)
                     """.trimIndent(),
                     arrayOf<Any?>(
                         id,
@@ -306,7 +302,6 @@ class AppDatabaseMigrationTest {
                         millis,
                         second,
                         nano,
-                        huaweiStatus,
                         healthStatus,
                         accountId,
                         sourcePendingId,
@@ -321,7 +316,6 @@ class AppDatabaseMigrationTest {
                 second = 1L,
                 nano = 234_000_000,
                 accountId = "account-a",
-                huaweiStatus = "SYNCED",
                 healthStatus = "FAILED",
                 sourcePendingId = "old-pending-a",
                 deduplicationHash = "hash-a",
@@ -333,7 +327,6 @@ class AppDatabaseMigrationTest {
                 second = 1L,
                 nano = 999_000_000,
                 accountId = "account-b",
-                huaweiStatus = "BLOCKED",
                 healthStatus = "SYNCED",
                 sourcePendingId = "old-pending-b",
                 deduplicationHash = "hash-b",
@@ -360,8 +353,8 @@ class AppDatabaseMigrationTest {
         migrated.query(
             """
             SELECT id, fingerprint, measuredAtEpochSecond, rawWeight, accountId,
-                huaweiStatus, healthConnectStatus, huaweiError, healthConnectError,
-                huaweiWeightSynced, healthConnectWeightSynced, sourcePendingId,
+                healthConnectStatus, healthConnectError,
+                healthConnectWeightSynced, sourcePendingId,
                 deduplicationHash
             FROM measurements ORDER BY id
             """.trimIndent(),
@@ -372,14 +365,11 @@ class AppDatabaseMigrationTest {
             assertEquals(1L, it.getLong(2))
             assertEquals(14_001, it.getInt(3))
             assertEquals("account-a", it.getString(4))
-            assertEquals("SYNCED", it.getString(5))
-            assertEquals("FAILED", it.getString(6))
-            assertEquals("huawei-error", it.getString(7))
-            assertEquals("health-error", it.getString(8))
-            assertEquals(1, it.getInt(9))
-            assertEquals(0, it.getInt(10))
-            assertEquals("old-pending-a", it.getString(11))
-            assertEquals("hash-a", it.getString(12))
+            assertEquals("FAILED", it.getString(5))
+            assertEquals("health-error", it.getString(6))
+            assertEquals(0, it.getInt(7))
+            assertEquals("old-pending-a", it.getString(8))
+            assertEquals("hash-a", it.getString(9))
             assertTrue(it.moveToNext())
             assertEquals("duplicate-b", it.getString(0))
             assertEquals(1L, it.getLong(2))
@@ -445,14 +435,14 @@ class AppDatabaseMigrationTest {
                     bodyFatMassKg, waterPercent, waterMassKg, muscleMassKg,
                     skeletalMuscleMassKg, boneMassKg, proteinPercent, proteinMassKg,
                     visceralFatLevel, basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
-                    algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                    healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
+                    algorithmVersion, healthConnectStatus,
+                    healthConnectError, healthConnectWeightSynced,
                     createdAtEpochMillis, accountId, externalSyncPolicy
                 ) VALUES (
                     'measurement', 'fingerprint', 'FULL', 'AA:BB:CC:DD:EE:FF', 1786451696,
                     '00', 70.0, 14000, 500, 22.9, 20.0, 14.0, 55.0, 38.5, 40.0,
                     20.0, 3.0, 18.0, 12.6, 7.0, 1500.0, 35, 56.0, 'algorithm',
-                    'SYNCED', 'FAILED', NULL, 'retry', 1, 0, 30, 'account', 'AUTO'
+                    'FAILED', 'retry', 0, 30, 'account', 'AUTO'
                 )
                 """.trimIndent(),
             )
@@ -468,20 +458,17 @@ class AppDatabaseMigrationTest {
 
         migrated.query(
             """
-            SELECT accountId, huaweiStatus, healthConnectStatus, huaweiWeightSynced,
-                healthConnectWeightSynced, huaweiSyncedCalculatedValues,
+            SELECT accountId, healthConnectStatus,
+                healthConnectWeightSynced,
                 healthConnectSyncedCalculatedValues
             FROM measurements WHERE id = 'measurement'
             """.trimIndent(),
         ).use {
             assertTrue(it.moveToFirst())
             assertEquals("account", it.getString(0))
-            assertEquals("SYNCED", it.getString(1))
-            assertEquals("FAILED", it.getString(2))
-            assertEquals(1, it.getInt(3))
-            assertEquals(0, it.getInt(4))
-            assertTrue(it.isNull(5))
-            assertTrue(it.isNull(6))
+            assertEquals("FAILED", it.getString(1))
+            assertEquals(0, it.getInt(2))
+            assertTrue(it.isNull(3))
         }
         migrated.query("SELECT displayName FROM accounts WHERE id = 'account'").use {
             assertTrue(it.moveToFirst())
@@ -590,8 +577,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
 
         repeat(20) { index ->
@@ -619,8 +605,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun stalePartialSyncResultMarksWeightWithoutCompletingUpgradedRow() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val partial = weightOnlyEntity(100)
         dao.upsertScaleMeasurement(partial)
@@ -642,8 +627,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun pendingQueriesExcludeHealthConnectLocalOnlyRows() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         dao.insert(
             fullEntity(weightOnlyEntity(200)).copy(
@@ -662,8 +646,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun successfulSyncResultStoresHealthConnectCalculatedSnapshot() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val measurement = fullEntity(weightOnlyEntity(250))
         dao.insert(measurement)
@@ -685,8 +668,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun staleWeightOnlyEditorSnapshotCannotDowngradeConcurrentFullUpgrade() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val partial = weightOnlyEntity(300)
         dao.upsertScaleMeasurement(partial)
@@ -703,6 +685,25 @@ class AppDatabaseMigrationTest {
         assertEquals(70.0, stored?.weightKg ?: 0.0, 0.0)
         assertEquals(500, stored?.impedanceOhm)
         assertTrue(stored?.fullValues != null)
+    }
+
+    private suspend fun createMeasurementDatabase(): AppDatabase {
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        openedDatabase = database
+        database.accountDao().insert(
+            AccountEntity(
+                id = LEGACY_UNASSIGNED_ACCOUNT_ID,
+                displayName = "Test",
+                normalizedName = "test",
+                heightCm = null,
+                birthDateEpochDay = null,
+                sex = null,
+                isProfileComplete = false,
+                createdAtEpochMillis = 0,
+                updatedAtEpochMillis = 0,
+            ),
+        )
+        return database
     }
 
     private fun weightOnlyEntity(index: Int) = MeasurementEntity(

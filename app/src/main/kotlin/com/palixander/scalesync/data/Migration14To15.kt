@@ -3,7 +3,7 @@ package com.palixander.scalesync.data
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 
-/** Adds the pet edit marker and removes retired Huawei state without touching measurement data. */
+/** Adds the pet edit marker and removes unretained columns without touching measurement data. */
 object Migration14To15 : Migration(14, 15) {
     override fun migrate(db: SupportSQLiteDatabase) {
         db.execSQL(

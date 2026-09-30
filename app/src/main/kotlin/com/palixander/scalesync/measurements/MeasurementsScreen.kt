@@ -86,17 +86,17 @@ import androidx.compose.ui.res.pluralStringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.core.BodyMetric
 import com.palixander.scalesync.domain.PendingMeasurementId
-import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
 import com.palixander.scalesync.ui.currentAppLocale
-import com.palixander.scalesync.ui.components.HuaweiRowIcon
-import com.palixander.scalesync.ui.components.HuaweiSectionTitle
-import com.palixander.scalesync.ui.components.HuaweiStatusAction
-import com.palixander.scalesync.ui.components.HuaweiStatusTone
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.components.ScaleSyncRowIcon
+import com.palixander.scalesync.ui.components.ScaleSyncSectionTitle
+import com.palixander.scalesync.ui.components.ScaleSyncStatusAction
+import com.palixander.scalesync.ui.components.ScaleSyncStatusTone
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.ui.accounts.AccountSelector
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.theme.ReferencePalette
 import com.palixander.scalesync.ui.theme.ReferenceTone
 import com.palixander.scalesync.ui.text.resolve
@@ -188,8 +188,8 @@ fun MeasurementsScreen(
                 state = state.accountSelector,
                 onAccountSelected = callbacks.onAccountSelected,
                 modifier = Modifier.padding(
-                    horizontal = HuaweiDimensions.ContentPadding,
-                    vertical = HuaweiDimensions.CompactContentPadding,
+                    horizontal = ScaleSyncDimensions.ContentPadding,
+                    vertical = ScaleSyncDimensions.CompactContentPadding,
                 ),
             )
         }
@@ -304,10 +304,10 @@ private fun PendingQueueDestination(
             .fillMaxWidth()
             .testTag("pending-queue"),
         contentPadding = PaddingValues(
-            horizontal = HuaweiDimensions.ContentPadding,
-            vertical = HuaweiDimensions.CompactContentPadding,
+            horizontal = ScaleSyncDimensions.ContentPadding,
+            vertical = ScaleSyncDimensions.CompactContentPadding,
         ),
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
     ) {
         item {
             NestedScreenHeader(
@@ -325,7 +325,7 @@ private fun PendingQueueDestination(
                     enabled = !isClearInProgress,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("pending-clear-all"),
                 ) {
                     Text(stringResource(R.string.action_clear_all))
@@ -356,7 +356,7 @@ private fun ClearPendingDialog(
     AlertDialog(
         modifier = Modifier.testTag("pending-clear-dialog"),
         onDismissRequest = { if (!confirmation.isClearing) onDismiss() },
-        icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
+        icon = { Icon(ScaleSyncIcons.Delete, contentDescription = null) },
         title = { Text(stringResource(R.string.measurement_clear_pending_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -381,7 +381,7 @@ private fun ClearPendingDialog(
                 onClick = onConfirm,
                 enabled = !confirmation.isClearing,
                 modifier = Modifier
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .testTag("pending-clear-confirm"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
@@ -395,7 +395,7 @@ private fun ClearPendingDialog(
             TextButton(
                 onClick = onDismiss,
                 enabled = !confirmation.isClearing,
-                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget),
             ) { Text(stringResource(R.string.action_cancel)) }
         },
     )
@@ -408,7 +408,7 @@ private fun PendingMeasurementCard(
     onPreview: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("pending-card-${pending.id.value}"),
@@ -447,7 +447,7 @@ private fun PendingMeasurementCard(
                     enabled = pending.canAssign,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("pending-assign-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
@@ -458,7 +458,7 @@ private fun PendingMeasurementCard(
                     enabled = pending.canPreview,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("pending-preview-${pending.id.value}"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
@@ -469,14 +469,14 @@ private fun PendingMeasurementCard(
                     enabled = pending.canDelete,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("pending-delete-${pending.id.value}"),
                     colors = ButtonDefaults.textButtonColors(
                         contentColor = MaterialTheme.colorScheme.error,
                     ),
                 ) {
                     Icon(
-                        imageVector = HuaweiIcons.Delete,
+                        imageVector = ScaleSyncIcons.Delete,
                         contentDescription = null,
                         modifier = Modifier.size(18.dp),
                     )
@@ -489,9 +489,9 @@ private fun PendingMeasurementCard(
 
 @Composable
 private fun ProcessingStatus(modifier: Modifier = Modifier) {
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = modifier.fillMaxWidth(),
-        containerColor = HuaweiColors.SurfaceInfo,
+        containerColor = ScaleSyncColors.SurfaceInfo,
         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
     ) {
         Text(
@@ -524,7 +524,7 @@ private fun PendingMeasurementValue(
 
 @Composable
 private fun EmptyPendingQueueCard() {
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag("empty-pending-queue"),
@@ -535,7 +535,7 @@ private fun EmptyPendingQueueCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle(stringResource(R.string.measurement_no_pending))
+            ScaleSyncSectionTitle(stringResource(R.string.measurement_no_pending))
             Text(
                 stringResource(R.string.measurement_all_processed),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -561,10 +561,10 @@ private fun MeasurementSummaryScreen(
             modifier = Modifier.widthIn(max = 680.dp).fillMaxSize()
                 .testTag("measurement-summary-list"),
             contentPadding = PaddingValues(
-                horizontal = HuaweiDimensions.ContentPadding,
-                vertical = HuaweiDimensions.CompactContentPadding,
+                horizontal = ScaleSyncDimensions.ContentPadding,
+                vertical = ScaleSyncDimensions.CompactContentPadding,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item(key = "summary-header") { summaryHeader() }
             when {
@@ -636,12 +636,12 @@ private fun MeasurementSummaryCard(
         shape = MaterialTheme.shapes.extraLarge,
         color = MaterialTheme.colorScheme.primaryContainer,
         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-        border = BorderStroke(1.dp, HuaweiColors.PrimaryContainerDim),
+        border = BorderStroke(1.dp, ScaleSyncColors.PrimaryContainerDim),
     ) {
         Column(
             Modifier.padding(
                 horizontal = 16.dp,
-                vertical = HuaweiDimensions.CompactContentPadding,
+                vertical = ScaleSyncDimensions.CompactContentPadding,
             ),
         ) {
             SummaryHeader(
@@ -649,16 +649,16 @@ private fun MeasurementSummaryCard(
                     Text(
                         text = localizedMeasurementDateTime(summary.latest.measuredAt),
                         modifier = Modifier.testTag("summary-date"),
-                        color = HuaweiColors.Secondary,
+                        color = ScaleSyncColors.Secondary,
                         style = MaterialTheme.typography.bodySmall,
                     )
                 },
                 history = {
                     TextButton(
                         onClick = onHistoryRequested,
-                        modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)
+                        modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)
                             .testTag("summary-history"),
-                        colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
+                        colors = ButtonDefaults.textButtonColors(contentColor = ScaleSyncColors.PrimaryPressed),
                     ) { Text(stringResource(R.string.measurement_history_action)) }
                 },
                 actions = {
@@ -674,8 +674,8 @@ private fun MeasurementSummaryCard(
                             )
                         }
                         if (summary.latest.hasFinalActions) Box {
-                            HuaweiIconButton(
-                                icon = HuaweiIcons.More,
+                            ScaleSyncIconButton(
+                                icon = ScaleSyncIcons.More,
                                 contentDescription = stringResource(R.string.measurement_latest_actions),
                                 onClick = { menuExpanded = true },
                                 enabled = summary.latest.canEdit || summary.latest.canDelete,
@@ -689,7 +689,7 @@ private fun MeasurementSummaryCard(
                             ) {
                                 DropdownMenuItem(
                                     text = { Text(stringResource(R.string.action_edit)) },
-                                    leadingIcon = { Icon(HuaweiIcons.Edit, contentDescription = null) },
+                                    leadingIcon = { Icon(ScaleSyncIcons.Edit, contentDescription = null) },
                                     onClick = {
                                         menuExpanded = false
                                         onEditRequested()
@@ -701,7 +701,7 @@ private fun MeasurementSummaryCard(
                                     modifier = Modifier.testTag("summary-delete-measurement"),
                                     leadingIcon = {
                                         Icon(
-                                            imageVector = HuaweiIcons.Delete,
+                                            imageVector = ScaleSyncIcons.Delete,
                                             contentDescription = null,
                                             tint = MaterialTheme.colorScheme.error,
                                         )
@@ -749,7 +749,7 @@ private fun MeasurementSummaryCard(
                             Text(
                                 text = stringResource(R.string.measurement_prefixed_unit, stringResource(R.string.unit_kg)),
                                 modifier = Modifier.align(Alignment.Bottom).padding(bottom = 4.dp),
-                                color = HuaweiColors.Secondary,
+                                color = ScaleSyncColors.Secondary,
                                 style = MaterialTheme.typography.bodyLarge,
                             )
                         }
@@ -770,7 +770,7 @@ private fun MeasurementSummaryCard(
             }
             Text(
                 text = formatWeightDelta(summary.weightDeltaKg),
-                color = HuaweiColors.Secondary,
+                color = ScaleSyncColors.Secondary,
                 style = MaterialTheme.typography.bodyMedium,
             )
 
@@ -778,22 +778,22 @@ private fun MeasurementSummaryCard(
                 if (referenceMetrics.isNotEmpty()) {
                     CompactReferenceGrid(
                         metrics = summaryKeyReferenceMetrics(referenceMetrics),
-                        modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
+                        modifier = Modifier.padding(top = ScaleSyncDimensions.CompactContentPadding),
                     )
                 } else {
                     MetricDetailsGrid(
                         metrics = summary.keyMetrics,
-                        modifier = Modifier.padding(top = HuaweiDimensions.CompactContentPadding),
+                        modifier = Modifier.padding(top = ScaleSyncDimensions.CompactContentPadding),
                     )
                 }
             }
 
             TextButton(
                 onClick = { onExpandedChange(!expanded) },
-                colors = ButtonDefaults.textButtonColors(contentColor = HuaweiColors.PrimaryPressed),
+                colors = ButtonDefaults.textButtonColors(contentColor = ScaleSyncColors.PrimaryPressed),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .semantics {
                         stateDescription = summaryExpansionState
                     }
@@ -801,14 +801,14 @@ private fun MeasurementSummaryCard(
             ) {
                 Text(if (expanded) stringResource(R.string.action_hide_metrics) else stringResource(R.string.action_all_metrics))
                 Icon(
-                    imageVector = HuaweiIcons.ChevronDown,
+                    imageVector = ScaleSyncIcons.ChevronDown,
                     contentDescription = null,
                     modifier = Modifier.padding(start = 6.dp).size(18.dp).rotate(if (expanded) 180f else 0f),
                 )
             }
 
             if (expanded) {
-                HorizontalDivider(color = HuaweiColors.PrimaryContainerDim)
+                HorizontalDivider(color = ScaleSyncColors.PrimaryContainerDim)
                 if (referenceMetrics.isNotEmpty() && weightReference != null) {
                     Column(
                         modifier = Modifier.padding(top = 8.dp),
@@ -867,13 +867,13 @@ private fun MetricDetail(
 ) {
     Column(
         modifier = modifier
-            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .heightIn(min = ScaleSyncDimensions.TouchTarget)
             .padding(vertical = 9.dp),
         verticalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
             text = metric.label.resolve(LocalContext.current.resources),
-            color = HuaweiColors.Secondary,
+            color = ScaleSyncColors.Secondary,
             style = MaterialTheme.typography.bodySmall,
         )
         Text(text = metric.displayValue(), style = MaterialTheme.typography.titleSmall)
@@ -941,7 +941,7 @@ private fun CompactSummaryReferenceMetric(
         if (!primary) {
             Text(
                 text = presentation.title,
-                color = HuaweiColors.Secondary,
+                color = ScaleSyncColors.Secondary,
                 style = MaterialTheme.typography.bodySmall,
             )
         }
@@ -1111,8 +1111,8 @@ private fun MeasurementHistoryScreen(
             .fillMaxWidth()
             .testTag("measurement-history"),
         contentPadding = PaddingValues(
-            horizontal = HuaweiDimensions.ContentPadding,
-            vertical = HuaweiDimensions.CompactContentPadding,
+            horizontal = ScaleSyncDimensions.ContentPadding,
+            vertical = ScaleSyncDimensions.CompactContentPadding,
         ),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
@@ -1166,7 +1166,7 @@ internal fun MeasurementHistoryCard(
 ) {
     val toggleLabel = stringResource(if (expanded) R.string.a11y_collapse_measurement else R.string.a11y_expand_measurement)
     val expansionState = stringResource(if (expanded) R.string.state_expanded else R.string.state_collapsed)
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .animateContentSize()
@@ -1247,14 +1247,14 @@ internal fun MeasurementHistoryCard(
                         )
                     }
                     Icon(
-                        imageVector = HuaweiIcons.ChevronRight,
+                        imageVector = ScaleSyncIcons.ChevronRight,
                         contentDescription = null,
                         modifier = Modifier.rotate(if (expanded) 90f else 0f),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (item.hasSyncPresentation) {
-                    HuaweiStatusAction(
+                    ScaleSyncStatusAction(
                         icon = item.sync.state.icon,
                         contentDescription = item.sync.label.resolve(LocalContext.current.resources),
                         onClick = onSyncRequested,
@@ -1272,11 +1272,11 @@ internal fun MeasurementHistoryCard(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     if (item.isManuallyEdited) {
-                        HuaweiSurface(
+                        ScaleSyncSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("history-manual-notice-${item.id}"),
-                            containerColor = HuaweiColors.SurfaceInfo,
+                            containerColor = ScaleSyncColors.SurfaceInfo,
                             contentPadding = PaddingValues(14.dp),
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1311,11 +1311,11 @@ internal fun MeasurementHistoryCard(
                         )
                     }
                     if (item.hasProfileSyncMismatch) {
-                        HuaweiSurface(
+                        ScaleSyncSurface(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .testTag("history-profile-mismatch-notice-${item.id}"),
-                            containerColor = HuaweiColors.SurfaceInfo,
+                            containerColor = ScaleSyncColors.SurfaceInfo,
                             contentPadding = PaddingValues(14.dp),
                         ) {
                             Text(
@@ -1335,20 +1335,20 @@ internal fun MeasurementHistoryCard(
                                 callbacks.onEditRequested(item.id, MeasurementEditorOrigin.HISTORY)
                             },
                             enabled = item.canEdit,
-                            modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                            modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget),
                         ) {
-                            Icon(HuaweiIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(ScaleSyncIcons.Edit, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text(stringResource(R.string.action_edit), modifier = Modifier.padding(start = 5.dp))
                         }
                         TextButton(
                             onClick = { callbacks.onDeleteRequested(item.id) },
                             enabled = item.canDelete,
                             modifier = Modifier
-                                .heightIn(min = HuaweiDimensions.TouchTarget)
+                                .heightIn(min = ScaleSyncDimensions.TouchTarget)
                                 .testTag("history-delete-${item.id}"),
                             colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                         ) {
-                            Icon(HuaweiIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(ScaleSyncIcons.Delete, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text(stringResource(R.string.action_delete), modifier = Modifier.padding(start = 5.dp))
                         }
                     }
@@ -1358,10 +1358,10 @@ internal fun MeasurementHistoryCard(
                             enabled = item.canRetry,
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = HuaweiDimensions.TouchTarget),
+                                .heightIn(min = ScaleSyncDimensions.TouchTarget),
                             shape = MaterialTheme.shapes.medium,
                         ) {
-                            Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                            Icon(ScaleSyncIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                             Text(stringResource(R.string.action_retry_sync), modifier = Modifier.padding(start = 7.dp))
                         }
                     }
@@ -1373,7 +1373,7 @@ internal fun MeasurementHistoryCard(
 
 @Composable
 private fun EmptyHistoryCard() {
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier.fillMaxWidth().testTag("empty-history"),
         contentPadding = PaddingValues(horizontal = 20.dp, vertical = 26.dp),
     ) {
@@ -1382,7 +1382,7 @@ private fun EmptyHistoryCard() {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
+            ScaleSyncSectionTitle(stringResource(R.string.measurement_empty_history))
             Text(
                 stringResource(R.string.measurement_empty_history_help),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1430,17 +1430,17 @@ private fun MeasurementSyncSheet(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Close,
+                ScaleSyncIconButton(
+                    icon = ScaleSyncIcons.Close,
                     contentDescription = stringResource(R.string.a11y_close),
                     onClick = onDismiss,
                 )
             }
 
             if (item.sync.directions.isEmpty()) {
-                HuaweiSurface(
+                ScaleSyncSurface(
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
-                    containerColor = HuaweiColors.SurfaceInfo,
+                    containerColor = ScaleSyncColors.SurfaceInfo,
                 ) {
                     Text(stringResource(R.string.measurement_external_disabled))
                 }
@@ -1458,11 +1458,11 @@ private fun MeasurementSyncSheet(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 14.dp)
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("sync-retry"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
-                    Icon(HuaweiIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Icon(ScaleSyncIcons.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
                     Text(stringResource(R.string.action_retry), modifier = Modifier.padding(start = 7.dp))
                 }
             }
@@ -1478,7 +1478,7 @@ private fun SyncDirectionRow(direction: MeasurementSyncDirectionPresentation) {
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         val resources = LocalContext.current.resources
-        HuaweiRowIcon(icon = direction.state.icon, contentDescription = direction.state.label.resolve(resources))
+        ScaleSyncRowIcon(icon = direction.state.icon, contentDescription = direction.state.label.resolve(resources))
         Column(
             modifier = Modifier.weight(1f),
             verticalArrangement = Arrangement.spacedBy(2.dp),
@@ -1527,7 +1527,7 @@ private fun MeasurementEditorScreen(
                         .fillMaxWidth()
                         .imePadding()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag("editor-save"),
                     shape = MaterialTheme.shapes.medium,
                 ) {
@@ -1552,10 +1552,10 @@ private fun MeasurementEditorScreen(
                 .fillMaxWidth()
                 .padding(contentPadding),
             contentPadding = PaddingValues(
-                horizontal = HuaweiDimensions.ContentPadding,
-                vertical = HuaweiDimensions.CompactContentPadding,
+                horizontal = ScaleSyncDimensions.ContentPadding,
+                vertical = ScaleSyncDimensions.CompactContentPadding,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item {
                 NestedScreenHeader(
@@ -1587,9 +1587,9 @@ private fun MeasurementEditorScreen(
                 }
             }
             item {
-                HuaweiSurface(
+                ScaleSyncSurface(
                     modifier = Modifier.fillMaxWidth(),
-                    containerColor = HuaweiColors.SurfaceInfo,
+                    containerColor = ScaleSyncColors.SurfaceInfo,
                     contentPadding = PaddingValues(14.dp),
                 ) {
                     Text(
@@ -1617,12 +1617,12 @@ private fun EditorSection(
     editor: MeasurementEditorState,
     onFieldChanged: (MeasurementField, String) -> Unit,
 ) {
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
     ) {
         Column {
-            HuaweiSectionTitle(section.title.resolve(LocalContext.current.resources), modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
+            ScaleSyncSectionTitle(section.title.resolve(LocalContext.current.resources), modifier = Modifier.padding(top = 6.dp, bottom = 4.dp))
             section.fields.forEachIndexed { index, field ->
                 if (index > 0) HorizontalDivider()
                 EditorFieldRow(
@@ -1726,11 +1726,11 @@ private fun NestedScreenHeader(
     addEnabled: Boolean = true,
 ) {
     Row(
-        modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TopBarHeight),
+        modifier = Modifier.fillMaxWidth().heightIn(min = ScaleSyncDimensions.TopBarHeight),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        HuaweiIconButton(
-            icon = HuaweiIcons.Back,
+        ScaleSyncIconButton(
+            icon = ScaleSyncIcons.Back,
             contentDescription = backContentDescription,
             onClick = onBack,
             enabled = enabled,
@@ -1760,7 +1760,7 @@ private fun NoLatestMeasurementState() {
             modifier = Modifier.fillMaxWidth(),
             contentAlignment = Alignment.Center,
         ) {
-            HuaweiSurface(
+            ScaleSyncSurface(
                 modifier = Modifier.fillMaxWidth().widthIn(max = 480.dp).padding(16.dp),
                 contentPadding = PaddingValues(horizontal = 20.dp, vertical = 26.dp),
             ) {
@@ -1768,8 +1768,8 @@ private fun NoLatestMeasurementState() {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    HuaweiRowIcon(icon = HuaweiIcons.Scale, contentDescription = null)
-                    HuaweiSectionTitle(stringResource(R.string.measurement_empty_history))
+                    ScaleSyncRowIcon(icon = ScaleSyncIcons.Scale, contentDescription = null)
+                    ScaleSyncSectionTitle(stringResource(R.string.measurement_empty_history))
                     Text(
                         stringResource(R.string.measurement_empty_latest_help),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -1789,7 +1789,7 @@ private fun MissingEditorState(onBack: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(stringResource(R.string.measurement_unavailable), style = MaterialTheme.typography.titleMedium)
-            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget)) {
+            TextButton(onClick = onBack, modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget)) {
                 Text(stringResource(R.string.action_back))
             }
         }
@@ -1825,7 +1825,7 @@ private fun DeleteMeasurementDialog(
     AlertDialog(
         modifier = Modifier.testTag("delete-measurement-dialog"),
         onDismissRequest = { if (!confirmation.isDeleting) onDismiss() },
-        icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
+        icon = { Icon(ScaleSyncIcons.Delete, contentDescription = null) },
         title = { Text(stringResource(R.string.measurement_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1848,7 +1848,7 @@ private fun DeleteMeasurementDialog(
                 onClick = onConfirm,
                 enabled = !confirmation.isDeleting,
                 modifier = Modifier
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .testTag("delete-measurement-confirm"),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = MaterialTheme.colorScheme.error,
@@ -1862,7 +1862,7 @@ private fun DeleteMeasurementDialog(
             TextButton(
                 onClick = onDismiss,
                 enabled = !confirmation.isDeleting,
-                modifier = Modifier.heightIn(min = HuaweiDimensions.TouchTarget),
+                modifier = Modifier.heightIn(min = ScaleSyncDimensions.TouchTarget),
             ) {
                 Text(stringResource(R.string.action_cancel))
             }
@@ -1872,25 +1872,25 @@ private fun DeleteMeasurementDialog(
 
 private val MeasurementSyncPresentationState.icon: ImageVector
     get() = when (this) {
-        MeasurementSyncPresentationState.LOCAL_ONLY -> HuaweiIcons.LocalDevice
-        MeasurementSyncPresentationState.ERROR -> HuaweiIcons.Warning
-        MeasurementSyncPresentationState.PENDING -> HuaweiIcons.Pending
-        MeasurementSyncPresentationState.SYNCED -> HuaweiIcons.Success
+        MeasurementSyncPresentationState.LOCAL_ONLY -> ScaleSyncIcons.LocalDevice
+        MeasurementSyncPresentationState.ERROR -> ScaleSyncIcons.Warning
+        MeasurementSyncPresentationState.PENDING -> ScaleSyncIcons.Pending
+        MeasurementSyncPresentationState.SYNCED -> ScaleSyncIcons.Success
     }
 
-private val MeasurementSyncPresentationState.tone: HuaweiStatusTone
+private val MeasurementSyncPresentationState.tone: ScaleSyncStatusTone
     get() = when (this) {
-        MeasurementSyncPresentationState.LOCAL_ONLY -> HuaweiStatusTone.Local
-        MeasurementSyncPresentationState.ERROR -> HuaweiStatusTone.Error
-        MeasurementSyncPresentationState.PENDING -> HuaweiStatusTone.Pending
-        MeasurementSyncPresentationState.SYNCED -> HuaweiStatusTone.Success
+        MeasurementSyncPresentationState.LOCAL_ONLY -> ScaleSyncStatusTone.Local
+        MeasurementSyncPresentationState.ERROR -> ScaleSyncStatusTone.Error
+        MeasurementSyncPresentationState.PENDING -> ScaleSyncStatusTone.Pending
+        MeasurementSyncPresentationState.SYNCED -> ScaleSyncStatusTone.Success
     }
 
 private val MeasurementSyncPresentationState.contentColor: Color
     @Composable get() = when (this) {
-        MeasurementSyncPresentationState.LOCAL_ONLY -> HuaweiColors.Local
+        MeasurementSyncPresentationState.LOCAL_ONLY -> ScaleSyncColors.Local
         MeasurementSyncPresentationState.ERROR -> MaterialTheme.colorScheme.error
-        MeasurementSyncPresentationState.PENDING -> HuaweiColors.Warning
+        MeasurementSyncPresentationState.PENDING -> ScaleSyncColors.Warning
         MeasurementSyncPresentationState.SYNCED -> MaterialTheme.colorScheme.primary
     }
 

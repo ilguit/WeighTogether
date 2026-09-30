@@ -856,7 +856,6 @@ class MeasurementsScreenTest {
         composeRule.onNodeWithTag("summary-sync-status").performClick()
         composeRule.onNodeWithTag("measurement-sync-sheet").assertIsDisplayed()
         composeRule.onNodeWithText("Health Connect").assertIsDisplayed()
-        composeRule.onNodeWithText("Huawei Health").assertDoesNotExist()
         composeRule.onNodeWithTag("sync-retry").performClick()
         assertEquals("latest", retriedId)
     }

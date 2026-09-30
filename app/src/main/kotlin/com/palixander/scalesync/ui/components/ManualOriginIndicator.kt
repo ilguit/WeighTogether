@@ -11,7 +11,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.R
 import com.palixander.scalesync.domain.MeasurementOrigin
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 
 /** Origin remains independent of later edits and synchronization status. */
 @Composable
@@ -29,8 +29,8 @@ fun ManualOriginIndicator(origin: MeasurementOrigin, modifier: Modifier = Modifi
     }
     val dismiss = { explaining = false; restoreFocus = true }
     val manualOrigin = stringResource(R.string.manual_origin)
-    HuaweiIconButton(
-        icon = HuaweiIcons.Keyboard,
+    ScaleSyncIconButton(
+        icon = ScaleSyncIcons.Keyboard,
         contentDescription = manualOrigin,
         onClick = { explaining = true },
         modifier = modifier.focusRequester(focusRequester),

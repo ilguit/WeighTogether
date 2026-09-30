@@ -31,7 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.ui.profiles.ProfileKey
 import com.palixander.scalesync.ui.profiles.ProfilePresentation
 import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
@@ -94,7 +94,7 @@ private fun HumanProfileDropdown(
         ) {
             ProfileAvatar(
                 photoPath = selectedHuman?.account?.photoPath,
-                fallbackIcon = HuaweiIcons.Profile,
+                fallbackIcon = ScaleSyncIcons.Profile,
                 contentDescription = "",
                 store = photoStore,
                 modifier = Modifier.testTag(SummaryTopBarTestTags.ProfileAvatar),

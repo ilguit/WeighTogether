@@ -1,6 +1,3 @@
 issue: 42
-userVisible: true
-text: Настройки собраны в независимые сворачиваемые разделы для более удобной навигации
-flavors:
-  - personal
-  - huaweiEnterprise
+userVisible: false
+reason: Удалён фильтр устаревшей сборки; выпущенная пользовательская история сохраняется

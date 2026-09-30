@@ -74,7 +74,7 @@ class MainActivity : AppCompatActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         refreshHealthConnectSystemManagementAvailability()
-        val systemBarColor = getColor(R.color.huawei_primary)
+        val systemBarColor = getColor(R.color.scalesync_primary)
         enableEdgeToEdge(
             statusBarStyle = SystemBarStyle.dark(systemBarColor),
             navigationBarStyle = SystemBarStyle.dark(systemBarColor),

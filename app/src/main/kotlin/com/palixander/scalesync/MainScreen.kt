@@ -67,7 +67,7 @@ import com.palixander.scalesync.measurements.MeasurementsDestination
 import com.palixander.scalesync.measurements.MeasurementsScreen
 import com.palixander.scalesync.measurements.MeasurementsUiState
 import com.palixander.scalesync.measurements.MeasurementsUiEvent
-import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
 import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountSelectorUiState
 import com.palixander.scalesync.ui.routing.MeasurementResolverCallbacks
@@ -76,9 +76,9 @@ import com.palixander.scalesync.ui.routing.PendingResolverForegroundFallback
 import com.palixander.scalesync.ui.routing.PendingResolverReturnDestination
 import com.palixander.scalesync.ui.routing.UnsavedMeasurementPreviewDialog
 import com.palixander.scalesync.ui.routing.UnsavedPreviewCallbacks
-import com.palixander.scalesync.ui.components.HuaweiSystemBarBackgrounds
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncSystemBarBackgrounds
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.text.UiText
@@ -104,9 +104,9 @@ internal enum class AppSection(
     val titleRes: Int,
     val icon: ImageVector,
 ) {
-    MEASUREMENTS(R.string.nav_measurements, HuaweiIcons.Scale),
-    CHARTS(R.string.nav_charts, HuaweiIcons.Charts),
-    SETTINGS(R.string.nav_settings, HuaweiIcons.Settings),
+    MEASUREMENTS(R.string.nav_measurements, ScaleSyncIcons.Scale),
+    CHARTS(R.string.nav_charts, ScaleSyncIcons.Charts),
+    SETTINGS(R.string.nav_settings, ScaleSyncIcons.Settings),
 }
 
 internal val defaultAppSection = AppSection.MEASUREMENTS
@@ -664,7 +664,7 @@ internal fun ScaleSyncScaffold(
                 contentWindowInsets = contentWindowInsets,
                 topBar = {
                     if (showTopBar) {
-                        HuaweiTopBar(
+                        ScaleSyncTopBar(
                             title = when {
                                 profileEditorOpen -> stringResource(R.string.title_profile)
                                 changelogOpen -> stringResource(R.string.title_changelog)
@@ -715,7 +715,7 @@ internal fun ScaleSyncScaffold(
                         profileEditorOpen -> ProfileEditorSaveBar(
                             onSave = onSaveProfile,
                         )
-                        showBottomNavigation -> HuaweiBottomNavigation(
+                        showBottomNavigation -> ScaleSyncBottomNavigation(
                             selectedSection = currentSection,
                             onSectionSelected = onSectionSelected,
                         )
@@ -836,8 +836,8 @@ internal fun ScaleSyncScaffold(
                                 ),
                                 onProfileSelected = onProfileSelected,
                                 modifier = Modifier.padding(
-                                    horizontal = HuaweiDimensions.ContentPadding,
-                                    vertical = HuaweiDimensions.CompactContentPadding,
+                                    horizontal = ScaleSyncDimensions.ContentPadding,
+                                    vertical = ScaleSyncDimensions.CompactContentPadding,
                                 ),
                             )
                         }
@@ -849,8 +849,8 @@ internal fun ScaleSyncScaffold(
                 state = state.resolverQueue,
                 onOpen = onOpenResolver,
                 modifier = Modifier
-                    .padding(horizontal = HuaweiDimensions.ContentPadding)
-                    .padding(top = HuaweiDimensions.ContentPadding),
+                    .padding(horizontal = ScaleSyncDimensions.ContentPadding)
+                    .padding(top = ScaleSyncDimensions.ContentPadding),
             )
             state.resolver?.let { resolver ->
                 MeasurementResolverDialog(
@@ -882,7 +882,7 @@ internal fun ScaleSyncScaffold(
                     onDismiss = settingsCallbacks.onDismissPetManagement,
                 )
             }
-            HuaweiSystemBarBackgrounds()
+            ScaleSyncSystemBarBackgrounds()
         }
     }
 }
@@ -900,7 +900,7 @@ internal fun mainBackContentDescription(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun HuaweiTopBar(
+private fun ScaleSyncTopBar(
     title: String,
     showBack: Boolean,
     onBack: () -> Unit,
@@ -925,8 +925,8 @@ private fun HuaweiTopBar(
             profileSelection = profileSelection,
             onProfileSelected = onProfileSelected,
         ) {
-            HuaweiIconButton(
-                icon = if (isExternalSyncPaused) HuaweiIcons.Play else HuaweiIcons.Pause,
+            ScaleSyncIconButton(
+                icon = if (isExternalSyncPaused) ScaleSyncIcons.Play else ScaleSyncIcons.Pause,
                 contentDescription = if (isExternalSyncPaused) {
                     stringResource(R.string.action_resume_external_sync)
                 } else {
@@ -947,8 +947,8 @@ private fun HuaweiTopBar(
                     IconButtonDefaults.iconButtonColors()
                 },
             )
-            HuaweiIconButton(
-                icon = HuaweiIcons.Cat,
+            ScaleSyncIconButton(
+                icon = ScaleSyncIcons.Cat,
                 contentDescription = stringResource(R.string.action_weigh_pet),
                 onClick = onPetMeasurementRequested,
                 modifier = Modifier.testTag(MainScreenTestTags.PetMeasurementAction),
@@ -969,8 +969,8 @@ private fun HuaweiTopBar(
         },
         navigationIcon = {
             if (showBack) {
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Back,
+                ScaleSyncIconButton(
+                    icon = ScaleSyncIcons.Back,
                     contentDescription = backContentDescription,
                     onClick = onBack,
                     modifier = backModifier,
@@ -990,8 +990,8 @@ private fun PendingQueueAction(
     onClick: () -> Unit,
 ) {
     Box {
-        HuaweiIconButton(
-            icon = HuaweiIcons.Pending,
+        ScaleSyncIconButton(
+            icon = ScaleSyncIcons.Pending,
             contentDescription = if (pendingCount == 0) {
                 stringResource(R.string.pending_queue_empty_description)
             } else {
@@ -1023,7 +1023,7 @@ private fun PendingQueueAction(
 }
 
 @Composable
-private fun HuaweiBottomNavigation(
+private fun ScaleSyncBottomNavigation(
     selectedSection: AppSection,
     onSectionSelected: (AppSection) -> Unit,
 ) {
@@ -1037,7 +1037,7 @@ private fun HuaweiBottomNavigation(
             NavigationBarItem(
                 selected = selectedSection == section,
                 onClick = { onSectionSelected(section) },
-                modifier = Modifier.heightIn(min = HuaweiDimensions.BottomNavigationItemHeight),
+                modifier = Modifier.heightIn(min = ScaleSyncDimensions.BottomNavigationItemHeight),
                 icon = {
                     Icon(
                         imageVector = section.icon,

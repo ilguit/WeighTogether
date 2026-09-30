@@ -14,7 +14,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
 @Immutable
-object HuaweiColors {
+object ScaleSyncColors {
     val Background = Color(0xFFF5F7F3)
     val OnBackground = Color(0xFF19211E)
     val Primary = Color(0xFF28766B)
@@ -51,58 +51,58 @@ object HuaweiColors {
     val Scrim = Color(0x6119211E)
 }
 
-val HuaweiLightColorScheme = lightColorScheme(
-    primary = HuaweiColors.Primary,
-    onPrimary = HuaweiColors.OnPrimary,
-    primaryContainer = HuaweiColors.PrimaryContainer,
-    onPrimaryContainer = HuaweiColors.OnPrimaryContainer,
-    inversePrimary = HuaweiColors.PrimaryContainer,
-    secondary = HuaweiColors.Secondary,
-    onSecondary = HuaweiColors.OnPrimary,
-    secondaryContainer = HuaweiColors.SecondaryContainer,
-    onSecondaryContainer = HuaweiColors.OnSecondaryContainer,
-    tertiary = HuaweiColors.Warning,
+val ScaleSyncLightColorScheme = lightColorScheme(
+    primary = ScaleSyncColors.Primary,
+    onPrimary = ScaleSyncColors.OnPrimary,
+    primaryContainer = ScaleSyncColors.PrimaryContainer,
+    onPrimaryContainer = ScaleSyncColors.OnPrimaryContainer,
+    inversePrimary = ScaleSyncColors.PrimaryContainer,
+    secondary = ScaleSyncColors.Secondary,
+    onSecondary = ScaleSyncColors.OnPrimary,
+    secondaryContainer = ScaleSyncColors.SecondaryContainer,
+    onSecondaryContainer = ScaleSyncColors.OnSecondaryContainer,
+    tertiary = ScaleSyncColors.Warning,
     onTertiary = Color.White,
-    tertiaryContainer = HuaweiColors.WarningContainer,
-    onTertiaryContainer = HuaweiColors.OnWarningContainer,
-    background = HuaweiColors.Background,
-    onBackground = HuaweiColors.OnBackground,
-    surface = HuaweiColors.Surface,
-    onSurface = HuaweiColors.OnSurface,
-    surfaceVariant = HuaweiColors.SurfaceSubtle,
-    onSurfaceVariant = HuaweiColors.OnSurfaceVariant,
-    surfaceTint = HuaweiColors.Primary,
-    inverseSurface = HuaweiColors.InverseSurface,
-    inverseOnSurface = HuaweiColors.InverseOnSurface,
-    outline = HuaweiColors.Outline,
-    outlineVariant = HuaweiColors.OutlineVariant,
-    error = HuaweiColors.Error,
-    onError = HuaweiColors.OnError,
-    errorContainer = HuaweiColors.ErrorContainer,
-    onErrorContainer = HuaweiColors.OnErrorContainer,
-    scrim = HuaweiColors.Scrim,
-    surfaceBright = HuaweiColors.Surface,
-    surfaceDim = HuaweiColors.SurfaceDim,
-    surfaceContainer = HuaweiColors.SurfaceContainer,
-    surfaceContainerHigh = HuaweiColors.SurfaceContainerHigh,
-    surfaceContainerHighest = HuaweiColors.SurfaceContainerHighest,
-    surfaceContainerLow = HuaweiColors.SurfaceSubtle,
-    surfaceContainerLowest = HuaweiColors.Surface,
-    primaryFixed = HuaweiColors.PrimaryContainer,
-    primaryFixedDim = HuaweiColors.PrimaryContainerDim,
-    onPrimaryFixed = HuaweiColors.OnPrimaryContainer,
-    onPrimaryFixedVariant = HuaweiColors.OnSecondaryContainer,
-    secondaryFixed = HuaweiColors.SecondaryContainer,
-    secondaryFixedDim = HuaweiColors.SurfaceContainerHighest,
-    onSecondaryFixed = HuaweiColors.OnBackground,
-    onSecondaryFixedVariant = HuaweiColors.Secondary,
-    tertiaryFixed = HuaweiColors.WarningContainer,
+    tertiaryContainer = ScaleSyncColors.WarningContainer,
+    onTertiaryContainer = ScaleSyncColors.OnWarningContainer,
+    background = ScaleSyncColors.Background,
+    onBackground = ScaleSyncColors.OnBackground,
+    surface = ScaleSyncColors.Surface,
+    onSurface = ScaleSyncColors.OnSurface,
+    surfaceVariant = ScaleSyncColors.SurfaceSubtle,
+    onSurfaceVariant = ScaleSyncColors.OnSurfaceVariant,
+    surfaceTint = ScaleSyncColors.Primary,
+    inverseSurface = ScaleSyncColors.InverseSurface,
+    inverseOnSurface = ScaleSyncColors.InverseOnSurface,
+    outline = ScaleSyncColors.Outline,
+    outlineVariant = ScaleSyncColors.OutlineVariant,
+    error = ScaleSyncColors.Error,
+    onError = ScaleSyncColors.OnError,
+    errorContainer = ScaleSyncColors.ErrorContainer,
+    onErrorContainer = ScaleSyncColors.OnErrorContainer,
+    scrim = ScaleSyncColors.Scrim,
+    surfaceBright = ScaleSyncColors.Surface,
+    surfaceDim = ScaleSyncColors.SurfaceDim,
+    surfaceContainer = ScaleSyncColors.SurfaceContainer,
+    surfaceContainerHigh = ScaleSyncColors.SurfaceContainerHigh,
+    surfaceContainerHighest = ScaleSyncColors.SurfaceContainerHighest,
+    surfaceContainerLow = ScaleSyncColors.SurfaceSubtle,
+    surfaceContainerLowest = ScaleSyncColors.Surface,
+    primaryFixed = ScaleSyncColors.PrimaryContainer,
+    primaryFixedDim = ScaleSyncColors.PrimaryContainerDim,
+    onPrimaryFixed = ScaleSyncColors.OnPrimaryContainer,
+    onPrimaryFixedVariant = ScaleSyncColors.OnSecondaryContainer,
+    secondaryFixed = ScaleSyncColors.SecondaryContainer,
+    secondaryFixedDim = ScaleSyncColors.SurfaceContainerHighest,
+    onSecondaryFixed = ScaleSyncColors.OnBackground,
+    onSecondaryFixedVariant = ScaleSyncColors.Secondary,
+    tertiaryFixed = ScaleSyncColors.WarningContainer,
     tertiaryFixedDim = Color(0xFFEFCFB9),
-    onTertiaryFixed = HuaweiColors.OnWarningContainer,
-    onTertiaryFixedVariant = HuaweiColors.Warning,
+    onTertiaryFixed = ScaleSyncColors.OnWarningContainer,
+    onTertiaryFixedVariant = ScaleSyncColors.Warning,
 )
 
-val HuaweiShapes = Shapes(
+val ScaleSyncShapes = Shapes(
     extraSmall = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
     small = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
     medium = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
@@ -112,7 +112,7 @@ val HuaweiShapes = Shapes(
 
 private val Roboto = FontFamily.SansSerif
 
-val HuaweiTypography = Typography(
+val ScaleSyncTypography = Typography(
     displayLarge = TextStyle(
         fontFamily = Roboto,
         fontWeight = FontWeight.Normal,
@@ -208,9 +208,9 @@ val HuaweiTypography = Typography(
 @Composable
 fun ScaleSyncTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = HuaweiLightColorScheme,
-        typography = HuaweiTypography,
-        shapes = HuaweiShapes,
+        colorScheme = ScaleSyncLightColorScheme,
+        typography = ScaleSyncTypography,
+        shapes = ScaleSyncShapes,
         content = content,
     )
 }
