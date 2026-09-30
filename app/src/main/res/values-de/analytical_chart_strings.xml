@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Diagramm hinzufügen</string>
+    <string name="analytical_morning">Morgenmessungen</string>
+    <string name="analytical_minimum">Tagesminimum</string>
+    <string name="analytical_hourly">Messzeiten</string>
+    <string name="analytical_added">Hinzugefügt</string>
+    <string name="analytical_removed">Diagramm entfernt</string>
+    <string name="analytical_window">%1$s–%2$s · einzelne Ausreißer ausgeblendet</string>
+    <string name="analytical_minimum_hint">Niedrigstes Tagesgewicht; einzelne Ausreißer ausgeblendet</string>
+    <string name="analytical_all_time">Gesamter Zeitraum · %1$d Messungen</string>
+    <string name="analytical_error">Berechnung fehlgeschlagen. Erneut versuchen.</string>
+    <string name="analytical_no_source">Noch keine Messungen.</string>
+    <string name="analytical_no_filtered">Keine Messungen in diesem Intervall übrig.</string>
+    <string name="analytical_no_period">Keine Punkte im gewählten Zeitraum. Scrollen Sie durch den gesamten Verlauf.</string>
+    <string name="analytical_choose_series">Messwerte wählen</string>
+    <string name="analytical_small_history">Zu wenig Verlauf für den Filter; alle Messungen bleiben sichtbar.</string>
+    <string name="analytical_excluded">Ausgeblendete anzeigen (%1$d)</string>
+    <string name="analytical_help">So funktioniert der Filter</string>
+    <string name="analytical_configure">Konfigurieren</string>
+    <string name="analytical_remove">Diagramm entfernen</string>
+    <string name="analytical_none_excluded">Keine ausgeblendeten Messungen.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Automatisch · Ausreißer im Basisfenster 05:00–12:00</string>
+    <string name="analytical_mode_manual">Manuell · Ausreißer im gewählten Intervall</string>
+    <string name="analytical_start">Von (HH:mm)</string>
+    <string name="analytical_end">Bis (HH:mm, ausschließlich)</string>
+    <string name="analytical_invalid_time">Gültige Zeiten von 00:00 bis 24:00 eingeben; Beginn muss vor Ende liegen.</string>
+    <string name="analytical_auto">Anhand der Messungen wählen</string>
+    <string name="analytical_insufficient">Zu wenig Daten für 2–3 Stunden. Intervall manuell wählen.</string>
+    <string name="analytical_preview">Vorschau %1$s–%2$s\nBasis: %3$d · Verbleibend: %4$d\nAußerhalb: %5$d · Ausreißer: %6$d\nMit Speichern übernehmen.</string>
+    <string name="analytical_hourly_hint">Alle Messungen in 24 lokalen Stunden. Zeitraum und andere Filter beeinflussen dieses Diagramm nicht.</string>
+    <string name="analytical_rule">Eine Darstellungshilfe, keine medizinische Regel. Erforderlich sind 7 verschiedene Zeitpunkte und 6 benachbarte Differenzen mit höchstens 7 Tagen Abstand. Schwelle: max(0,5 kg; 3 × Median der absoluten Nachbardifferenzen). Ein Punkt wird nur ausgeblendet, wenn er beide Nachbarn um mehr als die Schwelle über- oder unterschreitet und diese höchstens um die Schwelle voneinander abweichen. Randpunkte, gleiche Zeitpunkte, stetige Trends, dauerhafte Niveauänderungen und benachbarte Kandidatengruppen bleiben. Messungen werden nicht gelöscht. Automatik beginnt bei 05:00–12:00 und verschiebt je Schritt eine Grenze um 30 Minuten, höchstens 10 Schritte, bis auf 2–3 Stunden mit genügend Daten. Werte außerhalb sind keine Ausreißer. Das Tagesminimum nutzt eine vollständige Messung; ein ausgeblendetes Minimum wird nicht ersetzt.</string>
+</resources>

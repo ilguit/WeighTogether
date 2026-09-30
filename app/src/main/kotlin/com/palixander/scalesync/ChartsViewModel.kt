@@ -1,6 +1,14 @@
 package com.palixander.scalesync
 
 import android.app.Application
+import android.content.Context
+import com.palixander.scalesync.charts.AnalyticalChartCallbacks
+import com.palixander.scalesync.charts.AnalyticalChartController
+import com.palixander.scalesync.charts.AnalyticalChartState
+import com.palixander.scalesync.charts.PreferenceAnalyticalChartSettingsStore
+import com.palixander.scalesync.charts.buildAnalyticalCard
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.onStart
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.palixander.scalesync.charts.ChartFilterSheet
@@ -10,7 +18,6 @@ import com.palixander.scalesync.charts.ChartsCallbacks
 import com.palixander.scalesync.charts.ChartsUiState
 import com.palixander.scalesync.charts.chartMetricOptions
 import com.palixander.scalesync.charts.chartPointsForMetric
-import com.palixander.scalesync.charts.inclusiveDateRangeToEpochRange
 import com.palixander.scalesync.charts.restoreChartMetricSelection
 import com.palixander.scalesync.charts.toPersistedChartMetricKeys
 import com.palixander.scalesync.data.MeasurementMetric
@@ -109,15 +116,33 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     private val repository = container.repository
     private val profileStore = container.profileStore
     private val zoneId = ZoneId.systemDefault()
+    private val liveZone = MutableStateFlow(zoneId)
+    private val retryGeneration = MutableStateFlow(0)
+    val analyticalController = AnalyticalChartController(
+        PreferenceAnalyticalChartSettingsStore(application.getSharedPreferences("analytical_charts", Context.MODE_PRIVATE)),
+        viewModelScope,
+    )
+    fun onResume() {
+        val zone = ZoneId.systemDefault()
+        if (liveZone.value != zone) {
+            analyticalController.invalidateCalculation()
+            liveZone.value = zone
+        }
+    }
+    fun retryAnalyticalCharts() { retryGeneration.value++ }
+    fun autoSelectMorning() {
+        val snapshot = analyticalInput.value
+        val account = snapshot.selector.selectedAccountId ?: return
+        if (!snapshot.loading && !snapshot.error) analyticalController.autoSelect(account, snapshot.rows, liveZone.value)
+    }
     private val metricOptionList = chartMetricOptions(application::getString)
     private val metricOptions = metricOptionList.associateBy { option ->
         MeasurementMetric.valueOf(option.key)
     }
     private val today = LocalDate.now(zoneId)
-    private val currentDate = currentLocalDates(
-        zoneId = zoneId,
-        clock = Clock.system(zoneId),
-    ).stateIn(
+    private val currentDate = liveZone.flatMapLatest { zone ->
+        currentLocalDates(zoneId = zone, clock = Clock.system(zone))
+    }.stateIn(
         viewModelScope,
         SharingStarted.Eagerly,
         today,
@@ -156,56 +181,54 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
             isLoading = true,
         ),
     )
-    private val measurements = accountSelector.flatMapLatest { selector ->
-        val accountId = selector.selectedAccountId
-        accountScopedLoad(
-            accountId = accountId,
-            emptyValue = emptyList(),
-        ) { selectedAccountId ->
-            repository.observeAllEntities(selectedAccountId)
-        }
-    }
+    private val analyticalInput = combine(accountSelector, retryGeneration) { selector, _ -> selector }
+        .flatMapLatest { selector ->
+            analyticalController.selectAccount(selector.selectedAccountId)
+            val account = selector.selectedAccountId
+            if (account == null) kotlinx.coroutines.flow.flowOf(AnalyticalInput(selector))
+            else repository.observeAllEntities(account)
+                .map {
+                    analyticalController.invalidateCalculation()
+                    AnalyticalInput(selector, rows = it)
+                }
+                .onStart { emit(AnalyticalInput(selector, loading = true)) }
+                .catch { emit(AnalyticalInput(selector, error = true)) }
+        }.stateIn(viewModelScope, SharingStarted.Eagerly, AnalyticalInput(accountSelector.value, loading = true))
 
-    private val series = combine(filters, measurements) { current, loadState ->
-        current to loadState
-    }.mapLatest { (current, loadState) ->
+    val uiState = combine(filters, analyticalInput, currentDate, analyticalController.state, liveZone) {
+            current, input, date, analytical, zone ->
+        ChartInputs(current, input, date, analytical, zone)
+    }.mapLatest { inputs ->
         withContext(Dispatchers.Default) {
-            ChartsPresentation(
-                loadState = loadState,
+            val (current, input, date, analytical, zone) = inputs
+            val consistent = analytical.accountId == input.selector.selectedAccountId
+            val cardResult = runCatching {
+                if (!consistent || input.loading || input.error) emptyList() else analytical.settings.map { setting ->
+                    buildAnalyticalCard(setting, input.rows, current.startDate, current.endDateInclusive, zone)
+                }
+            }
+            val cards = cardResult.getOrDefault(emptyList())
+            ChartsUiState(
+                startDate = current.startDate,
+                endDateInclusive = current.endDateInclusive,
+                currentDate = date,
+                metricOptions = metricOptionList,
+                selectedMetricKeys = current.selectedMetrics.mapTo(linkedSetOf(), MeasurementMetric::name),
                 series = current.selectedMetrics.map { metric ->
-                    ChartSeries(
-                        metric = metricOptions.getValue(metric),
-                        points = chartPointsForMetric(loadState.valuesOrEmpty(), metric),
-                    )
+                    ChartSeries(metricOptions.getValue(metric), chartPointsForMetric(input.rows, metric))
                 },
+                rangePreset = current.rangePreset,
+                activeFilterSheet = current.activeFilterSheet,
+                isCustomDatePickerOpen = current.isCustomDatePickerOpen,
+                isLoading = input.loading,
+                accountSelector = input.selector,
+                analytical = if (consistent) analytical else AnalyticalChartState(input.selector.selectedAccountId),
+                analyticalCards = cards,
+                analyticalError = input.error || cardResult.isFailure,
+                zoneId = zone,
             )
         }
-    }
-
-    val uiState = combine(filters, series, accountSelector, currentDate) {
-            current,
-            presentation,
-            selector,
-            currentDate,
-        ->
-        ChartsUiState(
-            startDate = current.startDate,
-            endDateInclusive = current.endDateInclusive,
-            currentDate = currentDate,
-            metricOptions = metricOptionList,
-            selectedMetricKeys = current.selectedMetrics.mapTo(linkedSetOf(), MeasurementMetric::name),
-            series = presentation.series,
-            rangePreset = current.rangePreset,
-            activeFilterSheet = current.activeFilterSheet,
-            isCustomDatePickerOpen = current.isCustomDatePickerOpen,
-            isLoading = presentation.loadState is AccountScopedLoad.Loading,
-            accountSelector = selector,
-        )
-    }.stateIn(
-        viewModelScope,
-        SharingStarted.WhileSubscribed(),
-        initialUiState,
-    )
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(), initialUiState)
 
     val callbacks = ChartsCallbacks(
         openRangeFilter = ::openRangeFilter,
@@ -219,10 +242,12 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
         clearSelection = ::clearSelection,
         doneSelectingMetrics = ::doneSelectingMetrics,
         onAccountSelected = ::selectAccount,
+        analytical = AnalyticalChartCallbacks(analyticalController, ::autoSelectMorning, ::retryAnalyticalCharts, ::onResume),
     )
 
     private fun selectAccount(accountId: AccountId) {
         if (accountSelector.value.accounts.any { it.id == accountId }) {
+            analyticalController.selectAccount(accountId)
             container.accountSelection.select(accountId)
         }
     }
@@ -284,14 +309,16 @@ class ChartsViewModel(application: Application) : AndroidViewModel(application) 
     }
 }
 
-private fun AccountScopedLoad<List<com.palixander.scalesync.data.MeasurementEntity>>.valuesOrEmpty():
-    List<com.palixander.scalesync.data.MeasurementEntity> =
-    when (this) {
-        AccountScopedLoad.Loading -> emptyList()
-        is AccountScopedLoad.Loaded -> value
-    }
-
-private data class ChartsPresentation(
-    val loadState: AccountScopedLoad<List<com.palixander.scalesync.data.MeasurementEntity>>,
-    val series: List<ChartSeries>,
+private data class AnalyticalInput(
+    val selector: AccountSelectorUiState,
+    val rows: List<com.palixander.scalesync.data.MeasurementEntity> = emptyList(),
+    val loading: Boolean = false,
+    val error: Boolean = false,
+)
+private data class ChartInputs(
+    val filters: ChartFilters,
+    val input: AnalyticalInput,
+    val date: LocalDate,
+    val analytical: AnalyticalChartState,
+    val zone: ZoneId,
 )

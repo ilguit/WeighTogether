@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">添加图表</string>
+    <string name="analytical_morning">晨间测量</string>
+    <string name="analytical_minimum">每日最低值</string>
+    <string name="analytical_hourly">测量时间</string>
+    <string name="analytical_added">已添加</string>
+    <string name="analytical_removed">图表已移除</string>
+    <string name="analytical_window">%1$s–%2$s · 已隐藏孤立异常值</string>
+    <string name="analytical_minimum_hint">每日最低体重；隐藏孤立异常值</string>
+    <string name="analytical_all_time">全部时间 · %1$d 次测量</string>
+    <string name="analytical_error">无法计算，请重试。</string>
+    <string name="analytical_no_source">暂无测量。</string>
+    <string name="analytical_no_filtered">此时间段内没有剩余测量。</string>
+    <string name="analytical_no_period">所选日期范围内没有数据点。滑动可查看全部历史。</string>
+    <string name="analytical_choose_series">选择指标</string>
+    <string name="analytical_small_history">历史数据不足，显示所有测量，不排除异常值。</string>
+    <string name="analytical_excluded">查看已排除项（%1$d）</string>
+    <string name="analytical_help">筛选规则</string>
+    <string name="analytical_configure">设置</string>
+    <string name="analytical_remove">移除图表</string>
+    <string name="analytical_none_excluded">没有已排除的测量。</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d 次 · %4$s%%</string>
+    <string name="analytical_mode_auto">自动 · 在基础时间段05:00–12:00内判断异常值</string>
+    <string name="analytical_mode_manual">手动 · 在所选时间段内判断异常值</string>
+    <string name="analytical_start">开始（HH:mm）</string>
+    <string name="analytical_end">结束（HH:mm，不含）</string>
+    <string name="analytical_invalid_time">请输入00:00至24:00的有效时间，开始必须早于结束。</string>
+    <string name="analytical_auto">根据测量选择</string>
+    <string name="analytical_insufficient">数据不足以确定2至3小时的时间段，请手动选择。</string>
+    <string name="analytical_preview">预览 %1$s–%2$s\n基础测量：%3$d · 保留：%4$d\n时间段外：%5$d · 异常值：%6$d\n点击“保存”应用。</string>
+    <string name="analytical_hourly_hint">按本地24个小时统计所有测量。所选日期范围及其他筛选不影响此图表。</string>
+    <string name="analytical_rule">这是可视化辅助规则，不是医学标准。需要至少7个不同时间点和6个间隔不超过7天的相邻差值。阈值为max（0.5千克，相邻绝对差值中位数的3倍）。仅当某点比两侧都高或都低且差值超过阈值，同时两侧之间的差不超过阈值时，才隐藏该点。端点、相同时间、平稳趋势、持续变化和相邻候选组均保留。不会删除测量。自动选择从05:00–12:00开始，每次将一侧边界移动30分钟，最多10次，缩至数据充足的2至3小时。时间段外的测量不是异常值。每日最低值使用一条完整测量，排除后不会用其他测量替换。</string>
+</resources>

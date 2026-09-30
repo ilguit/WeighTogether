@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Добавить график</string>
+    <string name="analytical_morning">Утренние измерения</string>
+    <string name="analytical_minimum">Дневные минимумы</string>
+    <string name="analytical_hourly">Время измерений</string>
+    <string name="analytical_added">Добавлен</string>
+    <string name="analytical_removed">График убран</string>
+    <string name="analytical_window">%1$s–%2$s · одиночные выбросы скрыты</string>
+    <string name="analytical_minimum_hint">Минимальный вес за день; одиночные выбросы скрыты</string>
+    <string name="analytical_all_time">За всё время · %1$d измерений</string>
+    <string name="analytical_error">Не удалось рассчитать. Повторите попытку.</string>
+    <string name="analytical_no_source">Измерений пока нет.</string>
+    <string name="analytical_no_filtered">В этом интервале не осталось измерений.</string>
+    <string name="analytical_no_period">В выбранном периоде нет точек. Прокрутите график для просмотра всей истории.</string>
+    <string name="analytical_choose_series">Выбрать показатели</string>
+    <string name="analytical_small_history">Истории недостаточно для фильтра: измерения показаны без исключений.</string>
+    <string name="analytical_excluded">Показать исключённые (%1$d)</string>
+    <string name="analytical_help">Как работает фильтр</string>
+    <string name="analytical_configure">Настроить</string>
+    <string name="analytical_remove">Убрать график</string>
+    <string name="analytical_none_excluded">Исключённых измерений нет.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Автоматически · выбросы определяются в базовом окне 05:00–12:00</string>
+    <string name="analytical_mode_manual">Вручную · выбросы определяются внутри выбранного интервала</string>
+    <string name="analytical_start">С (ЧЧ:мм)</string>
+    <string name="analytical_end">До (ЧЧ:мм, не включая)</string>
+    <string name="analytical_invalid_time">Введите время от 00:00 до 24:00; начало должно быть раньше конца.</string>
+    <string name="analytical_auto">Подобрать по измерениям</string>
+    <string name="analytical_insufficient">Недостаточно данных для окна 2–3 часа. Выберите интервал вручную.</string>
+    <string name="analytical_preview">Предпросмотр %1$s–%2$s\nВ базовом окне: %3$d · Осталось: %4$d\nВне интервала: %5$d · Выбросы: %6$d\nПримените кнопкой «Сохранить».</string>
+    <string name="analytical_hourly_hint">Все измерения по 24 местным часам. Выбранный период и другие фильтры не влияют на эту диаграмму.</string>
+    <string name="analytical_rule">Это визуальная эвристика, не медицинское правило. Нужны 7 различных временных отметок и 6 соседних разниц с промежутками не более 7 суток. Порог: max(0,5 кг; 3 × медиана абсолютных соседних разниц). Точка скрывается, только если она строго выше или ниже обоих соседей более чем на порог, а соседи отличаются не более чем на порог. Крайние точки, совпадающее время, плавный тренд, устойчивый новый уровень и соседние группы кандидатов сохраняются. Измерения не удаляются. Автоподбор начинает с 05:00–12:00 и сдвигает одну границу на 30 минут за итерацию, максимум 10 шагов, до окна 2–3 часа при достаточных данных. Замеры вне окна — не выбросы. Дневной минимум берёт один целый замер; исключённый минимум не заменяется.</string>
+</resources>

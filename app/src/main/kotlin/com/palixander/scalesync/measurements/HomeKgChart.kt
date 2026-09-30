@@ -156,6 +156,9 @@ internal fun HomeKgChart(
     onSeriesToggled: (String) -> Unit,
     modifier: Modifier = Modifier,
     zoneId: ZoneId = ZoneId.systemDefault(),
+    title: String = stringResource(com.palixander.scalesync.R.string.chart_body_composition_title),
+    subtitle: String = stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
+    embedded: Boolean = false,
 ) {
     val locale = currentAppLocale()
     val hasHistoryData = state.series.any { it.points.isNotEmpty() }
@@ -163,16 +166,12 @@ internal fun HomeKgChart(
         series.key in state.activeSeriesKeys && series.points.isNotEmpty()
     }
 
-    ScaleSyncSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("home-kg-chart"),
-    ) {
+    val content: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(stringResource(com.palixander.scalesync.R.string.chart_body_composition_title), style = MaterialTheme.typography.titleMedium)
+            if (!embedded) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(
-                    stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
+                    subtitle,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
@@ -194,7 +193,7 @@ internal fun HomeKgChart(
                     tag = "home-kg-chart-selected-no-data",
                 )
 
-                else -> HomeKgVicoChart(state, plottedSeries, zoneId)
+                else -> HomeKgVicoChart(state, plottedSeries, zoneId, insetLabels = embedded)
             }
 
             var expanded by rememberSaveable { mutableStateOf(false) }
@@ -235,6 +234,11 @@ internal fun HomeKgChart(
                 }
             }
         }
+    }
+    if (embedded) {
+        Box(modifier.fillMaxWidth().testTag("home-kg-chart")) { content() }
+    } else {
+        ScaleSyncSurface(modifier = modifier.fillMaxWidth().testTag("home-kg-chart"), content = content)
     }
 }
 
@@ -281,6 +285,7 @@ private fun HomeKgVicoChart(
     state: HomeKgChartUiState,
     plottedSeries: List<HomeKgChartSeries>,
     zoneId: ZoneId,
+    insetLabels: Boolean,
 ) {
     val locale = currentAppLocale()
     val chartContentDescription = stringResource(
@@ -353,7 +358,7 @@ private fun HomeKgVicoChart(
                     suffix = " ${com.palixander.scalesync.ui.text.uiText(com.palixander.scalesync.R.string.unit_kg).resolve(resources)}",
                 ),
             ),
-            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId),
+            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId, insetLabels),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),
         ),
         modelProducer = modelProducer,

@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Aggiungi grafico</string>
+    <string name="analytical_morning">Misurazioni mattutine</string>
+    <string name="analytical_minimum">Minimi giornalieri</string>
+    <string name="analytical_hourly">Orari delle misurazioni</string>
+    <string name="analytical_added">Aggiunto</string>
+    <string name="analytical_removed">Grafico rimosso</string>
+    <string name="analytical_window">%1$s–%2$s · anomalie isolate nascoste</string>
+    <string name="analytical_minimum_hint">Peso minimo giornaliero; anomalie isolate nascoste</string>
+    <string name="analytical_all_time">Tutto il periodo · %1$d misurazioni</string>
+    <string name="analytical_error">Calcolo non riuscito. Riprova.</string>
+    <string name="analytical_no_source">Nessuna misurazione.</string>
+    <string name="analytical_no_filtered">Nessuna misurazione rimasta in questo intervallo.</string>
+    <string name="analytical_no_period">Nessun punto nel periodo scelto. Scorri tutta la cronologia.</string>
+    <string name="analytical_choose_series">Scegli indicatori</string>
+    <string name="analytical_small_history">Cronologia insufficiente per filtrare; le misurazioni restano invariate.</string>
+    <string name="analytical_excluded">Mostra escluse (%1$d)</string>
+    <string name="analytical_help">Come funziona il filtro</string>
+    <string name="analytical_configure">Configura</string>
+    <string name="analytical_remove">Rimuovi grafico</string>
+    <string name="analytical_none_excluded">Nessuna misurazione esclusa.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Automatico · anomalie valutate tra 05:00 e 12:00</string>
+    <string name="analytical_mode_manual">Manuale · anomalie valutate nell’intervallo scelto</string>
+    <string name="analytical_start">Da (HH:mm)</string>
+    <string name="analytical_end">A (HH:mm, escluso)</string>
+    <string name="analytical_invalid_time">Inserisci orari da 00:00 a 24:00; inizio precedente alla fine.</string>
+    <string name="analytical_auto">Scegli dalle misurazioni</string>
+    <string name="analytical_insufficient">Dati insufficienti per 2–3 ore. Scegli manualmente.</string>
+    <string name="analytical_preview">Anteprima %1$s–%2$s\nBase: %3$d · Rimaste: %4$d\nFuori intervallo: %5$d · Anomalie: %6$d\nApplica con Salva.</string>
+    <string name="analytical_hourly_hint">Tutte le misurazioni in 24 ore locali. Il periodo e gli altri filtri non influenzano questo grafico.</string>
+    <string name="analytical_rule">Ausilio visivo, non regola medica. Servono 7 istanti distinti e 6 differenze adiacenti distanti al massimo 7 giorni. Soglia: max(0,5 kg; 3 × mediana delle differenze assolute adiacenti). Un punto viene nascosto solo se è sopra o sotto entrambi i vicini oltre la soglia, mentre i vicini differiscono al massimo della soglia. Estremi, orari uguali, tendenze graduali, variazioni durature e gruppi di candidati adiacenti restano. Le misurazioni non vengono eliminate. La scelta automatica parte da 05:00–12:00 e sposta un limite di 30 minuti per iterazione, massimo 10 passi, fino a 2–3 ore con dati sufficienti. I punti fuori intervallo non sono anomalie. Il minimo giornaliero usa una misurazione intera; un minimo escluso non viene sostituito.</string>
+</resources>

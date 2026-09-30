@@ -1,0 +1,33 @@
+<resources>
+    <string name="analytical_add">Додати графік</string>
+    <string name="analytical_morning">Ранкові вимірювання</string>
+    <string name="analytical_minimum">Денні мінімуми</string>
+    <string name="analytical_hourly">Час вимірювань</string>
+    <string name="analytical_added">Додано</string>
+    <string name="analytical_removed">Графік прибрано</string>
+    <string name="analytical_window">%1$s–%2$s · поодинокі викиди приховано</string>
+    <string name="analytical_minimum_hint">Мінімальна вага за день; поодинокі викиди приховано</string>
+    <string name="analytical_all_time">За весь час · %1$d вимірювань</string>
+    <string name="analytical_error">Не вдалося обчислити. Спробуйте знову.</string>
+    <string name="analytical_no_source">Вимірювань поки немає.</string>
+    <string name="analytical_no_filtered">У цьому інтервалі не залишилося вимірювань.</string>
+    <string name="analytical_no_period">У вибраному періоді немає точок. Прокрутіть усю історію.</string>
+    <string name="analytical_choose_series">Вибрати показники</string>
+    <string name="analytical_small_history">Історії недостатньо для фільтра; усі вимірювання збережено.</string>
+    <string name="analytical_excluded">Показати виключені (%1$d)</string>
+    <string name="analytical_help">Як працює фільтр</string>
+    <string name="analytical_configure">Налаштувати</string>
+    <string name="analytical_remove">Прибрати графік</string>
+    <string name="analytical_none_excluded">Виключених вимірювань немає.</string>
+    <string name="analytical_hour_row">%1$s–%2$s · %3$d · %4$s%%</string>
+    <string name="analytical_mode_auto">Автоматично · викиди визначаються в базовому вікні 05:00–12:00</string>
+    <string name="analytical_mode_manual">Вручну · викиди визначаються у вибраному інтервалі</string>
+    <string name="analytical_start">З (ГГ:хх)</string>
+    <string name="analytical_end">До (ГГ:хх, не включно)</string>
+    <string name="analytical_invalid_time">Введіть час від 00:00 до 24:00; початок має бути раніше за кінець.</string>
+    <string name="analytical_auto">Підібрати за вимірюваннями</string>
+    <string name="analytical_insufficient">Недостатньо даних для вікна 2–3 години. Виберіть інтервал вручну.</string>
+    <string name="analytical_preview">Попередній перегляд %1$s–%2$s\nУ базовому вікні: %3$d · Залишилось: %4$d\nПоза інтервалом: %5$d · Викиди: %6$d\nЗастосуйте кнопкою «Зберегти».</string>
+    <string name="analytical_hourly_hint">Усі вимірювання за 24 місцевими годинами. Вибраний період та інші фільтри не впливають на діаграму.</string>
+    <string name="analytical_rule">Це візуальна евристика, не медичне правило. Потрібні 7 різних часових позначок і 6 сусідніх різниць із проміжками до 7 діб. Поріг: max(0,5 кг; 3 × медіана абсолютних сусідніх різниць). Точка приховується лише якщо вона вища або нижча за обох сусідів більш ніж на поріг, а сусіди відрізняються не більш ніж на поріг. Крайні точки, однаковий час, плавний тренд, стійкий новий рівень та сусідні групи кандидатів зберігаються. Вимірювання не видаляються. Автопідбір починає з 05:00–12:00 і зсуває одну межу на 30 хвилин за ітерацію, максимум 10 кроків, до 2–3 годин за достатніх даних. Вимірювання поза вікном — не викиди. Денний мінімум бере одне ціле вимірювання; виключений мінімум не замінюється.</string>
+</resources>

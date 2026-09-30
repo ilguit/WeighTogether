@@ -115,70 +115,94 @@ fun ChartsScreen(
         null -> Unit
     }
 
-    LazyColumn(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = ScaleSyncDimensions.ContentPadding),
-        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
-    ) {
-        item { Spacer(Modifier.height(1.dp)) }
-        if (showAccountSelector) {
+    Box(modifier.fillMaxSize()) {
+        AnalyticalChartDialogs(state, callbacks.analytical)
+        LazyColumn(
+            modifier = Modifier
+                .testTag("charts-list")
+                .fillMaxSize()
+                .padding(horizontal = ScaleSyncDimensions.ContentPadding),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
+        ) {
+            item { Spacer(Modifier.height(1.dp)) }
+            if (showAccountSelector) {
+                item {
+                    AccountSelector(
+                        state = state.accountSelector,
+                        onAccountSelected = callbacks.onAccountSelected,
+                    )
+                }
+            }
             item {
-                AccountSelector(
-                    state = state.accountSelector,
-                    onAccountSelected = callbacks.onAccountSelected,
+                ChartFilterRow(
+                    rangeText = rangeLabel(state.rangePreset, state.startDate, state.endDateInclusive),
+                    selectedCount = state.selectedMetricKeys.size,
+                    metricCount = state.metricOptions.size,
+                    onOpenRangeFilter = callbacks.openRangeFilter,
+                    onOpenMetricFilter = callbacks.openMetricFilter,
                 )
             }
-        }
-        item {
-            ChartFilterRow(
-                rangeText = rangeLabel(state.rangePreset, state.startDate, state.endDateInclusive),
-                selectedCount = state.selectedMetricKeys.size,
-                metricCount = state.metricOptions.size,
-                onOpenRangeFilter = callbacks.openRangeFilter,
-                onOpenMetricFilter = callbacks.openMetricFilter,
-            )
-        }
-        state.errorMessage?.let { message ->
-            item {
-                ScaleSyncSurface(containerColor = MaterialTheme.colorScheme.errorContainer) {
-                    Text(
-                        text = message,
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                        style = MaterialTheme.typography.bodyMedium,
+            callbacks.analytical?.let { analyticalCallbacks ->
+                item {
+                    Button(
+                        onClick = { analyticalCallbacks.controller.showAddMenu(true) },
+                        enabled = state.analytical.accountId != null,
+                        modifier = Modifier.fillMaxWidth().testTag("analytical-add"),
+                    ) { Text(stringResource(R.string.analytical_add)) }
+                }
+                items(state.analytical.settings, key = { "analytical-${state.analytical.accountId}-${it.type}" }) { settings ->
+                    AnalyticalChartCard(
+                        card = state.analyticalCards.firstOrNull { it.settings.type == settings.type }
+                            ?: AnalyticalCardUiState(settings),
+                        loading = state.isLoading,
+                        error = state.analyticalError,
+                        callbacks = analyticalCallbacks,
+                        zoneId = state.zoneId,
                     )
                 }
             }
-        }
-        when {
-            state.isLoading -> item {
-                Box(
-                    Modifier.fillMaxWidth().padding(32.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.semantics { contentDescription = loadingDescription },
-                    )
+            state.errorMessage?.let { message ->
+                item {
+                    ScaleSyncSurface(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                        Text(
+                            text = message,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
                 }
             }
+            when {
+                state.isLoading -> item {
+                    Box(
+                        Modifier.fillMaxWidth().padding(32.dp),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.semantics { contentDescription = loadingDescription },
+                        )
+                    }
+                }
 
-            state.selectedMetricKeys.isEmpty() -> item {
-                ChartsEmptyState(onChooseMetrics = callbacks.openMetricFilter)
-            }
+                state.selectedMetricKeys.isEmpty() -> item {
+                    ChartsEmptyState(onChooseMetrics = callbacks.openMetricFilter)
+                }
 
-            else -> {
-                val seriesByKey = state.series.associateBy { it.metric.key }
-                items(state.selectedMetrics, key = ChartMetricOption::key) { metric ->
-                    MetricChartCard(
-                        series = seriesByKey[metric.key] ?: ChartSeries(metric, emptyList()),
-                        startDate = state.startDate,
-                        endDateInclusive = state.endDateInclusive,
-                        zoneId = zoneId,
-                    )
+                else -> {
+                    val seriesByKey = state.series.associateBy { it.metric.key }
+                    items(state.selectedMetrics, key = ChartMetricOption::key) { metric ->
+                        MetricChartCard(
+                            series = seriesByKey[metric.key] ?: ChartSeries(metric, emptyList()),
+                            startDate = state.startDate,
+                            endDateInclusive = state.endDateInclusive,
+                            zoneId = zoneId,
+                        )
+                    }
                 }
             }
+            item { Spacer(Modifier.height(24.dp)) }
         }
-        item { Spacer(Modifier.height(24.dp)) }
+        AnalyticalUndoHost(state.analytical, callbacks.analytical, Modifier.align(Alignment.BottomCenter))
     }
 }
 
