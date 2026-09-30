@@ -557,4 +557,6 @@
     <string name="weighing_alarm_screen_title">Il est temps de peser : %1$s</string>
     <string name="weighing_reminder_stop">Arrêter</string>
     <string name="weighing_reminder_weigh">Peser</string>
+    <string name="photo_view_open">Voir la photo</string>
+    <string name="photo_view_unavailable">Photo indisponible</string>
 </resources>

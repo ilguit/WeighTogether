@@ -375,4 +375,6 @@
     <string name="weighing_alarm_screen_title">Час узважыць: %1$s</string>
     <string name="weighing_reminder_stop">Выключыць</string>
     <string name="weighing_reminder_weigh">Узважыць</string>
+    <string name="photo_view_open">Паглядзець фота</string>
+    <string name="photo_view_unavailable">Фота недаступнае</string>
 </resources>
