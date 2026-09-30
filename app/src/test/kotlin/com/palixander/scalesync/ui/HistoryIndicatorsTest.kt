@@ -9,7 +9,7 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.domain.MeasurementOrigin
 import com.palixander.scalesync.measurements.MeasurementHistoryCard
 import com.palixander.scalesync.measurements.MeasurementsCallbacks
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.profiles.PetHistoryMeasurementDetails
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.io.File
@@ -41,11 +41,11 @@ class HistoryIndicatorsScreenshotTest {
                     MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), false, {}, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
                     MeasurementHistoryCard(human(MeasurementOrigin.MANUAL, true), true, {}, {}, MeasurementsCallbacks.None, { _, _ -> }, mutableMapOf())
                     for (origin in listOf(MeasurementOrigin.SCALE, MeasurementOrigin.MANUAL)) {
-                        HuaweiSurface {
+                        ScaleSyncSurface {
                             PetHistoryMeasurementDetails(pet(origin, false), true, {}, {})
                         }
                     }
-                    HuaweiSurface {
+                    ScaleSyncSurface {
                         PetHistoryMeasurementDetails(pet(MeasurementOrigin.MANUAL, true), true, {}, {})
                     }
                 }

@@ -26,10 +26,10 @@ class MainActivityLaunchTest {
                 scenario.onActivity { activity ->
                     val accent = TypedValue()
                     assertTrue(activity.theme.resolveAttribute(android.R.attr.colorAccent, accent, true))
-                    assertEquals(activity.getColor(R.color.huawei_primary), accent.data)
+                    assertEquals(activity.getColor(R.color.scalesync_primary), accent.data)
                     val background = TypedValue()
                     assertTrue(activity.theme.resolveAttribute(android.R.attr.windowBackground, background, true))
-                    assertEquals(R.color.huawei_background, background.resourceId)
+                    assertEquals(R.color.scalesync_background, background.resourceId)
                 }
             }
 

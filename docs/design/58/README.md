@@ -33,7 +33,7 @@ specification remains canonical for all other design requirements.
 - Existing zones, norms, scales, ranges, colors, labels, and interpretations for
   weight and all body-composition metrics.
 - Full-app increased-font adaptation, dark theme, tablet-specific information
-  architecture, second language, avatars, new animation, and Huawei removal.
+  architecture, second language, avatars, new animation.
   Species and sex button groups are still checked at 200% system font.
 - Full string-resource migration, tracked separately by issue #63.
 - Legacy/dead UI refactoring, tracked separately by issue #56.
@@ -57,8 +57,7 @@ The full normal/empty/loading/unavailable/error matrix is preserved in
 widths with long text. Full-app increased-font adaptation is outside issue #58;
 the species and sex button groups are explicitly checked at 200%.
 
-Both flavors use the same UX for the same capability. Huawei Health is absent
-from personal and visible only where the enterprise capability exists.
+The application uses one build and one UX for each capability.
 
 ## Accessibility and safety
 

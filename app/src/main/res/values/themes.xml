@@ -1,6 +1,6 @@
 <resources>
     <style name="Theme.ScaleSync.Starting" parent="Theme.SplashScreen">
-        <item name="windowSplashScreenBackground">@color/huawei_background</item>
+        <item name="windowSplashScreenBackground">@color/scalesync_background</item>
         <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_scalesync_launcher</item>
         <item name="postSplashScreenTheme">@style/Theme.ScaleSync</item>
     </style>
@@ -9,10 +9,10 @@
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowActionModeOverlay">true</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowBackground">@color/huawei_background</item>
-        <item name="android:colorAccent">@color/huawei_primary</item>
-        <item name="android:navigationBarColor">@color/huawei_primary</item>
-        <item name="android:statusBarColor">@color/huawei_primary</item>
+        <item name="android:windowBackground">@color/scalesync_background</item>
+        <item name="android:colorAccent">@color/scalesync_primary</item>
+        <item name="android:navigationBarColor">@color/scalesync_primary</item>
+        <item name="android:statusBarColor">@color/scalesync_primary</item>
         <item name="android:windowLightStatusBar">false</item>
         <item name="android:windowDrawsSystemBarBackgrounds">true</item>
     </style>
@@ -20,12 +20,12 @@
     <style name="Theme.ScaleSync.Alarm" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="android:windowNoTitle">true</item>
-        <item name="android:windowBackground">@color/huawei_background</item>
+        <item name="android:windowBackground">@color/scalesync_background</item>
         <item name="android:windowIsTranslucent">false</item>
         <item name="android:windowDisablePreview">true</item>
-        <item name="android:colorAccent">@color/huawei_primary</item>
-        <item name="android:navigationBarColor">@color/huawei_primary</item>
-        <item name="android:statusBarColor">@color/huawei_primary</item>
+        <item name="android:colorAccent">@color/scalesync_primary</item>
+        <item name="android:navigationBarColor">@color/scalesync_primary</item>
+        <item name="android:statusBarColor">@color/scalesync_primary</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
 </resources>

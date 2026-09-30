@@ -907,10 +907,6 @@ html&gt;body{padding:0}&lt;/style&gt;
 &lt;body&gt;
 &lt;div id=&quot;scalesync-settings-mockup&quot;&gt;
   &lt;div class=&quot;prototype-controls&quot; aria-label=&quot;Состояние макета&quot;&gt;
-    &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Сборка&quot;&gt;
-      &lt;button type=&quot;button&quot; data-flavor=&quot;personal&quot; aria-pressed=&quot;true&quot;&gt;Personal&lt;/button&gt;
-      &lt;button type=&quot;button&quot; data-flavor=&quot;enterprise&quot; aria-pressed=&quot;false&quot;&gt;Enterprise&lt;/button&gt;
-    &lt;/div&gt;
     &lt;div class=&quot;control-group&quot; role=&quot;group&quot; aria-label=&quot;Данные&quot;&gt;
       &lt;button type=&quot;button&quot; data-state=&quot;ready&quot; aria-pressed=&quot;true&quot;&gt;Настроено&lt;/button&gt;
       &lt;button type=&quot;button&quot; data-state=&quot;empty&quot; aria-pressed=&quot;false&quot;&gt;Пусто&lt;/button&gt;
@@ -965,12 +961,6 @@ html&gt;body{padding:0}&lt;/style&gt;
           &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;heart-pulse&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
           &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Health Connect&lt;/strong&gt;&lt;span data-health-status&gt;Подключено&lt;/span&gt;&lt;/span&gt;
           &lt;span class=&quot;status-mark success&quot; data-health-mark&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
-          &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
-        &lt;/button&gt;
-        &lt;button type=&quot;button&quot; class=&quot;setting-row huawei-row&quot; data-screen=&quot;huawei-detail&quot; hidden&gt;
-          &lt;span class=&quot;row-icon&quot;&gt;&lt;i data-lucide=&quot;heart&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
-          &lt;span class=&quot;row-copy&quot;&gt;&lt;strong&gt;Huawei Health&lt;/strong&gt;&lt;span data-huawei-status&gt;Подключено&lt;/span&gt;&lt;/span&gt;
-          &lt;span class=&quot;status-mark success&quot; data-huawei-mark&gt;&lt;i data-lucide=&quot;circle-check&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;&lt;/span&gt;
           &lt;i data-lucide=&quot;chevron-right&quot; aria-hidden=&quot;true&quot;&gt;&lt;/i&gt;
         &lt;/button&gt;
       &lt;/div&gt;
@@ -1361,7 +1351,7 @@ html&gt;body{padding:0}&lt;/style&gt;
   const title = root.querySelector(&#x27;.screen-title&#x27;);
   const back = root.querySelector(&#x27;.back-action&#x27;);
   const nav = root.querySelector(&#x27;.bottom-navigation&#x27;);
-  const state = { flavor: &#x27;personal&#x27;, data: &#x27;ready&#x27;, screen: &#x27;root&#x27;, width: &#x27;regular&#x27;, textScale: &#x27;normal&#x27; };
+  const state = { data: &#x27;ready&#x27;, screen: &#x27;root&#x27;, width: &#x27;regular&#x27;, textScale: &#x27;normal&#x27; };
 
   const screens = {
     root: [&#x27;Настройки&#x27;, &#x27;root-screen-template&#x27;],
@@ -1371,7 +1361,6 @@ html&gt;body{padding:0}&lt;/style&gt;
     history: [&#x27;История версий&#x27;, &#x27;history-screen-template&#x27;],
     &#x27;scale-detail&#x27;: [&#x27;Весы&#x27;, &#x27;connection-screen-template&#x27;],
     &#x27;health-detail&#x27;: [&#x27;Health Connect&#x27;, &#x27;connection-screen-template&#x27;],
-    &#x27;huawei-detail&#x27;: [&#x27;Huawei Health&#x27;, &#x27;connection-screen-template&#x27;]
   };
 
   function setPressed(selector, value, attribute) {
@@ -1393,20 +1382,18 @@ html&gt;body{padding:0}&lt;/style&gt;
     if (state.screen === &#x27;root&#x27;) {
       const empty = state.data === &#x27;empty&#x27;;
       const rootStatuses = {
-        ready: [&#x27;Mi Body Composition Scale 2&#x27;, &#x27;Подключено&#x27;, &#x27;Подключено&#x27;],
-        empty: [&#x27;Весы не выбраны&#x27;, &#x27;Требуется разрешение&#x27;, &#x27;Не подключено&#x27;],
-        checking: [&#x27;Поиск весов…&#x27;, &#x27;Проверка состояния…&#x27;, &#x27;Проверка состояния…&#x27;],
-        disabled: [&#x27;Весы не выбраны&#x27;, &#x27;Отключено в приложении&#x27;, &#x27;Отключено в приложении&#x27;],
-        unavailable: [&#x27;Bluetooth недоступен&#x27;, &#x27;Недоступно на устройстве&#x27;, &#x27;Требуется обновление&#x27;],
-        error: [&#x27;Не удалось найти весы&#x27;, &#x27;Не удалось проверить&#x27;, &#x27;Не удалось проверить&#x27;]
+        ready: [&#x27;Mi Body Composition Scale 2&#x27;, &#x27;Подключено&#x27;],
+        empty: [&#x27;Весы не выбраны&#x27;, &#x27;Требуется разрешение&#x27;],
+        checking: [&#x27;Поиск весов…&#x27;, &#x27;Проверка состояния…&#x27;],
+        disabled: [&#x27;Весы не выбраны&#x27;, &#x27;Отключено в приложении&#x27;],
+        unavailable: [&#x27;Bluetooth недоступен&#x27;, &#x27;Недоступно на устройстве&#x27;],
+        error: [&#x27;Не удалось найти весы&#x27;, &#x27;Не удалось проверить&#x27;]
       };
       const statuses = rootStatuses[state.data];
-      content.querySelector(&#x27;.huawei-row&#x27;).hidden = state.flavor !== &#x27;enterprise&#x27;;
       content.querySelector(&#x27;[data-profile-summary]&#x27;).textContent = empty ? &#x27;Добавьте первый профиль&#x27; : &#x27;2 человека · 1 питомец&#x27;;
       content.querySelector(&#x27;[data-scale-status]&#x27;).textContent = statuses[0];
       content.querySelector(&#x27;[data-health-status]&#x27;).textContent = statuses[1];
-      content.querySelector(&#x27;[data-huawei-status]&#x27;).textContent = statuses[2];
-      [&#x27;scale&#x27;, &#x27;health&#x27;, &#x27;huawei&#x27;].forEach(kind =&gt; {
+      [&#x27;scale&#x27;, &#x27;health&#x27;].forEach(kind =&gt; {
         const mark = content.querySelector(`[data-${kind}-mark]`);
         if (!mark) return;
         const successful = state.data === &#x27;ready&#x27;;
@@ -1456,14 +1443,6 @@ html&gt;body{padding:0}&lt;/style&gt;
           unavailable: [&#x27;Health Connect&#x27;, &#x27;Требуется обновление&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Провайдер недоступен или требует обновления&#x27;, null, null],
           error: [&#x27;Health Connect&#x27;, &#x27;Ошибка проверки&#x27;, &#x27;Системная интеграция&#x27;, &#x27;Не удалось проверить разрешения&#x27;, &#x27;Подключить&#x27;, null]
         },
-        &#x27;huawei-detail&#x27;: {
-          ready: [&#x27;Huawei Health&#x27;, &#x27;Подключено&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Синхронизация включена&#x27;, null, &#x27;Отключить Huawei Health&#x27;],
-          empty: [&#x27;Huawei Health&#x27;, &#x27;Не подключено&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Требуется авторизация&#x27;, &#x27;Разрешить доступ&#x27;, null],
-          checking: [&#x27;Huawei Health&#x27;, &#x27;Проверка…&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Проверяем авторизацию&#x27;, &#x27;Проверяем…&#x27;, null],
-          disabled: [&#x27;Huawei Health&#x27;, &#x27;Отключено в приложении&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Синхронизация отключена&#x27;, &#x27;Подключить снова&#x27;, null],
-          unavailable: [&#x27;Huawei Health&#x27;, &#x27;Недоступно&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Сервис недоступен на устройстве&#x27;, null, null],
-          error: [&#x27;Huawei Health&#x27;, &#x27;Ошибка проверки&#x27;, &#x27;Huawei Health Kit&#x27;, &#x27;Не удалось проверить авторизацию&#x27;, &#x27;Повторить&#x27;, null]
-        }
       };
       const config = variants[state.screen][state.data];
       content.querySelector(&#x27;[data-connection-title]&#x27;).textContent = config[0];
@@ -1488,12 +1467,6 @@ html&gt;body{padding:0}&lt;/style&gt;
     if (focusTarget &amp;&amp; focusTarget !== &#x27;back&#x27;) requestAnimationFrame(() =&gt; content.querySelector(`[data-screen=&quot;${focusTarget}&quot;]`)?.focus());
   }
 
-  root.querySelectorAll(&#x27;[data-flavor]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
-    state.flavor = button.dataset.flavor;
-    setPressed(&#x27;[data-flavor]&#x27;, state.flavor, &#x27;flavor&#x27;);
-    if (state.screen === &#x27;huawei-detail&#x27; &amp;&amp; state.flavor !== &#x27;enterprise&#x27;) state.screen = &#x27;root&#x27;;
-    render();
-  }));
   root.querySelectorAll(&#x27;[data-state]&#x27;).forEach(button =&gt; button.addEventListener(&#x27;click&#x27;, () =&gt; {
     state.data = button.dataset.state;
     setPressed(&#x27;[data-state]&#x27;, state.data, &#x27;state&#x27;);

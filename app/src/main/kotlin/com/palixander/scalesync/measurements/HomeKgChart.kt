@@ -47,10 +47,10 @@ import com.palixander.scalesync.charts.rememberChartMarker
 import com.palixander.scalesync.charts.rememberChartStartAxis
 import com.palixander.scalesync.charts.rememberChartLine
 import com.palixander.scalesync.charts.rememberChartLineLayer
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
 import com.palixander.scalesync.ui.currentAppLocale
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
 import com.patrykandpatrick.vico.compose.cartesian.CartesianChartHost
@@ -163,7 +163,7 @@ internal fun HomeKgChart(
         series.key in state.activeSeriesKeys && series.points.isNotEmpty()
     }
 
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = modifier
             .fillMaxWidth()
             .testTag("home-kg-chart"),
@@ -205,7 +205,7 @@ internal fun HomeKgChart(
             TextButton(
                 onClick = { expanded = !expanded },
                 modifier = Modifier.fillMaxWidth()
-                    .heightIn(min = HuaweiDimensions.TouchTarget)
+                    .heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .semantics { stateDescription = expansionStateDescription }
                     .testTag("home-kg-series-toggle"),
             ) {
@@ -218,7 +218,7 @@ internal fun HomeKgChart(
                     modifier = Modifier.weight(1f),
                 )
                 Icon(
-                    HuaweiIcons.ChevronDown,
+                    ScaleSyncIcons.ChevronDown,
                     contentDescription = null,
                     modifier = Modifier.size(18.dp).rotate(if (expanded) 180f else 0f),
                 )
@@ -263,7 +263,7 @@ private fun HomeKgSeriesItem(
 ) {
     Row(
         modifier = Modifier.fillMaxWidth()
-            .heightIn(min = HuaweiDimensions.TouchTarget)
+            .heightIn(min = ScaleSyncDimensions.TouchTarget)
             .toggleable(value = selected, role = Role.Checkbox, onValueChange = { onClick() })
             .testTag("home-kg-legend-${series.key}")
             .padding(horizontal = 8.dp, vertical = 4.dp),

@@ -28,11 +28,11 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
-import com.palixander.scalesync.ui.components.HuaweiSectionTitle
+import com.palixander.scalesync.ui.components.ScaleSyncSectionTitle
 import com.palixander.scalesync.R
 import com.palixander.scalesync.ui.text.resolve
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 
 object WeightDeltaEditorTestTags {
     const val Input = "weight-delta-input"
@@ -67,11 +67,11 @@ fun WeightRecognitionSetting(
     }
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
     ) {
-        HuaweiSectionTitle(stringResource(R.string.weight_recognition_title))
-        HuaweiSurface(Modifier.fillMaxWidth()) {
-            Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+        ScaleSyncSectionTitle(stringResource(R.string.weight_recognition_title))
+        ScaleSyncSurface(Modifier.fillMaxWidth()) {
+            Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
                 Text(
                     stringResource(R.string.weight_recognition_description),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -119,7 +119,7 @@ fun WeightRecognitionSetting(
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(
-                        HuaweiDimensions.CompactItemSpacing,
+                        ScaleSyncDimensions.CompactItemSpacing,
                     ),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {

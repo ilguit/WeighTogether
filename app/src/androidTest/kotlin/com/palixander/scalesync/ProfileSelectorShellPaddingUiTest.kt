@@ -35,7 +35,7 @@ import com.palixander.scalesync.measurements.MeasurementsDestination
 import com.palixander.scalesync.ui.profiles.HomePetShortcutsTestTags
 import com.palixander.scalesync.ui.profiles.ProfileSelectionUiState
 import com.palixander.scalesync.ui.profiles.ProfileSelectorTestTags
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
@@ -174,7 +174,7 @@ class ProfileSelectorShellPaddingUiTest {
             (contentTop - selectorBottom).toPx().roundToInt()
         }
         val expectedPaddingPx = with(composeRule.density) {
-            HuaweiDimensions.CompactContentPadding.roundToPx()
+            ScaleSyncDimensions.CompactContentPadding.roundToPx()
         }
 
         assertTrue(

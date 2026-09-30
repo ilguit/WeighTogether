@@ -65,13 +65,13 @@ import com.palixander.scalesync.ui.accounts.AccountManagementCallbacks
 import com.palixander.scalesync.ui.accounts.AccountManagementSection
 import com.palixander.scalesync.ui.accounts.AccountEditorScreen
 import com.palixander.scalesync.ui.accounts.WeightRecognitionSetting
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.ui.settings.SettingsGroup
 import com.palixander.scalesync.ui.settings.SettingsGroupDivider
 import com.palixander.scalesync.ui.settings.SettingsGroupRow
 import com.palixander.scalesync.ui.settings.SettingsStatusMark
-import com.palixander.scalesync.ui.theme.HuaweiColors
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.text.UiText
 import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.ui.text.uiText
@@ -149,12 +149,12 @@ internal fun settingsRootDestinations(): List<SettingsDestination> = buildList {
 }
 
 internal fun settingsRootIcon(destination: SettingsDestination) = when (destination) {
-    SettingsDestination.PROFILES -> HuaweiIcons.Users
-    SettingsDestination.SCALE -> HuaweiIcons.Bluetooth
-    SettingsDestination.HEALTH_CONNECT -> HuaweiIcons.HealthConnect
-    SettingsDestination.BACKUP -> HuaweiIcons.Archive
-    SettingsDestination.DIAGNOSTICS -> HuaweiIcons.Stethoscope
-    SettingsDestination.ROOT -> HuaweiIcons.Settings
+    SettingsDestination.PROFILES -> ScaleSyncIcons.Users
+    SettingsDestination.SCALE -> ScaleSyncIcons.Bluetooth
+    SettingsDestination.HEALTH_CONNECT -> ScaleSyncIcons.HealthConnect
+    SettingsDestination.BACKUP -> ScaleSyncIcons.Archive
+    SettingsDestination.DIAGNOSTICS -> ScaleSyncIcons.Stethoscope
+    SettingsDestination.ROOT -> ScaleSyncIcons.Settings
 }
 
 internal fun scaleRootStatusSuccessful(presentation: ScaleSettingsPresentation): Boolean =
@@ -234,7 +234,7 @@ internal object SettingsScreenTestTags {
     const val PetDeleteDialog = "settings-pet-delete-dialog"
     const val DestructiveSection = "settings-destructive-section"
     const val DisableHealthConnect = "settings-disable-health-connect"
-    const val DisableHuawei = "settings-disable-huawei"
+    const val DisableScaleSync = "settings-disable-scalesync"
     const val ForgetScale = "settings-forget-scale"
     const val DestructiveDialog = "settings-destructive-dialog"
     const val DestructiveConfirm = "settings-destructive-confirm"
@@ -481,8 +481,8 @@ private fun SettingsSimpleDetail(
         LazyColumn(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(testTag),
             contentPadding = PaddingValues(
-                start = HuaweiDimensions.ContentPadding,
-                end = HuaweiDimensions.ContentPadding,
+                start = ScaleSyncDimensions.ContentPadding,
+                end = ScaleSyncDimensions.ContentPadding,
                 top = 4.dp,
                 bottom = 28.dp,
             ),
@@ -509,7 +509,7 @@ private fun SettingsScaleDetail(
         val presentation = scalePresentation(state)
         ConnectionDetailContent(
             title = stringResource(R.string.settings_scales_title),
-            icon = HuaweiIcons.Bluetooth,
+            icon = ScaleSyncIcons.Bluetooth,
             status = presentation.supportingText.resolve(resources),
             identityLabel = stringResource(R.string.settings_device),
             identity = scaleDetailIdentity(state.settings).resolve(resources),
@@ -549,7 +549,7 @@ private fun SettingsHealthConnectDetail(
     ) {
         ConnectionDetailContent(
             title = stringResource(R.string.settings_health_connect),
-            icon = HuaweiIcons.HealthConnect,
+            icon = ScaleSyncIcons.HealthConnect,
             status = presentation.supportingText.resolve(resources),
             identityLabel = stringResource(R.string.settings_device),
             identity = stringResource(R.string.settings_system_integration),
@@ -595,12 +595,12 @@ private fun SettingsActionDetail(
         LazyColumn(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(testTag),
             contentPadding = PaddingValues(
-                start = HuaweiDimensions.ContentPadding,
-                end = HuaweiDimensions.ContentPadding,
+                start = ScaleSyncDimensions.ContentPadding,
+                end = ScaleSyncDimensions.ContentPadding,
                 top = 4.dp,
                 bottom = 28.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item { content() }
             destructiveAction?.let { action ->
@@ -650,7 +650,7 @@ private fun ConnectionDetailContent(
     progress: Boolean = false,
     statusTag: String = SettingsScreenTestTags.IntegrationStatus,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing)) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(20.dp)
                 .testTag(SettingsScreenTestTags.DetailHero),
@@ -679,7 +679,7 @@ private fun ConnectionDetailContent(
                 Button(
                     onClick = onAction,
                     enabled = actionEnabled,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                    modifier = Modifier.fillMaxWidth().heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(actionTag).then(
                             if (actionContentDescription == null) Modifier else Modifier.semantics {
                                 contentDescription = actionContentDescription
@@ -709,9 +709,9 @@ private fun ConnectionDetailContent(
 private fun DetailInfoRow(label: String, value: String, modifier: Modifier = Modifier) {
     Row(
         modifier = modifier.fillMaxWidth().heightIn(min = 58.dp)
-            .padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 12.dp),
+            .padding(horizontal = ScaleSyncDimensions.ContentPadding, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
     ) {
         Text(label, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.weight(1f))
         Text(value, style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1.4f))
@@ -730,11 +730,11 @@ private fun DetailSectionTitle(title: String) {
 
 @Composable
 private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: SettingsCallbacks) {
-    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing)) {
         DetailSectionTitle(stringResource(R.string.settings_save_data))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupSaveGroup)) {
             DetailActionRow(
-                icon = HuaweiIcons.Archive,
+                icon = ScaleSyncIcons.Archive,
                 title = stringResource(R.string.settings_export_backup),
                 supportingText = stringResource(R.string.settings_backup_contents),
                 enabled = !state.inProgress,
@@ -753,7 +753,7 @@ private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: Setting
         DetailSectionTitle(stringResource(R.string.settings_restore_data))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.BackupRestoreGroup)) {
             DetailActionRow(
-                icon = HuaweiIcons.Refresh,
+                icon = ScaleSyncIcons.Refresh,
                 title = stringResource(R.string.settings_import_merge),
                 supportingText = stringResource(R.string.settings_keep_existing_data),
                 enabled = !state.inProgress,
@@ -762,7 +762,7 @@ private fun SettingsBackupDetailContent(state: BackupUiState, callbacks: Setting
             )
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.BackupRestoreDivider))
             DetailActionRow(
-                icon = HuaweiIcons.Warning,
+                icon = ScaleSyncIcons.Warning,
                 title = stringResource(R.string.settings_replace_all_data),
                 supportingText = stringResource(R.string.settings_replace_data_supporting),
                 enabled = !state.inProgress,
@@ -798,13 +798,13 @@ private fun SettingsDiagnosticsContent(
     state: MainUiState,
     callbacks: SettingsCallbacks,
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing)) {
+    Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing)) {
         DetailSectionTitle(stringResource(R.string.settings_background_work))
         SettingsGroup(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundGroup)) {
             DiagnosticsSwitchRow(state, callbacks)
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundDivider))
             DetailActionRow(
-                icon = HuaweiIcons.Settings,
+                icon = ScaleSyncIcons.Settings,
                 title = stringResource(R.string.settings_battery_settings),
                 supportingText = stringResource(R.string.settings_allow_background),
                 tag = "settings-diagnostics-battery",
@@ -812,7 +812,7 @@ private fun SettingsDiagnosticsContent(
             )
             SettingsGroupDivider(Modifier.testTag(SettingsScreenTestTags.DiagnosticsBackgroundSecondDivider))
             DetailActionRow(
-                icon = HuaweiIcons.Tune,
+                icon = ScaleSyncIcons.Tune,
                 title = stringResource(R.string.settings_system_app_settings),
                 supportingText = stringResource(R.string.settings_permissions_notifications),
                 tag = "settings-diagnostics-application",
@@ -829,7 +829,7 @@ private fun DiagnosticsSwitchRow(state: MainUiState, callbacks: SettingsCallback
         modifier = Modifier.fillMaxWidth().heightIn(min = 68.dp)
             .clickable(role = Role.Switch) {
                 callbacks.onReliabilityMode(!state.settings.reliabilityMode)
-            }.padding(horizontal = HuaweiDimensions.ContentPadding, vertical = 11.dp),
+            }.padding(horizontal = ScaleSyncDimensions.ContentPadding, vertical = 11.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -865,7 +865,7 @@ private fun DetailDestructiveAction(
             onClick = onClick,
             enabled = enabled,
             colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error),
-            modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget).testTag(tag),
+            modifier = Modifier.fillMaxWidth().heightIn(min = ScaleSyncDimensions.TouchTarget).testTag(tag),
         ) { Text(label) }
     }
 }
@@ -911,12 +911,12 @@ private fun SettingsProfilesContent(
         LazyColumn(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp),
             contentPadding = PaddingValues(
-                start = HuaweiDimensions.ContentPadding,
-                end = HuaweiDimensions.ContentPadding,
+                start = ScaleSyncDimensions.ContentPadding,
+                end = ScaleSyncDimensions.ContentPadding,
                 top = 4.dp,
                 bottom = 28.dp,
             ),
-            verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+            verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         ) {
             item {
                 AccountManagementSection(
@@ -968,8 +968,8 @@ private fun SettingsRootScreen(
             modifier = Modifier.fillMaxSize().widthIn(max = 720.dp).testTag(SettingsScreenTestTags.List),
             state = listState,
             contentPadding = PaddingValues(
-                start = HuaweiDimensions.CompactContentPadding,
-                end = HuaweiDimensions.CompactContentPadding,
+                start = ScaleSyncDimensions.CompactContentPadding,
+                end = ScaleSyncDimensions.CompactContentPadding,
                 top = 4.dp,
                 bottom = 28.dp,
             ),
@@ -1043,7 +1043,7 @@ private fun SettingsRootScreen(
             item {
                 SettingsGroup(Modifier.testTag(SettingsScreenTestTags.SupportGroup)) {
                     SettingsGroupRow(
-                        leadingIcon = HuaweiIcons.Language,
+                        leadingIcon = ScaleSyncIcons.Language,
                         title = stringResource(R.string.settings_language),
                         supportingText = stringResource(AppLanguageManager.current().labelRes),
                         modifier = Modifier.testTag(SettingsScreenTestTags.LanguageRow),
@@ -1071,7 +1071,7 @@ private fun SettingsRootScreen(
                     )
                     SettingsRootDivider(SettingsScreenTestTags.ConnectionsSecondDivider)
                     SettingsGroupRow(
-                        leadingIcon = HuaweiIcons.History,
+                        leadingIcon = ScaleSyncIcons.History,
                         title = stringResource(R.string.settings_version_history),
                         supportingText = stringResource(R.string.settings_version_history_supporting),
                         modifier = Modifier.testTag(SettingsScreenTestTags.ChangelogRow),
@@ -1164,8 +1164,8 @@ private fun SettingsRootDivider(tag: String) {
 @Composable
 private fun SettingsRootStatusMark(success: Boolean, tag: String) {
     SettingsStatusMark(
-        icon = if (success) HuaweiIcons.Success else HuaweiIcons.Warning,
-        tint = if (success) MaterialTheme.colorScheme.primary else HuaweiColors.Warning,
+        icon = if (success) ScaleSyncIcons.Success else ScaleSyncIcons.Warning,
+        tint = if (success) MaterialTheme.colorScheme.primary else ScaleSyncColors.Warning,
         modifier = Modifier.testTag(tag),
     )
 }

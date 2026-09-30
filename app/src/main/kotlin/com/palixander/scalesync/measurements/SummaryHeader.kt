@@ -15,8 +15,8 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.Layout
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.components.HuaweiStatusTone
-import com.palixander.scalesync.ui.theme.HuaweiColors
+import com.palixander.scalesync.ui.components.ScaleSyncStatusTone
+import com.palixander.scalesync.ui.theme.ScaleSyncColors
 
 /** Keeps the actions together; moves date above when centering would cause overlap. */
 @Composable
@@ -64,16 +64,16 @@ internal fun SummaryStatusAction(
     icon: ImageVector,
     contentDescription: String,
     onClick: () -> Unit,
-    tone: HuaweiStatusTone,
+    tone: ScaleSyncStatusTone,
     enabled: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val (background, foreground) = when (tone) {
-        HuaweiStatusTone.Success -> Color.Transparent to MaterialTheme.colorScheme.primary
-        HuaweiStatusTone.Pending -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
-        HuaweiStatusTone.Warning -> HuaweiColors.WarningContainer to HuaweiColors.Warning
-        HuaweiStatusTone.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
-        HuaweiStatusTone.Local -> HuaweiColors.LocalContainer to HuaweiColors.Local
+        ScaleSyncStatusTone.Success -> Color.Transparent to MaterialTheme.colorScheme.primary
+        ScaleSyncStatusTone.Pending -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.primary
+        ScaleSyncStatusTone.Warning -> ScaleSyncColors.WarningContainer to ScaleSyncColors.Warning
+        ScaleSyncStatusTone.Error -> MaterialTheme.colorScheme.errorContainer to MaterialTheme.colorScheme.error
+        ScaleSyncStatusTone.Local -> ScaleSyncColors.LocalContainer to ScaleSyncColors.Local
     }
     IconButton(onClick = onClick, enabled = enabled, modifier = modifier.size(48.dp)) {
         Surface(

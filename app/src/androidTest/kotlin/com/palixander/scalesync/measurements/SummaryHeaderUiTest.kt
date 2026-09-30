@@ -17,9 +17,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.components.HuaweiIconButton
-import com.palixander.scalesync.ui.components.HuaweiStatusTone
-import com.palixander.scalesync.ui.icons.HuaweiIcons
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncStatusTone
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
 import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,7 +32,7 @@ class SummaryHeaderUiTest {
     @Test fun narrowAndLargeTextKeepHistorySeparateFromRightActions() {
         val width = mutableStateOf(320.dp)
         val fontScale = mutableStateOf(1f)
-        val tone = mutableStateOf(HuaweiStatusTone.Error)
+        val tone = mutableStateOf(ScaleSyncStatusTone.Error)
         var historyCalls = 0
         var syncCalls = 0
         var moreCalls = 0
@@ -50,8 +50,8 @@ class SummaryHeaderUiTest {
                             },
                             actions = {
                                 Row {
-                                    SummaryStatusAction(HuaweiIcons.Warning, "Статус", { syncCalls++ }, tone.value, true, Modifier.testTag("sync"))
-                                    HuaweiIconButton(HuaweiIcons.More, "Действия", { moreCalls++ }, Modifier.testTag("more"))
+                                    SummaryStatusAction(ScaleSyncIcons.Warning, "Статус", { syncCalls++ }, tone.value, true, Modifier.testTag("sync"))
+                                    ScaleSyncIconButton(ScaleSyncIcons.More, "Действия", { moreCalls++ }, Modifier.testTag("more"))
                                 }
                             },
                         )
@@ -61,7 +61,7 @@ class SummaryHeaderUiTest {
         }
         for (testWidth in listOf(320.dp, 200.dp)) {
             for (scale in listOf(1f, 2f)) {
-                for (status in HuaweiStatusTone.entries) {
+                for (status in ScaleSyncStatusTone.entries) {
                     composeRule.runOnIdle { width.value = testWidth; fontScale.value = scale; tone.value = status }
                     val header = composeRule.onNodeWithTag("summary-header").getUnclippedBoundsInRoot()
                     val date = composeRule.onNodeWithTag("date").getUnclippedBoundsInRoot()

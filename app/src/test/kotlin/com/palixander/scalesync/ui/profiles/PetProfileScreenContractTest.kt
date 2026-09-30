@@ -2,7 +2,7 @@ package com.palixander.scalesync.ui.profiles
 
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -14,6 +14,6 @@ class PetProfileScreenContractTest {
         assertEquals(0.dp, padding.calculateTopPadding())
         assertEquals(0.dp, padding.calculateLeftPadding(LayoutDirection.Ltr))
         assertEquals(0.dp, padding.calculateRightPadding(LayoutDirection.Ltr))
-        assertEquals(HuaweiDimensions.ContentPadding, padding.calculateBottomPadding())
+        assertEquals(ScaleSyncDimensions.ContentPadding, padding.calculateBottomPadding())
     }
 }

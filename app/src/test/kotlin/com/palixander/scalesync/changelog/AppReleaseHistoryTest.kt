@@ -31,10 +31,9 @@ class AppReleaseHistoryTest {
         assertTrue(releases.flatMap(AppRelease::changes).all { it.description.isNotBlank() })
 
         val allChanges = releases.flatMap(AppRelease::changes)
-        assertTrue(allChanges.none { it.issueNumber in setOf(3, 7, 12, 19) })
+        assertTrue(allChanges.none { it.issueNumber in setOf(3, 7, 12, 19, 102) })
         listOf(
             "Новые измерения отображаются сразу во время обработки",
-            "Huawei Health скрыт в personal-сборке",
             "Добавлена ручная сборка APK с уникальными именами артефактов",
             "История версий дополнена изменениями версии 0.1.5",
         ).forEach { forbiddenText ->

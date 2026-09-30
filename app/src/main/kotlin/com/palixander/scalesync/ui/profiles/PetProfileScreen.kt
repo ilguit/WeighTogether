@@ -49,12 +49,12 @@ import androidx.compose.ui.unit.dp
 import com.palixander.scalesync.charts.ChartRangePreset
 import com.palixander.scalesync.PetBreedCatalog
 import com.palixander.scalesync.domain.Pet
-import com.palixander.scalesync.ui.components.HuaweiSurface
-import com.palixander.scalesync.ui.components.HuaweiIconButton
+import com.palixander.scalesync.ui.components.ScaleSyncSurface
+import com.palixander.scalesync.ui.components.ScaleSyncIconButton
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
-import com.palixander.scalesync.ui.icons.HuaweiIcons
-import com.palixander.scalesync.ui.theme.HuaweiDimensions
+import com.palixander.scalesync.ui.icons.ScaleSyncIcons
+import com.palixander.scalesync.ui.theme.ScaleSyncDimensions
 import com.palixander.scalesync.ui.reference.AndroidReferenceSourceLauncher
 import com.palixander.scalesync.ui.reference.ReferenceSourceLauncher
 import androidx.compose.ui.platform.LocalContext
@@ -93,7 +93,7 @@ object PetProfileScreenTestTags {
 }
 
 internal fun petProfileListContentPadding(): PaddingValues =
-    PaddingValues(bottom = HuaweiDimensions.ContentPadding)
+    PaddingValues(bottom = ScaleSyncDimensions.ContentPadding)
 
 @Composable
 internal fun PetProfileScreen(
@@ -144,10 +144,10 @@ internal fun PetProfileScreen(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize().padding(contentPadding)
-            .padding(horizontal = HuaweiDimensions.ContentPadding)
+            .padding(horizontal = ScaleSyncDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.shell(state.petId.value))
             .semantics { contentDescription = resources.getString(R.string.pet_profile_history_a11y, state.pet?.displayName.orEmpty()) },
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
         contentPadding = petProfileListContentPadding(),
     ) {
         item {
@@ -172,7 +172,7 @@ internal fun PetProfileScreen(
                 modifier = Modifier.fillMaxWidth()
                     .horizontalScroll(rememberScrollState())
                     .testTag(PetProfileScreenTestTags.PeriodFilter),
-                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
             ) {
                 listOf(
                     ChartRangePreset.ALL,
@@ -203,7 +203,7 @@ internal fun PetProfileScreen(
             else -> {
                 state.actionErrorMessage?.takeIf { state.deleteConfirmation == null }?.let { message ->
                     item {
-                        HuaweiSurface(
+                        ScaleSyncSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.ActionError),
                             containerColor = MaterialTheme.colorScheme.errorContainer,
                         ) {
@@ -265,7 +265,7 @@ internal fun PetProfileScreen(
                         state.measurements.take(DEFAULT_VISIBLE_MEASUREMENT_COUNT)
                     }
                     items(visibleMeasurements, key = { it.id }) { measurement ->
-                        HuaweiSurface(
+                        ScaleSyncSurface(
                             modifier = Modifier.fillMaxWidth().testTag(PetProfileScreenTestTags.measurement(measurement.id))
                                 .then(
                                     if (measurement.id == state.scrollToMeasurementId) {
@@ -312,16 +312,16 @@ private fun PetWeightEditorScreen(
     val resources = LocalContext.current.resources
     LazyColumn(
         modifier = Modifier.fillMaxSize().padding(contentPadding).imePadding()
-            .padding(horizontal = HuaweiDimensions.ContentPadding)
+            .padding(horizontal = ScaleSyncDimensions.ContentPadding)
             .testTag(PetProfileScreenTestTags.WeightEditor)
             .semantics { contentDescription = resources.getString(R.string.pet_weight_editor_a11y, editor.petName) },
-        verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.ItemSpacing),
-        contentPadding = PaddingValues(vertical = HuaweiDimensions.ContentPadding),
+        verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.ItemSpacing),
+        contentPadding = PaddingValues(vertical = ScaleSyncDimensions.ContentPadding),
     ) {
         item {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                HuaweiIconButton(
-                    icon = HuaweiIcons.Back,
+                ScaleSyncIconButton(
+                    icon = ScaleSyncIcons.Back,
                     contentDescription = stringResource(R.string.pet_weight_editor_back_a11y),
                     onClick = callbacks.dismissWeightEditor,
                     enabled = !editor.isSaving,
@@ -378,7 +378,7 @@ private fun PetWeightEditorScreen(
             Button(
                 onClick = callbacks.saveEditedWeight,
                 enabled = editor.canSave,
-                modifier = Modifier.fillMaxWidth().heightIn(min = HuaweiDimensions.TouchTarget)
+                modifier = Modifier.fillMaxWidth().heightIn(min = ScaleSyncDimensions.TouchTarget)
                     .testTag(PetProfileScreenTestTags.WeightSave)
                     .semantics { if (editor.isSaving) stateDescription = resources.getString(R.string.state_saving) },
             ) { Text(stringResource(if (editor.isSaving) R.string.state_saving_ellipsis else R.string.action_save)) }
@@ -401,7 +401,7 @@ private fun PetProfileSummaryCard(
             resources.getString(R.string.pet_profile_summary_item_a11y, item.label.resolve(resources), item.value.resolve(resources))
         }
     }
-    HuaweiSurface(
+    ScaleSyncSurface(
         modifier = Modifier
             .fillMaxWidth()
             .testTag(PetProfileScreenTestTags.Summary)
@@ -409,10 +409,10 @@ private fun PetProfileSummaryCard(
                 contentDescription = resources.getString(R.string.pet_profile_summary_a11y, summaryDescription)
             },
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing)) {
+        Column(verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                horizontalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
@@ -423,7 +423,7 @@ private fun PetProfileSummaryCard(
                 TextButton(
                     onClick = onEdit,
                     modifier = Modifier
-                        .heightIn(min = HuaweiDimensions.TouchTarget)
+                        .heightIn(min = ScaleSyncDimensions.TouchTarget)
                         .testTag(PetProfileScreenTestTags.Edit)
                         .semantics {
                             contentDescription = resources.getString(R.string.pet_profile_edit_a11y, pet.displayName)
@@ -437,7 +437,7 @@ private fun PetProfileSummaryCard(
             ) {
                 Column(
                     modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(HuaweiDimensions.CompactItemSpacing),
+                    verticalArrangement = Arrangement.spacedBy(ScaleSyncDimensions.CompactItemSpacing),
                 ) {
                     if (summary.isEmpty) {
                         Text(
@@ -459,9 +459,9 @@ private fun PetProfileSummaryCard(
                 if (pet.photoPath != null) ProfileAvatar(
                     photoPath = pet.photoPath,
                     fallbackIcon = when (pet.species) {
-                        com.palixander.scalesync.domain.PetSpecies.CAT -> HuaweiIcons.Cat
-                        com.palixander.scalesync.domain.PetSpecies.DOG -> HuaweiIcons.Dog
-                        com.palixander.scalesync.domain.PetSpecies.UNSPECIFIED -> HuaweiIcons.Profile
+                        com.palixander.scalesync.domain.PetSpecies.CAT -> ScaleSyncIcons.Cat
+                        com.palixander.scalesync.domain.PetSpecies.DOG -> ScaleSyncIcons.Dog
+                        com.palixander.scalesync.domain.PetSpecies.UNSPECIFIED -> ScaleSyncIcons.Profile
                     },
                     contentDescription = resources.getString(R.string.pet_profile_photo_a11y, pet.displayName),
                     store = photoStore,
@@ -483,7 +483,7 @@ private fun PetHistoryDeleteDialog(
     AlertDialog(
         modifier = Modifier.testTag(PetProfileScreenTestTags.DeleteDialog),
         onDismissRequest = { if (!confirmation.isDeleting) onDismiss() },
-        icon = { Icon(HuaweiIcons.Delete, contentDescription = null) },
+        icon = { Icon(ScaleSyncIcons.Delete, contentDescription = null) },
         title = { Text(stringResource(R.string.pet_measurement_delete_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -562,15 +562,15 @@ internal fun PetHistoryMeasurementDetails(
             }
         }
         Row {
-            HuaweiIconButton(
-                icon = HuaweiIcons.Edit,
+            ScaleSyncIconButton(
+                icon = ScaleSyncIcons.Edit,
                 contentDescription = resources.getString(R.string.pet_measurement_edit_a11y, measurement.measuredAtText, measurement.weightText),
                 onClick = { onEdit() },
                 enabled = actionsEnabled,
                 modifier = Modifier.testTag(PetProfileScreenTestTags.editMeasurement(measurement.id)),
             )
-            HuaweiIconButton(
-                icon = HuaweiIcons.Delete,
+            ScaleSyncIconButton(
+                icon = ScaleSyncIcons.Delete,
                 contentDescription = resources.getString(R.string.pet_measurement_delete_a11y, measurement.measuredAtText, measurement.weightText),
                 onClick = { onDelete() },
                 enabled = actionsEnabled,

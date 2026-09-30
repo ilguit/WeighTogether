@@ -1,6 +1,3 @@
 issue: 42
 userVisible: true
 text: Настройки собраны в независимые сворачиваемые разделы для более удобной навигации
-flavors:
-  - personal
-  - huaweiEnterprise
