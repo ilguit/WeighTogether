@@ -110,8 +110,8 @@ private class CalendarHorizontalAxisItemPlacer(
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = visibleXRange.calendarLabelValues(
-        calendarXAxisLabelCount(context.layerBounds.width, maxLabelWidth),
+    ): List<Double> = spacedCalendarXAxisLabelValues(
+        visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
     )
 
     override fun getLineValues(
@@ -119,8 +119,8 @@ private class CalendarHorizontalAxisItemPlacer(
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = visibleXRange.calendarLabelValues(
-        calendarXAxisLabelCount(context.layerBounds.width, maxLabelWidth),
+    ): List<Double> = spacedCalendarXAxisLabelValues(
+        visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
     )
 
     override fun getWidthMeasurementLabelValues(

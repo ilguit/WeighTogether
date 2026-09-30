@@ -1,7 +1,6 @@
 package com.palixander.scalesync.charts
 
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import kotlin.math.ceil
@@ -17,6 +16,33 @@ internal fun calendarXAxisLabelCount(
         return 1
     }
     return floor(availableWidth / maxLabelWidth).toInt().coerceIn(1, MaxCalendarXAxisLabelCount)
+}
+
+/** Prunes calendar candidates using their actual projected distance, including partial days and DST. */
+internal fun spacedCalendarXAxisLabelValues(
+    visibleMinX: Double,
+    visibleMaxX: Double,
+    zoneId: ZoneId,
+    availableWidth: Float,
+    maxLabelWidth: Float,
+): List<Double> {
+    val candidates = calendarXAxisLabelValues(
+        visibleMinX,
+        visibleMaxX,
+        zoneId,
+        calendarXAxisLabelCount(availableWidth, maxLabelWidth),
+    )
+    if (candidates.size <= 1) return candidates
+
+    val visibleSpan = visibleMaxX - visibleMinX
+    return buildList {
+        candidates.forEach { candidate ->
+            val previous = lastOrNull()
+            if (previous == null || (candidate - previous) / visibleSpan * availableWidth >= maxLabelWidth) {
+                add(candidate)
+            }
+        }
+    }
 }
 
 /**
@@ -53,7 +79,7 @@ internal fun calendarXAxisLabelValues(
     if (lastDate.isBefore(firstDate)) return listOf(visibleMinX)
 
     val boundaryCount = ChronoUnit.DAYS.between(firstDate, lastDate) + 1L
-    val selectedCount = minOf(boundaryCount, maxLabelCount.toLong()).toInt()
+    val selectedCount = minOf(boundaryCount, maxLabelCount.toLong(), MaxCalendarXAxisLabelCount.toLong()).toInt()
     return (0 until selectedCount).map { index ->
         val dayOffset = if (selectedCount == 1) {
             0L

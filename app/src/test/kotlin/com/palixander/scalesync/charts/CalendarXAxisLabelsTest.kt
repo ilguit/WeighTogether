@@ -9,6 +9,50 @@ import org.junit.Test
 
 class CalendarXAxisLabelsTest {
     @Test
+    fun `partial days prune calendar neighbors closer than measured label width`() {
+        val min = Instant.parse("2026-04-10T00:01:00Z").toEpochMilli().toDouble()
+        val max = Instant.parse("2026-04-12T23:59:00Z").toEpochMilli().toDouble()
+
+        val labels = spacedCalendarXAxisLabelValues(min, max, ZoneId.of("UTC"), 240f, 100f)
+
+        assertEquals(listOf(Instant.parse("2026-04-11T00:00:00Z").toEpochMilli().toDouble()), labels)
+    }
+
+    @Test
+    fun `DST spacing uses elapsed distance and retains later nonoverlapping candidate`() {
+        val zone = ZoneId.of("America/New_York")
+        val min = LocalDate.of(2026, 3, 7).atStartOfDay(zone).toInstant().toEpochMilli().toDouble()
+        val max = LocalDate.of(2026, 3, 12).atStartOfDay(zone).toInstant().toEpochMilli().toDouble()
+
+        // A 24-hour gap fits, but the 23-hour spring transition does not.
+        val labels = spacedCalendarXAxisLabelValues(min, max, zone, 600f, 120f)
+
+        assertEquals(listOf(7, 8, 10, 12), labels.map { Instant.ofEpochMilli(it.toLong()).atZone(zone).dayOfMonth })
+        assertTrue(labels.zipWithNext().all { (left, right) -> (right - left) / (max - min) * 600 >= 120 })
+    }
+
+    @Test
+    fun `narrow and zoomed viewports keep a label and fit any retained neighbors`() {
+        val zone = ZoneId.of("UTC")
+        val min = Instant.parse("2026-04-10T10:00:00Z").toEpochMilli().toDouble()
+        listOf(0.0, 1_000.0, 86_400_000.0, 300_000_000.0).forEach { span ->
+            listOf(40f, 240f, 1_000f).forEach { width ->
+                val labels = spacedCalendarXAxisLabelValues(min, min + span, zone, width, 100f)
+                assertTrue(labels.size in 1..MaxCalendarXAxisLabelCount)
+                assertTrue(labels.all { it in min..(min + span) })
+                assertTrue(labels.zipWithNext().all { (left, right) -> (right - left) / span * width >= 100 })
+            }
+        }
+    }
+
+    @Test
+    fun `candidate generation has a hard cap even for excessive requested count`() {
+        val labels = calendarXAxisLabelValues(0.0, 2_000_000_000_000.0, ZoneId.of("UTC"), Int.MAX_VALUE)
+
+        assertEquals(MaxCalendarXAxisLabelCount, labels.size)
+    }
+
+    @Test
     fun `draw label count reflects width and label size within hard bounds`() {
         assertEquals(1, calendarXAxisLabelCount(120f, 200f))
         assertEquals(2, calendarXAxisLabelCount(240f, 100f))
