@@ -193,7 +193,7 @@ internal fun HomeKgChart(
                     tag = "home-kg-chart-selected-no-data",
                 )
 
-                else -> HomeKgVicoChart(state, plottedSeries, zoneId)
+                else -> HomeKgVicoChart(state, plottedSeries, zoneId, insetLabels = embedded)
             }
 
             var expanded by rememberSaveable { mutableStateOf(false) }
@@ -285,6 +285,7 @@ private fun HomeKgVicoChart(
     state: HomeKgChartUiState,
     plottedSeries: List<HomeKgChartSeries>,
     zoneId: ZoneId,
+    insetLabels: Boolean,
 ) {
     val locale = currentAppLocale()
     val chartContentDescription = stringResource(
@@ -357,7 +358,7 @@ private fun HomeKgVicoChart(
                     suffix = " ${com.palixander.scalesync.ui.text.uiText(com.palixander.scalesync.R.string.unit_kg).resolve(resources)}",
                 ),
             ),
-            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId),
+            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId, insetLabels),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),
         ),
         modelProducer = modelProducer,

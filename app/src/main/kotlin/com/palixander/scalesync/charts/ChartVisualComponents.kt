@@ -86,11 +86,12 @@ internal fun rememberChartStartAxis(
 internal fun rememberChartBottomAxis(
     valueFormatter: CartesianValueFormatter,
     zoneId: ZoneId,
+    insetLabels: Boolean = false,
 ): HorizontalAxis<Axis.Position.Horizontal.Bottom> = HorizontalAxis.rememberBottom(
     guideline = null,
     labelRotationDegrees = 35f,
     valueFormatter = valueFormatter,
-    itemPlacer = remember(zoneId) { CalendarHorizontalAxisItemPlacer(zoneId) },
+    itemPlacer = remember(zoneId, insetLabels) { CalendarHorizontalAxisItemPlacer(zoneId, insetLabels) },
 )
 
 /**
@@ -103,6 +104,7 @@ internal fun rememberChartBottomAxis(
  */
 private class CalendarHorizontalAxisItemPlacer(
     private val zoneId: ZoneId,
+    private val insetLabels: Boolean,
     private val delegate: HorizontalAxis.ItemPlacer = HorizontalAxis.ItemPlacer.aligned(),
 ) : HorizontalAxis.ItemPlacer by delegate {
     override fun getLabelValues(
@@ -110,7 +112,9 @@ private class CalendarHorizontalAxisItemPlacer(
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = spacedCalendarXAxisLabelValues(
+    ): List<Double> = if (insetLabels) insetCalendarXAxisLabelValues(
+        visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
+    ) else spacedCalendarXAxisLabelValues(
         visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
     )
 
@@ -119,7 +123,9 @@ private class CalendarHorizontalAxisItemPlacer(
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = spacedCalendarXAxisLabelValues(
+    ): List<Double> = if (insetLabels) insetCalendarXAxisLabelValues(
+        visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
+    ) else spacedCalendarXAxisLabelValues(
         visibleXRange.start, visibleXRange.endInclusive, zoneId, context.layerBounds.width, maxLabelWidth,
     )
 

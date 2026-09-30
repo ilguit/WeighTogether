@@ -45,6 +45,23 @@ internal fun spacedCalendarXAxisLabelValues(
     }
 }
 
+/** Keeps the complete measured label inside an embedded card's plot at either viewport edge. */
+internal fun insetCalendarXAxisLabelValues(
+    visibleMinX: Double,
+    visibleMaxX: Double,
+    zoneId: ZoneId,
+    availableWidth: Float,
+    maxLabelWidth: Float,
+): List<Double> {
+    if (!availableWidth.isFinite() || !maxLabelWidth.isFinite() || availableWidth <= 0f ||
+        maxLabelWidth <= 0f || maxLabelWidth > availableWidth) return emptyList()
+    val inset = (visibleMaxX - visibleMinX) * maxLabelWidth / (2.0 * availableWidth)
+    return spacedCalendarXAxisLabelValues(
+        visibleMinX + inset, visibleMaxX - inset, zoneId,
+        availableWidth - maxLabelWidth, maxLabelWidth,
+    )
+}
+
 /**
  * Selects a bounded set of epoch-millisecond values suitable for calendar labels on an x axis.
  *

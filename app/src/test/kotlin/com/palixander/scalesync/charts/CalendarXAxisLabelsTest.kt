@@ -9,6 +9,23 @@ import org.junit.Test
 
 class CalendarXAxisLabelsTest {
     @Test
+    fun `embedded labels keep measured half width clear of both edges across zoom and font sizes`() {
+        val min = Instant.parse("2026-01-01T00:00:00Z").toEpochMilli().toDouble()
+        for (span in listOf(3_600_000.0, 11 * 86_400_000.0)) {
+            for (labelWidth in listOf(40f, 100f, 200f)) {
+                val labels = insetCalendarXAxisLabelValues(min, min + span, ZoneId.of("UTC"), 240f, labelWidth)
+                assertTrue(labels.isNotEmpty())
+                labels.forEach { value ->
+                    val projected = (value - min) / span * 240
+                    assertTrue(projected >= labelWidth / 2.0 - 0.001)
+                    assertTrue(projected <= 240 - labelWidth / 2.0 + 0.001)
+                }
+            }
+        }
+        assertTrue(insetCalendarXAxisLabelValues(min, min + 1_000, ZoneId.of("UTC"), 40f, 100f).isEmpty())
+    }
+
+    @Test
     fun `partial days prune calendar neighbors closer than measured label width`() {
         val min = Instant.parse("2026-04-10T00:01:00Z").toEpochMilli().toDouble()
         val max = Instant.parse("2026-04-12T23:59:00Z").toEpochMilli().toDouble()
