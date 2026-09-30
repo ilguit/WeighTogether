@@ -1,6 +1,5 @@
 package com.palixander.scalesync.data
 
-import androidx.room.testing.MigrationTestHelper
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import org.junit.Assert.assertEquals
@@ -12,7 +11,7 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class Migration10To11Test {
     @get:Rule
-    val helper = MigrationTestHelper(
+    val helper = RetainedMigrationTestHelper(
         InstrumentationRegistry.getInstrumentation(),
         AppDatabase::class.java,
     )
@@ -83,11 +82,11 @@ class Migration10To11Test {
             """
             INSERT INTO measurements (
                 id, fingerprint, measurementType, deviceAddress, measuredAtEpochSecond,
-                rawPayloadHex, weightKg, rawWeight, huaweiStatus, healthConnectStatus,
-                huaweiWeightSynced, healthConnectWeightSynced, createdAtEpochMillis,
+                rawPayloadHex, weightKg, rawWeight, healthConnectStatus,
+                healthConnectWeightSynced, createdAtEpochMillis,
                 accountId, externalSyncPolicy
             ) VALUES (?, ?, 'WEIGHT_ONLY', 'device', 1, '', 70.0, 14000,
-                'PENDING', 'PENDING', 0, 0, 1, ?, 'AUTO')
+                'PENDING', 0, 1, ?, 'AUTO')
             """.trimIndent(),
             arrayOf<Any?>(id, id, accountId),
         )

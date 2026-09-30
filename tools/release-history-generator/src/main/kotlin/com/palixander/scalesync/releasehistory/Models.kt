@@ -2,7 +2,6 @@ package com.palixander.scalesync.releasehistory
 
 enum class ReleaseFlavor(val id: String) {
     PERSONAL("personal"),
-    HUAWEI_ENTERPRISE("huaweiEnterprise"),
     ;
 
     companion object {
@@ -30,10 +29,10 @@ data class ReleaseNoteFragment(
     val userVisible: Boolean,
     val text: String?,
     val reason: String?,
-    val flavors: Set<ReleaseFlavor>,
+    val flavors: Set<String>,
     val suppressReleasedChange: Boolean,
 ) {
-    fun appliesTo(flavor: ReleaseFlavor): Boolean = flavors.isEmpty() || flavor in flavors
+    fun appliesTo(flavor: ReleaseFlavor): Boolean = flavors.isEmpty() || flavor.id in flavors
 }
 
 data class ReleaseChange(

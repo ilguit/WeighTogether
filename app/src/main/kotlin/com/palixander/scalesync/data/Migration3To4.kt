@@ -43,11 +43,8 @@ object Migration3To4 : Migration(3, 4) {
                 metabolicAge INTEGER,
                 leanBodyMassKg REAL,
                 algorithmVersion TEXT,
-                huaweiStatus TEXT NOT NULL,
                 healthConnectStatus TEXT NOT NULL,
-                huaweiError TEXT,
                 healthConnectError TEXT,
-                huaweiWeightSynced INTEGER NOT NULL,
                 healthConnectWeightSynced INTEGER NOT NULL,
                 createdAtEpochMillis INTEGER NOT NULL,
                 accountId TEXT NOT NULL,
@@ -66,8 +63,8 @@ object Migration3To4 : Migration(3, 4) {
                 bodyFatMassKg, waterPercent, waterMassKg, muscleMassKg,
                 skeletalMuscleMassKg, boneMassKg, proteinPercent, proteinMassKg,
                 visceralFatLevel, basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
-                algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
+                algorithmVersion, healthConnectStatus,
+                healthConnectError, healthConnectWeightSynced,
                 createdAtEpochMillis, accountId, externalSyncPolicy, sourcePendingId,
                 deduplicationHash
             )
@@ -77,8 +74,8 @@ object Migration3To4 : Migration(3, 4) {
                 impedanceOhm, bmi, bodyFatPercent, bodyFatMassKg, waterPercent, waterMassKg,
                 muscleMassKg, skeletalMuscleMassKg, boneMassKg, proteinPercent, proteinMassKg,
                 visceralFatLevel, basalMetabolicRateKcal, metabolicAge, leanBodyMassKg,
-                algorithmVersion, huaweiStatus, healthConnectStatus, huaweiError,
-                healthConnectError, huaweiWeightSynced, healthConnectWeightSynced,
+                algorithmVersion, healthConnectStatus,
+                healthConnectError, healthConnectWeightSynced,
                 createdAtEpochMillis, accountId, externalSyncPolicy, sourcePendingId,
                 deduplicationHash
             FROM measurements

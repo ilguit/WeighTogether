@@ -123,7 +123,7 @@ class ReleaseHistoryGenerator(
             val base = points.getOrNull(index + 1)?.commitSha ?: baseline?.boundaryCommit
             val isUntaggedCandidate = mode == ReleaseHistoryMode.RELEASE &&
                 point.commitSha == head && headTags.isEmpty()
-            inspectRange(point, base, tags.firstOrNull { it.commitSha == base }, isUntaggedCandidate)
+            inspectRange(point, base, tags.firstOrNull { it.commitSha == base }, isUntaggedCandidate, historical = !isUntaggedCandidate)
         }
         val releases = ranges.mapIndexed { index, range ->
             generateRelease(points[index], range, flavor)
@@ -181,13 +181,14 @@ class ReleaseHistoryGenerator(
         exclusiveBase: String?,
         previousTag: ApkTag?,
         newestFirst: Boolean,
+        historical: Boolean = false,
     ): ReleaseRange {
         val commits = repository.commits(point.commitSha, exclusiveBase)
         val issues = extractIssues(
             (if (newestFirst) commits.asReversed() else commits).map { it.subject },
         )
         val fragments = repository.changedFragmentPaths(point.commitSha, exclusiveBase)
-            .map { fragmentParser.parse(it, repository.readFile(point.commitSha, it)) }
+            .map { fragmentParser.parse(it, repository.readFile(point.commitSha, it), historical) }
         val fragmentsByIssue = fragments.groupBy { it.issue }
         val range = rangeName(exclusiveBase, point.commitSha)
 

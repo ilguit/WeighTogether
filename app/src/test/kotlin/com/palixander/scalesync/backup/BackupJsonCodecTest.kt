@@ -47,12 +47,6 @@ class BackupJsonCodecTest {
     }
 
     private val codec = BackupJsonCodec()
-    private val legacyHuaweiKeys = setOf(
-        "huaweiStatus",
-        "huaweiError",
-        "huaweiWeightSynced",
-        "huaweiSyncedCalculatedValues",
-    )
 
     @Test
     fun reminderSchedulesRoundTripInV7AndAreAbsentFromV1ThroughV6() {
@@ -107,7 +101,7 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun everyLegacyVersionImportsKnownHuaweiFieldsWithoutKeepingThem() {
+    fun everyLegacyVersionImportsRetainedMeasurementFields() {
         for (version in 1..5) {
             val decoded = codec.decode(legacyJson(version))
 
@@ -119,61 +113,15 @@ class BackupJsonCodecTest {
             assertEquals(listOf("weight", "bmi"), decoded.settings.selectedChartMetricKeys)
             assertEquals("Legacy account", decoded.accounts.single().displayName)
             if (version >= 2) assertEquals("Legacy pet", decoded.pets.single().displayName)
-            assertTrue(!codec.encode(decoded.copy(schemaVersion = BACKUP_SCHEMA_VERSION)).contains("huawei", ignoreCase = true))
         }
     }
 
     @Test
-    fun everyLegacyVersionImportsWhenHuaweiFieldsAreAbsentOrPartiallyPresent() {
-        val subsets = listOf(
-            emptySet(),
-            setOf("huaweiStatus"),
-            setOf("huaweiError", "huaweiWeightSynced"),
-            setOf("huaweiStatus", "huaweiSyncedCalculatedValues"),
-            legacyHuaweiKeys,
-        )
-        for (version in 1..5) {
-            for (presentKeys in subsets) {
-                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
-                root.getAsJsonArray("measurements").single().asJsonObject.apply {
-                    legacyHuaweiKeys.filterNot(presentKeys::contains).forEach(::remove)
-                    presentKeys.forEach { add(it, JsonParser.parseString("{\"ignored\":true}")) }
-                }
-
-                val decoded = codec.decode(root.toString())
-
-                assertEquals(version, decoded.schemaVersion)
-                assertEquals("Legacy account", decoded.accounts.single().displayName)
-                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
-                assertEquals("health error", decoded.measurements.single().healthConnectError)
-                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
-                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
-            }
-        }
-    }
-
-    @Test
-    fun legacyHuaweiFieldValuesAreIgnoredButUnknownFieldsAreRejected() {
-        val arbitraryValues = listOf("null", "false", "42", "\"arbitrary\"", "{}", "[]")
-        for (version in 1..5) {
-            for (value in arbitraryValues) {
-                val root = JsonParser.parseString(legacyJson(version)).asJsonObject
-                root.getAsJsonArray("measurements").single().asJsonObject.apply {
-                    legacyHuaweiKeys.forEach { add(it, JsonParser.parseString(value)) }
-                }
-
-                val decoded = codec.decode(root.toString())
-
-                assertEquals("Legacy account", decoded.accounts.single().displayName)
-                assertEquals(SyncStatus.SYNCED, decoded.measurements.single().healthConnectStatus)
-                assertEquals("health error", decoded.measurements.single().healthConnectError)
-                assertEquals(true, decoded.measurements.single().healthConnectWeightSynced)
-                assertEquals("health-values", decoded.measurements.single().healthConnectSyncedCalculatedValues)
-            }
-        }
-        val legacy = legacyJson(5)
-        assertThrows(BackupException.Invalid::class.java) {
-            codec.decode(legacy.replace("\"huaweiStatus\":\"FAILED\"", "\"huaweiStatus\":\"FAILED\",\"huaweiFuture\":false"))
+    fun everyVersionRejectsUnknownMeasurementFields() {
+        for (version in 1..BACKUP_SCHEMA_VERSION) {
+            val root = JsonParser.parseString(if (version <= 5) legacyJson(version) else codec.encode(document())).asJsonObject
+            root.getAsJsonArray("measurements").single().asJsonObject.addProperty("unknownSyncStatus", "FAILED")
+            assertThrows(BackupException.Invalid::class.java) { codec.decode(root.toString()) }
         }
     }
 
@@ -199,10 +147,9 @@ class BackupJsonCodecTest {
     }
 
     @Test
-    fun v6JsonContainsNoHuaweiFields() {
+    fun currentJsonRoundTripsActiveData() {
         val encoded = codec.encode(document())
 
-        assertTrue(!encoded.contains("huawei", ignoreCase = true))
         assertEquals(document(), codec.decode(encoded))
     }
 
@@ -438,10 +385,6 @@ class BackupJsonCodecTest {
         root.remove("reminderSchedules")
         root.getAsJsonArray("measurements").forEach { element ->
             element.asJsonObject.apply {
-                addProperty("huaweiStatus", "FAILED")
-                addProperty("huaweiError", "retired service error")
-                addProperty("huaweiWeightSynced", true)
-                addProperty("huaweiSyncedCalculatedValues", "retired-values")
                 if (version < 5) remove("origin")
                 if (version < 3) {
                     remove("ratingHeightCm")

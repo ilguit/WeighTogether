@@ -55,7 +55,6 @@ class ReleaseNotesValidatorTest {
                 text: Исправлена синхронизация измерений
                 flavors:
                   - personal
-                  - huaweiEnterprise
                 """);
         fragment("24-internal-change.yaml", """
                 issue: 24
@@ -378,8 +377,8 @@ class ReleaseNotesValidatorTest {
         assertInvalid("duplicate flavor 'personal'");
 
         resetFragments();
-        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [enterprise]"));
-        assertInvalid("unknown flavor 'enterprise'");
+        fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [retiredVariant]"));
+        assertInvalid("unknown flavor 'retiredVariant'");
 
         resetFragments();
         fragment("24-change.yaml", visible(24).replace("text: Исправлена синхронизация", "text: Исправлена синхронизация\nflavors: [1]"));
