@@ -375,4 +375,6 @@
     <string name="weighing_alarm_screen_title">Пора взвесить: %1$s</string>
     <string name="weighing_reminder_stop">Отключить</string>
     <string name="weighing_reminder_weigh">Взвесить</string>
+    <string name="photo_view_open">Посмотреть фото</string>
+    <string name="photo_view_unavailable">Фото недоступно</string>
 </resources>

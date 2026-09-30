@@ -85,6 +85,7 @@ import com.palixander.scalesync.ui.components.BirthDateSelectionPolicy
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.components.HuaweiSectionTitle
 import com.palixander.scalesync.ui.components.HuaweiSurface
+import com.palixander.scalesync.ui.components.EditableProfileAvatar
 import com.palixander.scalesync.ui.components.ProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
@@ -730,7 +731,7 @@ fun AccountEditorScreen(
                     .padding(HuaweiDimensions.ContentPadding),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                ProfileAvatar(
+                EditableProfileAvatar(
                     photoPath = draft.photoPath,
                     fallbackIcon = HuaweiIcons.Profile,
                     contentDescription = stringResource(R.string.account_profile_photo),

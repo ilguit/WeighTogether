@@ -73,7 +73,7 @@ import com.palixander.scalesync.ui.text.resolve
 import com.palixander.scalesync.domain.reference.DogAdultWeightCategory
 import com.palixander.scalesync.ui.components.HuaweiIconButton
 import com.palixander.scalesync.ui.currentAppLocale
-import com.palixander.scalesync.ui.components.ProfileAvatar
+import com.palixander.scalesync.ui.components.EditableProfileAvatar
 import com.palixander.scalesync.ui.components.currentProfilePhotoStore
 import com.palixander.scalesync.ui.icons.HuaweiIcons
 import com.palixander.scalesync.ui.theme.HuaweiDimensions
@@ -345,7 +345,7 @@ internal fun PetProfileEditorDialog(
                     .testTag(PetProfileEditorTestTags.Content),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                ProfileAvatar(
+                EditableProfileAvatar(
                     photoPath = draft.photoPath,
                     fallbackIcon = when (draft.species) {
                         PetSpecies.CAT -> HuaweiIcons.Cat
