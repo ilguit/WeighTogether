@@ -99,6 +99,8 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
+    // SchemaBundle is a runtime-only dependency of room-testing; expose it to the regression test.
+    androidTestImplementation("androidx.room:room-migration:2.8.4")
     // Room 2.8.4 schema serializers require the 1.8.1 GeneratedSerializer default method.
     // Instrumentation shares the app runtime; an androidTest-only dependency is downgraded
     // by AGP's consistent resolution. Keep the compatible app runtime limited to debug.
