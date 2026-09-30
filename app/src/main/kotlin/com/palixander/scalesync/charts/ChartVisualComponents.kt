@@ -9,6 +9,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.patrykandpatrick.vico.compose.cartesian.CartesianDrawingContext
 import com.patrykandpatrick.vico.compose.cartesian.CartesianMeasuringContext
 import com.patrykandpatrick.vico.compose.cartesian.axis.Axis
 import com.patrykandpatrick.vico.compose.cartesian.axis.HorizontalAxis
@@ -30,6 +31,9 @@ import com.patrykandpatrick.vico.compose.common.component.ShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.TextComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
+import java.time.ZoneId
+
+private const val MaxCalendarXAxisLabelCount = 8
 
 /**
  * Creates the common line used by both single- and multi-series charts.
@@ -83,11 +87,56 @@ internal fun rememberChartStartAxis(
 @Composable
 internal fun rememberChartBottomAxis(
     valueFormatter: CartesianValueFormatter,
+    zoneId: ZoneId,
 ): HorizontalAxis<Axis.Position.Horizontal.Bottom> = HorizontalAxis.rememberBottom(
     guideline = null,
     labelRotationDegrees = 35f,
     valueFormatter = valueFormatter,
+    itemPlacer = remember(zoneId) { CalendarHorizontalAxisItemPlacer(zoneId) },
 )
+
+/**
+ * Keeps calendar-axis work bounded when chart x values are epoch milliseconds.
+ *
+ * Vico's aligned placer derives items by stepping through the x range in `xStep`
+ * increments. For epoch-millisecond charts, a range expanded around a single point can therefore
+ * produce hundreds of millions of items. All item-producing paths are replaced here; only the
+ * aligned placer's constant-time layer-margin behavior is retained.
+ */
+private class CalendarHorizontalAxisItemPlacer(
+    private val zoneId: ZoneId,
+    private val delegate: HorizontalAxis.ItemPlacer = HorizontalAxis.ItemPlacer.aligned(),
+) : HorizontalAxis.ItemPlacer by delegate {
+    override fun getLabelValues(
+        context: CartesianDrawingContext,
+        visibleXRange: ClosedFloatingPointRange<Double>,
+        fullXRange: ClosedFloatingPointRange<Double>,
+        maxLabelWidth: Float,
+    ): List<Double> = visibleXRange.calendarLabelValues()
+
+    override fun getLineValues(
+        context: CartesianDrawingContext,
+        visibleXRange: ClosedFloatingPointRange<Double>,
+        fullXRange: ClosedFloatingPointRange<Double>,
+        maxLabelWidth: Float,
+    ): List<Double> = visibleXRange.calendarLabelValues()
+
+    override fun getWidthMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        layerDimensions: CartesianLayerDimensions,
+        fullXRange: ClosedFloatingPointRange<Double>,
+    ): List<Double> = fullXRange.calendarLabelValues()
+
+    override fun getHeightMeasurementLabelValues(
+        context: CartesianMeasuringContext,
+        layerDimensions: CartesianLayerDimensions,
+        fullXRange: ClosedFloatingPointRange<Double>,
+        maxLabelWidth: Float,
+    ): List<Double> = fullXRange.calendarLabelValues()
+
+    private fun ClosedFloatingPointRange<Double>.calendarLabelValues(): List<Double> =
+        calendarXAxisLabelValues(start, endInclusive, zoneId, MaxCalendarXAxisLabelCount)
+}
 
 @Composable
 internal fun rememberChartMarker(

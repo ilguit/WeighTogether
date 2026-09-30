@@ -1041,7 +1041,7 @@ private fun PetWeightVicoChart(
                 startAxis = rememberChartStartAxis(
                     CartesianValueFormatter.decimal(decimalCount = 2, suffix = " $weightUnit"),
                 ),
-                bottomAxis = rememberChartBottomAxis(bottomFormatter),
+                bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId),
                 marker = rememberChartMarker(
                     markerFormatter,
                     lineCount = null,
