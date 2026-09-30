@@ -136,7 +136,7 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
                                 it.measuredAtEpochSecond >= chart.period.startInclusiveEpochSecond && it.measuredAtEpochSecond < chart.period.endExclusiveEpochSecond
                             }) Text(stringResource(R.string.analytical_no_period))
                             HomeKgChart(chart, { callbacks.controller.toggleSavedSeries(type, it) }, zoneId = zoneId,
-                                title = title, subtitle = subtitle)
+                                title = title, subtitle = subtitle, embedded = true)
                             if (points.map { it.measuredAtEpochSecond }.distinct().size == 1) {
                                 // A single real measurement remains readable without inventing a second point.
                                 Text(formatMeasurementDateTime(Instant.ofEpochSecond(points.first().measuredAtEpochSecond), zoneId, locale))

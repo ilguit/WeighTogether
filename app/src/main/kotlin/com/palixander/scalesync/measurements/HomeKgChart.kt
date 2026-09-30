@@ -158,6 +158,7 @@ internal fun HomeKgChart(
     zoneId: ZoneId = ZoneId.systemDefault(),
     title: String = stringResource(com.palixander.scalesync.R.string.chart_body_composition_title),
     subtitle: String = stringResource(com.palixander.scalesync.R.string.chart_last_14_days_kg),
+    embedded: Boolean = false,
 ) {
     val locale = currentAppLocale()
     val hasHistoryData = state.series.any { it.points.isNotEmpty() }
@@ -165,13 +166,9 @@ internal fun HomeKgChart(
         series.key in state.activeSeriesKeys && series.points.isNotEmpty()
     }
 
-    HuaweiSurface(
-        modifier = modifier
-            .fillMaxWidth()
-            .testTag("home-kg-chart"),
-    ) {
+    val content: @Composable () -> Unit = {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            if (!embedded) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 Text(title, style = MaterialTheme.typography.titleMedium)
                 Text(
                     subtitle,
@@ -237,6 +234,11 @@ internal fun HomeKgChart(
                 }
             }
         }
+    }
+    if (embedded) {
+        Box(modifier.fillMaxWidth().testTag("home-kg-chart")) { content() }
+    } else {
+        HuaweiSurface(modifier = modifier.fillMaxWidth().testTag("home-kg-chart"), content = content)
     }
 }
 
