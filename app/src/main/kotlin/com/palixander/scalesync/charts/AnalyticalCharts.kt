@@ -137,12 +137,12 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
                             }) Text(stringResource(R.string.analytical_no_period))
                             HomeKgChart(chart, { callbacks.controller.toggleSavedSeries(type, it) }, zoneId = zoneId,
                                 title = title, subtitle = subtitle, embedded = true)
-                            if (points.map { it.measuredAtEpochSecond }.distinct().size == 1) {
+                            analyticalSingleMeasurement(chart)?.let { measurement ->
                                 // A single real measurement remains readable without inventing a second point.
-                                Text(formatMeasurementDateTime(Instant.ofEpochSecond(points.first().measuredAtEpochSecond), zoneId, locale))
+                                Text(formatMeasurementDateTime(Instant.ofEpochSecond(measurement.measuredAtEpochSecond), zoneId, locale))
                                 val resources = LocalContext.current.resources
                                 chart.series.filter { it.key in chart.activeSeriesKeys }.forEach { series ->
-                                    Text("${series.label.resolve(resources)}: ${series.points.firstOrNull()?.valueKg?.let { formatWeight(it, locale) } ?: "—"} ${stringResource(R.string.unit_kg)}")
+                                    Text("${series.label.resolve(resources)}: ${measurement.valuesKg[series.key]?.let { formatWeight(it, locale) } ?: "—"} ${stringResource(R.string.unit_kg)}")
                                 }
                             }
                         }
