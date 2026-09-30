@@ -1,0 +1,3 @@
+issue: 147
+userVisible: false
+reason: Восстановлен запуск инструментальных тестов PetRepositoryTest с корректными возвращаемыми типами методов JUnit

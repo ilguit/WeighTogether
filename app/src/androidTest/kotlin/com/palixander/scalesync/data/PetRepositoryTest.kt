@@ -50,7 +50,7 @@ class PetRepositoryTest {
     }
 
     @Test
-    fun createPetEnforcesNormalizedNameUniqueness() = runBlocking {
+    fun createPetEnforcesNormalizedNameUniqueness() = runBlocking<Unit> {
         val ids = ArrayDeque(listOf("pet-a", "pet-b"))
         val repository = RoomPetRepository(
             database = database,
@@ -441,7 +441,7 @@ class PetRepositoryTest {
     }
 
     @Test
-    fun deleteReturnsPreviewCascadesPetHistoryAndLeavesOtherDataAlone() = runBlocking {
+    fun deleteReturnsPreviewCascadesPetHistoryAndLeavesOtherDataAlone() = runBlocking<Unit> {
         val ids = ArrayDeque(listOf("pet", "measurement"))
         val repository = RoomPetRepository(database, now = { Instant.ofEpochMilli(100) }, newId = { ids.removeFirst() })
         val pet = repository.createPet(NewPet("Луна", PetSpecies.DOG))
