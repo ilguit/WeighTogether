@@ -9,6 +9,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asAndroidBitmap
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.test.*
 import androidx.compose.ui.test.junit4.v2.createAndroidComposeRule
@@ -23,6 +24,7 @@ import java.io.File
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneOffset
+import java.util.Locale
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -112,7 +114,7 @@ class AnalyticalChartsScreenTest {
         data class Scenario(val width: Int, val font: Float, val dark: Boolean) {
             val name get() = "w$width-f${(font * 100).toInt()}-${if (dark) "dark-system" else "light-system"}"
         }
-        val scenarios = listOf(320, 412).flatMap { w -> listOf(1f, 2f).flatMap { f -> listOf(false, true).map { Scenario(w, f, it) } } }
+        val scenarios = listOf(320, 412).flatMap { w -> listOf(1f, 2f).flatMap { f -> listOf(false, true).map { Scenario(w, f, it) } } } + Scenario(360, 1f, false)
         val scenario = mutableStateOf(scenarios.first())
         rule.runOnIdle {
             controller.selectAccount(account)
@@ -142,8 +144,8 @@ class AnalyticalChartsScreenTest {
             rule.waitForIdle()
             capture("${value.name}-morning")
             scroll("analytical-edit-MORNING").performClick()
-            rule.onNodeWithTag("analytical-save").assertIsDisplayed()
-            rule.onNodeWithTag("analytical-cancel").assertIsDisplayed()
+            rule.onNodeWithTag("analytical-save").assertIsDisplayed().assertHasClickAction()
+            rule.onNodeWithTag("analytical-cancel").assertIsDisplayed().assertHasClickAction()
             assertTarget("analytical-save")
             capture("${value.name}-settings")
             rule.onNodeWithTag("analytical-auto").performScrollTo().performClick()
@@ -159,6 +161,57 @@ class AnalyticalChartsScreenTest {
             assertTarget("analytical-hour-23")
             capture("${value.name}-legend")
         }
+    }
+
+    @Test fun captureLocalizedStatesAndMetricSelectionSemantics() {
+        data class Sample(val language: String, val state: String)
+        val samples = listOf(
+            Sample("ru", "empty"), Sample("ru", "loading"), Sample("ru", "error"),
+            Sample("en", "one-point"), Sample("de", "one-point"),
+        )
+        val sample = mutableStateOf(samples.first())
+        val date = LocalDate.of(2026, 1, 1)
+        rule.runOnIdle { controller.selectAccount(account) }
+        rule.setContent {
+            key(sample.value) {
+                val base = LocalContext.current
+                val configuration = Configuration(LocalConfiguration.current).apply {
+                    setLocale(Locale.forLanguageTag(sample.value.language))
+                }
+                val localized = base.createConfigurationContext(configuration)
+                CompositionLocalProvider(LocalContext provides localized, LocalConfiguration provides configuration) {
+                    DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 900.dp))) {
+                        ScaleSyncTheme {
+                            Column(Modifier.verticalScrollForTest()) {
+                                AnalyticalChartCard(
+                                    buildAnalyticalCard(AnalyticalChartSettings(AnalyticalChartType.MORNING),
+                                        if (sample.value.state == "one-point") rows.take(1) else emptyList(), date, date.plusDays(1), ZoneOffset.UTC),
+                                    sample.value.state == "loading", sample.value.state == "error", callbacks, ZoneOffset.UTC,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        samples.forEach { value ->
+            rule.runOnIdle { sample.value = value }
+            rule.waitForIdle()
+            capture("w320-${value.language}-${value.state}")
+            if (value.state == "error") rule.onNodeWithTag("analytical-retry-MORNING").assertHasClickAction()
+            rule.onNodeWithTag("analytical-edit-MORNING").performScrollTo().assertHasClickAction()
+        }
+    }
+
+    @Test fun editorExposesMetricCheckedStateAndTimeLabels() {
+        rule.runOnIdle { controller.selectAccount(account); controller.edit(AnalyticalChartType.MORNING) }
+        rule.setContent { ScaleSyncTheme { Screen() } }
+        rule.onNodeWithTag("analytical-start").assertIsDisplayed().assert(hasSetTextAction())
+        rule.onNodeWithTag("analytical-end").assertIsDisplayed().assert(hasSetTextAction())
+        val series = rule.onAllNodes(isToggleable()).onFirst()
+        series.performScrollTo().assertIsOn().performClick().assertIsOff()
+        rule.onNodeWithTag("analytical-cancel").assertHasClickAction().performClick()
+        rule.runOnIdle { assertTrue(controller.state.value.settings.isEmpty()) }
     }
 
     @Composable private fun Screen() {
