@@ -18,6 +18,31 @@ class HourlyRadialGeometryTest {
         assertEquals(List(24) { 0f }, normalizedHourlyLengths(emptyList()))
     }
 
+    @Test fun `hour sectors use fifteen degree steps with a two degree gap`() {
+        val midnight = hourlySectorAngles(0)
+        val oneAm = hourlySectorAngles(1)
+
+        assertEquals(-96.5f, midnight.startDegrees)
+        assertEquals(13f, midnight.sweepDegrees)
+        assertEquals(15f, oneAm.startDegrees - midnight.startDegrees)
+        assertEquals(2f, oneAm.startDegrees - (midnight.startDegrees + midnight.sweepDegrees))
+    }
+
+    @Test fun `sector radius is normalized to the maximum hourly count`() {
+        val counts = MutableList(24) { 0 }.apply {
+            this[8] = 3
+            this[9] = 1
+            this[10] = 10
+        }
+
+        val lengths = normalizedHourlyLengths(counts)
+
+        assertEquals(0.3f, lengths[8])
+        assertEquals(0.1f, lengths[9])
+        assertEquals(1f, lengths[10])
+        assertEquals(0f, lengths[7])
+    }
+
     @Test fun `cardinal directions map clockwise from midnight`() {
         assertEquals(0, hourForRadialPoint(50f, 0f, 50f, 50f))
         assertEquals(6, hourForRadialPoint(100f, 50f, 50f, 50f))

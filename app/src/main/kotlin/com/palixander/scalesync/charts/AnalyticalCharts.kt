@@ -13,6 +13,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
@@ -36,9 +38,7 @@ import com.palixander.scalesync.ui.text.resolve
 import java.time.Instant
 import java.time.ZoneId
 import java.util.Locale
-import kotlin.math.cos
 import kotlin.math.hypot
-import kotlin.math.sin
 
 internal fun analyticalTitle(type: AnalyticalChartType): Int = when (type) {
     AnalyticalChartType.MORNING -> R.string.analytical_morning
@@ -189,7 +189,7 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
     }
 }
 
-/** A 24-direction radial histogram; selection exposes the exact value without a permanent long list. */
+/** A 24-sector polar histogram; selection exposes the exact value without a permanent long list. */
 @Composable
 internal fun HourlyChart(hourlyCounts: List<Int>) {
     val counts = List(24) { hourlyCounts.getOrElse(it) { 0 } }
@@ -198,7 +198,7 @@ internal fun HourlyChart(hourlyCounts: List<Int>) {
     val lengths = remember(counts) { normalizedHourlyLengths(counts) }
     val locale = currentAppLocale()
     if (total == 0) Text(stringResource(R.string.analytical_no_source)) else {
-        val line = MaterialTheme.colorScheme.primary
+        val fill = MaterialTheme.colorScheme.primary
         val grid = MaterialTheme.colorScheme.outlineVariant
         val selectedColor = MaterialTheme.colorScheme.onSurface
         val semanticsText = counts.mapIndexed { hour, count -> "${minuteText(hour * 60)}: $count" }.joinToString(", ")
@@ -226,13 +226,17 @@ internal fun HourlyChart(hourlyCounts: List<Int>) {
                 drawCircle(grid, radius, center, style = Stroke(1.dp.toPx()))
                 drawCircle(grid, radius / 2f, center, style = Stroke(1.dp.toPx()))
                 counts.forEachIndexed { hour, count ->
-                    val angle = Math.toRadians(hour * 15.0 - 90.0)
-                    val direction = androidx.compose.ui.geometry.Offset(cos(angle).toFloat(), sin(angle).toFloat())
-                    val edge = center + direction * radius
-                    drawLine(grid, center, edge, 1.dp.toPx())
                     if (count > 0) {
-                        val end = center + direction * (radius * lengths[hour])
-                        drawLine(if (selected == hour) selectedColor else line, center, end, if (selected == hour) 8.dp.toPx() else 5.dp.toPx())
+                        val sector = hourlySectorAngles(hour)
+                        val sectorRadius = radius * lengths[hour]
+                        drawArc(
+                            color = if (selected == hour) selectedColor else fill,
+                            startAngle = sector.startDegrees,
+                            sweepAngle = sector.sweepDegrees,
+                            useCenter = true,
+                            topLeft = Offset(center.x - sectorRadius, center.y - sectorRadius),
+                            size = Size(sectorRadius * 2f, sectorRadius * 2f),
+                        )
                     }
                 }
             }
