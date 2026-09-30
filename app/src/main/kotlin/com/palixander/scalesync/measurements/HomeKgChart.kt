@@ -353,7 +353,7 @@ private fun HomeKgVicoChart(
                     suffix = " ${com.palixander.scalesync.ui.text.uiText(com.palixander.scalesync.R.string.unit_kg).resolve(resources)}",
                 ),
             ),
-            bottomAxis = rememberChartBottomAxis(bottomFormatter),
+            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId),
             marker = rememberChartMarker(markerFormatter, lineCount = plottedSeries.size + 1),
         ),
         modelProducer = modelProducer,

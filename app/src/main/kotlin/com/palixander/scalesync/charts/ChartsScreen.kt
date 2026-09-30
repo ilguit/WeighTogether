@@ -756,7 +756,7 @@ internal fun MetricLineChart(
                     suffix = metric.unit.takeIf(String::isNotBlank)?.let { " $it" }.orEmpty(),
                 ),
             ),
-            bottomAxis = rememberChartBottomAxis(bottomFormatter),
+            bottomAxis = rememberChartBottomAxis(bottomFormatter, zoneId),
             marker = rememberChartMarker(markerValueFormatter),
             markerVisibilityListener = markerVisibilityListener,
         ),
