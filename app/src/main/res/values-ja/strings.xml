@@ -111,4 +111,6 @@
     <string name="weighing_alarm_screen_title">%1$s の計量時刻です</string>
     <string name="weighing_reminder_stop">停止</string>
     <string name="weighing_reminder_weigh">測定する</string>
+    <string name="photo_view_open">写真を表示</string>
+    <string name="photo_view_unavailable">写真を表示できません</string>
 </resources>

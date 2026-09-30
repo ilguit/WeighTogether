@@ -458,4 +458,6 @@
     <string name="weighing_alarm_screen_title">Time to weigh %1$s</string>
     <string name="weighing_reminder_stop">Stop</string>
     <string name="weighing_reminder_weigh">Weigh</string>
+    <string name="photo_view_open">View photo</string>
+    <string name="photo_view_unavailable">Photo unavailable</string>
 </resources>
