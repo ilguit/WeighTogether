@@ -78,6 +78,12 @@ class AnalyticalChartsScreenTest {
         rule.onNodeWithTag("analytical-hour-0").performScrollTo().assertIsDisplayed()
     }
 
+    @Test fun zeroHourlyHasNoPieAndStillExposesLastZeroHour() {
+        rule.setContent { ScaleSyncTheme { Column(Modifier.verticalScrollForTest()) { HourlyChart(emptyList()) } } }
+        rule.onNodeWithTag("analytical-pie").assertDoesNotExist()
+        rule.onNodeWithTag("analytical-hour-23").performScrollTo().assertIsDisplayed()
+    }
+
     @Test fun accountSwitchClosesUnsavedEditor() {
         rule.runOnIdle { controller.selectAccount(account); controller.edit(AnalyticalChartType.MORNING) }
         rule.setContent { ScaleSyncTheme { Screen() } }
@@ -171,7 +177,7 @@ class AnalyticalChartsScreenTest {
     }
     private fun assertTarget(tag: String) {
         val bounds = rule.onNodeWithTag(tag).getUnclippedBoundsInRoot()
-        assertTrue("Target $tag: $bounds", bounds.width >= 47.5.dp && bounds.height >= 47.5.dp)
+        assertTrue("Target $tag: $bounds", bounds.right - bounds.left >= 47.5.dp && bounds.bottom - bounds.top >= 47.5.dp)
     }
     private fun capture(name: String) {
         rule.waitForIdle()
