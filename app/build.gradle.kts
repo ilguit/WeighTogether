@@ -99,6 +99,10 @@ dependencies {
     androidTestImplementation("androidx.test:runner:1.7.0")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
     androidTestImplementation("androidx.room:room-testing:2.8.4")
+    // Room 2.8.4 schema serializers require the 1.8.1 GeneratedSerializer default method.
+    // Instrumentation shares the app runtime; an androidTest-only dependency is downgraded
+    // by AGP's consistent resolution. Keep the compatible app runtime limited to debug.
+    debugImplementation("org.jetbrains.kotlinx:kotlinx-serialization-core:1.8.1")
     androidTestImplementation("androidx.work:work-testing:2.10.1")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4:1.11.4")
     debugImplementation("androidx.compose.ui:ui-test-manifest:1.11.4")
