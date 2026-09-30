@@ -233,62 +233,67 @@ internal fun HourlyChart(hourlyCounts: List<Int>) {
 
 @Composable
 private fun AnalyticalEditor(draft: AnalyticalChartDraft, callbacks: AnalyticalChartCallbacks, loading: Boolean, error: Boolean) {
+    Dialog(onDismissRequest = callbacks.controller::cancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        AnalyticalEditorContent(draft, callbacks, loading, error)
+    }
+}
+
+@Composable
+internal fun AnalyticalEditorContent(draft: AnalyticalChartDraft, callbacks: AnalyticalChartCallbacks, loading: Boolean, error: Boolean) {
     val controller = callbacks.controller
     var start by remember { mutableStateOf(minuteText(draft.startMinute)) }
     var end by remember { mutableStateOf(minuteText(draft.endMinute)) }
     LaunchedEffect(draft.preview) {
         if (draft.preview != null) { start = minuteText(draft.startMinute); end = minuteText(draft.endMinute) }
     }
-    Dialog(onDismissRequest = controller::cancel, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Surface(Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.9f), shape = MaterialTheme.shapes.large) {
-            Column(Modifier.padding(16.dp).testTag("analytical-editor")) {
-                Text(stringResource(analyticalTitle(draft.settings.type)), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("analytical-editor-scroll"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (draft.settings.type == AnalyticalChartType.MORNING) {
-                        Text(stringResource(if (draft.settings.morningMode == MorningFilterMode.AUTOMATIC) R.string.analytical_mode_auto else R.string.analytical_mode_manual))
-                        OutlinedTextField(start, { start = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
-                            label = { Text(stringResource(R.string.analytical_start)) }, singleLine = true,
-                            isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-start"))
-                        OutlinedTextField(end, { end = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
-                            label = { Text(stringResource(R.string.analytical_end)) }, singleLine = true,
-                            isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-end"))
-                        if (!draft.valid) Text(stringResource(R.string.analytical_invalid_time), color = MaterialTheme.colorScheme.error)
-                        TextButton(callbacks.autoSelectMorning, enabled = !loading && !error && draft.status != MorningCalculationStatus.RUNNING,
-                            modifier = Modifier.fillMaxWidth().testTag("analytical-auto")) { Text(stringResource(R.string.analytical_auto)) }
-                        if (loading) CircularProgressIndicator(Modifier.testTag("analytical-source-loading"))
-                        if (error) {
-                            Text(stringResource(R.string.analytical_error))
-                            TextButton(callbacks.retry) { Text(stringResource(R.string.action_retry)) }
-                        }
-                        when (draft.status) {
-                            MorningCalculationStatus.RUNNING -> CircularProgressIndicator(Modifier.testTag("analytical-auto-running"))
-                            MorningCalculationStatus.INSUFFICIENT_DATA -> Text(stringResource(R.string.analytical_insufficient), Modifier.testTag("analytical-auto-insufficient"))
-                            MorningCalculationStatus.ERROR -> Text(stringResource(R.string.analytical_error))
-                            else -> Unit
-                        }
-                        draft.preview?.let { preview ->
-                            Text(stringResource(R.string.analytical_preview, minuteText(preview.window.startMinute), minuteText(preview.window.endMinute), preview.baseCount,
-                                preview.retained.size, preview.excludedByTimeCount, preview.excludedByFilter.size),
-                                Modifier.testTag("analytical-preview").semantics { liveRegion = LiveRegionMode.Polite })
-                        }
+    Surface(Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.9f), shape = MaterialTheme.shapes.large) {
+        Column(Modifier.padding(16.dp).testTag("analytical-editor")) {
+            Text(stringResource(analyticalTitle(draft.settings.type)), style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+            Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("analytical-editor-scroll"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                if (draft.settings.type == AnalyticalChartType.MORNING) {
+                    Text(stringResource(if (draft.settings.morningMode == MorningFilterMode.AUTOMATIC) R.string.analytical_mode_auto else R.string.analytical_mode_manual))
+                    OutlinedTextField(start, { start = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
+                        label = { Text(stringResource(R.string.analytical_start)) }, singleLine = true,
+                        isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-start"))
+                    OutlinedTextField(end, { end = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
+                        label = { Text(stringResource(R.string.analytical_end)) }, singleLine = true,
+                        isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-end"))
+                    if (!draft.valid) Text(stringResource(R.string.analytical_invalid_time), color = MaterialTheme.colorScheme.error)
+                    TextButton(callbacks.autoSelectMorning, enabled = !loading && !error && draft.status != MorningCalculationStatus.RUNNING,
+                        modifier = Modifier.fillMaxWidth().testTag("analytical-auto")) { Text(stringResource(R.string.analytical_auto)) }
+                    if (loading) CircularProgressIndicator(Modifier.testTag("analytical-source-loading"))
+                    if (error) {
+                        Text(stringResource(R.string.analytical_error))
+                        TextButton(callbacks.retry) { Text(stringResource(R.string.action_retry)) }
                     }
-                    if (draft.settings.type == AnalyticalChartType.HOURLY) Text(stringResource(R.string.analytical_hourly_hint)) else {
-                        val resources = LocalContext.current.resources
-                        HomeKgChartSeriesCatalog.forEach { series ->
-                            val checked = series.key in draft.settings.activeSeriesKeys
-                            Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(checked, role = Role.Checkbox, onValueChange = {
-                                controller.setSeries(if (it) draft.settings.activeSeriesKeys + series.key else draft.settings.activeSeriesKeys - series.key)
-                            }).testTag("analytical-series-${series.key}"), verticalAlignment = Alignment.CenterVertically) {
-                                Checkbox(checked, onCheckedChange = null)
-                                Text(series.label.resolve(resources), Modifier.weight(1f))
-                            }
+                    when (draft.status) {
+                        MorningCalculationStatus.RUNNING -> CircularProgressIndicator(Modifier.testTag("analytical-auto-running"))
+                        MorningCalculationStatus.INSUFFICIENT_DATA -> Text(stringResource(R.string.analytical_insufficient), Modifier.testTag("analytical-auto-insufficient"))
+                        MorningCalculationStatus.ERROR -> Text(stringResource(R.string.analytical_error))
+                        else -> Unit
+                    }
+                    draft.preview?.let { preview ->
+                        Text(stringResource(R.string.analytical_preview, minuteText(preview.window.startMinute), minuteText(preview.window.endMinute), preview.baseCount,
+                            preview.retained.size, preview.excludedByTimeCount, preview.excludedByFilter.size),
+                            Modifier.testTag("analytical-preview").semantics { liveRegion = LiveRegionMode.Polite })
+                    }
+                }
+                if (draft.settings.type == AnalyticalChartType.HOURLY) Text(stringResource(R.string.analytical_hourly_hint)) else {
+                    val resources = LocalContext.current.resources
+                    HomeKgChartSeriesCatalog.forEach { series ->
+                        val checked = series.key in draft.settings.activeSeriesKeys
+                        Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(checked, role = Role.Checkbox, onValueChange = {
+                            controller.setSeries(if (it) draft.settings.activeSeriesKeys + series.key else draft.settings.activeSeriesKeys - series.key)
+                        }).testTag("analytical-series-${series.key}"), verticalAlignment = Alignment.CenterVertically) {
+                            Checkbox(checked, onCheckedChange = null)
+                            Text(series.label.resolve(resources), Modifier.weight(1f))
                         }
                     }
                 }
-                Button(controller::save, enabled = draft.valid && draft.status != MorningCalculationStatus.RUNNING,
-                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-save")) { Text(stringResource(R.string.action_save)) }
-                TextButton(controller::cancel, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-cancel")) { Text(stringResource(R.string.action_cancel)) }
             }
+            Button(controller::save, enabled = draft.valid && draft.status != MorningCalculationStatus.RUNNING,
+                modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-save")) { Text(stringResource(R.string.action_save)) }
+            TextButton(controller::cancel, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-cancel")) { Text(stringResource(R.string.action_cancel)) }
         }
     }
 }

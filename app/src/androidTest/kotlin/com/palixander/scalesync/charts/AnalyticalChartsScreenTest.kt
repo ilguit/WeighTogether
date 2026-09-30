@@ -203,6 +203,30 @@ class AnalyticalChartsScreenTest {
         }
     }
 
+    @Test fun narrowLargeFontEditorContentKeepsActionsAndPreviewReachable() {
+        rule.runOnIdle { controller.selectAccount(account); controller.edit(AnalyticalChartType.MORNING) }
+        rule.setContent {
+            val state by controller.state.collectAsState()
+            DeviceConfigurationOverride(DeviceConfigurationOverride.ForcedSize(DpSize(320.dp, 900.dp))) {
+                DeviceConfigurationOverride(DeviceConfigurationOverride.FontScale(2f)) {
+                    ScaleSyncTheme { state.draft?.let { AnalyticalEditorContent(it, callbacks, false, false) } }
+                }
+            }
+        }
+        rule.onNodeWithTag("analytical-save").assertIsDisplayed()
+        rule.onNodeWithTag("analytical-cancel").assertIsDisplayed()
+        assertTarget("analytical-save")
+        val bounds = rule.onNodeWithTag("analytical-editor").getUnclippedBoundsInRoot()
+        assertTrue(bounds.right - bounds.left <= 320.dp)
+        capture("editor-content-w320-f200-settings")
+        rule.onNodeWithTag("analytical-auto").performScrollTo().performClick()
+        rule.waitUntil(10_000) { controller.state.value.draft?.status == MorningCalculationStatus.SUCCESS }
+        rule.onNodeWithTag("analytical-preview").performScrollTo().assertIsDisplayed()
+        capture("editor-content-w320-f200-preview")
+        rule.onNodeWithTag("analytical-save").assertIsDisplayed().performClick()
+        rule.runOnIdle { assertEquals(MorningFilterMode.AUTOMATIC, controller.state.value.settings.single().morningMode) }
+    }
+
     @Test fun editorExposesMetricCheckedStateAndTimeLabels() {
         rule.runOnIdle { controller.selectAccount(account); controller.edit(AnalyticalChartType.MORNING) }
         rule.setContent { ScaleSyncTheme { Screen() } }
