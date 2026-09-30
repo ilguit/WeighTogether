@@ -33,8 +33,6 @@ import com.patrykandpatrick.vico.compose.common.component.rememberShapeComponent
 import com.patrykandpatrick.vico.compose.common.component.rememberTextComponent
 import java.time.ZoneId
 
-private const val MaxCalendarXAxisLabelCount = 8
-
 /**
  * Creates the common line used by both single- and multi-series charts.
  *
@@ -112,30 +110,34 @@ private class CalendarHorizontalAxisItemPlacer(
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = visibleXRange.calendarLabelValues()
+    ): List<Double> = visibleXRange.calendarLabelValues(
+        calendarXAxisLabelCount(context.layerBounds.width, maxLabelWidth),
+    )
 
     override fun getLineValues(
         context: CartesianDrawingContext,
         visibleXRange: ClosedFloatingPointRange<Double>,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = visibleXRange.calendarLabelValues()
+    ): List<Double> = visibleXRange.calendarLabelValues(
+        calendarXAxisLabelCount(context.layerBounds.width, maxLabelWidth),
+    )
 
     override fun getWidthMeasurementLabelValues(
         context: CartesianMeasuringContext,
         layerDimensions: CartesianLayerDimensions,
         fullXRange: ClosedFloatingPointRange<Double>,
-    ): List<Double> = fullXRange.calendarLabelValues()
+    ): List<Double> = fullXRange.calendarLabelValues(MaxCalendarXAxisLabelCount)
 
     override fun getHeightMeasurementLabelValues(
         context: CartesianMeasuringContext,
         layerDimensions: CartesianLayerDimensions,
         fullXRange: ClosedFloatingPointRange<Double>,
         maxLabelWidth: Float,
-    ): List<Double> = fullXRange.calendarLabelValues()
+    ): List<Double> = fullXRange.calendarLabelValues(MaxCalendarXAxisLabelCount)
 
-    private fun ClosedFloatingPointRange<Double>.calendarLabelValues(): List<Double> =
-        calendarXAxisLabelValues(start, endInclusive, zoneId, MaxCalendarXAxisLabelCount)
+    private fun ClosedFloatingPointRange<Double>.calendarLabelValues(maxLabelCount: Int): List<Double> =
+        calendarXAxisLabelValues(start, endInclusive, zoneId, maxLabelCount)
 }
 
 @Composable

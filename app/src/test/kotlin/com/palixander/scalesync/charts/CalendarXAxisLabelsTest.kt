@@ -9,6 +9,13 @@ import org.junit.Test
 
 class CalendarXAxisLabelsTest {
     @Test
+    fun `draw label count reflects width and label size within hard bounds`() {
+        assertEquals(1, calendarXAxisLabelCount(120f, 200f))
+        assertEquals(2, calendarXAxisLabelCount(240f, 100f))
+        assertEquals(8, calendarXAxisLabelCount(2_000f, 100f))
+    }
+
+    @Test
     fun `singleton epoch millis range returns its exact coordinate once`() {
         val x = Instant.parse("2026-08-14T12:34:56Z").toEpochMilli().toDouble()
 
@@ -62,6 +69,20 @@ class CalendarXAxisLabelsTest {
     }
 
     @Test
+    fun `fractional viewport bounds never produce labels outside viewport`() {
+        val midnight = Instant.parse("2026-04-11T00:00:00Z").toEpochMilli().toDouble()
+        val labels = calendarXAxisLabelValues(
+            visibleMinX = midnight + 0.25,
+            visibleMaxX = midnight + 86_400_000.75,
+            zoneId = ZoneId.of("UTC"),
+            maxLabelCount = 8,
+        )
+
+        assertEquals(listOf(midnight + 86_400_000), labels)
+        assertTrue(labels.all { it in (midnight + 0.25)..(midnight + 86_400_000.75) })
+    }
+
+    @Test
     fun `local day labels follow spring DST boundary instead of fixed elapsed days`() {
         val zone = ZoneId.of("America/New_York")
         val start = LocalDate.of(2026, 3, 7)
@@ -95,6 +116,23 @@ class CalendarXAxisLabelsTest {
 
         assertEquals(25 * 60 * 60 * 1000L, labels[2].toLong() - labels[1].toLong())
         assertTrue(labels.all { it in labels.first()..labels.last() })
+    }
+
+    @Test
+    fun `skipped civil date produces distinct strictly increasing instants`() {
+        val zone = ZoneId.of("Pacific/Apia")
+        val start = LocalDate.of(2011, 12, 29)
+        val end = LocalDate.of(2012, 1, 1)
+
+        val labels = calendarXAxisLabelValues(
+            start.atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            end.atStartOfDay(zone).toInstant().toEpochMilli().toDouble(),
+            zone,
+            maxLabelCount = 8,
+        )
+
+        assertEquals(3, labels.size)
+        assertTrue(labels.zipWithNext().all { (left, right) -> left < right })
     }
 
     @Test

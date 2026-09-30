@@ -4,7 +4,20 @@ import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
 import java.time.temporal.ChronoUnit
-import kotlin.math.roundToLong
+import kotlin.math.ceil
+import kotlin.math.floor
+
+internal const val MaxCalendarXAxisLabelCount = 8
+
+internal fun calendarXAxisLabelCount(
+    availableWidth: Float,
+    maxLabelWidth: Float,
+): Int {
+    if (!availableWidth.isFinite() || !maxLabelWidth.isFinite() || availableWidth <= 0f || maxLabelWidth <= 0f) {
+        return 1
+    }
+    return floor(availableWidth / maxLabelWidth).toInt().coerceIn(1, MaxCalendarXAxisLabelCount)
+}
 
 /**
  * Selects a bounded set of epoch-millisecond values suitable for calendar labels on an x axis.
@@ -25,8 +38,9 @@ internal fun calendarXAxisLabelValues(
 
     if (visibleMinX == visibleMaxX) return listOf(visibleMinX)
 
-    val minMillis = visibleMinX.roundToLong()
-    val maxMillis = visibleMaxX.roundToLong()
+    val minMillis = ceil(visibleMinX).toLong()
+    val maxMillis = floor(visibleMaxX).toLong()
+    if (minMillis > maxMillis) return listOf(visibleMinX)
     val firstDate = Instant.ofEpochMilli(minMillis).atZone(zoneId).toLocalDate()
         .let { date ->
             if (date.atStartOfDay(zoneId).toInstant().toEpochMilli() < minMillis) date.plusDays(1) else date
@@ -47,5 +61,5 @@ internal fun calendarXAxisLabelValues(
             index.toLong() * (boundaryCount - 1L) / (selectedCount - 1L)
         }
         firstDate.plusDays(dayOffset).atStartOfDay(zoneId).toInstant().toEpochMilli().toDouble()
-    }
+    }.distinct()
 }
