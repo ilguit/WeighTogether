@@ -1,0 +1,51 @@
+package com.palixander.scalesync.charts
+
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import kotlin.math.roundToLong
+
+/**
+ * Selects a bounded set of epoch-millisecond values suitable for calendar labels on an x axis.
+ *
+ * The selector is deliberately independent of Vico. Except for a degenerate range, returned values
+ * are local-day boundaries in [zoneId] that fall inside the visible range. A range containing no
+ * such boundary gets its lower bound as a fallback, so even a narrow zoom window remains labelled.
+ */
+internal fun calendarXAxisLabelValues(
+    visibleMinX: Double,
+    visibleMaxX: Double,
+    zoneId: ZoneId,
+    maxLabelCount: Int,
+): List<Double> {
+    require(visibleMinX.isFinite() && visibleMaxX.isFinite()) { "The visible x range must be finite." }
+    require(visibleMaxX >= visibleMinX) { "The maximum visible x must not precede the minimum." }
+    require(maxLabelCount > 0) { "The label count limit must be positive." }
+
+    if (visibleMinX == visibleMaxX) return listOf(visibleMinX)
+
+    val minMillis = visibleMinX.roundToLong()
+    val maxMillis = visibleMaxX.roundToLong()
+    val firstDate = Instant.ofEpochMilli(minMillis).atZone(zoneId).toLocalDate()
+        .let { date ->
+            if (date.atStartOfDay(zoneId).toInstant().toEpochMilli() < minMillis) date.plusDays(1) else date
+        }
+    val lastDate = Instant.ofEpochMilli(maxMillis).atZone(zoneId).toLocalDate()
+        .let { date ->
+            if (date.atStartOfDay(zoneId).toInstant().toEpochMilli() > maxMillis) date.minusDays(1) else date
+        }
+
+    if (lastDate.isBefore(firstDate)) return listOf(visibleMinX)
+
+    val boundaryCount = ChronoUnit.DAYS.between(firstDate, lastDate) + 1L
+    val selectedCount = minOf(boundaryCount, maxLabelCount.toLong()).toInt()
+    return (0 until selectedCount).map { index ->
+        val dayOffset = if (selectedCount == 1) {
+            0L
+        } else {
+            index.toLong() * (boundaryCount - 1L) / (selectedCount - 1L)
+        }
+        firstDate.plusDays(dayOffset).atStartOfDay(zoneId).toInstant().toEpochMilli().toDouble()
+    }
+}
