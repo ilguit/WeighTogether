@@ -31,6 +31,7 @@ import com.palixander.scalesync.ui.theme.ScaleSyncTheme
 import java.io.File
 import java.util.UUID
 import org.junit.After
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -89,6 +90,7 @@ class ProfilePhotoViewerUiTest {
         }
         File(context.filesDir, path).outputStream().use { source.compress(Bitmap.CompressFormat.PNG, 100, it) }
         source.recycle()
+        val originalPhotoBytes = File(context.filesDir, path).readBytes()
         showEditor(pet, path)
         val nameTag = if (pet) PetProfileEditorTestTags.NameField else AccountManagementTestTags.EditorName
         composeRule.onNodeWithTag(nameTag).performScrollTo().performTextReplacement("Changed draft")
@@ -97,12 +99,14 @@ class ProfilePhotoViewerUiTest {
         waitFor(ProfilePhotoViewerTestTags.Image)
         assertWholeImageAndSaveScreenshot(if (pet) "pet" else "human")
         composeRule.onNodeWithTag(ProfilePhotoViewerTestTags.Close).performClick()
+        assertArrayEquals(originalPhotoBytes, File(context.filesDir, path).readBytes())
         composeRule.onNodeWithTag(nameTag).performScrollTo().assertTextContains("Changed draft")
         composeRule.onNodeWithTag(photoTag(pet)).performScrollTo().performClick()
         waitFor(ProfilePhotoViewerTestTags.Image)
         InstrumentationRegistry.getInstrumentation().sendKeyDownUpSync(KeyEvent.KEYCODE_BACK)
         composeRule.waitForIdle()
         composeRule.onNodeWithTag(ProfilePhotoViewerTestTags.Viewer).assertDoesNotExist()
+        assertArrayEquals(originalPhotoBytes, File(context.filesDir, path).readBytes())
         composeRule.onNodeWithTag(nameTag).performScrollTo().assertTextContains("Changed draft")
     }
 
