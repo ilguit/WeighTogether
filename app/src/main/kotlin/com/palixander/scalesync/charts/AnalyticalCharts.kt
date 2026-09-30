@@ -125,10 +125,8 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
                         Text("⋮", style = MaterialTheme.typography.titleLarge, modifier = Modifier.semantics { contentDescription = menuDescription })
                     }
                     DropdownMenu(menuExpanded, { menuExpanded = false }) {
-                        if (type != AnalyticalChartType.HOURLY) {
-                            DropdownMenuItem({ Text(stringResource(R.string.analytical_excluded, card.excluded.size)) }, onClick = { menuExpanded = false; excluded = true }, modifier = Modifier.testTag("analytical-excluded-$type"))
-                            DropdownMenuItem({ Text(stringResource(R.string.analytical_help)) }, onClick = { menuExpanded = false; help = true }, modifier = Modifier.testTag("analytical-help-$type"))
-                        }
+                        DropdownMenuItem({ Text(stringResource(R.string.analytical_excluded, card.excluded.size)) }, onClick = { menuExpanded = false; excluded = true }, modifier = Modifier.testTag("analytical-excluded-$type"))
+                        DropdownMenuItem({ Text(stringResource(R.string.analytical_help)) }, onClick = { menuExpanded = false; help = true }, modifier = Modifier.testTag("analytical-help-$type"))
                         DropdownMenuItem({ Text(stringResource(R.string.analytical_configure)) }, onClick = { menuExpanded = false; callbacks.controller.edit(type) }, modifier = Modifier.testTag("analytical-edit-$type"))
                         DropdownMenuItem({ Text(stringResource(R.string.analytical_remove)) }, onClick = { menuExpanded = false; callbacks.controller.remove(type) }, modifier = Modifier.testTag("analytical-remove-$type"))
                     }
@@ -173,7 +171,7 @@ internal fun AnalyticalChartCard(card: AnalyticalCardUiState, loading: Boolean, 
         }
     }
     if (help) AnalyticalDialog(stringResource(R.string.analytical_help), { help = false }) {
-        Text(stringResource(R.string.analytical_rule))
+        Text(stringResource(if (type == AnalyticalChartType.HOURLY) R.string.analytical_hourly_hint else R.string.analytical_rule))
     }
     if (excluded) Dialog(onDismissRequest = { excluded = false }) {
         Surface(shape = MaterialTheme.shapes.large) {
@@ -204,34 +202,44 @@ internal fun HourlyChart(hourlyCounts: List<Int>) {
         val grid = MaterialTheme.colorScheme.outlineVariant
         val selectedColor = MaterialTheme.colorScheme.onSurface
         val semanticsText = counts.mapIndexed { hour, count -> "${minuteText(hour * 60)}: $count" }.joinToString(", ")
-        Canvas(Modifier.fillMaxWidth().height(220.dp).testTag("analytical-radial").semantics {
-            contentDescription = semanticsText
-        }.pointerInput(counts) {
-            detectTapGestures { point ->
-                val centerX = size.width / 2f
-                val centerY = size.height / 2f
-                if (hypot(point.x - centerX, point.y - centerY) <= minOf(size.width, size.height) / 2f) {
-                    selected = hourForRadialPoint(point.x, point.y, centerX, centerY)
+        Box(Modifier.fillMaxWidth().height(220.dp)) {
+            Canvas(Modifier.fillMaxSize().testTag("analytical-radial").semantics {
+                contentDescription = semanticsText
+                customActions = counts.mapIndexed { hour, count ->
+                    CustomAccessibilityAction("${minuteText(hour * 60)}: $count") {
+                        selected = hour
+                        true
+                    }
+                }
+            }.pointerInput(counts) {
+                detectTapGestures { point ->
+                    val centerX = size.width / 2f
+                    val centerY = size.height / 2f
+                    val radius = minOf(size.width, size.height) / 2f
+                    if (hypot(point.x - centerX, point.y - centerY) <= radius) {
+                        hourForRadialPoint(point.x, point.y, centerX, centerY, radius * 0.12f)?.let { selected = it }
+                    }
+                }
+            }) {
+                val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
+                val radius = minOf(size.width, size.height) * 0.42f
+                drawCircle(grid, radius, center, style = Stroke(1.dp.toPx()))
+                drawCircle(grid, radius / 2f, center, style = Stroke(1.dp.toPx()))
+                counts.forEachIndexed { hour, count ->
+                    val angle = Math.toRadians(hour * 15.0 - 90.0)
+                    val direction = androidx.compose.ui.geometry.Offset(cos(angle).toFloat(), sin(angle).toFloat())
+                    val edge = center + direction * radius
+                    drawLine(grid, center, edge, 1.dp.toPx())
+                    if (count > 0) {
+                        val end = center + direction * (radius * lengths[hour])
+                        drawLine(if (selected == hour) selectedColor else line, center, end, if (selected == hour) 8.dp.toPx() else 5.dp.toPx())
+                    }
                 }
             }
-        }) {
-            val center = androidx.compose.ui.geometry.Offset(size.width / 2f, size.height / 2f)
-            val radius = minOf(size.width, size.height) * 0.42f
-            drawCircle(grid, radius, center, style = Stroke(1.dp.toPx()))
-            drawCircle(grid, radius / 2f, center, style = Stroke(1.dp.toPx()))
-            counts.forEachIndexed { hour, count ->
-                val angle = Math.toRadians(hour * 15.0 - 90.0)
-                val direction = androidx.compose.ui.geometry.Offset(cos(angle).toFloat(), sin(angle).toFloat())
-                val edge = center + direction * radius
-                drawLine(grid, center, edge, 1.dp.toPx())
-                if (count > 0) {
-                    val end = center + direction * (radius * lengths[hour])
-                    drawLine(if (selected == hour) selectedColor else line, center, end, if (selected == hour) 8.dp.toPx() else 5.dp.toPx())
-                }
-            }
-        }
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            listOf("00", "06", "12", "18").forEach { Text(it, style = MaterialTheme.typography.labelSmall) }
+            Text("00", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.TopCenter))
+            Text("06", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.CenterEnd))
+            Text("12", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.BottomCenter))
+            Text("18", style = MaterialTheme.typography.labelSmall, modifier = Modifier.align(Alignment.CenterStart))
         }
     }
     selected?.let { hour ->
