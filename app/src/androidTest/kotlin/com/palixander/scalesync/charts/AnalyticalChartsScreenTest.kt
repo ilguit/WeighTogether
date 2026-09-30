@@ -234,7 +234,10 @@ class AnalyticalChartsScreenTest {
     }
     private fun capture(name: String) {
         rule.waitForIdle()
-        val bitmap = rule.onAllNodes(isRoot()).onLast().captureToImage().asAndroidBitmap()
+        val target = if (name.endsWith("-settings") || name.endsWith("-preview")) {
+            rule.onNodeWithTag("analytical-editor")
+        } else rule.onAllNodes(isRoot()).onLast()
+        val bitmap = target.captureToImage().asAndroidBitmap()
         val dir = File(InstrumentationRegistry.getInstrumentation().targetContext.getExternalFilesDir(null), "issue80").apply { mkdirs() }
         File(dir, "$name.png").outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
         bitmap.recycle()
