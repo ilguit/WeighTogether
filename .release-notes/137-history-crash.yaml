@@ -1,3 +1,4 @@
 issue: 137
-userVisible: true
-text: Исправлено падение при открытии истории измерений
+userVisible: false
+reason: Исправление падения при открытии истории измерений отнесено к технической задаче
+suppressReleasedChange: true

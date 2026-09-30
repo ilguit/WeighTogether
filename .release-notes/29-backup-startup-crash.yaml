@@ -1,3 +1,4 @@
 issue: 29
 userVisible: false
 reason: Исправление уже вошло в явно выпущенную версию и не должно повторно появляться в следующем release range
+suppressReleasedChange: true

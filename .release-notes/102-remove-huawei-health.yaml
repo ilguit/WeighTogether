@@ -1,3 +1,4 @@
 issue: 102
-userVisible: true
-text: Удалена интеграция с Huawei Health
+userVisible: false
+reason: Удаление интеграции с Huawei Health отнесено к технической задаче
+suppressReleasedChange: true
