@@ -286,8 +286,8 @@ private fun AnalyticalEditor(draft: AnalyticalChartDraft, callbacks: AnalyticalC
                     }
                 }
                 Button(controller::save, enabled = draft.valid && draft.status != MorningCalculationStatus.RUNNING,
-                    modifier = Modifier.fillMaxWidth().testTag("analytical-save")) { Text(stringResource(R.string.action_save)) }
-                TextButton(controller::cancel, Modifier.fillMaxWidth().testTag("analytical-cancel")) { Text(stringResource(R.string.action_cancel)) }
+                    modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-save")) { Text(stringResource(R.string.action_save)) }
+                TextButton(controller::cancel, Modifier.fillMaxWidth().heightIn(min = 48.dp).testTag("analytical-cancel")) { Text(stringResource(R.string.action_cancel)) }
             }
         }
     }
