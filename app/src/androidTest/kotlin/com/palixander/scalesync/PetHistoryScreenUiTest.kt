@@ -659,9 +659,10 @@ class PetHistoryScreenUiTest {
         composeRule.onNodeWithTag(PetWeightChartTestTags.Chart)
             .assertIsDisplayed()
             .assert(hasStateDescriptionContaining("29.08.2026"))
-            .assert(hasStateDescriptionContaining("Нижняя граница: 2,00 кг"))
-            .assert(hasStateDescriptionContaining("Медиана: 3,00 кг–4,00 кг"))
-            .assert(hasStateDescriptionContaining("Верхняя граница: 5,00 кг"))
+            .assert(hasStateDescriptionContaining("Нижняя граница ориентира: 2,00 кг"))
+            .assert(hasStateDescriptionContaining("Нижняя медианная граница: 3,00 кг"))
+            .assert(hasStateDescriptionContaining("Верхняя медианная граница: 4,00 кг"))
+            .assert(hasStateDescriptionContaining("Верхняя граница ориентира: 5,00 кг"))
     }
 
     @Test fun accessibleChartActionSelectsNextReferenceDateAndUpdatesReadableState() {
