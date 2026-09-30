@@ -40,7 +40,8 @@ class RoomSchemaSerializationTest {
                     val location = "$file/$tableName/$columnName"
                     assertEquals(location, expectedField.getString("fieldPath"), field.fieldPath)
                     assertEquals(location, expectedField.getString("affinity"), field.affinity)
-                    assertEquals(location, expectedField.getBoolean("notNull"), field.isNonNull)
+                    // Legacy schemas omit false; FieldBundle defaults missing notNull to false.
+                    assertEquals(location, expectedField.optBoolean("notNull", false), field.isNonNull)
                     val defaultValue = if (expectedField.isNull("defaultValue")) {
                         null
                     } else {
