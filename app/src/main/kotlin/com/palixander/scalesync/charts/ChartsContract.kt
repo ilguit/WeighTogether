@@ -126,6 +126,10 @@ data class ChartStatistics(
 
 @Immutable
 data class ChartsUiState(
+    val analytical: AnalyticalChartState = AnalyticalChartState(),
+    val analyticalCards: List<AnalyticalCardUiState> = emptyList(),
+    val analyticalError: Boolean = false,
+    val zoneId: ZoneId = ZoneId.systemDefault(),
     val startDate: LocalDate,
     val endDateInclusive: LocalDate,
     val currentDate: LocalDate,
@@ -171,6 +175,7 @@ data class ChartsUiState(
 
 /** All chart intents are handled by the owner of [ChartsUiState]. */
 data class ChartsCallbacks(
+    val analytical: AnalyticalChartCallbacks? = null,
     val openRangeFilter: () -> Unit,
     val openMetricFilter: () -> Unit,
     val dismissFilterSheet: () -> Unit,
