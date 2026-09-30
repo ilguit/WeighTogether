@@ -50,7 +50,10 @@ class RetainedMigrationTestHelper(
         validateDroppedTables: Boolean,
         vararg migrations: Migration,
     ): SupportSQLiteDatabase {
-        if (version >= 15) return room.runMigrationsAndValidate(name, version, validateDroppedTables, *migrations)
+        if (version >= 15) {
+            return room.runMigrationsAndValidate(name, version, validateDroppedTables, *migrations)
+                .also { it.setForeignKeyConstraintsEnabled(true) }
+        }
         val db = openFixture(name, version, migrations.toList())
         val expected = openFixture(null, version)
         fun tableNames(database: SupportSQLiteDatabase): Set<String> = database.query(
@@ -59,9 +62,27 @@ class RetainedMigrationTestHelper(
         val expectedTables = tableNames(expected)
         if (validateDroppedTables) assertEquals(expectedTables, tableNames(db))
         expectedTables.forEach { table ->
-            assertEquals("Retained table contract: $table", TableInfo.read(expected, table), TableInfo.read(db, table))
+            val fixture = TableInfo.read(expected, table)
+            // Match Room's entity validation: an unspecified default accepts a migration-added default.
+            val expectedContract = TableInfo(
+                fixture.name,
+                fixture.columns.mapValues { (_, column) ->
+                    TableInfo.Column(
+                        column.name,
+                        column.type,
+                        column.notNull,
+                        column.primaryKeyPosition,
+                        column.defaultValue,
+                        TableInfo.CREATED_FROM_ENTITY,
+                    )
+                },
+                fixture.foreignKeys,
+                fixture.indices,
+            )
+            assertEquals("Retained table contract: $table", expectedContract, TableInfo.read(db, table))
         }
         expected.close()
+        db.setForeignKeyConstraintsEnabled(true)
         return db
     }
 

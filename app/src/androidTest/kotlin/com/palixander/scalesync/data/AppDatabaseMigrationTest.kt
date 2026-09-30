@@ -577,8 +577,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun concurrentPartialAndFullUpsertsAlwaysLeaveOneFullRow() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
 
         repeat(20) { index ->
@@ -606,8 +605,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun stalePartialSyncResultMarksWeightWithoutCompletingUpgradedRow() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val partial = weightOnlyEntity(100)
         dao.upsertScaleMeasurement(partial)
@@ -629,8 +627,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun pendingQueriesExcludeHealthConnectLocalOnlyRows() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         dao.insert(
             fullEntity(weightOnlyEntity(200)).copy(
@@ -649,8 +646,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun successfulSyncResultStoresHealthConnectCalculatedSnapshot() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val measurement = fullEntity(weightOnlyEntity(250))
         dao.insert(measurement)
@@ -672,8 +668,7 @@ class AppDatabaseMigrationTest {
 
     @Test
     fun staleWeightOnlyEditorSnapshotCannotDowngradeConcurrentFullUpgrade() = runBlocking {
-        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
-        openedDatabase = database
+        val database = createMeasurementDatabase()
         val dao = database.measurementDao()
         val partial = weightOnlyEntity(300)
         dao.upsertScaleMeasurement(partial)
@@ -690,6 +685,25 @@ class AppDatabaseMigrationTest {
         assertEquals(70.0, stored?.weightKg ?: 0.0, 0.0)
         assertEquals(500, stored?.impedanceOhm)
         assertTrue(stored?.fullValues != null)
+    }
+
+    private suspend fun createMeasurementDatabase(): AppDatabase {
+        val database = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        openedDatabase = database
+        database.accountDao().insert(
+            AccountEntity(
+                id = LEGACY_UNASSIGNED_ACCOUNT_ID,
+                displayName = "Test",
+                normalizedName = "test",
+                heightCm = null,
+                birthDateEpochDay = null,
+                sex = null,
+                isProfileComplete = false,
+                createdAtEpochMillis = 0,
+                updatedAtEpochMillis = 0,
+            ),
+        )
+        return database
     }
 
     private fun weightOnlyEntity(index: Int) = MeasurementEntity(
