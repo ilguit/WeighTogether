@@ -218,6 +218,10 @@ class AnalyticalChartsScreenTest {
         assertTarget("analytical-save")
         val bounds = rule.onNodeWithTag("analytical-editor").getUnclippedBoundsInRoot()
         assertTrue(bounds.right - bounds.left <= 320.dp)
+        val startField = rule.onNodeWithTag("analytical-start").getUnclippedBoundsInRoot()
+        val endLabel = rule.onNodeWithTag("analytical-end-label").getUnclippedBoundsInRoot()
+        assertTrue("Wrapped end label must not overlap the preceding input", endLabel.top >= startField.bottom)
+        rule.onNodeWithTag("analytical-end").assertContentDescriptionEquals(rule.activity.getString(R.string.analytical_end))
         capture("editor-content-w320-f200-settings")
         rule.onNodeWithTag("analytical-auto").performScrollTo().performClick()
         rule.waitUntil(10_000) { controller.state.value.draft?.status == MorningCalculationStatus.SUCCESS }

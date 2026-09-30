@@ -252,12 +252,16 @@ internal fun AnalyticalEditorContent(draft: AnalyticalChartDraft, callbacks: Ana
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).testTag("analytical-editor-scroll"), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (draft.settings.type == AnalyticalChartType.MORNING) {
                     Text(stringResource(if (draft.settings.morningMode == MorningFilterMode.AUTOMATIC) R.string.analytical_mode_auto else R.string.analytical_mode_manual))
+                    val startLabel = stringResource(R.string.analytical_start)
+                    val endLabel = stringResource(R.string.analytical_end)
+                    Text(startLabel, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("analytical-start-label"))
                     OutlinedTextField(start, { start = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
-                        label = { Text(stringResource(R.string.analytical_start)) }, singleLine = true,
-                        isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-start"))
+                        singleLine = true, isError = !draft.valid,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = startLabel }.testTag("analytical-start"))
+                    Text(endLabel, style = MaterialTheme.typography.bodySmall, modifier = Modifier.testTag("analytical-end-label"))
                     OutlinedTextField(end, { end = it; controller.setWindow(parseMinute(start), parseMinute(end)) },
-                        label = { Text(stringResource(R.string.analytical_end)) }, singleLine = true,
-                        isError = !draft.valid, modifier = Modifier.fillMaxWidth().testTag("analytical-end"))
+                        singleLine = true, isError = !draft.valid,
+                        modifier = Modifier.fillMaxWidth().semantics { contentDescription = endLabel }.testTag("analytical-end"))
                     if (!draft.valid) Text(stringResource(R.string.analytical_invalid_time), color = MaterialTheme.colorScheme.error)
                     TextButton(callbacks.autoSelectMorning, enabled = !loading && !error && draft.status != MorningCalculationStatus.RUNNING,
                         modifier = Modifier.fillMaxWidth().testTag("analytical-auto")) { Text(stringResource(R.string.analytical_auto)) }
