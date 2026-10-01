@@ -1,6 +1,6 @@
-# ScaleSync
+# Weigh Together
 
-ScaleSync records people, pets, and their weight measurements while preserving the degree of certainty in profile data.
+Weigh Together records people, pets, and their weight measurements while preserving the degree of certainty in profile data.
 
 ## Language
 

@@ -3,7 +3,7 @@ plugins {
     `java-gradle-plugin`
 }
 
-group = "com.palixander.scalesync.tools"
+group = "com.palixander.weightogether.tools"
 version = "1.0.0"
 
 kotlin {
@@ -26,8 +26,8 @@ dependencies {
 
 gradlePlugin {
     plugins.create("releaseHistory") {
-        id = "com.palixander.scalesync.release-history"
-        implementationClass = "com.palixander.scalesync.releasehistory.ReleaseHistoryPlugin"
+        id = "com.palixander.weightogether.release-history"
+        implementationClass = "com.palixander.weightogether.releasehistory.ReleaseHistoryPlugin"
     }
 }
 

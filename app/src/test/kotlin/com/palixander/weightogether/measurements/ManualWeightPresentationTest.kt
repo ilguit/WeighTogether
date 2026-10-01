@@ -1,0 +1,93 @@
+package com.palixander.weightogether.measurements
+
+import com.palixander.weightogether.charts.ChartPoint
+import com.palixander.weightogether.charts.chartMetricOptions
+import com.palixander.weightogether.charts.formatChartCurrentValue
+import com.palixander.weightogether.charts.formatChartMarkerText
+import com.palixander.weightogether.charts.resolveStrings
+import com.palixander.weightogether.ui.profiles.PetWeightChartMetric
+import com.palixander.weightogether.ui.text.UiText
+import java.time.ZoneOffset
+import java.util.Locale
+import org.junit.Assert.*
+import org.junit.Test
+
+class ManualWeightPresentationTest {
+    @Test
+    fun petHistoryPreservesOriginAndEditedFlagIndependently() {
+        for (origin in com.palixander.weightogether.domain.MeasurementOrigin.entries) {
+            for (edited in listOf(false, true)) {
+                val manual = origin == com.palixander.weightogether.domain.MeasurementOrigin.MANUAL
+                val record = com.palixander.weightogether.domain.PetMeasurement(
+                    "record", com.palixander.weightogether.domain.PetId("pet"), java.time.Instant.EPOCH,
+                    if (manual) null else 70.0, if (manual) null else 74.0,
+                    4.0, origin, edited,
+                )
+                val day = java.time.LocalDate.of(1970, 1, 1)
+                val (content, _) = com.palixander.weightogether.ui.profiles.petHistoryPresentation(
+                    listOf(record), com.palixander.weightogether.charts.ChartDateRange(day, day), ZoneOffset.UTC, Locale.US,
+                )
+                val row = (content as com.palixander.weightogether.ui.profiles.PetHistoryContent.Single).measurement
+                assertEquals(origin, row.origin)
+                assertEquals(edited, row.isManuallyEdited)
+            }
+        }
+    }
+
+    @Test
+    fun directPetWeightHasOriginAndChartPointWithoutSourceReadings() {
+        val record = com.palixander.weightogether.domain.PetMeasurement(
+            "manual", com.palixander.weightogether.domain.PetId("pet"), java.time.Instant.EPOCH,
+            null, null, 4.125, com.palixander.weightogether.domain.MeasurementOrigin.MANUAL,
+        )
+        val day = java.time.LocalDate.of(1970, 1, 1)
+        val (content, series) = com.palixander.weightogether.ui.profiles.petHistoryPresentation(
+            listOf(record), com.palixander.weightogether.charts.ChartDateRange(day, day), ZoneOffset.UTC, Locale.US,
+        )
+        val row = (content as com.palixander.weightogether.ui.profiles.PetHistoryContent.Single).measurement
+        assertEquals(record.origin, row.origin)
+        assertEquals("4.125", row.weightText.trim())
+        assertEquals(4.125, series.points.single().value, 0.0)
+        assertNull(record.firstWeightKg)
+        assertNull(record.secondWeightKg)
+    }
+
+    @Test
+    fun gramPrecisionIsVisibleInHumanPetAndHomeChartMarkers() {
+        val human = chartMetricOptions(::testMetricString).first { it.key == "WEIGHT_KG" }
+        val pet = PetWeightChartMetric.resolveStrings(::testMetricString)
+        for (weight in listOf(4.121, 4.124, 4.125)) {
+            val expected = weight.toString().replace('.', ',')
+            assertEquals(expected, formatWeight(weight, Locale.forLanguageTag("ru")))
+            for (metric in listOf(human, pet)) {
+                assertEquals("$expected кг", formatChartCurrentValue(weight, metric, Locale.forLanguageTag("ru")))
+                assertTrue(formatChartMarkerText(ChartPoint(0, weight), metric, ZoneOffset.UTC, Locale.forLanguageTag("ru")).endsWith("$expected кг"))
+            }
+            val selection = HomeKgChartMarkerSelection(0, listOf(
+                HomeKgChartMarkerEntry(HomeKgChartMetric.WEIGHT.key, UiText.Raw("Вес"), UiText.Raw("кг"), weight, 2, 0),
+                HomeKgChartMarkerEntry(HomeKgChartMetric.BODY_FAT_MASS.key, UiText.Raw("Жир"), UiText.Raw("кг"), 1.2, 2, 0),
+            ))
+            val text = formatHomeKgChartMarker(selection, ZoneOffset.UTC, Locale.US) { (it as UiText.Raw).value }
+            assertTrue(text.contains("Вес: $weight кг"))
+            assertTrue(text.contains("Жир: 1.20 кг"))
+        }
+    }
+
+    @Test
+    fun trailingZerosAreRemovedAndMissingWeightRemainsMissing() {
+        assertEquals("4", formatWeight(4.0, Locale.US))
+        assertEquals("4.12", formatWeight(4.120, Locale.US))
+        assertEquals("0.001", formatWeight(0.001, Locale.US))
+        assertEquals("—", formatChartCurrentValue(null, PetWeightChartMetric, Locale.US))
+        val fat = chartMetricOptions(::testMetricString).first { it.key == "BODY_FAT_PERCENT" }
+        assertEquals("1.2 %", formatChartCurrentValue(1.2, fat, Locale.US))
+    }
+}
+
+private fun testMetricString(id: Int): String = when (id) {
+    com.palixander.weightogether.R.string.unit_kg -> "кг"
+    com.palixander.weightogether.R.string.pet_weight_unit_kg -> "кг"
+    com.palixander.weightogether.R.string.pet_history_weight_metric -> "Вес питомца"
+    com.palixander.weightogether.R.string.unit_percent -> "%"
+    else -> "resource-$id"
+}

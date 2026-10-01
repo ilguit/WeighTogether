@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="reference_set_label">基準セット：ScaleSync 1</string>
+    <string name="reference_set_label">基準セット：Weigh Together 1</string>
     <string name="reference_group_main">基本項目</string>
     <string name="reference_group_body_composition">体組成</string>
     <string name="reference_group_muscles_and_bones">筋肉と骨</string>
@@ -103,7 +103,7 @@
     <string name="reference_secondary_chumlea">補足資料（リンクなし）：Chumlea — 体水分量モデル。</string>
     <string name="reference_secondary_janssen">補足資料（リンクなし）：Janssenほか（2000年）— 骨格筋量推定式。</string>
     <string name="reference_secondary_niams">補足資料（リンクなし）：NIAMS — 推定骨量と骨密度（BMD）およびTスコアの違い。</string>
-    <string name="reference_secondary_espen">補足資料（リンクなし）：ESPEN/GLIM — 臨床的なFFMIの位置付け。ScaleSyncの評価尺度には使用していません。</string>
+    <string name="reference_secondary_espen">補足資料（リンクなし）：ESPEN/GLIM — 臨床的なFFMIの位置付け。Weigh Togetherの評価尺度には使用していません。</string>
 
     <string name="reference_help_weight_meaning">体重計で直接測定された体重です。</string>
     <string name="reference_help_weight_calculation">保存された身長とXiaomi LegacyのBMIしきい値から体重の境界値を算出します。そのため、体重の区分は常にBMIの区分と一致します。</string>
@@ -124,7 +124,7 @@
     <string name="reference_help_body_fat_mass_meaning">脂肪組織の推定重量（kg）です。</string>
     <string name="reference_help_body_fat_mass_calculation">体脂肪量＝体重×体脂肪率。基準区分にはFMI（体脂肪量÷身長²）を用い、Schutzの第5・第95パーセンタイルと比較します。</string>
     <string name="reference_help_body_fat_mass_dependencies">推定体脂肪率、体重、保存された身長、現在の性別、年齢。</string>
-    <string name="reference_help_body_fat_mass_limitations">第5～第95パーセンタイルはジュネーブの成人集団に基づきます。「標準」はScaleSync独自の解釈です。18歳未満および99歳以上では評価できません。</string>
+    <string name="reference_help_body_fat_mass_limitations">第5～第95パーセンタイルはジュネーブの成人集団に基づきます。「標準」はWeigh Together独自の解釈です。18歳未満および99歳以上では評価できません。</string>
     <string name="reference_help_water_meaning">体重に占める総体水分量の推定割合です。摂取した水の量ではありません。</string>
     <string name="reference_help_water_calculation">Xiaomi互換の式で推定体組成から算出します。区分には性別ごとのXiaomi Legacy尺度を使用します。</string>
     <string name="reference_help_water_dependencies">現在の性別、体組成、水分状態、測定条件。</string>
@@ -134,7 +134,7 @@
     <string name="reference_help_water_mass_dependencies">体格と推定体水分率。</string>
     <string name="reference_help_water_mass_limitations">体格が大きいほど絶対量は自然に多くなるため、この値だけで水分状態は判断できません。互換性のある共通のkg基準はありません。</string>
     <string name="reference_help_muscle_mass_meaning">筋肉組織の推定重量です。</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSyncでは、体重から推定体脂肪量と骨量を差し引きます。区分には性別・身長別のXiaomi Legacyしきい値を使用します。</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Togetherでは、体重から推定体脂肪量と骨量を差し引きます。区分には性別・身長別のXiaomi Legacyしきい値を使用します。</string>
     <string name="reference_help_muscle_mass_dependencies">現在の性別、保存された身長、体重、すべてのBIA入力値。</string>
     <string name="reference_help_muscle_mass_limitations">値はアルゴリズムに依存し、筋力や筋機能を測定するものではありません。</string>
     <string name="reference_help_skeletal_muscle_meaning">身体を動かす筋肉の推定重量です。</string>
@@ -149,7 +149,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Xiaomi互換の内部式で筋肉量、体重、体水分量を使用します。Xiaomi Legacyのしきい値は16%と20%です。</string>
     <string name="reference_help_protein_dependencies">筋肉量と体水分量の算出に使われるすべての入力値。</string>
     <string name="reference_help_protein_limitations">タンパク質摂取量、血中タンパク質、食事の質を示すものではありません。</string>
-    <string name="reference_help_protein_mass_meaning">ScaleSyncの内部式で算出したタンパク質成分の推定重量です。</string>
+    <string name="reference_help_protein_mass_meaning">Weigh Togetherの内部式で算出したタンパク質成分の推定重量です。</string>
     <string name="reference_help_protein_mass_calculation">体重×タンパク質率。</string>
     <string name="reference_help_protein_mass_dependencies">推定筋肉量、体水分量、タンパク質率、体重。</string>
     <string name="reference_help_protein_mass_limitations">検証済みの全身タンパク質量、血液検査のタンパク質値、食事目標ではありません。互換性のあるkg基準はありません。</string>
@@ -158,7 +158,7 @@
     <string name="reference_help_visceral_fat_dependencies">現在の性別と年齢、保存された身長、体重。</string>
     <string name="reference_help_visceral_fat_limitations">単位のないアルゴリズム上の尺度であり、重量、割合、腹囲、CT/MRIの面積ではありません。</string>
     <string name="reference_help_bmr_meaning">安静時に身体が1日で消費する推定エネルギー量です。</string>
-    <string name="reference_help_bmr_calculation">ScaleSyncでは性別、年齢、身長、体重に基づく式を使用します。Xiaomi Legacyの基準しきい値は、体重に年齢別・性別の係数を掛けた値です。</string>
+    <string name="reference_help_bmr_calculation">Weigh Togetherでは性別、年齢、身長、体重に基づく式を使用します。Xiaomi Legacyの基準しきい値は、体重に年齢別・性別の係数を掛けた値です。</string>
     <string name="reference_help_bmr_dependencies">現在の性別と年齢、保存された身長、体重。</string>
     <string name="reference_help_bmr_limitations">1日の摂取カロリー目標、食事上の助言、直接熱量測定の結果ではありません。</string>
     <string name="reference_help_metabolic_age_meaning">体組成に基づく、アルゴリズム固有の指標です。</string>

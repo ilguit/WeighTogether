@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="reference_set_label">Riferimento set: ScaleSync 1</string>
+    <string name="reference_set_label">Riferimento set: Weigh Together 1</string>
     <string name="reference_group_main">Principale</string>
     <string name="reference_group_body_composition">Composizione corporea</string>
     <string name="reference_group_muscles_and_bones">Muscoli e ossa</string>
@@ -109,7 +109,7 @@
     <string name="reference_secondary_chumlea">Aggiuntivo non-interattivo riferimento: Chumlea — totale corpo acqua models.</string>
     <string name="reference_secondary_janssen">Aggiuntivo non-interattivo riferimento: Janssen et al., 2000 — scheletrico muscolo massa equazione.</string>
     <string name="reference_secondary_niams">Aggiuntivo non-interattivo riferimento: NIAMS — come stimata ossea massa differs da BMD e T-score.</string>
-    <string name="reference_secondary_espen">Aggiuntivo non-interattivo riferimento: ESPEN/GLIM — clinico FFMI context, non usato come un ScaleSync rating bilancia.</string>
+    <string name="reference_secondary_espen">Aggiuntivo non-interattivo riferimento: ESPEN/GLIM — clinico FFMI context, non usato come un Weigh Together rating bilancia.</string>
     <string name="reference_help_weight_meaning">Corpo massa misurato directly da il bilancia.</string>
     <string name="reference_help_weight_calculation">Peso boundaries sono calculated da salvato altezza usando Xiaomi Precedente BMI soglie. Il categoria di peso therefore always matches il BMI categoria.</string>
     <string name="reference_help_weight_dependencies">Salvato altezza e peso. Impedenza è non usato.</string>
@@ -129,7 +129,7 @@
     <string name="reference_help_body_fat_mass_meaning">Stimata massa di grasso tessuto in chilogrammi.</string>
     <string name="reference_help_body_fat_mass_calculation">Massa = peso × corpo grasso %. Il riferimento categoria usa FMI: grasso massa / altezza², compared con il Schutz P5/P95 percentili.</string>
     <string name="reference_help_body_fat_mass_dependencies">Stimata corpo grasso, peso, salvato altezza, attuale sesso, e età.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 sono popolazione percentili per adulti in Geneva, mentre “Normale” è un ScaleSync product interpretazione. Il bilancia non è disponibile sotto età 18 e above età 98.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 sono popolazione percentili per adulti in Geneva, mentre “Normale” è un Weigh Together product interpretazione. Il bilancia non è disponibile sotto età 18 e above età 98.</string>
     <string name="reference_help_water_meaning">Stimata proportion di totale corpo acqua. Questo è non il amount di acqua consumed.</string>
     <string name="reference_help_water_calculation">Un Xiaomi-compatibile formula derives il metric da stimata composizione corporea; il categoria usa un sesso-specifico Xiaomi Precedente bilancia.</string>
     <string name="reference_help_water_dependencies">Attuale sesso, composizione corporea, hydration, e misurazione condizioni.</string>
@@ -139,7 +139,7 @@
     <string name="reference_help_water_mass_dependencies">Corpo size e stimata acqua percentage.</string>
     <string name="reference_help_water_mass_limitations">Il absolute amount è naturally più alto in un maggiore person e non indicate hydration da itself. Non c’è compatibile universal kilogram bilancia.</string>
     <string name="reference_help_muscle_mass_meaning">Stimata massa di muscolo tessuto.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync subtracts stimata grasso massa e ossea massa da peso. Il categoria usa Xiaomi Precedente soglie da sesso e altezza.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together subtracts stimata grasso massa e ossea massa da peso. Il categoria usa Xiaomi Precedente soglie da sesso e altezza.</string>
     <string name="reference_help_muscle_mass_dependencies">Attuale sesso, salvato altezza, peso, e tutti BIA inputs.</string>
     <string name="reference_help_muscle_mass_limitations">Il valore depends attivato il algorithm e non measure muscolo strength o function.</string>
     <string name="reference_help_skeletal_muscle_meaning">Massa stimata dei muscoli che muovono il corpo.</string>
@@ -154,7 +154,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Un interno Xiaomi-compatibile formula usa muscolo massa, peso, e acqua. Xiaomi Precedente soglie sono 16% e 20%.</string>
     <string name="reference_help_protein_dependencies">Tutti muscolo massa e acqua inputs.</string>
     <string name="reference_help_protein_limitations">Esso non mostra proteine intake, blood proteine, o diet quality.</string>
-    <string name="reference_help_protein_mass_meaning">Stimata massa di proteine components da ScaleSync’s interno formula.</string>
+    <string name="reference_help_protein_mass_meaning">Stimata massa di proteine components da Weigh Together’s interno formula.</string>
     <string name="reference_help_protein_mass_calculation">Peso × proteine %.</string>
     <string name="reference_help_protein_mass_dependencies">Stimata muscolo, acqua, proteine, e peso.</string>
     <string name="reference_help_protein_mass_limitations">Questo è non un validated totale corpo proteine massa, un blood proteine test, o un dietary target. Non c’è compatibile kilogram bilancia.</string>
@@ -163,7 +163,7 @@
     <string name="reference_help_visceral_fat_dependencies">Attuale sesso e età, salvato altezza, e peso.</string>
     <string name="reference_help_visceral_fat_limitations">Questo è un dimensionless algorithmic bilancia, non un massa, percentage, waist circumference, o CT/MRI area.</string>
     <string name="reference_help_bmr_meaning">Stimata energy il corpo usa a rest sopra one giorno.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync usa un formula basato attivato sesso, età, altezza, e peso. Il Xiaomi Precedente riferimento threshold equals peso multiplied da un età- e sesso-specifico coefficient.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together usa un formula basato attivato sesso, età, altezza, e peso. Il Xiaomi Precedente riferimento threshold equals peso multiplied da un età- e sesso-specifico coefficient.</string>
     <string name="reference_help_bmr_dependencies">Attuale sesso e età, salvato altezza, e peso.</string>
     <string name="reference_help_bmr_limitations">Questo è non un daily calorie target, dietary advice, o un direct calorimetry misurazione.</string>
     <string name="reference_help_metabolic_age_meaning">Un algorithm-specifico indicator basato attivato composizione corporea.</string>

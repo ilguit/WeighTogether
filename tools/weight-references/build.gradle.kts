@@ -4,7 +4,7 @@ plugins {
 }
 
 java { toolchain { languageVersion = JavaLanguageVersion.of(17) } }
-application { mainClass = "com.palixander.scalesync.weightreferences.Main" }
+application { mainClass = "com.palixander.weightogether.weightreferences.Main" }
 repositories { mavenCentral() }
 dependencies {
     implementation("com.google.code.gson:gson:2.13.2")

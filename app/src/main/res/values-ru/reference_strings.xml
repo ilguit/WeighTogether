@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="reference_set_label">Набор норм: ScaleSync 1</string>
+    <string name="reference_set_label">Набор норм: Weigh Together 1</string>
     <string name="reference_group_main">Основное</string>
     <string name="reference_group_body_composition">Состав тела</string>
     <string name="reference_group_muscles_and_bones">Мышцы и кости</string>
@@ -124,7 +124,7 @@
     <string name="reference_secondary_chumlea">Дополнительная неинтерактивная ссылка: Chumlea — модели общей воды тела.</string>
     <string name="reference_secondary_janssen">Дополнительная неинтерактивная ссылка: Janssen et al., 2000 — уравнение скелетной мышечной массы.</string>
     <string name="reference_secondary_niams">Дополнительная неинтерактивная ссылка: NIAMS — отличие расчётной костной массы от BMD и T-score.</string>
-    <string name="reference_secondary_espen">Дополнительная неинтерактивная ссылка: ESPEN/GLIM — клинический контекст FFMI, не применяемый как шкала ScaleSync.</string>
+    <string name="reference_secondary_espen">Дополнительная неинтерактивная ссылка: ESPEN/GLIM — клинический контекст FFMI, не применяемый как шкала Weigh Together.</string>
 
     <string name="reference_help_weight_meaning">Масса тела, непосредственно измеренная весами.</string>
     <string name="reference_help_weight_calculation">Границы веса рассчитаны из сохранённого роста по порогам BMI Xiaomi Legacy. Поэтому категория веса всегда совпадает с категорией BMI.</string>
@@ -145,7 +145,7 @@
     <string name="reference_help_body_fat_mass_meaning">Расчётная масса жировой ткани в килограммах.</string>
     <string name="reference_help_body_fat_mass_calculation">Масса = вес × жир %. Для нормы вычисляется FMI: масса жира / рост²; результат сравнивается с P5/P95 Schutz.</string>
     <string name="reference_help_body_fat_mass_dependencies">Расчётного жира, веса, сохранённого роста, текущего пола и возраста.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 являются популяционными процентилями взрослых Женевы, а слово «Норма» — продуктовая интерпретация ScaleSync. До 18 и после 98 лет шкала недоступна.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 являются популяционными процентилями взрослых Женевы, а слово «Норма» — продуктовая интерпретация Weigh Together. До 18 и после 98 лет шкала недоступна.</string>
     <string name="reference_help_water_meaning">Расчётная доля всей воды в организме. Это не количество выпитой воды.</string>
     <string name="reference_help_water_calculation">Xiaomi-совместимая формула выводит показатель из оценки состава тела; категория использует половую Xiaomi Legacy шкалу.</string>
     <string name="reference_help_water_dependencies">Текущего пола, состава тела, гидратации и условий измерения.</string>
@@ -155,7 +155,7 @@
     <string name="reference_help_water_mass_dependencies">Размера тела и расчётной доли воды.</string>
     <string name="reference_help_water_mass_limitations">Абсолютное количество закономерно выше у более крупного человека и само по себе не показывает гидратацию. Совместимой универсальной шкалы килограммов нет.</string>
     <string name="reference_help_muscle_mass_meaning">Расчётная масса мышечных тканей.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync вычитает из веса расчётную массу жира и костную массу. Категория использует Xiaomi Legacy пороги по полу и росту.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together вычитает из веса расчётную массу жира и костную массу. Категория использует Xiaomi Legacy пороги по полу и росту.</string>
     <string name="reference_help_muscle_mass_dependencies">Текущего пола, сохранённого роста, веса и всех BIA-входов.</string>
     <string name="reference_help_muscle_mass_limitations">Значение зависит от алгоритма и не измеряет силу или функцию мышц.</string>
     <string name="reference_help_skeletal_muscle_meaning">Расчётная масса мышц, обеспечивающих движения тела.</string>
@@ -170,7 +170,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Внутренняя Xiaomi-совместимая формула использует мышечную массу, вес и воду. Пороги Xiaomi Legacy: 16% и 20%.</string>
     <string name="reference_help_protein_dependencies">Всех входов мышечной массы и воды.</string>
     <string name="reference_help_protein_limitations">Не показывает потребление белка, белок крови или качество питания.</string>
-    <string name="reference_help_protein_mass_meaning">Расчётная масса белковых компонентов по внутренней формуле ScaleSync.</string>
+    <string name="reference_help_protein_mass_meaning">Расчётная масса белковых компонентов по внутренней формуле Weigh Together.</string>
     <string name="reference_help_protein_mass_calculation">Вес × белок %.</string>
     <string name="reference_help_protein_mass_dependencies">Расчётных мышц, воды, белка и веса.</string>
     <string name="reference_help_protein_mass_limitations">Не является валидированной общей массой белка тела, лабораторным белком крови или нормой питания. Совместимой шкалы килограммов нет.</string>
@@ -179,7 +179,7 @@
     <string name="reference_help_visceral_fat_dependencies">Текущего пола и возраста, сохранённого роста и веса.</string>
     <string name="reference_help_visceral_fat_limitations">Это безразмерная шкала алгоритма, не масса, процент, окружность талии или CT/MRI-площадь.</string>
     <string name="reference_help_bmr_meaning">Примерная энергия, которую организм расходует за сутки в состоянии покоя.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync использует формулу по полу, возрасту, росту и весу. Порог нормы Xiaomi Legacy равен весу, умноженному на возрастно-половой коэффициент.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together использует формулу по полу, возрасту, росту и весу. Порог нормы Xiaomi Legacy равен весу, умноженному на возрастно-половой коэффициент.</string>
     <string name="reference_help_bmr_dependencies">Текущего пола и возраста, сохранённого роста и веса.</string>
     <string name="reference_help_bmr_limitations">Это не суточная цель калорийности, не рекомендация питания и не прямое измерение калориметрией.</string>
     <string name="reference_help_metabolic_age_meaning">Условный показатель алгоритма на основе состава тела.</string>

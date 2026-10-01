@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Scale Sync</string>
+    <string name="app_name">Weigh Together</string>
     <string name="measurement_resolver_title">未割り当ての測定値</string>
     <string name="measurement_resolver_assignment_question">この測定値を誰に割り当てますか？</string>
     <string name="measurement_resolver_recommended">おすすめ</string>

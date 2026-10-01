@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">ScaleSync</string>
+    <string name="app_name">Weigh Together</string>
     <string name="measurement_resolver_title">Non assegnate misurazione</string>
     <string name="measurement_resolver_assignment_question">A chi deve essere assegnata questa misurazione?</string>
     <string name="measurement_resolver_recommended">Consigliato</string>

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="reference_set_label">Reference set: ScaleSync 1</string>
+    <string name="reference_set_label">Reference set: Weigh Together 1</string>
     <string name="reference_group_main">Main</string>
     <string name="reference_group_body_composition">Body composition</string>
     <string name="reference_group_muscles_and_bones">Muscles and bones</string>
@@ -115,7 +115,7 @@
     <string name="reference_secondary_chumlea">Additional non-interactive reference: Chumlea — total body water models.</string>
     <string name="reference_secondary_janssen">Additional non-interactive reference: Janssen et al., 2000 — skeletal muscle mass equation.</string>
     <string name="reference_secondary_niams">Additional non-interactive reference: NIAMS — how estimated bone mass differs from BMD and T-score.</string>
-    <string name="reference_secondary_espen">Additional non-interactive reference: ESPEN/GLIM — clinical FFMI context, not used as a ScaleSync rating scale.</string>
+    <string name="reference_secondary_espen">Additional non-interactive reference: ESPEN/GLIM — clinical FFMI context, not used as a Weigh Together rating scale.</string>
 
     <string name="reference_help_weight_meaning">Body mass measured directly by the scale.</string>
     <string name="reference_help_weight_calculation">Weight boundaries are calculated from saved height using Xiaomi Legacy BMI thresholds. The weight category therefore always matches the BMI category.</string>
@@ -136,7 +136,7 @@
     <string name="reference_help_body_fat_mass_meaning">Estimated mass of fat tissue in kilograms.</string>
     <string name="reference_help_body_fat_mass_calculation">Mass = weight × body fat %. The reference category uses FMI: fat mass / height², compared with the Schutz P5/P95 percentiles.</string>
     <string name="reference_help_body_fat_mass_dependencies">Estimated body fat, weight, saved height, current sex, and age.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 are population percentiles for adults in Geneva, while “Normal” is a ScaleSync product interpretation. The scale is unavailable below age 18 and above age 98.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 are population percentiles for adults in Geneva, while “Normal” is a Weigh Together product interpretation. The scale is unavailable below age 18 and above age 98.</string>
     <string name="reference_help_water_meaning">Estimated proportion of total body water. This is not the amount of water consumed.</string>
     <string name="reference_help_water_calculation">A Xiaomi-compatible formula derives the metric from estimated body composition; the category uses a sex-specific Xiaomi Legacy scale.</string>
     <string name="reference_help_water_dependencies">Current sex, body composition, hydration, and measurement conditions.</string>
@@ -146,7 +146,7 @@
     <string name="reference_help_water_mass_dependencies">Body size and estimated water percentage.</string>
     <string name="reference_help_water_mass_limitations">The absolute amount is naturally higher in a larger person and does not indicate hydration by itself. There is no compatible universal kilogram scale.</string>
     <string name="reference_help_muscle_mass_meaning">Estimated mass of muscle tissue.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync subtracts estimated fat mass and bone mass from weight. The category uses Xiaomi Legacy thresholds by sex and height.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together subtracts estimated fat mass and bone mass from weight. The category uses Xiaomi Legacy thresholds by sex and height.</string>
     <string name="reference_help_muscle_mass_dependencies">Current sex, saved height, weight, and all BIA inputs.</string>
     <string name="reference_help_muscle_mass_limitations">The value depends on the algorithm and does not measure muscle strength or function.</string>
     <string name="reference_help_skeletal_muscle_meaning">Estimated mass of the muscles that move the body.</string>
@@ -161,7 +161,7 @@
     <string name="reference_help_protein_calculation" formatted="false">An internal Xiaomi-compatible formula uses muscle mass, weight, and water. Xiaomi Legacy thresholds are 16% and 20%.</string>
     <string name="reference_help_protein_dependencies">All muscle mass and water inputs.</string>
     <string name="reference_help_protein_limitations">It does not show protein intake, blood protein, or diet quality.</string>
-    <string name="reference_help_protein_mass_meaning">Estimated mass of protein components from ScaleSync’s internal formula.</string>
+    <string name="reference_help_protein_mass_meaning">Estimated mass of protein components from Weigh Together’s internal formula.</string>
     <string name="reference_help_protein_mass_calculation">Weight × protein %.</string>
     <string name="reference_help_protein_mass_dependencies">Estimated muscle, water, protein, and weight.</string>
     <string name="reference_help_protein_mass_limitations">This is not a validated total body protein mass, a blood protein test, or a dietary target. There is no compatible kilogram scale.</string>
@@ -170,7 +170,7 @@
     <string name="reference_help_visceral_fat_dependencies">Current sex and age, saved height, and weight.</string>
     <string name="reference_help_visceral_fat_limitations">This is a dimensionless algorithmic scale, not a mass, percentage, waist circumference, or CT/MRI area.</string>
     <string name="reference_help_bmr_meaning">Estimated energy the body uses at rest over one day.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync uses a formula based on sex, age, height, and weight. The Xiaomi Legacy reference threshold equals weight multiplied by an age- and sex-specific coefficient.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together uses a formula based on sex, age, height, and weight. The Xiaomi Legacy reference threshold equals weight multiplied by an age- and sex-specific coefficient.</string>
     <string name="reference_help_bmr_dependencies">Current sex and age, saved height, and weight.</string>
     <string name="reference_help_bmr_limitations">This is not a daily calorie target, dietary advice, or a direct calorimetry measurement.</string>
     <string name="reference_help_metabolic_age_meaning">An algorithm-specific indicator based on body composition.</string>

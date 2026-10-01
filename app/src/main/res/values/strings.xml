@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Scale Sync</string>
+    <string name="app_name">Weigh Together</string>
     <string name="measurement_resolver_title">Unassigned measurement</string>
     <string name="measurement_resolver_assignment_question">Who should this measurement be assigned to?</string>
     <string name="measurement_resolver_recommended">Recommended</string>
