@@ -1,7 +1,7 @@
 <resources>
     <style name="Theme.ScaleSync.Starting" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/scalesync_background</item>
-        <item name="windowSplashScreenAnimatedIcon">@mipmap/ic_scalesync_launcher</item>
+        <item name="windowSplashScreenAnimatedIcon">@drawable/ic_weigh_together_splash</item>
         <item name="postSplashScreenTheme">@style/Theme.ScaleSync</item>
     </style>
 

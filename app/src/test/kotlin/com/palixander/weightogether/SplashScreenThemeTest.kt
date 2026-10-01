@@ -18,7 +18,13 @@ import org.robolectric.annotation.Config
 @Config(sdk = [26, 31, 35], application = Application::class)
 class SplashScreenThemeTest {
     @Test
-    fun launcherThemeUsesExistingIconAndReturnsToAppTheme() {
+    @Config(qualifiers = "night")
+    fun nightModeUsesTheSameDedicatedSplashAndReturnsToAppTheme() {
+        launcherThemeUsesDedicatedSplashAndReturnsToAppTheme()
+    }
+
+    @Test
+    fun launcherThemeUsesDedicatedSplashAndReturnsToAppTheme() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val activity = context.packageManager.getActivityInfo(
             ComponentName(context, MainActivity::class.java),
@@ -38,7 +44,7 @@ class SplashScreenThemeTest {
             attributeResource(androidx.core.splashscreen.R.attr.windowSplashScreenBackground),
         )
         val icon = attributeResource(androidx.core.splashscreen.R.attr.windowSplashScreenAnimatedIcon)
-        assertEquals(context.applicationInfo.icon, icon)
+        assertEquals(R.drawable.ic_weigh_together_splash, icon)
         assertNotNull(context.getDrawable(icon))
         assertEquals(
             R.style.Theme_ScaleSync,
