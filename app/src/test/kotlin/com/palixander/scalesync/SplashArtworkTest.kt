@@ -56,7 +56,7 @@ class SplashArtworkTest {
         assertEquals(Color.TRANSPARENT, bitmap.getPixel(0, 0))
         assertEquals(Color.TRANSPARENT, bitmap.getPixel(576, 200))
         val output = File("build/reports/splash/weigh-together.png")
-        output.parentFile.mkdirs()
+        requireNotNull(output.parentFile).mkdirs()
         output.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
     }
 
@@ -83,7 +83,7 @@ class SplashArtworkTest {
             assertEquals(a.second, b.second, 0.001)
             assertEquals(c.second, d.second, 0.001)
             if (top == null) { top = a.second; bottom = c.second }
-            assertEquals(top!!, a.second, 0.001)
+            assertEquals(top, a.second, 0.001)
             assertEquals(bottom!!, c.second, 0.001)
             val ratio = (b.first - a.first) / (c.first - d.first)
             val vy = (a.second - ratio * d.second) / (1 - ratio)
