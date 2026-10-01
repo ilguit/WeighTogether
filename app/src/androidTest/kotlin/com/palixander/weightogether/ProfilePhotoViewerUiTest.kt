@@ -10,7 +10,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.test.assertHasNoClickAction
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.captureToImage
@@ -49,9 +48,9 @@ class ProfilePhotoViewerUiTest {
 
     @Test fun petPhotoCloseAndBackPreserveUnsavedDraft() = verifyEditor(pet = true)
 
-    @Test fun humanWithoutPhotoHasNoViewerAction() = verifyEmpty(pet = false)
+    @Test fun humanWithoutPhotoOpensSplashArtwork() = verifyEmpty(pet = false)
 
-    @Test fun petWithoutPhotoHasNoViewerAction() = verifyEmpty(pet = true)
+    @Test fun petWithoutPhotoOpensSplashArtwork() = verifyEmpty(pet = true)
 
     @Test fun corruptPhotoOffersCloseAndKeepsDraft() {
         val path = fixturePath()
@@ -71,7 +70,9 @@ class ProfilePhotoViewerUiTest {
 
     private fun verifyEmpty(pet: Boolean) {
         showEditor(pet, null)
-        composeRule.onNodeWithTag(photoTag(pet)).assertHasNoClickAction()
+        composeRule.onNodeWithTag(photoTag(pet)).performClick()
+        waitFor(ProfilePhotoViewerTestTags.SplashArtwork)
+        composeRule.onNodeWithTag(ProfilePhotoViewerTestTags.Close).performClick()
         composeRule.onNodeWithTag(ProfilePhotoViewerTestTags.Viewer).assertDoesNotExist()
     }
 
