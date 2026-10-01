@@ -18,6 +18,12 @@ import org.robolectric.annotation.Config
 @Config(sdk = [26, 31, 35], application = Application::class)
 class SplashScreenThemeTest {
     @Test
+    @Config(qualifiers = "night")
+    fun nightModeUsesTheSameDedicatedSplashAndReturnsToAppTheme() {
+        launcherThemeUsesDedicatedSplashAndReturnsToAppTheme()
+    }
+
+    @Test
     fun launcherThemeUsesDedicatedSplashAndReturnsToAppTheme() {
         val context = ApplicationProvider.getApplicationContext<Context>()
         val activity = context.packageManager.getActivityInfo(
