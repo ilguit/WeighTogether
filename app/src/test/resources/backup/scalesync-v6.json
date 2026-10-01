@@ -1,0 +1,63 @@
+{
+  "format": "scalesync-backup",
+  "schemaVersion": 6,
+  "exportedAt": "2026-08-25T00:00:00Z",
+  "accounts": [
+    {
+      "id": "legacy-account",
+      "displayName": "Legacy account",
+      "normalizedName": "legacy account",
+      "profile": {
+        "heightCm": null,
+        "birthDateEpochDay": null,
+        "sex": null,
+        "complete": false
+      },
+      "createdAtEpochMillis": 1,
+      "updatedAtEpochMillis": 2
+    }
+  ],
+  "appState": {
+    "primaryAccountId": "legacy-account",
+    "weightDeltaKg": 3.0,
+    "ignoreUnknownMeasurements": false
+  },
+  "measurements": [],
+  "settings": {
+    "scaleAddress": null,
+    "scaleName": null,
+    "reliabilityMode": false,
+    "selectedChartMetricKeys": [
+      "weight"
+    ],
+    "homeKgChartSeriesKeys": []
+  },
+  "pets": [
+    {
+      "id": "legacy-pet",
+      "displayName": "Legacy pet",
+      "normalizedName": "legacy pet",
+      "species": "CAT",
+      "createdAtEpochMillis": 1,
+      "updatedAtEpochMillis": 2,
+      "sex": null,
+      "breedId": "scalesync:cat:mixed-breed",
+      "birthYear": null,
+      "birthMonth": null,
+      "birthDay": null,
+      "dogAdultWeightCategory": null
+    }
+  ],
+  "petMeasurements": [
+    {
+      "id": "legacy-weight",
+      "petId": "legacy-pet",
+      "measuredAtEpochSecond": 3,
+      "firstWeightKg": null,
+      "secondWeightKg": null,
+      "petWeightKg": 4.125,
+      "origin": "MANUAL",
+      "isManuallyEdited": true
+    }
+  ]
+}

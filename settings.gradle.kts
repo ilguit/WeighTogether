@@ -18,5 +18,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "ScaleSync"
+rootProject.name = "WeighTogether"
 include(":app", ":core")

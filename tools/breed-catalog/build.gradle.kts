@@ -3,7 +3,7 @@ plugins {
     java
 }
 
-group = "com.palixander.scalesync.tools"
+group = "com.palixander.weightogether.tools"
 version = "1.0.0"
 
 java {
@@ -13,7 +13,7 @@ java {
 }
 
 application {
-    mainClass = "com.palixander.scalesync.breedcatalog.Main"
+    mainClass = "com.palixander.weightogether.breedcatalog.Main"
 }
 
 repositories {

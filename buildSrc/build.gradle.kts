@@ -10,8 +10,8 @@ repositories {
 gradlePlugin {
     plugins {
         create("roomSchemaGuard") {
-            id = "com.palixander.scalesync.room-schema-guard"
-            implementationClass = "com.palixander.scalesync.gradle.RoomSchemaGuardPlugin"
+            id = "com.palixander.weightogether.room-schema-guard"
+            implementationClass = "com.palixander.weightogether.gradle.RoomSchemaGuardPlugin"
         }
     }
 }

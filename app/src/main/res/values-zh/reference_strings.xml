@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="reference_set_label">参考标准：ScaleSync 1</string>
+    <string name="reference_set_label">参考标准：Weigh Together 1</string>
     <string name="reference_group_main">基本指标</string>
     <string name="reference_group_body_composition">身体成分</string>
     <string name="reference_group_muscles_and_bones">肌肉与骨骼</string>
@@ -103,7 +103,7 @@
     <string name="reference_secondary_chumlea">其他非交互式参考资料：Chumlea — 总体水分模型。</string>
     <string name="reference_secondary_janssen">其他非交互式参考资料：Janssen 等，2000 — 骨骼肌量方程。</string>
     <string name="reference_secondary_niams">其他非交互式参考资料：NIAMS — 估算骨量与骨密度及 T 值的区别。</string>
-    <string name="reference_secondary_espen">其他非交互式参考资料：ESPEN/GLIM — 临床 FFMI 背景，不作为 ScaleSync 的评级标准。</string>
+    <string name="reference_secondary_espen">其他非交互式参考资料：ESPEN/GLIM — 临床 FFMI 背景，不作为 Weigh Together 的评级标准。</string>
 
     <string name="reference_help_weight_meaning">体重秤直接测得的身体质量。</string>
     <string name="reference_help_weight_calculation">根据已保存的身高和 Xiaomi Legacy 的 BMI 阈值计算体重范围。因此，体重类别始终与 BMI 类别一致。</string>
@@ -124,7 +124,7 @@
     <string name="reference_help_body_fat_mass_meaning">脂肪组织的估算质量，单位为千克。</string>
     <string name="reference_help_body_fat_mass_calculation">脂肪量 = 体重 × 体脂率。参考类别采用 FMI（脂肪量 ÷ 身高²），并与 Schutz 的第 5/第 95 百分位数比较。</string>
     <string name="reference_help_body_fat_mass_dependencies">估算体脂率、体重、已保存的身高、当前性别和年龄。</string>
-    <string name="reference_help_body_fat_mass_limitations">第 5 至第 95 百分位数基于日内瓦成人群体，而“正常”是 ScaleSync 的产品解读。未满 18 岁或超过 98 岁时无法使用该评级标准。</string>
+    <string name="reference_help_body_fat_mass_limitations">第 5 至第 95 百分位数基于日内瓦成人群体，而“正常”是 Weigh Together 的产品解读。未满 18 岁或超过 98 岁时无法使用该评级标准。</string>
     <string name="reference_help_water_meaning">总体水分占体重的估算比例，并非饮水量。</string>
     <string name="reference_help_water_calculation">与 Xiaomi 兼容的公式根据估算身体成分得出该指标；类别采用 Xiaomi Legacy 按性别划分的评级标准。</string>
     <string name="reference_help_water_dependencies">当前性别、身体成分、水合状态和测量条件。</string>
@@ -134,7 +134,7 @@
     <string name="reference_help_water_mass_dependencies">体型和估算体水分率。</string>
     <string name="reference_help_water_mass_limitations">体型越大，绝对量通常越高，因此该数值本身不能反映水合状态。没有可兼容的通用千克参考标准。</string>
     <string name="reference_help_muscle_mass_meaning">肌肉组织的估算质量。</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync 从体重中减去估算脂肪量和骨量。类别采用 Xiaomi Legacy 按性别和身高划分的阈值。</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together 从体重中减去估算脂肪量和骨量。类别采用 Xiaomi Legacy 按性别和身高划分的阈值。</string>
     <string name="reference_help_muscle_mass_dependencies">当前性别、已保存的身高、体重和所有 BIA 输入值。</string>
     <string name="reference_help_muscle_mass_limitations">该数值取决于算法，不能测量肌肉力量或功能。</string>
     <string name="reference_help_skeletal_muscle_meaning">带动身体活动的肌肉的估算质量。</string>
@@ -149,7 +149,7 @@
     <string name="reference_help_protein_calculation" formatted="false">与 Xiaomi 兼容的内部公式使用肌肉量、体重和体水分。Xiaomi Legacy 的阈值为 16% 和 20%。</string>
     <string name="reference_help_protein_dependencies">计算肌肉量和体水分所用的全部输入值。</string>
     <string name="reference_help_protein_limitations">不能反映蛋白质摄入量、血液蛋白质水平或膳食质量。</string>
-    <string name="reference_help_protein_mass_meaning">由 ScaleSync 内部公式估算的蛋白质成分质量。</string>
+    <string name="reference_help_protein_mass_meaning">由 Weigh Together 内部公式估算的蛋白质成分质量。</string>
     <string name="reference_help_protein_mass_calculation">体重 × 蛋白质率。</string>
     <string name="reference_help_protein_mass_dependencies">估算肌肉量、体水分、蛋白质率和体重。</string>
     <string name="reference_help_protein_mass_limitations">这不是经过验证的全身蛋白质量、血液蛋白质检测结果或膳食目标。没有可兼容的通用千克参考标准。</string>
@@ -158,7 +158,7 @@
     <string name="reference_help_visceral_fat_dependencies">当前性别和年龄、已保存的身高及体重。</string>
     <string name="reference_help_visceral_fat_limitations">这是无量纲的算法评级，并非质量、百分比、腰围或 CT/MRI 面积。</string>
     <string name="reference_help_bmr_meaning">身体在静息状态下一天消耗的估算能量。</string>
-    <string name="reference_help_bmr_calculation">ScaleSync 采用基于性别、年龄、身高和体重的公式。Xiaomi Legacy 的参考阈值等于体重乘以按年龄和性别划分的系数。</string>
+    <string name="reference_help_bmr_calculation">Weigh Together 采用基于性别、年龄、身高和体重的公式。Xiaomi Legacy 的参考阈值等于体重乘以按年龄和性别划分的系数。</string>
     <string name="reference_help_bmr_dependencies">当前性别和年龄、已保存的身高及体重。</string>
     <string name="reference_help_bmr_limitations">这不是每日热量目标、膳食建议或直接测热法的测量结果。</string>
     <string name="reference_help_metabolic_age_meaning">基于身体成分、由特定算法得出的指标。</string>

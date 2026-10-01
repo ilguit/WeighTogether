@@ -1,5 +1,5 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="app_name">Scale Sync</string>
+    <string name="app_name">Weigh Together</string>
     <string name="measurement_resolver_title">Нерозподілене вимірювання</string>
     <string name="measurement_resolver_assignment_question">Кому призначити це вимірювання?</string>
     <string name="measurement_resolver_recommended">Рекомендовано</string>

@@ -1,0 +1,93 @@
+package com.palixander.weightogether.ui.components
+
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
+import com.palixander.weightogether.R
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.unit.dp
+import com.palixander.weightogether.domain.MeasurementOrigin
+import com.palixander.weightogether.ui.icons.ScaleSyncIcons
+
+internal const val HistoryIndicatorAlpha = 0.55f
+
+internal fun historyIndicatorTint(onSurfaceVariant: Color): Color =
+    onSurfaceVariant.copy(alpha = HistoryIndicatorAlpha)
+
+/** Compact provenance affordance placed immediately after the value it describes. */
+@Composable
+internal fun HistoryMeasurementIndicators(
+    origin: MeasurementOrigin,
+    isManuallyEdited: Boolean,
+    tagPrefix: String,
+) {
+    val manual = origin == MeasurementOrigin.MANUAL
+    val manualDescription = stringResource(R.string.manual_origin)
+    val editedDescription = stringResource(R.string.manually_edited)
+    val explanation = listOfNotNull(
+        manualDescription.takeIf { manual },
+        editedDescription.takeIf { isManuallyEdited },
+    ).joinToString(". ")
+    if (explanation.isEmpty()) return
+    var explaining by remember { mutableStateOf(false) }
+    var restoreFocus by remember { mutableStateOf(false) }
+    val focusRequester = remember { FocusRequester() }
+    val indicatorTint = historyIndicatorTint(MaterialTheme.colorScheme.onSurfaceVariant)
+    LaunchedEffect(explaining, restoreFocus) {
+        if (!explaining && restoreFocus) {
+            withFrameNanos { }
+            focusRequester.requestFocus()
+            restoreFocus = false
+        }
+    }
+    val dismiss = { explaining = false; restoreFocus = true }
+    Row(
+        Modifier.height(24.dp)
+            // Foundation expands the hit area to 48 dp without reserving that width in the row.
+            .focusRequester(focusRequester)
+            .clickable(role = Role.Button) { explaining = true }
+            .semantics { contentDescription = explanation }
+            .testTag("$tagPrefix-indicators"),
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        if (manual) Icon(
+            ScaleSyncIcons.Keyboard,
+            contentDescription = null,
+            tint = indicatorTint,
+            modifier = Modifier.size(20.dp).testTag("$tagPrefix-manual-origin"),
+        )
+        if (isManuallyEdited) Icon(
+            ScaleSyncIcons.Edit,
+            contentDescription = null,
+            tint = indicatorTint,
+            modifier = Modifier.size(20.dp).testTag("$tagPrefix-manually-edited"),
+        )
+    }
+    if (explaining) AlertDialog(
+        onDismissRequest = dismiss,
+        text = { Text(explanation) },
+        confirmButton = {
+            TextButton(onClick = dismiss, modifier = Modifier.testTag("$tagPrefix-indicators-dismiss")) {
+                Text(stringResource(R.string.common_got_it))
+            }
+        },
+    )
+}

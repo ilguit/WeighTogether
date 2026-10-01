@@ -3,16 +3,16 @@ plugins {
     id("org.jetbrains.kotlin.android")
     id("org.jetbrains.kotlin.plugin.compose")
     id("org.jetbrains.kotlin.kapt")
-    id("com.palixander.scalesync.release-history")
-    id("com.palixander.scalesync.room-schema-guard")
+    id("com.palixander.weightogether.release-history")
+    id("com.palixander.weightogether.room-schema-guard")
 }
 
 android {
-    namespace = "com.palixander.scalesync"
+    namespace = "com.palixander.weightogether"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.palixander.scalesync"
+        applicationId = "com.palixander.weightogether"
         minSdk = 26
         targetSdk = 36
         versionCode = 269

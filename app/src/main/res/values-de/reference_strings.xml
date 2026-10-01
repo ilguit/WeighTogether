@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="reference_set_label">Referenz einrichten: ScaleSync 1</string>
+    <string name="reference_set_label">Referenz einrichten: Weigh Together 1</string>
     <string name="reference_group_main">Hauptwerte</string>
     <string name="reference_group_body_composition">Körperzusammensetzung</string>
     <string name="reference_group_muscles_and_bones">Muskeln und Knochen</string>
@@ -109,7 +109,7 @@
     <string name="reference_secondary_chumlea">Weitere non-interactive Referenz: Chumlea — gesamten body water models.</string>
     <string name="reference_secondary_janssen">Weitere non-interactive Referenz: Janssen et al., 2000 — skeletal Muskel mass Gleichung.</string>
     <string name="reference_secondary_niams">Weitere non-interactive Referenz: NIAMS — wie geschätzt bone mass differs von BMD und T-score.</string>
-    <string name="reference_secondary_espen">Weitere non-interactive Referenz: ESPEN/GLIM — klinische FFMI context, nicht verwendet als ein ScaleSync rating Skala.</string>
+    <string name="reference_secondary_espen">Weitere non-interactive Referenz: ESPEN/GLIM — klinische FFMI context, nicht verwendet als ein Weigh Together rating Skala.</string>
     <string name="reference_help_weight_meaning">Body mass measured direkt durch der Skala.</string>
     <string name="reference_help_weight_calculation">Gewicht Grenzen sind berechnet von gespeichert Größe using Xiaomi Legacy BMI Grenzwerte. Der Gewichtskategorie daher immer Übereinstimmungen der BMI Kategorie.</string>
     <string name="reference_help_weight_dependencies">Gespeichert Größe und Gewicht. Impedanz ist nicht verwendet.</string>
@@ -129,7 +129,7 @@
     <string name="reference_help_body_fat_mass_meaning">Geschätzt mass von Fett Gewebe in kilograms.</string>
     <string name="reference_help_body_fat_mass_calculation">Mass = Gewicht × body Fett %. Der Referenz Kategorie verwendet FMI: Fett mass / Größe², verglichen mit der Schutz P5/P95 Perzentile.</string>
     <string name="reference_help_body_fat_mass_dependencies">Geschätzt body Fett, Gewicht, gespeichert Größe, aktuelle Geschlecht, und Alter.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 sind Bevölkerung Perzentile für adults in Geneva, während “Normal” ist ein ScaleSync product interpretation. Der Skala ist nicht verfügbar unter Alter 18 und über Alter 98.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 sind Bevölkerung Perzentile für adults in Geneva, während “Normal” ist ein Weigh Together product interpretation. Der Skala ist nicht verfügbar unter Alter 18 und über Alter 98.</string>
     <string name="reference_help_water_meaning">Geschätzt proportion von gesamten body water. Dies ist nicht der Menge von water aufgenommen.</string>
     <string name="reference_help_water_calculation">Ein Xiaomi-kompatible Formel derives der Messwert von geschätzt Körperzusammensetzung; der Kategorie verwendet ein Geschlecht-specific Xiaomi Legacy Skala.</string>
     <string name="reference_help_water_dependencies">Aktuelle Geschlecht, Körperzusammensetzung, Hydrierung, und Messung Bedingungen.</string>
@@ -139,7 +139,7 @@
     <string name="reference_help_water_mass_dependencies">Body size und geschätzt water Prozentsatz.</string>
     <string name="reference_help_water_mass_limitations">Der absolute Menge ist naturgemäß higher in ein größere Person und tut nicht anzeigen Hydrierung durch selbst. Dort ist keine kompatible universelle kilogram Skala.</string>
     <string name="reference_help_muscle_mass_meaning">Geschätzt mass von Muskel Gewebe.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync subtracts geschätzt Fett mass und bone mass von Gewicht. Der Kategorie verwendet Xiaomi Legacy Grenzwerte durch Geschlecht und Größe.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together subtracts geschätzt Fett mass und bone mass von Gewicht. Der Kategorie verwendet Xiaomi Legacy Grenzwerte durch Geschlecht und Größe.</string>
     <string name="reference_help_muscle_mass_dependencies">Aktuelle Geschlecht, gespeichert Größe, Gewicht, und alle BIA inputs.</string>
     <string name="reference_help_muscle_mass_limitations">Der Wert depends auf der algorithm und tut nicht measure Muskel Kraft oder function.</string>
     <string name="reference_help_skeletal_muscle_meaning">Geschätzt mass der Muskeln dass move der body.</string>
@@ -154,7 +154,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Ein interne Xiaomi-kompatible Formel verwendet Muskel mass, Gewicht, und water. Xiaomi Legacy Grenzwerte sind 16% und 20%.</string>
     <string name="reference_help_protein_dependencies">Alle Muskel mass und water inputs.</string>
     <string name="reference_help_protein_limitations">Es tut nicht anzeigen protein intake, blood protein, oder diet quality.</string>
-    <string name="reference_help_protein_mass_meaning">Geschätzt mass von protein components von ScaleSync’s interne Formel.</string>
+    <string name="reference_help_protein_mass_meaning">Geschätzt mass von protein components von Weigh Together’s interne Formel.</string>
     <string name="reference_help_protein_mass_calculation">Gewicht × protein %.</string>
     <string name="reference_help_protein_mass_dependencies">Geschätzt Muskel, water, protein, und Gewicht.</string>
     <string name="reference_help_protein_mass_limitations">Dies ist nicht ein validated gesamten body protein mass, ein blood protein Test, oder ein dietary Ziel. Dort ist keine kompatible kilogram Skala.</string>
@@ -163,7 +163,7 @@
     <string name="reference_help_visceral_fat_dependencies">Aktuelle Geschlecht und Alter, gespeichert Größe, und Gewicht.</string>
     <string name="reference_help_visceral_fat_limitations">Dies ist ein dimensionslose algorithmische Skala, nicht ein mass, Prozentsatz, waist circumference, oder CT/MRI Bereich.</string>
     <string name="reference_help_bmr_meaning">Geschätzt energy der body verwendet bei rest over ein Tag.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync verwendet ein Formel based auf Geschlecht, Alter, Größe, und Gewicht. Der Xiaomi Legacy Referenz threshold equals Gewicht multiplied durch ein Alter- und Geschlecht-specific coefficient.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together verwendet ein Formel based auf Geschlecht, Alter, Größe, und Gewicht. Der Xiaomi Legacy Referenz threshold equals Gewicht multiplied durch ein Alter- und Geschlecht-specific coefficient.</string>
     <string name="reference_help_bmr_dependencies">Aktuelle Geschlecht und Alter, gespeichert Größe, und Gewicht.</string>
     <string name="reference_help_bmr_limitations">Dies ist nicht ein tägliches Kalorien Ziel, dietary Rat, oder ein direct calorimetry Messung.</string>
     <string name="reference_help_metabolic_age_meaning">Ein algorithm-specific indicator based auf Körperzusammensetzung.</string>

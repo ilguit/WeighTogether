@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Scale Sync</string>
+    <string name="app_name">Weigh Together</string>
     <string name="measurement_resolver_title">未分配的测量记录</string>
     <string name="measurement_resolver_assignment_question">要将此测量记录分配给谁？</string>
     <string name="measurement_resolver_recommended">推荐</string>

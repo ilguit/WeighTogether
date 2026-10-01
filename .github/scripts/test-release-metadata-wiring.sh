@@ -45,7 +45,7 @@ mode_init_script="$(mktemp)"
 trap 'rm -f "$mode_init_script"' EXIT
 cat >"$mode_init_script" <<'EOF'
 gradle.projectsEvaluated {
-    if (gradle.rootProject.name != "ScaleSync") {
+    if (gradle.rootProject.name != "WeighTogether") {
         return
     }
     def app = gradle.rootProject.project(":app")

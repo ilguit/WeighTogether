@@ -1,0 +1,1005 @@
+package com.palixander.weightogether.releasehistory
+
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertThrows
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
+import org.junit.jupiter.api.io.TempDir
+import org.junit.jupiter.params.ParameterizedTest
+import org.junit.jupiter.params.provider.ValueSource
+import java.nio.file.Files
+import java.nio.file.Path
+
+class ReleaseHistoryGeneratorTest {
+    @TempDir
+    lateinit var directory: Path
+
+    @Test
+    fun `build mode keeps baseline and omits an untagged head`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        git.file("README.md", "work after the last release")
+        git.commit("Unreleased work without release metadata")
+        val baselineRelease = GeneratedRelease("0.1.5", boundary, emptyList())
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    baselineRelease,
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .preflight("HEAD", "0.1.6", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+
+        assertEquals(listOf(baselineRelease), result.history.releases)
+        assertEquals(null, result.range)
+    }
+
+    @Test
+    fun `build mode keeps tagged releases and exposes work after the newest tag separately`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        val taggedRelease = git.head()
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(2, "latest", true, "Последнее улучшение")
+        git.commit("Add latest improvement (#2)")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .preflight("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf("0.1.1"), result.history.releases.map { it.version })
+        assertEquals(taggedRelease, result.history.releases.single().commitSha)
+        assertEquals(listOf(1), result.history.releases.single().changes.map { it.issue })
+        assertEquals(listOf(2), result.history.latestChanges.map { it.issue })
+        assertEquals("root..$taggedRelease", result.range!!.displayName)
+    }
+
+    @Test
+    fun `tagged retired flavor metadata is excluded while shared changes remain`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "retired", true, "Retired change", listOf("retiredVariant"))
+        git.commit("Retired improvement (#1)")
+        git.fragment(2, "shared", true, "Shared change", listOf("retiredVariant", "personal"))
+        git.commit("Shared improvement (#2)")
+        git.annotatedTag("apk/0.1.1")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), result.releases.single().changes.map { it.issue })
+    }
+
+    @Test
+    fun `build mode allows unchanged version after its release tag`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        val taggedRelease = git.head()
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(2, "ordinary-build", false, "Подготовка обычной сборки")
+        git.commit("Prepare another build (#2)")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .preflight("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf("0.1.1"), result.history.releases.map { it.version })
+        assertEquals(taggedRelease, result.history.releases.single().commitSha)
+        assertTrue(result.history.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `build latest changes are newest first and filtered by visibility and flavor`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(2, "older", true, "Более раннее улучшение")
+        git.commit("Add older improvement (#2)")
+        git.fragment(3, "technical", false, "Служебная подготовка")
+        git.commit("Prepare internals (#3)")
+        git.fragment(4, "personal", true, "Изменение приложения", listOf("personal"))
+        git.commit("Add personal improvement (#4)")
+        git.fragment(5, "newer", true, "Самое новое улучшение")
+        git.commit("Add newest improvement (#5)")
+
+        val personal = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(5, 4, 2), personal.latestChanges.map { it.issue })
+        assertEquals(listOf(1), personal.releases.single().changes.map { it.issue })
+    }
+
+    @Test
+    fun `release mode leaves latest changes empty and keeps candidate only in release history`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(2, "candidate", true, "Новое улучшение")
+        git.commit("Add release candidate (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        assertTrue(history.latestChanges.isEmpty())
+        assertEquals(listOf(2), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
+    fun `tagged releases keep legacy order while an untagged candidate is newest first`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "older-release", true, "Раннее изменение выпуска")
+        git.commit("Add older release change (#1)")
+        git.fragment(2, "newer-release", true, "Позднее изменение выпуска")
+        git.commit("Add newer release change (#2)")
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(3, "older-candidate", true, "Раннее изменение кандидата")
+        git.commit("Add older candidate change (#3)")
+        git.fragment(4, "newer-candidate", true, "Позднее изменение кандидата")
+        git.commit("Add newer candidate change (#4)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        assertEquals(listOf(4, 3), history.releases[0].changes.map { it.issue })
+        assertEquals(listOf(1, 2), history.releases[1].changes.map { it.issue })
+    }
+
+    @Test
+    fun `build mode rejects a version older than the latest release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Release feature (#1)")
+        git.annotatedTag("apk/0.1.2")
+        git.file("README.md", "ordinary build")
+        git.commit("Prepare another build (#2)")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+
+        assertTrue(error.message!!.contains("older than latest release tag apk/0.1.2"))
+    }
+
+    @Test
+    fun `release mode includes and validates an untagged candidate`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "missing fragment")
+        git.commit("Candidate work (#30)")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+
+        assertTrue(error.message!!.contains("#30"))
+        assertTrue(error.message!!.contains("without a changed fragment"))
+    }
+
+    @Test
+    fun `parses supported release history modes and rejects unknown values`() {
+        assertEquals(ReleaseHistoryMode.BUILD, ReleaseHistoryMode.fromId("build"))
+        assertEquals(ReleaseHistoryMode.RELEASE, ReleaseHistoryMode.fromId("release"))
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryMode.fromId("candidate")
+        }
+        assertTrue(error.message!!.contains("expected one of: build, release"))
+    }
+
+    @Test
+    fun `uses baseline boundary when repository has no release tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        git.fragment(25, "generated-history", true, "Автоматическая история версий")
+        git.commit("Generate release history (#25)")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, listOf(ReleaseChange(3, "Старое изменение"))),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.UNKNOWN,
+                        boundaryCommit = null,
+                        candidateCommit = boundary,
+                        source = "test candidate",
+                    ),
+                ),
+            ),
+        )
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.7", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+
+        assertEquals(listOf("0.1.7", "0.1.5"), history.releases.map { it.version })
+        assertEquals(listOf(25), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
+    fun `build without release tags rejects version older than newest baseline release`() {
+        val (git, baseline) = repositoryWithBaseline()
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.4", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+        }
+
+        assertTrue(error.message!!.contains("older than newest baseline release 0.1.5"))
+        assertTrue(error.message!!.contains("restore at least versionName 0.1.5"))
+        assertEquals(git.head(), runGit(directory, "rev-parse", "HEAD").trim())
+    }
+
+    @Test
+    fun `build without release tags allows version equal to newest baseline release`() {
+        val (_, baseline) = repositoryWithBaseline()
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.5", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+
+        assertEquals(listOf("0.1.5"), history.releases.map { it.version })
+    }
+
+    @Test
+    fun `release without tags rejects versions equal to or older than newest baseline release`() {
+        val (git, baseline) = repositoryWithBaseline(withCandidateFragment = true)
+
+        listOf("0.1.5", "0.1.4").forEach { version ->
+            val error = assertThrows(GenerationException::class.java) {
+                ReleaseHistoryGenerator(GitRepository(directory))
+                    .preflight("HEAD", version, ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+            }
+
+            assertTrue(error.message!!.contains("${baseline.boundaryCommit}..${git.head()}"), version)
+            assertTrue(error.message!!.contains("must be newer than newest baseline release 0.1.5"), version)
+            assertTrue(error.message!!.contains("increment versionName"), version)
+        }
+    }
+
+    @Test
+    fun `release without tags adds a newer version before unique baseline history`() {
+        val (git, baseline) = repositoryWithBaseline(withCandidateFragment = true)
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.6", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+
+        assertEquals(listOf("0.1.6", "0.1.5"), history.releases.map { it.version })
+        assertEquals(history.releases.map { it.version }.distinct(), history.releases.map { it.version })
+        assertEquals(git.head(), history.releases.first().commitSha)
+        assertEquals(listOf(30), history.releases.first().changes.map { it.issue })
+    }
+
+    @Test
+    fun `reachable tag takes precedence over baseline without duplicate or out of order history`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        git.fragment(29, "tagged", true, "Тегированный выпуск")
+        git.commit("Add tagged release (#29)")
+        git.annotatedTag("apk/0.1.4")
+        git.fragment(30, "candidate", true, "Новый выпуск")
+        git.commit("Add release candidate (#30)")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.5", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE, baseline)
+
+        assertEquals(listOf("0.1.5", "0.1.4"), history.releases.map { it.version })
+        assertEquals(listOf(30, 29), history.releases.flatMap { release -> release.changes.map { it.issue } })
+    }
+
+    @Test
+    fun `rejects shallow history even when baseline boundary is available and tags are missing`() {
+        val source = TestGit(directory.resolve("source"))
+        source.init()
+        source.file("README.md", "legacy")
+        source.commit("Legacy history")
+        val boundary = source.head()
+        source.annotatedTag("apk/0.1.5")
+        source.fragment(26, "preflight", false, "Проверка выпуска")
+        source.commit("Add release preflight (#26)")
+
+        val shallow = directory.resolve("shallow")
+        runGit(
+            directory,
+            "clone",
+            "--quiet",
+            "--no-tags",
+            "--depth=2",
+            source.root.toUri().toString(),
+            shallow.toString(),
+        )
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(shallow))
+                .preflight("HEAD", "0.1.6", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD, baseline)
+        }
+
+        assertTrue(error.message!!.contains("root..${runGit(shallow, "rev-parse", "HEAD").trim()}"))
+        assertTrue(error.message!!.contains("shallow or incomplete"))
+        assertTrue(error.message!!.contains("git fetch --unshallow --tags"))
+    }
+
+    @Test
+    fun `builds newest-first history from annotated ancestor tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "one", true, "Первое изменение")
+        git.commit("Add first change (#1)")
+        val firstRelease = git.head()
+        git.annotatedTag("apk/0.1.1")
+
+        git.fragment(2, "technical", false, "Служебное изменение")
+        git.commit("Prepare internals (#2)")
+        git.fragment(3, "personal", true, "Новое измерение", listOf("personal"))
+        git.commit("Add measurement (#3)")
+        val head = git.head()
+
+        val personal = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        assertEquals(listOf("0.1.2", "0.1.1"), personal.releases.map { it.version })
+        assertEquals(head, personal.releases[0].commitSha)
+        assertEquals(listOf(3), personal.releases[0].changes.map { it.issue })
+        assertEquals(firstRelease, personal.releases[1].commitSha)
+        assertEquals(listOf(1), personal.releases[1].changes.map { it.issue })
+
+    }
+
+    @Test
+    fun `both modes rebuild an already tagged head without duplicating the release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(25, "history", true, "История версий")
+        git.commit("Generate history (#25)")
+        git.annotatedTag("apk/0.1.7")
+
+        ReleaseHistoryMode.entries.forEach { mode ->
+            val history = ReleaseHistoryGenerator(GitRepository(directory))
+                .generate(git.head(), "0.1.7", ReleaseFlavor.PERSONAL, mode)
+
+            assertEquals(listOf("0.1.7"), history.releases.map { it.version }, mode.id)
+            assertEquals(listOf(25), history.releases.single().changes.map { it.issue }, mode.id)
+        }
+    }
+
+    @Test
+    fun `preflight returns the resolved release range and metadata`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "first", true, "Первое изменение")
+        git.commit("First task (#1)")
+        val previous = git.head()
+        git.annotatedTag("apk/0.1.1")
+        git.fragment(2, "second", false, "Техническое изменение")
+        git.commit("Second task (#2)")
+
+        val result = ReleaseHistoryGenerator(GitRepository(directory))
+            .preflight("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        assertEquals(git.head(), result.headSha)
+        assertEquals("apk/0.1.1", result.previousTag?.name)
+        val range = requireNotNull(result.range)
+        assertEquals("$previous..${git.head()}", range.displayName)
+        assertEquals(listOf(2), range.issues)
+        assertEquals(listOf(2), range.fragments.map { it.issue })
+        assertEquals("0.1.2", result.history.releases.first().version)
+    }
+
+    @Test
+    fun `release mode rejects version not newer than previous release with actionable range`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "first", true, "Первое изменение")
+        git.commit("First task (#1)")
+        val previous = git.head()
+        git.annotatedTag("apk/0.1.2")
+        git.fragment(2, "second", false, "Техническое изменение")
+        git.commit("Second task (#2)")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight("HEAD", "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+
+        assertTrue(error.message!!.contains("$previous..${git.head()}"))
+        assertTrue(error.message!!.contains("increment versionName"))
+    }
+
+    @Test
+    fun `rejects current version used by an annotated tag on another local branch`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "first", true, "Первое изменение")
+        git.commit("First task (#1)")
+        git.branch("release-side")
+        git.fragment(2, "main", false, "Главное изменение")
+        git.commit("Main task (#2)")
+        val mainHead = git.head()
+        git.checkout("release-side")
+        git.fragment(3, "side", false, "Боковое изменение")
+        git.commit("Side task (#3)")
+        git.annotatedTag("apk/0.1.2")
+        val occupiedSha = git.head()
+        git.checkout("main")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .preflight(mainHead, "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+
+        assertTrue(error.message!!.contains("apk/0.1.2"))
+        assertTrue(error.message!!.contains(occupiedSha))
+        assertTrue(error.message!!.contains("choose a new versionName"))
+    }
+
+    @Test
+    fun `accepts baseline boundary that is a merged ancestor`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("README.md", "main")
+        git.commit("Main")
+        git.checkout("side")
+        git.file("side.txt", "side")
+        git.commit("Side boundary")
+        val sideBoundary = git.head()
+        git.fragment(7, "release", true, "Выпущенное изменение")
+        git.commit("Released (#7)")
+        git.annotatedTag("apk/0.1.7")
+        git.checkout("main")
+        git.fragment(8, "latest", true, "Последнее изменение")
+        git.commit("Latest (#8)")
+        git.mergeNoFastForward("side", "Merge side")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory)).generate(
+            "HEAD",
+            "0.1.7",
+            ReleaseFlavor.PERSONAL,
+            ReleaseHistoryMode.BUILD,
+            ReleaseHistoryBaseline(sideBoundary, emptyList()),
+        )
+        assertEquals(listOf("0.1.7"), history.releases.map { it.version })
+        assertEquals(listOf(7), history.releases.single().changes.map { it.issue })
+        assertEquals(listOf(8), history.latestChanges.map { it.issue })
+    }
+
+    @Test
+    fun `ignores lightweight and unreachable tags but includes merged ancestor tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "base", true, "Первое изменение")
+        git.commit("Base task (#1)")
+        git.lightweightTag("apk/9.9.9")
+        git.annotatedTag("apk/0.1.0")
+        git.branch("side")
+        git.fragment(2, "main", true, "Главное изменение")
+        git.commit("Main task (#2)")
+        git.checkout("side")
+        git.fragment(99, "side", true, "Боковое изменение")
+        git.commit("Side task (#99)")
+        git.annotatedTag("apk/8.8.8")
+        git.branch("unreachable")
+        git.checkout("unreachable")
+        git.file("unreachable.txt", "unused")
+        git.commit("Unreachable")
+        git.annotatedTag("apk/9.0.0")
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side branch")
+
+        val tags = GitRepository(directory).reachableAnnotatedApkTags("HEAD")
+        assertEquals(listOf("apk/8.8.8", "apk/0.1.0"), tags.map { it.name })
+    }
+
+    @Test
+    fun `old task merges released main and keeps multiple releases out of latest changes`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "base", true, "Первый выпуск")
+        git.commit("Base (#1)")
+        git.annotatedTag("apk/0.1")
+        git.branch("task")
+        git.fragment(2, "release", true, "Второй выпуск")
+        git.commit("Release (#2)")
+        git.annotatedTag("apk/0.2")
+        git.fragment(3, "release", true, "Третий выпуск")
+        git.commit("Release (#3)")
+        git.annotatedTag("apk/0.3")
+        git.checkout("task")
+        git.fragment(4, "task", true, "Новые изменения")
+        git.commit("Task (#4)")
+        git.mergeNoFastForward("main", "Update old task")
+
+        val generator = ReleaseHistoryGenerator(GitRepository(directory))
+        val history = generator.generate("HEAD", "0.3", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        assertEquals(listOf("0.3", "0.2", "0.1"), history.releases.map { it.version })
+        assertEquals(listOf(listOf(3), listOf(2), listOf(1)), history.releases.map { it.changes.map { it.issue } })
+        assertEquals(listOf(4), history.latestChanges.map { it.issue })
+        assertEquals(history, generator.generate("HEAD", "0.3", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD))
+        val candidate = generator.generate("HEAD", "0.4", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        assertEquals(listOf("0.4", "0.3", "0.2", "0.1"), candidate.releases.map { it.version })
+        assertEquals(listOf(4), candidate.releases.first().changes.map { it.issue })
+        assertTrue(candidate.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `rejects incomparable merged release tags`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("main-file", "main")
+        git.commit("Main release")
+        git.annotatedTag("apk/0.2")
+        git.checkout("side")
+        git.file("side-file", "side")
+        git.commit("Side release")
+        git.annotatedTag("apk/0.3")
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side")
+        val error = assertThrows(GenerationException::class.java) {
+            GitRepository(directory).reachableAnnotatedApkTags("HEAD")
+        }
+        assertTrue(error.message!!.contains("incomparable"))
+        assertTrue(error.message!!.contains("apk/0.2"))
+        assertTrue(error.message!!.contains("apk/0.3"))
+    }
+
+    @Test
+    fun `rejects multiple release tags on one commit`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.2")
+        git.annotatedTag("apk/0.3")
+        val error = assertThrows(GenerationException::class.java) {
+            GitRepository(directory).reachableAnnotatedApkTags("HEAD")
+        }
+        assertTrue(error.message!!.contains("Multiple annotated APK tags"))
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = ["0.3.0", "0.2"])
+    fun `rejects decreasing or equivalent versions along the release chain`(version: String) {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.3")
+        git.file("later", "later")
+        git.commit("Later")
+        git.annotatedTag("apk/$version")
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", version, ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+        assertTrue(error.message!!.contains("Nonmonotonic"))
+    }
+
+    @Test
+    fun `rejects baseline on a sibling branch of a reachable release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.branch("side")
+        git.file("main-file", "main")
+        git.commit("Main release")
+        git.annotatedTag("apk/0.2")
+        git.checkout("side")
+        git.file("side-file", "side")
+        git.commit("Baseline")
+        val boundary = git.head()
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side")
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory)).generate(
+                "HEAD", "0.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD,
+                ReleaseHistoryBaseline(boundary, emptyList()),
+            )
+        }
+        assertTrue(error.message!!.contains("incomparable by ancestry"))
+    }
+
+    @Test
+    fun `latest changes start at baseline when all tags precede it`() {
+        val git = TestGit(directory)
+        git.init()
+        git.file("base", "base")
+        git.commit("Base")
+        git.annotatedTag("apk/0.1")
+        git.file("legacy", "legacy")
+        git.commit("Legacy historical change (#90)")
+        val boundary = git.head()
+        git.fragment(8, "latest", true, "Последнее изменение")
+        git.commit("Latest (#8)")
+        val history = ReleaseHistoryGenerator(GitRepository(directory)).generate(
+            "HEAD", "0.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD,
+            ReleaseHistoryBaseline(boundary, emptyList()),
+        )
+        assertTrue(history.releases.isEmpty())
+        assertEquals(listOf(8), history.latestChanges.map { it.issue })
+    }
+
+    @Test
+    fun `extracts merge and task issues once in commit order`() {
+        val generator = ReleaseHistoryGenerator(GitRepository(directory))
+        assertEquals(
+            listOf(12, 8),
+            generator.extractIssues(
+                listOf(
+                    "Implement generator (#12)",
+                    "Refine generator (#12)",
+                    "Merge pull request #8 from topic",
+                    "Do not treat bare #77 as a task",
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `includes issue fragments introduced by merged branch commits`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "base", true, "Первое изменение")
+        git.commit("Base task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.branch("side")
+        git.file("README.md", "main")
+        git.commit("Prepare integration")
+        git.checkout("side")
+        git.fragment(2, "side", true, "Боковое изменение")
+        git.commit("Side task (#2)")
+        git.checkout("main")
+        git.mergeNoFastForward("side", "Merge side branch")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+    }
+
+    @Test
+    fun `build suppresses a released change when explicitly requested by a technical carryover fragment`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(
+            1,
+            "released",
+            false,
+            "Изменение уже вошло в выпущенную версию",
+            suppressReleasedChange = true,
+        )
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+        assertTrue(history.releases.single().changes.isEmpty())
+    }
+
+    @Test
+    fun `release explicitly suppresses a carried over issue from every generated release`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(
+            1,
+            "released",
+            false,
+            "Изменение уже вошло в выпущенную версию",
+            suppressReleasedChange = true,
+        )
+        git.fragment(2, "candidate", true, "Новое изменение")
+        git.commit("Candidate task (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        assertEquals(listOf("0.1.1", "0.1.0"), history.releases.map { it.version })
+        assertEquals(listOf(2), history.releases.flatMap { release -> release.changes.map { it.issue } })
+        assertTrue(history.latestChanges.isEmpty())
+    }
+
+    @Test
+    fun `reopened task suppression removes its released text in build and release modes`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Полное удаление прежней функциональности", suppressReleasedChange = true)
+        git.commit("Reopen and remove task (#1)")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        for (mode in listOf(ReleaseHistoryMode.BUILD, ReleaseHistoryMode.RELEASE)) {
+            val history = ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, mode)
+
+            val allChanges = history.releases.flatMap { it.changes } + history.latestChanges
+            assertEquals(listOf(2), allChanges.map { it.issue })
+        }
+    }
+
+    @Test
+    fun `ordinary technical carryover keeps the released change`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(1, "released", false, "Обычный технический перенос")
+        git.fragment(2, "current", true, "Текущее изменение")
+        git.commit("Current task (#2)")
+
+        val history = ReleaseHistoryGenerator(GitRepository(directory))
+            .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+
+        assertEquals(listOf(2), history.latestChanges.map { it.issue })
+        assertEquals(listOf(1), history.releases.single().changes.map { it.issue })
+    }
+
+    @Test
+    fun `rejects unmatched technical fragment whose issue was not previously released`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "released", true, "Выпущенное изменение")
+        git.commit("Released task (#1)")
+        git.annotatedTag("apk/0.1.0")
+        git.fragment(2, "unmatched", false, "Новое техническое изменение")
+        git.commit("Commit without issue")
+
+        val error = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(directory))
+                .generate("HEAD", "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.BUILD)
+        }
+
+        assertTrue(error.message!!.contains("#2"))
+        assertTrue(error.message!!.contains("without a matching issue"))
+    }
+
+    @Test
+    fun `rejects missing extra and conflicting fragments`() {
+        val missing = TestGit(directory.resolve("missing"))
+        missing.init()
+        missing.file("README.md", "x")
+        missing.commit("Missing notes (#7)")
+        val missingError = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(missing.root))
+                .generate("HEAD", "1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+        assertTrue(missingError.message!!.contains("#7"))
+
+        val extra = TestGit(directory.resolve("extra"))
+        extra.init()
+        extra.fragment(7, "extra", true, "Лишнее изменение")
+        extra.commit("Commit without issue")
+        val extraError = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(extra.root))
+                .generate("HEAD", "1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+        assertTrue(extraError.message!!.contains("#7"))
+
+        val conflict = TestGit(directory.resolve("conflict"))
+        conflict.init()
+        conflict.fragment(7, "first", true, "Первое изменение")
+        conflict.fragment(7, "second", true, "Второе изменение")
+        conflict.commit("Conflicting notes (#7)")
+        val conflictError = assertThrows(GenerationException::class.java) {
+            ReleaseHistoryGenerator(GitRepository(conflict.root))
+                .generate("HEAD", "1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+        }
+        assertTrue(conflictError.message!!.contains("multiple fragments"))
+    }
+
+    @Test
+    fun `canonical outputs are stable and escape content`() {
+        val history = GeneratedHistory(
+            releases = listOf(
+                GeneratedRelease("0.1.2", "abc", listOf(ReleaseChange(25, "Кавычка \" и \\ $ знак"))),
+            ),
+            latestChanges = listOf(ReleaseChange(45, "Последнее улучшение")),
+        )
+        val firstJson = CanonicalOutput.json(history)
+        assertEquals(firstJson, CanonicalOutput.json(history))
+        assertTrue(firstJson.endsWith("\n"))
+        assertTrue(firstJson.contains("\"latestChanges\""))
+        assertTrue(firstJson.indexOf("\"issue\": 45") < firstJson.indexOf("\"releases\""))
+        assertTrue(firstJson.contains("Кавычка \\\" и \\\\"))
+        val firstKotlin = CanonicalOutput.kotlinSource(history, "example.generated")
+        assertEquals(firstKotlin, CanonicalOutput.kotlinSource(history, "example.generated"))
+        assertTrue(firstKotlin.contains("val latestChanges: List<ReleaseChange>"))
+        assertTrue(firstKotlin.indexOf("issueNumber = 45") < firstKotlin.indexOf("val releases"))
+        assertTrue(firstKotlin.contains("\\$ знак"))
+        assertFalse(firstKotlin.contains("\r"))
+    }
+
+    @Test
+    fun `tracked fragment input ignores untracked files and changes with committed fragments`() {
+        val git = TestGit(directory)
+        git.init()
+        git.fragment(1, "first", true, "Первое изменение")
+        git.commit("Add first change (#1)")
+        val repository = GitRepository(directory)
+        val firstHead = git.head()
+        val firstInput = repository.trackedFragmentMetadata(firstHead)
+        val firstOutput = ReleaseHistoryGenerator(repository)
+            .generate(firstHead, "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+
+        git.fragment(99, "untracked", true, "Не должно попасть в историю")
+
+        assertEquals(firstInput, repository.trackedFragmentMetadata(firstHead))
+        assertEquals(
+            firstOutput,
+            ReleaseHistoryGenerator(repository)
+                .generate(firstHead, "0.1.1", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE),
+        )
+
+        git.delete(".release-notes/99-untracked.yaml")
+        git.fragment(2, "second", true, "Второе изменение")
+        git.commit("Add second change (#2)")
+        val secondHead = git.head()
+
+        assertTrue(repository.trackedFragmentMetadata(secondHead) != firstInput)
+        assertEquals(
+            listOf(2, 1),
+            ReleaseHistoryGenerator(repository)
+                .generate(secondHead, "0.1.2", ReleaseFlavor.PERSONAL, ReleaseHistoryMode.RELEASE)
+                .releases.single().changes.map { it.issue },
+        )
+    }
+
+    private class TestGit(val root: Path) {
+        fun init() {
+            Files.createDirectories(root)
+            run("init", "-b", "main")
+            run("config", "user.name", "Test")
+            run("config", "user.email", "test@example.com")
+        }
+
+        fun fragment(
+            issue: Int,
+            slug: String,
+            visible: Boolean,
+            message: String,
+            flavors: List<String> = emptyList(),
+            suppressReleasedChange: Boolean = false,
+        ) {
+            val typeLine = if (visible) "text: $message" else "reason: $message"
+            val flavorLines = if (flavors.isEmpty()) "" else "flavors:\n" + flavors.joinToString("") { "  - $it\n" }
+            val suppressionLine = if (suppressReleasedChange) "suppressReleasedChange: true\n" else ""
+            file(
+                ".release-notes/$issue-$slug.yaml",
+                "issue: $issue\nuserVisible: $visible\n$suppressionLine$typeLine\n$flavorLines",
+            )
+        }
+
+        fun file(path: String, contents: String) {
+            val target = root.resolve(path)
+            Files.createDirectories(target.parent)
+            Files.writeString(target, contents)
+        }
+
+        fun delete(path: String) {
+            Files.delete(root.resolve(path))
+        }
+
+        fun commit(subject: String) {
+            run("add", ".")
+            run("commit", "-m", subject)
+        }
+
+        fun head(): String = run("rev-parse", "HEAD").trim()
+        fun annotatedTag(name: String) = run("tag", "-a", name, "-m", name)
+        fun lightweightTag(name: String) = run("tag", name)
+        fun branch(name: String) = run("branch", name)
+        fun checkout(name: String) = run("checkout", name)
+        fun mergeNoFastForward(name: String, message: String) = run("merge", "--no-ff", name, "-m", message)
+
+        private fun run(vararg arguments: String): String {
+            val process = ProcessBuilder(listOf("git", "-C", root.toString()) + arguments).start()
+            val output = process.inputStream.bufferedReader().readText()
+            val error = process.errorStream.bufferedReader().readText()
+            check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed: $error" }
+            return output
+        }
+    }
+
+    private fun repositoryWithBaseline(withCandidateFragment: Boolean = false): Pair<TestGit, ReleaseHistoryBaseline> {
+        val git = TestGit(directory)
+        git.init()
+        git.file("README.md", "legacy")
+        git.commit("Legacy history")
+        val boundary = git.head()
+        if (withCandidateFragment) git.fragment(30, "baseline-fallback", true, "Новый выпуск")
+        else git.file("README.md", "ordinary build")
+        git.commit(if (withCandidateFragment) "Add release fallback (#30)" else "Prepare ordinary build")
+        val baseline = ReleaseHistoryBaseline(
+            boundary,
+            listOf(
+                BootstrapRelease(
+                    GeneratedRelease("0.1.5", boundary, emptyList()),
+                    HistoricalBoundaryEvidence(
+                        HistoricalBoundaryStatus.CONFIRMED,
+                        boundaryCommit = boundary,
+                        candidateCommit = null,
+                        source = "test",
+                    ),
+                ),
+            ),
+        )
+        return git to baseline
+    }
+
+    private fun runGit(root: Path, vararg arguments: String): String {
+        val process = ProcessBuilder(listOf("git", "-C", root.toString()) + arguments).start()
+        val output = process.inputStream.bufferedReader().readText()
+        val error = process.errorStream.bufferedReader().readText()
+        check(process.waitFor() == 0) { "git ${arguments.joinToString(" ")} failed: $error" }
+        return output
+    }
+}

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="reference_set_label">Набор даведачных значэнняў: ScaleSync 1</string>
+    <string name="reference_set_label">Набор даведачных значэнняў: Weigh Together 1</string>
     <string name="reference_group_main">Асноўнае</string>
     <string name="reference_group_body_composition">Склад цела</string>
     <string name="reference_group_muscles_and_bones">Мышцы і косці</string>
@@ -123,7 +123,7 @@
     <string name="reference_secondary_chumlea">Дадатковая неінтэрактыўная крыніца: Chumlea — мадэлі агульнай колькасці вады ў арганізме.</string>
     <string name="reference_secondary_janssen">Дадатковая неінтэрактыўная крыніца: Janssen і інш., 2000 — раўнанне мышачнай масы.</string>
     <string name="reference_secondary_niams">Дадатковая неінтэрактыўная крыніца: NIAMS — чым разліковая касцяная маса адрозніваецца ад мінеральнай шчыльнасці касцей і T-крытэрыю.</string>
-    <string name="reference_secondary_espen">Дадатковая неінтэрактыўная крыніца: ESPEN/GLIM — клінічны кантэкст індэкса абястлушчанай масы, які не выкарыстоўваецца як шкала ацэнкі ScaleSync.</string>
+    <string name="reference_secondary_espen">Дадатковая неінтэрактыўная крыніца: ESPEN/GLIM — клінічны кантэкст індэкса абястлушчанай масы, які не выкарыстоўваецца як шкала ацэнкі Weigh Together.</string>
 
     <string name="reference_help_weight_meaning">Маса цела, непасрэдна вымераная вагамі.</string>
     <string name="reference_help_weight_calculation">Межы вагі разлічваюцца паводле захаванага росту з выкарыстаннем парогаў ІМТ Xiaomi Legacy. Таму катэгорыя вагі заўсёды супадае з катэгорыяй ІМТ.</string>
@@ -144,7 +144,7 @@
     <string name="reference_help_body_fat_mass_meaning">Разліковая маса тлушчавай тканкі ў кілаграмах.</string>
     <string name="reference_help_body_fat_mass_calculation">Маса = вага × доля тлушчу ў %. Для вызначэння катэгорыі выкарыстоўваецца індэкс тлушчавай масы: тлушчавая маса / рост², у параўнанні з перцэнтылямі P5/P95 паводле Schutz.</string>
     <string name="reference_help_body_fat_mass_dependencies">Разліковая доля тлушчу ў арганізме, вага, захаваны рост, бягучы пол і ўзрост.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 — папуляцыйныя перцэнтылі для дарослых жыхароў Жэневы, а «Нармальны» — прадуктовая інтэрпрэтацыя ScaleSync. Шкала недаступная для асоб маладзейшых за 18 і старэйшых за 98 гадоў.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 — папуляцыйныя перцэнтылі для дарослых жыхароў Жэневы, а «Нармальны» — прадуктовая інтэрпрэтацыя Weigh Together. Шкала недаступная для асоб маладзейшых за 18 і старэйшых за 98 гадоў.</string>
     <string name="reference_help_water_meaning">Разліковая доля агульнай колькасці вады ў арганізме. Гэта не колькасць выпітай вады.</string>
     <string name="reference_help_water_calculation">Сумяшчальная з Xiaomi формула выводзіць паказчык з разліковага складу цела; катэгорыя вызначаецца паводле шкалы Xiaomi Legacy з улікам полу.</string>
     <string name="reference_help_water_dependencies">Бягучы пол, склад цела, узровень вадкасці ў арганізме і ўмовы вымярэння.</string>
@@ -154,7 +154,7 @@
     <string name="reference_help_water_mass_dependencies">Памеры цела і разліковая доля вады.</string>
     <string name="reference_help_water_mass_limitations">Абсалютная колькасць заканамерна большая ў буйнейшага чалавека і сама па сабе не паказвае ўзровень вадкасці ў арганізме. Сумяшчальнай універсальнай шкалы ў кілаграмах няма.</string>
     <string name="reference_help_muscle_mass_meaning">Разліковая маса мышачнай тканкі.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync адымае ад вагі разліковыя тлушчавую і касцявую масы. Катэгорыя вызначаецца паводле парогаў Xiaomi Legacy з улікам полу і росту.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together адымае ад вагі разліковыя тлушчавую і касцявую масы. Катэгорыя вызначаецца паводле парогаў Xiaomi Legacy з улікам полу і росту.</string>
     <string name="reference_help_muscle_mass_dependencies">Бягучы пол, захаваны рост, вага і ўсе ўваходныя значэнні БІА.</string>
     <string name="reference_help_muscle_mass_limitations">Значэнне залежыць ад алгарытму і не вымярае сілу або функцыянальнасць мышцаў.</string>
     <string name="reference_help_skeletal_muscle_meaning">Разліковая маса мышцаў, якія забяспечваюць рух цела.</string>
@@ -169,7 +169,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Унутраная сумяшчальная з Xiaomi формула ўлічвае мышачную масу, вагу і ваду. Парогі Xiaomi Legacy — 16% і 20%.</string>
     <string name="reference_help_protein_dependencies">Усе ўваходныя значэнні мышачнай масы і вады.</string>
     <string name="reference_help_protein_limitations">Не паказвае спажыванне бялку, яго ўзровень у крыві або якасць харчавання.</string>
-    <string name="reference_help_protein_mass_meaning">Разліковая маса бялковых складнікаў паводле ўнутранай формулы ScaleSync.</string>
+    <string name="reference_help_protein_mass_meaning">Разліковая маса бялковых складнікаў паводле ўнутранай формулы Weigh Together.</string>
     <string name="reference_help_protein_mass_calculation">Вага × доля бялку ў %.</string>
     <string name="reference_help_protein_mass_dependencies">Разліковыя мышачная маса, вада, бялок і вага.</string>
     <string name="reference_help_protein_mass_limitations">Гэта не пацверджаная даследаваннямі агульная маса бялку ў арганізме, не аналіз крыві на бялок і не мэтавы паказчык рацыёну. Сумяшчальнай шкалы ў кілаграмах няма.</string>
@@ -178,7 +178,7 @@
     <string name="reference_help_visceral_fat_dependencies">Бягучыя пол і ўзрост, захаваны рост і вага.</string>
     <string name="reference_help_visceral_fat_limitations">Гэта бязмерная алгарытмічная шкала, а не маса, працэнт, акружнасць таліі або плошча паводле КТ/МРТ.</string>
     <string name="reference_help_bmr_meaning">Разліковая колькасць энергіі, якую арганізм расходуе ў стане спакою за суткі.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync выкарыстоўвае формулу на аснове полу, узросту, росту і вагі. Даведачны парог Xiaomi Legacy роўны вазе, памножанай на каэфіцыент для адпаведных узросту і полу.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together выкарыстоўвае формулу на аснове полу, узросту, росту і вагі. Даведачны парог Xiaomi Legacy роўны вазе, памножанай на каэфіцыент для адпаведных узросту і полу.</string>
     <string name="reference_help_bmr_dependencies">Бягучыя пол і ўзрост, захаваны рост і вага.</string>
     <string name="reference_help_bmr_limitations">Гэта не сутачная мэта па калорыях, не парада па харчаванні і не непасрэднае вымярэнне метадам калорыметрыі.</string>
     <string name="reference_help_metabolic_age_meaning">Паказчык на аснове складу цела, спецыфічны для гэтага алгарытму.</string>

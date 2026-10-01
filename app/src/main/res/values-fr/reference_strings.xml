@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources xmlns:tools="http://schemas.android.com/tools">
-    <string name="reference_set_label">Ensemble de référence : ScaleSync 1</string>
+    <string name="reference_set_label">Ensemble de référence : Weigh Together 1</string>
     <string name="reference_group_main">Principales</string>
     <string name="reference_group_body_composition">Composition du corps</string>
     <string name="reference_group_muscles_and_bones">Muscles et os</string>
@@ -109,7 +109,7 @@
     <string name="reference_secondary_chumlea">Référence non interactive supplémentaire: Chumlea — modèles d\'eau corporelle totale.</string>
     <string name="reference_secondary_janssen">Référence non interactive supplémentaire: Janssen et coll., 2000 — équation de masse musculaire squelettique.</string>
     <string name="reference_secondary_niams">Référence non interactive supplémentaire: NIAMS — la différence entre la masse osseuse estimée et la masse de BMD et de T.</string>
-    <string name="reference_secondary_espen">Référence non interactive supplémentaire: ESPEN/GLIM — contexte clinique FFMI, non utilisé comme échelle de notation ScaleSync.</string>
+    <string name="reference_secondary_espen">Référence non interactive supplémentaire: ESPEN/GLIM — contexte clinique FFMI, non utilisé comme échelle de notation Weigh Together.</string>
     <string name="reference_help_weight_meaning">Masse corporelle mesurée directement par la balance.</string>
     <string name="reference_help_weight_calculation">Les limites de poids sont calculées à partir de la taille enregistrée à l\'aide des seuils de l\'IMC Xiaomi Legacy.</string>
     <string name="reference_help_weight_dependencies">Taille et poids enregistrés. L’impédance n’est pas utilisée.</string>
@@ -129,7 +129,7 @@
     <string name="reference_help_body_fat_mass_meaning">Masse estimée des tissus adipeux en kilogrammes.</string>
     <string name="reference_help_body_fat_mass_calculation">Masse = poids × graisse corporelle %. La catégorie de référence utilise l\'IMF: masse grasse / taille2, par rapport aux percentiles Schutz P5/P95.</string>
     <string name="reference_help_body_fat_mass_dependencies">Estimation de la graisse corporelle, du poids, de la taille sauvée, du sexe actuel et de l\'âge.</string>
-    <string name="reference_help_body_fat_mass_limitations">P5–P95 sont des percentiles de population pour les adultes à Genève, tandis que -Normal est une interprétation de produit ScaleSync. L\'échelle n\'est pas disponible en dessous de 18 ans et au-dessus de 98 ans.</string>
+    <string name="reference_help_body_fat_mass_limitations">P5–P95 sont des percentiles de population pour les adultes à Genève, tandis que -Normal est une interprétation de produit Weigh Together. L\'échelle n\'est pas disponible en dessous de 18 ans et au-dessus de 98 ans.</string>
     <string name="reference_help_water_meaning">Proportion estimée de l\'eau totale du corps, ce n\'est pas la quantité d\'eau consommée.</string>
     <string name="reference_help_water_calculation">Une formule compatible avec Xiaomi dérive la métrique de la composition corporelle estimée; la catégorie utilise une échelle Xiaomi Legacy spécifique au sexe.</string>
     <string name="reference_help_water_dependencies">Sexe actuel, composition corporelle, hydratation et conditions de mesure.</string>
@@ -139,7 +139,7 @@
     <string name="reference_help_water_mass_dependencies">Taille du corps et pourcentage estimé de l\'eau.</string>
     <string name="reference_help_water_mass_limitations">La quantité absolue est naturellement plus élevée chez une personne plus grande et n\'indique pas l\'hydratation par elle-même. Il n\'y a pas d\'échelle universelle compatible kilogramme.</string>
     <string name="reference_help_muscle_mass_meaning">Masse estimée des tissus musculaires.</string>
-    <string name="reference_help_muscle_mass_calculation">ScaleSync soustrait la masse de graisse estimée et la masse osseuse du poids. La catégorie utilise les seuils Xiaomi Legacy par sexe et par taille.</string>
+    <string name="reference_help_muscle_mass_calculation">Weigh Together soustrait la masse de graisse estimée et la masse osseuse du poids. La catégorie utilise les seuils Xiaomi Legacy par sexe et par taille.</string>
     <string name="reference_help_muscle_mass_dependencies">Le sexe actuel, la taille sauvée, le poids, et toutes les entrées BIA.</string>
     <string name="reference_help_muscle_mass_limitations">La valeur dépend de l\'algorithme et ne mesure pas la force ou la fonction musculaire.</string>
     <string name="reference_help_skeletal_muscle_meaning">Masse estimée des muscles qui déplacent le corps.</string>
@@ -154,7 +154,7 @@
     <string name="reference_help_protein_calculation" formatted="false">Une formule compatible avec Xiaomi utilise la masse musculaire, le poids et l\'eau. Les seuils Xiaomi Legacy sont de 16% et 20%.</string>
     <string name="reference_help_protein_dependencies">Tous les apports de masse musculaire et d\'eau.</string>
     <string name="reference_help_protein_limitations">Il ne montre pas la consommation de protéines, de protéines sanguines ou de qualité alimentaire.</string>
-    <string name="reference_help_protein_mass_meaning">Masse estimée des composants protéiques de la formule interne de ScaleSync.</string>
+    <string name="reference_help_protein_mass_meaning">Masse estimée des composants protéiques de la formule interne de Weigh Together.</string>
     <string name="reference_help_protein_mass_calculation">Poids × protéines %</string>
     <string name="reference_help_protein_mass_dependencies">Estimation du muscle, de l\'eau, des protéines et du poids.</string>
     <string name="reference_help_protein_mass_limitations">Il ne s\'agit pas d\'une masse totale de protéines validée, d\'un test de protéines sanguines ou d\'une cible alimentaire. Il n\'y a pas d\'échelle de kilogramme compatible.</string>
@@ -163,7 +163,7 @@
     <string name="reference_help_visceral_fat_dependencies">Le sexe et l\'âge actuels, la taille et le poids sauvés.</string>
     <string name="reference_help_visceral_fat_limitations">Il s\'agit d\'une échelle algorithmique sans dimension, pas d\'une masse, d\'un pourcentage, d\'une tour de taille ou d\'une zone CT/IRM.</string>
     <string name="reference_help_bmr_meaning">Estimation de l\'énergie que le corps utilise au repos sur une journée.</string>
-    <string name="reference_help_bmr_calculation">ScaleSync utilise une formule basée sur le sexe, l\'âge, la taille et le poids. Le seuil de référence Xiaomi Legacy équivaut au poids multiplié par un coefficient spécifique à l\'âge et au sexe.</string>
+    <string name="reference_help_bmr_calculation">Weigh Together utilise une formule basée sur le sexe, l\'âge, la taille et le poids. Le seuil de référence Xiaomi Legacy équivaut au poids multiplié par un coefficient spécifique à l\'âge et au sexe.</string>
     <string name="reference_help_bmr_dependencies">Le sexe et l\'âge actuels, la taille et le poids sauvés.</string>
     <string name="reference_help_bmr_limitations">Il ne s\'agit pas d\'une cible quotidienne de calories, de conseils alimentaires ou d\'une mesure directe de calorimétrie.</string>
     <string name="reference_help_metabolic_age_meaning">Un indicateur spécifique à l\'algorithme basé sur la composition du corps.</string>
