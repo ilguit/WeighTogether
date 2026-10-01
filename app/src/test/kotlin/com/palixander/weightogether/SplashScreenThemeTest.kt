@@ -3,6 +3,7 @@ package com.palixander.weightogether
 import android.app.Application
 import android.content.ComponentName
 import android.content.Context
+import android.os.Build
 import android.util.TypedValue
 import android.view.ContextThemeWrapper
 import androidx.test.core.app.ApplicationProvider
@@ -15,7 +16,7 @@ import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [26, 31, 35], application = Application::class)
+@Config(sdk = [26, 31, 33, 35], application = Application::class)
 class SplashScreenThemeTest {
     @Test
     @Config(qualifiers = "night")
@@ -50,5 +51,22 @@ class SplashScreenThemeTest {
             R.style.Theme_ScaleSync,
             attributeResource(androidx.core.splashscreen.R.attr.postSplashScreenTheme),
         )
+
+        if (Build.VERSION.SDK_INT >= 31) {
+            assertEquals(
+                R.color.scalesync_background,
+                attributeResource(android.R.attr.windowSplashScreenBackground),
+            )
+            assertEquals(
+                R.drawable.ic_weigh_together_splash,
+                attributeResource(android.R.attr.windowSplashScreenAnimatedIcon),
+            )
+        }
+        if (Build.VERSION.SDK_INT >= 33) {
+            val behavior = TypedValue()
+            assertTrue(theme.resolveAttribute(android.R.attr.windowSplashScreenBehavior, behavior, true))
+            // The platform icon_preferred enum is 1; there is no public constant for it.
+            assertEquals(1, behavior.data)
+        }
     }
 }
