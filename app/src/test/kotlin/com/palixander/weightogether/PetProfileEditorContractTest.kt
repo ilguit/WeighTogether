@@ -25,6 +25,39 @@ import org.junit.Test
 
 class PetProfileEditorContractTest {
     @Test
+    fun optionalHeightAcceptsBothDecimalSeparatorsAndClearsOnEdit() {
+        val draft = PetProfileDraft.create().copy(displayName = "Cat", species = PetSpecies.CAT)
+        for (input in listOf("25.125", "25,125", " 25,125 ")) {
+            assertEquals(25.125, validatePetProfileDraft(draft.copy(heightCm = input), today).newPet!!.heightCm!!, 0.0)
+        }
+        assertNull(validatePetProfileDraft(draft, today).newPet!!.heightCm)
+        val original = pet(id = "cat", name = "Cat", species = PetSpecies.CAT).copy(heightCm = 25.125)
+        val edited = PetProfileDraft.edit(original)
+        assertEquals(25.125, validatePetProfileDraft(edited.copy(displayName = "Kitty"), today).petUpdate!!.heightCm!!, 0.0)
+        val cleared = PetProfileReducer.reduce(PetProfileEditorState(edited), PetProfileAction.HeightChanged(" "))
+        assertNull(validatePetProfileDraft(cleared.draft, today).petUpdate!!.heightCm)
+    }
+
+    @Test
+    fun invalidHeightPreventsProfileSaving() {
+        val draft = PetProfileDraft.create().copy(displayName = "Cat", species = PetSpecies.CAT)
+        for (input in listOf("0", "-1", "NaN", "Infinity", "1e309", "abc", "1,2.3", "9".repeat(400))) {
+            val result = validatePetProfileDraft(draft.copy(heightCm = input), today)
+            assertEquals(input, PetHeightValidationError.INVALID, result.errors.heightCm)
+            assertFalse(input, result.isValid)
+            assertNull(result.profile)
+        }
+    }
+
+    @Test
+    fun editingPreservesHeightAcrossSmallAndLargeFiniteValues() {
+        for (height in listOf(Double.MIN_VALUE, 0.0000001, 25.123456789, Double.MAX_VALUE)) {
+            val original = pet(id = "cat", name = "Cat", species = PetSpecies.CAT).copy(heightCm = height)
+            assertEquals(height, validatePetProfileDraft(PetProfileDraft.edit(original), today).petUpdate!!.heightCm!!, 0.0)
+        }
+    }
+
+    @Test
     fun `restore persisted action replaces dirty draft and pending confirmation`() {
         val persisted = PetProfileEditorState(
             PetProfileDraft.create().copy(displayName = "Луна", species = PetSpecies.CAT),

@@ -12,6 +12,8 @@ import com.palixander.weightogether.R
 import com.palixander.weightogether.ui.text.UiText
 import com.palixander.weightogether.ui.text.pluralUiText
 import com.palixander.weightogether.ui.text.uiText
+import com.palixander.weightogether.formatPetHeight
+import java.util.Locale
 import java.time.LocalDate
 
 val EmptyPetProfileSummary: UiText = uiText(R.string.pet_profile_summary_empty)
@@ -33,6 +35,7 @@ fun petProfileSummary(
     pet: Pet,
     breedCatalog: PetBreedCatalog,
     referenceDate: LocalDate = LocalDate.now(),
+    locale: Locale = Locale.getDefault(),
 ): PetProfileSummary {
     val resolvedBreed = pet.breedId?.let { breedCatalog.resolve(it, pet.species) }
     return PetProfileSummary(
@@ -41,6 +44,9 @@ fun petProfileSummary(
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_sex), uiText(if (it == com.palixander.weightogether.domain.PetSex.MALE) R.string.pet_profile_sex_male else R.string.pet_profile_sex_female)))
             }
             resolvedBreed?.let { add(PetProfileSummaryItem(uiText(R.string.pet_profile_breed), petBreedLabel(it))) }
+            pet.heightCm?.let {
+                add(PetProfileSummaryItem(uiText(R.string.pet_editor_height), UiText.Raw(formatPetHeight(it, locale))))
+            }
             pet.birthDate?.let {
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_birth_date), UiText.Raw(formatPartialBirthDate(it))))
                 add(PetProfileSummaryItem(uiText(R.string.pet_profile_age), petAgeLabel(it, referenceDate)))

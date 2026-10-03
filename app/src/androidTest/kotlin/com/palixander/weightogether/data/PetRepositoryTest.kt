@@ -50,6 +50,21 @@ class PetRepositoryTest {
     }
 
     @Test
+    fun heightUpdatesPersistWithoutChangingWeightHistory() = runBlocking {
+        val repository = RoomPetRepository(database)
+        val pet = repository.createPet(NewPet("Cat", PetSpecies.CAT, heightCm = 25.5))
+        val measurement = repository.recordCompletedMeasurement(pet.id, Instant.now(), 70.0, 74.0)
+        assertEquals(25.5, repository.observePets().first().single().pet.heightCm!!, 0.0)
+        val update = PetUpdate(pet.id, "Cat", PetSpecies.CAT, heightCm = 30.0)
+        repository.updatePet(update)
+        assertEquals(30.0, repository.getPet(pet.id)!!.heightCm!!, 0.0)
+        repository.updatePet(update.copy(heightCm = null))
+        assertNull(repository.observePets().first().single().pet.heightCm)
+        assertEquals(listOf(measurement), repository.observeMeasurements(pet.id).first())
+        assertEquals(1, repository.getPetWithMeasurementCount(pet.id)!!.measurementCount)
+    }
+
+    @Test
     fun createPetEnforcesNormalizedNameUniqueness() = runBlocking<Unit> {
         val ids = ArrayDeque(listOf("pet-a", "pet-b"))
         val repository = RoomPetRepository(

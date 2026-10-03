@@ -87,7 +87,7 @@ private fun WeighingReminderScheduleEntity.toBackup() = BackupReminderScheduleV7
 
 private fun PetEntity.toBackup() = BackupPetV2(
     id, displayName, normalizedName, species, createdAtEpochMillis, updatedAtEpochMillis,
-    sex, breedId?.let(::canonicalBreedId), birthYear, birthMonth, birthDay, dogAdultWeightCategory,
+    sex, breedId?.let(::canonicalBreedId), birthYear, birthMonth, birthDay, dogAdultWeightCategory, heightCm,
 )
 
 private fun PetMeasurementEntity.toBackup() = BackupPetMeasurementV2(

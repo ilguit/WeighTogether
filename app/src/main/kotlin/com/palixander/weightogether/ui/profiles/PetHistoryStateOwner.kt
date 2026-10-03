@@ -362,6 +362,7 @@ class PetHistoryStateOwner(
                             observedPet,
                             referenceData.breedCatalog,
                             LocalDate.now(clock),
+                            locale = locale,
                         ),
                         content = content,
                         series = series,

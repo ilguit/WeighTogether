@@ -36,7 +36,7 @@ class BackupJsonCodecTest {
                 ),
             ),
         )
-            .replace("\"schemaVersion\":8", "\"schemaVersion\":7")
+            .replace("\"schemaVersion\":$BACKUP_SCHEMA_VERSION", "\"schemaVersion\":7")
             .replace(Regex(",\"alarmSoundUri\":(?:null|\"[^\"]*\")"), "")
 
         val decoded = codec.decode(legacy)
@@ -44,6 +44,27 @@ class BackupJsonCodecTest {
         assertEquals(7, decoded.schemaVersion)
         assertEquals(1, decoded.reminderSchedules.size)
         assertTrue(decoded.reminderSchedules.single().alarmSoundUri == null)
+    }
+
+    @Test
+    fun petHeightRoundTripsAndLegacyBackupsHaveNoHeight() {
+        val pet = BackupPetV2("p", "Cat", "cat", PetSpecies.CAT, 1, 2, heightCm = 25.5)
+        val current = document().copy(pets = listOf(pet))
+        assertEquals(current, codec.decode(codec.encode(current)))
+        for (version in 2..8) {
+            val legacy = current.copy(schemaVersion = version, pets = listOf(pet.copy(heightCm = null)))
+            val json = codec.encode(legacy)
+            assertTrue(!JsonParser.parseString(json).asJsonObject.getAsJsonArray("pets")[0].asJsonObject.has("heightCm"))
+            assertTrue(codec.decode(json).pets.single().heightCm == null)
+        }
+        for (height in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            assertThrows(BackupException.Invalid::class.java) {
+                codec.encode(current.copy(pets = listOf(pet.copy(heightCm = height))))
+            }
+        }
+        val malformed = JsonParser.parseString(codec.encode(current)).asJsonObject
+        malformed.getAsJsonArray("pets")[0].asJsonObject.addProperty("heightCm", "25.5")
+        assertThrows(BackupException.Invalid::class.java) { codec.decode(malformed.toString()) }
     }
 
     private val codec = BackupJsonCodec()
@@ -156,7 +177,7 @@ class BackupJsonCodecTest {
     @Test
     fun unsupportedVersionIsReportedBeforeUnknownFields() {
         val json = codec.encode(document())
-            .replace("\"schemaVersion\":8", "\"schemaVersion\":9")
+            .replace("\"schemaVersion\":$BACKUP_SCHEMA_VERSION", "\"schemaVersion\":${BACKUP_SCHEMA_VERSION + 1}")
             .replaceFirst("{", "{\"future\":true,")
 
         assertThrows(BackupException.UnsupportedVersion::class.java) { codec.decode(json) }
@@ -396,6 +417,7 @@ class BackupJsonCodecTest {
             root.remove("pets")
             root.remove("petMeasurements")
         } else {
+            root.getAsJsonArray("pets").forEach { it.asJsonObject.remove("heightCm") }
             root.getAsJsonArray("petMeasurements").forEach { element ->
                 element.asJsonObject.remove("isManuallyEdited")
                 if (version < 5) element.asJsonObject.remove("origin")

@@ -21,7 +21,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         WeighingReminderScheduleEntity::class,
         WeighingReminderRuntimeEntity::class,
     ],
-    version = 19,
+    version = 20,
     exportSchema = true,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -67,6 +67,7 @@ abstract class AppDatabase : RoomDatabase() {
         val MIGRATION_15_16: Migration = Migration15To16
         val MIGRATION_16_17: Migration = Migration16To17
         val MIGRATION_17_18: Migration = Migration17To18
+        val MIGRATION_19_20: Migration = Migration19To20
         val MIGRATION_18_19: Migration = Migration18To19
         val MIGRATION_12_13: Migration = Migration12To13
 
@@ -100,6 +101,7 @@ abstract class AppDatabase : RoomDatabase() {
                 MIGRATION_16_17,
                 MIGRATION_17_18,
                 MIGRATION_18_19,
+                MIGRATION_19_20,
             )
             .build()
     }

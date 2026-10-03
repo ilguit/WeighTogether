@@ -17,4 +17,7 @@
     <string name="pet_editor_birth_incomplete">Заповніть усі вибрані частини дати</string><string name="pet_editor_birth_invalid">Введіть дійсну дату</string><string name="pet_editor_birth_future">Дата народження не може бути в майбутньому</string>
     <string name="birth_date_open_calendar">Відкрити календар</string><string name="birth_date_label">Дата народження</string><string name="birth_date_choose">Виберіть дату</string>
     <string name="error_create_pet">Не вдалося створити профіль улюбленця</string><string name="error_save_pet">Не вдалося зберегти профіль улюбленця</string><string name="error_prepare_delete_pet">Не вдалося підготувати видалення улюбленця</string><string name="error_delete_pet">Не вдалося видалити улюбленця</string>
+    <string name="pet_editor_height">Зріст, см</string>
+    <string name="pet_editor_height_optional">Необов’язково. Залиште порожнім, щоб очистити.</string>
+    <string name="pet_editor_height_invalid">Введіть зріст більший за нуль</string>
 </resources>

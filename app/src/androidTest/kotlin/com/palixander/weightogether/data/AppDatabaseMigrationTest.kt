@@ -47,6 +47,28 @@ class AppDatabaseMigrationTest {
     }
 
     @Test
+    fun migrate19To20AddsNullableHeightAndPreservesPetWeight() {
+        val name = "pet-height-migration-19-20"
+        helper.createDatabase(name, 19).apply {
+            execSQL("INSERT INTO pets (id,displayName,normalizedName,species,createdAtEpochMillis,updatedAtEpochMillis) VALUES ('p','Cat','cat','CAT',1,2)")
+            execSQL("INSERT INTO pet_measurements (id,petId,measuredAtEpochSecond,firstWeightKg,secondWeightKg,petWeightKg,origin,isManuallyEdited) VALUES ('m','p',3,70,74,4,'SCALE',0)")
+            close()
+        }
+        helper.runMigrationsAndValidate(name, 20, true, AppDatabase.MIGRATION_19_20).apply {
+            query("SELECT heightCm,displayName FROM pets WHERE id='p'").use {
+                assertTrue(it.moveToFirst())
+                assertTrue(it.isNull(0))
+                assertEquals("Cat", it.getString(1))
+            }
+            query("SELECT petWeightKg FROM pet_measurements WHERE id='m'").use {
+                assertTrue(it.moveToFirst())
+                assertEquals(4.0, it.getDouble(0), 0.0)
+            }
+            close()
+        }
+    }
+
+    @Test
     fun migrate17To18CreatesReminderTablesAndOwnerCascadeTriggers() {
         helper.createDatabase(MIGRATION_17_18_DB, 17).apply {
             execSQL("INSERT INTO accounts VALUES ('a','Alex','alex',NULL,NULL,NULL,0,2,3,NULL)")

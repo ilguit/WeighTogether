@@ -25,6 +25,9 @@ class BackupJsonCodec(
             throw BackupException.Invalid("$", error.message ?: "invalid value")
         }
         val root = gson.toJsonTree(document).asJsonObject
+        if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V9) {
+            root.getAsJsonArray("pets").forEach { it.asJsonObject.remove("heightCm") }
+        }
         if (document.schemaVersion < BACKUP_SCHEMA_VERSION_V5) {
             root.getAsJsonArray("measurements").forEach { it.asJsonObject.remove("origin") }
             root.getAsJsonArray("petMeasurements").forEach { it.asJsonObject.remove("origin") }
@@ -167,7 +170,12 @@ class BackupJsonCodec(
             root.array("pets").forEachIndexed { index, element ->
                 val path = "$.pets[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, if (version < BACKUP_SCHEMA_VERSION_V4) PET_KEYS_V2 else PET_KEYS_V3)
+                    requireKeys(path, when {
+                        version >= BACKUP_SCHEMA_VERSION_V9 -> PET_KEYS_V3 + "heightCm"
+                        version >= BACKUP_SCHEMA_VERSION_V4 -> PET_KEYS_V3
+                        else -> PET_KEYS_V2
+                    })
+                    if (version >= BACKUP_SCHEMA_VERSION_V9) requireNullableNumbers(path, setOf("heightCm"))
                     requireStrings(path, setOf("id", "displayName", "normalizedName", "species"))
                     requireEnum(path, "species", setOf("CAT", "DOG", "UNSPECIFIED"))
                     requireNumbers(path, setOf("createdAtEpochMillis", "updatedAtEpochMillis"))
@@ -203,13 +211,13 @@ class BackupJsonCodec(
             root.array("reminderSchedules").forEachIndexed { index, element ->
                 val path = "$.reminderSchedules[$index]"
                 element.requiredObject(path).apply {
-                    requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION) REMINDER_SCHEDULE_KEYS else REMINDER_SCHEDULE_KEYS - "alarmSoundUri")
+                    requireKeys(path, if (version >= BACKUP_SCHEMA_VERSION_V8) REMINDER_SCHEDULE_KEYS else REMINDER_SCHEDULE_KEYS - "alarmSoundUri")
                     requireStrings(path, setOf("id", "ownerType", "ownerId", "importance"))
                     requireEnum(path, "ownerType", setOf("ACCOUNT", "PET"))
                     requireEnum(path, "importance", setOf("REGULAR", "ALARM"))
                     requireNumbers(path, setOf("minuteOfDay", "weekdaysMask", "createdAtEpochMillis", "updatedAtEpochMillis"))
                     requireBooleans(path, setOf("enabled"))
-                    if (version >= BACKUP_SCHEMA_VERSION) requireNullableStrings(path, setOf("alarmSoundUri"))
+                    if (version >= BACKUP_SCHEMA_VERSION_V8) requireNullableStrings(path, setOf("alarmSoundUri"))
                 }
             }
         }
@@ -346,6 +354,10 @@ class BackupJsonCodec(
             }
             invalidUnless(pet.species == PetSpecies.DOG || pet.dogAdultWeightCategory == null,
                 "$path.dogAdultWeightCategory", "requires DOG species")
+            invalidUnless(document.schemaVersion >= BACKUP_SCHEMA_VERSION_V9 || pet.heightCm == null,
+                "$path.heightCm", "requires schema v9")
+            invalidUnless(pet.heightCm == null || (pet.heightCm.isFinite() && pet.heightCm > 0.0),
+                "$path.heightCm", "must be finite and positive")
             validateBirthDate(pet, path)
         }
         val petIds = document.pets.mapTo(hashSetOf()) { it.id }
@@ -536,6 +548,7 @@ class BackupJsonCodec(
             BACKUP_SCHEMA_VERSION_V5,
             BACKUP_SCHEMA_VERSION_V6,
             BACKUP_SCHEMA_VERSION_V7,
+            BACKUP_SCHEMA_VERSION_V8,
             BACKUP_SCHEMA_VERSION,
         )
     }

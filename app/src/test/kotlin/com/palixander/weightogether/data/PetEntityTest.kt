@@ -9,6 +9,26 @@ import org.junit.Test
 
 class PetEntityTest {
     @Test
+    fun heightCanBeAddedChangedAndClearedThroughModelMappings() {
+        val created = com.palixander.weightogether.domain.NewPet("Cat", PetSpecies.CAT, heightCm = 25.5)
+            .toPetEntity("pet", java.time.Instant.ofEpochMilli(1))
+        assertEquals(25.5, created.toDomain().heightCm!!, 0.0)
+        val update = com.palixander.weightogether.domain.PetUpdate(
+            created.toDomain().id, "Cat", PetSpecies.CAT, heightCm = 30.0,
+        )
+        val changed = created.withUpdate(update, java.time.Instant.ofEpochMilli(2))
+        assertEquals(30.0, changed.toDomain().heightCm!!, 0.0)
+        assertEquals(null, changed.withUpdate(update.copy(heightCm = null), java.time.Instant.ofEpochMilli(3)).toDomain().heightCm)
+        for (height in listOf(0.0, -1.0, Double.NaN, Double.POSITIVE_INFINITY, Double.NEGATIVE_INFINITY)) {
+            assertThrows(IllegalArgumentException::class.java) { created.toDomain().copy(heightCm = height) }
+            assertThrows(IllegalArgumentException::class.java) { update.copy(heightCm = height) }
+            assertThrows(IllegalArgumentException::class.java) {
+                com.palixander.weightogether.domain.NewPet("Cat", PetSpecies.CAT, heightCm = height)
+            }
+        }
+    }
+
+    @Test
     fun mappingReconstructsStoredBirthDatePrecision() {
         val pet = entity(birthYear = 2020, birthMonth = 2).toDomain()
 

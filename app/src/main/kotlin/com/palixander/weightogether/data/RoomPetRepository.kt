@@ -87,6 +87,7 @@ class RoomPetRepository(
                         birthDay = updated.birthDay,
                         dogAdultWeightCategory = updated.dogAdultWeightCategory,
                         photoPath = updated.photoPath,
+                        heightCm = updated.heightCm,
                         updatedAtEpochMillis = updated.updatedAtEpochMillis,
                     ) == 1,
                 ) { "Pet ${existing.id} disappeared while updating" }
@@ -192,6 +193,7 @@ internal fun NewPet.toPetEntity(id: String, timestamp: Instant): PetEntity = Pet
     birthDay = birthDate?.dayValue,
     dogAdultWeightCategory = dogAdultWeightCategory,
     photoPath = photoPath,
+    heightCm = heightCm,
 )
 
 internal fun PetEntity.withUpdate(pet: PetUpdate, updatedAt: Instant): PetEntity = copy(
@@ -205,6 +207,7 @@ internal fun PetEntity.withUpdate(pet: PetUpdate, updatedAt: Instant): PetEntity
     birthDay = pet.birthDate?.dayValue,
     dogAdultWeightCategory = pet.dogAdultWeightCategory,
     photoPath = pet.photoPath,
+    heightCm = pet.heightCm,
     updatedAtEpochMillis = updatedAt.toEpochMilli(),
 )
 
@@ -234,6 +237,7 @@ private fun PetWithLatestMeasurementRow.toDomain(): PetWithLatestWeight {
         birthDay = birthDay,
         dogAdultWeightCategory = dogAdultWeightCategory,
         photoPath = photoPath,
+        heightCm = heightCm,
     ).toDomain()
     val latest = latestMeasurementId?.let { measurementId ->
         PetMeasurementEntity(

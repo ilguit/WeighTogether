@@ -66,4 +66,7 @@
     <string name="error_save_pet">Konnte nicht speichern der Haustier</string>
     <string name="error_prepare_delete_pet">Konnte nicht prepare Haustier deletion</string>
     <string name="error_delete_pet">Konnte nicht löschen der Haustier</string>
+    <string name="pet_editor_height">Größe, cm</string>
+    <string name="pet_editor_height_optional">Optional. Zum Löschen leer lassen.</string>
+    <string name="pet_editor_height_invalid">Gib eine Größe größer als null ein</string>
 </resources>

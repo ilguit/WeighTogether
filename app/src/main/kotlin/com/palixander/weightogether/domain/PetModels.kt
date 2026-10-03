@@ -124,6 +124,7 @@ data class Pet(
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
     val photoPath: String? = null,
+    val heightCm: Double? = null,
 ) {
     init {
         validatePetName(displayName)
@@ -133,6 +134,9 @@ data class Pet(
         require(!updatedAt.isBefore(createdAt)) { "Updated time cannot precede created time" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
         validateManagedProfilePhotoPath(photoPath)
+        require(heightCm == null || (heightCm.isFinite() && heightCm > 0.0)) {
+            "Pet height must be finite and positive"
+        }
     }
 }
 
@@ -144,12 +148,16 @@ data class NewPet(
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
     val photoPath: String? = null,
+    val heightCm: Double? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
         validateManagedProfilePhotoPath(photoPath)
+        require(heightCm == null || (heightCm.isFinite() && heightCm > 0.0)) {
+            "Pet height must be finite and positive"
+        }
     }
 
     val normalizedName: String = normalizePetName(displayName)
@@ -164,12 +172,16 @@ data class PetUpdate(
     val birthDate: PartialBirthDate? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
     val photoPath: String? = null,
+    val heightCm: Double? = null,
 ) {
     init {
         validatePetName(displayName)
         require(species != PetSpecies.UNSPECIFIED) { "Pet species must be CAT or DOG" }
         require(species == PetSpecies.DOG || dogAdultWeightCategory == null) { "Adult dog weight category requires DOG species" }
         validateManagedProfilePhotoPath(photoPath)
+        require(heightCm == null || (heightCm.isFinite() && heightCm > 0.0)) {
+            "Pet height must be finite and positive"
+        }
     }
 
     val normalizedName: String = normalizePetName(displayName)

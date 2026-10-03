@@ -17,4 +17,7 @@
     <string name="pet_editor_birth_incomplete">Complete all selected date parts</string><string name="pet_editor_birth_invalid">Enter a valid date</string><string name="pet_editor_birth_future">The date of birth cannot be in the future</string>
     <string name="birth_date_open_calendar">Open calendar</string><string name="birth_date_label">Date of birth</string><string name="birth_date_choose">Choose a date</string>
     <string name="error_create_pet">Could not create the pet</string><string name="error_save_pet">Could not save the pet</string><string name="error_prepare_delete_pet">Could not prepare pet deletion</string><string name="error_delete_pet">Could not delete the pet</string>
+    <string name="pet_editor_height">Height, cm</string>
+    <string name="pet_editor_height_optional">Optional. Leave blank to clear.</string>
+    <string name="pet_editor_height_invalid">Enter a height greater than zero</string>
 </resources>
