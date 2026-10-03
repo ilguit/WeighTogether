@@ -92,9 +92,7 @@ class PetProfileEditorDialogUiTest {
     }
 
     private val catalog = PetBreedCatalog()
-    private val unmappedDog = PetBreedSelection.Available(
-        requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
-    )
+    private val mixedDog = catalog.resolve(BreedId("scalesync:dog:mixed-breed"), PetSpecies.DOG)
 
     @Test
     fun preparedPhotoConfirmedThroughRealEditorUpdatesPetDraftAndConsumesSource() {
@@ -179,7 +177,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Луна",
                     species = PetSpecies.DOG,
                     sex = PetSex.FEMALE,
-                    breed = unmappedDog,
+                    breed = mixedDog,
                     birthDate = PetBirthDateInput.Day("2020", "02", "29"),
                     dogAdultWeightCategory = DogAdultWeightCategory.III,
                 ),
@@ -198,7 +196,7 @@ class PetProfileEditorDialogUiTest {
                 ),
             )
         composeRule.onNodeWithTag(PetProfileEditorTestTags.SexFemale).assertIsSelected()
-        composeRule.onNodeWithText("Доберман").assertExists()
+        composeRule.onNodeWithText((mixedDog as PetBreedSelection.Available).option.displayName).assertExists()
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear)
             .performScrollTo()
@@ -461,115 +459,51 @@ class PetProfileEditorDialogUiTest {
     }
 
     @Test
-    fun mappedBreedsSelectSaltCategoryAndAutomaticValueDoesNotLeak() {
-        val state = mutableStateOf(
-            PetProfileEditorState(
-                PetProfileDraft.create().copy(
-                    displayName = "Бим",
-                    species = PetSpecies.DOG,
-                ),
-            ),
-        )
+    fun namedBreedHidesCategoryAndClearingBreedRestoresUnselectedChoices() {
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create().copy(
+            displayName = "Бим", species = PetSpecies.DOG,
+        )))
         setEditor(state)
-
-        composeRule.onNodeWithText(
-            "Определяет категорийную центильную кривую Salt для возраста от 12 недель до 2 лет.",
-        ).assertIsDisplayed()
-
-        composeRule.runOnIdle {
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(
-                    PetBreedSelection.Available(
-                        catalog.search("Лабрадор", PetSpecies.DOG).single(),
-                    ),
-                ),
-            )
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.category(DogAdultWeightCategory.II))
+            .performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performScrollTo().performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery).performTextInput("Лабрадор")
+        val breed = catalog.search("Лабрадор", PetSpecies.DOG).single()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.breedOption(breed.id.value)).performClick()
+        DogAdultWeightCategory.entries.forEach {
+            composeRule.onNodeWithTag(PetProfileEditorTestTags.category(it)).assertDoesNotExist()
         }
-        composeRule.onNodeWithTag(
-            PetProfileEditorTestTags.category(DogAdultWeightCategory.V),
-        ).performScrollTo()
-            .assertIsSelected()
-            .assert(SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton))
-
-        composeRule.runOnIdle {
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(
-                    PetBreedSelection.Available(
-                        catalog.search("Бигль", PetSpecies.DOG).single(),
-                    ),
-                ),
-            )
-        }
-        composeRule.onNodeWithTag(
-            PetProfileEditorTestTags.category(DogAdultWeightCategory.III),
-        ).performScrollTo().assertIsSelected()
-
-        composeRule.runOnIdle {
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(
-                    PetBreedSelection.Available(
-                        catalog.search("Доберман", PetSpecies.DOG).single(),
-                    ),
-                ),
-            )
-            assertNull(state.value.draft.dogAdultWeightCategory)
-        }
-
-        composeRule.runOnIdle {
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(
-                    PetBreedSelection.Available(
-                        catalog.search("Лабрадор", PetSpecies.DOG).single(),
-                    ),
-                ),
-            )
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(null),
-            )
-            assertNull(state.value.draft.breed)
-            assertNull(state.value.draft.dogAdultWeightCategory)
-        }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear).assertDoesNotExist()
+        composeRule.runOnIdle { assertNull(state.value.draft.dogAdultWeightCategory) }
+        clearBreedThroughPicker()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.category(DogAdultWeightCategory.II))
+            .performScrollTo().assertIsNotSelected().performClick()
+        composeRule.runOnIdle { assertEquals(DogAdultWeightCategory.II, state.value.draft.dogAdultWeightCategory) }
     }
 
     @Test
-    fun manuallySelectedCategorySurvivesUnmappedAndOtherBreedSelections() {
-        val state = mutableStateOf(
-            PetProfileEditorState(
-                PetProfileDraft.create().copy(
-                    displayName = "Бим",
-                    species = PetSpecies.DOG,
-                ),
-            ),
+    fun legacyNamedBreedCategoryIsHiddenAndProfileCanBeSaved() {
+        val pet = com.palixander.weightogether.domain.Pet(
+            id = PetId("legacy"), displayName = "Бим", species = PetSpecies.DOG,
+            breedId = catalog.search("Лабрадор", PetSpecies.DOG).single().id,
+            dogAdultWeightCategory = DogAdultWeightCategory.V,
+            createdAt = java.time.Instant.EPOCH, updatedAt = java.time.Instant.EPOCH,
         )
-        setEditor(state)
-
-        composeRule.onNodeWithTag(
-            PetProfileEditorTestTags.category(DogAdultWeightCategory.II),
-        ).performScrollTo().performClick()
-
-        composeRule.runOnIdle {
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(
-                    PetBreedSelection.Available(
-                        catalog.search("Доберман", PetSpecies.DOG).single(),
-                    ),
-                ),
-            )
-            state.value = PetProfileReducer.reduce(
-                state.value,
-                PetProfileAction.BreedChanged(null),
-            )
-            assertEquals(DogAdultWeightCategory.II, state.value.draft.dogAdultWeightCategory)
+        val state = mutableStateOf(PetProfileEditorState.edit(pet, catalog))
+        var saved = false
+        setEditor(state, onSave = {
+            val result = validatePetProfileDraft(state.value.draft, java.time.LocalDate.of(2026, 10, 3))
+            assertTrue(result.isValid)
+            assertEquals(pet.breedId, result.petUpdate?.breedId)
+            assertNull(result.petUpdate?.dogAdultWeightCategory)
+            saved = true
+        })
+        DogAdultWeightCategory.entries.forEach {
+            composeRule.onNodeWithTag(PetProfileEditorTestTags.category(it)).assertDoesNotExist()
         }
-        composeRule.onNodeWithTag(
-            PetProfileEditorTestTags.category(DogAdultWeightCategory.II),
-        ).assertIsSelected()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.CategoryClear).assertDoesNotExist()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).performClick()
+        composeRule.runOnIdle { assertTrue(saved) }
     }
 
     @Test
@@ -577,7 +511,7 @@ class PetProfileEditorDialogUiTest {
         val initialDraft = PetProfileDraft.create().copy(
             displayName = "Бим",
             species = PetSpecies.DOG,
-            breed = unmappedDog,
+            breed = mixedDog,
             dogAdultWeightCategory = DogAdultWeightCategory.II,
         )
         val state = mutableStateOf(PetProfileEditorState(initialDraft))
@@ -611,7 +545,7 @@ class PetProfileEditorDialogUiTest {
                 PetProfileDraft.create().copy(
                     displayName = "Бим",
                     species = PetSpecies.DOG,
-                    breed = unmappedDog,
+                    breed = mixedDog,
                     birthDate = PetBirthDateInput.Month("2026", ""),
                 ),
             ),
@@ -714,6 +648,7 @@ class PetProfileEditorDialogUiTest {
         setEditor(state)
 
         composeRule.onNodeWithText(unknownId.value, substring = true).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.category(DogAdultWeightCategory.I)).assertDoesNotExist()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedField).performClick()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BreedQuery)
             .performTextInput("Доберман")
@@ -765,7 +700,7 @@ class PetProfileEditorDialogUiTest {
                     displayName = "Бим",
                     species = PetSpecies.DOG,
                     sex = PetSex.MALE,
-                    breed = unmappedDog,
+                    breed = mixedDog,
                     birthDate = PetBirthDateInput.Year("2020"),
                     dogAdultWeightCategory = DogAdultWeightCategory.IV,
                 ),

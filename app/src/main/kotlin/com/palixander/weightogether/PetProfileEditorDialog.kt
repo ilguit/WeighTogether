@@ -547,11 +547,7 @@ internal fun PetProfileEditorDialog(
 
                 val dogCategoryApplicable =
                     isDogAdultWeightCategoryApplicable(draft.species, draft.breed)
-                if (
-                    dogCategoryApplicable ||
-                    draft.dogAdultWeightCategory != null ||
-                    fieldErrors.dogAdultWeightCategory != null
-                ) {
+                if (dogCategoryApplicable) {
                     DogCategoryEditor(
                         selected = draft.dogAdultWeightCategory,
                         error = fieldErrors.dogAdultWeightCategory,
