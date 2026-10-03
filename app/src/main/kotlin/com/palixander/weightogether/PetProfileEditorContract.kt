@@ -3,7 +3,6 @@ package com.palixander.weightogether
 import com.palixander.weightogether.ui.accounts.parseLocalizedDecimal
 import java.math.BigDecimal
 import java.text.DecimalFormatSymbols
-import java.util.Locale
 import com.palixander.weightogether.core.breed.BreedCatalog
 import com.palixander.weightogether.core.breed.BreedKind
 import com.palixander.weightogether.core.breed.BreedRecord
