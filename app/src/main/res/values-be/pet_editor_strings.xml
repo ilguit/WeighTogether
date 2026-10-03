@@ -17,4 +17,7 @@
     <string name="pet_editor_birth_incomplete">Запоўніце ўсе выбраныя часткі даты</string><string name="pet_editor_birth_invalid">Увядзіце правільную дату</string><string name="pet_editor_birth_future">Дата нараджэння не можа быць у будучыні</string>
     <string name="birth_date_open_calendar">Адкрыць каляндар</string><string name="birth_date_label">Дата нараджэння</string><string name="birth_date_choose">Выбраць дату</string>
     <string name="error_create_pet">Не ўдалося стварыць хатнюю жывёлу</string><string name="error_save_pet">Не ўдалося захаваць хатнюю жывёлу</string><string name="error_prepare_delete_pet">Не ўдалося падрыхтаваць выдаленне хатняй жывёлы</string><string name="error_delete_pet">Не ўдалося выдаліць хатнюю жывёлу</string>
+    <string name="pet_editor_height">Рост, см</string>
+    <string name="pet_editor_height_optional">Неабавязкова. Пакіньце пустым, каб ачысціць.</string>
+    <string name="pet_editor_height_invalid">Увядзіце рост большы за нуль</string>
 </resources>

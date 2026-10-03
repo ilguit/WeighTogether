@@ -162,7 +162,7 @@ internal fun PetProfileScreen(
             item {
                 PetProfileSummaryCard(
                     pet = pet,
-                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog),
+                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog, locale = resources.configuration.locales[0]),
                     onEdit = { onEditPet(pet) },
                 )
             }

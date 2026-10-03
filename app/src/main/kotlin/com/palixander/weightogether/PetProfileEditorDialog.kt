@@ -1,6 +1,8 @@
 package com.palixander.weightogether
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.WindowInsets
@@ -114,6 +116,7 @@ internal object PetProfileEditorTestTags {
     const val BirthDay = "pet-profile-editor-birth-day"
     const val BirthClear = "pet-profile-editor-birth-clear"
     const val CategoryClear = "pet-profile-editor-category-clear"
+    const val HeightField = "pet-profile-editor-height"
     const val SaveError = "pet-profile-editor-save-error"
     const val Progress = "pet-profile-editor-progress"
     const val Save = "pet-profile-editor-save"
@@ -175,6 +178,7 @@ internal fun PetProfileEditorDialog(
     val speciesFocus = remember { FocusRequester() }
     val breedFocus = remember { FocusRequester() }
     val birthDateFocus = remember { FocusRequester() }
+    val heightFocus = remember { FocusRequester() }
     val categoryFocus = remember { FocusRequester() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
@@ -265,6 +269,7 @@ internal fun PetProfileEditorDialog(
                 fieldErrors.displayName != null -> nameFocus
                 fieldErrors.species != null -> speciesFocus
                 fieldErrors.breed != null -> breedFocus
+                fieldErrors.heightCm != null -> heightFocus
                 fieldErrors.birthDate != null -> birthDateFocus
                 fieldErrors.dogAdultWeightCategory != null -> categoryFocus
                 else -> null
@@ -511,6 +516,26 @@ internal fun PetProfileEditorDialog(
                         }
                     }
                 }
+
+                OutlinedTextField(
+                    value = draft.heightCm,
+                    onValueChange = { dispatch(PetProfileAction.HeightChanged(it)) },
+                    enabled = !locked,
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.pet_editor_height)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    isError = fieldErrors.heightCm != null,
+                    supportingText = {
+                        if (fieldErrors.heightCm != null) {
+                            FieldError(stringResource(R.string.pet_editor_height_invalid))
+                        } else {
+                            Text(stringResource(R.string.pet_editor_height_optional))
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                        .focusRequester(heightFocus)
+                        .testTag(PetProfileEditorTestTags.HeightField),
+                )
 
                 BirthDateEditor(
                     value = draft.birthDate,

@@ -64,6 +64,33 @@ class PetProfileEditorDialogUiTest {
     @get:Rule
     val composeRule = createAndroidComposeRule<ComponentActivity>()
 
+    @Test
+    fun heightCanBeEnteredAndClearedAndTriggersUnsavedChanges() {
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create()))
+        setEditor(state)
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField)
+            .performScrollTo().performTextReplacement("25,125")
+        composeRule.runOnIdle { assertEquals("25,125", state.value.draft.heightCm) }
+        closeSoftKeyboard()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.Back).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.DiscardConfirmation).assertIsDisplayed()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.KeepEditing).performClick()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField)
+            .performScrollTo().performTextReplacement("")
+        composeRule.runOnIdle { assertEquals("", state.value.draft.heightCm) }
+    }
+
+    @Test
+    fun invalidHeightReceivesFocusAndShowsAccessibleError() {
+        val state = mutableStateOf(PetProfileEditorState(PetProfileDraft.create().copy(heightCm = "0")))
+        val errors = mutableStateOf(PetProfileFieldErrors())
+        setEditor(state, errors = errors)
+        composeRule.runOnIdle { errors.value = PetProfileFieldErrors(heightCm = PetHeightValidationError.INVALID) }
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField)
+            .assertIsFocused().performScrollTo().assertIsDisplayed()
+        composeRule.onNodeWithText("Введите рост больше нуля").assertIsDisplayed()
+    }
+
     private val catalog = PetBreedCatalog()
     private val unmappedDog = PetBreedSelection.Available(
         requireNotNull(catalog.search("Доберман", PetSpecies.DOG).singleOrNull()),
@@ -608,6 +635,7 @@ class PetProfileEditorDialogUiTest {
         )
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField).assertIsNotEnabled()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthYear).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.BirthMonth).assertIsNotEnabled()
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Save).assertIsNotEnabled()
@@ -714,6 +742,9 @@ class PetProfileEditorDialogUiTest {
             .getUnclippedBoundsInRoot()
         val nameBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.NameField)
             .getUnclippedBoundsInRoot()
+        val heightBounds = composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField)
+            .performScrollTo().assertIsDisplayed().getUnclippedBoundsInRoot()
+        assertTrue(heightBounds.left >= dialogBounds.left && heightBounds.right <= dialogBounds.right)
         val breedBounds = composeRule.onNodeWithText(longBreed.displayName)
             .performScrollTo()
             .assertIsDisplayed()
@@ -741,6 +772,12 @@ class PetProfileEditorDialogUiTest {
             ),
         )
         setEditor(state, modifier = Modifier.width(320.dp), fontScale = 2f)
+
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.HeightField)
+            .performScrollTo().assertIsDisplayed().performTextReplacement("32.5")
+        composeRule.runOnIdle { assertEquals("32.5", state.value.draft.heightCm) }
+        closeSoftKeyboard()
+        composeRule.onNodeWithTag(PetProfileEditorTestTags.SpeciesDog).performScrollTo()
 
         composeRule.onNodeWithTag(PetProfileEditorTestTags.Content)
             .assert(hasScrollAction())

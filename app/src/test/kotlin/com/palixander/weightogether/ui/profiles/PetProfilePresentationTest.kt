@@ -18,6 +18,17 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PetProfilePresentationTest {
+    @Test
+    fun heightSummaryPreservesPrecisionAndUsesTheRequestedLocale() {
+        val original = pet().copy(heightCm = 25.125)
+        for ((locale, expected) in listOf(java.util.Locale.US to "25.125", java.util.Locale.GERMANY to "25,125")) {
+            val item = petProfileSummary(original, catalog, locale = locale).items.single()
+            assertEquals(UiText.Resource(R.string.pet_editor_height), item.label)
+            assertEquals(UiText.Raw(expected), item.value)
+        }
+        assertTrue(petProfileSummary(original.copy(heightCm = null), catalog).isEmpty)
+    }
+
     private val catalog = PetBreedCatalog()
 
     @Test

@@ -1,5 +1,9 @@
 package com.palixander.weightogether
 
+import com.palixander.weightogether.ui.accounts.parseLocalizedDecimal
+import java.math.BigDecimal
+import java.text.DecimalFormatSymbols
+import java.util.Locale
 import com.palixander.weightogether.core.breed.BreedCatalog
 import com.palixander.weightogether.core.breed.BreedKind
 import com.palixander.weightogether.core.breed.BreedRecord
@@ -229,6 +233,7 @@ data class PetProfileDraft(
     val birthDate: PetBirthDateInput = PetBirthDateInput.Empty,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
     val photoPath: String? = null,
+    val heightCm: String = "",
 ) {
     companion object {
         fun create(): PetProfileDraft = PetProfileDraft(
@@ -249,6 +254,7 @@ data class PetProfileDraft(
             birthDate = PetBirthDateInput.from(pet.birthDate),
             dogAdultWeightCategory = pet.dogAdultWeightCategory,
             photoPath = pet.photoPath,
+            heightCm = pet.heightCm?.let { formatPetHeight(it, Locale.ROOT) }.orEmpty(),
         )
     }
 }
@@ -302,6 +308,7 @@ data class AutomaticallyAssignedDogCategory(
 
 sealed interface PetProfileAction {
     data class RestorePersisted(val state: PetProfileEditorState) : PetProfileAction
+    data class HeightChanged(val value: String) : PetProfileAction
     data class DisplayNameChanged(val value: String) : PetProfileAction
     data class SpeciesChangeRequested(val species: PetSpecies) : PetProfileAction
     data class SexChanged(val sex: PetSex?) : PetProfileAction
@@ -343,6 +350,7 @@ object PetProfileReducer {
 
         return when (action) {
             is PetProfileAction.RestorePersisted -> action.state
+            is PetProfileAction.HeightChanged -> state.withDraft { copy(heightCm = action.value) }
             is PetProfileAction.DisplayNameChanged -> state.withDraft {
                 copy(displayName = action.value)
             }
@@ -432,6 +440,15 @@ object PetProfileReducer {
     ): PetProfileEditorState = copy(draft = draft.update())
 }
 
+/** Keeps the stored precision when the editor saves an unrelated profile change. */
+internal fun formatPetHeight(value: Double, locale: Locale): String =
+    BigDecimal.valueOf(value).stripTrailingZeros().toPlainString()
+        .replace('.', DecimalFormatSymbols.getInstance(locale).decimalSeparator)
+
+enum class PetHeightValidationError {
+    INVALID,
+}
+
 enum class PetNameValidationError {
     REQUIRED,
     TOO_LONG,
@@ -462,10 +479,11 @@ data class PetProfileFieldErrors(
     val breed: PetBreedValidationError? = null,
     val birthDate: PetBirthDateValidationError? = null,
     val dogAdultWeightCategory: DogAdultWeightCategoryValidationError? = null,
+    val heightCm: PetHeightValidationError? = null,
 ) {
     val hasErrors: Boolean
         get() = displayName != null || species != null || breed != null ||
-            birthDate != null || dogAdultWeightCategory != null
+            birthDate != null || dogAdultWeightCategory != null || heightCm != null
 }
 
 sealed interface ValidatedPetProfile {
@@ -526,12 +544,19 @@ fun validatePetProfileDraft(
     } else {
         null
     }
+    val height = parseLocalizedDecimal(draft.heightCm)?.takeIf { it > 0.0 }
+    val heightError = if (draft.heightCm.isNotBlank() && height == null) {
+        PetHeightValidationError.INVALID
+    } else {
+        null
+    }
     val errors = PetProfileFieldErrors(
         displayName = nameError,
         species = speciesError,
         breed = breedError,
         birthDate = birthDate.error,
         dogAdultWeightCategory = categoryError,
+        heightCm = heightError,
     )
     if (errors.hasErrors) return PetProfileValidationResult(errors, profile = null)
 
@@ -546,6 +571,7 @@ fun validatePetProfileDraft(
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
                 photoPath = draft.photoPath,
+                heightCm = height,
             ),
         )
         is PetProfileEditorMode.Edit -> ValidatedPetProfile.Edit(
@@ -558,6 +584,7 @@ fun validatePetProfileDraft(
                 birthDate = birthDate.value,
                 dogAdultWeightCategory = draft.dogAdultWeightCategory,
                 photoPath = draft.photoPath,
+                heightCm = height,
             ),
         )
     }

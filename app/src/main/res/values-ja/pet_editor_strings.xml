@@ -17,4 +17,7 @@
     <string name="pet_editor_birth_incomplete">選択した日付の項目をすべて入力してください</string><string name="pet_editor_birth_invalid">有効な日付を入力してください</string><string name="pet_editor_birth_future">未来の生年月日は指定できません</string>
     <string name="birth_date_open_calendar">カレンダーを開く</string><string name="birth_date_label">生年月日</string><string name="birth_date_choose">日付を選択</string>
     <string name="error_create_pet">ペットを登録できませんでした</string><string name="error_save_pet">ペットを保存できませんでした</string><string name="error_prepare_delete_pet">ペットを削除する準備ができませんでした</string><string name="error_delete_pet">ペットを削除できませんでした</string>
+    <string name="pet_editor_height">体高（cm）</string>
+    <string name="pet_editor_height_optional">任意。空欄にすると削除されます。</string>
+    <string name="pet_editor_height_invalid">0より大きい体高を入力してください</string>
 </resources>
