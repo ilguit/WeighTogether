@@ -58,7 +58,7 @@ class BackupExportServiceTest {
             appState = AppStateEntity(primaryAccountId = "account", weightDeltaKg = 2.5, ignoreUnknownMeasurements = true),
             measurements = listOf(measurement()),
             pets = listOf(PetEntity("pet", "Dog", "dog", PetSpecies.DOG, 5, 6,
-                PetSex.FEMALE, "external:dog:breed", 2020, 2, null, DogAdultWeightCategory.II)),
+                PetSex.FEMALE, "external:dog:breed", 2020, 2, null, DogAdultWeightCategory.II, heightCm = 31.5)),
             petMeasurements = listOf(PetMeasurementEntity("pet-m", "pet", 7, 70.0, 74.0, 4.0)),
             reminderSchedules = listOf(
                 WeighingReminderScheduleEntity("reminder", WeighingReminderOwnerType.ACCOUNT, "account", 540, 5,
@@ -79,6 +79,7 @@ class BackupExportServiceTest {
         assertEquals(ExternalSyncPolicy.AUTO, document.measurements.single().externalSyncPolicy)
         assertEquals(179.5, document.measurements.single().ratingHeightCm)
         assertEquals(RatingHeightOrigin.RESTORED_CURRENT_ACCOUNT, document.measurements.single().ratingHeightOrigin)
+        assertEquals(31.5, document.pets.single().heightCm!!, 0.0)
         assertEquals(PetSpecies.DOG, document.pets.single().species)
         assertEquals(PetSex.FEMALE, document.pets.single().sex)
         assertEquals("external:dog:breed", document.pets.single().breedId)

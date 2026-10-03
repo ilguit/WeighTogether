@@ -661,7 +661,7 @@ private fun BackupDocumentV1.toSnapshot(
     pets = pets.map {
         PetEntity(it.id, it.displayName, it.normalizedName, it.species, it.createdAtEpochMillis, it.updatedAtEpochMillis,
             it.sex, normalizeImportedBreedId(it.species, it.breedId, breedSnapshotResult), it.birthYear, it.birthMonth, it.birthDay,
-            it.dogAdultWeightCategory)
+            it.dogAdultWeightCategory, heightCm = it.heightCm)
     },
     petMeasurements = petMeasurements.map {
         PetMeasurementEntity(it.id, it.petId, it.measuredAtEpochSecond, it.firstWeightKg, it.secondWeightKg,

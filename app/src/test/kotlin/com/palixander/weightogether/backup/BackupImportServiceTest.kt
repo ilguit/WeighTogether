@@ -45,6 +45,7 @@ class BackupImportServiceTest {
 
         assertEquals("scalesync-backup", BACKUP_FORMAT_ID)
         assertEquals("legacy-account", preview.result.accounts.single().id)
+        assertTrue(preview.result.pets.single().heightCm == null)
         assertEquals("legacy-pet", preview.result.pets.single().id)
         assertEquals("scalesync:cat:mixed-breed", preview.result.pets.single().breedId)
         assertEquals("legacy-weight", preview.result.petMeasurements.single().id)
@@ -138,13 +139,14 @@ class BackupImportServiceTest {
                 origin = com.palixander.weightogether.domain.MeasurementOrigin.MANUAL,
                 measurementType = MeasurementType.WEIGHT_ONLY,
             )),
-            pets = listOf(BackupPetV2("pet", "Кот", "кот", PetSpecies.CAT, 1, 1)),
+            pets = listOf(BackupPetV2("pet", "Кот", "кот", PetSpecies.CAT, 1, 1, heightCm = 23.5)),
             petMeasurements = listOf(BackupPetMeasurementV2("pm", "pet", -60, null, null, 4.125,
                 com.palixander.weightogether.domain.MeasurementOrigin.MANUAL)),
         )
         val imported = service.preview(document, emptySnapshot(), emptySettings, BackupImportMode.MERGE)
         assertEquals(com.palixander.weightogether.domain.MeasurementOrigin.MANUAL, imported.result.measurements.single().origin)
         assertEquals(com.palixander.weightogether.domain.MeasurementOrigin.MANUAL, imported.result.petMeasurements.single().origin)
+        assertEquals(23.5, imported.result.pets.single().toDomain().heightCm!!, 0.0)
         assertEquals(4.125, imported.result.petMeasurements.single().toDomain().petWeightKg, 0.0)
         val repeated = service.preview(document, imported.result, emptySettings, BackupImportMode.MERGE)
         assertEquals(0, repeated.counts.measurementsAdded)

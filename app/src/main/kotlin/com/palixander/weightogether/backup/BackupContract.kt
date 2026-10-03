@@ -12,7 +12,7 @@ import com.palixander.weightogether.data.WeighingReminderOwnerType
 import com.palixander.weightogether.domain.WeighingReminderImportance
 
 const val BACKUP_FORMAT_ID: String = "scalesync-backup"
-const val BACKUP_SCHEMA_VERSION: Int = 8
+const val BACKUP_SCHEMA_VERSION: Int = 9
 const val BACKUP_SCHEMA_VERSION_V1: Int = 1
 const val BACKUP_SCHEMA_VERSION_V2: Int = 2
 const val BACKUP_SCHEMA_VERSION_V3: Int = 3
@@ -20,6 +20,8 @@ const val BACKUP_SCHEMA_VERSION_V4: Int = 4
 const val BACKUP_SCHEMA_VERSION_V5: Int = 5
 const val BACKUP_SCHEMA_VERSION_V6: Int = 6
 const val BACKUP_SCHEMA_VERSION_V7: Int = 7
+const val BACKUP_SCHEMA_VERSION_V8: Int = 8
+const val BACKUP_SCHEMA_VERSION_V9: Int = 9
 const val MAX_BACKUP_ACCOUNTS: Int = 1_000
 const val MAX_BACKUP_MEASUREMENTS: Int = 100_000
 const val MAX_BACKUP_PETS: Int = 1_000
@@ -66,6 +68,7 @@ data class BackupPetV2(
     val birthMonth: Int? = null,
     val birthDay: Int? = null,
     val dogAdultWeightCategory: DogAdultWeightCategory? = null,
+    val heightCm: Double? = null,
 )
 
 data class BackupPetMeasurementV2(

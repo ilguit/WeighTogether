@@ -20,6 +20,7 @@ data class PetWithLatestMeasurementRow(
     val birthDay: Int?,
     val dogAdultWeightCategory: com.palixander.weightogether.domain.reference.DogAdultWeightCategory?,
     val photoPath: String?,
+    val heightCm: Double?,
     val latestMeasurementId: String?,
     val latestMeasuredAtEpochSecond: Long?,
     val latestFirstWeightKg: Double?,
@@ -46,7 +47,7 @@ interface PetDao {
         """
         SELECT p.id, p.displayName, p.normalizedName, p.species, p.createdAtEpochMillis,
             p.updatedAtEpochMillis, p.sex, p.breedId, p.birthYear, p.birthMonth, p.birthDay,
-            p.dogAdultWeightCategory, p.photoPath, m.id AS latestMeasurementId,
+            p.dogAdultWeightCategory, p.photoPath, p.heightCm, m.id AS latestMeasurementId,
             m.measuredAtEpochSecond AS latestMeasuredAtEpochSecond,
             m.firstWeightKg AS latestFirstWeightKg,
             m.secondWeightKg AS latestSecondWeightKg,
@@ -97,7 +98,7 @@ interface PetDao {
             species = :species, sex = :sex, breedId = :breedId, birthYear = :birthYear,
             birthMonth = :birthMonth, birthDay = :birthDay,
             dogAdultWeightCategory = :dogAdultWeightCategory,
-            photoPath = :photoPath,
+            photoPath = :photoPath, heightCm = :heightCm,
             updatedAtEpochMillis = :updatedAtEpochMillis
         WHERE id = :id
         """,
@@ -114,6 +115,7 @@ interface PetDao {
         birthDay: Int?,
         dogAdultWeightCategory: com.palixander.weightogether.domain.reference.DogAdultWeightCategory?,
         photoPath: String?,
+        heightCm: Double?,
         updatedAtEpochMillis: Long,
     ): Int
 
