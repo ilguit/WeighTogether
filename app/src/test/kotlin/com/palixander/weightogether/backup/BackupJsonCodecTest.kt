@@ -417,6 +417,7 @@ class BackupJsonCodecTest {
             root.remove("pets")
             root.remove("petMeasurements")
         } else {
+            root.getAsJsonArray("pets").forEach { it.asJsonObject.remove("heightCm") }
             root.getAsJsonArray("petMeasurements").forEach { element ->
                 element.asJsonObject.remove("isManuallyEdited")
                 if (version < 5) element.asJsonObject.remove("origin")
