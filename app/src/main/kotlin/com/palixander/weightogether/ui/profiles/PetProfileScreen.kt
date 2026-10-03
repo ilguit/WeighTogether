@@ -58,6 +58,7 @@ import com.palixander.weightogether.ui.theme.ScaleSyncDimensions
 import com.palixander.weightogether.ui.reference.AndroidReferenceSourceLauncher
 import com.palixander.weightogether.ui.reference.ReferenceSourceLauncher
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import com.palixander.weightogether.R
 import com.palixander.weightogether.ui.text.resolve
@@ -162,7 +163,7 @@ internal fun PetProfileScreen(
             item {
                 PetProfileSummaryCard(
                     pet = pet,
-                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog, locale = resources.configuration.locales[0]),
+                    summary = state.profileSummary ?: petProfileSummary(pet, FallbackBreedCatalog, locale = LocalConfiguration.current.locales[0]),
                     onEdit = { onEditPet(pet) },
                 )
             }
